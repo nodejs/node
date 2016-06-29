@@ -99,7 +99,12 @@ resolution using &quot;version&quot; if one isn&#39;t.</p>
 <li><p>The tree is walked and any missing dependencies are installed in the usual fashion.</p>
 </li>
 </ol>
-<h3 id="using-shrinkwrapped-packages">Using shrinkwrapped packages</h3>
+<p>If <code>preshrinkwrap</code>, <code>shrinkwrap</code> or <code>postshrinkwrap</code> are in the <code>scripts</code> property of the
+<code>package.json</code>, they will be executed by running <code>npm shrinkwrap</code>.
+<code>preshrinkwrap</code> and <code>shrinkwrap</code> are executed before the shrinkwrap, <code>postshrinkwrap</code> is
+executed afterwards. For example to run some postprocessing on the generated file:</p>
+<pre><code>&quot;scripts&quot;: { &quot;postshrinkwrap&quot;: &quot;node fix-shrinkwrap.js&quot; }
+</code></pre><h3 id="using-shrinkwrapped-packages">Using shrinkwrapped packages</h3>
 <p>Using a shrinkwrapped package is no different than using any other
 package: you can <code>npm install</code> it by hand, or add a dependency to your
 <code>package.json</code> file and <code>npm install</code> it.</p>
@@ -154,6 +159,8 @@ contents rather than versions.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-run-script.html">npm-run-script(1)</a></li>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
 <li><a href="../files/package.json.html">package.json(5)</a></li>
 <li><a href="../cli/npm-ls.html">npm-ls(1)</a></li>
 </ul>
@@ -169,5 +176,5 @@ contents rather than versions.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-shrinkwrap &mdash; npm@3.8.9</p>
+<p id="footer">npm-shrinkwrap &mdash; npm@3.10.2</p>
 

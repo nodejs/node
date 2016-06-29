@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "May 2016" "" ""
+.TH "PACKAGE\.JSON" "5" "June 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -227,11 +227,13 @@ Certain files are always included, regardless of settings:
 .IP \(bu 2
 \fBLICENSE\fP / \fBLICENCE\fP
 .IP \(bu 2
+\fBNOTICE\fP
+.IP \(bu 2
 The file in the "main" field
 
 .RE
 .P
-\fBREADME\fP, \fBCHANGES\fP & \fBLICENSE\fP can have any case and extension\.
+\fBREADME\fP, \fBCHANGES\fP, \fBLICENSE\fP & \fBNOTICE\fP can have any case and extension\.
 .P
 Conversely, some files are always ignored:
 .RS 0
@@ -259,6 +261,8 @@ Conversely, some files are always ignored:
 \fB\|\.npmrc\fP
 .IP \(bu 2
 \fBnode_modules\fP
+.IP \(bu 2
+\fBconfig\.gypi\fP
 
 .RE
 .SH main
@@ -791,10 +795,10 @@ Unless the user has set the \fBengine\-strict\fP config flag, this
 field is advisory only will produce warnings when your package is installed as a dependency\.
 .SH engineStrict
 .P
-\fBThis feature was deprecated with npm 3\.0\.0\fR
+\fBThis feature was removed in npm 3\.0\.0\fR
 .P
 Prior to npm 3\.0\.0, this feature was used to treat this package as if the
-user had set \fBengine\-strict\fP\|\.
+user had set \fBengine\-strict\fP\|\. It is no longer used\.
 .SH os
 .P
 You can specify which operating systems your
@@ -878,9 +882,9 @@ npm will default some values based on package contents\.
 If there is a \fBserver\.js\fP file in the root of your package, then npm
 will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
 .IP \(bu 2
-\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fP
-If there is a \fBbinding\.gyp\fP file in the root of your package, npm will
-default the \fBpreinstall\fP command to compile using node\-gyp\.
+\fB"scripts":{"install": "node\-gyp rebuild"}\fP
+If there is a \fBbinding\.gyp\fP file in the root of your package and you have not defined an \fBinstall\fP or \fBpreinstall\fP script, npm will
+default the \fBinstall\fP command to compile using node\-gyp\.
 .IP \(bu 2
 \fB"contributors": [\.\.\.]\fP
 If there is an \fBAUTHORS\fP file in the root of your package, npm will

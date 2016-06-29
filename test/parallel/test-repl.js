@@ -177,7 +177,7 @@ function error_test() {
     { client: client_unix, send: '(function() { "use strict"; eval = 17; })()',
       expect: /^SyntaxError: Unexpected eval or arguments in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect: /^SyntaxError: In strict mode code, functions can only be declared at top level or immediately within another function/ },
+      expect: /^SyntaxError: In strict mode code, functions can only be declared at top level or inside a block./ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
@@ -228,7 +228,7 @@ function error_test() {
       expect: 'Invalid REPL keyword\n' + prompt_unix },
     // fail when we are not inside a String and a line continuation is used
     { client: client_unix, send: '[] \\',
-      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
+      expect: /^SyntaxError: Invalid or unexpected token/ },
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
       expect: prompt_multiline + prompt_multiline +
@@ -324,6 +324,10 @@ function error_test() {
             'undefined\n' + prompt_unix },
     { client: client_unix, send: '{ var x = 4; }',
       expect: 'undefined\n' + prompt_unix },
+    // Illegal token is not recoverable outside string literal, RegExp literal,
+    // or block comment. https://github.com/nodejs/node/issues/3611
+    { client: client_unix, send: 'a = 3.5e',
+      expect: /^SyntaxError: Invalid or unexpected token/ },
   ]);
 }
 
@@ -338,10 +342,10 @@ function tcp_test() {
     repl.start(prompt_tcp, socket);
   });
 
-  server_tcp.listen(common.PORT, function() {
+  server_tcp.listen(0, function() {
     var read_buffer = '';
 
-    client_tcp = net.createConnection(common.PORT);
+    client_tcp = net.createConnection(this.address().port);
 
     client_tcp.on('connect', function() {
       assert.equal(true, client_tcp.readable);

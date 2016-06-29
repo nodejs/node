@@ -262,7 +262,7 @@ class Simulator {
   void SetCFlag(bool val);
   void SetVFlag(bool val);
   bool CarryFrom(int32_t left, int32_t right, int32_t carry = 0);
-  bool BorrowFrom(int32_t left, int32_t right);
+  bool BorrowFrom(int32_t left, int32_t right, int32_t carry = 1);
   bool OverflowFrom(int32_t alu_out,
                     int32_t left,
                     int32_t right,
@@ -362,6 +362,9 @@ class Simulator {
 
   template<class InputType, int register_size>
       void SetVFPRegister(int reg_index, const InputType& value);
+
+  void SetSpecialRegister(SRegisterFieldMask reg_and_mask, uint32_t value);
+  uint32_t GetFromSpecialRegister(SRegister reg);
 
   void CallInternal(byte* entry);
 

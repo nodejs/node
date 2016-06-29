@@ -1287,7 +1287,8 @@
           }],
         ],
       },  # Debug
-      'Release': {
+      'ReleaseBase': {
+        'abstract': 1,
         'variables': {
           'v8_enable_slow_dchecks%': 0,
         },
@@ -1367,6 +1368,27 @@
           }],
         ],  # conditions
       },  # Release
+      'Release': {
+        'inherit_from': ['ReleaseBase'],
+      },  # Debug
+      'conditions': [
+        [ 'OS=="win"', {
+          # TODO(bradnelson): add a gyp mechanism to make this more graceful.
+          'Debug_x64': {
+            'inherit_from': ['DebugBaseCommon'],
+            'conditions': [
+              ['v8_optimized_debug==0', {
+                'inherit_from': ['DebugBase0'],
+              }, {
+                'inherit_from': ['DebugBase1'],
+              }],
+            ],
+          },
+          'Release_x64': {
+            'inherit_from': ['ReleaseBase'],
+          },
+        }],
+      ],
     },  # configurations
   },  # target_defaults
 }

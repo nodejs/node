@@ -382,7 +382,7 @@ class GitInterface(VCInterface):
     # is the case for all automated merge and push commits - also no title is
     # the prefix of another title).
     commit = None
-    for wait_interval in [5, 10, 20, 40, 60, 60]:
+    for wait_interval in [10, 30, 60, 60, 60, 60, 60]:
       self.step.Git("fetch")
       commit = self.step.GitLog(n=1, format="%H", grep=message, branch=remote)
       if commit:

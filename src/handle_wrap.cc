@@ -18,7 +18,8 @@ using v8::Value;
 
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   if (IsAlive(wrap))
     uv_ref(wrap->GetHandle());
@@ -26,7 +27,8 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   if (IsAlive(wrap))
     uv_unref(wrap->GetHandle());
@@ -34,7 +36,8 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::HasRef(const FunctionCallbackInfo<Value>& args) {
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   args.GetReturnValue().Set(HasRef(wrap));
 }
 
@@ -42,7 +45,8 @@ void HandleWrap::HasRef(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   // Guard against uninitialized handle or double close.
   if (!IsAlive(wrap))
@@ -98,7 +102,7 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   if (have_close_callback)
     wrap->MakeCallback(env->onclose_string(), 0, nullptr);
 
-  wrap->object()->SetAlignedPointerInInternalField(0, nullptr);
+  ClearWrap(wrap->object());
   wrap->persistent().Reset();
   delete wrap;
 }

@@ -1,5 +1,9 @@
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
 
 const path = require('path');
 const spawn = require('child_process').spawn;
@@ -32,11 +36,12 @@ const pkgPath = path.join(common.tmpDir, 'package.json');
 
 fs.writeFileSync(pkgPath, pkgContent);
 
+const env = Object.create(process.env);
+env['PATH'] = path.dirname(process.execPath);
+
 const proc = spawn(process.execPath, args, {
   cwd: common.tmpDir,
-  env: {
-    PATH: path.dirname(process.execPath)
-  }
+  env: env
 });
 
 function handleExit(code, signalCode) {

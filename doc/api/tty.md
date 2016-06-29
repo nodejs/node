@@ -2,13 +2,20 @@
 
     Stability: 2 - Stable
 
-The `tty` module houses the `tty.ReadStream` and `tty.WriteStream` classes. In
-most cases, you will not need to use this module directly.
+The `tty` module provides the `tty.ReadStream` and `tty.WriteStream` classes.
+In most cases, it will not be necessary or possible to use this module directly.
+However, it can be accessed using:
 
-When Node.js detects that it is being run inside a TTY context, then `process.stdin`
-will be a `tty.ReadStream` instance and `process.stdout` will be
-a `tty.WriteStream` instance. The preferred way to check if Node.js is being run
-in a TTY context is to check `process.stdout.isTTY`:
+```js
+const tty = require('tty');
+```
+
+When Node.js detects that it is being run inside a text terminal ("TTY")
+context, the `process.stdin` will, by default, be initialized as an instance of
+`tty.ReadStream` and both `process.stdout` and `process.stderr` will, by
+default be instances of `tty.WriteStream`. The preferred method of determining
+whether Node.js is being run within a TTY context is to check that the value of
+the `process.stdout.isTTY` property is `true`:
 
 ```
 $ node -p -e "Boolean(process.stdout.isTTY)"
@@ -17,50 +24,55 @@ $ node -p -e "Boolean(process.stdout.isTTY)" | cat
 false
 ```
 
-## Class: ReadStream
+In most cases, there should be little to no reason for an application to
+create instances of the `tty.ReadStream` and `tty.WriteStream` classes.
+
+## Class: tty.ReadStream
 <!-- YAML
 added: v0.5.8
 -->
 
-A `net.Socket` subclass that represents the readable portion of a tty. In normal
-circumstances, `process.stdin` will be the only `tty.ReadStream` instance in any
-Node.js program (only when `isatty(0)` is true).
+The `tty.ReadStream` class is a subclass of `net.Socket` that represents the
+readable side of a TTY. In normal circumstances `process.stdin` will be the
+only `tty.ReadStream` instance in a Node.js process and there should be no
+reason to create additional instances.
 
-### rs.isRaw
+### readStream.isRaw
 <!-- YAML
 added: v0.7.7
 -->
 
-A `Boolean` that is initialized to `false`. It represents the current "raw" state
-of the `tty.ReadStream` instance.
+A `boolean` that is `true` if the TTY is currently configured to operate as a
+raw device. Defaults to `false`.
 
-### rs.setRawMode(mode)
+### readStream.setRawMode(mode)
 <!-- YAML
 added: v0.7.7
 -->
 
-`mode` should be `true` or `false`. This sets the properties of the
-`tty.ReadStream` to act either as a raw device or default. `isRaw` will be set
-to the resulting mode.
+* `mode` {boolean} If `true`, configures the `tty.ReadStream` to operate as a
+  raw device. If `false`, configures the `tty.ReadStream` to operate in its
+  default mode. The `readStream.isRaw` property will be set to the resulting
+  mode.
 
-## Class: WriteStream
+## Class: tty.WriteStream
 <!-- YAML
 added: v0.5.8
 -->
 
-A `net.Socket` subclass that represents the writable portion of a tty. In normal
-circumstances, `process.stdout` will be the only `tty.WriteStream` instance
-ever created (and only when `isatty(1)` is true).
+The `tty.WriteStream` class is a subclass of `net.Socket` that represents the
+writable side of a TTY. In normal circumstances, `process.stdout` and
+`process.stderr` will be the only `tty.WriteStream` instances created for a
+Node.js process and there should be no reason to create additional instances.
 
 ### Event: 'resize'
 <!-- YAML
 added: v0.7.7
 -->
 
-`function () {}`
-
-Emitted by `refreshSize()` when either of the `columns` or `rows` properties
-has changed.
+The `'resize'` event is emitted whenever either of the `writeStream.columns`
+or `writeStream.rows` properties have changed. No arguments are passed to the
+listener callback when called.
 
 ```js
 process.stdout.on('resize', () => {
@@ -69,28 +81,30 @@ process.stdout.on('resize', () => {
 });
 ```
 
-### ws.columns
+### writeStream.columns
 <!-- YAML
 added: v0.7.7
 -->
 
-A `Number` that gives the number of columns the TTY currently has. This property
-gets updated on `'resize'` events.
+A `number` specifying the number of columns the TTY currently has. This property
+is updated whenever the `'resize'` event is emitted.
 
-### ws.rows
+### writeStream.rows
 <!-- YAML
 added: v0.7.7
 -->
 
-A `Number` that gives the number of rows the TTY currently has. This property
-gets updated on `'resize'` events.
+A `number` specifying the number of rows the TTY currently has. This property
+is updated whenever the `'resize'` event is emitted.
 
 ## tty.isatty(fd)
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns `true` or `false` depending on if the `fd` is associated with a
-terminal.
+* `fd` {number} A numeric file descriptor
 
-[tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode
+The `tty.isatty()` method returns `true` if the given `fd` is associated with
+a TTY and `false` if is not.
+
+[tty.ReadStream#setRawMode]: #tty_readstream_setrawmode_mode

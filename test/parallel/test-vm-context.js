@@ -72,3 +72,7 @@ assert.throws(function() {
 }, function(err) {
   return /expected-filename.js:33:130/.test(err.stack);
 }, 'Expected appearance of proper offset in Error stack');
+
+// https://github.com/nodejs/node/issues/6158
+ctx = new Proxy({}, {});
+assert.strictEqual(typeof vm.runInNewContext('String', ctx), 'function');

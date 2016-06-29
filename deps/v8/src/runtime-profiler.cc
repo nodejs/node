@@ -90,7 +90,8 @@ static void GetICCounts(SharedFunctionInfo* shared,
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  if (FLAG_trace_opt && function->PassesFilter(FLAG_hydrogen_filter)) {
+  if (FLAG_trace_opt &&
+      function->shared()->PassesFilter(FLAG_hydrogen_filter)) {
     PrintF("[marking ");
     function->ShortPrint();
     PrintF(" for recompilation, reason: %s", reason);

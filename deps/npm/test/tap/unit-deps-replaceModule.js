@@ -6,45 +6,60 @@ test('setup', function (t) {
   npm.load({}, t.done)
 })
 
-test('replaceModule', function (t) {
-  var replaceModule = require('../../lib/install/deps')._replaceModule
+test('replaceModuleByName', function (t) {
+  var replaceModuleByName = require('../../lib/install/deps')._replaceModuleByName
   var mods = []
   for (var ii = 0; ii < 10; ++ii) {
-    mods.push({package: {name: ii}})
+    mods.push({package: {name: ii}, path: '/path/to/' + ii})
   }
 
   var test = {}
   test.A = mods.slice(0, 4)
-  replaceModule(test, 'A', mods[2])
+  replaceModuleByName(test, 'A', mods[2])
   t.isDeeply(test.A, mods.slice(0, 4), 'replacing an existing module leaves the order alone')
-  replaceModule(test, 'A', mods[7])
+  replaceModuleByName(test, 'A', mods[7])
   t.isDeeply(test.A, mods.slice(0, 4).concat(mods[7]), 'replacing a new module appends')
 
   test.B = mods.slice(0, 4)
   var replacement = {package: {name: 1}, isReplacement: true}
-  replaceModule(test, 'B', replacement)
+  replaceModuleByName(test, 'B', replacement)
   t.isDeeply(test.B, [mods[0], replacement, mods[2], mods[3]], 'replacing existing module swaps out for the new version')
 
-  replaceModule(test, 'C', mods[7])
+  replaceModuleByName(test, 'C', mods[7])
   t.isDeeply(test.C, [mods[7]], 'replacing when the key does not exist yet, causes its creation')
+
+  test.D = mods.slice(0, 4)
+  var duplicateByPath = {package: {name: 'dup'}, path: test.D[0].path}
+  replaceModuleByName(test, 'D', duplicateByPath)
+  t.isDeeply(test.D, mods.slice(0, 4).concat(duplicateByPath), 'replacing with a duplicate path but diff names appends')
   t.end()
 })
 
-test('replaceModuleName', function (t) {
-  var replaceModuleName = require('../../lib/install/deps')._replaceModuleName
+test('replaceModuleByPath', function (t) {
+  var replaceModuleByPath = require('../../lib/install/deps')._replaceModuleByPath
   var mods = []
   for (var ii = 0; ii < 10; ++ii) {
-    mods.push('pkg' + ii)
+    mods.push({package: {name: ii}, path: '/path/to/' + ii})
   }
 
   var test = {}
   test.A = mods.slice(0, 4)
-  replaceModuleName(test, 'A', mods[2])
+  replaceModuleByPath(test, 'A', mods[2])
   t.isDeeply(test.A, mods.slice(0, 4), 'replacing an existing module leaves the order alone')
-  replaceModuleName(test, 'A', mods[7])
+  replaceModuleByPath(test, 'A', mods[7])
   t.isDeeply(test.A, mods.slice(0, 4).concat(mods[7]), 'replacing a new module appends')
 
-  replaceModuleName(test, 'C', mods[7])
+  test.B = mods.slice(0, 4)
+  var replacement = {package: {name: 1}, isReplacement: true, path: '/path/to/1'}
+  replaceModuleByPath(test, 'B', replacement)
+  t.isDeeply(test.B, [mods[0], replacement, mods[2], mods[3]], 'replacing existing module swaps out for the new version')
+
+  replaceModuleByPath(test, 'C', mods[7])
   t.isDeeply(test.C, [mods[7]], 'replacing when the key does not exist yet, causes its creation')
+
+  test.D = mods.slice(0, 4)
+  var duplicateByPath = {package: {name: 'dup'}, path: test.D[0].path}
+  replaceModuleByPath(test, 'D', duplicateByPath)
+  t.isDeeply(test.D, [duplicateByPath].concat(mods.slice(1, 4)), 'replacing with a duplicate path but diff names replaces')
   t.end()
 })

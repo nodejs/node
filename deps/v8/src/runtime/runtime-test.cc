@@ -398,7 +398,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   DCHECK(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  if (!Compiler::Compile(func, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(func, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
   OFStream os(stdout);
@@ -503,5 +503,14 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 
 #undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
+
+
+RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
+}
+
+
 }  // namespace internal
 }  // namespace v8

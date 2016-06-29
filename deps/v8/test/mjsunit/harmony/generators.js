@@ -237,8 +237,8 @@
     let x = g();
     assertEquals({value: 1, done: false}, x.next());
     assertEquals({value: 42, done: false}, x.next());
-    assertEquals({value: 43, done: false}, x.return(666));
-    assertEquals({value: undefined, done: false}, x.next());
+    assertEquals({value: 43, done: false}, x.return(44));
+    assertEquals({value: 44, done: false}, x.next());
     assertEquals({value: undefined, done: true}, x.next());
   }
 
@@ -248,5 +248,25 @@
     assertEquals({value: 42, done: false}, x.next());
     assertEquals({value: 43, done: false}, x.throw(666));
     assertThrowsEquals(() => x.next(), 666);
+  }
+}
+
+
+{ // yield*, .return argument is final result
+
+  function* inner() {
+    yield 2;
+  }
+
+  function* g() {
+    yield 1;
+    return yield* inner();
+  }
+
+  {
+    let x = g();
+    assertEquals({value: 1, done: false}, x.next());
+    assertEquals({value: 2, done: false}, x.next());
+    assertEquals({value: 42, done: true}, x.return(42));
   }
 }

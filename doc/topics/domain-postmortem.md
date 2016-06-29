@@ -153,7 +153,7 @@ handle. More on this in _Resource Cleanup on Exception_.
 
 ### Resource Cleanup on Exception
 
-The script [`domain-resource-cleanup.js`](domain-resource-cleanup.js)
+The script [`domain-resource-cleanup-example.js`][]
 contains a more complex example of properly cleaning up in a small resource
 dependency tree in the case that an exception occurs in a given connection or
 any of its dependencies. Breaking down the script into its basic operations:
@@ -297,3 +297,5 @@ this writing there is ongoing work building out the `AsyncWrap` API and a
 proposal for Zones being prepared for the TC39. At such time there is suitable
 functionality to replace domains it will undergo the full deprecation cycle and
 eventually be removed from core.
+
+[domain-resource-cleanup-example.js]: ./domain-resource-cleanup-example.js

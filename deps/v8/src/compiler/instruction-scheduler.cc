@@ -115,7 +115,7 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
   if (IsBlockTerminator(instr)) {
     // Make sure that basic block terminators are not moved by adding them
     // as successor of every instruction.
-    for (auto node : graph_) {
+    for (ScheduleGraphNode* node : graph_) {
       node->AddSuccessor(new_node);
     }
   } else if (IsFixedRegisterParameter(instr)) {
@@ -134,7 +134,7 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       if (last_side_effect_instr_ != nullptr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
-      for (auto load : pending_loads_) {
+      for (ScheduleGraphNode* load : pending_loads_) {
         load->AddSuccessor(new_node);
       }
       pending_loads_.clear();
@@ -149,7 +149,7 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
     }
 
     // Look for operand dependencies.
-    for (auto node : graph_) {
+    for (ScheduleGraphNode* node : graph_) {
       if (HasOperandDependency(node->instruction(), instr)) {
         node->AddSuccessor(new_node);
       }
@@ -168,7 +168,7 @@ void InstructionScheduler::ScheduleBlock() {
   ComputeTotalLatencies();
 
   // Add nodes which don't have dependencies to the ready list.
-  for (auto node : graph_) {
+  for (ScheduleGraphNode* node : graph_) {
     if (!node->HasUnscheduledPredecessor()) {
       ready_list.AddNode(node);
     }
@@ -177,12 +177,12 @@ void InstructionScheduler::ScheduleBlock() {
   // Go through the ready list and schedule the instructions.
   int cycle = 0;
   while (!ready_list.IsEmpty()) {
-    auto candidate = ready_list.PopBestCandidate(cycle);
+    ScheduleGraphNode* candidate = ready_list.PopBestCandidate(cycle);
 
     if (candidate != nullptr) {
       sequence()->AddInstruction(candidate->instruction());
 
-      for (auto successor : candidate->successors()) {
+      for (ScheduleGraphNode* successor : candidate->successors()) {
         successor->DropUnscheduledPredecessor();
         successor->set_start_cycle(
             std::max(successor->start_cycle(),
@@ -220,7 +220,9 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchCallJSFunction:
       return kHasSideEffect;
 
+    case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
+    case kArchTailCallJSFunctionFromJSFunction:
     case kArchTailCallJSFunction:
       return kHasSideEffect | kIsBlockTerminator;
 
@@ -296,10 +298,10 @@ bool InstructionScheduler::IsBlockTerminator(const Instruction* instr) const {
 
 
 void InstructionScheduler::ComputeTotalLatencies() {
-  for (auto node : base::Reversed(graph_)) {
+  for (ScheduleGraphNode* node : base::Reversed(graph_)) {
     int max_latency = 0;
 
-    for (auto successor : node->successors()) {
+    for (ScheduleGraphNode* successor : node->successors()) {
       DCHECK(successor->total_latency() != -1);
       if (successor->total_latency() > max_latency) {
         max_latency = successor->total_latency();

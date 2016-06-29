@@ -6,7 +6,7 @@ var fs = require('fs');
 var got_error = false;
 
 var filename = path.join(common.fixturesDir, 'does_not_exist.txt');
-fs.readFile(filename, 'binary', function(err, content) {
+fs.readFile(filename, 'latin1', function(err, content) {
   if (err) {
     got_error = true;
   } else {

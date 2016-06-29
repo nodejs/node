@@ -30,6 +30,11 @@ function andUpdatePackageJson (pkg, buildpath, next) {
 function andStageBundledChildren (pkg, buildpath, log, next) {
   var staging = path.resolve(buildpath, '..')
   return iferr(next, function () {
+    for (var i = 0; i < pkg.children.length; ++i) {
+      var c = pkg.children[i]
+      if (!c.package.name) return next(c.error)
+    }
+
     asyncMap(pkg.children, andStageBundledModule(pkg, staging, buildpath), cleanupBundled)
   })
   function cleanupBundled () {

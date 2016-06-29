@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --harmony-tostring --promise-extra
+// Flags: --allow-natives-syntax --promise-extra
 
 // Make sure we don't rely on functions patchable by monkeys.
 var call = Function.prototype.call.call.bind(Function.prototype.call)

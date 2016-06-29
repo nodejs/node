@@ -30,12 +30,12 @@ var gtocPath = path.resolve(path.join(
 var gtocLoading = null;
 var gtocData = null;
 
-function toHTML(input, filename, template, nodeVersion, cb) {
-  if (typeof nodeVersion === 'function') {
-    cb = nodeVersion;
-    nodeVersion = null;
-  }
-  nodeVersion = nodeVersion || process.version;
+/**
+ * opts: input, filename, template, nodeVersion.
+ */
+function toHTML(opts, cb) {
+  var template = opts.template;
+  var nodeVersion = opts.nodeVersion || process.version;
 
   if (gtocData) {
     return onGtocLoaded();
@@ -57,10 +57,15 @@ function toHTML(input, filename, template, nodeVersion, cb) {
   }
 
   function onGtocLoaded() {
-    var lexed = marked.lexer(input);
+    var lexed = marked.lexer(opts.input);
     fs.readFile(template, 'utf8', function(er, template) {
       if (er) return cb(er);
-      render(lexed, filename, template, nodeVersion, cb);
+      render({
+        lexed: lexed,
+        filename: opts.filename,
+        template: template,
+        nodeVersion: nodeVersion,
+      }, cb);
     });
   }
 }
@@ -87,13 +92,14 @@ function toID(filename) {
     .replace(/-+/g, '-');
 }
 
-function render(lexed, filename, template, nodeVersion, cb) {
-  if (typeof nodeVersion === 'function') {
-    cb = nodeVersion;
-    nodeVersion = null;
-  }
-
-  nodeVersion = nodeVersion || process.version;
+/**
+ * opts: lexed, filename, template, nodeVersion.
+ */
+function render(opts, cb) {
+  var lexed = opts.lexed;
+  var filename = opts.filename;
+  var template = opts.template;
+  var nodeVersion = opts.nodeVersion || process.version;
 
   // get the section
   var section = getSection(lexed);
@@ -277,7 +283,21 @@ function getSection(lexed) {
 function buildToc(lexed, filename, cb) {
   var toc = [];
   var depth = 0;
+
+  const startIncludeRefRE = /^\s*<!-- \[start-include:(.+)\] -->\s*$/;
+  const endIncludeRefRE = /^\s*<!-- \[end-include:(.+)\] -->\s*$/;
+  const realFilenames = [filename];
+
   lexed.forEach(function(tok) {
+    // Keep track of the current filename along @include directives.
+    if (tok.type === 'html') {
+      let match;
+      if ((match = tok.text.match(startIncludeRefRE)) !== null)
+        realFilenames.unshift(match[1]);
+      else if (tok.text.match(endIncludeRefRE))
+        realFilenames.shift();
+    }
+
     if (tok.type !== 'heading') return;
     if (tok.depth - depth > 1) {
       return cb(new Error('Inappropriate heading level\n' +
@@ -285,7 +305,8 @@ function buildToc(lexed, filename, cb) {
     }
 
     depth = tok.depth;
-    var id = getId(filename + '_' + tok.text.trim());
+    const realFilename = path.basename(realFilenames[0], '.md');
+    const id = getId(realFilename + '_' + tok.text.trim());
     toc.push(new Array((depth - 1) * 2 + 1).join(' ') +
              '* <a href="#' + id + '">' +
              tok.text + '</a>');

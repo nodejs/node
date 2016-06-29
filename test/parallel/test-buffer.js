@@ -237,6 +237,7 @@ assert.strictEqual('Unknown encoding: invalid', caught_error.message);
 // try to create 0-length buffers
 new Buffer('');
 new Buffer('', 'ascii');
+new Buffer('', 'latin1');
 new Buffer('', 'binary');
 Buffer(0);
 
@@ -687,6 +688,7 @@ assert.equal(dot.toString('base64'), '//4uAA==');
   for (let i = 0; i < segments.length; ++i) {
     pos += b.write(segments[i], pos, 'base64');
   }
+  assert.equal(b.toString('latin1', 0, pos), 'Madness?! This is node.js!');
   assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
 }
 
@@ -748,6 +750,15 @@ var hexb2 = new Buffer(hexStr, 'hex');
 for (let i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
+
+// Test single hex character throws TypeError
+// - https://github.com/nodejs/node/issues/6770
+assert.throws(function() {
+  Buffer.from('A', 'hex');
+}, TypeError);
+
+// Test single base64 char encodes as 0
+assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 
 {
   // test an invalid slice end.
@@ -835,6 +846,23 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   b.write('あいうえお', encoding);
   assert.equal(b.toString(encoding), 'あいうえお');
 });
+
+{
+  // latin1 encoding should write only one byte per character.
+  const b = Buffer([0xde, 0xad, 0xbe, 0xef]);
+  let s = String.fromCharCode(0xffff);
+  b.write(s, 0, 'latin1');
+  assert.equal(0xff, b[0]);
+  assert.equal(0xad, b[1]);
+  assert.equal(0xbe, b[2]);
+  assert.equal(0xef, b[3]);
+  s = String.fromCharCode(0xaaee);
+  b.write(s, 0, 'latin1');
+  assert.equal(0xee, b[0]);
+  assert.equal(0xad, b[1]);
+  assert.equal(0xbe, b[2]);
+  assert.equal(0xef, b[3]);
+}
 
 {
   // Binary encoding should write only one byte per character.
@@ -964,6 +992,9 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   // test for buffer overrun
   const buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
   var sub = buf.slice(0, 4);         // length: 4
+  written = sub.write('12345', 'latin1');
+  assert.equal(written, 4);
+  assert.equal(buf[4], 0);
   written = sub.write('12345', 'binary');
   assert.equal(written, 4);
   assert.equal(buf[4], 0);
@@ -985,7 +1016,7 @@ assert.equal(Buffer('99').length, 2);
 assert.equal(Buffer('13.37').length, 5);
 
 // Ensure that the length argument is respected.
-'ascii utf8 hex base64 binary'.split(' ').forEach(function(enc) {
+'ascii utf8 hex base64 latin1 binary'.split(' ').forEach(function(enc) {
   assert.equal(Buffer(1).write('aaaaaa', 0, 1, enc), 1);
 });
 
@@ -1004,6 +1035,7 @@ Buffer(Buffer(0), 0, 0);
   'utf8',
   'utf-8',
   'ascii',
+  'latin1',
   'binary',
   'base64',
   'ucs2',
@@ -1456,3 +1488,37 @@ assert.equal(Buffer.prototype.parent, undefined);
 assert.equal(Buffer.prototype.offset, undefined);
 assert.equal(SlowBuffer.prototype.parent, undefined);
 assert.equal(SlowBuffer.prototype.offset, undefined);
+
+{
+  // Test that large negative Buffer length inputs don't affect the pool offset.
+  assert.deepStrictEqual(Buffer(-Buffer.poolSize), Buffer.from(''));
+  assert.deepStrictEqual(Buffer(-100), Buffer.from(''));
+  assert.deepStrictEqual(Buffer.allocUnsafe(-Buffer.poolSize), Buffer.from(''));
+  assert.deepStrictEqual(Buffer.allocUnsafe(-100), Buffer.from(''));
+
+  // Check pool offset after that by trying to write string into the pool.
+  assert.doesNotThrow(() => Buffer.from('abc'));
+}
+
+
+// Test failed or zero-sized Buffer allocations not affecting typed arrays
+{
+  const zeroArray = new Uint32Array(10).fill(0);
+  const sizes = [1e10, 0, 0.1, -1, 'a', undefined, null, NaN];
+  const allocators = [
+    Buffer,
+    SlowBuffer,
+    Buffer.alloc,
+    Buffer.allocUnsafe,
+    Buffer.allocUnsafeSlow
+  ];
+  for (const allocator of allocators) {
+    for (const size of sizes) {
+      try {
+        allocator(size);
+      } catch (e) {
+        assert.deepStrictEqual(new Uint32Array(10), zeroArray);
+      }
+    }
+  }
+}

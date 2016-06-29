@@ -1,9 +1,10 @@
 /* eslint-disable max-len */
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
+const inspect = require('util').inspect;
 
-var url = require('url');
+const url = require('url');
 
 // URLs to parse, and expected data
 // { url : parsed }
@@ -881,8 +882,16 @@ for (const u in parseTests) {
     }
   });
 
-  assert.deepStrictEqual(actual, expected);
-  assert.deepStrictEqual(spaced, expected);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `expected ${inspect(expected)}, got ${inspect(actual)}`
+  );
+  assert.deepStrictEqual(
+    spaced,
+    expected,
+    `expected ${inspect(expected)}, got ${inspect(spaced)}`
+  );
 
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
@@ -1165,6 +1174,14 @@ var formatTests = {
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
     pathname: '/fooA100%mBr',
+  },
+
+  // https://github.com/nodejs/node/issues/3361
+  'file:///home/user': {
+    href: 'file:///home/user',
+    protocol: 'file',
+    pathname: '/home/user',
+    path: '/home/user'
   }
 };
 for (const u in formatTests) {
@@ -1172,13 +1189,13 @@ for (const u in formatTests) {
   delete formatTests[u].href;
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
-  assert.equal(actual, expect,
-               'wonky format(' + u + ') == ' + expect +
-               '\nactual:' + actual);
-  assert.equal(actualObj, expect,
-               'wonky format(' + JSON.stringify(formatTests[u]) +
-               ') == ' + expect +
-               '\nactual: ' + actualObj);
+  assert.strictEqual(actual, expect,
+                     'wonky format(' + u + ') == ' + expect +
+                     '\nactual:' + actual);
+  assert.strictEqual(actualObj, expect,
+                     'wonky format(' + JSON.stringify(formatTests[u]) +
+                     ') == ' + expect +
+                     '\nactual: ' + actualObj);
 }
 
 /*
@@ -1556,7 +1573,7 @@ var relativeTests2 = [
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
-  const e = relativeTest[2];
+  const e = url.format(relativeTest[2]);
   assert.equal(a, e,
                'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
                '\n  actual=' + a);
@@ -1598,9 +1615,13 @@ relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
   var expected = url.parse(relativeTest[2]);
 
-  assert.deepStrictEqual(actual, expected);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `expected ${inspect(expected)} but got ${inspect(actual)}`
+  );
 
-  expected = relativeTest[2];
+  expected = url.format(relativeTest[2]);
   actual = url.format(actual);
 
   assert.equal(actual, expected,

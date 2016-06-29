@@ -1,6 +1,8 @@
 #ifndef SRC_STRING_BYTES_H_
 #define SRC_STRING_BYTES_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 // Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
 #include "v8.h"
@@ -107,5 +109,7 @@ class StringBytes {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STRING_BYTES_H_

@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const http = require('http');
 const net = require('net');
 
@@ -40,8 +40,8 @@ var server = http.createServer(function(req, res) {
     socket.end();
   });
   first.end('hello');
-}).listen(common.PORT, function() {
-  var s = net.connect(common.PORT);
+}).listen(0, function() {
+  var s = net.connect(this.address().port);
   more = function() {
     s.write('GET / HTTP/1.1\r\n\r\n');
   };

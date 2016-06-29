@@ -243,6 +243,7 @@ class Schedule final : public ZoneObject {
     return AddSuccessor(block, succ);
   }
 
+  const BasicBlockVector* all_blocks() const { return &all_blocks_; }
   BasicBlockVector* rpo_order() { return &rpo_order_; }
   const BasicBlockVector* rpo_order() const { return &rpo_order_; }
 
@@ -254,6 +255,12 @@ class Schedule final : public ZoneObject {
  private:
   friend class Scheduler;
   friend class BasicBlockInstrumentor;
+  friend class RawMachineAssembler;
+
+  // Ensure split-edge form for a hand-assembled schedule.
+  void EnsureSplitEdgeForm();
+  // Copy deferred block markers down as far as possible
+  void PropagateDeferredMark();
 
   void AddSuccessor(BasicBlock* block, BasicBlock* succ);
   void MoveSuccessors(BasicBlock* from, BasicBlock* to);

@@ -15,10 +15,10 @@ server.on('clientError', common.mustCall(function(err, socket) {
   server.close();
 }));
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   function next() {
     // Invalid request
-    const client = net.connect(common.PORT);
+    const client = net.connect(server.address().port);
     client.end('Oopsie-doopsie\r\n');
 
     var chunks = '';
@@ -31,7 +31,7 @@ server.listen(common.PORT, function() {
   }
 
   // Normal request
-  http.get({ port: common.PORT, path: '/' }, function(res) {
+  http.get({ port: this.address().port, path: '/' }, function(res) {
     assert.equal(res.statusCode, 200);
     res.resume();
     res.once('end', next);

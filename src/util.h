@@ -1,14 +1,41 @@
 #ifndef SRC_UTIL_H_
 #define SRC_UTIL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "v8.h"
 
 #include <assert.h>
 #include <signal.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __APPLE__
+#include <tr1/type_traits>  // NOLINT(build/c++tr1)
+#else
+#include <type_traits>  // std::remove_reference
+#endif
+
 namespace node {
+
+#ifdef __GNUC__
+#define NO_RETURN __attribute__((noreturn))
+#else
+#define NO_RETURN
+#endif
+
+// The slightly odd function signature for Assert() is to ease
+// instruction cache pressure in calls from ASSERT and CHECK.
+NO_RETURN void Abort();
+NO_RETURN void Assert(const char* const (*args)[4]);
+void DumpBacktrace(FILE* fp);
+
+#ifdef __APPLE__
+template <typename T> using remove_reference = std::tr1::remove_reference<T>;
+#else
+template <typename T> using remove_reference = std::remove_reference<T>;
+#endif
 
 #define FIXED_ONE_BYTE_STRING(isolate, string)                                \
   (node::OneByteString((isolate), (string), sizeof(string) - 1))
@@ -21,20 +48,47 @@ namespace node {
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
-#define ABORT() raise(SIGABRT)
+#define ABORT_NO_BACKTRACE() raise(SIGABRT)
 #else
-#define ABORT() abort()
+#define ABORT_NO_BACKTRACE() abort()
 #endif
 
-#if defined(NDEBUG)
-# define ASSERT(expression)
-# define CHECK(expression)                                                    \
-  do {                                                                        \
-    if (!(expression)) ABORT();                                               \
-  } while (0)
+#define ABORT() node::Abort()
+
+#ifdef __GNUC__
+#define LIKELY(expr) __builtin_expect(!!(expr), 1)
+#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+#define PRETTY_FUNCTION_NAME __PRETTY_FUNCTION__
 #else
-# define ASSERT(expression)  assert(expression)
-# define CHECK(expression)   assert(expression)
+#define LIKELY(expr) expr
+#define UNLIKELY(expr) expr
+#define PRETTY_FUNCTION_NAME ""
+#endif
+
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x)
+
+#define CHECK(expr)                                                           \
+  do {                                                                        \
+    if (UNLIKELY(!(expr))) {                                                  \
+      static const char* const args[] = { __FILE__, STRINGIFY(__LINE__),      \
+                                          #expr, PRETTY_FUNCTION_NAME };      \
+      node::Assert(&args);                                                    \
+    }                                                                         \
+  } while (0)
+
+// FIXME(bnoordhuis) cctests don't link in node::Abort() and node::Assert().
+#ifdef GTEST_DONT_DEFINE_ASSERT_EQ
+#undef ABORT
+#undef CHECK
+#define ABORT ABORT_NO_BACKTRACE
+#define CHECK assert
+#endif
+
+#ifdef NDEBUG
+#define ASSERT(expr)
+#else
+#define ASSERT(expr) CHECK(expr)
 #endif
 
 #define ASSERT_EQ(a, b) ASSERT((a) == (b))
@@ -52,6 +106,14 @@ namespace node {
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
 #define UNREACHABLE() ABORT()
+
+#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                \
+  do {                                                                        \
+    *ptr =                                                                    \
+        Unwrap<typename node::remove_reference<decltype(**ptr)>::type>(obj);  \
+    if (*ptr == nullptr)                                                      \
+      return __VA_ARGS__;                                                     \
+  } while (0)
 
 // TAILQ-style intrusive list node.
 template <typename T>
@@ -184,104 +246,124 @@ inline char ToLower(char c);
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
 inline bool StringEqualNoCase(const char* a, const char* b);
 
+// strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
+inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
 class MaybeStackBuffer {
-  public:
-    const T* out() const {
-      return buf_;
+ public:
+  const T* out() const {
+    return buf_;
+  }
+
+  T* out() {
+    return buf_;
+  }
+
+  // operator* for compatibility with `v8::String::(Utf8)Value`
+  T* operator*() {
+    return buf_;
+  }
+
+  const T* operator*() const {
+    return buf_;
+  }
+
+  T& operator[](size_t index) {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  const T& operator[](size_t index) const {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  size_t length() const {
+    return length_;
+  }
+
+  // Call to make sure enough space for `storage` entries is available.
+  // There can only be 1 call to AllocateSufficientStorage or Invalidate
+  // per instance.
+  void AllocateSufficientStorage(size_t storage) {
+    if (storage <= kStackStorageSize) {
+      buf_ = buf_st_;
+    } else {
+      // Guard against overflow.
+      CHECK_LE(storage, sizeof(T) * storage);
+
+      buf_ = static_cast<T*>(malloc(sizeof(T) * storage));
+      CHECK_NE(buf_, nullptr);
     }
 
-    T* out() {
-      return buf_;
-    }
+    // Remember how much was allocated to check against that in SetLength().
+    length_ = storage;
+  }
 
-    // operator* for compatibility with `v8::String::(Utf8)Value`
-    T* operator*() {
-      return buf_;
-    }
+  void SetLength(size_t length) {
+    // length_ stores how much memory was allocated.
+    CHECK_LE(length, length_);
+    length_ = length;
+  }
 
-    const T* operator*() const {
-      return buf_;
-    }
+  void SetLengthAndZeroTerminate(size_t length) {
+    // length_ stores how much memory was allocated.
+    CHECK_LE(length + 1, length_);
+    SetLength(length);
 
-    size_t length() const {
-      return length_;
-    }
+    // T() is 0 for integer types, nullptr for pointers, etc.
+    buf_[length] = T();
+  }
 
-    // Call to make sure enough space for `storage` entries is available.
-    // There can only be 1 call to AllocateSufficientStorage or Invalidate
-    // per instance.
-    void AllocateSufficientStorage(size_t storage) {
-      if (storage <= kStackStorageSize) {
-        buf_ = buf_st_;
-      } else {
-        // Guard against overflow.
-        CHECK_LE(storage, sizeof(T) * storage);
+  // Make derefencing this object return nullptr.
+  // Calling this is mutually exclusive with calling
+  // AllocateSufficientStorage.
+  void Invalidate() {
+    CHECK_EQ(buf_, buf_st_);
+    length_ = 0;
+    buf_ = nullptr;
+  }
 
-        buf_ = static_cast<T*>(malloc(sizeof(T) * storage));
-        CHECK_NE(buf_, nullptr);
-      }
+  MaybeStackBuffer() : length_(0), buf_(buf_st_) {
+    // Default to a zero-length, null-terminated buffer.
+    buf_[0] = T();
+  }
 
-      // Remember how much was allocated to check against that in SetLength().
-      length_ = storage;
-    }
+  explicit MaybeStackBuffer(size_t storage) : MaybeStackBuffer() {
+    AllocateSufficientStorage(storage);
+  }
 
-    void SetLength(size_t length) {
-      // length_ stores how much memory was allocated.
-      CHECK_LE(length, length_);
-      length_ = length;
-    }
+  ~MaybeStackBuffer() {
+    if (buf_ != buf_st_)
+      free(buf_);
+  }
 
-    void SetLengthAndZeroTerminate(size_t length) {
-      // length_ stores how much memory was allocated.
-      CHECK_LE(length + 1, length_);
-      SetLength(length);
-
-      // T() is 0 for integer types, nullptr for pointers, etc.
-      buf_[length] = T();
-    }
-
-    // Make derefencing this object return nullptr.
-    // Calling this is mutually exclusive with calling
-    // AllocateSufficientStorage.
-    void Invalidate() {
-      CHECK_EQ(buf_, buf_st_);
-      length_ = 0;
-      buf_ = nullptr;
-    }
-
-    MaybeStackBuffer() : length_(0), buf_(buf_st_) {
-      // Default to a zero-length, null-terminated buffer.
-      buf_[0] = T();
-    }
-
-    ~MaybeStackBuffer() {
-      if (buf_ != buf_st_)
-        free(buf_);
-    }
-  private:
-    size_t length_;
-    T* buf_;
-    T buf_st_[kStackStorageSize];
+ private:
+  size_t length_;
+  T* buf_;
+  T buf_st_[kStackStorageSize];
 };
 
 class Utf8Value : public MaybeStackBuffer<char> {
-  public:
-    explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
+ public:
+  explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
 
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
-  public:
-    explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+ public:
+  explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
 
 class BufferValue : public MaybeStackBuffer<char> {
-  public:
-    explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+ public:
+  explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_H_

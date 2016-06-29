@@ -36,24 +36,18 @@ test('test-package', function (t) {
 
   function installCheckAndTest (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'install went ok')
     common.npm(['test'], {cwd: installedpath}, testCheckAndRemove)
   }
 
   function testCheckAndRemove (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'npm test w/o test is ok')
     common.npm(['rm', fixturepath], {cwd: basepath}, removeCheckAndDone)
   }
 
   function removeCheckAndDone (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'remove went ok')
     t.done()
   }

@@ -5,6 +5,7 @@ var log = require('npmlog')
 var asyncMap = require('slide').asyncMap
 var mapToRegistry = require('./utils/map-to-registry.js')
 var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
 star.usage = usage(
   'star',
@@ -34,7 +35,7 @@ function star (args, cb) {
       }
       npm.registry.star(uri, params, function (er, data, raw, req) {
         if (!er) {
-          console.log(s + ' ' + pkg)
+          output(s + ' ' + pkg)
           log.verbose('star', data)
         }
         cb(er, data, raw, req)

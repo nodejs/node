@@ -22,6 +22,11 @@ if (cluster.isMaster) {
     portSet: process.debugPort + 1
   }).on('exit', checkExitCode);
 
+  cluster.setupMaster({
+    execArgv: [`--debug-port=${process.debugPort}`,
+               `--debug=${process.debugPort}`]
+  });
+
   console.log('forked worker should have --debug-port, with offset = 2');
   cluster.fork({
     portSet: process.debugPort + 2

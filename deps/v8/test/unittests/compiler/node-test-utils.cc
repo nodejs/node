@@ -1330,6 +1330,53 @@ class IsStoreMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+class IsStackSlotMatcher final : public NodeMatcher {
+ public:
+  explicit IsStackSlotMatcher(const Matcher<MachineRepresentation>& rep_matcher)
+      : NodeMatcher(IrOpcode::kStackSlot), rep_matcher_(rep_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose rep (";
+    rep_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<MachineRepresentation>(node),
+                                 "rep", rep_matcher_, listener));
+  }
+
+ private:
+  const Matcher<MachineRepresentation> rep_matcher_;
+};
+
+class IsGuardMatcher final : public NodeMatcher {
+ public:
+  IsGuardMatcher(const Matcher<Type*>& type_matcher,
+                 const Matcher<Node*>& value_matcher,
+                 const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kGuard),
+        type_matcher_(type_matcher),
+        value_matcher_(value_matcher),
+        control_matcher_(control_matcher) {}
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<Type*>(node->op()), "type",
+                                 type_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node, 0),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Type*> type_matcher_;
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
 
 class IsToNumberMatcher final : public NodeMatcher {
  public:
@@ -1406,6 +1453,86 @@ class IsLoadContextMatcher final : public NodeMatcher {
   const Matcher<Node*> context_matcher_;
 };
 
+class IsQuadopMatcher final : public NodeMatcher {
+ public:
+  IsQuadopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& a_matcher,
+                  const Matcher<Node*>& b_matcher,
+                  const Matcher<Node*>& c_matcher,
+                  const Matcher<Node*>& d_matcher)
+      : NodeMatcher(opcode),
+        a_matcher_(a_matcher),
+        b_matcher_(b_matcher),
+        c_matcher_(c_matcher),
+        d_matcher_(d_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose a (";
+    a_matcher_.DescribeTo(os);
+    *os << ") and b (";
+    b_matcher_.DescribeTo(os);
+    *os << ") and c (";
+    c_matcher_.DescribeTo(os);
+    *os << ") and d (";
+    d_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "a",
+                                 a_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "b",
+                                 b_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2), "c",
+                                 c_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 3), "d",
+                                 d_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> a_matcher_;
+  const Matcher<Node*> b_matcher_;
+  const Matcher<Node*> c_matcher_;
+  const Matcher<Node*> d_matcher_;
+};
+
+class IsTernopMatcher final : public NodeMatcher {
+ public:
+  IsTernopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& lhs_matcher,
+                  const Matcher<Node*>& mid_matcher,
+                  const Matcher<Node*>& rhs_matcher)
+      : NodeMatcher(opcode),
+        lhs_matcher_(lhs_matcher),
+        mid_matcher_(mid_matcher),
+        rhs_matcher_(rhs_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose lhs (";
+    lhs_matcher_.DescribeTo(os);
+    *os << ") and mid (";
+    mid_matcher_.DescribeTo(os);
+    *os << ") and rhs (";
+    rhs_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
+                                 lhs_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "mid",
+                                 mid_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2), "rhs",
+                                 rhs_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> lhs_matcher_;
+  const Matcher<Node*> mid_matcher_;
+  const Matcher<Node*> rhs_matcher_;
+};
 
 class IsBinopMatcher final : public NodeMatcher {
  public:
@@ -1483,7 +1610,6 @@ class IsParameterMatcher final : public NodeMatcher {
 };
 
 }  // namespace
-
 
 Matcher<Node*> IsDead() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kDead));
@@ -1938,6 +2064,12 @@ Matcher<Node*> IsTailCall(
                                            effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsGuard(const Matcher<Type*>& type_matcher,
+                       const Matcher<Node*>& value_matcher,
+                       const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(
+      new IsGuardMatcher(type_matcher, value_matcher, control_matcher));
+}
 
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
                                 const Matcher<Node*>& lhs_matcher,
@@ -2044,6 +2176,9 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                                         effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsStackSlot(const Matcher<MachineRepresentation>& rep_matcher) {
+  return MakeMatcher(new IsStackSlotMatcher(rep_matcher));
+}
 
 Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& context_matcher,
@@ -2069,6 +2204,29 @@ Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
 }
 
+#define IS_QUADOP_MATCHER(Name)                                               \
+  Matcher<Node*> Is##Name(                                                    \
+      const Matcher<Node*>& a_matcher, const Matcher<Node*>& b_matcher,       \
+      const Matcher<Node*>& c_matcher, const Matcher<Node*>& d_matcher) {     \
+    return MakeMatcher(new IsQuadopMatcher(IrOpcode::k##Name, a_matcher,      \
+                                           b_matcher, c_matcher, d_matcher)); \
+  }
+
+IS_QUADOP_MATCHER(Int32PairAdd)
+IS_QUADOP_MATCHER(Int32PairSub)
+IS_QUADOP_MATCHER(Int32PairMul)
+
+#define IS_TERNOP_MATCHER(Name)                                            \
+  Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,               \
+                          const Matcher<Node*>& mid_matcher,               \
+                          const Matcher<Node*>& rhs_matcher) {             \
+    return MakeMatcher(new IsTernopMatcher(IrOpcode::k##Name, lhs_matcher, \
+                                           mid_matcher, rhs_matcher));     \
+  }
+
+IS_TERNOP_MATCHER(Word32PairShl)
+IS_TERNOP_MATCHER(Word32PairShr)
+IS_TERNOP_MATCHER(Word32PairSar)
 
 #define IS_BINOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,              \
@@ -2083,8 +2241,10 @@ IS_BINOP_MATCHER(NumberMultiply)
 IS_BINOP_MATCHER(NumberShiftLeft)
 IS_BINOP_MATCHER(NumberShiftRight)
 IS_BINOP_MATCHER(NumberShiftRightLogical)
+IS_BINOP_MATCHER(NumberImul)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Or)
+IS_BINOP_MATCHER(Word32Xor)
 IS_BINOP_MATCHER(Word32Sar)
 IS_BINOP_MATCHER(Word32Shl)
 IS_BINOP_MATCHER(Word32Shr)
@@ -2146,6 +2306,8 @@ IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(ObjectIsReceiver)
 IS_UNOP_MATCHER(ObjectIsSmi)
 IS_UNOP_MATCHER(Word32Clz)
+IS_UNOP_MATCHER(Word32Ctz)
+IS_UNOP_MATCHER(Word32Popcnt)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

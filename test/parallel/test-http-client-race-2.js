@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
@@ -27,14 +27,14 @@ var server = http.createServer(function(req, res) {
                 {'Content-Type': 'text/plain', 'Content-Length': body.length});
   res.end(body);
 });
-server.listen(common.PORT);
+server.listen(0);
 
 var body1 = '';
 var body2 = '';
 var body3 = '';
 
 server.on('listening', function() {
-  var client = http.createClient(common.PORT);
+  var client = http.createClient(this.address().port);
 
   //
   // Client #1 is assigned Parser #1
@@ -59,7 +59,7 @@ server.on('listening', function() {
         // parser that previously belonged to Client #1. But we're not finished
         // with Client #1 yet!
         //
-        var client2 = http.createClient(common.PORT);
+        var client2 = http.createClient(server.address().port);
 
         //
         // At this point, the bug would manifest itself and crash because the

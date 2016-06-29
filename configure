@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import errno
 import optparse
 import os
 import pprint
@@ -21,6 +23,10 @@ from gyp.common import GetFlavor
 # imports in tools/configure.d
 sys.path.insert(0, os.path.join(root_dir, 'tools', 'configure.d'))
 import nodedownload
+
+# imports in tools/
+sys.path.insert(0, os.path.join(root_dir, 'tools'))
+import getmoduleversion
 
 # parse our options
 parser = optparse.OptionParser()
@@ -392,6 +398,11 @@ parser.add_option('--xcode',
     dest='use_xcode',
     help='generate build files for use with xcode')
 
+parser.add_option('--ninja',
+    action='store_true',
+    dest='use_ninja',
+    help='generate build files for use with Ninja')
+
 parser.add_option('--enable-asan',
     action='store_true',
     dest='enable_asan',
@@ -406,6 +417,31 @@ parser.add_option('--no-browser-globals',
     action='store_true',
     dest='no_browser_globals',
     help='do not export browser globals like setTimeout, console, etc. ' +
+         '(This mode is not officially supported for regular applications)')
+
+parser.add_option('--without-inspector',
+    action='store_true',
+    dest='without_inspector',
+    help='disable experimental V8 inspector support')
+
+parser.add_option('--shared',
+    action='store_true',
+    dest='shared',
+    help='compile shared library for embedding node in another project. ' +
+         '(This mode is not officially supported for regular applications)')
+
+parser.add_option('--without-v8-platform',
+    action='store_true',
+    dest='without_v8_platform',
+    default=False,
+    help='do not initialize v8 platform during node.js startup. ' +
+         '(This mode is not officially supported for regular applications)')
+
+parser.add_option('--without-bundled-v8',
+    action='store_true',
+    dest='without_bundled_v8',
+    default=False,
+    help='do not use V8 includes from the bundled deps folder. ' +
          '(This mode is not officially supported for regular applications)')
 
 (options, args) = parser.parse_args()
@@ -435,19 +471,16 @@ def b(value):
 
 def pkg_config(pkg):
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
-  args = '--silence-errors'
   retval = ()
   for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
     try:
-      val = subprocess.check_output([pkg_config, args, flag, pkg])
-      # check_output returns bytes
-      val = val.encode().strip().rstrip('\n')
-    except subprocess.CalledProcessError:
-      # most likely missing a .pc-file
-      val = None
-    except OSError:
-      # no pkg-config/pkgconf installed
-      return (None, None, None)
+      proc = subprocess.Popen(
+          shlex.split(pkg_config) + ['--silence-errors', flag, pkg],
+          stdout=subprocess.PIPE)
+      val = proc.communicate()[0].strip()
+    except OSError, e:
+      if e.errno != errno.ENOENT: raise e  # Unexpected error.
+      return (None, None, None)  # No pkg-config/pkgconf installed.
     retval += (val,)
   return retval
 
@@ -801,11 +834,20 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
+  o['variables']['node_shared'] = b(options.shared)
+  o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
+  o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
+  o['variables']['node_module_version'] = int(getmoduleversion.get_version())
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
+  o['variables']['v8_inspector'] = b(not options.without_inspector)
+  o['variables']['debug_devtools'] = 'node'
+
+  if options.use_xcode and options.use_ninja:
+    raise Exception('--xcode and --ninja cannot be used together.')
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
@@ -1242,6 +1284,8 @@ gyp_args = [sys.executable, 'tools/gyp_node.py', '--no-parallel']
 
 if options.use_xcode:
   gyp_args += ['-f', 'xcode']
+elif options.use_ninja:
+  gyp_args += ['-f', 'ninja']
 elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
 else:

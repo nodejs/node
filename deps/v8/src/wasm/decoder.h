@@ -77,33 +77,44 @@ class Decoder {
     return check(base, offset, 8, msg) ? read_u64(base + offset) : 0;
   }
 
+  // Reads a variable-length unsigned integer (little endian).
   uint32_t checked_read_u32v(const byte* base, int offset, int* length,
-                             const char* msg = "expected LEB128") {
-    if (!check(base, offset, 1, msg)) {
-      *length = 0;
-      return 0;
-    }
+                             const char* msg = "expected LEB32") {
+    return checked_read_leb<uint32_t, false>(base, offset, length, msg);
+  }
 
-    const ptrdiff_t kMaxDiff = 5;  // maximum 5 bytes.
-    const byte* ptr = base + offset;
-    const byte* end = ptr + kMaxDiff;
-    if (end > limit_) end = limit_;
-    int shift = 0;
-    byte b = 0;
-    uint32_t result = 0;
-    while (ptr < end) {
-      b = *ptr++;
-      result = result | ((b & 0x7F) << shift);
-      if ((b & 0x80) == 0) break;
-      shift += 7;
+  // Reads a variable-length signed integer (little endian).
+  int32_t checked_read_i32v(const byte* base, int offset, int* length,
+                            const char* msg = "expected SLEB32") {
+    uint32_t result =
+        checked_read_leb<uint32_t, true>(base, offset, length, msg);
+    if (*length == 5) return bit_cast<int32_t>(result);
+    if (*length > 0) {
+      int shift = 32 - 7 * *length;
+      // Perform sign extension.
+      return bit_cast<int32_t>(result << shift) >> shift;
     }
-    DCHECK_LE(ptr - (base + offset), kMaxDiff);
-    *length = static_cast<int>(ptr - (base + offset));
-    if (ptr == end && (b & 0x80)) {
-      error(base, ptr, msg);
-      return 0;
+    return 0;
+  }
+
+  // Reads a variable-length unsigned integer (little endian).
+  uint64_t checked_read_u64v(const byte* base, int offset, int* length,
+                             const char* msg = "expected LEB64") {
+    return checked_read_leb<uint64_t, false>(base, offset, length, msg);
+  }
+
+  // Reads a variable-length signed integer (little endian).
+  int64_t checked_read_i64v(const byte* base, int offset, int* length,
+                            const char* msg = "expected SLEB64") {
+    uint64_t result =
+        checked_read_leb<uint64_t, true>(base, offset, length, msg);
+    if (*length == 10) return bit_cast<int64_t>(result);
+    if (*length > 0) {
+      int shift = 64 - 7 * *length;
+      // Perform sign extension.
+      return bit_cast<int64_t>(result << shift) >> shift;
     }
-    return result;
+    return 0;
   }
 
   // Reads a single 16-bit unsigned integer (little endian).
@@ -214,6 +225,8 @@ class Decoder {
       *length = static_cast<int>(pc_ - pos);
       if (pc_ == end && (b & 0x80)) {
         error(pc_ - 1, "varint too large");
+      } else if (*length == 0) {
+        error(pc_, "varint of length 0");
       } else {
         TRACE("= %u\n", result);
       }
@@ -222,20 +235,27 @@ class Decoder {
     return traceOffEnd<uint32_t>();
   }
 
+  // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
+  void consume_bytes(int size) {
+    if (checkAvailable(size)) {
+      pc_ += size;
+    } else {
+      pc_ = limit_;
+    }
+  }
+
   // Check that at least {size} bytes exist between {pc_} and {limit_}.
   bool checkAvailable(int size) {
-    if (pc_ < start_ || (pc_ + size) > limit_) {
+    intptr_t pc_overflow_value = std::numeric_limits<intptr_t>::max() - size;
+    if (size < 0 || (intptr_t)pc_ > pc_overflow_value) {
+      error(pc_, nullptr, "reading %d bytes would underflow/overflow", size);
+      return false;
+    } else if (pc_ < start_ || limit_ < (pc_ + size)) {
       error(pc_, nullptr, "expected %d bytes, fell off end", size);
       return false;
     } else {
       return true;
     }
-  }
-
-  bool RangeOk(const byte* pc, int length) {
-    if (pc < start_ || pc_ >= limit_) return false;
-    if ((pc + length) >= limit_) return false;
-    return true;
   }
 
   void error(const char* msg) { error(pc_, nullptr, msg); }
@@ -283,12 +303,13 @@ class Decoder {
   Result<T> toResult(T val) {
     Result<T> result;
     if (error_pc_) {
+      TRACE("Result error: %s\n", error_msg_.get());
       result.error_code = kError;
       result.start = start_;
       result.error_pc = error_pc_;
       result.error_pt = error_pt_;
-      result.error_msg = error_msg_;
-      error_msg_.Reset(nullptr);
+      // transfer ownership of the error to the result.
+      result.error_msg.Reset(error_msg_.Detach());
     } else {
       result.error_code = kSuccess;
     }
@@ -308,7 +329,12 @@ class Decoder {
   }
 
   bool ok() const { return error_pc_ == nullptr; }
-  bool failed() const { return error_pc_ != nullptr; }
+  bool failed() const { return !error_msg_.is_empty(); }
+  bool more() const { return pc_ < limit_; }
+
+  const byte* start() { return start_; }
+  const byte* pc() { return pc_; }
+  uint32_t pc_offset() { return static_cast<uint32_t>(pc_ - start_); }
 
  protected:
   const byte* start_;
@@ -318,6 +344,60 @@ class Decoder {
   const byte* error_pc_;
   const byte* error_pt_;
   base::SmartArrayPointer<char> error_msg_;
+
+ private:
+  template <typename IntType, bool is_signed>
+  IntType checked_read_leb(const byte* base, int offset, int* length,
+                           const char* msg) {
+    if (!check(base, offset, 1, msg)) {
+      *length = 0;
+      return 0;
+    }
+
+    const int kMaxLength = (sizeof(IntType) * 8 + 6) / 7;
+    const byte* ptr = base + offset;
+    const byte* end = ptr + kMaxLength;
+    if (end > limit_) end = limit_;
+    int shift = 0;
+    byte b = 0;
+    IntType result = 0;
+    while (ptr < end) {
+      b = *ptr++;
+      result = result | (static_cast<IntType>(b & 0x7F) << shift);
+      if ((b & 0x80) == 0) break;
+      shift += 7;
+    }
+    DCHECK_LE(ptr - (base + offset), kMaxLength);
+    *length = static_cast<int>(ptr - (base + offset));
+    if (ptr == end) {
+      // Check there are no bits set beyond the bitwidth of {IntType}.
+      const int kExtraBits = (1 + kMaxLength * 7) - (sizeof(IntType) * 8);
+      const byte kExtraBitsMask =
+          static_cast<byte>((0xFF << (8 - kExtraBits)) & 0xFF);
+      int extra_bits_value;
+      if (is_signed) {
+        // A signed-LEB128 must sign-extend the final byte, excluding its
+        // most-signifcant bit. e.g. for a 32-bit LEB128:
+        //   kExtraBits = 4
+        //   kExtraBitsMask = 0xf0
+        // If b is 0x0f, the value is negative, so extra_bits_value is 0x70.
+        // If b is 0x03, the value is positive, so extra_bits_value is 0x00.
+        extra_bits_value = (static_cast<int8_t>(b << kExtraBits) >> 8) &
+                           kExtraBitsMask & ~0x80;
+      } else {
+        extra_bits_value = 0;
+      }
+      if (*length == kMaxLength && (b & kExtraBitsMask) != extra_bits_value) {
+        error(base, ptr, "extra bits in varint");
+        return 0;
+      }
+      if ((b & 0x80) != 0) {
+        error(base, ptr, msg);
+        return 0;
+      }
+    }
+    return result;
+  }
 };
 
 #undef TRACE

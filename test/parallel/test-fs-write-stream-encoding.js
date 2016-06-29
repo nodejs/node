@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const stream = require('stream');
 const firstEncoding = 'base64';
-const secondEncoding = 'binary';
+const secondEncoding = 'latin1';
 
 const examplePath = path.join(common.fixturesDir, 'x.txt');
 const dummyPath = path.join(common.tmpDir, 'x.txt');

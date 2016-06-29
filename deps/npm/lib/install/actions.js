@@ -63,7 +63,7 @@ function andHandleOptionalDepErrors (pkg, next) {
   return function (er) {
     if (!er) return next.apply(null, arguments)
     markAsFailed(pkg)
-    var anyFatal = pkg.userRequired || !pkg.parent
+    var anyFatal = pkg.userRequired || pkg.isTop
     for (var ii = 0; ii < pkg.requiredBy.length; ++ii) {
       var parent = pkg.requiredBy[ii]
       var isFatal = failedDependency(parent, pkg)

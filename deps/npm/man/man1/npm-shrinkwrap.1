@@ -1,4 +1,4 @@
-.TH "NPM\-SHRINKWRAP" "1" "May 2016" "" ""
+.TH "NPM\-SHRINKWRAP" "1" "June 2016" "" ""
 .SH "NAME"
 \fBnpm-shrinkwrap\fR \- Lock down dependency versions
 .SH SYNOPSIS
@@ -142,6 +142,17 @@ resolution using "version" if one isn't\.
 The tree is walked and any missing dependencies are installed in the usual fashion\.
 
 .RE
+.P
+If \fBpreshrinkwrap\fP, \fBshrinkwrap\fP or \fBpostshrinkwrap\fP are in the \fBscripts\fP property of the
+\fBpackage\.json\fP, they will be executed by running \fBnpm shrinkwrap\fP\|\.
+\fBpreshrinkwrap\fP and \fBshrinkwrap\fP are executed before the shrinkwrap, \fBpostshrinkwrap\fP is
+executed afterwards\. For example to run some postprocessing on the generated file:
+.P
+.RS 2
+.nf
+"scripts": { "postshrinkwrap": "node fix\-shrinkwrap\.js" }
+.fi
+.RE
 .SS Using shrinkwrapped packages
 .P
 Using a shrinkwrapped package is no different than using any other
@@ -215,6 +226,10 @@ contents rather than versions\.
 .RS 0
 .IP \(bu 2
 npm help install
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help 7 scripts
 .IP \(bu 2
 npm help 5 package\.json
 .IP \(bu 2

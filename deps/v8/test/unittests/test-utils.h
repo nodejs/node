@@ -93,12 +93,13 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
 
 class TestWithZone : public virtual ::testing::Test {
  public:
-  TestWithZone() {}
+  TestWithZone() : zone_(&allocator_) {}
   virtual ~TestWithZone();
 
   Zone* zone() { return &zone_; }
 
  private:
+  base::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithZone);
@@ -107,12 +108,13 @@ class TestWithZone : public virtual ::testing::Test {
 
 class TestWithIsolateAndZone : public virtual TestWithIsolate {
  public:
-  TestWithIsolateAndZone() {}
+  TestWithIsolateAndZone() : zone_(&allocator_) {}
   virtual ~TestWithIsolateAndZone();
 
   Zone* zone() { return &zone_; }
 
  private:
+  base::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);

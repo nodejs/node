@@ -40,11 +40,11 @@ child.exec(nodejs + ' --eval "console.error(42)"',
         assert.equal(stderr, '');
       });
 
-  child.exec(cmd + "'[]'",
+  child.exec(cmd + "'[]'", common.mustCall(
       function(err, stdout, stderr) {
         assert.equal(stdout, '[]\n');
         assert.equal(stderr, '');
-      });
+      }));
 });
 
 // assert that module loading works
@@ -65,6 +65,12 @@ child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
     });
+
+// Missing argument should not crash
+child.exec(nodejs + ' -e', common.mustCall(function(status, stdout, stderr) {
+  assert.notStrictEqual(status, null);
+  assert.strictEqual(status.code, 9);
+}));
 
 // empty program should do nothing
 child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {

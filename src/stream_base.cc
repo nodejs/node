@@ -33,7 +33,7 @@ template int StreamBase::WriteString<UTF8>(
     const FunctionCallbackInfo<Value>& args);
 template int StreamBase::WriteString<UCS2>(
     const FunctionCallbackInfo<Value>& args);
-template int StreamBase::WriteString<BINARY>(
+template int StreamBase::WriteString<LATIN1>(
     const FunctionCallbackInfo<Value>& args);
 
 
@@ -329,7 +329,8 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_handle_t* send_handle = nullptr;
 
     if (!send_handle_obj.IsEmpty()) {
-      HandleWrap* wrap = Unwrap<HandleWrap>(send_handle_obj);
+      HandleWrap* wrap;
+      ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
       send_handle = wrap->GetHandle();
       // Reference StreamWrap instance to prevent it from being garbage
       // collected before `AfterWrite` is called.

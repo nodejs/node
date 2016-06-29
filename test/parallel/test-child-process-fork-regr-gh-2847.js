@@ -25,11 +25,11 @@ var server = net.createServer(function(s) {
   setTimeout(function() {
     s.destroy();
   }, 100);
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var worker = cluster.fork();
 
   function send(callback) {
-    var s = net.connect(common.PORT, function() {
+    var s = net.connect(server.address().port, function() {
       worker.send({}, s, callback);
     });
 

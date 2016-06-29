@@ -205,7 +205,11 @@ class ContextifyContext {
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
 
-    CHECK(!ctx.IsEmpty());
+    if (ctx.IsEmpty()) {
+      env->ThrowError("Could not instantiate context");
+      return Local<Context>();
+    }
+
     ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
     // We need to tie the lifetime of the sandbox object with the lifetime of
@@ -339,8 +343,8 @@ class ContextifyContext {
   static void GlobalPropertyGetterCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Value>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -369,8 +373,8 @@ class ContextifyContext {
       Local<Name> property,
       Local<Value> value,
       const PropertyCallbackInfo<Value>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -383,8 +387,8 @@ class ContextifyContext {
   static void GlobalPropertyQueryCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Integer>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -410,8 +414,8 @@ class ContextifyContext {
   static void GlobalPropertyDeleterCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Boolean>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -426,8 +430,8 @@ class ContextifyContext {
 
   static void GlobalPropertyEnumeratorCallback(
       const PropertyCallbackInfo<Array>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -549,6 +553,7 @@ class ContextifyScript : public BaseObject {
     TryCatch try_catch(args.GetIsolate());
     uint64_t timeout = GetTimeoutArg(args, 0);
     bool display_errors = GetDisplayErrorsArg(args, 0);
+    bool break_on_sigint = GetBreakOnSigintArg(args, 0);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
@@ -556,7 +561,8 @@ class ContextifyScript : public BaseObject {
 
     // Do the eval within this context
     Environment* env = Environment::GetCurrent(args);
-    EvalMachine(env, timeout, display_errors, args, try_catch);
+    EvalMachine(env, timeout, display_errors, break_on_sigint, args,
+                &try_catch);
   }
 
   // args: sandbox, [options]
@@ -565,6 +571,7 @@ class ContextifyScript : public BaseObject {
 
     int64_t timeout;
     bool display_errors;
+    bool break_on_sigint;
 
     // Assemble arguments
     if (!args[0]->IsObject()) {
@@ -577,6 +584,7 @@ class ContextifyScript : public BaseObject {
       TryCatch try_catch(env->isolate());
       timeout = GetTimeoutArg(args, 1);
       display_errors = GetDisplayErrorsArg(args, 1);
+      break_on_sigint = GetBreakOnSigintArg(args, 1);
       if (try_catch.HasCaught()) {
         try_catch.ReThrow();
         return;
@@ -601,8 +609,9 @@ class ContextifyScript : public BaseObject {
       if (EvalMachine(contextify_context->env(),
                       timeout,
                       display_errors,
+                      break_on_sigint,
                       args,
-                      try_catch)) {
+                      &try_catch)) {
         contextify_context->CopyProperties();
       }
 
@@ -632,9 +641,11 @@ class ContextifyScript : public BaseObject {
             env->arrow_message_private_symbol());
 
     Local<Value> arrow;
-    if (!(maybe_value.ToLocal(&arrow) &&
-          arrow->IsString() &&
-          stack->IsString())) {
+    if (!(maybe_value.ToLocal(&arrow) && arrow->IsString())) {
+      return;
+    }
+
+    if (stack.IsEmpty() || !stack->IsString()) {
       return;
     }
 
@@ -645,6 +656,23 @@ class ContextifyScript : public BaseObject {
         env->context(),
         env->decorated_private_symbol(),
         True(env->isolate()));
+  }
+
+  static bool GetBreakOnSigintArg(const FunctionCallbackInfo<Value>& args,
+                                  const int i) {
+    if (args[i]->IsUndefined() || args[i]->IsString()) {
+      return false;
+    }
+    if (!args[i]->IsObject()) {
+      Environment::ThrowTypeError(args.GetIsolate(),
+                                  "options must be an object");
+      return false;
+    }
+
+    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
+                                              "breakOnSigint");
+    Local<Value> value = args[i].As<Object>()->Get(key);
+    return value->IsTrue();
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
@@ -792,40 +820,71 @@ class ContextifyScript : public BaseObject {
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
                           const bool display_errors,
+                          const bool break_on_sigint,
                           const FunctionCallbackInfo<Value>& args,
-                          TryCatch& try_catch) {
+                          TryCatch* try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
       env->ThrowTypeError(
           "Script methods can only be called on script instances.");
       return false;
     }
 
-    ContextifyScript* wrapped_script = Unwrap<ContextifyScript>(args.Holder());
+    ContextifyScript* wrapped_script;
+    ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
     Local<UnboundScript> unbound_script =
         PersistentToLocal(env->isolate(), wrapped_script->script_);
     Local<Script> script = unbound_script->BindToCurrentContext();
 
     Local<Value> result;
-    if (timeout != -1) {
+    bool timed_out = false;
+    bool received_signal = false;
+    if (break_on_sigint && timeout != -1) {
+      Watchdog wd(env->isolate(), timeout);
+      SigintWatchdog swd(env->isolate());
+      result = script->Run();
+      timed_out = wd.HasTimedOut();
+      received_signal = swd.HasReceivedSignal();
+    } else if (break_on_sigint) {
+      SigintWatchdog swd(env->isolate());
+      result = script->Run();
+      received_signal = swd.HasReceivedSignal();
+    } else if (timeout != -1) {
       Watchdog wd(env->isolate(), timeout);
       result = script->Run();
+      timed_out = wd.HasTimedOut();
     } else {
       result = script->Run();
     }
 
-    if (try_catch.HasCaught() && try_catch.HasTerminated()) {
-      env->isolate()->CancelTerminateExecution();
-      env->ThrowError("Script execution timed out.");
-      try_catch.ReThrow();
+    if (try_catch->HasCaught()) {
+      if (try_catch->HasTerminated())
+        env->isolate()->CancelTerminateExecution();
+
+      // It is possible that execution was terminated by another timeout in
+      // which this timeout is nested, so check whether one of the watchdogs
+      // from this invocation is responsible for termination.
+      if (timed_out) {
+        env->ThrowError("Script execution timed out.");
+      } else if (received_signal) {
+        env->ThrowError("Script execution interrupted.");
+      }
+
+      // If there was an exception thrown during script execution, re-throw it.
+      // If one of the above checks threw, re-throw the exception instead of
+      // letting try_catch catch it.
+      // If execution has been terminated, but not by one of the watchdogs from
+      // this invocation, this will re-throw a `null` value.
+      try_catch->ReThrow();
+
       return false;
     }
 
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
       if (display_errors) {
-        DecorateErrorStack(env, try_catch);
+        DecorateErrorStack(env, *try_catch);
       }
-      try_catch.ReThrow();
+      try_catch->ReThrow();
       return false;
     }
 

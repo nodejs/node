@@ -20,8 +20,8 @@ var bonkers = Buffer.alloc(1024 * 1024, 42);
 
 var server = tls.createServer(options, function(c) {
 
-}).listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
+}).listen(0, function() {
+  var client = net.connect(this.address().port, function() {
     client.write(bonkers);
   });
 

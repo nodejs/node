@@ -1,6 +1,8 @@
 #ifndef SRC_HANDLE_WRAP_H_
 #define SRC_HANDLE_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "async-wrap.h"
 #include "util.h"
 #include "uv.h"
@@ -53,7 +55,7 @@ class HandleWrap : public AsyncWrap {
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider,
              AsyncWrap* parent = nullptr);
-  virtual ~HandleWrap() override;
+  ~HandleWrap() override;
 
  private:
   friend class Environment;
@@ -69,5 +71,6 @@ class HandleWrap : public AsyncWrap {
 
 }  // namespace node
 
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_HANDLE_WRAP_H_

@@ -2,40 +2,33 @@
 
     Stability: 2 - Stable
 
-These functions are in the module `'util'`. Use `require('util')` to
-access them.
+The `util` module is primarily designed to support the needs of Node.js' own
+internal APIs. However, many of the utilities are useful for application and
+module developers as well. It can be accessed using:
 
-The `util` module is primarily designed to support the needs of Node.js's
-internal APIs.  Many of these utilities are useful for your own
-programs.  If you find that these functions are lacking for your
-purposes, however, you are encouraged to write your own utilities.  We
-are not interested in any future additions to the `util` module that
-are unnecessary for Node.js's internal functionality.
-
-## util.debug(string)
-
-    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
-
-Deprecated predecessor of `console.error`.
+```js
+const util = require('util');
+```
 
 ## util.debuglog(section)
 
-* `section` {String} The section of the program to be debugged
+* `section` {String} A string identifying the portion of the application for
+  which the `debuglog` function is being created.
 * Returns: {Function} The logging function
 
-This is used to create a function which conditionally writes to stderr
-based on the existence of a `NODE_DEBUG` environment variable.  If the
-`section` name appears in that environment variable, then the returned
-function will be similar to `console.error()`.  If not, then the
-returned function is a no-op.
+The `util.debuglog()` method is used to create a function that conditionally
+writes debug messages to `stderr` based on the existence of the `NODE_DEBUG`
+environment variable.  If the `section` name appears within the value of that
+environment variable, then the returned function operates similar to
+`console.error()`.  If not, then the returned function is a no-op.
 
 For example:
 
 ```js
-var debuglog = util.debuglog('foo');
+const util = require('util');
+const debuglog = util.debuglog('foo');
 
-var bar = 123;
-debuglog('hello from foo [%d]', bar);
+debuglog('hello from foo [%d]', 123);
 ```
 
 If this program is run with `NODE_DEBUG=foo` in the environment, then
@@ -48,12 +41,13 @@ FOO 3245: hello from foo [123]
 where `3245` is the process id.  If it is not run with that
 environment variable set, then it will not print anything.
 
-You may separate multiple `NODE_DEBUG` environment variables with a
-comma.  For example, `NODE_DEBUG=fs,net,tls`.
+Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
+environment variable. For example: `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(function, string)
 
-Marks that a method should not be used any more.
+The `util.deprecate()` method wraps the given `function` in such a way that
+it is marked as deprecated.
 
 ```js
 const util = require('util');
@@ -65,35 +59,39 @@ exports.puts = util.deprecate(() => {
 }, 'util.puts: Use console.log instead');
 ```
 
-It returns a modified function which warns once by default.
+When called, `util.deprecate()` will return a function that will emit a
+`DeprecationWarning` using the `process.on('warning')` event. By default,
+this warning will be emitted and printed to `stderr` exactly once, the first
+time it is called. After the warning is emitted, the wrapped `function`
+is called.
 
-This function does nothing if either the `--no-deprecation` command
-line flag is used, or the `process.noDeprecation` property is set to
-`true` *prior* to the first deprecation warning.
+If either the `--no-deprecation` or `--no-warnings` command line flags are
+used, or if the `process.noDeprecation` property is set to `true` *prior* to
+the first deprecation warning, the `util.deprecate()` method does nothing.
 
-If `--trace-deprecation` is set, a warning and a stack trace are logged
-to the console the first time the deprecated API is used.  Configurable
-at run-time through the `process.traceDeprecation` boolean.
+If the `--trace-deprecation` or `--trace-warnings` command line flags are set,
+or the `process.traceDeprecation` property is set to `true`, a warning and a
+stack trace are printed to `stderr` the first time the deprecated function is
+called.
 
-If `--throw-deprecation` is set then the application throws an exception
-when the deprecated API is used.  Configurable at run-time through the
-`process.throwDeprecation` boolean.
+If the `--throw-deprecation` command line flag is set, or the
+`process.throwDeprecation` property is set to `true`, then an exception will be
+thrown when the deprecated function is called.
 
-`process.throwDeprecation` takes precedence over `process.traceDeprecation`.
-
-## util.error([...])
-
-    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
-
-Deprecated predecessor of `console.error`.
+The `--throw-deprecation` command line flag and `process.throwDeprecation`
+property take precedence over `--trace-deprecation` and
+`process.traceDeprecation`.
 
 ## util.format(format[, ...])
 
-Returns a formatted string using the first argument as a `printf`-like format.
+* `format` {string} A `printf`-like format string.
 
-The first argument is a string that contains zero or more *placeholders*.
-Each placeholder is replaced with the converted value from its corresponding
-argument. Supported placeholders are:
+The `util.format()` method returns a formatted string using the first argument
+as a `printf`-like format.
+
+The first argument is a string containing zero or more *placeholder* tokens.
+Each placeholder token is replaced with the converted value from the
+corresponding argument. Supported placeholders are:
 
 * `%s` - String.
 * `%d` - Number (both integer and float).
@@ -105,20 +103,22 @@ If the placeholder does not have a corresponding argument, the placeholder is
 not replaced.
 
 ```js
-util.format('%s:%s', 'foo'); // 'foo:%s'
+util.format('%s:%s', 'foo');
+  // Returns 'foo:%s'
 ```
 
-If there are more arguments than placeholders, the extra arguments are
-coerced to strings (for objects and symbols, `util.inspect()` is used)
-and then concatenated, delimited by a space.
+If there are more arguments passed to the `util.format()` method than the
+number of placeholders, the extra arguments are coerced into strings (for
+objects and symbols, `util.inspect()` is used) then concatenated to the
+returned string, each delimited by a space.
 
 ```js
 util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
 ```
 
 If the first argument is not a format string then `util.format()` returns
-a string that is the concatenation of all its arguments separated by spaces.
-Each argument is converted to a string with `util.inspect()`.
+a string that is the concatenation of all arguments separated by spaces.
+Each argument is converted to a string using `util.inspect()`.
 
 ```js
 util.format(1, 2, 3); // '1 2 3'
@@ -126,9 +126,12 @@ util.format(1, 2, 3); // '1 2 3'
 
 ## util.inherits(constructor, superConstructor)
 
-_Note: usage of util.inherits() is discouraged. Please use the ES6 `class` and
+_Note: usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
 `extends` keywords to get language level inheritance support. Also note that
 the two styles are [semantically incompatible][]._
+
+* `constructor` {Function}
+* `superConstructor` {Function}
 
 Inherit the prototype methods from one [constructor][] into another.  The
 prototype of `constructor` will be set to a new object created from
@@ -151,7 +154,7 @@ MyStream.prototype.write = function(data) {
     this.emit('data', data);
 }
 
-var stream = new MyStream();
+const stream = new MyStream();
 
 console.log(stream instanceof EventEmitter); // true
 console.log(MyStream.super_ === EventEmitter); // true
@@ -164,34 +167,32 @@ stream.write('It works!'); // Received data: "It works!"
 
 ## util.inspect(object[, options])
 
-Return a string representation of `object`, which is useful for debugging.
+* `object` {any} Any JavaScript primitive or Object.
+* `options` {Object}
+  * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
+    properties will be included in the formatted result. Defaults to `false`.
+  * `depth` {number} Specifies the number of times to recurse while formatting
+    the `object`. This is useful for inspecting large complicated objects.
+    Defaults to `2`. To make it recurse indefinitely pass `null`.
+  * `colors` {boolean} If `true`, the output will be styled with ANSI color
+    codes. Defaults to `false`. Colors are customizable, see
+    [Customizing `util.inspect` colors][].
+  * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
+    functions exported on the `object` being inspected will not be called.
+    Defaults to `true`.
+  * `showProxy` {boolean} If `true`, then objects and functions that are
+    `Proxy` objects will be introspected to show their `target` and `handler`
+    objects. Defaults to `false`.
+  * `maxArrayLength` {number} Specifies the maximum number of array and
+    `TypedArray` elements to include when formatting. Defaults to `100`. Set to
+    `null` to show all array elements. Set to `0` or negative to show no array
+    elements.
 
-An optional *options* object may be passed that alters certain aspects of the
-formatted string:
+The `util.inspect()` method returns a string representation of `object` that is
+primarily useful for debugging. Additional `options` may be passed that alter
+certain aspects of the formatted string.
 
- - `showHidden` - if `true` then the object's non-enumerable and symbol
-   properties will be shown too. Defaults to `false`.
-
- - `depth` - tells `inspect` how many times to recurse while formatting the
-   object. This is useful for inspecting large complicated objects. Defaults to
-   `2`. To make it recurse indefinitely pass `null`.
-
- - `colors` - if `true`, then the output will be styled with ANSI color codes.
-   Defaults to `false`. Colors are customizable, see [Customizing
-   `util.inspect` colors][].
-
- - `customInspect` - if `false`, then custom `inspect(depth, opts)` functions
-   defined on the objects being inspected won't be called. Defaults to `true`.
-
- - `showProxy` - if `true`, then objects and functions that are Proxy objects
-   will be introspected to show their `target` and `hander` objects. Defaults to
-   `false`.
-
- - `maxArrayLength` - specifies the maximum number of Array and TypedArray
-   elements to include when formatting. Defaults to `100`. Set to `null` to
-   show all array elements. Set to `0` or negative to show no array elements.
-
-Example of inspecting all properties of the `util` object:
+The following example inspects all properties of the `util` object:
 
 ```js
 const util = require('util');
@@ -200,7 +201,7 @@ console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
 
 Values may supply their own custom `inspect(depth, opts)` functions, when
-called they receive the current depth in the recursive inspection, as well as
+called these receive the current `depth` in the recursive inspection, as well as
 the options object passed to `util.inspect()`.
 
 ### Customizing `util.inspect` colors
@@ -208,36 +209,41 @@ the options object passed to `util.inspect()`.
 <!-- type=misc -->
 
 Color output (if enabled) of `util.inspect` is customizable globally
-via `util.inspect.styles` and `util.inspect.colors` objects.
+via the `util.inspect.styles` and `util.inspect.colors` properties.
 
-`util.inspect.styles` is a map assigning each style a color
-from `util.inspect.colors`.
-Highlighted styles and their default values are:
- * `number` (yellow)
- * `boolean` (yellow)
- * `string` (green)
- * `date` (magenta)
- * `regexp` (red)
- * `null` (bold)
- * `undefined` (grey)
- * `special` - only function at this time (cyan)
- * `name` (intentionally no styling)
+`util.inspect.styles` is a map associating a style name to a color from
+`util.inspect.colors`.
 
-Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
-`green`, `magenta`, `red` and `yellow`.
-There are also `bold`, `italic`, `underline` and `inverse` codes.
+The default styles and associated colors are:
+
+ * `number` - `yellow`
+ * `boolean` - `yellow`
+ * `string` - `green`
+ * `date` - `magenta`
+ * `regexp` - `red`
+ * `null` - `bold`
+ * `undefined` - `grey`
+ * `special` - `cyan` (only applied to functions at this time)
+ * `name` - (no styling)
+
+The predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
+`green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`,
+`underline` and `inverse` codes.
+
+Color styling uses ANSI control codes that may not be supported on all
+terminals.
 
 ### Custom `inspect()` function on Objects
 
 <!-- type=misc -->
 
-Objects also may define their own `inspect(depth)` function which `util.inspect()`
-will invoke and use the result of when inspecting the object:
+Objects may also define their own `inspect(depth, opts)` function that
+`util.inspect()` will invoke and use the result of when inspecting the object:
 
 ```js
 const util = require('util');
 
-var obj = { name: 'nate' };
+const obj = { name: 'nate' };
 obj.inspect = function(depth) {
   return `{${this.name}}`;
 };
@@ -246,12 +252,14 @@ util.inspect(obj);
   // "{nate}"
 ```
 
-You may also return another Object entirely, and the returned String will be
-formatted according to the returned Object. This is similar to how
-`JSON.stringify()` works:
+Custom `inspect(depth, opts)` functions typically return a string but may
+return a value of any type that will be formatted accordingly by
+`util.inspect()`.
 
 ```js
-var obj = { foo: 'this will not show up in the inspect() output' };
+const util = require('util');
+
+const obj = { foo: 'this will not show up in the inspect() output' };
 obj.inspect = function(depth) {
   return { bar: 'baz' };
 };
@@ -260,91 +268,122 @@ util.inspect(obj);
   // "{ bar: 'baz' }"
 ```
 
-## util.isArray(object)
+## Deprecated APIs
+
+The following APIs have been deprecated and should no longer be used. Existing
+applications and modules should be updated to find alternative approaches.
+
+### util.debug(string)
+
+    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
+
+* `string` {string} The message to print to `stderr`
+
+Deprecated predecessor of `console.error`.
+
+### util.error([...])
+
+    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
+
+* `string` {string} The message to print to `stderr`
+
+Deprecated predecessor of `console.error`.
+
+### util.isArray(object)
 
     Stability: 0 - Deprecated
+
+* `object` {any}
 
 Internal alias for [`Array.isArray`][].
 
-Returns `true` if the given "object" is an `Array`. Otherwise, returns `false`.
+Returns `true` if the given `object` is an `Array`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isArray([])
+util.isArray([]);
   // true
-util.isArray(new Array)
+util.isArray(new Array);
   // true
-util.isArray({})
+util.isArray({});
   // false
 ```
 
-## util.isBoolean(object)
+### util.isBoolean(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Boolean`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `Boolean`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isBoolean(1)
+util.isBoolean(1);
   // false
-util.isBoolean(0)
+util.isBoolean(0);
   // false
-util.isBoolean(false)
+util.isBoolean(false);
   // true
 ```
 
-## util.isBuffer(object)
+### util.isBuffer(object)
 
     Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
-Returns `true` if the given "object" is a `Buffer`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `Buffer`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isBuffer({ length: 0 })
+util.isBuffer({ length: 0 });
   // false
-util.isBuffer([])
+util.isBuffer([]);
   // false
-util.isBuffer(Buffer.from('hello world'))
+util.isBuffer(Buffer.from('hello world'));
   // true
 ```
 
-## util.isDate(object)
+### util.isDate(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Date`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isDate(new Date())
+util.isDate(new Date());
   // true
-util.isDate(Date())
+util.isDate(Date());
   // false (without 'new' returns a String)
-util.isDate({})
+util.isDate({});
   // false
 ```
 
-## util.isError(object)
+### util.isError(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is an [`Error`][]. Otherwise, returns
+* `object` {any}
+
+Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
 `false`.
 
 ```js
 const util = require('util');
 
-util.isError(new Error())
+util.isError(new Error());
   // true
-util.isError(new TypeError())
+util.isError(new TypeError());
   // true
-util.isError({ name: 'Error', message: 'an error occurred' })
+util.isError({ name: 'Error', message: 'an error occurred' });
   // false
 ```
 
@@ -363,232 +402,259 @@ util.isError(obj);
   // true
 ```
 
-## util.isFunction(object)
+### util.isFunction(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Function`. Otherwise, returns
+* `object` {any}
+
+Returns `true` if the given `object` is a `Function`. Otherwise, returns
 `false`.
 
 ```js
 const util = require('util');
 
 function Foo() {}
-var Bar = function() {};
+const Bar = function() {};
 
-util.isFunction({})
+util.isFunction({});
   // false
-util.isFunction(Foo)
+util.isFunction(Foo);
   // true
-util.isFunction(Bar)
+util.isFunction(Bar);
   // true
 ```
 
-## util.isNull(object)
+### util.isNull(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is strictly `null`. Otherwise, returns
+* `object` {any}
+
+Returns `true` if the given `object` is strictly `null`. Otherwise, returns
 `false`.
 
 ```js
 const util = require('util');
 
-util.isNull(0)
+util.isNull(0);
   // false
-util.isNull(undefined)
+util.isNull(undefined);
   // false
-util.isNull(null)
+util.isNull(null);
   // true
 ```
 
-## util.isNullOrUndefined(object)
+### util.isNullOrUndefined(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is `null` or `undefined`. Otherwise,
+* `object` {any}
+
+Returns `true` if the given `object` is `null` or `undefined`. Otherwise,
 returns `false`.
 
 ```js
 const util = require('util');
 
-util.isNullOrUndefined(0)
+util.isNullOrUndefined(0);
   // false
-util.isNullOrUndefined(undefined)
+util.isNullOrUndefined(undefined);
   // true
-util.isNullOrUndefined(null)
+util.isNullOrUndefined(null);
   // true
 ```
 
-## util.isNumber(object)
+### util.isNumber(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Number`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `Number`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isNumber(false)
+util.isNumber(false);
   // false
-util.isNumber(Infinity)
+util.isNumber(Infinity);
   // true
-util.isNumber(0)
+util.isNumber(0);
   // true
-util.isNumber(NaN)
+util.isNumber(NaN);
   // true
 ```
 
-## util.isObject(object)
+### util.isObject(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is strictly an `Object` __and__ not a
+* `object` {any}
+
+Returns `true` if the given `object` is strictly an `Object` __and__ not a
 `Function`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isObject(5)
+util.isObject(5);
   // false
-util.isObject(null)
+util.isObject(null);
   // false
-util.isObject({})
+util.isObject({});
   // true
-util.isObject(function(){})
+util.isObject(function(){});
   // false
 ```
 
-## util.isPrimitive(object)
+### util.isPrimitive(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a primitive type. Otherwise, returns
+* `object` {any}
+
+Returns `true` if the given `object` is a primitive type. Otherwise, returns
 `false`.
 
 ```js
 const util = require('util');
 
-util.isPrimitive(5)
+util.isPrimitive(5);
   // true
-util.isPrimitive('foo')
+util.isPrimitive('foo');
   // true
-util.isPrimitive(false)
+util.isPrimitive(false);
   // true
-util.isPrimitive(null)
+util.isPrimitive(null);
   // true
-util.isPrimitive(undefined)
+util.isPrimitive(undefined);
   // true
-util.isPrimitive({})
+util.isPrimitive({});
   // false
-util.isPrimitive(function() {})
+util.isPrimitive(function() {});
   // false
-util.isPrimitive(/^$/)
+util.isPrimitive(/^$/);
   // false
-util.isPrimitive(new Date())
+util.isPrimitive(new Date());
   // false
 ```
 
-## util.isRegExp(object)
+### util.isRegExp(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `RegExp`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `RegExp`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isRegExp(/some regexp/)
+util.isRegExp(/some regexp/);
   // true
-util.isRegExp(new RegExp('another regexp'))
+util.isRegExp(new RegExp('another regexp'));
   // true
-util.isRegExp({})
+util.isRegExp({});
   // false
 ```
 
-## util.isString(object)
+### util.isString(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `String`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `string`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isString('')
+util.isString('');
   // true
-util.isString('foo')
+util.isString('foo');
   // true
-util.isString(String('foo'))
+util.isString(String('foo'));
   // true
-util.isString(5)
+util.isString(5);
   // false
 ```
 
-## util.isSymbol(object)
+### util.isSymbol(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Symbol`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is a `Symbol`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-util.isSymbol(5)
+util.isSymbol(5);
   // false
-util.isSymbol('foo')
+util.isSymbol('foo');
   // false
-util.isSymbol(Symbol('foo'))
+util.isSymbol(Symbol('foo'));
   // true
 ```
 
-## util.isUndefined(object)
+### util.isUndefined(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is `undefined`. Otherwise, returns `false`.
+* `object` {any}
+
+Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
 
-var foo;
-util.isUndefined(5)
+const foo = undefined;
+util.isUndefined(5);
   // false
-util.isUndefined(foo)
+util.isUndefined(foo);
   // true
-util.isUndefined(null)
+util.isUndefined(null);
   // false
 ```
 
-## util.log(string)
+### util.log(string)
 
     Stability: 0 - Deprecated: Use a third party module instead.
 
-Output with timestamp on `stdout`.
+* `string` {string}
 
-    require('util').log('Timestamped message.');
+The `util.log()` method prints the given `string` to `stdout` with an included
+timestamp.
 
-## util.print([...])
+```js
+const util = require('util');
+
+util.log('Timestamped message.');
+```
+
+### util.print([...])
 
     Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
-## util.puts([...])
+### util.puts([...])
 
     Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
-## util._extend(obj)
+### util._extend(obj)
 
     Stability: 0 - Deprecated: Use Object.assign() instead.
 
-`_extend` was never intended to be used outside of internal NodeJS modules. The
-community found and used it anyway.
+The `util._extend()` method was never intended to be used outside of internal
+Node.js modules. The community found and used it anyway.
 
 It is deprecated and should not be used in new code. JavaScript comes with very
-similar built-in functionality through `Object.assign`.
+similar built-in functionality through `Object.assign()`.
 
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor

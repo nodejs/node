@@ -21,6 +21,8 @@
   V(IfDefault)             \
   V(Merge)                 \
   V(Deoptimize)            \
+  V(DeoptimizeIf)          \
+  V(DeoptimizeUnless)      \
   V(Return)                \
   V(TailCall)              \
   V(Terminate)             \
@@ -94,10 +96,12 @@
 
 #define JS_CONVERSION_UNOP_LIST(V) \
   V(JSToBoolean)                   \
-  V(JSToNumber)                    \
-  V(JSToString)                    \
+  V(JSToInteger)                   \
+  V(JSToLength)                    \
   V(JSToName)                      \
-  V(JSToObject)
+  V(JSToNumber)                    \
+  V(JSToObject)                    \
+  V(JSToString)
 
 #define JS_OTHER_UNOP_LIST(V) \
   V(JSTypeOf)
@@ -181,10 +185,17 @@
   V(NumberShiftLeft)               \
   V(NumberShiftRight)              \
   V(NumberShiftRightLogical)       \
+  V(NumberImul)                    \
+  V(NumberClz32)                   \
+  V(NumberCeil)                    \
+  V(NumberFloor)                   \
+  V(NumberRound)                   \
+  V(NumberTrunc)                   \
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
   V(NumberIsHoleNaN)               \
   V(PlainPrimitiveToNumber)        \
+  V(StringToNumber)                \
   V(ChangeTaggedToInt32)           \
   V(ChangeTaggedToUint32)          \
   V(ChangeTaggedToFloat64)         \
@@ -202,7 +213,8 @@
   V(StoreElement)                  \
   V(ObjectIsNumber)                \
   V(ObjectIsReceiver)              \
-  V(ObjectIsSmi)
+  V(ObjectIsSmi)                   \
+  V(ObjectIsUndetectable)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \
@@ -273,6 +285,7 @@
   V(ChangeFloat32ToFloat64)     \
   V(ChangeFloat64ToInt32)       \
   V(ChangeFloat64ToUint32)      \
+  V(TruncateFloat64ToUint32)    \
   V(TruncateFloat32ToInt32)     \
   V(TruncateFloat32ToUint32)    \
   V(TryTruncateFloat32ToInt64)  \
@@ -330,7 +343,13 @@
   V(LoadFramePointer)           \
   V(LoadParentFramePointer)     \
   V(CheckedLoad)                \
-  V(CheckedStore)
+  V(CheckedStore)               \
+  V(Int32PairAdd)               \
+  V(Int32PairSub)               \
+  V(Int32PairMul)               \
+  V(Word32PairShl)              \
+  V(Word32PairShr)              \
+  V(Word32PairSar)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \

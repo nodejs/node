@@ -48,10 +48,10 @@ class SimdJsTestSuite(testsuite.TestSuite):
   def IsNegativeTest(self, testcase):
     return False
 
-  def IsFailureOutput(self, output, testpath):
-    if output.exit_code != 0:
+  def IsFailureOutput(self, testcase):
+    if testcase.output.exit_code != 0:
       return True
-    return "FAILED!" in output.stdout
+    return "FAILED!" in testcase.output.stdout
 
   def DownloadData(self):
     print "SimdJs download is deprecated. It's part of DEPS."

@@ -70,7 +70,6 @@ class JSCreateLowering final : public AdvancedReducer {
                                     Handle<JSObject> boilerplate,
                                     PretenureFlag pretenure,
                                     AllocationSiteUsageContext* site_context);
-  Node* AllocateMutableHeapNumber(double value, Node* effect, Node* control);
 
   // Infers the LiteralsArray to use for a given {node}.
   MaybeHandle<LiteralsArray> GetSpecializationLiterals(Node* node);

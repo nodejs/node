@@ -29,5 +29,5 @@ if (!binding.ensureAllocation(2 * kStringMaxLength)) {
   return;
 }
 
-const maxString = buf.toString('binary');
+const maxString = buf.toString('latin1');
 assert.equal(maxString.length, kStringMaxLength);

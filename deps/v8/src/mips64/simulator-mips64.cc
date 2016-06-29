@@ -24,11 +24,8 @@
 namespace v8 {
 namespace internal {
 
-// Utils functions.
-bool HaveSameSign(int64_t a, int64_t b) {
-  return ((a ^ b) >= 0);
-}
-
+// Util functions.
+inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
 
 uint32_t get_fcsr_condition_bit(uint32_t cc) {
   if (cc == 0) {
@@ -3478,9 +3475,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
         // Logical right-rotate of a word by a variable number of bits.
         // This is special case od SRLV instruction, added in MIPS32
         // Release 2. SA field is equal to 00001.
-        alu_out =
-            base::bits::RotateRight32(static_cast<const uint32_t>(rt_u()),
-                                      static_cast<const uint32_t>(rs_u()));
+        alu_out = base::bits::RotateRight64(rt_u(), rs_u());
       }
       SetResult(rd_reg(), alu_out);
       break;
@@ -4331,13 +4326,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case POP10:  // BOVC, BEQZALC, BEQC / ADDI (pre-r6)
       if (kArchVariant == kMips64r6) {
         if (rs_reg >= rt_reg) {  // BOVC
-          if (HaveSameSign(rs, rt)) {
-            if (rs > 0) {
-              BranchCompactHelper(rs > Registers::kMaxValue - rt, 16);
-            } else if (rs < 0) {
-              BranchCompactHelper(rs < Registers::kMinValue - rt, 16);
-            }
-          }
+          bool condition = !is_int32(rs) || !is_int32(rt) || !is_int32(rs + rt);
+          BranchCompactHelper(condition, 16);
         } else {
           if (rs_reg == 0) {  // BEQZALC
             BranchAndLinkCompactHelper(rt == 0, 16);
@@ -4363,15 +4353,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case POP30:  // BNVC, BNEZALC, BNEC / DADDI (pre-r6)
       if (kArchVariant == kMips64r6) {
         if (rs_reg >= rt_reg) {  // BNVC
-          if (!HaveSameSign(rs, rt) || rs == 0 || rt == 0) {
-            BranchCompactHelper(true, 16);
-          } else {
-            if (rs > 0) {
-              BranchCompactHelper(rs <= Registers::kMaxValue - rt, 16);
-            } else if (rs < 0) {
-              BranchCompactHelper(rs >= Registers::kMinValue - rt, 16);
-            }
-          }
+          bool condition = is_int32(rs) && is_int32(rt) && is_int32(rs + rt);
+          BranchCompactHelper(condition, 16);
         } else {
           if (rs_reg == 0) {  // BNEZALC
             BranchAndLinkCompactHelper(rt != 0, 16);

@@ -12,9 +12,9 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
-#include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/log.h"
@@ -25,20 +25,24 @@
 namespace v8 {
 namespace internal {
 
-void PromotionQueue::insert(HeapObject* target, int size) {
+void PromotionQueue::insert(HeapObject* target, int32_t size,
+                            bool was_marked_black) {
   if (emergency_stack_ != NULL) {
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
-  if ((rear_ - 2) < limit_) {
+  if ((rear_ - 1) < limit_) {
     RelocateQueueHead();
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
-  *(--rear_) = reinterpret_cast<intptr_t>(target);
-  *(--rear_) = size;
+  struct Entry* entry = reinterpret_cast<struct Entry*>(--rear_);
+  entry->obj_ = target;
+  entry->size_ = size;
+  entry->was_marked_black_ = was_marked_black;
+
 // Assert no overflow into live objects.
 #ifdef DEBUG
   SemiSpace::AssertValidRange(target->GetIsolate()->heap()->new_space()->top(),
@@ -247,6 +251,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   } else {
     old_gen_exhausted_ = true;
   }
+
+  if (!old_gen_exhausted_ && incremental_marking()->black_allocation() &&
+      space != OLD_SPACE) {
+    Marking::MarkBlack(Marking::MarkBitFrom(object));
+    MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
+  }
   return allocation;
 }
 
@@ -434,29 +444,9 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   return false;
 }
 
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
             static_cast<size_t>(byte_size / kPointerSize));
-}
-
-
-void Heap::MoveBlock(Address dst, Address src, int byte_size) {
-  DCHECK(IsAligned(byte_size, kPointerSize));
-
-  int size_in_words = byte_size / kPointerSize;
-
-  if ((dst < src) || (dst >= (src + byte_size))) {
-    Object** src_slot = reinterpret_cast<Object**>(src);
-    Object** dst_slot = reinterpret_cast<Object**>(dst);
-    Object** end_slot = src_slot + size_in_words;
-
-    while (src_slot != end_slot) {
-      *dst_slot++ = *src_slot++;
-    }
-  } else {
-    MemMove(dst, src, static_cast<size_t>(byte_size));
-  }
 }
 
 template <Heap::FindMementoMode mode>
@@ -655,8 +645,7 @@ void Heap::ClearInstanceofCache() {
   set_instanceof_cache_function(Smi::FromInt(0));
 }
 
-
-Object* Heap::ToBoolean(bool condition) {
+Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
 }
 

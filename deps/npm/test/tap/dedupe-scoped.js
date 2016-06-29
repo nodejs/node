@@ -11,12 +11,12 @@ var modules = join(pkg, 'node_modules')
 
 var EXEC_OPTS = { cwd: pkg }
 
-var body = function () {/*
-@scope/shared@2.1.6 node_modules/first/node_modules/@scope/shared -> node_modules/@scope/shared
-firstUnique@0.6.0 node_modules/first/node_modules/firstUnique -> node_modules/firstUnique
-secondUnique@1.2.0 node_modules/second/node_modules/secondUnique -> node_modules/secondUnique
-- @scope/shared@2.1.6 node_modules/second/node_modules/@scope/shared
-*/}.toString().split('\n').slice(1, -1)
+var body = [
+  '@scope/shared@2.1.6 node_modules/first/node_modules/@scope/shared -> node_modules/@scope/shared',
+  'firstUnique@0.6.0 node_modules/first/node_modules/firstUnique -> node_modules/firstUnique',
+  'secondUnique@1.2.0 node_modules/second/node_modules/secondUnique -> node_modules/secondUnique',
+  '- @scope/shared@2.1.6 node_modules/second/node_modules/@scope/shared'
+]
 
 var deduper = {
   'name': 'dedupe',
@@ -79,7 +79,7 @@ test('dedupe finds the common scoped modules and moves it up one level', functio
       t.notOk(code, 'npm ran without issue')
       t.notOk(stderr, 'npm printed no errors')
       t.same(
-        stdout.trim().split('\n').map(ltrimm),
+        stdout.trim().replace(/\\/g, '/').split('\n').map(ltrimm),
         body.map(ltrimm),
         'got expected output'
       )

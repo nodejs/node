@@ -170,10 +170,6 @@ class LiveEdit : AllStatic {
    *   ...
    *   --- Bottom
    */
-  // A size of frame base including fp. Padding words starts right above
-  // the base.
-  static const int kFrameDropperFrameSize =
-      4 + StandardFrameConstants::kCPSlotCount;
   // A number of words that should be reserved on stack for the LiveEdit use.
   // Stored on stack in form of Smi.
   static const int kFramePaddingInitialSize = 1;
@@ -256,8 +252,8 @@ class JSArrayBasedStruct {
   }
 
   Handle<Object> GetField(int field_position) {
-    return Object::GetElement(
-        isolate(), array_, field_position).ToHandleChecked();
+    return JSReceiver::GetElement(isolate(), array_, field_position)
+        .ToHandleChecked();
   }
 
   int GetSmiValueField(int field_position) {
@@ -337,9 +333,8 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
   static bool IsInstance(Handle<JSArray> array) {
     if (array->length() != Smi::FromInt(kSize_)) return false;
     Handle<Object> element(
-        Object::GetElement(array->GetIsolate(),
-                           array,
-                           kSharedInfoOffset_).ToHandleChecked());
+        JSReceiver::GetElement(array->GetIsolate(), array, kSharedInfoOffset_)
+            .ToHandleChecked());
     if (!element->IsJSValue()) return false;
     return Handle<JSValue>::cast(element)->value()->IsSharedFunctionInfo();
   }

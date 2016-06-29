@@ -302,25 +302,26 @@ argument to `fs.createWriteStream()`. If `path` is passed as a string, then
 
 ## fs.access(path[, mode], callback)
 <!-- YAML
-added: v1.0.0
+added: v0.11.15
 -->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
-Tests a user's permissions for the file specified by `path`. `mode` is an
-optional integer that specifies the accessibility checks to be performed. The
-following constants define the possible values of `mode`. It is possible to
-create a mask consisting of the bitwise OR of two or more values.
+Tests a user's permissions for the file or directory specified by `path`.
+The `mode` argument is an optional integer that specifies the accessibility
+checks to be performed. The following constants define the possible values of
+`mode`. It is possible to create a mask consisting of the bitwise OR of two or
+more values.
 
-- `fs.constants.F_OK` - File is visible to the calling process. This is useful 
+- `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
 Default if no `mode` is specified.
-- `fs.constants.R_OK` - File can be read by the calling process.
-- `fs.constants.W_OK` - File can be written by the calling process.
-- `fs.constants.X_OK` - File can be executed by the calling process. This has no
-effect on Windows (will behave like `fs.constants.F_OK`).
+- `fs.constants.R_OK` - `path` can be read by the calling process.
+- `fs.constants.W_OK` - `path` can be written by the calling process.
+- `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
@@ -335,13 +336,13 @@ fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
 
 ## fs.accessSync(path[, mode])
 <!-- YAML
-added: v0.1.93
+added: v0.11.15
 -->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
 
-Synchronous version of [`fs.access()`][]. This throws if any accessibility 
+Synchronous version of [`fs.access()`][]. This throws if any accessibility
 checks fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
@@ -503,8 +504,8 @@ the file instead of the entire file.  Both `start` and `end` are inclusive and
 start at 0. The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
-the specified file descriptor. This means that no `'open'` event will be 
-emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed 
+the specified file descriptor. This means that no `'open'` event will be
+emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed
 to [`net.Socket`][].
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
@@ -900,7 +901,38 @@ fs.mkdtemp('/tmp/foo-', (err, folder) => {
 });
 ```
 
-## fs.mkdtempSync(template)
+*Note*: The `fs.mkdtemp()` method will append the six randomly selected
+characters directly to the `prefix` string. For instance, given a directory
+`/tmp`, if the intention is to create a temporary directory *within* `/tmp`,
+the `prefix` *must* end with a trailing platform-specific path separator
+(`require('path').sep`).
+
+```js
+// The parent directory for the new temporary directory
+const tmpDir = '/tmp';
+
+// This method is *INCORRECT*:
+fs.mkdtemp(tmpDir, (err, folder) => {
+  if (err) throw err;
+  console.log(folder);
+    // Will print something similar to `/tmpabc123`.
+    // Note that a new temporary directory is created
+    // at the file system root rather than *within*
+    // the /tmp directory.
+});
+
+// This method is *CORRECT*:
+const path = require('path');
+fs.mkdtemp(tmpDir + path.sep, (err, folder) => {
+  if (err) throw err;
+  console.log(folder);
+    // Will print something similar to `/tmp/abc123`.
+    // A new temporary directory is created within
+    // the /tmp directory.
+});
+```
+
+## fs.mkdtempSync(prefix)
 <!-- YAML
 added: v5.10.0
 -->
@@ -1431,16 +1463,18 @@ The recursive option is only supported on OS X and Windows.
 This feature depends on the underlying operating system providing a way
 to be notified of filesystem changes.
 
-* On Linux systems, this uses `inotify`.
-* On BSD systems, this uses `kqueue`.
-* On OS X, this uses `kqueue` for files and 'FSEvents' for directories.
-* On SunOS systems (including Solaris and SmartOS), this uses `event ports`.
-* On Windows systems, this feature depends on `ReadDirectoryChangesW`.
+* On Linux systems, this uses [`inotify`]
+* On BSD systems, this uses [`kqueue`]
+* On OS X, this uses [`kqueue`] for files and [`FSEvents`] for directories.
+* On SunOS systems (including Solaris and SmartOS), this uses [`event ports`].
+* On Windows systems, this feature depends on [`ReadDirectoryChangesW`].
+* On Aix systems, this feature depends on [`AHAFS`], which must be enabled.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch` will not be able to function.  For example, watching files or
-directories on network file systems (NFS, SMB, etc.) often doesn't work
-reliably or at all.
+`fs.watch` will not be able to function. For example, watching files or
+directories can be unreliable, and in some cases impossible, on network file
+systems (NFS, SMB, etc), or host file systems when using virtualization software
+such as Vagrant, Docker, etc.
 
 You can still use `fs.watchFile`, which uses stat polling, but it is slower and
 less reliable.
@@ -1769,7 +1803,7 @@ The following constants are meant for use with `fs.open()`.
   </tr>
   <tr>
     <td><code>O_SYMLINK</code></td>
-    <td>Flag indicating to open the symbolic link itself rather than the 
+    <td>Flag indicating to open the symbolic link itself rather than the
     resource it is pointing to.</td>
   </tr>
   <tr>
@@ -1898,6 +1932,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_callback
+[`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile`]: #fs_fs_readfile_file_options_callback
@@ -1919,3 +1954,9 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: http://www.linux.org/threads/intro-to-inodes.4130
 [FS Constants]: #fs_fs_constants
+[`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
+[`FSEvents`]: https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/FSEvents_ProgGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005289-CH1-SW1
+[`event ports`]: http://illumos.org/man/port_create
+[`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
+[`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/

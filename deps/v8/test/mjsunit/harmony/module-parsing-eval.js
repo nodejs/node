@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-modules
-
 // Check that import/export declarations are rejected in eval or local scope.
 assertThrows("export let x;", SyntaxError);
 assertThrows("import x from 'http://url';", SyntaxError);

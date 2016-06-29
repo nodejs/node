@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_LTTNG_PROVIDER_H_
 #define SRC_NODE_LTTNG_PROVIDER_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #define TRACEPOINT_CREATE_PROBES
 #define TRACEPOINT_DEFINE
 #include "node_lttng_tp.h"
@@ -98,5 +100,7 @@ bool NODE_NET_SERVER_CONNECTION_ENABLED() { return true; }
 bool NODE_NET_STREAM_END_ENABLED() { return true; }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_LTTNG_PROVIDER_H_

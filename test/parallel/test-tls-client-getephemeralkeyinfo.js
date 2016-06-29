@@ -50,9 +50,9 @@ function test(size, type, name, next) {
     if (next) next();
   });
 
-  server.listen(common.PORT, '127.0.0.1', function() {
+  server.listen(0, '127.0.0.1', function() {
     var client = tls.connect({
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, function() {
       var ekeyinfo = client.getEphemeralKeyInfo();

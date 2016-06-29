@@ -24,7 +24,6 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverPort = common.PORT;
 var serverIP = common.localhostIPv4;
 
 function checkResults(result, expected) {
@@ -43,13 +42,13 @@ function runTest(clientsOptions, serverOptions, cb) {
     results[index].server = {ALPN: c.alpnProtocol, NPN: c.npnProtocol};
   });
 
-  server.listen(serverPort, serverIP, function() {
+  server.listen(0, serverIP, function() {
     connectClient(clientsOptions);
   });
 
   function connectClient(options) {
     var opt = options.shift();
-    opt.port = serverPort;
+    opt.port = server.address().port;
     opt.host = serverIP;
     opt.rejectUnauthorized = false;
 

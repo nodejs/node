@@ -1,6 +1,6 @@
 # readable-stream
 
-***Node-core v5.9.1 streams for userland*** [![Build Status](https://travis-ci.org/nodejs/readable-stream.svg?branch=master)](https://travis-ci.org/nodejs/readable-stream)
+***Node-core v6.1.0 streams for userland*** [![Build Status](https://travis-ci.org/nodejs/readable-stream.svg?branch=master)](https://travis-ci.org/nodejs/readable-stream)
 
 
 [![NPM](https://nodei.co/npm/readable-stream.png?downloads=true&downloadRank=true)](https://nodei.co/npm/readable-stream/)
@@ -16,7 +16,7 @@ npm install --save readable-stream
 ***Node-core streams for userland***
 
 This package is a mirror of the Streams2 and Streams3 implementations in
-Node-core, including [documentation](doc/stream.markdown).
+Node-core, including [documentation](doc/stream.md).
 
 If you want to guarantee a stable streams base, regardless of what version of
 Node you, or the users of your libraries are using, use **readable-stream** *only* and avoid the *"stream"* module in Node-core, for background see [this blogpost](http://r.va.gg/2014/06/why-i-dont-use-nodes-core-stream-module.html).

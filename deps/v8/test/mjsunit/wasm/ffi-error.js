@@ -5,40 +5,21 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testCallFFI(ffi) {
-  var kBodySize = 6;
-  var kNameAddOffset = 28 + kBodySize + 1;
-  var kNameMainOffset = kNameAddOffset + 4;
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes(
-    kDeclMemory,
-    12, 12, 1,                  // memory
-    // -- signatures
-    kDeclSignatures, 1,
-    2, kAstI32, kAstF64, kAstF64, // (f64,f64)->int
-    // -- foreign function
-    kDeclFunctions, 2,
-    kDeclFunctionName | kDeclFunctionImport,
-    0, 0,                       // signature index
-    kNameAddOffset, 0, 0, 0,    // name offset
-    // -- main function
-    kDeclFunctionName | kDeclFunctionExport,
-    0, 0,                       // signature index
-    kNameMainOffset, 0, 0, 0,   // name offset
-    kBodySize, 0,
-    // main body
-    kExprCallFunction, 0,       // --
-    kExprGetLocal, 0,           // --
-    kExprGetLocal, 1,           // --
-    // names
-    kDeclEnd,
-    'f', 'u', 'n', 0,           //  --
-    'm', 'a', 'i', 'n', 0       //  --
-  );
+  var sig_index = [kAstI32, kAstF64, kAstF64];
+  builder.addImport("fun", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprCallImport, 0,   // --
+      kExprGetLocal, 0,     // --
+      kExprGetLocal, 1])    // --
+    .exportFunc();
 
-  print("instantiate FFI");
-  var module = _WASMEXP_.instantiateModule(data, ffi);
+  var module = builder.instantiate(ffi);
 }
 
 // everything is good.

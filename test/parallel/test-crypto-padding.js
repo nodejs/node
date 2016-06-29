@@ -65,7 +65,7 @@ function dec(encd, pad) {
   var decrypt = crypto.createDecipheriv(CIPHER_NAME, KEY_PLAIN, IV_PLAIN);
   decrypt.setAutoPadding(pad);
   var plain = decrypt.update(encd, 'hex');
-  plain += decrypt.final('binary');
+  plain += decrypt.final('latin1');
   return plain;
 }
 

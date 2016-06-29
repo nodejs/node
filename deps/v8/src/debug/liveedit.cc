@@ -710,20 +710,18 @@ class FunctionInfoListener {
 
   void FunctionDone() {
     HandleScope scope(isolate());
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
+             .ToHandleChecked());
     current_parent_index_ = info.GetParentIndex();
   }
 
   // Saves only function code, because for a script function we
   // may never create a SharedFunctionInfo object.
   void FunctionCode(Handle<Code> function_code) {
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
+             .ToHandleChecked());
     info.SetFunctionCode(function_code,
                          Handle<HeapObject>(isolate()->heap()->null_value()));
   }
@@ -735,10 +733,9 @@ class FunctionInfoListener {
     if (!shared->IsSharedFunctionInfo()) {
       return;
     }
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
+             .ToHandleChecked());
     info.SetFunctionCode(Handle<Code>(shared->code()),
                          Handle<HeapObject>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
@@ -1185,21 +1182,22 @@ static int TranslatePosition(int original_position,
   // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
     HandleScope scope(isolate);
-    Handle<Object> element = Object::GetElement(
-        isolate, position_change_array, i).ToHandleChecked();
+    Handle<Object> element =
+        JSReceiver::GetElement(isolate, position_change_array, i)
+            .ToHandleChecked();
     CHECK(element->IsSmi());
     int chunk_start = Handle<Smi>::cast(element)->value();
     if (original_position < chunk_start) {
       break;
     }
-    element = Object::GetElement(
-        isolate, position_change_array, i + 1).ToHandleChecked();
+    element = JSReceiver::GetElement(isolate, position_change_array, i + 1)
+                  .ToHandleChecked();
     CHECK(element->IsSmi());
     int chunk_end = Handle<Smi>::cast(element)->value();
     // Position mustn't be inside a chunk.
     DCHECK(original_position >= chunk_end);
-    element = Object::GetElement(
-        isolate, position_change_array, i + 2).ToHandleChecked();
+    element = JSReceiver::GetElement(isolate, position_change_array, i + 2)
+                  .ToHandleChecked();
     CHECK(element->IsSmi());
     int chunk_changed_end = Handle<Smi>::cast(element)->value();
     position_diff = chunk_changed_end - chunk_end;
@@ -1448,7 +1446,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   for (int i = 0; i < len; i++) {
     HandleScope scope(isolate);
     Handle<Object> element =
-        Object::GetElement(isolate, shared_info_array, i).ToHandleChecked();
+        JSReceiver::GetElement(isolate, shared_info_array, i).ToHandleChecked();
     Handle<JSValue> jsvalue = Handle<JSValue>::cast(element);
     Handle<SharedFunctionInfo> shared =
         UnwrapSharedFunctionInfoFromJSValue(jsvalue);
@@ -1485,26 +1483,22 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
 
 // Initializes an artificial stack frame. The data it contains is used for:
 //  a. successful work of frame dropper code which eventually gets control,
-//  b. being compatible with regular stack structure for various stack
+//  b. being compatible with a typed frame structure for various stack
 //     iterators.
-// Frame structure (conforms InternalFrame structure):
+// Frame structure (conforms to InternalFrame structure):
+//   -- function
 //   -- code
-//   -- SMI maker
-//   -- function (slot is called "context")
+//   -- SMI marker
 //   -- frame base
 static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
                                    Handle<Code> code) {
   DCHECK(bottom_js_frame->is_java_script());
-
   Address fp = bottom_js_frame->fp();
-
-  // Move function pointer into "context" slot.
-  Memory::Object_at(fp + StandardFrameConstants::kContextOffset) =
-      Memory::Object_at(fp + JavaScriptFrameConstants::kFunctionOffset);
-
-  Memory::Object_at(fp + InternalFrameConstants::kCodeOffset) = *code;
-  Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset) =
+  Memory::Object_at(fp + FrameDropperFrameConstants::kFunctionOffset) =
+      Memory::Object_at(fp + StandardFrameConstants::kFunctionOffset);
+  Memory::Object_at(fp + FrameDropperFrameConstants::kFrameTypeOffset) =
       Smi::FromInt(StackFrame::INTERNAL);
+  Memory::Object_at(fp + FrameDropperFrameConstants::kCodeOffset) = *code;
 }
 
 
@@ -1566,9 +1560,9 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   }
 
   Address unused_stack_top = top_frame->sp();
-  int new_frame_size = LiveEdit::kFrameDropperFrameSize * kPointerSize;
-  Address unused_stack_bottom = bottom_js_frame->fp()
-      - new_frame_size + kPointerSize;  // Bigger address end is exclusive.
+  Address unused_stack_bottom =
+      bottom_js_frame->fp() - FrameDropperFrameConstants::kFixedFrameSize +
+      2 * kPointerSize;  // Bigger address end is exclusive.
 
   Address* top_frame_pc_address = top_frame->pc_address();
 
@@ -1580,8 +1574,9 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
       int shortage_bytes =
           static_cast<int>(unused_stack_top - unused_stack_bottom);
 
-      Address padding_start = pre_top_frame->fp() -
-          LiveEdit::kFrameDropperFrameSize * kPointerSize;
+      Address padding_start =
+          pre_top_frame->fp() -
+          (FrameDropperFrameConstants::kFixedFrameSize - kPointerSize);
 
       Address padding_pointer = padding_start;
       Smi* padding_object = Smi::FromInt(LiveEdit::kFramePaddingValue);
@@ -1601,7 +1596,7 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
 
       MemMove(padding_start + kPointerSize - shortage_bytes,
               padding_start + kPointerSize,
-              LiveEdit::kFrameDropperFrameSize * kPointerSize);
+              FrameDropperFrameConstants::kFixedFrameSize - kPointerSize);
 
       pre_top_frame->UpdateFp(pre_top_frame->fp() - shortage_bytes);
       pre_pre_frame->SetCallerFp(pre_top_frame->fp());
@@ -1664,14 +1659,16 @@ class MultipleFunctionTarget {
     for (int i = 0; i < len; i++) {
       HandleScope scope(isolate);
       Handle<Object> old_element =
-          Object::GetElement(isolate, old_shared_array_, i).ToHandleChecked();
+          JSReceiver::GetElement(isolate, old_shared_array_, i)
+              .ToHandleChecked();
       if (!old_shared.is_identical_to(UnwrapSharedFunctionInfoFromJSValue(
               Handle<JSValue>::cast(old_element)))) {
         continue;
       }
 
       Handle<Object> new_element =
-          Object::GetElement(isolate, new_shared_array_, i).ToHandleChecked();
+          JSReceiver::GetElement(isolate, new_shared_array_, i)
+              .ToHandleChecked();
       if (new_element->IsUndefined()) return false;
       Handle<SharedFunctionInfo> new_shared =
           UnwrapSharedFunctionInfoFromJSValue(
@@ -1703,7 +1700,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
                                                      TARGET& target,  // NOLINT
                                                      bool do_drop) {
   Debug* debug = isolate->debug();
-  Zone zone;
+  Zone zone(isolate->allocator());
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
 
@@ -1824,7 +1821,7 @@ static const char* DropActivationsInActiveThread(
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
     Handle<Object> obj =
-        Object::GetElement(isolate, result, i).ToHandleChecked();
+        JSReceiver::GetElement(isolate, result, i).ToHandleChecked();
     if (*obj == Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK), isolate);
@@ -1909,8 +1906,9 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
       FixedArray::cast(old_shared_array->elements()));
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(len);
+  JSObject::EnsureWritableFastElements(result);
   Handle<FixedArray> result_elements =
-      JSObject::EnsureWritableFastElements(result);
+      handle(FixedArray::cast(result->elements()), isolate);
 
   // Fill the default values.
   for (int i = 0; i < len; i++) {

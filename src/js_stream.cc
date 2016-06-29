@@ -22,8 +22,8 @@ using v8::Value;
 
 
 JSStream::JSStream(Environment* env, Local<Object> obj, AsyncWrap* parent)
-    : StreamBase(env),
-      AsyncWrap(env, obj, AsyncWrap::PROVIDER_JSSTREAM, parent) {
+    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_JSSTREAM, parent),
+      StreamBase(env) {
   node::Wrap(obj, this);
   MakeWeak<JSStream>(this);
 }
@@ -135,7 +135,8 @@ static void FreeCallback(char* data, void* hint) {
 
 
 void JSStream::DoAlloc(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap = Unwrap<JSStream>(args.Holder());
+  JSStream* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   uv_buf_t buf;
   wrap->OnAlloc(args[0]->Int32Value(), &buf);
@@ -150,7 +151,8 @@ void JSStream::DoAlloc(const FunctionCallbackInfo<Value>& args) {
 
 
 void JSStream::DoRead(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap = Unwrap<JSStream>(args.Holder());
+  JSStream* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   CHECK(Buffer::HasInstance(args[1]));
   uv_buf_t buf = uv_buf_init(Buffer::Data(args[1]), Buffer::Length(args[1]));
@@ -159,8 +161,11 @@ void JSStream::DoRead(const FunctionCallbackInfo<Value>& args) {
 
 
 void JSStream::DoAfterWrite(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap = Unwrap<JSStream>(args.Holder());
-  WriteWrap* w = Unwrap<WriteWrap>(args[0].As<Object>());
+  JSStream* wrap;
+  CHECK(args[0]->IsObject());
+  WriteWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&w, args[0].As<Object>());
 
   wrap->OnAfterWrite(w);
 }
@@ -168,14 +173,17 @@ void JSStream::DoAfterWrite(const FunctionCallbackInfo<Value>& args) {
 
 template <class Wrap>
 void JSStream::Finish(const FunctionCallbackInfo<Value>& args) {
-  Wrap* w = Unwrap<Wrap>(args[0].As<Object>());
+  Wrap* w;
+  CHECK(args[0]->IsObject());
+  ASSIGN_OR_RETURN_UNWRAP(&w, args[0].As<Object>());
 
   w->Done(args[1]->Int32Value());
 }
 
 
 void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap = Unwrap<JSStream>(args.Holder());
+  JSStream* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   CHECK(Buffer::HasInstance(args[0]));
   char* data = Buffer::Data(args[0]);
@@ -197,7 +205,8 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void JSStream::EmitEOF(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap = Unwrap<JSStream>(args.Holder());
+  JSStream* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   wrap->OnRead(UV_EOF, nullptr);
 }

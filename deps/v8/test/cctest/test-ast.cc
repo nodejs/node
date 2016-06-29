@@ -38,7 +38,8 @@ TEST(List) {
   List<AstNode*>* list = new List<AstNode*>(0);
   CHECK_EQ(0, list->length());
 
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   AstValueFactory value_factory(&zone, 0);
   AstNodeFactory factory(&value_factory);
   AstNode* node = factory.NewEmptyStatement(RelocInfo::kNoPosition);

@@ -17,6 +17,8 @@ exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
+exports.isWOW64 = exports.isWindows &&
+                  (process.env['PROCESSOR_ARCHITEW6432'] !== undefined);
 exports.isAix = process.platform === 'aix';
 exports.isLinuxPPCBE = (process.platform === 'linux') &&
                        (process.arch === 'ppc64') &&
@@ -238,6 +240,17 @@ exports.spawnPwd = function(options) {
     return spawn('cmd.exe', ['/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
+  }
+};
+
+
+exports.spawnSyncPwd = function(options) {
+  const spawnSync = require('child_process').spawnSync;
+
+  if (exports.isWindows) {
+    return spawnSync('cmd.exe', ['/c', 'cd'], options);
+  } else {
+    return spawnSync('pwd', [], options);
   }
 };
 

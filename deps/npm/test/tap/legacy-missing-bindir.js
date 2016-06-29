@@ -48,8 +48,6 @@ test('missing-bindir', function (t) {
 
   function installCheckAndTest (err, code, stdout, stderr) {
     if (err) throw err
-    if (stderr) console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'install went ok')
     t.is(installedExists('README'), true, 'README')
     t.is(installedExists('package.json'), true, 'package.json')
@@ -58,8 +56,6 @@ test('missing-bindir', function (t) {
 
   function removeCheckAndDone (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'remove went ok')
     t.done()
   }

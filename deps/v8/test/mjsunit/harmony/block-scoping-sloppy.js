@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --harmony-sloppy --no-legacy-const --harmony-sloppy-let --harmony-sloppy-function
+// Flags: --allow-natives-syntax --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
 // Test functionality of block scopes.
 
 // Hoisting of var declarations.

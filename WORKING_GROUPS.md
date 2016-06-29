@@ -179,7 +179,7 @@ content.
 ### [HTTP](https://github.com/nodejs/http)
 
 The HTTP working group is chartered for the support and improvement of the
-HTTP implementation in Node. It's responsibilities are:
+HTTP implementation in Node. Its responsibilities are:
 
 * Addressing HTTP issues on the Node.js issue tracker.
 * Authoring and editing HTTP documentation within the Node.js project.
@@ -293,7 +293,7 @@ Its responsibilities are:
 The Node.js Testing Working Group's purpose is to extend and improve testing of
 the Node.js source code.
 
-It's responsibilities are:
+Its responsibilities are:
 
 * Coordinating an overall strategy for improving testing.
 * Documenting guidelines around tests.
@@ -471,21 +471,32 @@ or else the discussion will continue. Simple majority wins.
 Note that changes to WG membership require unanimous consensus.  See
 "WG Membership" above.
 
-### Developer's Certificate of Origin 1.0
+<a id="developers-certificate-of-origin"></a>
+## Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:
 
 * (a) The contribution was created in whole or in part by me and I
-  have the right to submit it under the open source license indicated
-  in the file; or
+  have the right to submit it under the open source license
+  indicated in the file; or
+
 * (b) The contribution is based upon previous work that, to the best
-  of my knowledge, is covered under an appropriate open source license
-  and I have the right under that license to submit that work with
-  modifications, whether created in whole or in part by me, under the
-  same open source license (unless I am permitted to submit under a
-  different license), as indicated in the file; or
+  of my knowledge, is covered under an appropriate open source
+  license and I have the right under that license to submit that
+  work with modifications, whether created in whole or in part
+  by me, under the same open source license (unless I am
+  permitted to submit under a different license), as indicated
+  in the file; or
+
 * (c) The contribution was provided directly to me by some other
-  person who certified (a), (b) or (c) and I have not modified it.
+  person who certified (a), (b) or (c) and I have not modified
+  it.
+
+* (d) I understand and agree that this project and the contribution
+  are public and that a record of the contribution (including all
+  personal information I submit with it, including my sign-off) is
+  maintained indefinitely and may be redistributed consistent with
+  this project or the open source license(s) involved.
 
 ### Moderation Policy
 

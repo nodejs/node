@@ -24,6 +24,8 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Flags: --harmony-function-name
 
 var obj = {
     a: 7,
@@ -218,7 +220,7 @@ function TestNumericNamesGetter(expectedKeys, object) {
   assertEquals(expectedKeys, Object.keys(object));
   expectedKeys.forEach(function(key) {
     var descr = Object.getOwnPropertyDescriptor(object, key);
-    assertEquals(key, descr.get.name);
+    assertEquals('get ' + key, descr.get.name);
   });
 }
 TestNumericNamesGetter(['1', '2', '3', '4', '5', '6', '7', '8', '9'], {
@@ -242,7 +244,7 @@ function TestNumericNamesSetter(expectedKeys, object) {
   assertEquals(expectedKeys, Object.keys(object));
   expectedKeys.forEach(function(key) {
     var descr = Object.getOwnPropertyDescriptor(object, key);
-    assertEquals(key, descr.set.name);
+    assertEquals('set ' + key, descr.set.name);
   });
 }
 TestNumericNamesSetter(['1', '2', '3', '4', '5', '6', '7', '8', '9'], {

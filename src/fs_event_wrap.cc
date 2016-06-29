@@ -34,15 +34,17 @@ class FSEventWrap: public HandleWrap {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
+  static const encoding kDefaultEncoding = UTF8;
+
   FSEventWrap(Environment* env, Local<Object> object);
-  virtual ~FSEventWrap() override;
+  ~FSEventWrap() override;
 
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
     int status);
 
   uv_fs_event_t handle_;
-  bool initialized_;
-  enum encoding encoding_;
+  bool initialized_ = false;
+  enum encoding encoding_ = kDefaultEncoding;
 };
 
 
@@ -50,9 +52,7 @@ FSEventWrap::FSEventWrap(Environment* env, Local<Object> object)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
-                 AsyncWrap::PROVIDER_FSEVENTWRAP) {
-  initialized_ = false;
-}
+                 AsyncWrap::PROVIDER_FSEVENTWRAP) {}
 
 
 FSEventWrap::~FSEventWrap() {
@@ -86,7 +86,9 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  CHECK_EQ(wrap->initialized_, false);
 
   static const char kErrMsg[] = "filename must be a string or Buffer";
   if (args.Length() < 1)
@@ -100,7 +102,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   if (args[2]->IsTrue())
     flags |= UV_FS_EVENT_RECURSIVE;
 
-  wrap->encoding_ = ParseEncoding(env->isolate(), args[3], UTF8);
+  wrap->encoding_ = ParseEncoding(env->isolate(), args[3], kDefaultEncoding);
 
   int err = uv_fs_event_init(wrap->env()->event_loop(), &wrap->handle_);
   if (err == 0) {
@@ -181,7 +183,8 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
 
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   if (wrap == nullptr || wrap->initialized_ == false)
     return;

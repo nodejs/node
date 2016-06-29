@@ -5,52 +5,36 @@
 // Flags: --expose-wasm --expose-gc --stress-compaction
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
-var kMemSize = 4096;
+var kMemSize = 65536;
 
 function genModule(memory) {
-  var kBodySize = 27;
-  var kNameMainOffset = 28 + kBodySize + 1;
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes(
-    kDeclMemory,
-    12, 12, 1,                  // memory
-    // -- signatures
-    kDeclSignatures, 1,
-    1, kAstI32, kAstI32,        // int->int
-    // -- main function
-    kDeclFunctions, 1,
-    kDeclFunctionLocals | kDeclFunctionName | kDeclFunctionExport,
-    0, 0,
-    kNameMainOffset, 0, 0, 0,   // name offset
-    1, 0,                       // local int32 count
-    0, 0,                       // local int64 count
-    0, 0,                       // local float32 count
-    0, 0,                       // local float64 count
-    kBodySize, 0,               // code size
-    // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
-    kExprBlock,2,
-      kExprLoop,1,
-        kExprIf,
-          kExprGetLocal,0,
-          kExprBr, 0,
-            kExprIfElse,
-              kExprI32LoadMem,0,kExprGetLocal,0,
-              kExprBr,2, kExprI8Const, 255,
-              kExprSetLocal,0,
-                kExprI32Sub,kExprGetLocal,0,kExprI8Const,4,
-      kExprI8Const,0,
-    // names
-    kDeclEnd,
-    'm', 'a', 'i', 'n', 0       //  --
-  );
+  builder.addMemory(1, 1, true);
+  builder.addFunction("main", [kAstI32, kAstI32])
+    .addBody([
+      kExprBlock,2,
+        kExprLoop,1,
+          kExprIf,
+            kExprGetLocal,0,
+            kExprBr, 0,
+              kExprIfElse,
+                kExprI32LoadMem,0,0,kExprGetLocal,0,
+                kExprBr,2, kExprI8Const, 255,
+                kExprSetLocal,0,
+                  kExprI32Sub,kExprGetLocal,0,kExprI8Const,4,
+        kExprI8Const,0])
+    .exportFunc();
 
-  return _WASMEXP_.instantiateModule(data, null, memory);
+  return builder.instantiate(null, memory);
 }
 
 function testPokeMemory() {
   var module = genModule(null);
-  var buffer = module.memory;
+  var buffer = module.exports.memory;
+  var main = module.exports.main;
   assertEquals(kMemSize, buffer.byteLength);
 
   var array = new Int8Array(buffer);
@@ -61,21 +45,21 @@ function testPokeMemory() {
   }
 
   for (var i = 0; i < 10; i++) {
-    assertEquals(0, module.main(kMemSize - 4));
+    assertEquals(0, main(kMemSize - 4));
 
     array[kMemSize/2 + i] = 1;
-    assertEquals(0, module.main(kMemSize/2 - 4));
-    assertEquals(-1, module.main(kMemSize - 4));
+    assertEquals(0, main(kMemSize/2 - 4));
+    assertEquals(-1, main(kMemSize - 4));
 
     array[kMemSize/2 + i] = 0;
-    assertEquals(0, module.main(kMemSize - 4));
+    assertEquals(0, main(kMemSize - 4));
   }
 }
 
 testPokeMemory();
 
 function testSurvivalAcrossGc() {
-  var checker = genModule(null).main;
+  var checker = genModule(null).exports.main;
   for (var i = 0; i < 5; i++) {
     print("gc run ", i);
     assertEquals(0, checker(kMemSize - 4));
@@ -92,6 +76,7 @@ testSurvivalAcrossGc();
 function testPokeOuterMemory() {
   var buffer = new ArrayBuffer(kMemSize);
   var module = genModule(buffer);
+  var main = module.exports.main;
   assertEquals(kMemSize, buffer.byteLength);
 
   var array = new Int8Array(buffer);
@@ -102,14 +87,14 @@ function testPokeOuterMemory() {
   }
 
   for (var i = 0; i < 10; i++) {
-    assertEquals(0, module.main(kMemSize - 4));
+    assertEquals(0, main(kMemSize - 4));
 
     array[kMemSize/2 + i] = 1;
-    assertEquals(0, module.main(kMemSize/2 - 4));
-    assertEquals(-1, module.main(kMemSize - 4));
+    assertEquals(0, main(kMemSize/2 - 4));
+    assertEquals(-1, main(kMemSize - 4));
 
     array[kMemSize/2 + i] = 0;
-    assertEquals(0, module.main(kMemSize - 4));
+    assertEquals(0, main(kMemSize - 4));
   }
 }
 
@@ -117,7 +102,7 @@ testPokeOuterMemory();
 
 function testOuterMemorySurvivalAcrossGc() {
   var buffer = new ArrayBuffer(kMemSize);
-  var checker = genModule(buffer).main;
+  var checker = genModule(buffer).exports.main;
   for (var i = 0; i < 5; i++) {
     print("gc run ", i);
     assertEquals(0, checker(kMemSize - 4));
@@ -132,47 +117,29 @@ testOuterMemorySurvivalAcrossGc();
 
 
 function testOOBThrows() {
-  var kBodySize = 8;
-  var kNameMainOffset = 29 + kBodySize + 1;
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes(
-    kDeclMemory,
-    12, 12, 1,                     // memory = 4KB
-    // -- signatures
-    kDeclSignatures, 1,
-    2, kAstI32, kAstI32, kAstI32,  // int->int
-    // -- main function
-    kDeclFunctions, 1,
-    kDeclFunctionLocals | kDeclFunctionName | kDeclFunctionExport,
-    0, 0,
-    kNameMainOffset, 0, 0, 0,      // name offset
-    1, 0,                          // local int32 count
-    0, 0,                          // local int64 count
-    0, 0,                          // local float32 count
-    0, 0,                          // local float64 count
-    kBodySize, 0,                  // code size
-    // geti: return mem[a] = mem[b]
-    kExprI32StoreMem, 0, kExprGetLocal, 0, kExprI32LoadMem, 0, kExprGetLocal, 1,
-    // names
-    kDeclEnd,
-    'g','e','t','i', 0             //  --
-  );
+  builder.addMemory(1, 1, true);
+  builder.addFunction("geti", [kAstI32, kAstI32, kAstI32])
+    .addBody([
+      kExprI32StoreMem, 0, 0, kExprGetLocal, 0, kExprI32LoadMem, 0, 0, kExprGetLocal, 1
+    ])
+    .exportFunc();
 
-  var memory = null;
-  var module = _WASMEXP_.instantiateModule(data, null, memory);
+  var module = builder.instantiate();
 
   var offset;
 
-  function read() { return module.geti(0, offset); }
-  function write() { return module.geti(offset, 0); }
+  function read() { return module.exports.geti(0, offset); }
+  function write() { return module.exports.geti(offset, 0); }
 
-  for (offset = 0; offset < 4092; offset++) {
+  for (offset = 0; offset < 65533; offset++) {
     assertEquals(0, read());
     assertEquals(0, write());
   }
 
 
-  for (offset = 4093; offset < 4124; offset++) {
+  for (offset = 65534; offset < 66536; offset++) {
     assertTraps(kTrapMemOutOfBounds, read);
     assertTraps(kTrapMemOutOfBounds, write);
   }

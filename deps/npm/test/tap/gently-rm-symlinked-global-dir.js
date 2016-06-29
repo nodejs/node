@@ -1,10 +1,11 @@
+var common = require('../common-tap.js')
+
 var resolve = require('path').resolve
 var fs = require('graceful-fs')
 var test = require('tap').test
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
-
-var common = require('../common-tap.js')
+var isWindows = require('../../lib/utils/is-windows.js')
 
 var pkg = resolve(__dirname, 'gently-rm-linked')
 var dep = resolve(__dirname, 'test-linked')
@@ -36,6 +37,7 @@ test('install and link', function (t) {
       '--global',
       '--prefix', lnk,
       '--loglevel', 'silent',
+      '--unicode', 'false',
       'install', '../test-linked'
     ],
     EXEC_OPTS,
@@ -52,6 +54,7 @@ test('install and link', function (t) {
           '--global',
           '--prefix', lnk,
           '--loglevel', 'silent',
+          '--unicode', 'false',
           'install', '../test-linked'
         ],
         EXEC_OPTS,
@@ -84,15 +87,20 @@ function removeBlank (line) {
   return line !== ''
 }
 
+function resolvePath () {
+  return resolve.apply(null, Array.prototype.slice.call(arguments)
+    .filter(function (arg) { return arg }))
+}
+
 function verify (t, stdout) {
-  var binPath = resolve(lnk, 'bin', 'linked')
-  var pkgPath = resolve(lnk, 'lib', 'node_modules', '@test', 'linked')
-  var trgPath = resolve(pkgPath, 'index.js')
+  var binPath = resolvePath(lnk, !isWindows && 'bin', 'linked')
+  var pkgPath = resolvePath(lnk, !isWindows && 'lib', 'node_modules', '@test', 'linked')
+  var trgPath = resolvePath(pkgPath, 'index.js')
   t.deepEqual(
     stdout.split('\n').filter(removeBlank),
     [ binPath + ' -> ' + trgPath,
-      resolve(lnk, 'lib'),
-      '└── @test/linked@1.0.0 '
+      resolvePath(lnk, !isWindows && 'lib'),
+      '`-- @test/linked@1.0.0 '
     ],
     'got expected install output'
   )
@@ -108,7 +116,7 @@ function cleanup () {
 function setup () {
   mkdirp.sync(pkg)
   mkdirp.sync(glb)
-  fs.symlinkSync(glb, lnk)
+  fs.symlinkSync(glb, lnk, 'junction')
   // so it doesn't try to install into npm's own node_modules
   mkdirp.sync(resolve(pkg, 'node_modules'))
   mkdirp.sync(dep)

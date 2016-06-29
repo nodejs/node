@@ -1,6 +1,8 @@
 #ifndef SRC_UDP_WRAP_H_
 #define SRC_UDP_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "async-wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
@@ -69,5 +71,7 @@ class UDPWrap: public HandleWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UDP_WRAP_H_

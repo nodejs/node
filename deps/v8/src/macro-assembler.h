@@ -68,6 +68,11 @@ enum AllocationFlags {
 #include "src/mips64/assembler-mips64-inl.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/assembler-s390.h"
+#include "src/s390/assembler-s390-inl.h"
+#include "src/s390/constants-s390.h"
+#include "src/s390/macro-assembler-s390.h"
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/assembler-x87.h"
 #include "src/x87/assembler-x87-inl.h"

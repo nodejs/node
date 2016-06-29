@@ -15,6 +15,7 @@ var glob = require('glob')
 var cmdList = require('./config/cmd-list').cmdList
 var shorthands = require('./config/cmd-list').shorthands
 var commands = cmdList.concat(Object.keys(shorthands))
+var output = require('./utils/output.js')
 
 function help (args, cb) {
   var argv = npm.config.get('argv').cooked
@@ -43,7 +44,7 @@ function help (args, cb) {
       npm.commands[section].usage) {
     npm.config.set('loglevel', 'silent')
     log.level = 'silent'
-    console.log(npm.commands[section].usage)
+    output(npm.commands[section].usage)
     return cb()
   }
 
@@ -161,7 +162,7 @@ function htmlMan (man) {
 function npmUsage (valid, cb) {
   npm.config.set('loglevel', 'silent')
   log.level = 'silent'
-  console.log([
+  output([
     '\nUsage: npm <command>',
     '',
     'where <command> is one of:',

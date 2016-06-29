@@ -3,7 +3,8 @@ var test = require('tap').test
 var rimraf = require('rimraf')
 var npm = require('../../')
 var mr = require('npm-registry-mock')
-var pkg = __dirname + '/outdated-depth-integer'
+var path = require('path')
+var pkg = path.resolve('outdated-depth-integer')
 
 var osenv = require('osenv')
 var mkdirp = require('mkdirp')

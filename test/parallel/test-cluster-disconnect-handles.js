@@ -31,6 +31,10 @@ if (cluster.isMaster) {
   // scanner but is ignored by atoi(3).  Heinous hack.
   cluster.setupMaster({ execArgv: [`--debug=${common.PORT}.`] });
   const worker = cluster.fork();
+  worker.once('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(code, 0, 'worker did not exit normally');
+    assert.strictEqual(signal, null, 'worker did not exit normally');
+  }));
   worker.on('message', common.mustCall((message) => {
     assert.strictEqual(Array.isArray(message), true);
     assert.strictEqual(message[0], 'listening');

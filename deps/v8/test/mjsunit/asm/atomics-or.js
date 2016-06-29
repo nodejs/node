@@ -81,8 +81,8 @@ function testElementType(taConstr, f, offset) {
   assertEquals(0xf, f(0, 0x11), name);
   assertEquals(0x1f, ta[0]);
   // out of bounds
-  assertEquals(0, f(-1, 0), name);
-  assertEquals(0, f(ta.length, 0), name);
+  assertThrows(function() { f(-1, 0); });
+  assertThrows(function() { f(ta.length, 0); });
 }
 
 function testElement(m, offset) {

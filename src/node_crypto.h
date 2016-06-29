@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_CRYPTO_H_
 #define SRC_NODE_CRYPTO_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "node_crypto_clienthello.h"  // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
@@ -322,7 +324,7 @@ class SSLWrap {
 // Connection inherits from AsyncWrap because SSLWrap makes calls to
 // MakeCallback, but SSLWrap doesn't store the handle itself. Instead it
 // assumes that any args.This() called will be the handle from Connection.
-class Connection : public SSLWrap<Connection>, public AsyncWrap {
+class Connection : public AsyncWrap, public SSLWrap<Connection> {
  public:
   ~Connection() override {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
@@ -387,8 +389,8 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : SSLWrap<Connection>(env, sc, kind),
-        AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+        SSLWrap<Connection>(env, sc, kind),
         bio_read_(nullptr),
         bio_write_(nullptr),
         hello_offset_(0) {
@@ -498,14 +500,12 @@ class Hmac : public BaseObject {
 
   Hmac(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(nullptr),
         initialised_(false) {
     MakeWeak<Hmac>(this);
   }
 
  private:
   HMAC_CTX ctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
 };
 
@@ -529,14 +529,12 @@ class Hash : public BaseObject {
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(nullptr),
         initialised_(false) {
     MakeWeak<Hash>(this);
   }
 
  private:
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
   bool finalized_;
 };
@@ -555,7 +553,6 @@ class SignBase : public BaseObject {
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(nullptr),
         initialised_(false) {
   }
 
@@ -569,13 +566,11 @@ class SignBase : public BaseObject {
   void CheckThrow(Error error);
 
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
 };
 
 class Sign : public SignBase {
  public:
-
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   Error SignInit(const char* sign_type);
@@ -741,5 +736,7 @@ void InitCrypto(v8::Local<v8::Object> target);
 
 }  // namespace crypto
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_H_

@@ -1,5 +1,5 @@
 /* eslint-disable strict */
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -14,29 +14,29 @@ for (var i = 255; i >= 0; i--) {
 
 // safe constructor
 var echoServer = net.Server(function(connection) {
-  connection.setEncoding('binary');
+  connection.setEncoding('latin1');
   connection.on('data', function(chunk) {
-    connection.write(chunk, 'binary');
+    connection.write(chunk, 'latin1');
   });
   connection.on('end', function() {
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
 var recv = '';
 
 echoServer.on('listening', function() {
   var j = 0;
   var c = net.createConnection({
-    port: common.PORT
+    port: this.address().port
   });
 
-  c.setEncoding('binary');
+  c.setEncoding('latin1');
   c.on('data', function(chunk) {
     var n = j + chunk.length;
     while (j < n && j < 256) {
-      c.write(String.fromCharCode(j), 'binary');
+      c.write(String.fromCharCode(j), 'latin1');
       j++;
     }
     if (j === 256) {

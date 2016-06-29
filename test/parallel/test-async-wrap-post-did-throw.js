@@ -1,6 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
 var asyncThrows = 0;

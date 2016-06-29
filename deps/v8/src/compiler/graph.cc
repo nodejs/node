@@ -25,7 +25,7 @@ Graph::Graph(Zone* zone)
 
 
 void Graph::Decorate(Node* node) {
-  for (auto const decorator : decorators_) {
+  for (GraphDecorator* const decorator : decorators_) {
     decorator->Decorate(node);
   }
 }

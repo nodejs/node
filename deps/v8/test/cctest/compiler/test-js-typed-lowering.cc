@@ -975,7 +975,7 @@ TEST(OrderCompareEffects) {
     BinopEffectsTester B(ops[j], Type::Symbol(), Type::String());
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
-    Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
+    Node* i0 = B.CheckConvertedInput(IrOpcode::kStringToNumber, 0, false);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
 
     // Inputs should be commuted.

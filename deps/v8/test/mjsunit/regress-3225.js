@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --debug-eval-readonly-locals
+// Flags: --expose-debug-as debug
 
 Debug = debug.Debug
 
@@ -15,13 +15,13 @@ function listener(event, exec_state, event_data, data) {
     if (debug_step == 0) {
       assertEquals(1, exec_state.frame(0).evaluate('a').value());
       assertEquals(3, exec_state.frame(0).evaluate('b').value());
-      exec_state.frame(0).evaluate("a = 4").value();  // no effect.
+      exec_state.frame(0).evaluate("a = 4").value();
       debug_step++;
     } else {
-      assertEquals(1, exec_state.frame(0).evaluate('a').value());
+      assertEquals(4, exec_state.frame(0).evaluate('a').value());
       assertEquals(3, exec_state.frame(0).evaluate('b').value());
       exec_state.frame(0).evaluate("set_a_to_5()");
-      exec_state.frame(0).evaluate("b = 5").value();  // no effect.
+      exec_state.frame(0).evaluate("b = 5").value();
     }
   } catch (e) {
     failure = e;
@@ -43,10 +43,10 @@ function* generator(a, b) {
 
 var foo = generator(1, 2);
 
-assertEquals(1, foo.next().value);
+assertEquals(4, foo.next().value);
 assertEquals(3, foo.next().value);
 assertEquals(5, foo.next().value);
-assertEquals(3, foo.next().value);
+assertEquals(5, foo.next().value);
 assertNull(failure);
 
 Debug.setListener(null);

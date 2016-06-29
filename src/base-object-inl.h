@@ -1,6 +1,8 @@
 #ifndef SRC_BASE_OBJECT_INL_H_
 #define SRC_BASE_OBJECT_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "base-object.h"
 #include "env.h"
 #include "env-inl.h"
@@ -14,6 +16,10 @@ inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
     : handle_(env->isolate(), handle),
       env_(env) {
   CHECK_EQ(false, handle.IsEmpty());
+  // The zero field holds a pointer to the handle. Immediately set it to
+  // nullptr in case it's accessed by the user before construction is complete.
+  if (handle->InternalFieldCount() > 0)
+    handle->SetAlignedPointerInInternalField(0, nullptr);
 }
 
 
@@ -63,5 +69,7 @@ inline void BaseObject::ClearWeak() {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_BASE_OBJECT_INL_H_

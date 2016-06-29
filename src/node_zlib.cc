@@ -52,7 +52,6 @@ void InitZlib(v8::Local<v8::Object> target);
  */
 class ZCtx : public AsyncWrap {
  public:
-
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
         chunk_size_(0),
@@ -109,7 +108,8 @@ class ZCtx : public AsyncWrap {
 
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     ctx->Close();
   }
 
@@ -119,7 +119,8 @@ class ZCtx : public AsyncWrap {
   static void Write(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 7);
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     CHECK(ctx->init_done_ && "write before init");
     CHECK(ctx->mode_ != NONE && "already finalized");
 
@@ -148,8 +149,7 @@ class ZCtx : public AsyncWrap {
 
     if (args[1]->IsNull()) {
       // just a flush
-      Bytef nada[1] = { 0 };
-      in = nada;
+      in = nullptr;
       in_len = 0;
       in_off = 0;
     } else {
@@ -431,7 +431,8 @@ class ZCtx : public AsyncWrap {
     CHECK((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
     int windowBits = args[0]->Uint32Value();
     CHECK((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
@@ -467,12 +468,14 @@ class ZCtx : public AsyncWrap {
 
   static void Params(const FunctionCallbackInfo<Value>& args) {
     CHECK(args.Length() == 2 && "params(level, strategy)");
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
   }
 
   static void Reset(const FunctionCallbackInfo<Value> &args) {
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     Reset(ctx);
     SetDictionary(ctx);
   }
@@ -660,44 +663,6 @@ void InitZlib(Local<Object> target,
 
   z->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib"), z->GetFunction());
-
-  // valid flush values.
-  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_FINISH);
-  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
-
-  // return/error codes
-  NODE_DEFINE_CONSTANT(target, Z_OK);
-  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
-  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
-  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
-  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
-
-  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
-  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
-  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
-  NODE_DEFINE_CONSTANT(target, Z_RLE);
-  NODE_DEFINE_CONSTANT(target, Z_FIXED);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
-  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
-
-  NODE_DEFINE_CONSTANT(target, DEFLATE);
-  NODE_DEFINE_CONSTANT(target, INFLATE);
-  NODE_DEFINE_CONSTANT(target, GZIP);
-  NODE_DEFINE_CONSTANT(target, GUNZIP);
-  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
-  NODE_DEFINE_CONSTANT(target, INFLATERAW);
-  NODE_DEFINE_CONSTANT(target, UNZIP);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));

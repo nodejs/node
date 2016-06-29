@@ -273,10 +273,11 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
     # hard to decipher what test is running when only the filename is printed.
-    prefix = abspath(join(dirname(__file__), '../test')) + '/'
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
     command = output.command[-1]
     if command.endswith('.js'): command = command[:-3]
     if command.startswith(prefix): command = command[len(prefix):]
+    command = command.replace('\\', '/')
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
@@ -308,6 +309,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
     total_seconds = (duration.microseconds +
       (duration.seconds + duration.days * 24 * 3600) * 10**6) / 10**6
 
+    # duration_ms is measured in seconds and is read as such by TAP parsers.
+    # It should read as "duration including ms" rather than "duration in ms"
     logger.info('  ---')
     logger.info('  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000))
     logger.info('  ...')
@@ -575,11 +578,17 @@ def RunProcess(context, timeout, args, **rest):
       error_mode = SEM_NOGPFAULTERRORBOX;
       prev_error_mode = Win32SetErrorMode(error_mode);
       Win32SetErrorMode(error_mode | prev_error_mode);
+
+  faketty = rest.pop('faketty', False)
+  pty_out = rest.pop('pty_out')
+
   process = subprocess.Popen(
     shell = utils.IsWindows(),
     args = popen_args,
     **rest
   )
+  if faketty:
+    os.close(rest['stdout'])
   if utils.IsWindows() and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
     Win32SetErrorMode(prev_error_mode)
   # Compute the end time - if the process crosses this limit we
@@ -591,6 +600,29 @@ def RunProcess(context, timeout, args, **rest):
   # loop and keep track of whether or not it times out.
   exit_code = None
   sleep_time = INITIAL_SLEEP_TIME
+  output = ''
+  if faketty:
+    while True:
+      if time.time() >= end_time:
+        # Kill the process and wait for it to exit.
+        KillProcessWithID(process.pid)
+        exit_code = process.wait()
+        timed_out = True
+        break
+
+      # source: http://stackoverflow.com/a/12471855/1903116
+      # related: http://stackoverflow.com/q/11165521/1903116
+      try:
+        data = os.read(pty_out, 9999)
+      except OSError as e:
+        if e.errno != errno.EIO:
+          raise
+        break # EIO means EOF on some systems
+      else:
+        if not data: # EOF
+          break
+        output += data
+
   while exit_code is None:
     if (not end_time is None) and (time.time() >= end_time):
       # Kill the process and wait for it to exit.
@@ -603,7 +635,7 @@ def RunProcess(context, timeout, args, **rest):
       sleep_time = sleep_time * SLEEP_TIME_FACTOR
       if sleep_time > MAX_SLEEP_TIME:
         sleep_time = MAX_SLEEP_TIME
-  return (process, exit_code, timed_out)
+  return (process, exit_code, timed_out, output)
 
 
 def PrintError(str):
@@ -625,29 +657,43 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env={}):
-  (fd_out, outname) = tempfile.mkstemp()
-  (fd_err, errname) = tempfile.mkstemp()
+def Execute(args, context, timeout=None, env={}, faketty=False):
+  if faketty:
+    import pty
+    (out_master, fd_out) = pty.openpty()
+    fd_err = fd_out
+    pty_out = out_master
+  else:
+    (fd_out, outname) = tempfile.mkstemp()
+    (fd_err, errname) = tempfile.mkstemp()
+    pty_out = None
 
   # Extend environment
   env_copy = os.environ.copy()
   for key, value in env.iteritems():
     env_copy[key] = value
 
-  (process, exit_code, timed_out) = RunProcess(
+  (process, exit_code, timed_out, output) = RunProcess(
     context,
     timeout,
     args = args,
     stdout = fd_out,
     stderr = fd_err,
-    env = env_copy
+    env = env_copy,
+    faketty = faketty,
+    pty_out = pty_out
   )
-  os.close(fd_out)
-  os.close(fd_err)
-  output = file(outname).read()
-  errors = file(errname).read()
-  CheckedUnlink(outname)
-  CheckedUnlink(errname)
+  if faketty:
+    os.close(out_master)
+    errors = ''
+  else:
+    os.close(fd_out)
+    os.close(fd_err)
+    output = file(outname).read()
+    errors = file(errname).read()
+    CheckedUnlink(outname)
+    CheckedUnlink(errname)
+
   return CommandOutput(exit_code, timed_out, output, errors)
 
 
@@ -1541,6 +1587,7 @@ def Main():
         vmArch = archEngineContext.stdout.rstrip()
         if archEngineContext.exit_code is not 0 or vmArch == "undefined":
           print "Can't determine the arch of: '%s'" % vm
+          print archEngineContext.stderr.rstrip()
           continue
         env = {
           'mode': mode,

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-species
+// Flags: --harmony-species --allow-natives-syntax
 
 // Overwriting an array instance's __proto__ updates the protector
 
@@ -18,6 +18,7 @@ assertEquals(1, x.concat([1])[0]);
 class MyArray extends Array { }
 
 x.__proto__ = MyArray.prototype;
+assertTrue(%SpeciesProtector());
 
 assertEquals(MyArray, x.map(()=>{}).constructor);
 assertEquals(MyArray, x.filter(()=>{}).constructor);

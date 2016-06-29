@@ -23,9 +23,6 @@ namespace internal {
     return *isolate->factory()->NewHeapNumber(std::name(x));   \
   }
 
-RUNTIME_UNARY_MATH(Acos, acos)
-RUNTIME_UNARY_MATH(Asin, asin)
-RUNTIME_UNARY_MATH(Atan, atan)
 RUNTIME_UNARY_MATH(LogRT, log)
 #undef RUNTIME_UNARY_MATH
 
@@ -111,27 +108,6 @@ RUNTIME_FUNCTION(Runtime_MathExpRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathClz32) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_clz32_runtime()->Increment();
-
-  CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
-  return *isolate->factory()->NewNumberFromUint(
-      base::bits::CountLeadingZeros32(x));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathFloor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_floor_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(Floor(x));
-}
-
-
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if VFP3 is not available.
 RUNTIME_FUNCTION(Runtime_MathPow) {
@@ -174,75 +150,21 @@ RUNTIME_FUNCTION(Runtime_MathPowRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_RoundNumber) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(input, 0);
-  isolate->counters()->math_round_runtime()->Increment();
-
-  if (!input->IsHeapNumber()) {
-    DCHECK(input->IsSmi());
-    return *input;
-  }
-
-  Handle<HeapNumber> number = Handle<HeapNumber>::cast(input);
-
-  double value = number->value();
-  int exponent = number->get_exponent();
-  int sign = number->get_sign();
-
-  if (exponent < -1) {
-    // Number in range ]-0.5..0.5[. These always round to +/-zero.
-    if (sign) return isolate->heap()->minus_zero_value();
-    return Smi::FromInt(0);
-  }
-
-  // We compare with kSmiValueSize - 2 because (2^30 - 0.1) has exponent 29 and
-  // should be rounded to 2^30, which is not smi (for 31-bit smis, similar
-  // argument holds for 32-bit smis).
-  if (!sign && exponent < kSmiValueSize - 2) {
-    return Smi::FromInt(static_cast<int>(value + 0.5));
-  }
-
-  // If the magnitude is big enough, there's no place for fraction part. If we
-  // try to add 0.5 to this number, 1.0 will be added instead.
-  if (exponent >= 52) {
-    return *number;
-  }
-
-  if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
-
-  // Do not call NumberFromDouble() to avoid extra checks.
-  return *isolate->factory()->NewNumber(Floor(value + 0.5));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathSqrt) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_sqrt_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  lazily_initialize_fast_sqrt(isolate);
-  return *isolate->factory()->NewNumber(fast_sqrt(x, isolate));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathFround) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  float xf = DoubleToFloat32(x);
-  return *isolate->factory()->NewNumber(xf);
-}
-
-
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  // Random numbers in the snapshot are not really that random.
-  DCHECK(!isolate->bootstrapper()->IsActive());
+  if (isolate->serializer_enabled()) {
+    // Random numbers in the snapshot are not really that random. And we cannot
+    // return a typed array as it cannot be serialized. To make calling
+    // Math.random possible when creating a custom startup snapshot, we simply
+    // return a normal array with a single random number.
+    Handle<HeapNumber> random_number = isolate->factory()->NewHeapNumber(
+        isolate->random_number_generator()->NextDouble());
+    Handle<FixedArray> array_backing = isolate->factory()->NewFixedArray(1);
+    array_backing->set(0, *random_number);
+    return *isolate->factory()->NewJSArrayWithElements(array_backing);
+  }
+
   static const int kState0Offset = 0;
   static const int kState1Offset = 1;
   static const int kRandomBatchSize = 64;

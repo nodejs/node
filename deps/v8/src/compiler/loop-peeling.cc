@@ -184,7 +184,7 @@ static void FindLoopExits(LoopTree* loop_tree, LoopTree::Loop* loop,
 
 
 bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
-  Zone zone;
+  Zone zone(loop_tree->zone()->allocator());
   NodeVector exits(&zone);
   NodeVector rets(&zone);
   FindLoopExits(loop_tree, loop, exits, rets);

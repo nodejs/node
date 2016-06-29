@@ -1,6 +1,8 @@
 #ifndef SRC_REQ_WRAP_H_
 #define SRC_REQ_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "async-wrap.h"
 #include "env.h"
 #include "util.h"
@@ -26,5 +28,7 @@ class ReqWrap : public AsyncWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_REQ_WRAP_H_

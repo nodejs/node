@@ -37,7 +37,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     // it may hang for ~30 seconds in FIN_WAIT_1 state (at least on OSX).
     cleartextStream.end();
   });
-  server.listen(common.PORT, localhost, function() {
+  server.listen(0, localhost, function() {
     var coptions = {
       rejectUnauthorized: false,
       secureProtocol: SSL_Method
@@ -45,7 +45,8 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     if (clientCipher) {
       coptions.ciphers = clientCipher;
     }
-    var client = tls.connect(common.PORT, localhost, coptions, function() {
+    const port = this.address().port;
+    var client = tls.connect(port, localhost, coptions, function() {
       var cipher = client.getCipher();
       client.end();
       server.close();

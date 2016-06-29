@@ -88,3 +88,4 @@ function testFunctionMirror(f) {
 testFunctionMirror(function(){});
 testFunctionMirror(function a(){return 1;});
 testFunctionMirror(Math.sin);
+testFunctionMirror((function(){}).bind({}), "Object");

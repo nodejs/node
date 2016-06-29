@@ -5,8 +5,10 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/elements.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
+#include "src/keys.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -20,30 +22,82 @@ namespace {
 // deletions during a for-in.
 MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   Isolate* const isolate = receiver->GetIsolate();
+  FastKeyAccumulator accumulator(isolate, receiver, INCLUDE_PROTOS,
+                                 ENUMERABLE_STRINGS);
+  accumulator.set_filter_proxy_keys(false);
   // Test if we have an enum cache for {receiver}.
-  if (!receiver->IsSimpleEnum()) {
+  if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys,
-        JSReceiver::GetKeys(receiver, INCLUDE_PROTOS, ENUMERABLE_STRINGS),
-        HeapObject);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, keys, accumulator.GetKeys(KEEP_NUMBERS),
+                               HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
-    if (!receiver->IsSimpleEnum()) return keys;
+    if (!accumulator.is_receiver_simple_enum()) return keys;
   }
   return handle(receiver->map(), isolate);
 }
 
+// This is a slight modifcation of JSReceiver::HasProperty, dealing with
+// the oddities of JSProxy in for-in filter.
+MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
+                                          Handle<JSReceiver> receiver,
+                                          Handle<Object> key) {
+  bool success = false;
+  Maybe<PropertyAttributes> result = Just(ABSENT);
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, receiver, key, &success);
+  if (!success) return isolate->factory()->undefined_value();
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
+      case LookupIterator::JSPROXY: {
+        // For proxies we have to invoke the [[GetOwnProperty]] trap.
+        result = JSProxy::GetPropertyAttributes(&it);
+        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.FromJust() == ABSENT) {
+          // Continue lookup on the proxy's prototype.
+          Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
+          Handle<Object> prototype;
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
+                                     JSProxy::GetPrototype(proxy), Object);
+          if (prototype->IsNull()) break;
+          // We already have a stack-check in JSProxy::GetPrototype.
+          return HasEnumerableProperty(
+              isolate, Handle<JSReceiver>::cast(prototype), key);
+        } else if (result.FromJust() & DONT_ENUM) {
+          return isolate->factory()->undefined_value();
+        } else {
+          return it.GetName();
+        }
+      }
+      case LookupIterator::INTERCEPTOR: {
+        result = JSObject::GetPropertyAttributesWithInterceptor(&it);
+        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.FromJust() != ABSENT) return it.GetName();
+        continue;
+      }
+      case LookupIterator::ACCESS_CHECK: {
+        if (it.HasAccess()) continue;
+        result = JSObject::GetPropertyAttributesWithFailedAccessCheck(&it);
+        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.FromJust() != ABSENT) return it.GetName();
+        return isolate->factory()->undefined_value();
+      }
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        // TypedArray out-of-bounds access.
+        return isolate->factory()->undefined_value();
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::DATA:
+        return it.GetName();
+    }
+  }
+  return isolate->factory()->undefined_value();
+}
 
 MaybeHandle<Object> Filter(Handle<JSReceiver> receiver, Handle<Object> key) {
   Isolate* const isolate = receiver->GetIsolate();
-  // TODO(turbofan): Fast case for array indices.
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-  Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
-  MAYBE_RETURN_NULL(result);
-  if (result.FromJust()) return name;
-  return isolate->factory()->undefined_value();
+  return HasEnumerableProperty(isolate, receiver, key);
 }
 
 }  // namespace

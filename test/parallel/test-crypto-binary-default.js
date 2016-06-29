@@ -14,7 +14,7 @@ var crypto = require('crypto');
 var tls = require('tls');
 const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
-crypto.DEFAULT_ENCODING = 'binary';
+crypto.DEFAULT_ENCODING = 'latin1';
 
 var fs = require('fs');
 var path = require('path');
@@ -346,11 +346,11 @@ var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 if (!common.hasFipsCrypto) {
-  var a0 = crypto.createHash('md5').update('Test123').digest('binary');
+  var a0 = crypto.createHash('md5').update('Test123').digest('latin1');
   assert.equal(
     a0,
     'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
-    'Test MD5 as binary'
+    'Test MD5 as latin1'
   );
 }
 
@@ -364,7 +364,7 @@ assert.equal(a3, '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
                  '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
                  '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
                  '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
-             'Test SHA512 as assumed binary');
+             'Test SHA512 as assumed latin1');
 
 assert.deepStrictEqual(
   a4,
@@ -530,7 +530,7 @@ var dh2 = crypto.createDiffieHellman(p1, 'base64');
 var key1 = dh1.generateKeys();
 var key2 = dh2.generateKeys('hex');
 var secret1 = dh1.computeSecret(key2, 'hex', 'base64');
-var secret2 = dh2.computeSecret(key1, 'binary', 'buffer');
+var secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
 
 assert.equal(secret1, secret2.toString('base64'));
 

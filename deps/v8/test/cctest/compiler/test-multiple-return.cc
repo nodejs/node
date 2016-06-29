@@ -69,7 +69,8 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
 
 
 TEST(ReturnThreeValues) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   CallDescriptor* desc = GetCallDescriptor(&zone, 3, 2);
   HandleAndZoneScope handles;
   RawMachineAssembler m(handles.main_isolate(),
