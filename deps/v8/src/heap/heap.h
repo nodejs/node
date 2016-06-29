@@ -590,12 +590,6 @@ class Heap {
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
 
-  // We cannot avoid stale handles to left-trimmed objects, but can only make
-  // sure all handles still needed are updated. Filter out a stale pointer
-  // and clear the slot to allow post processing of handles (needed because
-  // the sweeper might actually free the underlying page).
-  inline bool PurgeLeftTrimmedObject(Object** object);
-
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
   void NotifyDeserializationComplete();
