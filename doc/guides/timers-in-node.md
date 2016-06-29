@@ -94,11 +94,11 @@ some major ways they differ. The first is that `process.nextTick()` will run
 *before* any `Immediate`s that are set as well as before any scheduled I/O.
 The second is that `process.nextTick()` is non-clearable, meaning once
 code has been scheduled to execute with `process.nextTick()`, the execution
-cannot be stopped, just like with a normal function. Although the function
-passed to `process.nextTick()` will be run synchronously, it will execute
-outside the current call stack.
+cannot be stopped, just like with a normal function. Take a look at [this guide]
+(../topics/the-event-loop-timers-and-nexttick#processnexttick) to better 
+understood how `process.nextTick()` is executed.
 
-### "Déjà vu" Execution ~ *`setInterval()`*
+### "Infinite Loop" Execution ~ *`setInterval()`*
 
 If there is a block of code that should execute multiple times, `setInterval()` 
 can be used to execute that code. `setInterval()` takes a function
