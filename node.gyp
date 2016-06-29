@@ -242,10 +242,6 @@
           ],
         }],
         [ 'node_use_bundled_v8=="true"', {
-          'include_dirs': [
-            'deps/v8', # include/v8_platform.h
-          ],
-
           'dependencies': [
             'deps/v8/tools/gyp/v8.gyp:v8',
             'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
