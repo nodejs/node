@@ -12,6 +12,7 @@
         {
           'target_name': 'zlib',
           'type': 'static_library',
+          'defines': [ 'ZLIB_CONST' ],
           'sources': [
             'adler32.c',
             'compress.c',
@@ -44,6 +45,7 @@
             '.',
           ],
           'direct_dependent_settings': {
+            'defines': [ 'ZLIB_CONST' ],
             'include_dirs': [
               '.',
             ],
@@ -72,10 +74,12 @@
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_ZLIB',
+              'ZLIB_CONST',
             ],
           },
           'defines': [
             'USE_SYSTEM_ZLIB',
+            'ZLIB_CONST',
           ],
           'link_settings': {
             'libraries': [
