@@ -2,7 +2,7 @@
 
 ## What is the Event Loop?
 
-The Event Loop is what allows Node.js to perform non-blocking I/O
+The event loop is what allows Node.js to perform non-blocking I/O
 operations — despite the fact that JavaScript is single-threaded — by
 offloading operations to the system kernel whenever possible.
 
@@ -14,12 +14,12 @@ this in further detail later in this topic.
 
 ## Event Loop Explained
 
-When Node.js starts, it initializes the Event Loop, processes the
+When Node.js starts, it initializes the event loop, processes the
 provided input script (or drops into the REPL, which is not covered in
 this document) which may make async API calls, schedule timers, or call
-`process.nextTick()`, then begins processing the Event Loop.
+`process.nextTick()`, then begins processing the event loop.
 
-The following diagram shows a simplified overview of the Event Loop's
+The following diagram shows a simplified overview of the event loop's
 order of operations.
 
        ┌───────────────────────┐
@@ -41,10 +41,10 @@ order of operations.
     └──┤    close callbacks    │
        └───────────────────────┘       
 
-*note: each box will be referred to as a "phase" of the Event Loop.*
+*note: each box will be referred to as a "phase" of the event loop.*
 
 Each phase has a FIFO queue of callbacks to execute. While each phase is
-special in its own way, generally, when the Event Loop enters a given
+special in its own way, generally, when the event loop enters a given
 phase, it will perform any operations specific to that phase, then
 execute callbacks in that phase's queue until the queue has been
 exhausted or the maximum number of callbacks have executed. When the
@@ -75,7 +75,7 @@ actually uses are those above._
 * `check`: setImmediate callbacks are invoked here
 * `close callbacks`: e.g socket.on('close', ...)
 
-Between each run of the Event Loop, Node.js checks if it is waiting for
+Between each run of the event loop, Node.js checks if it is waiting for
 any asynchronous I/O or timer and it shuts down cleanly if there are not
 any.
 
@@ -131,19 +131,19 @@ someAsyncOperation(function () {
 });
 ```
 
-When the Event Loop enters the `poll` phase, it has an empty queue
+When the event loop enters the `poll` phase, it has an empty queue
 (`fs.readFile()` has not completed) so it will wait for the number of ms
 remaining until the soonest timer's threshold is reached. While it is
 waiting 95 ms pass, `fs.readFile()` finishes reading the file and its
 callback which takes 10 ms to complete is added to the `poll` queue and
 executed. When the callback finishes, there are no more callbacks in the
-queue, so the Event Loop will see that the threshold of the soonest
+queue, so the event loop will see that the threshold of the soonest
 timer has been reached then wrap back to the `timers` phase to execute
 the timer's callback. In this example, you will see that the total delay
 between the timer being scheduled and its callback being executed will
 be 105ms.
 
-Note: To prevent the `poll` phase from starving the Event Loop, libuv
+Note: To prevent the `poll` phase from starving the event loop, libuv
 also has a hard maximum (system dependent) before it stops `poll`ing for
 more events.
 
@@ -161,42 +161,41 @@ The poll phase has two main functions:
 1. Executing scripts for timers who's threshold has elapsed, then
 2. Processing events in the `poll` queue.
 
-
-When the Event Loop enters the `poll` phase _and there are no timers
+When the event loop enters the `poll` phase _and there are no timers
 scheduled_, one of two things will happen:
 
-* _If the `poll` queue **is not empty**_, the Event Loop will iterate
+* _If the `poll` queue **is not empty**_, the event loop will iterate
 through its queue of callbacks executing them synchronously until
 either the queue has been exhausted, or the system-dependent hard limit
 is reached.
 
 * _If the `poll` queue **is empty**_, one of two more things will
 happen:
-  * If scripts have been scheduled by `setImmediate()`, the Event Loop
+  * If scripts have been scheduled by `setImmediate()`, the event loop
   will end the `poll` phase and continue to the `check` phase to
   execute those scheduled scripts.
 
   * If scripts **have not** been scheduled by `setImmediate()`, the
-  Event Loop will wait for callbacks to be added to the queue, then
+  event loop will wait for callbacks to be added to the queue, then
   execute it immediately.
 
-Once the `poll` queue is empty the Event Loop will check for timers
+Once the `poll` queue is empty the event loop will check for timers
 _whose time thresholds have been reached_. If one or more timers are
-ready, the Event Loop will wrap back to the timers phase to execute
+ready, the event loop will wrap back to the `timers` phase to execute
 those timers' callbacks.
 
 ### `check`:
 
 This phase allows a person to execute callbacks immediately after the
 `poll` phase has completed. If the `poll` phase becomes idle and
-scripts have been queued with `setImmediate()`, the Event Loop may
+scripts have been queued with `setImmediate()`, the event loop may
 continue to the `check` phase rather than waiting.
 
 `setImmediate()` is actually a special timer that runs in a separate
-phase of the Event Loop. It uses a libuv API that schedules callbacks to
+phase of the event eoop. It uses a libuv API that schedules callbacks to
 execute after the `poll` phase has completed.
 
-Generally, as the code is executed, the Event Loop will eventually hit
+Generally, as the code is executed, the event loop will eventually hit
 the `poll` phase where it will wait for an incoming connection, request,
 etc. However, after a callback has been scheduled with `setImmediate()`,
 then the `poll` phase becomes idle, it will end and continue to the
@@ -284,15 +283,15 @@ within an I/O cycle, independently of how many timers are present.
 
 You may have noticed that `process.nextTick()` was not displayed in the
 diagram, even though it's a part of the asynchronous API. This is because
-`process.nextTick()` is not technically part of the Event Loop. Instead,
+`process.nextTick()` is not technically part of the event loop. Instead,
 the `nextTickQueue` will be processed after the current operation
-completes, regardless of the current `phase` of the Event Loop.
+completes, regardless of the current phase of the event loop.
 
 Looking back at our diagram, any time you call `process.nextTick()` in a
 given phase, all callbacks passed to `process.nextTick()` will be
-resolved before the Event Loop continues. This can create some bad
+resolved before the event loop continues. This can create some bad
 situations because **it allows you to "starve" your I/O by making
-recursive `process.nextTick()` calls,** which prevents the Event Loop
+recursive `process.nextTick()` calls,** which prevents the event loop
 from reaching the `poll` phase.
 
 ### Why would that be allowed?
@@ -318,7 +317,7 @@ the callback so you don't have to nest functions.
 What we're doing is passing an error back to the user but only *after*
 we have allowed the rest of the user's code to execute. By using
 `process.nextTick()` we guarantee that `apiCall()` always runs its
-callback *after* the rest of the user's code and *before* the Event Loop
+callback *after* the rest of the user's code and *before* the event loop
 is allowed to proceed. To achieve this, the JS call stack is allowed to
 unwind then immediately execute the provided callback which allows a
 person to make recursive calls to `process.nextTick()` without reaching a
@@ -345,7 +344,7 @@ var bar = 1;
 The user defines `someAsyncApiCall()` to have an asynchronous signature,
 but it actually operates synchronously. When it is called, the callback
 provided to `someAsyncApiCall()` is called in the same phase of the
-Event Loop because `someAsyncApiCall()` doesn't actually do anything
+event loop because `someAsyncApiCall()` doesn't actually do anything
 asynchronously. As a result, the callback tries to reference `bar` even
 though it may not have that variable in scope yet, because the script has not
 been able to run to completion.
@@ -353,8 +352,8 @@ been able to run to completion.
 By placing the callback in a `process.nextTick()`, the script still has the
 ability to run to completion, allowing all the variables, functions,
 etc., to be initialized prior to the callback being called. It also has
-the advantage of not allowing the Event Loop to continue. It may be
-useful for the user to be alerted to an error before the Event Loop is
+the advantage of not allowing the event loop to continue. It may be
+useful for the user to be alerted to an error before the event loop is
 allowed to continue. Here is the previous example using `process.nextTick()`:
 
 ```js
@@ -392,7 +391,7 @@ their names are confusing.
 
 * `process.nextTick()` fires immediately on the same phase
 * `setImmediate()` fires on the following iteration or 'tick' of the
-Event Loop
+event loop
 
 In essence, the names should be swapped. `process.nextTick()` fires more
 immediately than `setImmediate()` but this is an artifact of the past
@@ -410,10 +409,10 @@ wider variety of environments, like browser JS.)*
 There are two main reasons:
 
 1. Allow users to handle errors, cleanup any then unneeded resources, or
-perhaps try the request again before the Event Loop continues.
+perhaps try the request again before the event loop continues.
 
 2. At times it's necessary to allow a callback to run after the call
-stack has unwound but before the Event Loop continues.
+stack has unwound but before the event loop continues.
 
 One example is to match the user's expectations. Simple example:
 
@@ -425,10 +424,10 @@ server.listen(8080);
 server.on('listening', function() { });
 ```
 
-Say that listen() is run at the beginning of the Event Loop, but the
+Say that listen() is run at the beginning of the event loop, but the
 listening callback is placed in a `setImmediate()`. Now, unless a
 hostname is passed binding to the port will happen immediately. Now for
-the Event Loop to proceed it must hit the `poll` phase, which means
+the event loop to proceed it must hit the `poll` phase, which means
 there is a non-zero chance that a connection could have been received
 allowing the connection event to be fired before the listening event.
 
