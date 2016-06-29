@@ -32,7 +32,6 @@ import imp
 import logging
 import optparse
 import os
-import platform
 import re
 import signal
 import subprocess
