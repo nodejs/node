@@ -4,7 +4,7 @@
 
 The event loop is what allows Node.js to perform non-blocking I/O
 operations — despite the fact that JavaScript is single-threaded — by
-offloading operations to the system kernel whenever possible. 
+offloading operations to the system kernel whenever possible.
 
 Since most modern kernels are multi-threaded, they can handle multiple
 operations executing in the background. When one of these operations
@@ -12,7 +12,7 @@ completes, the kernel tells Node.js so that the appropriate callback
 may added to the `poll` queue to eventually be executed. We'll explain
 this in further detail later in this topic.
 
-## Event Loop Explained 
+## Event Loop Explained
 
 When Node.js starts, it initializes the event loop, processes the
 provided input script (or drops into the REPL, which is not covered in
@@ -67,7 +67,7 @@ actually uses are those above._
 
 ## Phases Overview:
 
-* `timers`: this phase executes callbacks scheduled by `setTimeout()` 
+* `timers`: this phase executes callbacks scheduled by `setTimeout()`
  and `setInterval()`.
 * `I/O callbacks`: most types of callback except timers, setImmedate, close
 * `idle, prepare`: only used internally
@@ -81,20 +81,20 @@ any.
 
 ## Phases in Detail
 
-### timers
+### `timers`:
 
 A timer specifies the **threshold** _after which_ a provided callback
 _may be executed_ rather than the **exact** time a person _wants it to
 be executed_. Timers callbacks will run as early as they can be
 scheduled after the specified amount of time has passed; however,
 Operating System scheduling or the running of other callbacks may delay
-them. 
+them.
 
-_**Note**: Technically, the [`poll` phase](#poll) controls when timers 
+_**Note**: Technically, the [`poll` phase](#poll) controls when timers
 are executed._
 
-For example, say you schedule a timeout to execute after a 100 ms 
-threshold, then your script starts asynchronously reading a file which 
+For example, say you schedule a timeout to execute after a 100 ms
+threshold, then your script starts asynchronously reading a file which
 takes 95 ms:
 
 ```js
@@ -102,7 +102,7 @@ takes 95 ms:
 var fs = require('fs');
 
 function someAsyncOperation (callback) {
-  
+
   // let's assume this takes 95ms to complete  
   fs.readFile('/path/to/file', callback);
 
@@ -147,14 +147,14 @@ Note: To prevent the `poll` phase from starving the event loop, libuv
 also has a hard maximum (system dependent) before it stops `poll`ing for
 more events.
 
-### I/O callbacks:
+### `I/O callbacks`:
 
-This phase executes callbacks for some system operations such as types 
+This phase executes callbacks for some system operations such as types
 of TCP errors. For example if a TCP socket receives `ECONNREFUSED` when
 attempting to connect, some \*nix systems want to wait to report the
 error. This will be queued to execute in the `I/O callbacks` phase.
 
-### poll: 
+### `poll`:
 
 The poll phase has two main functions:
 
@@ -171,7 +171,7 @@ either the queue has  been exhausted, or the system-dependent hard limit
 is reached.
 
 * _If the `poll` queue **is empty**_, one of two more things will
-happen: 
+happen:
   * If scripts have been scheduled by `setImmediate()`, the event loop
   will end the `poll` phase and continue to the `check` phase to
   execute those scheduled scripts.
@@ -202,7 +202,7 @@ etc. However, after a callback has been scheduled with `setImmediate()`,
 then the  `poll` phase becomes idle, it will end and continue to the
 `check`  phase rather than waiting for `poll` events.
 
-### `close callbacks`: 
+### `close callbacks`:
 
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
 `'close'` event will be emitted in this phase. Otherwise it will be
@@ -211,10 +211,10 @@ emitted via `process.nextTick()`.
 ## `setImmediate()` vs `setTimeout()`
 
 `setImmediate` and `setTimeout()` are similar, but behave in different
-ways depending on when they are called. 
+ways depending on when they are called.
 
 * `setImmediate()` is designed to execute a script once the current
-`poll` phase completes. 
+`poll` phase completes.
 * `setTimeout()` schedules a script to be run
 after a minimum threshold in ms has elapsed.
 
@@ -283,16 +283,16 @@ within an I/O cycle, independently of how many timers are present.
 ### Understanding `process.nextTick()`
 
 You may have noticed that `process.nextTick()` was not displayed in the
-diagram, even though its a part of the asynchronous API. This is because
+diagram, even though it's a part of the asynchronous API. This is because
 `process.nextTick()` is not technically part of the event loop. Instead,
-the  nextTickQueue will be processed after the current operation
+the `nextTickQueue` will be processed after the current operation
 completes, regardless of the current `phase` of the event loop.
 
 Looking back at our diagram, any time you call `process.nextTick()` in a
 given phase, all callbacks passed to `process.nextTick()` will be
 resolved before the event loop continues. This can create some bad
 situations because **it allows you to "starve" your I/O by making
-recursive `process.nextTick()` calls.** which prevents the event loop
+recursive `process.nextTick()` calls,** which prevents the event loop
 from reaching the `poll` phase.
 
 ### Why would that be allowed?
@@ -319,9 +319,9 @@ What we're doing is passing an error back to the user but only *after*
 we have allowed the rest of the user's code to execute. By using
 `process.nextTick()` we guarantee that `apiCall()` always runs its
 callback *after* the rest of the user's code and *before* the event loop
-is allowed to proceed. To acheive this, the JS call stack is allowed to
+is allowed to proceed. To achieve this, the JS call stack is allowed to
 unwind then immediately execute the provided callback which allows a
-person to make recursive calls to nextTick without reaching a
+person to make recursive calls to `process.nextTick()` without reaching a
 `RangeError: Maximum call stack size exceeded from v8`.
 
 This philosophy can lead to some potentially problematic situations.
@@ -343,21 +343,33 @@ var bar = 1;
 ```
 
 The user defines `someAsyncApiCall()` to have an asynchronous signature,
-actually operates synchronously. When it is called, the callback
-provided to `someAsyncApiCall ()` is called in the same phase of the
+but it actually operates synchronously. When it is called, the callback
+provided to `someAsyncApiCall()` is called in the same phase of the
 event loop because `someAsyncApiCall()` doesn't actually do anything
-asynchronously. As a result, the callback tries to reference `bar` but
-it may not have that variable in scope yet because the script has not
+asynchronously. As a result, the callback tries to reference `bar` even
+though it may not have that variable in scope yet, because the script has not
 been able to run to completion.
 
-By placing it in a `process.nextTick()`, the script still has the
+By placing the callback in a `process.nextTick()`, the script still has the
 ability to run to completion, allowing all the variables, functions,
 etc., to be initialized prior to the callback being called.  It also has
 the advantage of not allowing the event loop to continue. It may be
-useful that the user be alerted to an error before the event loop is
-allowed to continue.
+useful for the user to be alerted to an error before the event loop is
+allowed to continue. Here is the previous example using `process.nextTick()`:
 
-A real world example in node would be:
+```js
+function someAsyncApiCall (callback) {
+  process.nextTick(callback);
+};
+
+someAsyncApiCall(() => {
+  console.log('bar', bar); // 1
+});
+
+var bar = 1;
+```
+
+Here's another real world example:
 
 ```js
 const server = net.createServer(() => {}).listen(8080);
@@ -379,7 +391,7 @@ We have two calls that are similar as far as users are concerned, but
 their names are confusing.
 
 * `process.nextTick()` fires immediately on the same phase
-* `setImmediate()` fires on the following iteration or 'tick' of the 
+* `setImmediate()` fires on the following iteration or 'tick' of the
 event loop
 
 In essence, the names should be swapped. `process.nextTick()` fires more
@@ -393,7 +405,7 @@ While they are confusing, the names themselves won't change.
 easier to reason about (and it leads to code that's compatible with a
 wider variety of environments, like browser JS.)*
 
-## Why use `process.nextTick()`? 
+## Why use `process.nextTick()`?
 
 There are two main reasons:
 
@@ -420,7 +432,7 @@ the event loop to proceed it must hit the `poll` phase, which means
 there is a non-zero chance that a  connection could have been received
 allowing the connection event to be fired before the listening event.
 
-Another example is running a function constructor that was to, say, 
+Another example is running a function constructor that was to, say,
 inherit from `EventEmitter` and it wanted to call an event within the
 constructor:
 
@@ -440,10 +452,10 @@ myEmitter.on('event', function() {
 });
 ```
 
-You can't emit an event from the constructor immediately 
-because the script will not have processed to the point where the user 
-assigns a callback to that event. So, within the constructor itself, 
-you can use `process.nextTick()` to set a callback to emit the event 
+You can't emit an event from the constructor immediately
+because the script will not have processed to the point where the user
+assigns a callback to that event. So, within the constructor itself,
+you can use `process.nextTick()` to set a callback to emit the event
 after the constructor has finished, which provides the expected results:
 
 ```js
