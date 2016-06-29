@@ -181,7 +181,6 @@ bool config_preserve_symlinks = false;
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
-static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
@@ -3680,8 +3679,7 @@ static void ParseArgs(int* argc,
 
 // Called from V8 Debug Agent TCP thread.
 static void DispatchMessagesDebugAgentCallback(Environment* env) {
-  // TODO(indutny): move async handle to environment
-  uv_async_send(&dispatch_debug_messages_async);
+  uv_async_send(env->dispatch_debug_messages_async());
 }
 
 
@@ -3734,11 +3732,11 @@ static void EnableDebug(Environment* env) {
 
 
 // Called from an arbitrary thread.
-static void TryStartDebugger() {
+static void TryStartDebugger(uv_async_t* dispatch_debug_messages_async) {
   Mutex::ScopedLock scoped_lock(node_isolate_mutex);
   if (auto isolate = node_isolate) {
     v8::Debug::DebugBreak(isolate);
-    uv_async_send(&dispatch_debug_messages_async);
+    uv_async_send(dispatch_debug_messages_async);
   }
 }
 
@@ -3805,16 +3803,20 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-inline void* DebugSignalThreadMain(void* unused) {
+inline void* DebugSignalThreadMain(void* async_handler) {
+  uv_async_t* dispatch_debug_messages_async =
+      static_cast<uv_async_t*>(async_handler);
+  CHECK_NE(dispatch_debug_messages_async, nullptr);
   for (;;) {
     uv_sem_wait(&debug_semaphore);
-    TryStartDebugger();
+    TryStartDebugger(dispatch_debug_messages_async);
   }
   return nullptr;
 }
 
 
-static int RegisterDebugSignalHandler() {
+static int RegisterDebugSignalHandler(
+    uv_async_t* dispatch_debug_messages_async) {
   // Start a watchdog thread for calling v8::Debug::DebugBreak() because
   // it's not safe to call directly from the signal handler, it can
   // deadlock with the thread it interrupts.
@@ -3832,8 +3834,10 @@ static int RegisterDebugSignalHandler() {
   sigfillset(&sigmask);
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask));
   pthread_t thread;
-  const int err =
-      pthread_create(&thread, &attr, DebugSignalThreadMain, nullptr);
+  const int err = pthread_create(&thread,
+                                 &attr,
+                                 DebugSignalThreadMain,
+                                 dispatch_debug_messages_async);
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   CHECK_EQ(0, pthread_attr_destroy(&attr));
   if (err != 0) {
@@ -4094,13 +4098,6 @@ void Init(int* argc,
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
 
-  // init async debug messages dispatching
-  // Main thread uses uv_default_loop
-  uv_async_init(uv_default_loop(),
-                &dispatch_debug_messages_async,
-                DispatchDebugMessagesAsyncCallback);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
-
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
   // so the user can disable a flag --foo at run-time by passing
@@ -4166,10 +4163,6 @@ void Init(int* argc,
   // Buffer::Data().
   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
-
-  if (!use_debug_agent) {
-    RegisterDebugSignalHandler();
-  }
 
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
@@ -4308,6 +4301,17 @@ static void StartNodeInstance(void* arg) {
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
     Environment env(&isolate_data, context);
+
+    uv_async_init(env.event_loop(),
+                  env.dispatch_debug_messages_async(),
+                  DispatchDebugMessagesAsyncCallback);
+    uv_unref(reinterpret_cast<uv_handle_t*>(
+             env.dispatch_debug_messages_async()));
+
+    if (!instance_data->use_debug_agent()) {
+      RegisterDebugSignalHandler(env.dispatch_debug_messages_async());
+    }
+
     env.Start(instance_data->argc(),
               instance_data->argv(),
               instance_data->exec_argc(),
