@@ -27,9 +27,6 @@
 
 import test
 import os
-import shutil
-from os import mkdir
-from glob import glob
 from os.path import join, dirname, exists
 import re
 
