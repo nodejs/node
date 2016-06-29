@@ -370,7 +370,7 @@ parser.add_option('--without-etw',
 parser.add_option('--without-npm',
     action='store_true',
     dest='without_npm',
-    help='don\'t install the bundled npm package manager')
+    help='do not install the bundled npm (package manager)')
 
 parser.add_option('--without-perfctr',
     action='store_true',
