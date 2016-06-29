@@ -1650,8 +1650,6 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     HeapObject* object = ShortCircuitConsString(p);
 
-    if (collector_->heap()->PurgeLeftTrimmedObject(p)) return;
-
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (Marking::IsBlackOrGrey(mark_bit)) return;
 
