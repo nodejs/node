@@ -4,16 +4,18 @@ const http = require('http');
 
 const server = http.createServer((req, res) => {
   res.end();
-}).listen(common.PORT, common.mustCall(() => {
+}).listen(0, common.mustCall(() => {
   const agent = new http.Agent({
     maxSockets: 1,
     keepAlive: true
   });
 
+  const port = server.address().port;
+
   const post = http.request({
     agent: agent,
     method: 'POST',
-    port: common.PORT,
+    port: port,
   }, common.mustCall((res) => {
     res.resume();
   }));
@@ -30,7 +32,7 @@ const server = http.createServer((req, res) => {
   http.request({
     agent: agent,
     method: 'GET',
-    port: common.PORT,
+    port: port,
   }, common.mustCall((res) => {
     server.close();
     res.connection.end();
