@@ -24,9 +24,9 @@ const server = http.createServer((req, res) => {
   const port = server.address().port;
 
   const post = http.request({
-    agent: agent,
+    agent,
     method: 'POST',
-    port: port,
+    port,
   }, common.mustCall((res) => {
     res.resume();
 
@@ -43,9 +43,9 @@ const server = http.createServer((req, res) => {
   post.write('initial');
 
   http.request({
-    agent: agent,
+    agent,
     method: 'GET',
-    port: port,
+    port,
   }, common.mustCall((res) => {
     server.close();
     res.connection.end();
