@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 import optparse
 import os
-import pprint
 import re
-import shlex
-import subprocess
 import sys
 import shutil
-import string
 
 parser = optparse.OptionParser()
 

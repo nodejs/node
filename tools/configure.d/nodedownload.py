@@ -35,7 +35,7 @@ def retrievefile(url, targetfile):
     try:
         sys.stdout.write(' <%s>\nConnecting...\r' % url)
         sys.stdout.flush()
-        msg = ConfigOpener().retrieve(url, targetfile, reporthook=reporthook)
+        ConfigOpener().retrieve(url, targetfile, reporthook=reporthook)
         print ''  # clear the line
         return targetfile
     except:
