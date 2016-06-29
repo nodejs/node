@@ -15,16 +15,18 @@ const server = http.createServer((req, res) => {
     res.end();
     onPause();
   });
-}).listen(common.PORT, common.mustCall(() => {
+}).listen(0, common.mustCall(() => {
   const agent = new http.Agent({
     maxSockets: 1,
     keepAlive: true
   });
 
+  const port = server.address().port;
+
   const post = http.request({
-    agent: agent,
+    agent,
     method: 'POST',
-    port: common.PORT,
+    port,
   }, common.mustCall((res) => {
     res.resume();
 
@@ -41,9 +43,9 @@ const server = http.createServer((req, res) => {
   post.write('initial');
 
   http.request({
-    agent: agent,
+    agent,
     method: 'GET',
-    port: common.PORT,
+    port,
   }, common.mustCall((res) => {
     server.close();
     res.connection.end();
