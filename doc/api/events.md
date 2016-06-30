@@ -109,8 +109,8 @@ myEmitter.emit('event');
 ```
 
 Using the `eventEmitter.once()` method, it is possible to register a listener
-which is called only once for a particular event. The listener is actually
-unregistered before it is called, when the event is emitted.
+that is called at most once for a particular event. Once the event is emitted,
+the listener is unregistered and *then* called.
 
 ```js
 const myEmitter = new MyEmitter();
@@ -141,8 +141,8 @@ myEmitter.emit('error', new Error('whoops!'));
 ```
 
 To guard against crashing the Node.js process, a listener can be registered
-for the `process.on('uncaughtException')` event or the [`domain`][] module can be
-used. (_Note, however, that the `domain` module has been deprecated_)
+on the [`process` object's `uncaughtException` event][] or the [`domain`][] module
+can be used. (_Note, however, that the `domain` module has been deprecated_)
 
 ```js
 const myEmitter = new MyEmitter();
@@ -155,8 +155,7 @@ myEmitter.emit('error', new Error('whoops!'));
   // Prints: whoops! there was an error
 ```
 
-As a best practice, listeners should be registered for the `'error'` events
-always.
+As a best practice, listeners should always be added for the `'error'` events.
 
 ```js
 const myEmitter = new MyEmitter();
@@ -176,7 +175,7 @@ const EventEmitter = require('events');
 ```
 
 All EventEmitters emit the event `'newListener'` when new listeners are
-added and `'removeListener'` when listeners are removed.
+added and `'removeListener'` when existing listeners are removed.
 
 ### Event: 'newListener'
 
@@ -219,7 +218,7 @@ myEmitter.emit('event');
 * `eventName` {String|Symbol} The event name
 * `listener` {Function} The event handler function
 
-The `'removeListener'` event is emitted *after* the listener is removed.
+The `'removeListener'` event is emitted *after* the `listener` is removed.
 
 ### EventEmitter.listenerCount(emitter, eventName)
 
@@ -507,4 +506,5 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`domain`]: domain.html
+[`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception
 [stream]: stream.html
