@@ -91,7 +91,7 @@ class ClientHelloParser {
 
   bool ParseRecordHeader(const uint8_t* data, size_t avail);
   void ParseHeader(const uint8_t* data, size_t avail);
-  void ParseExtension(ExtensionType type,
+  void ParseExtension(const uint16_t type,
                       const uint8_t* data,
                       size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
