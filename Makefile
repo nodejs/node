@@ -112,7 +112,7 @@ cctest: all
 
 v8:
 	tools/make-v8.sh v8
-	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
+	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 test: all
 	$(MAKE) build-addons
