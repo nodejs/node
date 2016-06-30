@@ -181,7 +181,6 @@
         'src/base-object-inl.h',
         'src/connection_wrap.h',
         'src/connect_wrap.h',
-        'src/connect_wrap-inl.h',
         'src/debug-agent.h',
         'src/env.h',
         'src/env-inl.h',

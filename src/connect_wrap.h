@@ -19,8 +19,6 @@ class ConnectWrap : public ReqWrap<uv_connect_t> {
   size_t self_size() const override { return sizeof(*this); }
 };
 
-inline void NewConnectWrap(const v8::FunctionCallbackInfo<v8::Value>& args);
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

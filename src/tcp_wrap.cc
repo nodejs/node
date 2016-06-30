@@ -7,7 +7,6 @@
 #include "node_buffer.h"
 #include "node_wrap.h"
 #include "connect_wrap.h"
-#include "connect_wrap-inl.h"
 #include "stream_wrap.h"
 #include "util.h"
 #include "util-inl.h"
@@ -95,7 +94,8 @@ void TCPWrap::Initialize(Local<Object> target,
 
   // Create FunctionTemplate for TCPConnectWrap.
   Local<FunctionTemplate> cwt =
-      FunctionTemplate::New(env->isolate(), NewConnectWrap);
+      FunctionTemplate::New(env->isolate(),
+      [](const FunctionCallbackInfo<Value>& a){CHECK(a.IsConstructCall());});
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
   cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"),
