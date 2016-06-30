@@ -24,7 +24,8 @@ API, there are some differences in implementation.
 ### "When I say so" Execution ~ *`setTimeout()`*
 
 `setTimeout()` can be used to schedule code execution after a designated
-amount of milliseconds. This function is similar to `window.setTimeout()`
+amount of milliseconds. This function is similar to [`window.setTimeout()`]
+(https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setTimeout)
 from the browser JavaScript API, however a string of code cannot be passed
 to be executed. 
 
