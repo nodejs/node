@@ -187,6 +187,9 @@ stream.write('It works!'); // Received data: "It works!"
     `TypedArray` elements to include when formatting. Defaults to `100`. Set to
     `null` to show all array elements. Set to `0` or negative to show no array
     elements.
+  * `breakLength` {number} The length at which an object's keys are split
+    across multiple lines. Set to `Infinity` to format an object as a single
+    line. Defaults to 60 for legacy compatibility.
 
 The `util.inspect()` method returns a string representation of `object` that is
 primarily useful for debugging. Additional `options` may be passed that alter
