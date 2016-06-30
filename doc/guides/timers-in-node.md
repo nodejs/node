@@ -14,18 +14,19 @@ read up on the the Node.js
 
 ## Controlling the Time Continuum with Node.js
 
-The Node.js API provides several ways to of scheduling code to execute at
+The Node.js API provides several ways of scheduling code to execute at
 some point after the present moment. The functions below may seem familiar,
-since they are available in most browsers, but Node.js actually provides 
-it's own implementation of these methods. Timers integrate very closely 
-with the system, and despite the fact that the API mirrors the browser 
+since they are available in most browsers, but Node.js actually provides
+its own implementation of these methods. Timers integrate very closely
+with the system, and despite the fact that the API mirrors the browser
 API, there are some differences in implementation.
 
 ### "When I say so" Execution ~ *`setTimeout()`*
 
 `setTimeout()` can be used to schedule code execution after a designated
-amount of milliseconds. This function is also a part of the browser 
-JavaScript API and can be used in the exact same manner.
+amount of milliseconds. This function is similar to `window.setTimeout()`
+from the browser JavaScript API, however a string of code cannot be passed
+to be executed. 
 
 `setTimeout()` accepts a function to execute as its first argument and the
 millisecond delay defined as a number as the second argument. Additional
@@ -56,12 +57,12 @@ see `clearTimeout()` below) as well as change the execution behavior (see
 
 ### "Right after this" Execution ~ *`setImmediate()`*
 
-`setImmediate()` will execute code at the end of the current event loop cycle. 
+`setImmediate()` will execute code at the end of the current event loop cycle.
 This code will execute *after* any I/O operations in the current event loop and
-*before* any timers scheduled for the next event loop. This code execution 
-could be thought of as happening "right after this", meaning any code following 
-the `setImmediate()` function call will execute before the `setImmediate()` 
-function argument. 
+*before* any timers scheduled for the next event loop. This code execution
+could be thought of as happening "right after this", meaning any code following
+the `setImmediate()` function call will execute before the `setImmediate()`
+function argument.
 
 The first argument to `setImmediate()` will be the function to execute. Any
 subsequent arguments will be passed to the function when it is executed.
@@ -99,13 +100,13 @@ to better understand the operation of `process.nextTick()`.
 
 ### "Infinite Loop" Execution ~ *`setInterval()`*
 
-If there is a block of code that should execute multiple times, `setInterval()` 
+If there is a block of code that should execute multiple times, `setInterval()`
 can be used to execute that code. `setInterval()` takes a function
 argument that will run an infinite number of times with a given millisecond
-delay as the second argument. Just like `setTimeout()`, additional arguments 
-can be added beyond the delay, and these will be passed on to the function call. 
-Also like `setTimeout()`, the delay cannot be guaranteed because of operations 
-that may hold on to the event loop, and therefore should be treated as an 
+delay as the second argument. Just like `setTimeout()`, additional arguments
+can be added beyond the delay, and these will be passed on to the function call.
+Also like `setTimeout()`, the delay cannot be guaranteed because of operations
+that may hold on to the event loop, and therefore should be treated as an
 approximate delay. See the below example:
 
 ```js
@@ -161,8 +162,8 @@ to execute.
 
 In similar fashion, a `Timeout` object that has had `unref()` called on it
 can remove that behavior by calling `ref()` on that same `Timeout` object,
-which will then ensure its execution. Be aware, however, that this does 
-not *exactly* restore the initial behavior for performance reasons. See 
+which will then ensure its execution. Be aware, however, that this does
+not *exactly* restore the initial behavior for performance reasons. See
 below for examples of both:
 
 ```js
@@ -184,7 +185,7 @@ setImmediate(() => {
 ## Further Down the Event Loop
 
 There's much more to the Event Loop and Timers than this guide
-has covered. To learn more about the internals of the Node.js 
-Event Loop and how Timers operate during execution, check out 
-this Node.js guide: [The Node.js Event Loop, Timers, and 
+has covered. To learn more about the internals of the Node.js
+Event Loop and how Timers operate during execution, check out
+this Node.js guide: [The Node.js Event Loop, Timers, and
 process.nextTick().](../topics/the-event-loop-timers-and-nexttick)
