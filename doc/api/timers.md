@@ -29,6 +29,9 @@ export both `timeout.ref()` and `timeout.unref()` functions that can be used to
 control this default behavior.
 
 ### timeout.ref()
+<!-- YAML
+added: v0.9.1
+-->
 
 When called, requests that the Node.js event loop *not* exit so long as the
 `Timeout` is active. Calling `timeout.ref()` multiple times will have no effect.
@@ -40,6 +43,9 @@ previously.
 Returns a reference to the `Timeout`.
 
 ### timeout.unref()
+<!-- YAML
+added: v0.9.1
+-->
 
 When called, the active `Timeout` object will not require the Node.js event loop
 to remain active. If there is no other activity keeping the event loop running,
@@ -60,6 +66,9 @@ which method was used to create the timer and what other work the Node.js
 event loop is doing.
 
 ### setImmediate(callback[, ...arg])
+<!-- YAML
+added: v0.9.1
+-->
 
 * `callback` {Function} The function to call at the end of this turn of
   [the Node.js Event Loop]
@@ -79,6 +88,9 @@ next event loop iteration.
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
 ### setInterval(callback, delay[, ...arg])
+<!-- YAML
+added: v0.0.1
+-->
 
 * `callback` {Function} The function to call when the timer elapses.
 * `delay` {number} The number of milliseconds to wait before calling the
@@ -94,6 +106,9 @@ set to `1`.
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
 ### setTimeout(callback, delay[, ...arg])
+<!-- YAML
+added: v0.0.1
+-->
 
 * `callback` {Function} The function to call when the timer elapses.
 * `delay` {number} The number of milliseconds to wait before calling the
@@ -120,6 +135,9 @@ each return objects that represent the scheduled timers. These can be used to
 cancel the timer and prevent it from triggering.
 
 ### clearImmediate(immediate)
+<!-- YAML
+added: v0.9.1
+-->
 
 * `immediate` {Immediate} An `Immediate` object as returned by
   [`setImmediate()`][].
@@ -127,12 +145,18 @@ cancel the timer and prevent it from triggering.
 Cancels an `Immediate` object created by [`setImmediate()`][].
 
 ### clearInterval(timeout)
+<!-- YAML
+added: v0.0.1
+-->
 
 * `timeout` {Timeout} A `Timeout` object as returned by [`setInterval()`][].
 
 Cancels a `Timeout` object created by [`setInterval()`][].
 
 ### clearTimeout(timeout)
+<!-- YAML
+added: v0.0.1
+-->
 
 * `timeout` {Timeout} A `Timeout` object as returned by [`setTimeout()`][].
 
