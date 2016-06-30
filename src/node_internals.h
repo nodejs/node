@@ -176,24 +176,6 @@ inline bool IsBigEndian() {
   return GetEndianness() == kBigEndian;
 }
 
-// parse index for external array data
-inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
-                                            size_t def,
-                                            size_t* ret) {
-  if (arg->IsUndefined()) {
-    *ret = def;
-    return true;
-  }
-
-  int64_t tmp_i = arg->IntegerValue();
-
-  if (tmp_i < 0)
-    return false;
-
-  *ret = static_cast<size_t>(tmp_i);
-  return true;
-}
-
 void ThrowError(v8::Isolate* isolate, const char* errmsg);
 void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
 void ThrowRangeError(v8::Isolate* isolate, const char* errmsg);

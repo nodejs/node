@@ -193,6 +193,25 @@ void CallbackInfo::WeakCallback(Isolate* isolate) {
 }
 
 
+// Parse index for external array data.
+inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
+                                            size_t def,
+                                            size_t* ret) {
+  if (arg->IsUndefined()) {
+    *ret = def;
+    return true;
+  }
+
+  int64_t tmp_i = arg->IntegerValue();
+
+  if (tmp_i < 0)
+    return false;
+
+  *ret = static_cast<size_t>(tmp_i);
+  return true;
+}
+
+
 // Buffer methods
 
 bool HasInstance(Local<Value> val) {
