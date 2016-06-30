@@ -693,15 +693,15 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t max_length;
 
   CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
+  if (offset >= ts_obj_length)
+    return env->ThrowRangeError("Offset is out of bounds");
+
   CHECK_NOT_OOB(ParseArrayIndex(args[2], ts_obj_length - offset, &max_length));
 
   max_length = MIN(ts_obj_length - offset, max_length);
 
   if (max_length == 0)
     return args.GetReturnValue().Set(0);
-
-  if (offset >= ts_obj_length)
-    return env->ThrowRangeError("Offset is out of bounds");
 
   uint32_t written = StringBytes::Write(env->isolate(),
                                         ts_obj_data + offset,
