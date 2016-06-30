@@ -10,10 +10,7 @@
 
 namespace node {
 
-using v8::FunctionCallbackInfo;
-using v8::Value;
-
-static inline void NewConnectWrap(const FunctionCallbackInfo<Value>& args) {
+inline void NewConnectWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args.IsConstructCall());
 }
 

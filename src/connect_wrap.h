@@ -10,22 +10,16 @@
 
 namespace node {
 
-using v8::FunctionCallbackInfo;
-using v8::Local;
-using v8::Object;
-using v8::Value;
-
-
 class ConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   ConnectWrap(Environment* env,
-      Local<Object> req_wrap_obj,
+      v8::Local<v8::Object> req_wrap_obj,
       AsyncWrap::ProviderType provider);
 
   size_t self_size() const override { return sizeof(*this); }
 };
 
-static inline void NewConnectWrap(const FunctionCallbackInfo<Value>& args);
+inline void NewConnectWrap(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node
 
