@@ -207,6 +207,11 @@ inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
   if (tmp_i < 0)
     return false;
 
+  // Check that the result fits in a size_t.
+  const uint64_t kSizeMax = static_cast<uint64_t>(static_cast<size_t>(-1));
+  if (static_cast<uint64_t>(tmp_i) > kSizeMax)
+    return false;
+
   *ret = static_cast<size_t>(tmp_i);
   return true;
 }
