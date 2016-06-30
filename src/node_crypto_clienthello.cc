@@ -103,7 +103,7 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
 }
 
 
-void ClientHelloParser::ParseExtension(ClientHelloParser::ExtensionType type,
+void ClientHelloParser::ParseExtension(const uint16_t type,
                                        const uint8_t* data,
                                        size_t len) {
   // NOTE: In case of anything we're just returning back, ignoring the problem.
@@ -210,7 +210,7 @@ bool ClientHelloParser::ParseTLSClientHello(const uint8_t* data, size_t avail) {
     if (ext_off + ext_len > avail)
       return false;
 
-    ParseExtension(static_cast<ExtensionType>(ext_type),
+    ParseExtension(ext_type,
                    data + ext_off,
                    ext_len);
 
