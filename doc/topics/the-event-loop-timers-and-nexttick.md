@@ -291,7 +291,7 @@ Looking back at our diagram, any time you call `process.nextTick()` in a
 given phase, all callbacks passed to `process.nextTick()` will be
 resolved before the event loop continues. This can create some bad
 situations because **it allows you to "starve" your I/O by making
-recursive `process.nextTick()` calls,** which prevents the event loop
+recursive `process.nextTick()` calls**, which prevents the event loop
 from reaching the `poll` phase.
 
 ### Why would that be allowed?
