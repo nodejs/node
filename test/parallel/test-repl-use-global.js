@@ -55,7 +55,6 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
   // if useGlobal is false, then `let process` should work
   repl.write('let process;\n');
   repl.write('21 * 2;\n');
-  assert.ok(!useGlobal);
   repl.close();
   cb(null, str.trim());
 };
