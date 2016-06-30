@@ -1444,6 +1444,13 @@ assert.equal(Buffer.prototype.offset, undefined);
 assert.equal(SlowBuffer.prototype.parent, undefined);
 assert.equal(SlowBuffer.prototype.offset, undefined);
 
+// ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
+assert.throws(() => {
+  const a = Buffer(1).fill(0);
+  const b = Buffer(1).fill(0);
+  a.copy(b, 0, 0x100000000, 0x100000001);
+}), /out of range index/;
+
 // Unpooled buffer (replaces SlowBuffer)
 const ubuf = Buffer.allocUnsafeSlow(10);
 assert(ubuf);
