@@ -404,7 +404,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
     } else {
       int gs_shift = good_suffix_shift[j + 1];
       int bc_occ = CharOccurrence(bad_char_occurence, c);
-      int shift = j - bc_occ;
+      int shift = static_cast<int>(j) - bc_occ;
       if (gs_shift > shift) {
         shift = gs_shift;
       }
@@ -494,12 +494,12 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
   const size_t subject_length = subject.length();
   const size_t pattern_length = pattern.length();
   int* char_occurrences = search->bad_char_table();
-  int64_t badness = -pattern_length;
+  int64_t badness = -static_cast<int64_t>(pattern_length);
 
   // How bad we are doing without a good-suffix table.
   Char last_char = pattern[pattern_length - 1];
   int last_char_shift =
-      pattern_length - 1 -
+      static_cast<int>(pattern_length) - 1 -
       CharOccurrence(char_occurrences, static_cast<Char>(last_char));
 
   // Perform search
@@ -509,7 +509,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
     int subject_char;
     while (last_char != (subject_char = subject[index + j])) {
       int bc_occ = CharOccurrence(char_occurrences, subject_char);
-      int shift = j - bc_occ;
+      int shift = static_cast<int>(j) - bc_occ;
       index += shift;
       badness += 1 - shift;  // at most zero, so badness cannot increase.
       if (index > subject_length - pattern_length) {
@@ -528,7 +528,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
     // checked, and decreases by the number of characters we
     // can skip by shifting. It's a measure of how we are doing
     // compared to reading each character exactly once.
-    badness += (pattern_length - j) - last_char_shift;
+    badness += static_cast<int64_t>(pattern_length - j) - last_char_shift;
     if (badness > 0) {
       search->PopulateBoyerMooreTable();
       search->strategy_ = &BoyerMooreSearch;
@@ -602,7 +602,7 @@ size_t StringSearch<Char>::InitialSearch(
       if (j == pattern_length) {
         return i;
       }
-      badness += j;
+      badness += static_cast<int64_t>(j);
     } else {
       search->PopulateBoyerMooreHorspoolTable();
       search->strategy_ = &BoyerMooreHorspoolSearch;
