@@ -175,24 +175,6 @@ inline bool IsBigEndian() {
   return GetEndianness() == kBigEndian;
 }
 
-// parse index for external array data
-inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
-                                            size_t def,
-                                            size_t* ret) {
-  if (arg->IsUndefined()) {
-    *ret = def;
-    return true;
-  }
-
-  int64_t tmp_i = arg->IntegerValue();
-
-  if (tmp_i < 0)
-    return false;
-
-  *ret = static_cast<size_t>(tmp_i);
-  return true;
-}
-
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
