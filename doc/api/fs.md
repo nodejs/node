@@ -109,14 +109,19 @@ non-UTF-8 encoded Buffers to `fs` functions will not work as expected.
 added: v0.5.8
 -->
 
-Objects returned from `fs.watch()` are of this type.
+Objects returned from [`fs.watch()`][] are of this type.
+
+The `listener` callback provided to `fs.watch()` receives the returned FSWatcher's
+`change` events.
+
+The object itself emits these events:
 
 ### Event: 'change'
 <!-- YAML
 added: v0.5.8
 -->
 
-* `event` {String} The type of fs change
+* `eventType` {String} The type of fs change
 * `filename` {String | Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
@@ -128,7 +133,8 @@ support. If `filename` is provided, it will be provided as a `Buffer` if
 `filename` will be a string.
 
 ```js
-fs.watch('./tmp', {encoding: 'buffer'}, (event, filename) => {
+// Example when handled through fs.watch listener
+fs.watch('./tmp', {encoding: 'buffer'}, (eventType, filename) => {
   if (filename)
     console.log(filename);
     // Prints: <Buffer ...>
@@ -1443,9 +1449,12 @@ directory.  The returned object is a [`fs.FSWatcher`][].
 The second argument is optional. If `options` is provided as a string, it
 specifies the `encoding`. Otherwise `options` should be passed as an object.
 
-The listener callback gets two arguments `(event, filename)`.  `event` is either
+The listener callback gets two arguments `(eventType, filename)`.  `eventType` is either
 `'rename'` or `'change'`, and `filename` is the name of the file which triggered
 the event.
+
+Please note the listener callback is attached to the `'change'` event
+fired by [`fs.FSWatcher`][], but they are not the same thing.
 
 ### Caveats
 
@@ -1499,8 +1508,8 @@ be provided. Therefore, don't assume that `filename` argument is always
 provided in the callback, and have some fallback logic if it is null.
 
 ```js
-fs.watch('somedir', (event, filename) => {
-  console.log(`event is: ${event}`);
+fs.watch('somedir', (eventType, filename) => {
+  console.log(`event type is: ${eventType}`);
   if (filename) {
     console.log(`filename provided: ${filename}`);
   } else {
