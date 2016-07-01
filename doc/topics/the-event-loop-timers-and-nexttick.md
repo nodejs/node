@@ -9,7 +9,7 @@ offloading operations to the system kernel whenever possible.
 Since most modern kernels are multi-threaded, they can handle multiple
 operations executing in the background. When one of these operations
 completes, the kernel tells Node.js so that the appropriate callback
-may added to the `poll` queue to eventually be executed. We'll explain
+may added to the **poll** queue to eventually be executed. We'll explain
 this in further detail later in this topic.
 
 ## Event Loop Explained
@@ -47,41 +47,41 @@ Each phase has a FIFO queue of callbacks to execute. While each phase is
 special in its own way, generally, when the event loop enters a given
 phase, it will perform any operations specific to that phase, then
 execute callbacks in that phase's queue until the queue has been
-exhausted or the maximum number of callbacks have executed. When the
+exhausted or the maximum number of callbacks has executed. When the
 queue has been exhausted or the callback limit is reached, the event
 loop will move to the next phase, and so on.
 
 Since any of these operations may schedule _more_ operations and new
-events processed in the `poll` phase are queued by the kernel, poll
+events processed in the **poll** phase are queued by the kernel, poll
 events can be queued while polling events are being processed. As a
 result, long running callbacks can allow the poll phase to run much
-longer than a timer's threshold. See the [`timers`](#timers) and
-[`poll`](#poll) sections for more details.
+longer than a timer's threshold. See the [**timers**](#timers) and
+[**poll**](#poll) sections for more details.
 
 _**NOTE:** There is a slight discrepancy between the Windows and the
 Unix/Linux implementation, but that's not important for this
 demonstration. The most important parts are here. There are actually
 seven or eight steps, but the ones we care about — ones that Node.js
-actually uses are those above._
+actually uses - are those above._
 
 
-## Phases Overview:
+## Phases Overview
 
-* `timers`: this phase executes callbacks scheduled by `setTimeout()`
+* **timers**: this phase executes callbacks scheduled by `setTimeout()`
  and `setInterval()`.
-* `I/O callbacks`: most types of callback except timers, setImmedate, close
-* `idle, prepare`: only used internally
-* `poll`: retrieve new I/O events; node will block here when appropriate
-* `check`: setImmediate callbacks are invoked here
-* `close callbacks`: e.g socket.on('close', ...)
+* **I/O callbacks**: most types of callback except timers, `setImmedate()`, close
+* **idle, prepare**: only used internally
+* **poll**: retrieve new I/O events; node will block here when appropriate
+* **check**: `setImmediate()` callbacks are invoked here
+* **close callbacks**: e.g socket.on('close', ...)
 
 Between each run of the event loop, Node.js checks if it is waiting for
-any asynchronous I/O or timer and it shuts down cleanly if there are not
+any asynchronous I/O or timers and shuts down cleanly if there are not
 any.
 
 ## Phases in Detail
 
-### `timers`:
+### **timers**
 
 A timer specifies the **threshold** _after which_ a provided callback
 _may be executed_ rather than the **exact** time a person _wants it to
@@ -90,7 +90,7 @@ scheduled after the specified amount of time has passed; however,
 Operating System scheduling or the running of other callbacks may delay
 them.
 
-_**Note**: Technically, the [`poll` phase](#poll) controls when timers
+_**Note**: Technically, the [**poll** phase](#poll) controls when timers
 are executed._
 
 For example, say you schedule a timeout to execute after a 100 ms
@@ -131,77 +131,77 @@ someAsyncOperation(function () {
 });
 ```
 
-When the event loop enters the `poll` phase, it has an empty queue
-(`fs.readFile()` has not completed) so it will wait for the number of ms
+When the event loop enters the **poll** phase, it has an empty queue
+(`fs.readFile()` has not completed), so it will wait for the number of ms
 remaining until the soonest timer's threshold is reached. While it is
 waiting 95 ms pass, `fs.readFile()` finishes reading the file and its
-callback which takes 10 ms to complete is added to the `poll` queue and
+callback which takes 10 ms to complete is added to the **poll** queue and
 executed. When the callback finishes, there are no more callbacks in the
 queue, so the event loop will see that the threshold of the soonest
-timer has been reached then wrap back to the `timers` phase to execute
+timer has been reached then wrap back to the **timers** phase to execute
 the timer's callback. In this example, you will see that the total delay
 between the timer being scheduled and its callback being executed will
 be 105ms.
 
-Note: To prevent the `poll` phase from starving the event loop, libuv
-also has a hard maximum (system dependent) before it stops `poll`ing for
+Note: To prevent the **poll** phase from starving the event loop, libuv
+also has a hard maximum (system dependent) before it stops polling for
 more events.
 
-### `I/O callbacks`:
+### **I/O callbacks**
 
 This phase executes callbacks for some system operations such as types
 of TCP errors. For example if a TCP socket receives `ECONNREFUSED` when
 attempting to connect, some \*nix systems want to wait to report the
-error. This will be queued to execute in the `I/O callbacks` phase.
+error. This will be queued to execute in the **I/O callbacks** phase.
 
-### `poll`:
+### **poll**
 
-The poll phase has two main functions:
+The **poll** phase has two main functions:
 
-1. Executing scripts for timers who's threshold has elapsed, then
-2. Processing events in the `poll` queue.
+1. Executing scripts for timers whose threshold has elapsed, then
+2. Processing events in the **poll** queue.
 
-When the event loop enters the `poll` phase _and there are no timers
+When the event loop enters the **poll** phase _and there are no timers
 scheduled_, one of two things will happen:
 
-* _If the `poll` queue **is not empty**_, the event loop will iterate
+* _If the **poll** queue **is not empty**_, the event loop will iterate
 through its queue of callbacks executing them synchronously until
 either the queue has been exhausted, or the system-dependent hard limit
 is reached.
 
-* _If the `poll` queue **is empty**_, one of two more things will
+* _If the **poll** queue **is empty**_, one of two more things will
 happen:
   * If scripts have been scheduled by `setImmediate()`, the event loop
-  will end the `poll` phase and continue to the `check` phase to
+  will end the **poll** phase and continue to the **check** phase to
   execute those scheduled scripts.
 
   * If scripts **have not** been scheduled by `setImmediate()`, the
   event loop will wait for callbacks to be added to the queue, then
-  execute it immediately.
+  execute them immediately.
 
-Once the `poll` queue is empty the event loop will check for timers
+Once the **poll** queue is empty the event loop will check for timers
 _whose time thresholds have been reached_. If one or more timers are
-ready, the event loop will wrap back to the `timers` phase to execute
+ready, the event loop will wrap back to the **timers** phase to execute
 those timers' callbacks.
 
-### `check`:
+### **check**
 
 This phase allows a person to execute callbacks immediately after the
-`poll` phase has completed. If the `poll` phase becomes idle and
+**poll** phase has completed. If the **poll** phase becomes idle and
 scripts have been queued with `setImmediate()`, the event loop may
-continue to the `check` phase rather than waiting.
+continue to the **check** phase rather than waiting.
 
 `setImmediate()` is actually a special timer that runs in a separate
 phase of the event loop. It uses a libuv API that schedules callbacks to
-execute after the `poll` phase has completed.
+execute after the **poll** phase has completed.
 
 Generally, as the code is executed, the event loop will eventually hit
-the `poll` phase where it will wait for an incoming connection, request,
-etc. However, after a callback has been scheduled with `setImmediate()`,
-then the `poll` phase becomes idle, it will end and continue to the
-`check` phase rather than waiting for `poll` events.
+the **poll** phase where it will wait for an incoming connection, request,
+etc. However, if a callback has been scheduled with `setImmediate()`
+and the **poll** phase becomes idle, it will end and continue to the
+**check** phase rather than waiting for **poll** events.
 
-### `close callbacks`:
+### **close callbacks**
 
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
 `'close'` event will be emitted in this phase. Otherwise it will be
@@ -213,9 +213,9 @@ emitted via `process.nextTick()`.
 ways depending on when they are called.
 
 * `setImmediate()` is designed to execute a script once the current
-`poll` phase completes.
-* `setTimeout()` schedules a script to be run
-after a minimum threshold in ms has elapsed.
+**poll** phase completes.
+* `setTimeout()` schedules a script to be run after a minimum threshold
+in ms has elapsed.
 
 The order in which the timers are executed will vary depending on the
 context in which they are called. If both are called from within the
@@ -247,7 +247,6 @@ setImmediate(function immediate () {
     immediate
     timeout
 
-
 However, if you move the two calls within an I/O cycle, the immediate
 callback is always executed first:
 
@@ -277,7 +276,7 @@ The main advantage to using `setImmediate()` over `setTimeout()` is
 `setImmediate()` will always be executed before any timers if scheduled
 within an I/O cycle, independently of how many timers are present.
 
-## `process.nextTick()`:
+## `process.nextTick()`
 
 ### Understanding `process.nextTick()`
 
@@ -292,7 +291,7 @@ given phase, all callbacks passed to `process.nextTick()` will be
 resolved before the event loop continues. This can create some bad
 situations because **it allows you to "starve" your I/O by making
 recursive `process.nextTick()` calls**, which prevents the event loop
-from reaching the `poll` phase.
+from reaching the **poll** phase.
 
 ### Why would that be allowed?
 
@@ -424,10 +423,10 @@ server.listen(8080);
 server.on('listening', function() { });
 ```
 
-Say that listen() is run at the beginning of the event loop, but the
+Say that `listen()` is run at the beginning of the event loop, but the
 listening callback is placed in a `setImmediate()`. Now, unless a
 hostname is passed binding to the port will happen immediately. Now for
-the event loop to proceed it must hit the `poll` phase, which means
+the event loop to proceed it must hit the **poll** phase, which means
 there is a non-zero chance that a connection could have been received
 allowing the connection event to be fired before the listening event.
 
