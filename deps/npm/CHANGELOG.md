@@ -1,3 +1,78 @@
+### v3.10.3 (2016-06-23)
+
+Given that we had not one, but two updates to our RC this past week, it
+should come as no surprise that this week's full release is a bit
+lighter. We have some documentation patches and a couple of bug fixes via
+dependency updates.
+
+If you haven't yet checked out last week's release,
+[v3.10.0](https://github.com/npm/npm/releases/tag/v3.10.0)
+and the two follow up releases
+[v3.10.1](https://github.com/npm/npm/releases/tag/v3.10.1)
+and
+[v3.10.2](https://github.com/npm/npm/releases/tag/v3.10.2),
+you really should do so. They're the most important releases we've had in
+quite a while, fixing a bunch of critical bugs (including an issue
+impacting publishing with Node.js 6.x) and of course, bringing in the new
+and improved progress bar.
+
+#### BUM SYMLINKS BURN NO MORE
+
+There's been a bug lurking where broken symlinks in your `node_modules`
+folder could cause all manner of mischief, from crashes to empty `npm ls`
+results. The intrepid [@watilde](https://github.com/watilde) tracked this
+down for us.
+
+This addresses the root cause of the outdated crasher we protected
+against earlier this week in
+[#13115](https://github.com/npm/npm/issues/13115).
+
+This also fixes [#9564](https://github.com/npm/npm/issues/9564), the
+problem where a bad symlink in your global modules would result in an
+empty result when you ran `npm ls -g`.
+
+This ALSO likely fixes numerous "Missing argument #1" errors. (But surely
+not all of them as that's actually just a generic arity and
+type-validation failure.)
+
+* [`ca92ac4`](https://github.com/npm/npm/commit/ca92ac455b841a708dd89262ff88d503b125d717)
+  [npm/read-package-tree#6](https://github.com/npm/read-package-tree/pull/6)
+  `read-package-tree@5.1.5`:
+  Make bad symlinks be non-fatal errors when reading the tree off disk.
+  ([@watilde](https://github.com/watilde))
+
+#### BETTER UNICODE DETECTION
+
+* [`6c3f7f0`](https://github.com/npm/npm/commit/6c3f7f043f09fc2aa19ffd3f956787635fa6f4d0)
+  `has-unicode@2.0.1`:
+  Fix unicode detection on a number of Linux distributions.
+  ([@Darkhogg](https://github.com/Darkhogg)) ([@gagern](https://github.com/gagern))
+
+
+#### DOCUMENTATION FIXES
+
+* [`b9243ee`](https://github.com/npm/npm/commit/b9243ee60a3d60505c2502dc8633811b42c8aaea)
+  [#13127](https://github.com/npm/npm/pull/13127)
+  Remove extra backtick from `npm ls` documentation.
+  ([@shvaikalesh](https://github.com/shvaikalesh))
+* [`e05c0c2`](https://github.com/npm/npm/commit/e05c0c243cc702f9c392c001f668a90b57eaeb0e)
+  [iarna/has-unicode#3](https://github.com/iarna/has-unicode/pull/3)
+  [iarna/has-unicode#4](https://github.com/iarna/has-unicode/pull/4)
+  [#13084](https://github.com/npm/npm/pull/13084)
+  Correct changelog entry for shrinkwrap lifecycle order.
+  ([@SimenB](https://github.com/SimenB))
+* [`823994f`](https://github.com/npm/npm/commit/823994f100a0e59e1dd109e312811f971968ec75)
+  [#13080](https://github.com/npm/npm/pull/13080)
+  Describe using `npm pack` to see a dry run of publication results in
+  the `npm publish` documentation.
+  ([@laughinghan](https://github.com/laughinghan))
+
+#### DEPENDENCY UPDATES
+
+* [`e44d2db`](https://github.com/npm/npm/commit/e44d2db1ad0d860ca08e99c81135bd399fb733b1)
+  `aproba@1.0.4`: Documentation updates and minor refactoring.
+  ([@iarna](https://github.com/iarna))
+
 ### v3.10.2 (2016-06-17):
 
 This is a quick hotfix release with two small bug fixes.  First, there was
@@ -198,8 +273,8 @@ status.
   scripts section. They are run when you run `npm shrinkwrap` or `npm install --save` with
   an `npm-shrinkwrap.json` present in your module directory.
 
-  `preshrinkwrap` is run prior to generating the new `npm-shrinkwrap.json` and the other two
-  are run after.
+  `preshrinkwrap` and `shrinkwrap` is run prior to generating the new `npm-shrinkwrap.json`
+  and `postshrinkwrap` is run after.
   ([@SimenB](https://github.com/SimenB))
 
 #### NEW PROGRESS BAR
