@@ -208,8 +208,8 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value name(env->isolate(), args[1]);
 
-  ConnectWrap* req_wrap = new ConnectWrap(env, req_wrap_obj,
-      AsyncWrap::PROVIDER_PIPECONNECTWRAP);
+  ConnectWrap* req_wrap =
+      new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
   uv_pipe_connect(&req_wrap->req_,
                   &wrap->handle_,
                   *name,

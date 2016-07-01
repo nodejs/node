@@ -319,8 +319,8 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    ConnectWrap* req_wrap = new ConnectWrap(env, req_wrap_obj,
-        AsyncWrap::PROVIDER_TCPCONNECTWRAP);
+    ConnectWrap* req_wrap =
+        new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(&req_wrap->req_,
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
