@@ -13,8 +13,8 @@ namespace node {
 class ConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   ConnectWrap(Environment* env,
-      v8::Local<v8::Object> req_wrap_obj,
-      AsyncWrap::ProviderType provider);
+              v8::Local<v8::Object> req_wrap_obj,
+              AsyncWrap::ProviderType provider);
 
   size_t self_size() const override { return sizeof(*this); }
 };
