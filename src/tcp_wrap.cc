@@ -277,8 +277,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
   if (status == 0) {
     // Instantiate the client javascript object and handle.
-    Local<Object> client_obj =
-        Instantiate(env, static_cast<AsyncWrap*>(tcp_wrap));
+    Local<Object> client_obj = Instantiate(env, tcp_wrap);
 
     // Unwrap the client javascript object.
     TCPWrap* wrap = Unwrap<TCPWrap>(client_obj);
