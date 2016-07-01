@@ -15,7 +15,7 @@ var gtocPath = path.resolve(path.join(
   '..',
   'doc',
   'api',
-  '_toc.markdown'
+  '_toc.md'
 ));
 var gtocLoading = null;
 var gtocData = null;
@@ -75,7 +75,7 @@ function render(lexed, filename, template, cb) {
   // get the section
   var section = getSection(lexed);
 
-  filename = path.basename(filename, '.markdown');
+  filename = path.basename(filename, '.md');
 
   parseText(lexed);
   lexed = parseLists(lexed);
