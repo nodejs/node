@@ -49,7 +49,7 @@ and built upon.
 #### Respect the stability index
 
 The rules for the master branch are less strict; consult the
-[stability index](./doc/api/documentation.markdown#stability-index) for details.
+[stability index](./doc/api/documentation.md#stability-index) for details.
 
 In a nutshell, modules are at varying levels of API stability. Bug fixes are
 always welcome but API or behavioral changes to modules at stability level 3
