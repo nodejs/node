@@ -1,6 +1,6 @@
 Here's how the node docs work.
 
-1:1 relationship from `lib/<module>.js` to `doc/api/<module>.markdown`
+1:1 relationship from `lib/<module>.js` to `doc/api/<module>.md`
 
 Each type of heading has a description block.
 
