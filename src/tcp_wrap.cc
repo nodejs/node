@@ -96,8 +96,7 @@ void TCPWrap::Initialize(Local<Object> target,
   auto constructor = [](const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
   };
-  Local<FunctionTemplate> cwt =
-      FunctionTemplate::New(env->isolate(), constructor);
+  auto cwt = FunctionTemplate::New(env->isolate(), constructor);
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
   cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"),
