@@ -71,9 +71,11 @@ void PipeWrap::Initialize(Local<Object> target,
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
-  Local<FunctionTemplate> cwt =
-      FunctionTemplate::New(env->isolate(),
-      [](const FunctionCallbackInfo<Value>& a){CHECK(a.IsConstructCall());});
+  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
+      CHECK(args.IsConstructCall());
+  };
+  Local<FunctionTemplate> cwt = FunctionTemplate::New(env->isolate(),
+      constructor);
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
   cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap"),
