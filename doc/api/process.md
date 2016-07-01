@@ -452,7 +452,7 @@ added: v0.1.27
 
 The `process.argv` property returns an array containing the command line 
 arguments passed when the Node.js process was launched. The first element will 
-be [`process.execPath()`]. The second element will be the path to the 
+be [`process.execPath`]. The second element will be the path to the 
 JavaScript file being executed. The remaining elements will be any additional 
 command line arguments.
 
@@ -1664,7 +1664,7 @@ cases:
 [`process.argv`]: #process_process_argv
 [`process.exit()`]: #process_process_exit_code
 [`process.kill()`]: #process_process_kill_pid_signal
-[`process.execPath()`]: #process_process_execPath
+[`process.execPath`]: #process_process_execPath
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_arg
