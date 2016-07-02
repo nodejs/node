@@ -30,7 +30,7 @@ function server() {
       console.error('_socketEnd');
     });
     socket.write(content);
-  }).listen(common.PORT, function() {
+  }).listen(common.PORT, common.localhostIPv4, function() {
     console.log('listening');
   });
 }
@@ -38,7 +38,7 @@ function server() {
 function client() {
   var net = require('net');
   var client = net.connect({
-    host: 'localhost',
+    host: common.localhostIPv4,
     port: common.PORT
   }, function() {
     client.destroy();
