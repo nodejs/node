@@ -101,8 +101,7 @@ function doTest(testOptions, callback) {
           // If SmartOS and connection refused, then retry. See
           // https://github.com/nodejs/node/issues/2663.
           if (common.isSunOS && err.includes('Connection refused')) {
-            // Reduce requestCount by one because we are re-trying.
-            --requestCount;
+            requestCount = 0;
             spawnClient();
             return;
           }
