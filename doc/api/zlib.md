@@ -266,13 +266,6 @@ Compression strategy.
 * `zlib.Z_FIXED`
 * `zlib.Z_DEFAULT_STRATEGY`
 
-Possible values of the data_type field.
-
-* `zlib.Z_BINARY`
-* `zlib.Z_TEXT`
-* `zlib.Z_ASCII`
-* `zlib.Z_UNKNOWN`
-
 The deflate compression method (the only one supported in this version).
 
 * `zlib.Z_DEFLATED`
