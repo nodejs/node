@@ -5,23 +5,23 @@ if (!common.hasCrypto) {
   return;
 }
 
-const assert = require('assert');
-const tls = require('tls');
-
 if (!common.hasIPv6) {
   common.skip('no IPv6 support');
   return;
 }
 
+const assert = require('assert');
+const tls = require('tls');
+
 const ciphers = 'AECDH-NULL-SHA';
-tls.createServer({ ciphers }, function() {
+tls.createServer({ ciphers }, common.mustCall(function() {
   this.close();
-}).listen(common.PORT, '::1', function() {
+})).listen(common.PORT, '::1', common.mustCall(function() {
   const options = {
-    host: 'localhost',
+    host: '::1',
     port: common.PORT,
     family: 6,
-    ciphers: ciphers,
+    ciphers,
     rejectUnauthorized: false,
   };
   // Will fail with ECONNREFUSED if the address family is not honored.
@@ -29,4 +29,4 @@ tls.createServer({ ciphers }, function() {
     assert.strictEqual('::1', this.remoteAddress);
     this.destroy();
   }));
-});
+}));

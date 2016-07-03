@@ -5,29 +5,29 @@ if (!common.hasCrypto) {
   return;
 }
 
-const assert = require('assert');
-const https = require('https');
-
 if (!common.hasIPv6) {
   common.skip('no IPv6 support');
   return;
 }
 
+const assert = require('assert');
+const https = require('https');
+
 const ciphers = 'AECDH-NULL-SHA';
-https.createServer({ ciphers }, function(req, res) {
+https.createServer({ ciphers }, common.mustCall(function(req, res) {
   this.close();
   res.end();
-}).listen(common.PORT, '::1', function() {
+})).listen(common.PORT, '::1', common.mustCall(function() {
   const options = {
-    host: 'localhost',
+    host: '::1',
     port: common.PORT,
     family: 6,
-    ciphers: ciphers,
+    ciphers,
     rejectUnauthorized: false,
   };
   // Will fail with ECONNREFUSED if the address family is not honored.
-  https.get(options, common.mustCall(function() {
+  https.get(options, common.mustCall(common.mustCall(function() {
     assert.strictEqual('::1', this.socket.remoteAddress);
     this.destroy();
-  }));
-});
+  })));
+}));
