@@ -5544,8 +5544,7 @@ HeapStatistics::HeapStatistics()
       total_available_size_(0),
       used_heap_size_(0),
       heap_size_limit_(0),
-      does_zap_garbage_(0),
-      malloced_memory_(0) {}
+      does_zap_garbage_(0) {}
 
 HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
                                             space_size_(0),
@@ -7446,8 +7445,6 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_available_size_ = heap->Available();
   heap_statistics->used_heap_size_ = heap->SizeOfObjects();
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
-  heap_statistics->malloced_memory_ =
-      isolate->allocator()->GetCurrentMemoryUsage();
   heap_statistics->does_zap_garbage_ = heap->ShouldZapGarbage();
 }
 
