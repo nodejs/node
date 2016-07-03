@@ -25,7 +25,7 @@ function checkForLocalhost(host) {
   dns.lookup(host, 6, (err, address) => {
     if (!err)
       return runTest(host);
-    if (err.code !== 'ENOENT')
+    if (err.code !== 'ENOTFOUND')
       throw err;
     index = index + 1;
     if (index < common.localIPv6Hosts.length)
