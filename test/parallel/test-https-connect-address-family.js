@@ -30,7 +30,8 @@ function checkForLocalhost(host) {
     index = index + 1;
     if (index < common.localIPv6Hosts.length)
       return checkForLocalhost(common.localIPv6Hosts[index]);
-    common.fail('Could not find an IPv6 localhost');
+    // Oh well, let's give up and try localhost anyway.
+    runTest('localhost');
   });
 }
 
