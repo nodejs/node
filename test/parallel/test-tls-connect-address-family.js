@@ -25,10 +25,12 @@ function checkForLocalhost(host) {
   dns.lookup(host, 6, (err, address) => {
     if (!err)
       return runTest(host);
+    if (err.code !== 'ENOENT')
+      throw err;
     index = index + 1;
     if (index < common.localIPv6Hosts.length)
       return checkForLocalhost(common.localIPv6Hosts[index]);
-    common.fail('Could not find an IPv6 host for ::1');
+    common.fail('Could not find an IPv6 localhost');
   });
 }
 
