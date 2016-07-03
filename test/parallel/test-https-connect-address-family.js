@@ -42,7 +42,6 @@ const runTest = common.mustCall(function runTest(host) {
     res.end();
   })).listen(common.PORT, '::1', common.mustCall(function() {
     const options = {
-      host,
       port: common.PORT,
       family: 6,
       ciphers,
