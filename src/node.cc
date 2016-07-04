@@ -39,7 +39,9 @@
 #include "string_bytes.h"
 #include "util.h"
 #include "uv.h"
+#if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
+#endif  // NODE_USE_V8_PLATFORM
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
@@ -166,6 +168,30 @@ static v8::Platform* default_platform;
 #ifdef __POSIX__
 static uv_sem_t debug_semaphore;
 #endif
+
+static struct {
+#if NODE_USE_V8_PLATFORM
+  void Initialize(int thread_pool_size) {
+    platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
+    V8::InitializePlatform(platform_);
+  }
+
+  void PumpMessageLoop(Isolate* isolate) {
+    v8::platform::PumpMessageLoop(platform_, isolate);
+  }
+
+  void Dispose() {
+    delete platform_;
+    platform_ = nullptr;
+  }
+
+  v8::Platform* platform_;
+#else  // !NODE_USE_V8_PLATFORM
+  void Initialize(int thread_pool_size) {}
+  void PumpMessageLoop(Isolate* isolate) {}
+  void Dispose() {}
+#endif  // !NODE_USE_V8_PLATFORM
+} v8_platform;
 
 static void PrintErrorString(const char* format, ...) {
   va_list ap;
@@ -4226,11 +4252,11 @@ static void StartNodeInstance(void* arg) {
       SealHandleScope seal(isolate);
       bool more;
       do {
-        v8::platform::PumpMessageLoop(default_platform, isolate);
+        v8_platform.PumpMessageLoop(isolate);
         more = uv_run(env->event_loop(), UV_RUN_ONCE);
 
         if (more == false) {
-          v8::platform::PumpMessageLoop(default_platform, isolate);
+          v8_platform.PumpMessageLoop(isolate);
           EmitBeforeExit(env);
 
           // Emit `beforeExit` if the loop became alive either after emitting
@@ -4291,8 +4317,8 @@ int Start(int argc, char** argv) {
 #endif
 
   const int thread_pool_size = 4;
-  default_platform = v8::platform::CreateDefaultPlatform(thread_pool_size);
-  V8::InitializePlatform(default_platform);
+
+  v8_platform.Initialize(thread_pool_size);
   V8::Initialize();
 
   int exit_code = 1;
@@ -4309,8 +4335,7 @@ int Start(int argc, char** argv) {
   }
   V8::Dispose();
 
-  delete default_platform;
-  default_platform = nullptr;
+  v8_platform.Dispose();
 
   delete[] exec_argv;
   exec_argv = nullptr;
