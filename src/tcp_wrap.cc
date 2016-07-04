@@ -1,5 +1,6 @@
 #include "tcp_wrap.h"
 
+#include "connection_wrap.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -28,7 +29,6 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::String;
-using v8::Undefined;
 using v8::Value;
 
 
@@ -121,11 +121,6 @@ void TCPWrap::Initialize(Local<Object> target,
 }
 
 
-uv_tcp_t* TCPWrap::UVHandle() {
-  return &handle_;
-}
-
-
 void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // This constructor should not be exposed to public javascript.
   // Therefore we assert that we are not trying to call this as a
@@ -146,11 +141,10 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_TCPWRAP,
-                 parent) {
+    : ConnectionWrap(env,
+                     object,
+                     AsyncWrap::PROVIDER_TCPWRAP,
+                     parent) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
@@ -255,43 +249,6 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
                       backlog,
                       OnConnection);
   args.GetReturnValue().Set(err);
-}
-
-
-void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
-  TCPWrap* tcp_wrap = static_cast<TCPWrap*>(handle->data);
-  CHECK_EQ(&tcp_wrap->handle_, reinterpret_cast<uv_tcp_t*>(handle));
-  Environment* env = tcp_wrap->env();
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  // We should not be getting this callback if someone as already called
-  // uv_close() on the handle.
-  CHECK_EQ(tcp_wrap->persistent().IsEmpty(), false);
-
-  Local<Value> argv[2] = {
-    Integer::New(env->isolate(), status),
-    Undefined(env->isolate())
-  };
-
-  if (status == 0) {
-    // Instantiate the client javascript object and handle.
-    Local<Object> client_obj =
-        Instantiate(env, static_cast<AsyncWrap*>(tcp_wrap));
-
-    // Unwrap the client javascript object.
-    TCPWrap* wrap = Unwrap<TCPWrap>(client_obj);
-    CHECK_NE(wrap, nullptr);
-    uv_stream_t* client_handle = reinterpret_cast<uv_stream_t*>(&wrap->handle_);
-    if (uv_accept(handle, client_handle))
-      return;
-
-    // Successful accept. Call the onconnection callback in JavaScript land.
-    argv[1] = client_obj;
-  }
-
-  tcp_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 
