@@ -1704,3 +1704,93 @@ int spawn_stdin_stdout(void) {
   return 2;
 }
 #endif /* !_WIN32 */
+
+#ifndef _WIN32
+TEST_IMPL(spawn_setuid_setgid_setgroups) {
+  int r;
+  struct passwd* pw;
+  struct passwd* pwDisk;
+
+  /* if not root, then this will fail. */
+  uv_uid_t uid = getuid();
+  if (uid != 0) {
+    fprintf(stderr, "spawn_setuid_setgid_setgroups skipped: not root\n");
+    return 0;
+  }
+
+  init_process_options("spawn_helper10", exit_cb);
+
+  /* become the "nobody" user. */
+  pw = getpwnam("nobody");
+  ASSERT(pw != NULL);
+  options.uid = pw->pw_uid;
+  options.gid = pw->pw_gid;
+  /* get the disk group, which is standard enough for our purposes */
+  pwDisk = getpwnam("disk");
+  ASSERT(pwDisk != NULL);
+  options.groups = malloc(sizeof(uv_gid_t));
+  options.groups = pwDisk->pw_gid;
+  options.groups_count = 1;
+  options.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID | UV_PROCESS_SETGROUPS;
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  if (r == UV_EACCES)
+    RETURN_SKIP("user 'nobody' cannot access the test runner");
+
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
+
+#ifndef _WIN32
+TEST_IMPL(spawn_setuid_setgid_setgroups_fails) {
+  int r;
+  struct passwd* pw;
+  struct passwd* pwNoGroup;
+
+  /* if not root, then this will fail. */
+  uv_uid_t uid = getuid();
+  if (uid != 0) {
+    fprintf(stderr, "spawn_setuid_setgid_setgroups skipped: not root\n");
+    return 0;
+  }
+
+  init_process_options("spawn_helper10", fail_cb);
+
+  /* become the "nobody" user. */
+  pw = getpwnam("nobody");
+  ASSERT(pw != NULL);
+  options.uid = pw->pw_uid;
+  options.gid = pw->pw_gid;
+  /* get the nogroup group, which is standard enough for our purposes */
+  pwNoGroup = getpwnam("nogroup");
+  ASSERT(pwNoGroup != NULL);
+  options.groups = malloc(sizeof(uv_gid_t));
+  options.groups = pwNoGroup->pw_gid;
+  options.groups_count = 1;
+  options.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID | UV_PROCESS_SETGROUPS;
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  if (r == UV_EACCES)
+    RETURN_SKIP("user 'nobody' cannot access the test runner");
+
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  ASSERT(close_cb_called == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif

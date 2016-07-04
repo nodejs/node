@@ -125,6 +125,7 @@ namespace node {
   V(flags_string, "flags")                                                    \
   V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
+  V(groups_string, "groups")                                                  \
   V(handle_string, "handle")                                                  \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \

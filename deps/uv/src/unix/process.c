@@ -367,6 +367,15 @@ static void uv__process_child_init(const uv_process_options_t* options,
     _exit(127);
   }
 
+  /*
+   * We have already dropped the inherited groups, and now it is time to
+   * set any groups that were explicitly requested by the caller.
+   */
+  if ((options->flags & UV_PROCESS_SETGROUPS) && setgroups(options->groups_count, options->groups)){
+	uv__write_int(error_fd, -errno);
+	_exit(127);
+  }
+
   if ((options->flags & UV_PROCESS_SETUID) && setuid(options->uid)) {
     uv__write_int(error_fd, -errno);
     _exit(127);
@@ -405,7 +414,8 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_SETGID |
                               UV_PROCESS_SETUID |
                               UV_PROCESS_WINDOWS_HIDE |
-                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
+                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
+                              UV_PROCESS_SETGROUPS)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   QUEUE_INIT(&process->queue);

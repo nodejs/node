@@ -140,6 +140,25 @@ class ProcessWrap : public HandleWrap {
       return env->ThrowTypeError("options.gid should be a number");
     }
 
+    // options.groups
+    // We assume that groups is a collection of gid_t not strings
+    Local<Value> groups_v = js_options->Get(env->groups_string());
+    if (!groups_v.IsEmpty() && groups_v->IsArray()) {
+      Local<Array> js_groups = Local<Array>::Cast(groups_v);
+      int groups_count = js_groups->Length();
+      options.flags |= UV_PROCESS_SETGROUPS;
+      options.groups = new uv_gid_t[groups_count];
+      options.groups_count = groups_count;
+      for (int i = 0; i < groups_count; i++) {
+        Local<Value> group_v = js_groups->Get(i);
+        if (group_v->IsInt32()) {
+          const int32_t group = group_v->Int32Value(env->context()).FromJust();
+          options.groups[i] = static_cast<uv_gid_t>(group);
+        } else if (!group_v->IsUndefined() && !group_v->IsNull()) {
+          return env->ThrowTypeError("options.groups should be a number array");
+        }
+      }
+    }
     // TODO(bnoordhuis) is this possible to do without mallocing ?
 
     // options.file
