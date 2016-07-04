@@ -5773,6 +5773,7 @@ class Map: public HeapObject {
   int NumberOfFields();
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
+  bool InstancesNeedRewriting(Map* target);
   bool InstancesNeedRewriting(Map* target, int target_number_of_fields,
                               int target_inobject, int target_unused,
                               int* old_number_of_fields);
@@ -5784,15 +5785,14 @@ class Map: public HeapObject {
   static void GeneralizeFieldType(Handle<Map> map, int modify_index,
                                   Representation new_representation,
                                   Handle<FieldType> new_field_type);
-  static Handle<Map> ReconfigureProperty(Handle<Map> map, int modify_index,
-                                         PropertyKind new_kind,
-                                         PropertyAttributes new_attributes,
-                                         Representation new_representation,
-                                         Handle<FieldType> new_field_type,
-                                         StoreMode store_mode);
-  static Handle<Map> CopyGeneralizeAllRepresentations(
-      Handle<Map> map, int modify_index, StoreMode store_mode,
-      PropertyKind kind, PropertyAttributes attributes, const char* reason);
+
+  static inline Handle<Map> ReconfigureProperty(
+      Handle<Map> map, int modify_index, PropertyKind new_kind,
+      PropertyAttributes new_attributes, Representation new_representation,
+      Handle<FieldType> new_field_type, StoreMode store_mode);
+
+  static inline Handle<Map> ReconfigureElementsKind(
+      Handle<Map> map, ElementsKind new_elements_kind);
 
   static Handle<Map> PrepareForDataProperty(Handle<Map> old_map,
                                             int descriptor_number,
@@ -6022,17 +6022,10 @@ class Map: public HeapObject {
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
 
-  // Returns the map that this map transitions to if its elements_kind
-  // is changed to |elements_kind|, or NULL if no such map is cached yet.
-  // |safe_to_add_transitions| is set to false if adding transitions is not
-  // allowed.
-  Map* LookupElementsTransitionMap(ElementsKind elements_kind);
-
   // Returns the transitioned map for this map with the most generic
-  // elements_kind that's found in |candidates|, or null handle if no match is
+  // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
-  static Handle<Map> FindTransitionedMap(Handle<Map> map,
-                                         MapHandleList* candidates);
+  Map* FindElementsKindTransitionedMap(MapHandleList* candidates);
 
   inline bool CanTransition();
 
@@ -6191,6 +6184,17 @@ class Map: public HeapObject {
       Handle<LayoutDescriptor> full_layout_descriptor);
 
  private:
+  // Returns the map that this (root) map transitions to if its elements_kind
+  // is changed to |elements_kind|, or |nullptr| if no such map is cached yet.
+  Map* LookupElementsTransitionMap(ElementsKind elements_kind);
+
+  // Tries to replay property transitions starting from this (root) map using
+  // the descriptor array of the |map|. The |root_map| is expected to have
+  // proper elements kind and therefore elements kinds transitions are not
+  // taken by this function. Returns |nullptr| if matching transition map is
+  // not found.
+  Map* TryReplayPropertyTransitions(Map* map);
+
   static void ConnectTransition(Handle<Map> parent, Handle<Map> child,
                                 Handle<Name> name, SimpleTransitionFlag flag);
 
@@ -6226,6 +6230,19 @@ class Map: public HeapObject {
 
   static Handle<Map> CopyNormalized(Handle<Map> map,
                                     PropertyNormalizationMode mode);
+
+  static Handle<Map> Reconfigure(Handle<Map> map,
+                                 ElementsKind new_elements_kind,
+                                 int modify_index, PropertyKind new_kind,
+                                 PropertyAttributes new_attributes,
+                                 Representation new_representation,
+                                 Handle<FieldType> new_field_type,
+                                 StoreMode store_mode);
+
+  static Handle<Map> CopyGeneralizeAllRepresentations(
+      Handle<Map> map, ElementsKind elements_kind, int modify_index,
+      StoreMode store_mode, PropertyKind kind, PropertyAttributes attributes,
+      const char* reason);
 
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing

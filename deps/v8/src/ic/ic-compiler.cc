@@ -235,8 +235,11 @@ void PropertyICCompiler::CompileKeyedStorePolymorphicHandlers(
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map(receiver_maps->at(i));
     Handle<Code> cached_stub;
-    Handle<Map> transitioned_map =
-        Map::FindTransitionedMap(receiver_map, receiver_maps);
+    Handle<Map> transitioned_map;
+    {
+      Map* tmap = receiver_map->FindElementsKindTransitionedMap(receiver_maps);
+      if (tmap != nullptr) transitioned_map = handle(tmap);
+    }
 
     // TODO(mvstanton): The code below is doing pessimistic elements
     // transitions. I would like to stop doing that and rely on Allocation Site
