@@ -1,6 +1,7 @@
 #include "pipe_wrap.h"
 
 #include "async-wrap.h"
+#include "connection_wrap.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -27,7 +28,6 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::String;
-using v8::Undefined;
 using v8::Value;
 
 
@@ -48,11 +48,6 @@ PipeConnectWrap::PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj)
 
 static void NewPipeConnectWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-}
-
-
-uv_pipe_t* PipeWrap::UVHandle() {
-  return &handle_;
 }
 
 
@@ -125,11 +120,10 @@ PipeWrap::PipeWrap(Environment* env,
                    Local<Object> object,
                    bool ipc,
                    AsyncWrap* parent)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_PIPEWRAP,
-                 parent) {
+    : ConnectionWrap(env,
+                     object,
+                     AsyncWrap::PROVIDER_PIPEWRAP,
+                     parent) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
@@ -166,44 +160,6 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
-// TODO(bnoordhuis) maybe share with TCPWrap?
-void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
-  PipeWrap* pipe_wrap = static_cast<PipeWrap*>(handle->data);
-  CHECK_EQ(&pipe_wrap->handle_, reinterpret_cast<uv_pipe_t*>(handle));
-
-  Environment* env = pipe_wrap->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  // We should not be getting this callback if someone as already called
-  // uv_close() on the handle.
-  CHECK_EQ(pipe_wrap->persistent().IsEmpty(), false);
-
-  Local<Value> argv[] = {
-    Integer::New(env->isolate(), status),
-    Undefined(env->isolate())
-  };
-
-  if (status != 0) {
-    pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
-    return;
-  }
-
-  // Instanciate the client javascript object and handle.
-  Local<Object> client_obj = Instantiate(env, pipe_wrap);
-
-  // Unwrap the client javascript object.
-  PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, client_obj);
-  uv_stream_t* client_handle = reinterpret_cast<uv_stream_t*>(&wrap->handle_);
-  if (uv_accept(handle, client_handle))
-    return;
-
-  // Successful accept. Call the onconnection callback in JavaScript land.
-  argv[1] = client_obj;
-  pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
-}
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
 void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
