@@ -5,6 +5,11 @@
     'node_use_lttng%': 'false',
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
+    'node_use_v8_platform%': 'true',
+    'node_use_bundled_v8%': 'true',
+    'node_shared%': 'false',
+    'force_dynamic_crt%': 0,
+    'node_module_version%': 'true',
     'node_has_winsdk%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -100,6 +105,11 @@
         'use_openssl_def': 1,
       }, {
         'use_openssl_def': 0,
+      }],
+      [ 'node_shared=="true"', {
+        'node_target_type%': 'shared_library',
+      }, {
+        'node_target_type%': 'executable',
       }],
     ],
   },
@@ -220,6 +230,42 @@
 
 
       'conditions': [
+        [ 'node_shared=="false"', {
+          'msvs_settings': {
+            'VCManifestTool': {
+              'EmbedManifest': 'true',
+              'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
+            }
+          },
+        }, {
+          'defines': [
+            'NODE_SHARED_MODE',
+         ],
+          'conditions': [
+            [ 'node_module_version!=""', {
+              'product_extension': 'so.<(node_module_version)',
+            }]
+          ],
+        }],
+        [ 'node_use_bundled_v8=="true"', {
+          'include_dirs': [
+            'deps/v8' # include/v8_platform.h
+          ],
+
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8',
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
+          ],
+        }],
+        [ 'node_use_v8_platform=="true"', {
+         'defines': [
+            'NODE_USE_V8_PLATFORM=1',
+          ],
+        }, {
+          'defines': [
+            'NODE_USE_V8_PLATFORM=0',
+          ],
+        }],
         [ 'node_enable_d8=="true"', {
           'dependencies': [ 'deps/v8/src/d8.gyp:d8' ],
         }],
@@ -292,7 +338,7 @@
                     ],
                   },
                   'conditions': [
-                    ['OS in "linux freebsd"', {
+                    ['OS in "linux freebsd" and node_shared=="false"', {
                       'ldflags': [
                         '-Wl,--whole-archive,'
                             '<(PRODUCT_DIR)/obj.target/deps/openssl/'
@@ -460,7 +506,7 @@
             'NODE_PLATFORM="sunos"',
           ],
         }],
-        [ 'OS=="freebsd" or OS=="linux"', {
+        [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"', {
           'ldflags': [ '-Wl,-z,noexecstack',
                        '-Wl,--whole-archive <(V8_BASE)',
                        '-Wl,--no-whole-archive' ]
@@ -469,12 +515,6 @@
           'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
         }],
       ],
-      'msvs_settings': {
-        'VCManifestTool': {
-          'EmbedManifest': 'true',
-          'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
-        }
-      },
     },
     {
       'target_name': 'mkssldef',

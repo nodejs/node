@@ -396,17 +396,23 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 # define NODE_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
+#ifdef NODE_SHARED_MODE
+# define NODE_CTOR_PREFIX
+#else
+# define NODE_CTOR_PREFIX static
+#endif
+
 #if defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
 #define NODE_C_CTOR(fn)                                               \
-  static void __cdecl fn(void);                                       \
+  NODE_CTOR_PREFIX void __cdecl fn(void);                             \
   __declspec(dllexport, allocate(".CRT$XCU"))                         \
       void (__cdecl*fn ## _)(void) = fn;                              \
-  static void __cdecl fn(void)
+  NODE_CTOR_PREFIX void __cdecl fn(void)
 #else
 #define NODE_C_CTOR(fn)                                               \
-  static void fn(void) __attribute__((constructor));                  \
-  static void fn(void)
+  NODE_CTOR_PREFIX void fn(void) __attribute__((constructor));        \
+  NODE_CTOR_PREFIX void fn(void)
 #endif
 
 #define NODE_MODULE_X(modname, regfunc, priv, flags)                  \

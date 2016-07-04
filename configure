@@ -24,6 +24,9 @@ from gyp.common import GetFlavor
 sys.path.insert(0, os.path.join(root_dir, 'tools', 'configure.d'))
 import nodedownload
 
+# imports in tools/
+sys.path.insert(0, os.path.join(root_dir, 'tools'))
+
 # parse our options
 parser = optparse.OptionParser()
 
@@ -384,6 +387,26 @@ parser.add_option('--enable-static',
     action='store_true',
     dest='enable_static',
     help='build as static library')
+
+parser.add_option('--shared',
+    action='store_true',
+    dest='shared',
+    help='compile shared library for embedding node in another project. ' +
+         '(This mode is not officially supported for regular applications)')
+
+parser.add_option('--without-v8-platform',
+    action='store_true',
+    dest='without_v8_platform',
+    default=False,
+    help='do not initialize v8 platform during node.js startup. ' +
+        '(This mode is not officially supported for regular applications)')
+
+parser.add_option('--without-bundled-v8',
+    action='store_true',
+    dest='without_bundled_v8',
+    default=False,
+    help='do not use V8 includes from the bundled deps folder. ' +
+         '(This mode is not officially supported for regular applications)')
 
 (options, args) = parser.parse_args()
 
@@ -774,7 +797,14 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
-  o['variables']['node_module_version'] = 46
+  o['variables']['node_shared'] = b(options.shared)
+  o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
+  o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
+  node_module_version = getmoduleversion.get_version()
+  shlib_suffix = '%s.dylib' if sys.platform == 'darwin' else 'so.%s'
+  shlib_suffix %= node_module_version
+  o['variables']['node_module_version'] = int(node_module_version)
+  o['variables']['shlib_suffix'] = shlib_suffix
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
@@ -820,8 +850,7 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
   o['variables']['node_enable_d8'] = b(options.enable_d8)
-
-
+  o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
