@@ -450,10 +450,11 @@ console.log(`This processor architecture is ${process.arch}`);
 added: v0.1.27
 -->
 
-The `process.argv` property returns a array containing the command line
-arguments passed when the Node.js process was launched. The first element will
-be 'node', the second element will be the name of the JavaScript file. The
-remaining elements will be any additional command line arguments.
+The `process.argv` property returns an array containing the command line 
+arguments passed when the Node.js process was launched. The first element will 
+be [`process.execPath`]. The second element will be the path to the 
+JavaScript file being executed. The remaining elements will be any additional 
+command line arguments.
 
 For example, assuming the following script for `process-args.js`:
 
@@ -473,7 +474,7 @@ $ node process-2.js one two=three four
 Would generate the output:
 
 ```text
-0: node
+0: /usr/local/bin/node
 1: /Users/mjr/work/node/process-2.js
 2: one
 3: two=three
@@ -1663,6 +1664,7 @@ cases:
 [`process.argv`]: #process_process_argv
 [`process.exit()`]: #process_process_exit_code
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.execPath`]: #process_process_execPath
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_arg
