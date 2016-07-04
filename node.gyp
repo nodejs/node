@@ -819,7 +819,7 @@
             'common.gypi',
           ],
 
-          'ldflags': ['-Wl,-bbigtoc,-bE:<(PRODUCT_DIR)/node.exp'],
+          'ldflags': ['-Wl,-bE:<(PRODUCT_DIR)/node.exp'],
         },
         {
           'target_name': 'node_exp',
