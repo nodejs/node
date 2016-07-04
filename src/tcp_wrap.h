@@ -6,10 +6,11 @@
 #include "async-wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
+#include "connection_wrap.h"
 
 namespace node {
 
-class TCPWrap : public StreamWrap {
+class TCPWrap : public StreamWrap, ConnectionWrap {
  public:
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   static void Initialize(v8::Local<v8::Object> target,
@@ -21,6 +22,7 @@ class TCPWrap : public StreamWrap {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
+  friend class ConnectionWrap;  // So handle_ can be accessed
   typedef uv_tcp_t HandleType;
 
   template <typename T,
@@ -45,7 +47,6 @@ class TCPWrap : public StreamWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
 
-  static void OnConnection(uv_stream_t* handle, int status);
   static void AfterConnect(uv_connect_t* req, int status);
 
   uv_tcp_t handle_;

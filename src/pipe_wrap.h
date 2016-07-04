@@ -6,10 +6,11 @@
 #include "async-wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
+#include "connection_wrap.h"
 
 namespace node {
 
-class PipeWrap : public StreamWrap {
+class PipeWrap : public StreamWrap, ConnectionWrap {
  public:
   uv_pipe_t* UVHandle();
 
@@ -21,6 +22,7 @@ class PipeWrap : public StreamWrap {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
+  friend class ConnectionWrap;  // So handle_ can be accessed
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,
            bool ipc,
@@ -37,7 +39,6 @@ class PipeWrap : public StreamWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
 
-  static void OnConnection(uv_stream_t* handle, int status);
   static void AfterConnect(uv_connect_t* req, int status);
 
   uv_pipe_t handle_;
