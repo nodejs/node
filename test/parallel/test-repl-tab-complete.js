@@ -2,7 +2,7 @@
 
 var common = require('../common');
 var assert = require('assert');
-var repl   = require('repl');
+var repl = require('repl');
 
 function getNoResultsFunction() {
   return common.mustCall((err, data) => {
@@ -11,13 +11,13 @@ function getNoResultsFunction() {
   });
 }
 
-var works   = [['inner.one'], 'inner.o'];
+var works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
-var testMe  = repl.start('', putIn);
+var testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
-testMe._domain.on('error', function (err) {
-  console.log(err)
+testMe._domain.on('error', function(err) {
+  console.log(err);
   assert.ifError(err);
 });
 
@@ -29,13 +29,13 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-testMe.complete('console.lo', common.mustCall(function (error, data) {
+testMe.complete('console.lo', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
-// Tab Complete will return globaly scoped variables
+// Tab Complete will return globally scoped variables
 putIn.run(['};']);
-testMe.complete('inner.o', common.mustCall(function (error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
@@ -56,7 +56,7 @@ putIn.run([
   'var top = function() {',
   'var inner = {one:1};'
 ]);
-testMe.complete('inner.o', common.mustCall(function (error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
@@ -74,7 +74,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', common.mustCall(function (error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
@@ -88,7 +88,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', common.mustCall(function (error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
@@ -103,7 +103,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', common.mustCall(function (error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
@@ -153,48 +153,47 @@ putIn.run(['.clear']);
 putIn.run([
   'var str = "test";'
 ]);
-testMe.complete('str.len', common.mustCall(function (error, data) {
+testMe.complete('str.len', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['str.length'], 'str.len']);
 }));
 
 putIn.run(['.clear']);
 
 // tab completion should not break on spaces
-var spaceTimeout = setTimeout(function () {
+var spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
-testMe.complete(' ', common.mustCall(function (error, data) {
+testMe.complete(' ', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [[], undefined]);
   clearTimeout(spaceTimeout);
 }));
 
 // tab completion should pick up the global "toString" object, and
 // any other properties up the "global" object's prototype chain
-testMe.complete('toSt', common.mustCall(function (error, data) {
+testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['toString'], 'toSt']);
 }));
 
 // Tab complete provides built in libs for require()
 putIn.run(['.clear']);
 
-testMe.complete('require(\'', common.mustCall(function (error, data) {
+testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
-  repl._builtinLibs.forEach(function (lib) {
+  repl._builtinLibs.forEach(function(lib) {
     assert.notStrictEqual(data[0].indexOf(lib), -1, lib + ' not found');
   });
 }));
 
-testMe.complete('require(\'n', common.mustCall(function (error, data) {
+testMe.complete('require(\'n', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   assert.strictEqual(data.length, 2);
   assert.strictEqual(data[1], 'n');
   assert.notStrictEqual(data[0].indexOf('net'), -1);
   // It's possible to pick up non-core modules too
-  data[0].forEach(function (completion) {
-    if (completion) {
+  data[0].forEach(function(completion) {
+    if (completion)
       assert(/^n/.test(completion));
-    }
   });
 }));
 
@@ -204,7 +203,7 @@ putIn.run(['.clear']);
 putIn.run([
   'var custom = "test";'
 ]);
-testMe.complete('cus', common.mustCall(function (error, data) {
+testMe.complete('cus', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['custom'], 'cus']);
 }));
 
@@ -216,7 +215,7 @@ putIn.run([
   'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});'
 ]);
 
-testMe.complete('proxy.', common.mustCall(function (error, data) {
+testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
 }));
 
@@ -224,7 +223,7 @@ testMe.complete('proxy.', common.mustCall(function (error, data) {
 putIn.run(['.clear']);
 
 putIn.run(['var ary = [1,2,3];']);
-testMe.complete('ary.', common.mustCall(function (error, data) {
+testMe.complete('ary.', common.mustCall(function(error, data) {
   assert.strictEqual(data[0].indexOf('ary.0'), -1);
   assert.strictEqual(data[0].indexOf('ary.1'), -1);
   assert.strictEqual(data[0].indexOf('ary.2'), -1);
@@ -234,7 +233,7 @@ testMe.complete('ary.', common.mustCall(function (error, data) {
 putIn.run(['.clear']);
 putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
-testMe.complete('obj.', common.mustCall(function (error, data) {
+testMe.complete('obj.', common.mustCall(function(error, data) {
   assert.strictEqual(data[0].indexOf('obj.1'), -1);
   assert.strictEqual(data[0].indexOf('obj.1a'), -1);
   assert.notStrictEqual(data[0].indexOf('obj.a'), -1);
@@ -271,17 +270,13 @@ testMe.complete('.b', common.mustCall((error, data) => {
 }));
 
 const testNonGlobal = repl.start({
-  input    : putIn,
-  output   : putIn,
+  input: putIn,
+  output: putIn,
   useGlobal: false
 });
 
-const builtins = [
-  [
-    'Infinity', '', 'Int16Array', 'Int32Array',
-    'Int8Array'
-  ], 'I'
-];
+const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
+                                 'Int8Array'], 'I'];
 
 if (typeof Intl === 'object') {
   builtins[0].push('Intl');
@@ -294,12 +289,12 @@ testNonGlobal.complete('I', common.mustCall((error, data) => {
 // Sync mode.
 const customCompletions = 'aaa aa1 aa2 bbb bb1 bb2 bb3 ccc ddd eee'.split(' ');
 const testCustomCompleterSyncMode = repl.start({
-  prompt   : '',
-  input    : putIn,
-  output   : putIn,
+  prompt: '',
+  input: putIn,
+  output: putIn,
   completer: function completerSyncMode(line) {
     var hits = customCompletions.filter((c) => {
-      return c.indexOf(line) === 0
+      return c.indexOf(line) === 0;
     });
     // Show all completions if none found.
     return [hits.length ? hits : customCompletions, line];
@@ -326,12 +321,12 @@ testCustomCompleterSyncMode.complete('a', common.mustCall((error, data) => {
 // To test custom completer function.
 // Async mode.
 const testCustomCompleterAsyncMode = repl.start({
-  prompt   : '',
-  input    : putIn,
-  output   : putIn,
+  prompt: '',
+  input: putIn,
+  output: putIn,
   completer: function completerAsyncMode(line, callback) {
     var hits = customCompletions.filter((c) => {
-      return c.indexOf(line) === 0
+      return c.indexOf(line) === 0;
     });
     // Show all completions if none found.
     callback(null, [hits.length ? hits : customCompletions, line]);
