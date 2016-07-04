@@ -150,7 +150,8 @@ $ ./configure && make -j8 test
 Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
-You can check if the linter is happy by running:
+The linter will be run as part of `make test`, but you can test it directly 
+by running:
 
 ```text
 $ make lint

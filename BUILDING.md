@@ -50,7 +50,7 @@ To run the tests:
 $ make test
 ```
 
-To run the linter:
+To run only the linter (it will also run as part of `make test`):
 
 ```text
 $ make lint
