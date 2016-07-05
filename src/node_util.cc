@@ -40,6 +40,16 @@ using v8::Value;
   VALUE_METHOD_MAP(V)
 #undef V
 
+void GetType(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+#define V(lcname, ucname)                                                     \
+  if (args[0]->ucname())                                                      \
+    args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), #lcname));
+  VALUE_METHOD_MAP(V)
+#undef V
+}
+
+
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
@@ -107,7 +117,6 @@ void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-
 void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
   bool had_pending_signals = SigintWatchdogHelper::GetInstance()->Stop();
   args.GetReturnValue().Set(had_pending_signals);
@@ -132,6 +141,7 @@ void Initialize(Local<Object> target,
   }
 #undef V
 
+  env->SetMethod(target, "getType", GetType);
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
