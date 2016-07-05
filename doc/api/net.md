@@ -56,7 +56,7 @@ added: v0.1.90
 -->
 
 The `'error'` event is emitted when an error occurs. The [`'close'`][] event
-will be emitted immediately following this event.
+will be emitted immediately following the `'error'` event.
 
 The listener callback is called with the `Error` object passed as the only
 argument.
@@ -72,8 +72,8 @@ server.on('error', (error) => {
 added: v0.1.90
 -->
 
-The `'listening'` event is emitted when the server has been bound after calling
-`server.listen`.
+The `'listening'` event is emitted when the server has been bound by calling the
+`server.listen()` method.
 
 The listener callback is called without passing any arguments:
 
@@ -205,7 +205,7 @@ added: v0.5.10
 -->
 
 * `handle` {Object}
-* `backlog` {Number} Defaults to `511`
+* `backlog` {Number} Defaults to `511`.
 * `callback` {Function}
 
 The `server.listen()` method instructs the server to begin accepting connections
@@ -238,8 +238,8 @@ added: v0.11.14
   * `port` {Number} - Optional.
   * `host` {String} - Optional.
   * `path` {String} - Optional.
-  * `backlog` {Number} - Optional. Defaults to `511`
-  * `exclusive` {Boolean} - Optional. Defaults to `false`
+  * `backlog` {Number} - Optional. Defaults to `511`.
+  * `exclusive` {Boolean} - Optional. Defaults to `false`.
 * `callback` {Function} - Optional.
 
 The `server.listen()` method instructs the server to begin accepting connections
@@ -314,8 +314,7 @@ net.createServer().listen(
 ```
 
 The `backlog` argument is the maximum size of the queue of pending connections.
-The maximum possible value will be determined by the operating system through
-`sysctl` settings such as `tcp_max_syn_backlog` and `somaxconn` on Linux.
+The maximum possible value will be determined by the operating system.
 
 ### server.listen(port[, hostname][, backlog][, callback])
 <!-- YAML
@@ -329,8 +328,7 @@ any IPv4 address (`0.0.0.0`) otherwise. Use a port value of `0` to have the
 operating system assign an available port.
 
 The `backlog` argument is the maximum size of the queue of pending connections.
-The maximum possible value will be determined by the operating system through
-`sysctl` settings such as `tcp_max_syn_backlog` and `somaxconn` on Linux.
+The maximum possible value will be determined by the operating system.
 
 The `server.listen()` method is asynchronous. When the server has been bound,
 the [`'listening'`][] event will be emitted.
@@ -354,8 +352,8 @@ server.on('error', (e) => {
 });
 ```
 
-*Note*: All `net.Sockets` in Node.js are set to use the `SO_REUSEADDR` flag
-by default.
+*Note*: All `net.Socket` objects in Node.js are set to use the `SO_REUSEADDR`
+flag by default.
 
 ### server.listening
 <!-- YAML
@@ -372,6 +370,7 @@ added: v0.2.0
 The `server.maxConnections` property can be set to specify the maximum number
 of connections the server will accept. Once the current number of connections
 reaches this threshold, all additional connection requests will be rejected.
+The default is `undefined`.
 
 *Note*: Setting this property *after* a socket has been sent to a child
 using [`child_process.fork()`][] is *not recommended*.
@@ -418,13 +417,13 @@ added: v0.3.4
 
 * `options` {Object}
   * `fd` {number} Used to specify a numeric file descriptor of an existing
-    socket. Defaults to `null`
+    socket. Defaults to `null`.
   * `allowHalfOpen` {boolean} If `true`, allows the socket to be in a "half
-    open" state. Defaults to `false`
+    open" state. Defaults to `false`.
   * `readable` {boolean} If `fd` is specified, setting `readable` to `true`
-    allows data from the socket to be read. Defaults to `false`
+    allows data from the socket to be read. Defaults to `false`.
   * `writable` {boolean} If `fd` is specified, setting `writabl` to `true`
-    allows data to be written to the socket. Defaults to `false`
+    allows data to be written to the socket. Defaults to `false`.
 
 Construct a new `net.Socket` instance.
 
@@ -433,7 +432,8 @@ Construct a new `net.Socket` instance.
 added: v0.1.90
 -->
 
-The `'close'` event is emitted once the socket is fully closed.
+The `'close'` event is emitted once the socket is closed and can no longer be
+used to send or receive data.
 
 The listener callback is called with a single boolean `had_error` argument.
 If `true`, then the socket was closed due to a transmission error.
@@ -596,11 +596,8 @@ the data is written to the buffer faster than it can be passed to the connection
 (e.g. when using a slow network connection), the size of the internal buffer
 can grow.
 
-The value of `socket.bufferSize` represents the number of *characters* pending
-in the queue. The number of characters is approximately equal to the number of
-bytes, but as the internal queue is managed as `Buffer` instances that may
-contain encoded strings, the exact number of bytes is not known until the
-`Buffer` data is read.
+The value of `socket.bufferSize` represents the amount of data (in bytes)
+pending in the queue.
 
 In order to avoid large or growing `socket.bufferSize` numbers, attempts should
 be made to throttle the flow of data written to the socket.
@@ -832,6 +829,10 @@ it off. Setting `true` for `noDelay` will immediately fire off data each time
 
 Returns a reference to `socket`.
 
+*Note*: Disabling Nagle's algorithm is primarily useful when working with
+protocols that use many small payloads as it reduces or eliminates the
+buffering that would otherwise occur.
+
 ### socket.setTimeout(timeout[, callback])
 <!-- YAML
 added: v0.1.90
@@ -990,8 +991,8 @@ added: v0.1.90
 * `path` {String}
 * `connectListener` {Function}
 
-The `net.createConnection()` method creates a new [`net.Socket`][],
-automatically opens the socket using `path`, then returns it.
+The `net.createConnection()` factory method creates a new [`net.Socket`][],
+automatically opens the the socket using `path`, then returns it.
 
 The `connectListener` parameter will be added as a one-time listener for the
 [`'connect'`][] event.
@@ -1005,7 +1006,7 @@ added: v0.1.90
 * `host` {String}. Defaults to `localhost`
 * `connectListener` {Function}
 
-The `net.createConnection()` method creates a new [`net.Socket`][],
+The `net.createConnection()` factory method creates a new [`net.Socket`][],
 automatically opens the socket for the given `port` and `host`, then returns it.
 
 The `connectListener` parameter will be added as a one-time listener for the
