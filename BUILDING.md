@@ -50,12 +50,6 @@ To run the tests:
 $ make test
 ```
 
-To run only the linter (it will also run as part of `make test`):
-
-```text
-$ make lint
-```
-
 To run the native module tests:
 
 ```text
