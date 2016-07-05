@@ -223,6 +223,11 @@ parser.add_option('--release-urlbase',
          '`sourceUrl` and `headersUrl`. When compiling a release build, this '
          'will default to https://nodejs.org/download/release/')
 
+parser.add_option('--enable-d8',
+    action='store_true',
+    dest='enable_d8',
+    help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
+
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
@@ -804,6 +809,8 @@ def configure_v8(o):
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
+  o['variables']['node_enable_d8'] = b(options.enable_d8)
+
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
