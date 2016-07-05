@@ -150,12 +150,8 @@ $ ./configure && make -j8 test
 Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
-The linter will be run as part of `make test`, but it won't if any tests failed.
-If you need to run it directly despite the failing tests, you can execute:
-
-```text
-$ make lint
-```
+Running `make test` will run the linter as well unless one or more tests fail.
+If you want to run the linter without running tests, you can use `make lint`.
 
 If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:
