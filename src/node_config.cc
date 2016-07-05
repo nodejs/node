@@ -28,7 +28,10 @@ using v8::ReadOnly;
 void InitConfig(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
-  // Environment* env = Environment::GetCurrent(context);
+#ifdef NODE_FIPS_MODE
+  Environment* env = Environment::GetCurrent(context);
+  READONLY_BOOLEAN_PROPERTY("fipsMode");
+#endif
 }
 
 }  // namespace node
