@@ -382,8 +382,8 @@ added: v0.1.91
      `undefined`. Defaults to `false`.
   * `writer` {Function} The function to invoke to format the output of each
      command before writing to `output`. Defaults to [`util.inspect()`][].
-  * `completer` {Function} An optional function that will used for custom Tab
-     auto completion. See [`readline.InterfaceCompleter`][] for an example.
+  * `completer` {Function} An optional function used for custom Tab auto
+     completion. See [`readline.InterfaceCompleter`][] for an example.
   * `replMode` - A flag that specifies whether the default evaluator executes
     all JavaScript commands in strict mode, default mode, or a hybrid mode
     ("magic" mode.) Acceptable values are:
