@@ -4,7 +4,7 @@
 #include <features.h>
 #endif
 
-#if defined(__linux__) && !defined(__GLIBC__)
+#if defined(__linux__) && !defined(__GLIBC__) || defined(_AIX)
 #define HAVE_EXECINFO_H 0
 #else
 #define HAVE_EXECINFO_H 1
