@@ -151,7 +151,7 @@ Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
 The linter will be run as part of `make test`, but it won't if any tests failed.
-However you can run it directly by executing:
+If you need to run it directly despite the failing tests, you can execute:
 
 ```text
 $ make lint
