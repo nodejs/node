@@ -50,6 +50,10 @@ export AR=$TOOLCHAIN/bin/$SUFFIX-ar
 export CC=$TOOLCHAIN/bin/$SUFFIX-gcc
 export CXX=$TOOLCHAIN/bin/$SUFFIX-g++
 export LINK=$TOOLCHAIN/bin/$SUFFIX-g++
+export AR_host=ar
+export CC_host=gcc
+export CXX_host=g++
+export LINK_host=g++
 
 GYP_DEFINES="target_arch=$ARCH"
 GYP_DEFINES+=" v8_target_arch=$ARCH"

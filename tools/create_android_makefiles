@@ -21,6 +21,10 @@ fi
 
 cd $(dirname $0)/..
 
+# Export CC_host to gcc, so that the configure script will detect the correct
+# host arch
+export CC_host=gcc
+
 ./configure \
     --without-snapshot \
     --openssl-no-asm \
