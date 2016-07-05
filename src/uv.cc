@@ -3,8 +3,17 @@
 #include "env.h"
 #include "env-inl.h"
 
+#include <stdio.h>  // snprintf
+
 namespace node {
 namespace uv {
+
+#define RETURN_RANGE_ERROR(...)                                               \
+  do {                                                                        \
+    char buf[100];                                                            \
+    snprintf(buf, sizeof(buf), __VA_ARGS__);                                  \
+    return env->ThrowRangeError(buf);                                         \
+  } while (0)
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -19,9 +28,19 @@ using v8::Value;
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int err = args[0]->Int32Value();
-  if (err >= 0)
-    return env->ThrowError("err >= 0");
+  if (err >= 0 || err < UV_ERRNO_MAX)
+    RETURN_RANGE_ERROR("err is an invalid error code: %i", err);
   const char* name = uv_err_name(err);
+  args.GetReturnValue().Set(OneByteString(env->isolate(), name));
+}
+
+
+void StrError(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  int err = args[0]->Int32Value();
+  if (err >= 0 || err < UV_ERRNO_MAX)
+    RETURN_RANGE_ERROR("err is an invalid error code: %i", err);
+  const char* name = uv_strerror(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
 
@@ -32,6 +51,8 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
               env->NewFunctionTemplate(ErrName)->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "strerror"),
+              env->NewFunctionTemplate(StrError)->GetFunction());
 #define V(name, _)                                                            \
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UV_" # name),            \
               Integer::New(env->isolate(), UV_ ## name));
