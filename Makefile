@@ -118,7 +118,7 @@ test: all
 	$(MAKE) build-addons
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		addon doctool known_issues message pseudo-tty parallel sequential
+		addons doctool known_issues message pseudo-tty parallel sequential
 	$(MAKE) lint
 
 test-parallel: all
