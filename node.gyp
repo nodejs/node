@@ -248,6 +248,9 @@
             }]
           ],
         }],
+        [ 'node_enable_d8=="true"', {
+          'dependencies': [ 'deps/v8/src/d8.gyp:d8' ],
+        }],
         [ 'node_use_bundled_v8=="true"', {
           'include_dirs': [
             'deps/v8', # include/v8_platform.h
