@@ -248,6 +248,9 @@
             }]
           ],
         }],
+        [ 'node_enable_d8=="true"', {
+          'dependencies': [ 'deps/v8/src/d8.gyp:d8' ],
+        }],
         [ 'node_use_bundled_v8=="true"', {
           'dependencies': [
             'deps/v8/tools/gyp/v8.gyp:v8',
