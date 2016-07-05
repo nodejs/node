@@ -23,8 +23,16 @@
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
+#include "node.h"
+#include "env.h"
+#include "env-inl.h"
+#include "util.h"
+#include "util-inl.h"
+#include "v8.h"
+
 #include <unicode/putil.h>
 #include <unicode/udata.h>
+#include <unicode/uidna.h>
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
@@ -42,6 +50,13 @@ extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
 #endif
 
 namespace node {
+
+using v8::Context;
+using v8::FunctionCallbackInfo;
+using v8::Local;
+using v8::Object;
+using v8::String;
+using v8::Value;
 
 bool flag_icu_data_dir = false;
 
@@ -64,7 +79,124 @@ bool InitializeICUDirectory(const char* icu_data_path) {
   }
 }
 
+static int32_t ToUnicode(MaybeStackBuffer<char>* buf,
+                         const char* input,
+                         size_t length) {
+  UErrorCode status = U_ZERO_ERROR;
+  uint32_t options = UIDNA_DEFAULT;
+  options |= UIDNA_NONTRANSITIONAL_TO_UNICODE;
+  UIDNA* uidna = uidna_openUTS46(options, &status);
+  if (U_FAILURE(status))
+    return -1;
+  UIDNAInfo info = UIDNA_INFO_INITIALIZER;
+
+  int32_t len = uidna_nameToUnicodeUTF8(uidna,
+                                        input, length,
+                                        **buf, buf->length(),
+                                        &info,
+                                        &status);
+
+  if (status == U_BUFFER_OVERFLOW_ERROR) {
+    status = U_ZERO_ERROR;
+    buf->AllocateSufficientStorage(len);
+    len = uidna_nameToUnicodeUTF8(uidna,
+                                  input, length,
+                                  **buf, buf->length(),
+                                  &info,
+                                  &status);
+  }
+
+  if (U_FAILURE(status))
+    len = -1;
+
+  uidna_close(uidna);
+  return len;
+}
+
+static int32_t ToASCII(MaybeStackBuffer<char>* buf,
+                       const char* input,
+                       size_t length) {
+  UErrorCode status = U_ZERO_ERROR;
+  uint32_t options = UIDNA_DEFAULT;
+  options |= UIDNA_NONTRANSITIONAL_TO_ASCII;
+  UIDNA* uidna = uidna_openUTS46(options, &status);
+  if (U_FAILURE(status))
+    return -1;
+  UIDNAInfo info = UIDNA_INFO_INITIALIZER;
+
+  int32_t len = uidna_nameToASCII_UTF8(uidna,
+                                       input, length,
+                                       **buf, buf->length(),
+                                       &info,
+                                       &status);
+
+  if (status == U_BUFFER_OVERFLOW_ERROR) {
+    status = U_ZERO_ERROR;
+    buf->AllocateSufficientStorage(len);
+    len = uidna_nameToASCII_UTF8(uidna,
+                                 input, length,
+                                 **buf, buf->length(),
+                                 &info,
+                                 &status);
+  }
+
+  if (U_FAILURE(status))
+    len = -1;
+
+  uidna_close(uidna);
+  return len;
+}
+
+static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  Utf8Value val(env->isolate(), args[0]);
+  MaybeStackBuffer<char> buf;
+  int32_t len = ToUnicode(&buf, *val, val.length());
+
+  if (len < 0) {
+    return env->ThrowError("Cannot convert name to Unicode");
+  }
+
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(),
+                          *buf,
+                          v8::NewStringType::kNormal,
+                          len).ToLocalChecked());
+}
+
+static void ToASCII(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  Utf8Value val(env->isolate(), args[0]);
+  MaybeStackBuffer<char> buf;
+  int32_t len = ToASCII(&buf, *val, val.length());
+
+  if (len < 0) {
+    return env->ThrowError("Cannot convert name to ASCII");
+  }
+
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(),
+                          *buf,
+                          v8::NewStringType::kNormal,
+                          len).ToLocalChecked());
+}
+
+void Init(Local<Object> target,
+          Local<Value> unused,
+          Local<Context> context,
+          void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "toUnicode", ToUnicode);
+  env->SetMethod(target, "toASCII", ToASCII);
+}
+
 }  // namespace i18n
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(icu, node::i18n::Init)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

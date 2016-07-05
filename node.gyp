@@ -109,6 +109,13 @@
       }, {
         'node_target_type%': 'executable',
       }],
+      [ 'OS=="win" and '
+        'node_use_openssl=="true" and '
+        'node_shared_openssl=="false"', {
+        'use_openssl_def': 1,
+      }, {
+        'use_openssl_def': 0,
+      }],
     ],
   },
 
@@ -354,6 +361,9 @@
                         '-Wl,--no-whole-archive',
                       ],
                     }],
+                    ['use_openssl_def==1', {
+                      'sources': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+                    }],
                   ],
                 }],
               ],
@@ -527,6 +537,52 @@
         }],
         [ 'OS=="sunos"', {
           'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'mkssldef',
+      'type': 'none',
+      # TODO(bnoordhuis) Make all platforms export the same list of symbols.
+      # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
+      'conditions': [
+        [ 'use_openssl_def==1', {
+          'variables': {
+            'mkssldef_flags': [
+              # Categories to export.
+              '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
+              'NEXTPROTONEG,PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,TLSEXT',
+              # Defines.
+              '-DWIN32',
+              # Symbols to filter from the export list.
+              '-X^DSO',
+              '-X^_',
+              '-X^private_',
+            ],
+          },
+          'conditions': [
+            ['openssl_fips!=""', {
+              'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
+            }],
+          ],
+          'actions': [
+            {
+              'action_name': 'mkssldef',
+              'inputs': [
+                'deps/openssl/openssl/util/libeay.num',
+                'deps/openssl/openssl/util/ssleay.num',
+              ],
+              'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+              'action': [
+                'python',
+                'tools/mkssldef.py',
+                '<@(mkssldef_flags)',
+                '-o',
+                '<@(_outputs)',
+                '<@(_inputs)',
+              ],
+            },
+          ],
         }],
       ],
     },
@@ -749,12 +805,7 @@
     {
       'target_name': 'cctest',
       'type': 'executable',
-      'dependencies': [
-        'deps/openssl/openssl.gyp:openssl',
-        'deps/http_parser/http_parser.gyp:http_parser',
-        'deps/gtest/gtest.gyp:gtest',
-        'deps/uv/uv.gyp:libuv',
-      ],
+      'dependencies': [ 'deps/gtest/gtest.gyp:gtest' ],
       'include_dirs': [
         'src',
         'deps/v8/include'
@@ -820,7 +871,7 @@
             'common.gypi',
           ],
 
-          'ldflags': ['-Wl,-bbigtoc,-bE:<(PRODUCT_DIR)/node.exp'],
+          'ldflags': ['-Wl,-bE:<(PRODUCT_DIR)/node.exp'],
         },
         {
           'target_name': 'node_exp',

@@ -783,7 +783,7 @@ handlers: [
 snippet: "
   var a = 0;
   while (a) {
-    {
+    { 
      let z = 1;
      function f() { z = 2; }
      if (z) continue;
@@ -857,3 +857,4 @@ constant pool: [
 ]
 handlers: [
 ]
+

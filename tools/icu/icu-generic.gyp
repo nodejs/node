@@ -37,8 +37,7 @@
              'defines': [
                 # ICU cannot swap the initial data without this.
                 # http://bugs.icu-project.org/trac/ticket/11046
-                'UCONFIG_NO_LEGACY_CONVERSION=1',
-                'UCONFIG_NO_IDNA=1',
+                'UCONFIG_NO_LEGACY_CONVERSION=1'
              ],
           }],
         ],
@@ -428,9 +427,6 @@
           #'<(icu_path)/source/common/ubidi_props_data.h',
           # and the callers
           '<(icu_path)/source/common/ushape.cpp',
-          '<(icu_path)/source/common/usprep.cpp',
-          '<(icu_path)/source/common/uts46.cpp',
-          '<(icu_path)/source/common/uidna.cpp',
         ]}],
         [ 'icu_ver_major == 57', { 'sources!': [
           # work around http://bugs.icu-project.org/trac/ticket/12451
@@ -447,9 +443,6 @@
           #'<(icu_path)/source/common/ubidi_props_data.h',
           # and the callers
           '<(icu_path)/source/common/ushape.cpp',
-          '<(icu_path)/source/common/usprep.cpp',
-          '<(icu_path)/source/common/uts46.cpp',
-          '<(icu_path)/source/common/uidna.cpp',
         ]}],
         [ 'OS == "solaris"', { 'defines': [
           '_XOPEN_SOURCE_EXTENDED=0',
