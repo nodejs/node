@@ -33,7 +33,7 @@ October 2016.
 
 ### Notable changes
 
-* **buffer**: Added `buffer.swap64()` to compliment `swap16()` & `swap32()`. (Zach Bjornson) [#7157](https://github.com/nodejs/node/pull/7157)
+* **buffer**: Added `buffer.swap64()` to complement `swap16()` & `swap32()`. (Zach Bjornson) [#7157](https://github.com/nodejs/node/pull/7157)
 * **build**: New `configure` options have been added for building Node.js as a shared library. (Stefan Budeanu) [#6994](https://github.com/nodejs/node/pull/6994)
   - The options are: `--shared`, `--without-v8-platform` & `--without-bundled-v8`.
 * **crypto**: Root certificates have been updated. (Ben Noordhuis) [#7363](https://github.com/nodejs/node/pull/7363)
