@@ -12,7 +12,7 @@ buf.fill(0x61); // 'a'
 
 var server = net.createServer(function(socket) {
   socket.setNoDelay();
-  socket.setTimeout(1000);
+  socket.setTimeout(9999);
   socket.on('timeout', function() {
     assert.fail(null, null, 'flushed: ' + flushed +
                 ', received: ' + received + '/' + SIZE * N);
