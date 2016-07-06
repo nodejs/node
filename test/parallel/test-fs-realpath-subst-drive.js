@@ -1,33 +1,35 @@
+'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const spawnSync = require('child_process').spawnSync;
 
 if (!common.isWindows) {
-  common.skip("Test for Windows only");
+  common.skip('Test for Windows only');
   return;
 }
 let result;
 
 // create a subst drive
-const driveLetters = "ABCDEFGHIJKLMNOPQRSTUWXYZ";
+const driveLetters = 'ABCDEFGHIJKLMNOPQRSTUWXYZ';
 let driveLetter;
 for (var i = 0; i < driveLetters.length; ++i) {
-  driveLetter = `${driveLetters[i]}:`
-   result = spawnSync('subst', [driveLetter, common.fixturesDir]);
+  driveLetter = `${driveLetters[i]}:`;
+  result = spawnSync('subst', [driveLetter, common.fixturesDir]);
   if (result.status === 0)
     break;
 }
 if (i === driveLetters.length) {
-  common.skip("Cannot create subst drive");
+  common.skip('Cannot create subst drive');
   return;
 }
 
 var asyncCompleted = 0;
 // schedule cleanup (and check if all callbacks where called)
 process.on('exit', function() {
-    spawnSync('subst', ['/d', driveLetter]);
-    assert.equal(asyncCompleted, 2);
+  spawnSync('subst', ['/d', driveLetter]);
+  assert.equal(asyncCompleted, 2);
 });
 
 
