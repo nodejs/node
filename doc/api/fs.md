@@ -378,7 +378,9 @@ fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 
 Any specified file descriptor has to have been opened for appending.
 
-_Note: Specified file descriptors will not be closed automatically._
+_Note: If a file descriptor is specified as the 'file', it will not be closed automatically._
+
+_Note: If a filename is specified as the 'file', internally opened file descriptor will be closed automatically._
 
 ## fs.appendFileSync(file, data[, options])
 <!-- YAML
@@ -1130,7 +1132,9 @@ fs.readFile('/etc/passwd', 'utf8', callback);
 
 Any specified file descriptor has to support reading.
 
-_Note: Specified file descriptors will not be closed automatically._
+_Note: If a file descriptor is specified as the 'file', it will not be closed automatically._
+
+_Note: If a filename is specified as the 'file', internally opened file descriptor will be closed automatically._
 
 ## fs.readFileSync(file[, options])
 <!-- YAML
@@ -1662,7 +1666,9 @@ Note that it is unsafe to use `fs.writeFile` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
 
-_Note: Specified file descriptors will not be closed automatically._
+_Note: If a file descriptor is specified as the 'file', it will not be closed automatically._
+
+_Note: If a filename is specified as the 'file', internally opened file descriptor will be closed automatically._
 
 ## fs.writeFileSync(file, data[, options])
 <!-- YAML
