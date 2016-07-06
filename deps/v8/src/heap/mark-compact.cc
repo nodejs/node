@@ -2908,16 +2908,6 @@ class PointersUpdatingVisitor : public ObjectVisitor {
 
     HeapObject* heap_obj = HeapObject::cast(obj);
 
-// TODO(ishell): remove, once crbug/454297 is caught.
-#if V8_TARGET_ARCH_64_BIT
-#ifndef V8_OS_AIX  // no point checking on AIX as full 64 range is supported
-    const uintptr_t kBoundary = V8_UINT64_C(1) << 48;
-    STATIC_ASSERT(kBoundary > 0);
-    if (reinterpret_cast<uintptr_t>(heap_obj->address()) >= kBoundary) {
-      CheckLayoutDescriptorAndDie(heap, slot);
-    }
-#endif
-#endif
     MapWord map_word = heap_obj->map_word();
     if (map_word.IsForwardingAddress()) {
       DCHECK(heap->InFromSpace(heap_obj) ||
@@ -2935,98 +2925,8 @@ class PointersUpdatingVisitor : public ObjectVisitor {
  private:
   inline void UpdatePointer(Object** p) { UpdateSlot(heap_, p); }
 
-  static void CheckLayoutDescriptorAndDie(Heap* heap, Object** slot);
-
   Heap* heap_;
 };
-
-
-#if V8_TARGET_ARCH_64_BIT
-// TODO(ishell): remove, once crbug/454297 is caught.
-void PointersUpdatingVisitor::CheckLayoutDescriptorAndDie(Heap* heap,
-                                                          Object** slot) {
-  const int kDataBufferSize = 128;
-  uintptr_t data[kDataBufferSize] = {0};
-  int index = 0;
-  data[index++] = 0x10aaaaaaaaUL;  // begin marker
-
-  data[index++] = reinterpret_cast<uintptr_t>(slot);
-  data[index++] = 0x15aaaaaaaaUL;
-
-  Address slot_address = reinterpret_cast<Address>(slot);
-
-  uintptr_t space_owner_id = 0xb001;
-  if (heap->new_space()->ToSpaceContains(slot_address)) {
-    space_owner_id = 1;
-  } else if (heap->new_space()->FromSpaceContains(slot_address)) {
-    space_owner_id = 2;
-  } else if (heap->old_space()->ContainsSafe(slot_address)) {
-    space_owner_id = 3;
-  } else if (heap->code_space()->ContainsSafe(slot_address)) {
-    space_owner_id = 4;
-  } else if (heap->map_space()->ContainsSafe(slot_address)) {
-    space_owner_id = 5;
-  } else {
-    // Lo space or other.
-    space_owner_id = 6;
-  }
-  data[index++] = space_owner_id;
-  data[index++] = 0x20aaaaaaaaUL;
-
-  // Find map word lying near before the slot address (usually the map word is
-  // at -3 words from the slot but just in case we look up further.
-  Object** map_slot = slot;
-  bool found = false;
-  const int kMaxDistanceToMap = 64;
-  for (int i = 0; i < kMaxDistanceToMap; i++, map_slot--) {
-    Address map_address = reinterpret_cast<Address>(*map_slot);
-    if (heap->map_space()->ContainsSafe(map_address)) {
-      found = true;
-      break;
-    }
-  }
-  data[index++] = found;
-  data[index++] = 0x30aaaaaaaaUL;
-  data[index++] = reinterpret_cast<uintptr_t>(map_slot);
-  data[index++] = 0x35aaaaaaaaUL;
-
-  if (found) {
-    Address obj_address = reinterpret_cast<Address>(map_slot);
-    Address end_of_page =
-        reinterpret_cast<Address>(Page::FromAddress(obj_address)) +
-        Page::kPageSize;
-    Address end_address =
-        Min(obj_address + kPointerSize * kMaxDistanceToMap, end_of_page);
-    int size = static_cast<int>(end_address - obj_address);
-    data[index++] = size / kPointerSize;
-    data[index++] = 0x40aaaaaaaaUL;
-    memcpy(&data[index], reinterpret_cast<void*>(map_slot), size);
-    index += size / kPointerSize;
-    data[index++] = 0x50aaaaaaaaUL;
-
-    HeapObject* object = HeapObject::FromAddress(obj_address);
-    data[index++] = reinterpret_cast<uintptr_t>(object);
-    data[index++] = 0x60aaaaaaaaUL;
-
-    Map* map = object->map();
-    data[index++] = reinterpret_cast<uintptr_t>(map);
-    data[index++] = 0x70aaaaaaaaUL;
-
-    LayoutDescriptor* layout_descriptor = map->layout_descriptor();
-    data[index++] = reinterpret_cast<uintptr_t>(layout_descriptor);
-    data[index++] = 0x80aaaaaaaaUL;
-
-    memcpy(&data[index], reinterpret_cast<void*>(map->address()), Map::kSize);
-    index += Map::kSize / kPointerSize;
-    data[index++] = 0x90aaaaaaaaUL;
-  }
-
-  data[index++] = 0xeeeeeeeeeeUL;
-  DCHECK(index < kDataBufferSize);
-  base::OS::PrintError("Data: %p\n", static_cast<void*>(data));
-  base::OS::Abort();
-}
-#endif
 
 
 static void UpdatePointer(HeapObject** address, HeapObject* object) {
