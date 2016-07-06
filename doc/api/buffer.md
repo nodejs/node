@@ -1490,7 +1490,7 @@ console.log(buf);
 
 ### buf.swap64()
 <!-- YAML
-added: REPLACEME
+added: v6.3.0
 -->
 
 * Return: {Buffer}
