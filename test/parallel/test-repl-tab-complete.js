@@ -292,7 +292,7 @@ const testCustomCompleterSyncMode = repl.start({
   input: putIn,
   output: putIn,
   completer: function completerSyncMode(line) {
-    var hits = customCompletions.filter((c) => {
+    const hits = customCompletions.filter((c) => {
       return c.indexOf(line) === 0;
     });
     // Show all completions if none found.
@@ -324,7 +324,7 @@ const testCustomCompleterAsyncMode = repl.start({
   input: putIn,
   output: putIn,
   completer: function completerAsyncMode(line, callback) {
-    var hits = customCompletions.filter((c) => {
+    const hits = customCompletions.filter((c) => {
       return c.indexOf(line) === 0;
     });
     // Show all completions if none found.
