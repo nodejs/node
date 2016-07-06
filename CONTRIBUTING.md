@@ -151,7 +151,7 @@ Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
 Running `make test` will run the linter as well unless one or more tests fail.
-If you want to run the linter without running tests, you can use `make lint`.
+If you want to run the linter without running tests, use `make lint`.
 
 If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:
