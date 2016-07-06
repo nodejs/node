@@ -38,6 +38,7 @@ set build_release=
 set enable_vtune_arg=
 set configure_flags=
 set build_addons=
+set dll=
 
 :next-arg
 if "%1"=="" goto args-done
