@@ -50,7 +50,7 @@
   "directories": {},
   "dist": {
     "shasum": "34661f46886327fed2991479152252df92daa541",
-    "tarball": "http://registry.npmjs.org/restore-cursor/-/restore-cursor-1.0.1.tgz"
+    "tarball": "https://registry.npmjs.org/restore-cursor/-/restore-cursor-1.0.1.tgz"
   },
   "engines": {
     "node": ">=0.10.0"

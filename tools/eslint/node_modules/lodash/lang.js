@@ -47,6 +47,7 @@ module.exports = {
   'lt': require('./lt'),
   'lte': require('./lte'),
   'toArray': require('./toArray'),
+  'toFinite': require('./toFinite'),
   'toInteger': require('./toInteger'),
   'toLength': require('./toLength'),
   'toNumber': require('./toNumber'),

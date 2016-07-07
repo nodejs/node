@@ -1,4 +1,5 @@
-var castSlice = require('./_castSlice'),
+var baseToString = require('./_baseToString'),
+    castSlice = require('./_castSlice'),
     charsEndIndex = require('./_charsEndIndex'),
     stringToArray = require('./_stringToArray'),
     toString = require('./toString');
@@ -27,13 +28,10 @@ var reTrimEnd = /\s+$/;
  */
 function trimEnd(string, chars, guard) {
   string = toString(string);
-  if (!string) {
-    return string;
-  }
-  if (guard || chars === undefined) {
+  if (string && (guard || chars === undefined)) {
     return string.replace(reTrimEnd, '');
   }
-  if (!(chars += '')) {
+  if (!string || !(chars = baseToString(chars))) {
     return string;
   }
   var strSymbols = stringToArray(string),

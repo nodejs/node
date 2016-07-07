@@ -14,7 +14,7 @@ module.exports = {
         docs: {
             description: "require generator functions to contain `yield`",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: true
         },
 
         schema: []

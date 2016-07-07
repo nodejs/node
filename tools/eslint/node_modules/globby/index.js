@@ -6,63 +6,60 @@ var glob = require('glob');
 var arrify = require('arrify');
 var pify = require('pify');
 
-function sortPatterns(patterns) {
+var globP = pify(glob, Promise).bind(glob);
+
+function isNegative(pattern) {
+	return pattern[0] === '!';
+}
+
+function generateGlobTasks(patterns, opts) {
+	var globTasks = [];
+
 	patterns = arrify(patterns);
+	opts = objectAssign({
+		cache: Object.create(null),
+		statCache: Object.create(null),
+		realpathCache: Object.create(null),
+		symlinks: Object.create(null),
+		ignore: []
+	}, opts);
 
-	var positives = [];
-	var negatives = [];
+	patterns.forEach(function (pattern, i) {
+		if (isNegative(pattern)) {
+			return;
+		}
 
-	patterns.forEach(function (pattern, index) {
-		var isNegative = pattern[0] === '!';
-		(isNegative ? negatives : positives).push({
-			index: index,
-			pattern: isNegative ? pattern.slice(1) : pattern
+		var ignore = patterns.slice(i).filter(isNegative).map(function (pattern) {
+			return pattern.slice(1);
+		});
+
+		globTasks.push({
+			pattern: pattern,
+			opts: objectAssign({}, opts, {
+				ignore: opts.ignore.concat(ignore)
+			})
 		});
 	});
 
-	return {
-		positives: positives,
-		negatives: negatives
-	};
-}
-
-function setIgnore(opts, negatives, positiveIndex) {
-	opts = objectAssign({}, opts);
-
-	var negativePatterns = negatives.filter(function (negative) {
-		return negative.index > positiveIndex;
-	}).map(function (negative) {
-		return negative.pattern;
-	});
-
-	opts.ignore = (opts.ignore || []).concat(negativePatterns);
-	return opts;
+	return globTasks;
 }
 
 module.exports = function (patterns, opts) {
-	var sortedPatterns = sortPatterns(patterns);
-	opts = opts || {};
+	var globTasks = generateGlobTasks(patterns, opts);
 
-	if (sortedPatterns.positives.length === 0) {
-		return Promise.resolve([]);
-	}
-
-	return Promise.all(sortedPatterns.positives.map(function (positive) {
-		var globOpts = setIgnore(opts, sortedPatterns.negatives, positive.index);
-		return pify(glob, Promise)(positive.pattern, globOpts);
+	return Promise.all(globTasks.map(function (task) {
+		return globP(task.pattern, task.opts);
 	})).then(function (paths) {
 		return arrayUnion.apply(null, paths);
 	});
 };
 
 module.exports.sync = function (patterns, opts) {
-	var sortedPatterns = sortPatterns(patterns);
+	var globTasks = generateGlobTasks(patterns, opts);
 
-	if (sortedPatterns.positives.length === 0) {
-		return [];
-	}
-
-	return sortedPatterns.positives.reduce(function (ret, positive) {
-		return arrayUnion(ret, glob.sync(positive.pattern, setIgnore(opts, sortedPatterns.negatives, positive.index)));
+	return globTasks.reduce(function (matches, task) {
+		return arrayUnion(matches, glob.sync(task.pattern, task.opts));
 	}, []);
 };
+
+module.exports.generateGlobTasks = generateGlobTasks;

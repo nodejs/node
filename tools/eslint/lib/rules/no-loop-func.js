@@ -73,7 +73,7 @@ function getContainingLoopNode(node) {
  * @returns {ASTNode} The most outer loop node.
  */
 function getTopLoopNode(node, excludedNode) {
-    var retv = null;
+    var retv = node;
     var border = excludedNode ? excludedNode.range[1] : 0;
 
     while (node && node.range[0] >= border) {

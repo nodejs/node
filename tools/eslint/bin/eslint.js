@@ -77,16 +77,4 @@ if (useStdIn) {
     exitCode = cli.execute(process.argv);
 }
 
-// https://github.com/eslint/eslint/issues/4691
-// In Node.js >= 0.12, you can use a cleaner way
-if ("exitCode" in process) {
-    process.exitCode = exitCode;
-} else {
-    /*
-     * Wait for the stdout buffer to drain.
-     * See https://github.com/eslint/eslint/issues/317
-     */
-    process.on("exit", function() {
-        process.exit(exitCode);
-    });
-}
+process.exitCode = exitCode;

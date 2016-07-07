@@ -1,8 +1,5 @@
-var baseEachRight = require('./_baseEachRight'),
-    baseFind = require('./_baseFind'),
-    baseFindIndex = require('./_baseFindIndex'),
-    baseIteratee = require('./_baseIteratee'),
-    isArray = require('./isArray');
+var createFind = require('./_createFind'),
+    findLastIndex = require('./findLastIndex');
 
 /**
  * This method is like `_.find` except that it iterates over elements of
@@ -15,6 +12,7 @@ var baseEachRight = require('./_baseEachRight'),
  * @param {Array|Object} collection The collection to search.
  * @param {Array|Function|Object|string} [predicate=_.identity]
  *  The function invoked per iteration.
+ * @param {number} [fromIndex=collection.length-1] The index to search from.
  * @returns {*} Returns the matched element, else `undefined`.
  * @example
  *
@@ -23,13 +21,6 @@ var baseEachRight = require('./_baseEachRight'),
  * });
  * // => 3
  */
-function findLast(collection, predicate) {
-  predicate = baseIteratee(predicate, 3);
-  if (isArray(collection)) {
-    var index = baseFindIndex(collection, predicate, true);
-    return index > -1 ? collection[index] : undefined;
-  }
-  return baseFind(collection, predicate, baseEachRight);
-}
+var findLast = createFind(findLastIndex);
 
 module.exports = findLast;
