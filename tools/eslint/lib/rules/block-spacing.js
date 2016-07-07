@@ -39,11 +39,11 @@ module.exports = {
         function getOpenBrace(node) {
             if (node.type === "SwitchStatement") {
                 if (node.cases.length > 0) {
-                    return context.getTokenBefore(node.cases[0]);
+                    return sourceCode.getTokenBefore(node.cases[0]);
                 }
-                return context.getLastToken(node, 1);
+                return sourceCode.getLastToken(node, 1);
             }
-            return context.getFirstToken(node);
+            return sourceCode.getFirstToken(node);
         }
 
         /**
@@ -73,7 +73,7 @@ module.exports = {
 
             // Gets braces and the first/last token of content.
             var openBrace = getOpenBrace(node);
-            var closeBrace = context.getLastToken(node);
+            var closeBrace = sourceCode.getLastToken(node);
             var firstToken = sourceCode.getTokenOrCommentAfter(openBrace);
             var lastToken = sourceCode.getTokenOrCommentBefore(closeBrace);
 

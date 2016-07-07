@@ -4,7 +4,7 @@ import {tokenizer, SourceLocation, tokTypes as tt, Node, lineBreak, isNewLine} f
 export const pluginsLoose = {}
 
 export class LooseParser {
-  constructor(input, options) {
+  constructor(input, options = {}) {
     this.toks = tokenizer(input, options)
     this.options = this.toks.options
     this.input = this.toks.input

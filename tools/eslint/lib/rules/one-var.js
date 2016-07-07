@@ -286,6 +286,9 @@ module.exports = {
                             context.report(node, "Combine this with the previous '" + type + "' statement with initialized variables.");
                         }
                         if (options[type].uninitialized === MODE_ALWAYS) {
+                            if (node.parent.left === node && (node.parent.type === "ForInStatement" || node.parent.type === "ForOfStatement")) {
+                                return;
+                            }
                             context.report(node, "Combine this with the previous '" + type + "' statement with uninitialized variables.");
                         }
                     }

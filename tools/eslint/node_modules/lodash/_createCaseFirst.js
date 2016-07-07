@@ -8,7 +8,7 @@ var castSlice = require('./_castSlice'),
  *
  * @private
  * @param {string} methodName The name of the `String` case method to use.
- * @returns {Function} Returns the new function.
+ * @returns {Function} Returns the new case function.
  */
 function createCaseFirst(methodName) {
   return function(string) {

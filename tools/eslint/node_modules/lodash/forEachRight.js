@@ -15,6 +15,7 @@ var arrayEachRight = require('./_arrayEachRight'),
  * @param {Array|Object} collection The collection to iterate over.
  * @param {Function} [iteratee=_.identity] The function invoked per iteration.
  * @returns {Array|Object} Returns `collection`.
+ * @see _.forEach
  * @example
  *
  * _.forEachRight([1, 2], function(value) {
@@ -23,9 +24,8 @@ var arrayEachRight = require('./_arrayEachRight'),
  * // => Logs `2` then `1`.
  */
 function forEachRight(collection, iteratee) {
-  return (typeof iteratee == 'function' && isArray(collection))
-    ? arrayEachRight(collection, iteratee)
-    : baseEachRight(collection, baseIteratee(iteratee));
+  var func = isArray(collection) ? arrayEachRight : baseEachRight;
+  return func(collection, baseIteratee(iteratee, 3));
 }
 
 module.exports = forEachRight;

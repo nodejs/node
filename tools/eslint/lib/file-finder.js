@@ -70,64 +70,6 @@ function normalizeDirectoryEntries(entries, directory, supportedConfigs) {
 }
 
 /**
- * Find one instance of a specified file name in directory or in a parent directory.
- * Cache the results.
- * Does not check if a matching directory entry is a file, and intentionally
- * only searches for the first file name in this.fileNames.
- * Is currently used by lib/ignored_paths.js to find an .eslintignore file.
- * @param {string} directory The directory to start the search from.
- * @returns {string} Path of the file found, or an empty string if not found.
- */
-FileFinder.prototype.findInDirectoryOrParents = function(directory) {
-    var cache = this.cache,
-        child,
-        dirs,
-        filePath,
-        i,
-        names,
-        searched;
-
-    if (!directory) {
-        directory = this.cwd;
-    }
-
-    if (cache.hasOwnProperty(directory)) {
-        return cache[directory];
-    }
-
-    dirs = [];
-    searched = 0;
-    names = this.fileNames;
-
-    (function() {
-        while (directory !== child) {
-            dirs[searched++] = directory;
-            var filesMap = normalizeDirectoryEntries(getDirectoryEntries(directory), directory, names);
-
-            if (Object.keys(filesMap).length) {
-                for (var k = 0; k < names.length; k++) {
-                    if (filesMap[names[k]]) {
-                        filePath = filesMap[names[k]];
-                        return;
-                    }
-                }
-            }
-
-            child = directory;
-
-            // Assign parent directory to directory.
-            directory = path.dirname(directory);
-        }
-    }());
-
-    for (i = 0; i < searched; i++) {
-        cache[dirs[i]] = filePath;
-    }
-
-    return filePath || String();
-};
-
-/**
  * Find all instances of files with the specified file names, in directory and
  * parent directories. Cache the results.
  * Does not check if a matching directory entry is a file.
@@ -146,7 +88,9 @@ FileFinder.prototype.findAllInDirectoryAndParents = function(directory) {
         j,
         searched;
 
-    if (!directory) {
+    if (directory) {
+        directory = path.resolve(this.cwd, directory);
+    } else {
         directory = this.cwd;
     }
 

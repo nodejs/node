@@ -1,4 +1,4 @@
-var baseFind = require('./_baseFind'),
+var baseFindKey = require('./_baseFindKey'),
     baseForOwnRight = require('./_baseForOwnRight'),
     baseIteratee = require('./_baseIteratee');
 
@@ -39,7 +39,7 @@ var baseFind = require('./_baseFind'),
  * // => 'pebbles'
  */
 function findLastKey(object, predicate) {
-  return baseFind(object, baseIteratee(predicate, 3), baseForOwnRight, true);
+  return baseFindKey(object, baseIteratee(predicate, 3), baseForOwnRight);
 }
 
 module.exports = findLastKey;

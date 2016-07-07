@@ -13,7 +13,7 @@ var DEFAULT_COMMENT_PATTERN = /^no default$/;
 module.exports = {
     meta: {
         docs: {
-            description: "require `default` cases in <code>switch</code> statements",
+            description: "require `default` cases in `switch` statements",
             category: "Best Practices",
             recommended: false
         },
@@ -34,6 +34,8 @@ module.exports = {
         var commentPattern = options.commentPattern ?
             new RegExp(options.commentPattern) :
             DEFAULT_COMMENT_PATTERN;
+
+        var sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -76,7 +78,7 @@ module.exports = {
 
                     var lastCase = last(node.cases);
 
-                    comments = context.getComments(lastCase).trailing;
+                    comments = sourceCode.getComments(lastCase).trailing;
 
                     if (comments.length) {
                         comment = last(comments);

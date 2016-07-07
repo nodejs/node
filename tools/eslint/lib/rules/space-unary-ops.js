@@ -43,6 +43,8 @@ module.exports = {
     create: function(context) {
         var options = context.options && Array.isArray(context.options) && context.options[0] || { words: true, nonwords: false };
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -158,7 +160,7 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpacesAfterYield(node) {
-            var tokens = context.getFirstTokens(node, 3),
+            var tokens = sourceCode.getFirstTokens(node, 3),
                 word = "yield";
 
             if (!node.argument || node.delegate) {
@@ -239,7 +241,7 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpaces(node) {
-            var tokens = context.getFirstTokens(node, 2),
+            var tokens = sourceCode.getFirstTokens(node, 2),
                 firstToken = tokens[0],
                 secondToken = tokens[1];
 

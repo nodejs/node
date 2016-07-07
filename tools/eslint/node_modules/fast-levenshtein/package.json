@@ -58,7 +58,7 @@
   "directories": {},
   "dist": {
     "shasum": "2ae7b32abc1e612da48a4e13849b888a2f61e7e9",
-    "tarball": "http://registry.npmjs.org/fast-levenshtein/-/fast-levenshtein-1.1.3.tgz"
+    "tarball": "https://registry.npmjs.org/fast-levenshtein/-/fast-levenshtein-1.1.3.tgz"
   },
   "files": [
     "levenshtein.js"

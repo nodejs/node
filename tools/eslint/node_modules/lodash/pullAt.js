@@ -3,6 +3,7 @@ var arrayMap = require('./_arrayMap'),
     baseFlatten = require('./_baseFlatten'),
     basePullAt = require('./_basePullAt'),
     compareAscending = require('./_compareAscending'),
+    isIndex = require('./_isIndex'),
     rest = require('./rest');
 
 /**
@@ -20,20 +21,25 @@ var arrayMap = require('./_arrayMap'),
  * @returns {Array} Returns the new array of removed elements.
  * @example
  *
- * var array = [5, 10, 15, 20];
- * var evens = _.pullAt(array, 1, 3);
+ * var array = ['a', 'b', 'c', 'd'];
+ * var pulled = _.pullAt(array, [1, 3]);
  *
  * console.log(array);
- * // => [5, 15]
+ * // => ['a', 'c']
  *
- * console.log(evens);
- * // => [10, 20]
+ * console.log(pulled);
+ * // => ['b', 'd']
  */
 var pullAt = rest(function(array, indexes) {
-  indexes = arrayMap(baseFlatten(indexes, 1), String);
+  indexes = baseFlatten(indexes, 1);
 
-  var result = baseAt(array, indexes);
-  basePullAt(array, indexes.sort(compareAscending));
+  var length = array ? array.length : 0,
+      result = baseAt(array, indexes);
+
+  basePullAt(array, arrayMap(indexes, function(index) {
+    return isIndex(index, length) ? +index : index;
+  }).sort(compareAscending));
+
   return result;
 });
 

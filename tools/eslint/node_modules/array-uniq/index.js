@@ -23,6 +23,8 @@ function uniqSet(arr) {
 			seen.add(el);
 			return true;
 		}
+
+		return false;
 	});
 }
 

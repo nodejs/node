@@ -54,7 +54,7 @@
   "directories": {},
   "dist": {
     "shasum": "41059608ffc154757b715d9989d199ffbf372e35",
-    "tarball": "http://registry.npmjs.org/readline2/-/readline2-1.0.1.tgz"
+    "tarball": "https://registry.npmjs.org/readline2/-/readline2-1.0.1.tgz"
   },
   "files": [
     "index.js"

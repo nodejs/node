@@ -18,6 +18,7 @@
 
 import {types as tt} from "./tokentype"
 import {Parser} from "./state"
+import {DestructuringErrors} from "./parseutil"
 
 const pp = Parser.prototype
 
@@ -92,10 +93,10 @@ pp.parseExpression = function(noIn, refDestructuringErrors) {
 pp.parseMaybeAssign = function(noIn, refDestructuringErrors, afterLeftParse) {
   if (this.inGenerator && this.isContextual("yield")) return this.parseYield()
 
-  let validateDestructuring = false
+  let ownDestructuringErrors = false
   if (!refDestructuringErrors) {
-    refDestructuringErrors = {shorthandAssign: 0, trailingComma: 0}
-    validateDestructuring = true
+    refDestructuringErrors = new DestructuringErrors
+    ownDestructuringErrors = true
   }
   let startPos = this.start, startLoc = this.startLoc
   if (this.type == tt.parenL || this.type == tt.name)
@@ -103,7 +104,8 @@ pp.parseMaybeAssign = function(noIn, refDestructuringErrors, afterLeftParse) {
   let left = this.parseMaybeConditional(noIn, refDestructuringErrors)
   if (afterLeftParse) left = afterLeftParse.call(this, left, startPos, startLoc)
   if (this.type.isAssign) {
-    if (validateDestructuring) this.checkPatternErrors(refDestructuringErrors, true)
+    this.checkPatternErrors(refDestructuringErrors, true)
+    if (!ownDestructuringErrors) DestructuringErrors.call(refDestructuringErrors)
     let node = this.startNodeAt(startPos, startLoc)
     node.operator = this.value
     node.left = this.type === tt.eq ? this.toAssignable(left) : left
@@ -113,7 +115,7 @@ pp.parseMaybeAssign = function(noIn, refDestructuringErrors, afterLeftParse) {
     node.right = this.parseMaybeAssign(noIn)
     return this.finishNode(node, "AssignmentExpression")
   } else {
-    if (validateDestructuring) this.checkExpressionErrors(refDestructuringErrors, true)
+    if (ownDestructuringErrors) this.checkExpressionErrors(refDestructuringErrors, true)
   }
   return left
 }
@@ -346,7 +348,7 @@ pp.parseParenAndDistinguishExpression = function(canBeArrow) {
 
     let innerStartPos = this.start, innerStartLoc = this.startLoc
     let exprList = [], first = true
-    let refDestructuringErrors = {shorthandAssign: 0, trailingComma: 0}, spreadStart, innerParenStart
+    let refDestructuringErrors = new DestructuringErrors, spreadStart, innerParenStart
     while (this.type !== tt.parenR) {
       first ? first = false : this.expect(tt.comma)
       if (this.type === tt.ellipsis) {
@@ -490,47 +492,47 @@ pp.parseObj = function(isPattern, refDestructuringErrors) {
 
 pp.parsePropertyValue = function(prop, isPattern, isGenerator, startPos, startLoc, refDestructuringErrors) {
   if (this.eat(tt.colon)) {
-      prop.value = isPattern ? this.parseMaybeDefault(this.start, this.startLoc) : this.parseMaybeAssign(false, refDestructuringErrors)
-      prop.kind = "init"
-    } else if (this.options.ecmaVersion >= 6 && this.type === tt.parenL) {
-      if (isPattern) this.unexpected()
-      prop.kind = "init"
-      prop.method = true
-      prop.value = this.parseMethod(isGenerator)
-    } else if (this.options.ecmaVersion >= 5 && !prop.computed && prop.key.type === "Identifier" &&
-               (prop.key.name === "get" || prop.key.name === "set") &&
-               (this.type != tt.comma && this.type != tt.braceR)) {
-      if (isGenerator || isPattern) this.unexpected()
-      prop.kind = prop.key.name
-      this.parsePropertyName(prop)
-      prop.value = this.parseMethod(false)
-      let paramCount = prop.kind === "get" ? 0 : 1
-      if (prop.value.params.length !== paramCount) {
-        let start = prop.value.start
-        if (prop.kind === "get")
-          this.raiseRecoverable(start, "getter should have no params")
-        else
-          this.raiseRecoverable(start, "setter should have exactly one param")
-      }
-      if (prop.kind === "set" && prop.value.params[0].type === "RestElement")
-        this.raiseRecoverable(prop.value.params[0].start, "Setter cannot use rest params")
-    } else if (this.options.ecmaVersion >= 6 && !prop.computed && prop.key.type === "Identifier") {
-      prop.kind = "init"
-      if (isPattern) {
-        if (this.keywords.test(prop.key.name) ||
-            (this.strict ? this.reservedWordsStrictBind : this.reservedWords).test(prop.key.name) ||
-            (this.inGenerator && prop.key.name == "yield"))
-          this.raiseRecoverable(prop.key.start, "Binding " + prop.key.name)
-        prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key)
-      } else if (this.type === tt.eq && refDestructuringErrors) {
-        if (!refDestructuringErrors.shorthandAssign)
-          refDestructuringErrors.shorthandAssign = this.start
-        prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key)
-      } else {
-        prop.value = prop.key
-      }
-      prop.shorthand = true
-    } else this.unexpected()
+    prop.value = isPattern ? this.parseMaybeDefault(this.start, this.startLoc) : this.parseMaybeAssign(false, refDestructuringErrors)
+    prop.kind = "init"
+  } else if (this.options.ecmaVersion >= 6 && this.type === tt.parenL) {
+    if (isPattern) this.unexpected()
+    prop.kind = "init"
+    prop.method = true
+    prop.value = this.parseMethod(isGenerator)
+  } else if (this.options.ecmaVersion >= 5 && !prop.computed && prop.key.type === "Identifier" &&
+             (prop.key.name === "get" || prop.key.name === "set") &&
+             (this.type != tt.comma && this.type != tt.braceR)) {
+    if (isGenerator || isPattern) this.unexpected()
+    prop.kind = prop.key.name
+    this.parsePropertyName(prop)
+    prop.value = this.parseMethod(false)
+    let paramCount = prop.kind === "get" ? 0 : 1
+    if (prop.value.params.length !== paramCount) {
+      let start = prop.value.start
+      if (prop.kind === "get")
+        this.raiseRecoverable(start, "getter should have no params")
+      else
+        this.raiseRecoverable(start, "setter should have exactly one param")
+    }
+    if (prop.kind === "set" && prop.value.params[0].type === "RestElement")
+      this.raiseRecoverable(prop.value.params[0].start, "Setter cannot use rest params")
+  } else if (this.options.ecmaVersion >= 6 && !prop.computed && prop.key.type === "Identifier") {
+    if (this.keywords.test(prop.key.name) ||
+        (this.strict ? this.reservedWordsStrictBind : this.reservedWords).test(prop.key.name) ||
+        (this.inGenerator && prop.key.name == "yield"))
+      this.raiseRecoverable(prop.key.start, "'" + prop.key.name + "' can not be used as shorthand property")
+    prop.kind = "init"
+    if (isPattern) {
+      prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key)
+    } else if (this.type === tt.eq && refDestructuringErrors) {
+      if (!refDestructuringErrors.shorthandAssign)
+        refDestructuringErrors.shorthandAssign = this.start
+      prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key)
+    } else {
+      prop.value = prop.key
+    }
+    prop.shorthand = true
+  } else this.unexpected()
 }
 
 pp.parsePropertyName = function(prop) {
@@ -544,7 +546,7 @@ pp.parsePropertyName = function(prop) {
       prop.computed = false
     }
   }
-  return prop.key = (this.type === tt.num || this.type === tt.string) ? this.parseExprAtom() : this.parseIdent(true)
+  return prop.key = this.type === tt.num || this.type === tt.string ? this.parseExprAtom() : this.parseIdent(true)
 }
 
 // Initialize empty function node.
