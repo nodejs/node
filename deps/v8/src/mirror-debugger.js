@@ -1514,6 +1514,12 @@ PropertyMirror.prototype.name = function() {
 };
 
 
+PropertyMirror.prototype.toText = function() {
+  if (IS_SYMBOL(this.name_)) return %SymbolDescriptiveString(this.name_);
+  return this.name_;
+};
+
+
 PropertyMirror.prototype.isIndexed = function() {
   for (var i = 0; i < this.name_.length; i++) {
     if (this.name_[i] < '0' || '9' < this.name_[i]) {
@@ -2074,10 +2080,10 @@ FrameMirror.prototype.invocationText = function() {
         if (display_receiver) {
           result += '.';
         }
-        result += property.name();
+        result += property.toText();
       } else {
         result += '[';
-        result += property.name();
+        result += property.toText();
         result += ']';
       }
       // Also known as - if the name in the function doesn't match the name
