@@ -50,8 +50,6 @@ function main(conf) {
     }
   }
 
-  var success = 0;
-  var failure = 0;
   var min = 10;
   var size = 0;
   var mod = 317;
@@ -69,14 +67,12 @@ function main(conf) {
       if ((d.length === pattern.length && d === pattern) ||
           (d.length > pattern.length &&
            d.slice(0, pattern.length) === pattern)) {
-        success += 1;
         did = true;
       } else {
         pattern = 'HTTP/1.1 ';
         if ((d.length === pattern.length && d === pattern) ||
             (d.length > pattern.length &&
              d.slice(0, pattern.length) === pattern)) {
-          failure += 1;
           did = true;
         }
       }
