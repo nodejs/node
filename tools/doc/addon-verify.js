@@ -17,13 +17,6 @@ let id = 0;
 // Just to make sure that all examples will be processed
 tokens.push({ type: 'heading' });
 
-var oldDirs = fs.readdirSync(verifyDir);
-oldDirs = oldDirs.filter(function(dir) {
-  return /^\d{2}_/.test(dir);
-}).map(function(dir) {
-  return path.resolve(verifyDir, dir);
-});
-
 for (var i = 0; i < tokens.length; i++) {
   var token = tokens[i];
   if (token.type === 'heading' && token.text) {
