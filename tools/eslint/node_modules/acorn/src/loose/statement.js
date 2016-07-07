@@ -319,7 +319,7 @@ lp.parseExport = function() {
   let node = this.startNode()
   this.next()
   if (this.eat(tt.star)) {
-    node.source = this.eatContextual("from") ? this.parseExprAtom() : null
+    node.source = this.eatContextual("from") ? this.parseExprAtom() : this.dummyString()
     return this.finishNode(node, "ExportAllDeclaration")
   }
   if (this.eat(tt._default)) {
@@ -375,7 +375,7 @@ lp.parseImportSpecifierList = function() {
   if (this.tok.type === tt.star) {
     let elt = this.startNode()
     this.next()
-    if (this.eatContextual("as")) elt.local = this.parseIdent()
+    elt.local = this.eatContextual("as") ? this.parseIdent() : this.dummyIdent()
     elts.push(this.finishNode(elt, "ImportNamespaceSpecifier"))
   } else {
     let indent = this.curIndent, line = this.curLineStart, continuedLine = this.nextLineStart

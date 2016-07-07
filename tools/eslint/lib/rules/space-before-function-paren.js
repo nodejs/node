@@ -106,7 +106,7 @@ module.exports = {
             while (rightToken.value !== "(") {
                 rightToken = sourceCode.getTokenAfter(rightToken);
             }
-            leftToken = context.getTokenBefore(rightToken);
+            leftToken = sourceCode.getTokenBefore(rightToken);
             location = leftToken.loc.end;
 
             if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {

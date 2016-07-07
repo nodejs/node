@@ -47,6 +47,23 @@ module.exports = {
         }
 
         /**
+         * Checks whether a given node is a variable declaration or not.
+         *
+         * @param {ASTNode} node - any node
+         * @returns {boolean} `true` if the node is a variable declaration.
+         */
+        function isVariableDeclaration(node) {
+            return (
+                node.type === "VariableDeclaration" ||
+                (
+                    node.type === "ExportNamedDeclaration" &&
+                    node.declaration &&
+                    node.declaration.type === "VariableDeclaration"
+                )
+            );
+        }
+
+        /**
          * Checks whether this variable is on top of the block body
          * @param {ASTNode} node - The node to check
          * @param {ASTNode[]} statements - collection of ASTNodes for the parent node block
@@ -64,9 +81,7 @@ module.exports = {
             }
 
             for (; i < l; ++i) {
-                if (statements[i].type !== "VariableDeclaration" &&
-                        (statements[i].type !== "ExportNamedDeclaration" ||
-                        statements[i].declaration.type !== "VariableDeclaration")) {
+                if (!isVariableDeclaration(statements[i])) {
                     return false;
                 }
                 if (statements[i] === node) {

@@ -235,7 +235,7 @@ function braceExpand (pattern, options) {
     ? this.pattern : pattern
 
   if (typeof pattern === 'undefined') {
-    throw new Error('undefined pattern')
+    throw new TypeError('undefined pattern')
   }
 
   if (options.nobrace ||
@@ -261,6 +261,10 @@ function braceExpand (pattern, options) {
 Minimatch.prototype.parse = parse
 var SUBPARSE = {}
 function parse (pattern, isSub) {
+  if (pattern.length > 1024 * 64) {
+    throw new TypeError('pattern is too long')
+  }
+
   var options = this.options
 
   // shortcuts
@@ -518,7 +522,7 @@ function parse (pattern, isSub) {
   for (pl = patternListStack.pop(); pl; pl = patternListStack.pop()) {
     var tail = re.slice(pl.reStart + 3)
     // maybe some even number of \, then maybe 1 \, followed by a |
-    tail = tail.replace(/((?:\\{2})*)(\\?)\|/g, function (_, $1, $2) {
+    tail = tail.replace(/((?:\\{2}){0,64})(\\?)\|/g, function (_, $1, $2) {
       if (!$2) {
         // the | isn't already escaped, so escape it.
         $2 = '\\'
@@ -615,7 +619,15 @@ function parse (pattern, isSub) {
   }
 
   var flags = options.nocase ? 'i' : ''
-  var regExp = new RegExp('^' + re + '$', flags)
+  try {
+    var regExp = new RegExp('^' + re + '$', flags)
+  } catch (er) {
+    // If it was an invalid regular expression, then it can't match
+    // anything.  This trick looks for a character after the end of
+    // the string, which is of course impossible, except in multi-line
+    // mode, but it's not a /m regex.
+    return new RegExp('$.')
+  }
 
   regExp._glob = pattern
   regExp._src = re

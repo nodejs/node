@@ -51,7 +51,7 @@
   },
   "dist": {
     "shasum": "d8a96bd77fd68df7793a73036a3ba0d5405d477b",
-    "tarball": "http://registry.npmjs.org/concat-map/-/concat-map-0.0.1.tgz"
+    "tarball": "https://registry.npmjs.org/concat-map/-/concat-map-0.0.1.tgz"
   },
   "homepage": "https://github.com/substack/node-concat-map",
   "keywords": [

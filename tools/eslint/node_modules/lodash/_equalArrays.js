@@ -1,4 +1,5 @@
-var arraySome = require('./_arraySome');
+var SetCache = require('./_SetCache'),
+    arraySome = require('./_arraySome');
 
 /** Used to compose bitmasks for comparison styles. */
 var UNORDERED_COMPARE_FLAG = 1,
@@ -19,9 +20,7 @@ var UNORDERED_COMPARE_FLAG = 1,
  * @returns {boolean} Returns `true` if the arrays are equivalent, else `false`.
  */
 function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
-  var index = -1,
-      isPartial = bitmask & PARTIAL_COMPARE_FLAG,
-      isUnordered = bitmask & UNORDERED_COMPARE_FLAG,
+  var isPartial = bitmask & PARTIAL_COMPARE_FLAG,
       arrLength = array.length,
       othLength = other.length;
 
@@ -33,7 +32,10 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
   if (stacked) {
     return stacked == other;
   }
-  var result = true;
+  var index = -1,
+      result = true,
+      seen = (bitmask & UNORDERED_COMPARE_FLAG) ? new SetCache : undefined;
+
   stack.set(array, other);
 
   // Ignore non-index properties.
@@ -54,10 +56,12 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
       break;
     }
     // Recursively compare arrays (susceptible to call stack limits).
-    if (isUnordered) {
-      if (!arraySome(other, function(othValue) {
-            return arrValue === othValue ||
-              equalFunc(arrValue, othValue, customizer, bitmask, stack);
+    if (seen) {
+      if (!arraySome(other, function(othValue, othIndex) {
+            if (!seen.has(othIndex) &&
+                (arrValue === othValue || equalFunc(arrValue, othValue, customizer, bitmask, stack))) {
+              return seen.add(othIndex);
+            }
           })) {
         result = false;
         break;

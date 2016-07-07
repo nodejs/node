@@ -41,7 +41,7 @@ function lastIndexOf(array, value, fromIndex) {
     ) + 1;
   }
   if (value !== value) {
-    return indexOfNaN(array, index, true);
+    return indexOfNaN(array, index - 1, true);
   }
   while (index--) {
     if (array[index] === value) {

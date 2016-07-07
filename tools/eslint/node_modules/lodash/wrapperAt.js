@@ -21,9 +21,6 @@ var LazyWrapper = require('./_LazyWrapper'),
  *
  * _(object).at(['a[0].b.c', 'a[1]']).value();
  * // => [3, 4]
- *
- * _(['a', 'b', 'c']).at(0, 2).value();
- * // => ['a', 'c']
  */
 var wrapperAt = rest(function(paths) {
   paths = baseFlatten(paths, 1);

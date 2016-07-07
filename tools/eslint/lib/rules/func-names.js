@@ -12,15 +12,20 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce named `function` expressions",
+            description: "require or disallow named `function` expressions",
             category: "Stylistic Issues",
             recommended: false
         },
 
-        schema: []
+        schema: [
+            {
+                enum: ["always", "never"]
+            }
+        ]
     },
 
     create: function(context) {
+        var never = context.options[0] === "never";
 
         /**
          * Determines whether the current FunctionExpression node is a get, set, or
@@ -44,8 +49,14 @@ module.exports = {
 
                 var name = node.id && node.id.name;
 
-                if (!name && !isObjectOrClassMethod()) {
-                    context.report(node, "Missing function expression name.");
+                if (never) {
+                    if (name) {
+                        context.report(node, "Unexpected function expression name.");
+                    }
+                } else {
+                    if (!name && !isObjectOrClassMethod()) {
+                        context.report(node, "Missing function expression name.");
+                    }
                 }
             }
         };

@@ -24,21 +24,53 @@ ESLint is a tool for identifying and reporting on patterns found in ECMAScript/J
 * ESLint uses an AST to evaluate patterns in code.
 * ESLint is completely pluggable, every single rule is a plugin and you can add more at runtime.
 
-## Installation
+## Installation and Usage
 
-You can install ESLint using npm:
+There are two ways to install ESLint: globally and locally.
 
-    npm install -g eslint
+### Local Installation and Usage
 
-## Usage
+If you want to include ESLint as part of your project's build system, we recommend installing it locally. You can do so using npm:
 
-If it's your first time using ESLint, you should set up a config file using `--init`:
+```
+$ npm install eslint --save-dev
+```
 
-    eslint --init
+You should then setup a configuration file:
 
-After that, you can run ESLint on any JavaScript file:
+```
+$ ./node_modules/.bin/eslint --init
+```
 
-    eslint test.js test2.js
+After that, you can run ESLint on any file or directory like this:
+
+```
+$ ./node_modules/.bin/eslint yourfile.js
+```
+
+Any plugins or shareable configs that you use must also be installed locally to work with a locally-installed ESLint.
+
+### Global Installation and Usage
+
+If you want to make ESLint available to tools that run across all of your projects, we recommend installing ESLint globally. You can do so using npm:
+
+```
+$ npm install -g eslint
+```
+
+You should then setup a configuration file:
+
+```
+$ eslint --init
+```
+
+After that, you can run ESLint on any file or directory like this:
+
+```
+$ eslint yourfile.js
+```
+
+Any plugins or shareable configs that you use must also be installed globally to work with a globally-installed ESLint.
 
 **Note:** `eslint --init` is intended for setting up and configuring ESLint on a per-project basis and will perform a local installation of ESLint and its plugins in the directory in which it is run. If you prefer using a global installation of ESLint, any plugins used in your configuration must also be installed globally.
 
@@ -55,7 +87,7 @@ After running `eslint --init`, you'll have a `.eslintrc` file in your directory.
 }
 ```
 
-The names `"semi"` and `"quotes"` are the names of [rules](http://eslint.org/docs/rules) in ESLint. The number is the error level of the rule and can be one of the three values:
+The names `"semi"` and `"quotes"` are the names of [rules](http://eslint.org/docs/rules) in ESLint. The first value is the error level of the rule and can be one of these values:
 
 * `"off"` or `0` - turn the rule off
 * `"warn"` or `1` - turn the rule on as a warning (doesn't affect exit code)
@@ -65,31 +97,40 @@ The three error levels allow you fine-grained control over how ESLint applies ru
 
 ## Sponsors
 
-* Development is sponsored by [Box](https://box.com)
 * Site search ([eslint.org](http://eslint.org)) is sponsored by [Algolia](https://www.algolia.com)
 
 ## Team
 
-These folks keep the project moving and are resources for help:
+These folks keep the project moving and are resources for help.
 
-* Nicholas C. Zakas ([@nzakas](https://github.com/nzakas)) - project lead
-* Ilya Volodin ([@ilyavolodin](https://github.com/ilyavolodin)) - reviewer
-* Brandon Mills ([@btmills](https://github.com/btmills)) - reviewer
-* Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps)) - reviewer
-* Toru Nagashima ([@mysticatea](https://github.com/mysticatea)) - reviewer
-* Alberto Rodríguez ([@alberto](https://github.com/alberto)) - reviewer
-* Mathias Schreck ([@lo1tuma](https://github.com/lo1tuma)) - committer
-* Jamund Ferguson ([@xjamundx](https://github.com/xjamundx)) - committer
-* Ian VanSchooten ([@ianvs](https://github.com/ianvs)) - committer
-* Burak Yiğit Kaya ([@byk](https://github.com/byk)) - committer
-* Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo)) - committer
-* Michael Ficarra ([@michaelficarra](https://github.com/michaelficarra)) - committer
-* Mark Pedrotti ([@pedrottimark](https://github.com/pedrottimark)) - committer
-* Oleg Gaidarenko ([@markelog](https://github.com/markelog)) - committer
-* Mike Sherov [@mikesherov](https://github.com/mikesherov)) - committer
-* Henry Zhu ([@hzoo](https://github.com/hzoo)) - committer
-* Marat Dulin ([@mdevils](https://github.com/mdevils)) - committer
-* Alexej Yaroshevich ([@zxqfox](https://github.com/zxqfox)) - committer
+### Technical Steering Committee (TSC)
+
+* Nicholas C. Zakas ([@nzakas](https://github.com/nzakas))
+* Ilya Volodin ([@ilyavolodin](https://github.com/ilyavolodin))
+* Brandon Mills ([@btmills](https://github.com/btmills))
+* Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps))
+* Toru Nagashima ([@mysticatea](https://github.com/mysticatea))
+* Alberto Rodríguez ([@alberto](https://github.com/alberto))
+
+### Development Team
+
+* Mathias Schreck ([@lo1tuma](https://github.com/lo1tuma))
+* Jamund Ferguson ([@xjamundx](https://github.com/xjamundx))
+* Ian VanSchooten ([@ianvs](https://github.com/ianvs))
+* Burak Yiğit Kaya ([@byk](https://github.com/byk))
+* Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
+* Michael Ficarra ([@michaelficarra](https://github.com/michaelficarra))
+* Mark Pedrotti ([@pedrottimark](https://github.com/pedrottimark))
+* Oleg Gaidarenko ([@markelog](https://github.com/markelog))
+* Mike Sherov [@mikesherov](https://github.com/mikesherov))
+* Henry Zhu ([@hzoo](https://github.com/hzoo))
+* Marat Dulin ([@mdevils](https://github.com/mdevils))
+* Alexej Yaroshevich ([@zxqfox](https://github.com/zxqfox))
+
+### Issues Team
+
+* Kevin Partington ([@platinumazure](https://github.com/platinumazure))
+* Vitor Balocco ([@vitorbal](https://github.com/vitorbal))
 
 ## Releases
 
@@ -104,15 +145,35 @@ Before filing an issue, please be sure to read the guidelines for what you're re
 * [Proposing a Rule Change](http://eslint.org/docs/developer-guide/contributing/rule-changes)
 * [Request a Change](http://eslint.org/docs/developer-guide/contributing/changes)
 
+## Semantic Versioning Policy
+
+ESLint follows [semantic versioning](http://semver.org). However, due to the nature of ESLint as a code quality tool, it's not always clear when a minor or major version bump occurs. To help clarify this for everyone, we've defined the following semantic versioning policy for ESLint:
+
+* Patch release (intended to not break your lint build)
+    * A bug fix in a rule that results in ESLint reporting fewer errors.
+    * A bug fix to the CLI or core (including formatters).
+    * Improvements to documentation.
+    * Non-user-facing changes such as refactoring code, adding, deleting, or modifying tests, and increasing test coverage.
+    * Re-releasing after a failed release (i.e., publishing a release that doesn't work for anyone).
+* Minor release (might break your lint build)
+    * A bug fix in a rule that results in ESLint reporting more errors.
+    * A new rule is created.
+    * A new option to an existing rule is created.
+    * An existing rule is deprecated.
+    * A new CLI capability is created.
+    * New capabilities to the public API are added (new classes, new methods, new arguments to existing methods, etc.).
+    * A new formatter is created.
+* Major release (likely to break your lint build)
+    * `eslint:recommended` is updated.
+    * An existing rule is removed.
+    * An existing formatter is removed.
+    * Part of the public API is removed or changed in an incompatible way.
+
 ## Frequently Asked Questions
 
-### Why don't you like JSHint???
+### How is ESLint different from JSHint?
 
-I do like JSHint. And I like Anton and Rick. Neither of those were deciding factors in creating this tool. The fact is that I've had a dire need for a JavaScript tool with pluggable linting rules. I had hoped JSHint would be able to do this, however after chatting with Anton, I found that the planned plugin infrastructure wasn't going to suit my purpose.
-
-### I'm not giving up JSHint for this!
-
-That's not really a question, but I got it. I'm not trying to convince you that ESLint is better than JSHint. The only thing I know is that ESLint is better than JSHint for what I'm doing. In the off chance you're doing something similar, it might be better for you. Otherwise, keep using JSHint, I'm certainly not going to tell you to stop using it.
+The most significant difference is that ESlint has pluggable linting rules. That means you can use the rules it comes with, or you can extend it with rules created by others or by yourself!
 
 ### How does ESLint performance compare to JSHint?
 

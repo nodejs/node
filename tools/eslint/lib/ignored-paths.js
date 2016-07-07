@@ -24,9 +24,9 @@ debug = debug("eslint:ignored-paths");
 //------------------------------------------------------------------------------
 
 var ESLINT_IGNORE_FILENAME = ".eslintignore";
-var DEFAULT_IGNORE_PATTERNS = [
-    "/node_modules/*",
-    "/bower_components/*"
+var DEFAULT_IGNORE_DIRS = [
+    "node_modules/",
+    "bower_components/"
 ];
 var DEFAULT_OPTIONS = {
     dotfiles: false,
@@ -97,7 +97,9 @@ function IgnoredPaths(options) {
         return ig.add(fs.readFileSync(filepath, "utf8"));
     }
 
-    this.defaultPatterns = DEFAULT_IGNORE_PATTERNS.concat(options.patterns || []);
+    this.defaultPatterns = DEFAULT_IGNORE_DIRS.map(function(dir) {
+        return "/" + dir + "*";
+    }).concat(options.patterns || []);
     this.baseDir = options.cwd;
 
     this.ig = {
@@ -123,11 +125,6 @@ function IgnoredPaths(options) {
 
     if (options.ignore !== false) {
         var ignorePath;
-
-        if (options.ignorePattern) {
-            addPattern(this.ig.custom, options.ignorePattern);
-            addPattern(this.ig.default, options.ignorePattern);
-        }
 
         if (options.ignorePath) {
             debug("Using specific ignore file");
@@ -159,6 +156,10 @@ function IgnoredPaths(options) {
             addIgnoreFile(this.ig.default, ignorePath);
         }
 
+        if (options.ignorePattern) {
+            addPattern(this.ig.custom, options.ignorePattern);
+            addPattern(this.ig.default, options.ignorePattern);
+        }
     }
 
     this.options = options;
@@ -187,6 +188,38 @@ IgnoredPaths.prototype.contains = function(filepath, category) {
 
     return result;
 
+};
+
+/**
+ * Returns a list of dir patterns for glob to ignore
+ * @returns {string[]} list of glob ignore patterns
+ */
+IgnoredPaths.prototype.getIgnoredFoldersGlobPatterns = function() {
+    var dirs = DEFAULT_IGNORE_DIRS;
+
+    if (this.options.ignore) {
+
+        /* eslint-disable no-underscore-dangle */
+
+        var patterns = this.ig.custom._rules.filter(function(rule) {
+            return rule.negative;
+        }).map(function(rule) {
+            return rule.origin;
+        });
+
+        /* eslint-enable no-underscore-dangle */
+
+        dirs = dirs.filter(function(dir) {
+            return patterns.every(function(p) {
+                return (p.indexOf("!" + dir) !== 0 && p.indexOf("!/" + dir) !== 0);
+            });
+        });
+    }
+
+
+    return dirs.map(function(dir) {
+        return dir + "**";
+    });
 };
 
 module.exports = IgnoredPaths;
