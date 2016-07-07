@@ -5,19 +5,15 @@ require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var connections = 0;
-
 var server1listening = false;
 var server2listening = false;
 var server2eaddrinuse = false;
 
 var server1 = net.Server(function(socket) {
-  connections++;
   socket.destroy();
 });
 
 var server2 = net.Server(function(socket) {
-  connections++;
   socket.destroy();
 });
 
