@@ -2,8 +2,8 @@
 
 const common = require('../common');
 
-const skipMessage = 'intensive toString tests due to memory confinements';
 if (!common.enoughTestMem) {
+  const skipMessage = 'intensive toString tests due to memory confinements';
   common.skip(skipMessage);
   return;
 }
