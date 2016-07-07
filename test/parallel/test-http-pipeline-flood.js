@@ -27,12 +27,10 @@ switch (process.argv[2]) {
 function parent() {
   const http = require('http');
   const bigResponse = Buffer.alloc(10240, 'x');
-  var requests = 0;
   var connections = 0;
   var backloggedReqs = 0;
 
   const server = http.createServer(function(req, res) {
-    requests++;
     res.setHeader('content-length', bigResponse.length);
     if (!res.write(bigResponse)) {
       if (backloggedReqs === 0) {
