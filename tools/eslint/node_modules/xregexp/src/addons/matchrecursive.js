@@ -1,5 +1,5 @@
 /*!
- * XRegExp.matchRecursive 3.1.0
+ * XRegExp.matchRecursive 3.1.1
  * <xregexp.com>
  * Steven Levithan (c) 2009-2016 MIT License
  */
@@ -7,11 +7,9 @@
 module.exports = function(XRegExp) {
     'use strict';
 
-/**
- * Returns a match detail object composed of the provided values.
- *
- * @private
- */
+    /**
+     * Returns a match detail object composed of the provided values.
+     */
     function row(name, value, start, end) {
         return {
             name: name,
@@ -21,56 +19,55 @@ module.exports = function(XRegExp) {
         };
     }
 
-/**
- * Returns an array of match strings between outermost left and right delimiters, or an array of
- * objects with detailed match parts and position data. An error is thrown if delimiters are
- * unbalanced within the data.
- *
- * @memberOf XRegExp
- * @param {String} str String to search.
- * @param {String} left Left delimiter as an XRegExp pattern.
- * @param {String} right Right delimiter as an XRegExp pattern.
- * @param {String} [flags] Any native or XRegExp flags, used for the left and right delimiters.
- * @param {Object} [options] Lets you specify `valueNames` and `escapeChar` options.
- * @returns {Array} Array of matches, or an empty array.
- * @example
- *
- * // Basic usage
- * var str = '(t((e))s)t()(ing)';
- * XRegExp.matchRecursive(str, '\\(', '\\)', 'g');
- * // -> ['t((e))s', '', 'ing']
- *
- * // Extended information mode with valueNames
- * str = 'Here is <div> <div>an</div></div> example';
- * XRegExp.matchRecursive(str, '<div\\s*>', '</div>', 'gi', {
- *   valueNames: ['between', 'left', 'match', 'right']
- * });
- * // -> [
- * // {name: 'between', value: 'Here is ',       start: 0,  end: 8},
- * // {name: 'left',    value: '<div>',          start: 8,  end: 13},
- * // {name: 'match',   value: ' <div>an</div>', start: 13, end: 27},
- * // {name: 'right',   value: '</div>',         start: 27, end: 33},
- * // {name: 'between', value: ' example',       start: 33, end: 41}
- * // ]
- *
- * // Omitting unneeded parts with null valueNames, and using escapeChar
- * str = '...{1}.\\{{function(x,y){return {y:x}}}';
- * XRegExp.matchRecursive(str, '{', '}', 'g', {
- *   valueNames: ['literal', null, 'value', null],
- *   escapeChar: '\\'
- * });
- * // -> [
- * // {name: 'literal', value: '...',  start: 0, end: 3},
- * // {name: 'value',   value: '1',    start: 4, end: 5},
- * // {name: 'literal', value: '.\\{', start: 6, end: 9},
- * // {name: 'value',   value: 'function(x,y){return {y:x}}', start: 10, end: 37}
- * // ]
- *
- * // Sticky mode via flag y
- * str = '<1><<<2>>><3>4<5>';
- * XRegExp.matchRecursive(str, '<', '>', 'gy');
- * // -> ['1', '<<2>>', '3']
- */
+    /**
+     * Returns an array of match strings between outermost left and right delimiters, or an array of
+     * objects with detailed match parts and position data. An error is thrown if delimiters are
+     * unbalanced within the data.
+     *
+     * @param {String} str String to search.
+     * @param {String} left Left delimiter as an XRegExp pattern.
+     * @param {String} right Right delimiter as an XRegExp pattern.
+     * @param {String} [flags] Any native or XRegExp flags, used for the left and right delimiters.
+     * @param {Object} [options] Lets you specify `valueNames` and `escapeChar` options.
+     * @returns {Array} Array of matches, or an empty array.
+     * @example
+     *
+     * // Basic usage
+     * var str = '(t((e))s)t()(ing)';
+     * XRegExp.matchRecursive(str, '\\(', '\\)', 'g');
+     * // -> ['t((e))s', '', 'ing']
+     *
+     * // Extended information mode with valueNames
+     * str = 'Here is <div> <div>an</div></div> example';
+     * XRegExp.matchRecursive(str, '<div\\s*>', '</div>', 'gi', {
+     *   valueNames: ['between', 'left', 'match', 'right']
+     * });
+     * // -> [
+     * // {name: 'between', value: 'Here is ',       start: 0,  end: 8},
+     * // {name: 'left',    value: '<div>',          start: 8,  end: 13},
+     * // {name: 'match',   value: ' <div>an</div>', start: 13, end: 27},
+     * // {name: 'right',   value: '</div>',         start: 27, end: 33},
+     * // {name: 'between', value: ' example',       start: 33, end: 41}
+     * // ]
+     *
+     * // Omitting unneeded parts with null valueNames, and using escapeChar
+     * str = '...{1}.\\{{function(x,y){return {y:x}}}';
+     * XRegExp.matchRecursive(str, '{', '}', 'g', {
+     *   valueNames: ['literal', null, 'value', null],
+     *   escapeChar: '\\'
+     * });
+     * // -> [
+     * // {name: 'literal', value: '...',  start: 0, end: 3},
+     * // {name: 'value',   value: '1',    start: 4, end: 5},
+     * // {name: 'literal', value: '.\\{', start: 6, end: 9},
+     * // {name: 'value',   value: 'function(x,y){return {y:x}}', start: 10, end: 37}
+     * // ]
+     *
+     * // Sticky mode via flag y
+     * str = '<1><<<2>>><3>4<5>';
+     * XRegExp.matchRecursive(str, '<', '>', 'gy');
+     * // -> ['1', '<<2>>', '3']
+     */
     XRegExp.matchRecursive = function(str, left, right, flags, options) {
         flags = flags || '';
         options = options || {};

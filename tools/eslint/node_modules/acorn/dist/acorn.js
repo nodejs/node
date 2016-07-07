@@ -23,6 +23,8 @@ var _tokentype = _dereq_("./tokentype");
 
 var _state = _dereq_("./state");
 
+var _parseutil = _dereq_("./parseutil");
+
 var pp = _state.Parser.prototype;
 
 // Check if property name clashes with already added.
@@ -99,10 +101,10 @@ pp.parseExpression = function (noIn, refDestructuringErrors) {
 pp.parseMaybeAssign = function (noIn, refDestructuringErrors, afterLeftParse) {
   if (this.inGenerator && this.isContextual("yield")) return this.parseYield();
 
-  var validateDestructuring = false;
+  var ownDestructuringErrors = false;
   if (!refDestructuringErrors) {
-    refDestructuringErrors = { shorthandAssign: 0, trailingComma: 0 };
-    validateDestructuring = true;
+    refDestructuringErrors = new _parseutil.DestructuringErrors();
+    ownDestructuringErrors = true;
   }
   var startPos = this.start,
       startLoc = this.startLoc;
@@ -110,7 +112,8 @@ pp.parseMaybeAssign = function (noIn, refDestructuringErrors, afterLeftParse) {
   var left = this.parseMaybeConditional(noIn, refDestructuringErrors);
   if (afterLeftParse) left = afterLeftParse.call(this, left, startPos, startLoc);
   if (this.type.isAssign) {
-    if (validateDestructuring) this.checkPatternErrors(refDestructuringErrors, true);
+    this.checkPatternErrors(refDestructuringErrors, true);
+    if (!ownDestructuringErrors) _parseutil.DestructuringErrors.call(refDestructuringErrors);
     var node = this.startNodeAt(startPos, startLoc);
     node.operator = this.value;
     node.left = this.type === _tokentype.types.eq ? this.toAssignable(left) : left;
@@ -120,7 +123,7 @@ pp.parseMaybeAssign = function (noIn, refDestructuringErrors, afterLeftParse) {
     node.right = this.parseMaybeAssign(noIn);
     return this.finishNode(node, "AssignmentExpression");
   } else {
-    if (validateDestructuring) this.checkExpressionErrors(refDestructuringErrors, true);
+    if (ownDestructuringErrors) this.checkExpressionErrors(refDestructuringErrors, true);
   }
   return left;
 };
@@ -357,7 +360,7 @@ pp.parseParenAndDistinguishExpression = function (canBeArrow) {
         innerStartLoc = this.startLoc;
     var exprList = [],
         first = true;
-    var refDestructuringErrors = { shorthandAssign: 0, trailingComma: 0 },
+    var refDestructuringErrors = new _parseutil.DestructuringErrors(),
         spreadStart = undefined,
         innerParenStart = undefined;
     while (this.type !== _tokentype.types.parenR) {
@@ -525,9 +528,9 @@ pp.parsePropertyValue = function (prop, isPattern, isGenerator, startPos, startL
     }
     if (prop.kind === "set" && prop.value.params[0].type === "RestElement") this.raiseRecoverable(prop.value.params[0].start, "Setter cannot use rest params");
   } else if (this.options.ecmaVersion >= 6 && !prop.computed && prop.key.type === "Identifier") {
+    if (this.keywords.test(prop.key.name) || (this.strict ? this.reservedWordsStrictBind : this.reservedWords).test(prop.key.name) || this.inGenerator && prop.key.name == "yield") this.raiseRecoverable(prop.key.start, "'" + prop.key.name + "' can not be used as shorthand property");
     prop.kind = "init";
     if (isPattern) {
-      if (this.keywords.test(prop.key.name) || (this.strict ? this.reservedWordsStrictBind : this.reservedWords).test(prop.key.name) || this.inGenerator && prop.key.name == "yield") this.raiseRecoverable(prop.key.start, "Binding " + prop.key.name);
       prop.value = this.parseMaybeDefault(startPos, startLoc, prop.key);
     } else if (this.type === _tokentype.types.eq && refDestructuringErrors) {
       if (!refDestructuringErrors.shorthandAssign) refDestructuringErrors.shorthandAssign = this.start;
@@ -695,7 +698,7 @@ pp.parseYield = function () {
   return this.finishNode(node, "YieldExpression");
 };
 
-},{"./state":10,"./tokentype":14}],2:[function(_dereq_,module,exports){
+},{"./parseutil":9,"./state":10,"./tokentype":14}],2:[function(_dereq_,module,exports){
 // Reserved word lists for various dialects of the language
 
 "use strict";
@@ -1396,6 +1399,10 @@ function pushComment(options, array) {
 },{"./locutil":5,"./util":15}],9:[function(_dereq_,module,exports){
 "use strict";
 
+exports.__esModule = true;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 var _tokentype = _dereq_("./tokentype");
 
 var _state = _dereq_("./state");
@@ -1483,10 +1490,19 @@ pp.unexpected = function (pos) {
   this.raise(pos != null ? pos : this.start, "Unexpected token");
 };
 
+var DestructuringErrors = function DestructuringErrors() {
+  _classCallCheck(this, DestructuringErrors);
+
+  this.shorthandAssign = 0;
+  this.trailingComma = 0;
+};
+
+exports.DestructuringErrors = DestructuringErrors;
+
 pp.checkPatternErrors = function (refDestructuringErrors, andThrow) {
-  var pos = refDestructuringErrors && refDestructuringErrors.trailingComma;
-  if (!andThrow) return !!pos;
-  if (pos) this.raise(pos, "Comma is not permitted after the rest element");
+  var trailing = refDestructuringErrors && refDestructuringErrors.trailingComma;
+  if (!andThrow) return !!trailing;
+  if (trailing) this.raise(trailing, "Comma is not permitted after the rest element");
 };
 
 pp.checkExpressionErrors = function (refDestructuringErrors, andThrow) {
@@ -1631,6 +1647,8 @@ var _state = _dereq_("./state");
 var _whitespace = _dereq_("./whitespace");
 
 var _identifier = _dereq_("./identifier");
+
+var _parseutil = _dereq_("./parseutil");
 
 var pp = _state.Parser.prototype;
 
@@ -1816,7 +1834,7 @@ pp.parseForStatement = function (node) {
     if ((this.type === _tokentype.types._in || this.options.ecmaVersion >= 6 && this.isContextual("of")) && _init.declarations.length === 1 && !(kind !== "var" && _init.declarations[0].init)) return this.parseForIn(node, _init);
     return this.parseFor(node, _init);
   }
-  var refDestructuringErrors = { shorthandAssign: 0, trailingComma: 0 };
+  var refDestructuringErrors = new _parseutil.DestructuringErrors();
   var init = this.parseExpression(true, refDestructuringErrors);
   if (this.type === _tokentype.types._in || this.options.ecmaVersion >= 6 && this.isContextual("of")) {
     this.checkPatternErrors(refDestructuringErrors, true);
@@ -2284,7 +2302,7 @@ pp.parseImportSpecifiers = function () {
   return nodes;
 };
 
-},{"./identifier":2,"./state":10,"./tokentype":14,"./whitespace":16}],12:[function(_dereq_,module,exports){
+},{"./identifier":2,"./parseutil":9,"./state":10,"./tokentype":14,"./whitespace":16}],12:[function(_dereq_,module,exports){
 // The algorithm used to determine whether a regexp can appear at a
 // given point in the program is loosely based on sweet.js' approach.
 // See https://github.com/mozilla/sweet.js/wiki/design
@@ -2856,26 +2874,32 @@ pp.readRegexp = function () {
   // Need to use `readWord1` because '\uXXXX' sequences are allowed
   // here (don't ask).
   var mods = this.readWord1();
-  var tmp = content;
+  var tmp = content,
+      tmpFlags = "";
   if (mods) {
     var validFlags = /^[gim]*$/;
     if (this.options.ecmaVersion >= 6) validFlags = /^[gimuy]*$/;
     if (!validFlags.test(mods)) this.raise(start, "Invalid regular expression flag");
-    if (mods.indexOf('u') >= 0 && !regexpUnicodeSupport) {
-      // Replace each astral symbol and every Unicode escape sequence that
-      // possibly represents an astral symbol or a paired surrogate with a
-      // single ASCII symbol to avoid throwing on regular expressions that
-      // are only valid in combination with the `/u` flag.
-      // Note: replacing with the ASCII symbol `x` might cause false
-      // negatives in unlikely scenarios. For example, `[\u{61}-b]` is a
-      // perfectly valid pattern that is equivalent to `[a-b]`, but it would
-      // be replaced by `[x-b]` which throws an error.
-      tmp = tmp.replace(/\\u\{([0-9a-fA-F]+)\}/g, function (_match, code, offset) {
-        code = Number("0x" + code);
-        if (code > 0x10FFFF) _this.raise(start + offset + 3, "Code point out of bounds");
-        return "x";
-      });
-      tmp = tmp.replace(/\\u([a-fA-F0-9]{4})|[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "x");
+    if (mods.indexOf("u") >= 0) {
+      if (regexpUnicodeSupport) {
+        tmpFlags = "u";
+      } else {
+        // Replace each astral symbol and every Unicode escape sequence that
+        // possibly represents an astral symbol or a paired surrogate with a
+        // single ASCII symbol to avoid throwing on regular expressions that
+        // are only valid in combination with the `/u` flag.
+        // Note: replacing with the ASCII symbol `x` might cause false
+        // negatives in unlikely scenarios. For example, `[\u{61}-b]` is a
+        // perfectly valid pattern that is equivalent to `[a-b]`, but it would
+        // be replaced by `[x-b]` which throws an error.
+        tmp = tmp.replace(/\\u\{([0-9a-fA-F]+)\}/g, function (_match, code, offset) {
+          code = Number("0x" + code);
+          if (code > 0x10FFFF) _this.raise(start + offset + 3, "Code point out of bounds");
+          return "x";
+        });
+        tmp = tmp.replace(/\\u([a-fA-F0-9]{4})|[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "x");
+        tmpFlags = tmpFlags.replace("u", "");
+      }
     }
   }
   // Detect invalid regular expressions.
@@ -2883,7 +2907,7 @@ pp.readRegexp = function () {
   // Rhino's regular expression parser is flaky and throws uncatchable exceptions,
   // so don't do detection if we are running under Rhino
   if (!isRhino) {
-    tryCreateRegexp(tmp, undefined, start, this);
+    tryCreateRegexp(tmp, tmpFlags, start, this);
     // Get a regular expression object for this pattern-flag pair, or `null` in
     // case the current environment doesn't support the flags it uses.
     value = tryCreateRegexp(content, mods);

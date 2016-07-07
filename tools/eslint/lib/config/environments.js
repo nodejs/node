@@ -8,14 +8,11 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug"),
-    envs = require("../../conf/environments");
+var envs = require("../../conf/environments");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
-
-debug = debug("eslint:enviroments");
 
 var environments = Object.create(null);
 

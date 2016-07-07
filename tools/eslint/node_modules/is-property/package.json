@@ -49,7 +49,7 @@
   },
   "dist": {
     "shasum": "57fe1c4e48474edd65b09911f26b1cd4095dda84",
-    "tarball": "http://registry.npmjs.org/is-property/-/is-property-1.0.2.tgz"
+    "tarball": "https://registry.npmjs.org/is-property/-/is-property-1.0.2.tgz"
   },
   "gitHead": "0a85ea5b6b1264ea1cdecc6e5cf186adbb3ffc50",
   "homepage": "https://github.com/mikolalysenko/is-property",

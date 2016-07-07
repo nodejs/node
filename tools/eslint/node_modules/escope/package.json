@@ -73,7 +73,7 @@
   "directories": {},
   "dist": {
     "shasum": "e01975e812781a163a6dadfdd80398dc64c889c3",
-    "tarball": "http://registry.npmjs.org/escope/-/escope-3.6.0.tgz"
+    "tarball": "https://registry.npmjs.org/escope/-/escope-3.6.0.tgz"
   },
   "engines": {
     "node": ">=0.4.0"

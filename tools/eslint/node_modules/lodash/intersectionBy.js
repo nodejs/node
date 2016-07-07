@@ -21,7 +21,7 @@ var arrayMap = require('./_arrayMap'),
  * @returns {Array} Returns the new array of intersecting values.
  * @example
  *
- * _.intersectionBy([2.1, 1.2], [4.3, 2.4], Math.floor);
+ * _.intersectionBy([2.1, 1.2], [2.3, 3.4], Math.floor);
  * // => [2.1]
  *
  * // The `_.property` iteratee shorthand.

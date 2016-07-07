@@ -57,7 +57,6 @@ module.exports = optionator({
         {
             option: "parser",
             type: "String",
-            default: "espree",
             description: "Specify the parser to be used"
         },
         {
@@ -115,7 +114,7 @@ module.exports = optionator({
             option: "ignore",
             type: "Boolean",
             default: "true",
-            description: "Disable use of .eslintignore"
+            description: "Disable use of ignore files and patterns"
         },
         {
             option: "ignore-pattern",

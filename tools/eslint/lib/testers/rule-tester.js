@@ -331,6 +331,21 @@ RuleTester.prototype = {
         }
 
         /**
+         * Check if the AST was changed
+         * @param {ASTNode} beforeAST AST node before running
+         * @param {ASTNode} afterAST AST node after running
+         * @returns {void}
+         * @private
+         */
+        function assertASTDidntChange(beforeAST, afterAST) {
+            if (!lodash.isEqual(beforeAST, afterAST)) {
+
+                // Not using directly to avoid performance problem in node 6.1.0. See #6111
+                assert.deepEqual(beforeAST, afterAST, "Rule should not modify AST.");
+            }
+        }
+
+        /**
          * Check if the template is valid or not
          * all valid cases go through this
          * @param {string} ruleName name of the rule
@@ -345,11 +360,7 @@ RuleTester.prototype = {
             assert.equal(messages.length, 0, util.format("Should have no errors but had %d: %s",
                         messages.length, util.inspect(messages)));
 
-            assert.deepEqual(
-                result.beforeAST,
-                result.afterAST,
-                "Rule should not modify AST."
-            );
+            assertASTDidntChange(result.beforeAST, result.afterAST);
         }
 
         /**
@@ -422,11 +433,7 @@ RuleTester.prototype = {
 
             }
 
-            assert.deepEqual(
-                result.beforeAST,
-                result.afterAST,
-                "Rule should not modify AST."
-            );
+            assertASTDidntChange(result.beforeAST, result.afterAST);
         }
 
         /*

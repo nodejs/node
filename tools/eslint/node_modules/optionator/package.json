@@ -57,7 +57,7 @@
   "directories": {},
   "dist": {
     "shasum": "e31b4932cdd5fb862a8b0d10bc63d3ee1ec7d78b",
-    "tarball": "http://registry.npmjs.org/optionator/-/optionator-0.8.1.tgz"
+    "tarball": "https://registry.npmjs.org/optionator/-/optionator-0.8.1.tgz"
   },
   "engines": {
     "node": ">= 0.8.0"

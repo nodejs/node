@@ -31,8 +31,8 @@ module.exports = {
     meta: {
         docs: {
             description: "require or disallow trailing commas",
-            category: "Possible Errors",
-            recommended: true
+            category: "Stylistic Issues",
+            recommended: false
         },
 
         fixable: "code",
@@ -143,13 +143,13 @@ module.exports = {
             }
 
             var sourceCode = context.getSourceCode(),
-                trailingToken;
-
-            // last item can be surrounded by parentheses for object and array literals
-            if (node.type === "ObjectExpression" || node.type === "ArrayExpression") {
-                trailingToken = sourceCode.getTokenBefore(sourceCode.getLastToken(node));
-            } else {
+                penultimateToken = lastItem,
                 trailingToken = sourceCode.getTokenAfter(lastItem);
+
+            // Skip close parentheses.
+            while (trailingToken.value === ")") {
+                penultimateToken = trailingToken;
+                trailingToken = sourceCode.getTokenAfter(trailingToken);
             }
 
             if (trailingToken.value !== ",") {
@@ -158,7 +158,7 @@ module.exports = {
                     loc: lastItem.loc.end,
                     message: MISSING_MESSAGE,
                     fix: function(fixer) {
-                        return fixer.insertTextAfter(lastItem, ",");
+                        return fixer.insertTextAfter(penultimateToken, ",");
                     }
                 });
             }

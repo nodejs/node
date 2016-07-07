@@ -14,7 +14,7 @@ var arrayEvery = require('./_arrayEvery'),
  * @returns {Function} Returns the new function.
  * @example
  *
- * var func = _.overEvery(Boolean, isFinite);
+ * var func = _.overEvery([Boolean, isFinite]);
  *
  * func('1');
  * // => true
