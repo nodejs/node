@@ -43,20 +43,22 @@ module.exports = {
         rule.before = option.before !== false;
         rule.after = option.after !== false;
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Get tokens of arrow(`=>`) and before/after arrow.
          * @param {ASTNode} node The arrow function node.
          * @returns {Object} Tokens of arrow and before/after arrow.
          */
         function getTokens(node) {
-            var t = context.getFirstToken(node);
+            var t = sourceCode.getFirstToken(node);
             var before;
 
             while (t.type !== "Punctuator" || t.value !== "=>") {
                 before = t;
-                t = context.getTokenAfter(t);
+                t = sourceCode.getTokenAfter(t);
             }
-            var after = context.getTokenAfter(t);
+            var after = sourceCode.getTokenAfter(t);
 
             return { before: before, arrow: t, after: after };
         }

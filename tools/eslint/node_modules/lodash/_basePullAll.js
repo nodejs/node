@@ -1,7 +1,8 @@
 var arrayMap = require('./_arrayMap'),
     baseIndexOf = require('./_baseIndexOf'),
     baseIndexOfWith = require('./_baseIndexOfWith'),
-    baseUnary = require('./_baseUnary');
+    baseUnary = require('./_baseUnary'),
+    copyArray = require('./_copyArray');
 
 /** Used for built-in method references. */
 var arrayProto = Array.prototype;
@@ -26,6 +27,9 @@ function basePullAll(array, values, iteratee, comparator) {
       length = values.length,
       seen = array;
 
+  if (array === values) {
+    values = copyArray(values);
+  }
   if (iteratee) {
     seen = arrayMap(array, baseUnary(iteratee));
   }

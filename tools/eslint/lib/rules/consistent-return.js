@@ -15,6 +15,16 @@ var astUtils = require("../ast-utils");
 //------------------------------------------------------------------------------
 
 /**
+ * Checks whether or not a given node is an `Identifier` node which was named a given name.
+ * @param {ASTNode} node - A node to check.
+ * @param {string} name - An expected name of the node.
+ * @returns {boolean} `true` if the node is an `Identifier` node which was named as expected.
+ */
+function isIdentifier(node, name) {
+    return node.type === "Identifier" && node.name === name;
+}
+
+/**
  * Checks whether or not a given code path segment is unreachable.
  * @param {CodePathSegment} segment - A CodePathSegment to check.
  * @returns {boolean} `true` if the segment is unreachable.
@@ -35,10 +45,20 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [{
+            type: "object",
+            properties: {
+                treatUndefinedAsUnspecified: {
+                    type: "boolean"
+                }
+            },
+            additionalProperties: false
+        }]
     },
 
     create: function(context) {
+        var options = context.options[0] || {};
+        var treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
         var funcInfo = null;
 
         /**
@@ -115,7 +135,12 @@ module.exports = {
 
             // Reports a given return statement if it's inconsistent.
             ReturnStatement: function(node) {
-                var hasReturnValue = Boolean(node.argument);
+                var argument = node.argument;
+                var hasReturnValue = Boolean(argument);
+
+                if (treatUndefinedAsUnspecified && hasReturnValue) {
+                    hasReturnValue = !isIdentifier(argument, "undefined") && argument.operator !== "void";
+                }
 
                 if (!funcInfo.hasReturn) {
                     funcInfo.hasReturn = true;

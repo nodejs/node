@@ -34,7 +34,7 @@ var nativeMin = Math.min;
  *
  * var func = _.overArgs(function(x, y) {
  *   return [x, y];
- * }, square, doubled);
+ * }, [square, doubled]);
  *
  * func(9, 3);
  * // => [81, 6]

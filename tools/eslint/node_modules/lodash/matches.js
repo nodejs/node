@@ -14,7 +14,7 @@ var baseClone = require('./_baseClone'),
  * @since 3.0.0
  * @category Util
  * @param {Object} source The object of property values to match.
- * @returns {Function} Returns the new function.
+ * @returns {Function} Returns the new spec function.
  * @example
  *
  * var users = [

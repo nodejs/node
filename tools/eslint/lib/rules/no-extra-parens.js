@@ -40,7 +40,8 @@ module.exports = {
                             type: "object",
                             properties: {
                                 conditionalAssign: {type: "boolean"},
-                                nestedBinaryExpressions: {type: "boolean"}
+                                nestedBinaryExpressions: {type: "boolean"},
+                                returnAssign: {type: "boolean"}
                             },
                             additionalProperties: false
                         }
@@ -53,11 +54,14 @@ module.exports = {
     },
 
     create: function(context) {
-        var isParenthesised = astUtils.isParenthesised.bind(astUtils, context);
+        var sourceCode = context.getSourceCode();
+
+        var isParenthesised = astUtils.isParenthesised.bind(astUtils, sourceCode);
+        var precedence = astUtils.getPrecedence;
         var ALL_NODES = context.options[0] !== "functions";
         var EXCEPT_COND_ASSIGN = ALL_NODES && context.options[1] && context.options[1].conditionalAssign === false;
         var NESTED_BINARY = ALL_NODES && context.options[1] && context.options[1].nestedBinaryExpressions === false;
-        var sourceCode = context.getSourceCode();
+        var EXCEPT_RETURN_ASSIGN = ALL_NODES && context.options[1] && context.options[1].returnAssign === false;
 
         /**
          * Determines if this rule should be enforced for a node given the current configuration.
@@ -76,8 +80,8 @@ module.exports = {
          * @private
          */
         function isParenthesisedTwice(node) {
-            var previousToken = context.getTokenBefore(node, 1),
-                nextToken = context.getTokenAfter(node, 1);
+            var previousToken = sourceCode.getTokenBefore(node, 1),
+                nextToken = sourceCode.getTokenAfter(node, 1);
 
             return isParenthesised(node) && previousToken && nextToken &&
                 previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
@@ -113,6 +117,64 @@ module.exports = {
          */
         function isCondAssignException(node) {
             return EXCEPT_COND_ASSIGN && node.test.type === "AssignmentExpression";
+        }
+
+        /**
+         * Determines if a node is in a return statement
+         * @param {ASTNode} node - The node to be checked.
+         * @returns {boolean} True if the node is in a return statement.
+         * @private
+         */
+        function isInReturnStatement(node) {
+            while (node) {
+                if (node.type === "ReturnStatement" ||
+                        (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement")) {
+                    return true;
+                }
+                node = node.parent;
+            }
+
+            return false;
+        }
+
+        /**
+         * Determines if a node is or contains an assignment expression
+         * @param {ASTNode} node - The node to be checked.
+         * @returns {boolean} True if the node is or contains an assignment expression.
+         * @private
+         */
+        function containsAssignment(node) {
+            if (node.type === "AssignmentExpression") {
+                return true;
+            } else if (node.type === "ConditionalExpression" &&
+                    (node.consequent.type === "AssignmentExpression" || node.alternate.type === "AssignmentExpression")) {
+                return true;
+            } else if ((node.left && node.left.type === "AssignmentExpression") ||
+                    (node.right && node.right.type === "AssignmentExpression")) {
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * Determines if a node is contained by or is itself a return statement and is allowed to have a parenthesised assignment
+         * @param {ASTNode} node - The node to be checked.
+         * @returns {boolean} True if the assignment can be parenthesised.
+         * @private
+         */
+        function isReturnAssignException(node) {
+            if (!EXCEPT_RETURN_ASSIGN || !isInReturnStatement(node)) {
+                return false;
+            }
+
+            if (node.type === "ReturnStatement") {
+                return node.argument && containsAssignment(node.argument);
+            } else if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
+                return containsAssignment(node.body);
+            } else {
+                return containsAssignment(node);
+            }
         }
 
         /**
@@ -195,105 +257,13 @@ module.exports = {
         }
 
         /**
-         * Get the precedence level based on the node type
-         * @param {ASTNode} node node to evaluate
-         * @returns {int} precedence level
-         * @private
-         */
-        function precedence(node) {
-
-            switch (node.type) {
-                case "SequenceExpression":
-                    return 0;
-
-                case "AssignmentExpression":
-                case "ArrowFunctionExpression":
-                case "YieldExpression":
-                    return 1;
-
-                case "ConditionalExpression":
-                    return 3;
-
-                case "LogicalExpression":
-                    switch (node.operator) {
-                        case "||":
-                            return 4;
-                        case "&&":
-                            return 5;
-
-                        // no default
-                    }
-
-                    /* falls through */
-
-                case "BinaryExpression":
-
-                    switch (node.operator) {
-                        case "|":
-                            return 6;
-                        case "^":
-                            return 7;
-                        case "&":
-                            return 8;
-                        case "==":
-                        case "!=":
-                        case "===":
-                        case "!==":
-                            return 9;
-                        case "<":
-                        case "<=":
-                        case ">":
-                        case ">=":
-                        case "in":
-                        case "instanceof":
-                            return 10;
-                        case "<<":
-                        case ">>":
-                        case ">>>":
-                            return 11;
-                        case "+":
-                        case "-":
-                            return 12;
-                        case "*":
-                        case "/":
-                        case "%":
-                            return 13;
-
-                        // no default
-                    }
-
-                    /* falls through */
-
-                case "UnaryExpression":
-                    return 14;
-
-                case "UpdateExpression":
-                    return 15;
-
-                case "CallExpression":
-
-                    // IIFE is allowed to have parens in any position (#655)
-                    if (node.callee.type === "FunctionExpression") {
-                        return -1;
-                    }
-                    return 16;
-
-                case "NewExpression":
-                    return 17;
-
-                // no default
-            }
-            return 18;
-        }
-
-        /**
          * Report the node
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
         function report(node) {
-            var previousToken = context.getTokenBefore(node);
+            var previousToken = sourceCode.getTokenBefore(node);
 
             context.report(node, previousToken.loc.start, "Gratuitous parentheses around expression.");
         }
@@ -368,6 +338,10 @@ module.exports = {
             },
 
             ArrowFunctionExpression: function(node) {
+                if (isReturnAssignException(node)) {
+                    return;
+                }
+
                 if (node.body.type !== "BlockStatement") {
                     if (sourceCode.getFirstToken(node.body).value !== "{" && hasExcessParens(node.body) && precedence(node.body) >= precedence({type: "AssignmentExpression"})) {
                         report(node.body);
@@ -383,6 +357,10 @@ module.exports = {
             },
 
             AssignmentExpression: function(node) {
+                if (isReturnAssignException(node)) {
+                    return;
+                }
+
                 if (hasExcessParens(node.right) && precedence(node.right) >= precedence(node)) {
                     report(node.right);
                 }
@@ -392,12 +370,18 @@ module.exports = {
             CallExpression: dryCallNew,
 
             ConditionalExpression: function(node) {
+                if (isReturnAssignException(node)) {
+                    return;
+                }
+
                 if (hasExcessParens(node.test) && precedence(node.test) >= precedence({type: "LogicalExpression", operator: "||"})) {
                     report(node.test);
                 }
+
                 if (hasExcessParens(node.consequent) && precedence(node.consequent) >= precedence({type: "AssignmentExpression"})) {
                     report(node.consequent);
                 }
+
                 if (hasExcessParens(node.alternate) && precedence(node.alternate) >= precedence({type: "AssignmentExpression"})) {
                     report(node.alternate);
                 }
@@ -413,7 +397,7 @@ module.exports = {
                 var firstToken, secondToken, firstTokens;
 
                 if (hasExcessParens(node.expression)) {
-                    firstTokens = context.getFirstTokens(node.expression, 2);
+                    firstTokens = sourceCode.getFirstTokens(node.expression, 2);
                     firstToken = firstTokens[0];
                     secondToken = firstTokens[1];
 
@@ -476,7 +460,7 @@ module.exports = {
                         !(
                             (node.object.type === "Literal" &&
                             typeof node.object.value === "number" &&
-                            /^[0-9]+$/.test(context.getFirstToken(node.object).value))
+                            /^[0-9]+$/.test(sourceCode.getFirstToken(node.object).value))
                             ||
 
                             // RegExp literal is allowed to have parens (#1589)
@@ -510,6 +494,10 @@ module.exports = {
 
             ReturnStatement: function(node) {
                 var returnToken = sourceCode.getFirstToken(node);
+
+                if (isReturnAssignException(node)) {
+                    return;
+                }
 
                 if (node.argument &&
                         hasExcessParensNoLineTerminator(returnToken, node.argument) &&

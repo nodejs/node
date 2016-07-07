@@ -52,7 +52,7 @@
   "directories": {},
   "dist": {
     "shasum": "1e15fbcac97d3ee99bf2d73b4c656b082bbafb91",
-    "tarball": "http://registry.npmjs.org/strip-json-comments/-/strip-json-comments-1.0.4.tgz"
+    "tarball": "https://registry.npmjs.org/strip-json-comments/-/strip-json-comments-1.0.4.tgz"
   },
   "engines": {
     "node": ">=0.8.0"

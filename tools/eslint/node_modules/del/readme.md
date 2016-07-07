@@ -72,7 +72,7 @@ See the `node-glob` [options](https://github.com/isaacs/node-glob#options).
 Type: `boolean`  
 Default: `false`
 
-Allow deleting the current working directory and files/folders outside it.
+Allow deleting the current working directory and outside.
 
 ##### dryRun
 
@@ -92,7 +92,7 @@ del(['tmp/*.js'], {dryRun: true}).then(paths => {
 
 ## CLI
 
-See [trash-cli](https://github.com/sindresorhus/trash-cli).
+See [del-cli](https://github.com/sindresorhus/del-cli) for a CLI for this module and [trash-cli](https://github.com/sindresorhus/trash-cli) for a safe version that is suitable for running by hand.
 
 
 ## License

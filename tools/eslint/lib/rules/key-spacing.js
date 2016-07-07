@@ -118,6 +118,8 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "whitespace",
+
         schema: [{
             anyOf: [
                 {
@@ -196,6 +198,8 @@ module.exports = {
             multiLineOptions = initOptions({}, (options.multiLine || options)),
             singleLineOptions = initOptions({}, (options.singleLine || options));
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Determines if the given property is key-value property.
          * @param {ASTNode} property Property node to check.
@@ -220,7 +224,7 @@ module.exports = {
 
             while (node && (node.type !== "Punctuator" || node.value !== ":")) {
                 prevNode = node;
-                node = context.getTokenAfter(node);
+                node = sourceCode.getTokenAfter(node);
             }
 
             return prevNode;
@@ -235,7 +239,7 @@ module.exports = {
         function getNextColon(node) {
 
             while (node && (node.type !== "Punctuator" || node.value !== ":")) {
-                node = context.getTokenAfter(node);
+                node = sourceCode.getTokenAfter(node);
             }
 
             return node;
@@ -250,7 +254,7 @@ module.exports = {
             var key = property.key;
 
             if (property.computed) {
-                return context.getSource().slice(key.range[0], key.range[1]);
+                return sourceCode.getText().slice(key.range[0], key.range[1]);
             }
 
             return property.key.name || property.key.value;
@@ -268,9 +272,16 @@ module.exports = {
          */
         function report(property, side, whitespace, expected, mode) {
             var diff = whitespace.length - expected,
-                key = property.key,
-                firstTokenAfterColon = context.getTokenAfter(getNextColon(key)),
-                location = side === "key" ? key.loc.start : firstTokenAfterColon.loc.start;
+                nextColon = getNextColon(property.key),
+                tokenBeforeColon = sourceCode.getTokenBefore(nextColon),
+                tokenAfterColon = sourceCode.getTokenAfter(nextColon),
+                isKeySide = side === "key",
+                locStart = isKeySide ? tokenBeforeColon.loc.start : tokenAfterColon.loc.start,
+                isExtra = diff > 0,
+                diffAbs = Math.abs(diff),
+                spaces = Array(diffAbs + 1).join(" "),
+                fix,
+                range;
 
             if ((
                 diff && mode === "strict" ||
@@ -278,10 +289,41 @@ module.exports = {
                 diff > 0 && !expected && mode === "minimum") &&
                 !(expected && containsLineTerminator(whitespace))
             ) {
-                context.report(property[side], location, messages[side], {
-                    error: diff > 0 ? "Extra" : "Missing",
-                    computed: property.computed ? "computed " : "",
-                    key: getKey(property)
+                if (isExtra) {
+
+                    // Remove whitespace
+                    if (isKeySide) {
+                        range = [tokenBeforeColon.end, tokenBeforeColon.end + diffAbs];
+                    } else {
+                        range = [tokenAfterColon.start - diffAbs, tokenAfterColon.start];
+                    }
+                    fix = function(fixer) {
+                        return fixer.removeRange(range);
+                    };
+                } else {
+
+                    // Add whitespace
+                    if (isKeySide) {
+                        fix = function(fixer) {
+                            return fixer.insertTextAfter(tokenBeforeColon, spaces);
+                        };
+                    } else {
+                        fix = function(fixer) {
+                            return fixer.insertTextBefore(tokenAfterColon, spaces);
+                        };
+                    }
+                }
+
+                context.report({
+                    node: property[side],
+                    loc: locStart,
+                    message: messages[side],
+                    data: {
+                        error: isExtra ? "Extra" : "Missing",
+                        computed: property.computed ? "computed " : "",
+                        key: getKey(property)
+                    },
+                    fix: fix
                 });
             }
         }
@@ -295,7 +337,7 @@ module.exports = {
         function getKeyWidth(property) {
             var startToken, endToken;
 
-            startToken = context.getFirstToken(property);
+            startToken = sourceCode.getFirstToken(property);
             endToken = getLastTokenBeforeColon(property.key);
 
             return endToken.range[1] - startToken.range[0];
@@ -307,7 +349,7 @@ module.exports = {
          * @returns {Object} Whitespace before and after the property's colon.
          */
         function getPropertyWhitespace(property) {
-            var whitespace = /(\s*):(\s*)/.exec(context.getSource().slice(
+            var whitespace = /(\s*):(\s*)/.exec(sourceCode.getText().slice(
                 property.key.range[1], property.value.range[0]
             ));
 

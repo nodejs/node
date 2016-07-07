@@ -22,13 +22,14 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         return {
             SwitchStatement: function(node) {
                 var mapping = {};
 
                 node.cases.forEach(function(switchCase) {
-                    var key = context.getSource(switchCase.test);
+                    var key = sourceCode.getText(switchCase.test);
 
                     if (mapping[key]) {
                         context.report(switchCase, "Duplicate case label.");

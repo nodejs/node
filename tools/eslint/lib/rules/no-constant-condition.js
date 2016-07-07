@@ -17,10 +17,23 @@ module.exports = {
             recommended: true
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    checkLoops: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+
+        ]
     },
 
     create: function(context) {
+        var options = context.options[0] || {},
+            checkLoops = options.checkLoops !== false;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -102,6 +115,18 @@ module.exports = {
             }
         }
 
+        /**
+         * Checks node when checkLoops option is enabled
+         * @param {ASTNode} node The AST node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkLoop(node) {
+            if (checkLoops) {
+                checkConstantCondition(node);
+            }
+        }
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
@@ -109,9 +134,9 @@ module.exports = {
         return {
             ConditionalExpression: checkConstantCondition,
             IfStatement: checkConstantCondition,
-            WhileStatement: checkConstantCondition,
-            DoWhileStatement: checkConstantCondition,
-            ForStatement: checkConstantCondition
+            WhileStatement: checkLoop,
+            DoWhileStatement: checkLoop,
+            ForStatement: checkLoop
         };
 
     }

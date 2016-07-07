@@ -59,7 +59,7 @@
   "directories": {},
   "dist": {
     "shasum": "bd968567d61635e33c0b80727613c9cb4b096bac",
-    "tarball": "http://registry.npmjs.org/es6-iterator/-/es6-iterator-2.0.0.tgz"
+    "tarball": "https://registry.npmjs.org/es6-iterator/-/es6-iterator-2.0.0.tgz"
   },
   "gitHead": "4d9445834e87780ab373b14d6791e860899e2d31",
   "homepage": "https://github.com/medikoo/es6-iterator#readme",

@@ -22,6 +22,7 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         /**
          * Will check that comments are not on lines starting with or ending with code
@@ -32,8 +33,8 @@ module.exports = {
         function testCodeAroundComment(node) {
 
             // Get the whole line and cut it off at the start of the comment
-            var startLine = String(context.getSourceLines()[node.loc.start.line - 1]);
-            var endLine = String(context.getSourceLines()[node.loc.end.line - 1]);
+            var startLine = String(sourceCode.lines[node.loc.start.line - 1]);
+            var endLine = String(sourceCode.lines[node.loc.end.line - 1]);
 
             var preamble = startLine.slice(0, node.loc.start.column).trim();
 
