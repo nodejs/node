@@ -24,7 +24,6 @@ var options = {
   requestCert: true
 };
 
-var reqCount = 0;
 var CRLF = '\r\n';
 var body = 'hello world\n';
 var cert;
@@ -33,7 +32,6 @@ var modulus;
 var exponent;
 
 var server = https.createServer(options, function(req, res) {
-  reqCount++;
   console.log('got request');
 
   cert = req.connection.getPeerCertificate();
