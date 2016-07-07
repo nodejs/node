@@ -89,11 +89,7 @@ function doTest(testOptions, callback) {
     var client = spawn(common.opensslCli, args, {
       stdio: [ 0, 1, 'pipe' ]
     });
-    var err = '';
     client.stderr.setEncoding('utf8');
-    client.stderr.on('data', function(chunk) {
-      err += chunk;
-    });
     client.on('exit', function(code) {
       console.error('done');
       assert.equal(code, 0);
