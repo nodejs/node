@@ -379,7 +379,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
 
   def __init__(self, cases, flaky_tests_mode):
     templates = {
-      'status_line': "[%(mins)02i:%(secs)02i|\033[34m%%%(remaining) 4d\033[0m|\033[32m+%(passed) 4d\033[0m|\033[31m-%(failed) 4d\033[0m]: %(test)s",
+      'status_line': "[%(mins)02i:%(secs)02i|\033[34m%%%(remaining)4d\033[0m|\033[32m+%(passed)4d\033[0m|\033[31m-%(failed)4d\033[0m]: %(test)s",
       'stdout': "\033[1m%s\033[0m",
       'stderr': "\033[31m%s\033[0m",
     }
@@ -393,7 +393,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
   def __init__(self, cases, flaky_tests_mode):
     templates = {
-      'status_line': "[%(mins)02i:%(secs)02i|%%%(remaining) 4d|+%(passed) 4d|-%(failed) 4d]: %(test)s",
+      'status_line': "[%(mins)02i:%(secs)02i|%%%(remaining)4d|+%(passed)4d|-%(failed)4d]: %(test)s",
       'stdout': '%s',
       'stderr': '%s',
       'clear': lambda last_line_length: ("\r" + (" " * last_line_length) + "\r"),

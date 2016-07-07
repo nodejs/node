@@ -215,10 +215,10 @@ if (cluster.isMaster) {
     const elapsed = process.hrtime(startTime)[0];
     const mins = padString(Math.floor(elapsed / 60), 2, '0');
     const secs = padString(elapsed % 60, 2, '0');
-    const passed = padString(successes, 6, ' ');
-    const failed = padString(failures, 6, ' ');
+    const passed = padString(successes, 4, ' ');
+    const failed = padString(failures, 4, ' ');
     var pct = Math.ceil(((totalPaths - paths.length) / totalPaths) * 100);
-    pct = padString(pct, 3, ' ');
+    pct = padString(pct, 4, ' ');
 
     var line = `[${mins}:${secs}|%${pct}|+${passed}|-${failed}]: ${curPath}`;
 
