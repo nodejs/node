@@ -81,7 +81,7 @@ any.
 
 ## Phases in Detail
 
-### **timers**
+### timers
 
 A timer specifies the **threshold** _after which_ a provided callback
 _may be executed_ rather than the **exact** time a person _wants it to
@@ -147,14 +147,14 @@ Note: To prevent the **poll** phase from starving the event loop, libuv
 also has a hard maximum (system dependent) before it stops polling for
 more events.
 
-### **I/O callbacks**
+### I/O callbacks
 
 This phase executes callbacks for some system operations such as types
 of TCP errors. For example if a TCP socket receives `ECONNREFUSED` when
 attempting to connect, some \*nix systems want to wait to report the
 error. This will be queued to execute in the **I/O callbacks** phase.
 
-### **poll**
+### poll
 
 The **poll** phase has two main functions:
 
@@ -184,7 +184,7 @@ _whose time thresholds have been reached_. If one or more timers are
 ready, the event loop will wrap back to the **timers** phase to execute
 those timers' callbacks.
 
-### **check**
+### check
 
 This phase allows a person to execute callbacks immediately after the
 **poll** phase has completed. If the **poll** phase becomes idle and
@@ -201,7 +201,7 @@ etc. However, if a callback has been scheduled with `setImmediate()`
 and the **poll** phase becomes idle, it will end and continue to the
 **check** phase rather than waiting for **poll** events.
 
-### **close callbacks**
+### close callbacks
 
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
 `'close'` event will be emitted in this phase. Otherwise it will be
