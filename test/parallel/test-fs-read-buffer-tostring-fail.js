@@ -1,6 +1,13 @@
 'use strict';
 
 const common = require('../common');
+
+const skipMessage = 'intensive toString tests due to memory confinements';
+if (!common.enoughTestMem) {
+  common.skip(skipMessage);
+  return;
+}
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
