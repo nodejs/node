@@ -19,6 +19,8 @@ module.exports = {
         }
     },
     create: function(context) {
+        var sourceCode = context.getSourceCode();
+
         return {
             Property: function(node) {
                 if (!node.computed) {
@@ -29,7 +31,7 @@ module.exports = {
                     nodeType = typeof key.value;
 
                 if (key.type === "Literal" && (nodeType === "string" || nodeType === "number")) {
-                    context.report(node, MESSAGE_UNNECESSARY_COMPUTED, { property: context.getSource(key) });
+                    context.report(node, MESSAGE_UNNECESSARY_COMPUTED, { property: sourceCode.getText(key) });
                 }
             }
         };

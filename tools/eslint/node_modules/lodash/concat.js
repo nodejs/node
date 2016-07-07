@@ -1,7 +1,7 @@
-var arrayConcat = require('./_arrayConcat'),
+var arrayPush = require('./_arrayPush'),
     baseFlatten = require('./_baseFlatten'),
-    castArray = require('./castArray'),
-    copyArray = require('./_copyArray');
+    copyArray = require('./_copyArray'),
+    isArray = require('./isArray');
 
 /**
  * Creates a new array concatenating `array` with any additional arrays
@@ -27,16 +27,16 @@ var arrayConcat = require('./_arrayConcat'),
  */
 function concat() {
   var length = arguments.length,
-      array = castArray(arguments[0]);
+      args = Array(length ? length - 1 : 0),
+      array = arguments[0],
+      index = length;
 
-  if (length < 2) {
-    return length ? copyArray(array) : [];
+  while (index--) {
+    args[index - 1] = arguments[index];
   }
-  var args = Array(length - 1);
-  while (length--) {
-    args[length - 1] = arguments[length];
-  }
-  return arrayConcat(array, baseFlatten(args, 1));
+  return length
+    ? arrayPush(isArray(array) ? copyArray(array) : [array], baseFlatten(args, 1))
+    : [];
 }
 
 module.exports = concat;

@@ -2,7 +2,7 @@ var apply = require('./_apply'),
     createCtorWrapper = require('./_createCtorWrapper'),
     createHybridWrapper = require('./_createHybridWrapper'),
     createRecurryWrapper = require('./_createRecurryWrapper'),
-    getPlaceholder = require('./_getPlaceholder'),
+    getHolder = require('./_getHolder'),
     replaceHolders = require('./_replaceHolders'),
     root = require('./_root');
 
@@ -23,7 +23,7 @@ function createCurryWrapper(func, bitmask, arity) {
     var length = arguments.length,
         args = Array(length),
         index = length,
-        placeholder = getPlaceholder(wrapper);
+        placeholder = getHolder(wrapper);
 
     while (index--) {
       args[index] = arguments[index];

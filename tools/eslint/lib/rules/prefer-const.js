@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 var Map = require("es6-map");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -62,45 +63,72 @@ function canBecomeVariableDeclaration(identifier) {
 }
 
 /**
- * Gets the WriteReference of a given variable if the variable should be
- * declared as const.
+ * Gets an identifier node of a given variable.
+ *
+ * If the initialization exists or one or more reading references exist before
+ * the first assignment, the identifier node is the node of the declaration.
+ * Otherwise, the identifier node is the node of the first assignment.
+ *
+ * If the variable should not change to const, this function returns null.
+ * - If the variable is reassigned.
+ * - If the variable is never initialized and assigned.
+ * - If the variable is initialized in a different scope from the declaration.
+ * - If the unique assignment of the variable cannot change to a declaration.
  *
  * @param {escope.Variable} variable - A variable to get.
- * @returns {escope.Reference|null} The singular WriteReference or null.
+ * @param {boolean} ignoreReadBeforeAssign -
+ *      The value of `ignoreReadBeforeAssign` option.
+ * @returns {ASTNode|null}
+ *      An Identifier node if the variable should change to const.
+ *      Otherwise, null.
  */
-function getWriteReferenceIfShouldBeConst(variable) {
+function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
     if (variable.eslintUsed) {
         return null;
     }
 
-    // Finds the singular WriteReference.
-    var retv = null;
+    // Finds the unique WriteReference.
+    var writer = null;
+    var isReadBeforeInit = false;
     var references = variable.references;
 
     for (var i = 0; i < references.length; ++i) {
         var reference = references[i];
 
         if (reference.isWrite()) {
-            var isReassigned = Boolean(
-                retv && retv.identifier !== reference.identifier
+            var isReassigned = (
+                writer !== null &&
+                writer.identifier !== reference.identifier
             );
 
             if (isReassigned) {
                 return null;
             }
-            retv = reference;
+            writer = reference;
+
+        } else if (reference.isRead() && writer === null) {
+            if (ignoreReadBeforeAssign) {
+                return null;
+            }
+            isReadBeforeInit = true;
         }
     }
 
-    // Checks the writer is located in the same scope and can be modified to
-    // const.
-    var isSameScopeAndCanBecomeVariableDeclaration = Boolean(
-        retv &&
-        retv.from === variable.scope &&
-        canBecomeVariableDeclaration(retv.identifier)
+    // If the assignment is from a different scope, ignore it.
+    // If the assignment cannot change to a declaration, ignore it.
+    var shouldBeConst = (
+        writer !== null &&
+        writer.from === variable.scope &&
+        canBecomeVariableDeclaration(writer.identifier)
     );
 
-    return isSameScopeAndCanBecomeVariableDeclaration ? retv : null;
+    if (!shouldBeConst) {
+        return null;
+    }
+    if (isReadBeforeInit) {
+        return variable.defs[0].name;
+    }
+    return writer.identifier;
 }
 
 /**
@@ -136,15 +164,17 @@ function getDestructuringHost(reference) {
  * destructuring.
  *
  * @param {escope.Variable[]} variables - Variables to group by destructuring.
- * @returns {Map<ASTNode, (escope.Reference|null)[]>} Grouped references.
+ * @param {boolean} ignoreReadBeforeAssign -
+ *      The value of `ignoreReadBeforeAssign` option.
+ * @returns {Map<ASTNode, ASTNode[]>} Grouped identifier nodes.
  */
-function groupByDestructuring(variables) {
-    var writersMap = new Map();
+function groupByDestructuring(variables, ignoreReadBeforeAssign) {
+    var identifierMap = new Map();
 
     for (var i = 0; i < variables.length; ++i) {
         var variable = variables[i];
         var references = variable.references;
-        var writer = getWriteReferenceIfShouldBeConst(variable);
+        var identifier = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
         var prevId = null;
 
         for (var j = 0; j < references.length; ++j) {
@@ -158,20 +188,38 @@ function groupByDestructuring(variables) {
             }
             prevId = id;
 
-            // Add the writer into the destructuring group.
+            // Add the identifier node into the destructuring group.
             var group = getDestructuringHost(reference);
 
             if (group) {
-                if (writersMap.has(group)) {
-                    writersMap.get(group).push(writer);
+                if (identifierMap.has(group)) {
+                    identifierMap.get(group).push(identifier);
                 } else {
-                    writersMap.set(group, [writer]);
+                    identifierMap.set(group, [identifier]);
                 }
             }
         }
     }
 
-    return writersMap;
+    return identifierMap;
+}
+
+/**
+ * Finds the nearest parent of node with a given type.
+ *
+ * @param {ASTNode} node – The node to search from.
+ * @param {string} type – The type field of the parent node.
+ * @param {function} shouldStop – a predicate that returns true if the traversal should stop, and false otherwise.
+ * @returns {ASTNode} The closest ancestor with the specified type; null if no such ancestor exists.
+ */
+function findUp(node, type, shouldStop) {
+    if (!node || shouldStop(node)) {
+        return null;
+    }
+    if (node.type === type) {
+        return node;
+    }
+    return findUp(node.parent, type, shouldStop);
 }
 
 //------------------------------------------------------------------------------
@@ -186,11 +234,14 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "code",
+
         schema: [
             {
                 type: "object",
                 properties: {
-                    destructuring: {enum: ["any", "all"]}
+                    destructuring: {enum: ["any", "all"]},
+                    ignoreReadBeforeAssign: {type: "boolean"}
                 },
                 additionalProperties: false
             }
@@ -200,22 +251,64 @@ module.exports = {
     create: function(context) {
         var options = context.options[0] || {};
         var checkingMixedDestructuring = options.destructuring !== "all";
+        var ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         var variables = null;
 
         /**
-         * Reports a given reference.
+         * Reports a given Identifier node.
          *
-         * @param {escope.Reference} reference - A reference to report.
+         * @param {ASTNode} node - An Identifier node to report.
          * @returns {void}
          */
-        function report(reference) {
-            var id = reference.identifier;
+        function report(node) {
+            var reportArgs = {
+                    node: node,
+                    message: "'{{name}}' is never reassigned. Use 'const' instead.",
+                    data: node
+                },
+                varDeclParent = findUp(node, "VariableDeclaration", function(parentNode) {
+                    return lodash.endsWith(parentNode.type, "Statement");
+                }),
+                isNormalVarDecl = (node.parent.parent.parent.type === "ForInStatement" ||
+                        node.parent.parent.parent.type === "ForOfStatement" ||
+                        node.parent.init),
 
-            context.report({
-                node: id,
-                message: "'{{name}}' is never reassigned, use 'const' instead.",
-                data: id
-            });
+                isDestructuringVarDecl =
+
+                    // {let {a} = obj} should be written as {const {a} = obj}
+                    (node.parent.parent.type === "ObjectPattern" &&
+
+                        // If options.destucturing is "all", then this warning will not occur unless
+                        // every assignment in the destructuring should be const. In that case, it's safe
+                        // to apply the fix. Otherwise, it's safe to apply the fix if there's only one
+                        // assignment occurring. If there is more than one assignment and options.destructuring
+                        // is not "all", then it's not clear how the developer would want to resolve the issue,
+                        // so we should not attempt to do it programmatically.
+                        (options.destructuring === "all" || node.parent.parent.properties.length === 1)) ||
+
+                    // {let [a] = [1]} should be written as {const [a] = [1]}
+                    (node.parent.type === "ArrayPattern" &&
+
+                        // See note above about fixing multiple warnings at once.
+                        (options.destructuring === "all" || node.parent.elements.length === 1));
+
+            if (varDeclParent &&
+                    (isNormalVarDecl || isDestructuringVarDecl) &&
+
+                    // If there are multiple variable declarations, like {let a = 1, b = 2}, then
+                    // do not attempt to fix if one of the declarations should be `const`. It's
+                    // too hard to know how the developer would want to automatically resolve the issue.
+                    varDeclParent.declarations.length === 1) {
+
+                reportArgs.fix = function(fixer) {
+                    return fixer.replaceTextRange(
+                        [varDeclParent.start, varDeclParent.start + "let".length],
+                        "const"
+                    );
+                };
+            }
+
+            context.report(reportArgs);
         }
 
         /**
@@ -225,30 +318,30 @@ module.exports = {
          * @returns {void}
          */
         function checkVariable(variable) {
-            var writer = getWriteReferenceIfShouldBeConst(variable);
+            var node = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
 
-            if (writer) {
-                report(writer);
+            if (node) {
+                report(node);
             }
         }
 
         /**
-         * Reports given references if all of the reference should be declared as
-         * const.
+         * Reports given identifier nodes if all of the nodes should be declared
+         * as const.
          *
-         * The argument 'writers' is an array of references.
-         * This reference is the result of
-         * 'getWriteReferenceIfShouldBeConst(variable)', so it's nullable.
-         * In simple declaration or assignment cases, the length of the array is 1.
-         * In destructuring cases, the length of the array can be 2 or more.
+         * The argument 'nodes' is an array of Identifier nodes.
+         * This node is the result of 'getIdentifierIfShouldBeConst()', so it's
+         * nullable. In simple declaration or assignment cases, the length of
+         * the array is 1. In destructuring cases, the length of the array can
+         * be 2 or more.
          *
-         * @param {(escope.Reference|null)[]} writers - References which are grouped
-         *      by destructuring to report.
+         * @param {(escope.Reference|null)[]} nodes -
+         *      References which are grouped by destructuring to report.
          * @returns {void}
          */
-        function checkGroup(writers) {
-            if (writers.every(Boolean)) {
-                writers.forEach(report);
+        function checkGroup(nodes) {
+            if (nodes.every(Boolean)) {
+                nodes.forEach(report);
             }
         }
 
@@ -261,7 +354,8 @@ module.exports = {
                 if (checkingMixedDestructuring) {
                     variables.forEach(checkVariable);
                 } else {
-                    groupByDestructuring(variables).forEach(checkGroup);
+                    groupByDestructuring(variables, ignoreReadBeforeAssign)
+                        .forEach(checkGroup);
                 }
 
                 variables = null;

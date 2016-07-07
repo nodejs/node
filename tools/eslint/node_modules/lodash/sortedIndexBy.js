@@ -18,13 +18,13 @@ var baseIteratee = require('./_baseIteratee'),
  *  into `array`.
  * @example
  *
- * var dict = { 'thirty': 30, 'forty': 40, 'fifty': 50 };
+ * var objects = [{ 'x': 4 }, { 'x': 5 }];
  *
- * _.sortedIndexBy(['thirty', 'fifty'], 'forty', _.propertyOf(dict));
- * // => 1
+ * _.sortedIndexBy(objects, { 'x': 4 }, function(o) { return o.x; });
+ * // => 0
  *
  * // The `_.property` iteratee shorthand.
- * _.sortedIndexBy([{ 'x': 4 }, { 'x': 5 }], { 'x': 4 }, 'x');
+ * _.sortedIndexBy(objects, { 'x': 4 }, 'x');
  * // => 0
  */
 function sortedIndexBy(array, value, iteratee) {

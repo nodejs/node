@@ -14,7 +14,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `javascript",
+            description: "disallow `javascript:` urls",
             category: "Best Practices",
             recommended: false
         },

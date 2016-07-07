@@ -14,11 +14,12 @@ var arrayFilter = require('./_arrayFilter'),
  * @since 2.4.0
  * @category Array
  * @param {...Array} [arrays] The arrays to inspect.
- * @returns {Array} Returns the new array of values.
+ * @returns {Array} Returns the new array of filtered values.
+ * @see _.difference, _.without
  * @example
  *
- * _.xor([2, 1], [4, 2]);
- * // => [1, 4]
+ * _.xor([2, 1], [2, 3]);
+ * // => [1, 3]
  */
 var xor = rest(function(arrays) {
   return baseXor(arrayFilter(arrays, isArrayLikeObject));

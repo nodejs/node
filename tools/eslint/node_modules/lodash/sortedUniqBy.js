@@ -1,5 +1,5 @@
 var baseIteratee = require('./_baseIteratee'),
-    baseSortedUniqBy = require('./_baseSortedUniqBy');
+    baseSortedUniq = require('./_baseSortedUniq');
 
 /**
  * This method is like `_.uniqBy` except that it's designed and optimized
@@ -19,7 +19,7 @@ var baseIteratee = require('./_baseIteratee'),
  */
 function sortedUniqBy(array, iteratee) {
   return (array && array.length)
-    ? baseSortedUniqBy(array, baseIteratee(iteratee))
+    ? baseSortedUniq(array, baseIteratee(iteratee))
     : [];
 }
 

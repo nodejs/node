@@ -23,7 +23,8 @@ var RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
     RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
         map[value] = index;
         return map;
-    }, {});
+    }, {}),
+    VALID_SEVERITIES = [0, 1, 2, "off", "warn", "error"];
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -248,6 +249,30 @@ module.exports = {
         }
 
         return (typeof severity === "number" && severity === 2);
-    }
+    },
 
+    /**
+     * Checks whether a given config has valid severity or not.
+     * @param {number|string|Array} ruleConfig - The configuration for an individual rule.
+     * @returns {boolean} `true` if the configuration has valid severity.
+     */
+    isValidSeverity: function(ruleConfig) {
+        var severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
+
+        if (typeof severity === "string") {
+            severity = severity.toLowerCase();
+        }
+        return VALID_SEVERITIES.indexOf(severity) !== -1;
+    },
+
+    /**
+     * Checks whether every rule of a given config has valid severity or not.
+     * @param {object} config - The configuration for rules.
+     * @returns {boolean} `true` if the configuration has valid severity.
+     */
+    isEverySeverityValid: function(config) {
+        return Object.keys(config).every(function(ruleId) {
+            return this.isValidSeverity(config[ruleId]);
+        }, this);
+    }
 };

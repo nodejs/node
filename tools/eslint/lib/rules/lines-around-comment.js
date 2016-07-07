@@ -8,7 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
+var lodash = require("lodash"),
+    astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -51,16 +52,6 @@ function getCommentLineNums(comments) {
     return lines;
 }
 
-/**
- * Determines if a value is an array.
- * @param {number} val The value we wish to check for in the array..
- * @param {Array} array An array.
- * @returns {boolean} True if the value is in the array..
- */
-function contains(val, array) {
-    return array.indexOf(val) > -1;
-}
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -72,6 +63,8 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
+
+        fixable: "whitespace",
 
         schema: [
             {
@@ -126,6 +119,22 @@ module.exports = {
 
         var sourceCode = context.getSourceCode();
 
+        var lines = sourceCode.lines,
+            numLines = lines.length + 1,
+            comments = sourceCode.getAllComments(),
+            commentLines = getCommentLineNums(comments),
+            emptyLines = getEmptyLineNums(lines),
+            commentAndEmptyLines = commentLines.concat(emptyLines);
+
+        /**
+         * Returns whether or not a token is a comment node type
+         * @param {Token} token The token to check
+         * @returns {boolean} True if the token is a comment node
+         */
+        function isCommentNodeType(token) {
+            return token && (token.type === "Block" || token.type === "Line");
+        }
+
         /**
          * Returns whether or not comments are on lines starting with or ending with code
          * @param {ASTNode} node The comment node to check.
@@ -137,18 +146,18 @@ module.exports = {
             token = node;
             do {
                 token = sourceCode.getTokenOrCommentBefore(token);
-            } while (token && (token.type === "Block" || token.type === "Line"));
+            } while (isCommentNodeType(token));
 
-            if (token && token.loc.end.line === node.loc.start.line) {
+            if (token && astUtils.isTokenOnSameLine(token, node)) {
                 return true;
             }
 
             token = node;
             do {
                 token = sourceCode.getTokenOrCommentAfter(token);
-            } while (token && (token.type === "Block" || token.type === "Line"));
+            } while (isCommentNodeType(token));
 
-            if (token && token.loc.start.line === node.loc.end.line) {
+            if (token && astUtils.isTokenOnSameLine(node, token)) {
                 return true;
             }
 
@@ -267,14 +276,6 @@ module.exports = {
          * @returns {void}
          */
         function checkForEmptyLine(node, opts) {
-
-            var lines = context.getSourceLines(),
-                numLines = lines.length + 1,
-                comments = context.getAllComments(),
-                commentLines = getCommentLineNums(comments),
-                emptyLines = getEmptyLineNums(lines),
-                commentAndEmptyLines = commentLines.concat(emptyLines);
-
             var after = opts.after,
                 before = opts.before;
 
@@ -305,14 +306,34 @@ module.exports = {
                 return;
             }
 
+            var previousTokenOrComment = sourceCode.getTokenOrCommentBefore(node);
+            var nextTokenOrComment = sourceCode.getTokenOrCommentAfter(node);
+
             // check for newline before
-            if (!exceptionStartAllowed && before && !contains(prevLineNum, commentAndEmptyLines)) {
-                context.report(node, "Expected line before comment.");
+            if (!exceptionStartAllowed && before && !lodash.includes(commentAndEmptyLines, prevLineNum) &&
+                    !(isCommentNodeType(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, node))) {
+                var lineStart = node.range[0] - node.loc.start.column;
+                var range = [lineStart, lineStart];
+
+                context.report({
+                    node: node,
+                    message: "Expected line before comment.",
+                    fix: function(fixer) {
+                        return fixer.insertTextBeforeRange(range, "\n");
+                    }
+                });
             }
 
             // check for newline after
-            if (!exceptionEndAllowed && after && !contains(nextLineNum, commentAndEmptyLines)) {
-                context.report(node, "Expected line after comment.");
+            if (!exceptionEndAllowed && after && !lodash.includes(commentAndEmptyLines, nextLineNum) &&
+                    !(isCommentNodeType(nextTokenOrComment) && astUtils.isTokenOnSameLine(node, nextTokenOrComment))) {
+                context.report({
+                    node: node,
+                    message: "Expected line after comment.",
+                    fix: function(fixer) {
+                        return fixer.insertTextAfter(node, "\n");
+                    }
+                });
             }
 
         }

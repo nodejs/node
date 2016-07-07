@@ -17,7 +17,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  * @since 4.0.0
  * @category Util
  * @param {Array} pairs The predicate-function pairs.
- * @returns {Function} Returns the new function.
+ * @returns {Function} Returns the new composite function.
  * @example
  *
  * var func = _.cond([

@@ -621,7 +621,9 @@ var pluginsLoose = {};
 exports.pluginsLoose = pluginsLoose;
 
 var LooseParser = (function () {
-  function LooseParser(input, options) {
+  function LooseParser(input) {
+    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
     _classCallCheck(this, LooseParser);
 
     this.toks = _.tokenizer(input, options);
@@ -1100,7 +1102,7 @@ lp.parseExport = function () {
   var node = this.startNode();
   this.next();
   if (this.eat(_.tokTypes.star)) {
-    node.source = this.eatContextual("from") ? this.parseExprAtom() : null;
+    node.source = this.eatContextual("from") ? this.parseExprAtom() : this.dummyString();
     return this.finishNode(node, "ExportAllDeclaration");
   }
   if (this.eat(_.tokTypes._default)) {
@@ -1158,7 +1160,7 @@ lp.parseImportSpecifierList = function () {
   if (this.tok.type === _.tokTypes.star) {
     var elt = this.startNode();
     this.next();
-    if (this.eatContextual("as")) elt.local = this.parseIdent();
+    elt.local = this.eatContextual("as") ? this.parseIdent() : this.dummyIdent();
     elts.push(this.finishNode(elt, "ImportNamespaceSpecifier"));
   } else {
     var indent = this.curIndent,
