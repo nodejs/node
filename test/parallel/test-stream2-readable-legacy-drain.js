@@ -19,10 +19,8 @@ r.on('end', function() {
 
 var w = new Stream();
 w.writable = true;
-var writes = 0;
 var buffered = 0;
 w.write = function(c) {
-  writes += c.length;
   buffered += c.length;
   process.nextTick(drain);
   return false;
