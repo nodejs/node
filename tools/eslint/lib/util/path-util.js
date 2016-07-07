@@ -8,8 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var path = require("path"),
-    isAbsolute = require("path-is-absolute");
+var path = require("path");
 
 //------------------------------------------------------------------------------
 // Private
@@ -51,11 +50,11 @@ function convertPathToPosix(filepath) {
 function getRelativePath(filepath, baseDir) {
     var relativePath;
 
-    if (!isAbsolute(filepath)) {
+    if (!path.isAbsolute(filepath)) {
         filepath = path.resolve(filepath);
     }
     if (baseDir) {
-        if (!isAbsolute(baseDir)) {
+        if (!path.isAbsolute(baseDir)) {
             throw new Error("baseDir should be an absolute path");
         }
         relativePath = path.relative(baseDir, filepath);

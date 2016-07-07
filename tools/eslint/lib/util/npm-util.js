@@ -11,7 +11,8 @@
 
 var fs = require("fs"),
     path = require("path"),
-    shell = require("shelljs");
+    shell = require("shelljs"),
+    log = require("../logging");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -69,11 +70,18 @@ function installSyncSaveDev(packages) {
 function check(packages, opt) {
     var deps = [];
     var pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
+    var fileJson;
 
     if (!pkgJson) {
         throw new Error("Could not find a package.json file. Run 'npm init' to create one.");
     }
-    var fileJson = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
+
+    try {
+        fileJson = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
+    } catch (e) {
+        log.info("Could not read package.json file. Please check that the file contains valid JSON.");
+        throw new Error(e);
+    }
 
     if (opt.devDependencies && typeof fileJson.devDependencies === "object") {
         deps = deps.concat(Object.keys(fileJson.devDependencies));
@@ -116,6 +124,16 @@ function checkDevDeps(packages) {
     return check(packages, {devDependencies: true});
 }
 
+/**
+ * Check whether package.json is found in current path.
+ *
+ * @param   {string=} startDir Starting directory
+ * @returns {boolean} Whether a package.json is found in current path.
+ */
+function checkPackageJson(startDir) {
+    return !!findPackageJson(startDir);
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -123,5 +141,6 @@ function checkDevDeps(packages) {
 module.exports = {
     installSyncSaveDev: installSyncSaveDev,
     checkDeps: checkDeps,
-    checkDevDeps: checkDevDeps
+    checkDevDeps: checkDevDeps,
+    checkPackageJson: checkPackageJson
 };

@@ -52,7 +52,7 @@
   "directories": {},
   "dist": {
     "shasum": "04e6926f662895354f3dd015203633b857297e2c",
-    "tarball": "http://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.3.tgz"
+    "tarball": "https://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.3.tgz"
   },
   "gitHead": "747b806c2dab5b64d5c9958c42884946a187c3b1",
   "homepage": "https://github.com/alexei/sprintf.js#readme",

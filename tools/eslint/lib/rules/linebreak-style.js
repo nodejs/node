@@ -31,6 +31,8 @@ module.exports = {
         var EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
             EXPECTED_CRLF_MSG = "Expected linebreaks to be 'CRLF' but found 'LF'.";
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -57,7 +59,7 @@ module.exports = {
                 var linebreakStyle = context.options[0] || "unix",
                     expectedLF = linebreakStyle === "unix",
                     expectedLFChars = expectedLF ? "\n" : "\r\n",
-                    source = context.getSource(),
+                    source = sourceCode.getText(),
                     pattern = /\r\n|\r|\n|\u2028|\u2029/g,
                     match,
                     index,
@@ -77,7 +79,7 @@ module.exports = {
                         node: node,
                         loc: {
                             line: i,
-                            column: context.getSourceLines()[i - 1].length
+                            column: sourceCode.lines[i - 1].length
                         },
                         message: expectedLF ? EXPECTED_LF_MSG : EXPECTED_CRLF_MSG,
                         fix: createFix(range, expectedLFChars)

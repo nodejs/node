@@ -22,6 +22,11 @@ module.exports = {
   'propertyOf': require('./propertyOf'),
   'range': require('./range'),
   'rangeRight': require('./rangeRight'),
+  'stubArray': require('./stubArray'),
+  'stubFalse': require('./stubFalse'),
+  'stubObject': require('./stubObject'),
+  'stubString': require('./stubString'),
+  'stubTrue': require('./stubTrue'),
   'times': require('./times'),
   'toPath': require('./toPath'),
   'uniqueId': require('./uniqueId')

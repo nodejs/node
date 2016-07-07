@@ -52,6 +52,26 @@ module.exports = {
             return option;
         }(context.options[0]));
 
+        var sourceCode = context.getSourceCode();
+
+        /**
+         * Gets `*` token from a given node.
+         *
+         * @param {ASTNode} node - A node to get `*` token. This is one of
+         *      FunctionDeclaration, FunctionExpression, Property, and
+         *      MethodDefinition.
+         * @returns {Token} `*` token.
+         */
+        function getStarToken(node) {
+            var token = sourceCode.getFirstToken(node);
+
+            while (token.value !== "*") {
+                token = sourceCode.getTokenAfter(token);
+            }
+
+            return token;
+        }
+
         /**
          * Checks the spacing between two tokens before or after the star token.
          * @param {string} side Either "before" or "after".
@@ -98,18 +118,18 @@ module.exports = {
             }
 
             if (node.parent.method || node.parent.type === "MethodDefinition") {
-                starToken = context.getTokenBefore(node, 1);
+                starToken = getStarToken(node.parent);
             } else {
-                starToken = context.getFirstToken(node, 1);
+                starToken = getStarToken(node);
             }
 
-            // Only check before when preceded by `function` keyword
-            prevToken = context.getTokenBefore(starToken);
+            // Only check before when preceded by `function`|`static` keyword
+            prevToken = sourceCode.getTokenBefore(starToken);
             if (prevToken.value === "function" || prevToken.value === "static") {
                 checkSpacing("before", prevToken, starToken);
             }
 
-            nextToken = context.getTokenAfter(starToken);
+            nextToken = sourceCode.getTokenAfter(starToken);
             checkSpacing("after", starToken, nextToken);
         }
 

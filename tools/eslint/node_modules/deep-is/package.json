@@ -52,7 +52,7 @@
   },
   "dist": {
     "shasum": "b369d6fb5dbc13eecf524f91b070feedc357cf34",
-    "tarball": "http://registry.npmjs.org/deep-is/-/deep-is-0.1.3.tgz"
+    "tarball": "https://registry.npmjs.org/deep-is/-/deep-is-0.1.3.tgz"
   },
   "gitHead": "f126057628423458636dec9df3d621843b9ac55e",
   "homepage": "https://github.com/thlorenz/deep-is",
