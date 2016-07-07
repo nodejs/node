@@ -3,7 +3,6 @@ require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var request_number = 0;
 var requests_sent = 0;
 var requests_done = 0;
 var options = {
@@ -24,7 +23,6 @@ var server = http.createServer(function(req, res) {
     res.write(reqid.toString());
     res.end();
   }
-  request_number += 1;
 });
 
 server.listen(0, options.host, function() {
