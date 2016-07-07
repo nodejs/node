@@ -6,7 +6,6 @@ var port = 12346;
 var n = 700;
 var bytes = 1024 * 5;
 
-var requests = 0;
 var responses = 0;
 
 var body = 'C'.repeat(bytes);
@@ -37,6 +36,5 @@ server.listen(port, function() {
       });
     });
     req.id = i;
-    requests++;
   }
 });

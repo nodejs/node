@@ -26,9 +26,6 @@ var server = net.createServer(function(stream) {
 server.listen(common.PORT, function() {
   var conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
-  conn.on('data', function(chunk) {
-    buffer += chunk;
-  });
 
   conn.on('end', function() {
     conn.end();
@@ -38,8 +35,6 @@ server.listen(common.PORT, function() {
     conn_closed = true;
   });
 });
-
-var buffer = '';
 
 process.on('exit', function() {
   assert.equal(true, got_error);
