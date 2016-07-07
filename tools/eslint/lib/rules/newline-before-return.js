@@ -133,32 +133,17 @@ module.exports = {
             return (lineNumNode - lineNumTokenBefore - commentLines) > 1;
         }
 
-        /**
-         * Reports expected/unexpected newline before return statement
-         * @param {ASTNode} node - the node to report in the event of an error
-         * @param {boolean} isExpected - whether the newline is expected or not
-         * @returns {void}
-         * @private
-         */
-        function reportError(node, isExpected) {
-            var expected = isExpected ? "Expected" : "Unexpected";
-
-            context.report({
-                node: node,
-                message: expected + " newline before return statement."
-            });
-        }
-
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
             ReturnStatement: function(node) {
-                if (isFirstNode(node) && hasNewlineBefore(node)) {
-                    reportError(node, false);
-                } else if (!isFirstNode(node) && !hasNewlineBefore(node)) {
-                    reportError(node, true);
+                if (!isFirstNode(node) && !hasNewlineBefore(node)) {
+                    context.report({
+                        node: node,
+                        message: "Expected newline before return statement."
+                    });
                 }
             }
         };

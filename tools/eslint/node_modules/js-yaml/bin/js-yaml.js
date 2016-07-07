@@ -129,6 +129,4 @@ readFile(options.file, 'utf8', function (error, input) {
 
   if (isYaml) console.log(JSON.stringify(output, null, '  '));
   else console.log(yaml.dump(output));
-
-  process.exit(0);
 });

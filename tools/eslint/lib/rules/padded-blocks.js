@@ -17,6 +17,8 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "whitespace",
+
         schema: [
             {
                 oneOf: [
@@ -164,6 +166,9 @@ module.exports = {
                     context.report({
                         node: node,
                         loc: { line: openBrace.loc.start.line, column: openBrace.loc.start.column },
+                        fix: function(fixer) {
+                            return fixer.insertTextAfter(openBrace, "\n");
+                        },
                         message: ALWAYS_MESSAGE
                     });
                 }
@@ -171,23 +176,36 @@ module.exports = {
                     context.report({
                         node: node,
                         loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
+                        fix: function(fixer) {
+                            return fixer.insertTextBefore(closeBrace, "\n");
+                        },
                         message: ALWAYS_MESSAGE
                     });
                 }
             } else {
                 if (blockHasTopPadding) {
+                    var nextToken = sourceCode.getTokenOrCommentAfter(openBrace);
+
                     context.report({
                         node: node,
                         loc: { line: openBrace.loc.start.line, column: openBrace.loc.start.column },
+                        fix: function(fixer) {
+                            return fixer.replaceTextRange([openBrace.end, nextToken.start - nextToken.loc.start.column], "\n");
+                        },
                         message: NEVER_MESSAGE
                     });
                 }
 
                 if (blockHasBottomPadding) {
+                    var previousToken = sourceCode.getTokenOrCommentBefore(closeBrace);
+
                     context.report({
                         node: node,
                         loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
-                        message: NEVER_MESSAGE
+                        message: NEVER_MESSAGE,
+                        fix: function(fixer) {
+                            return fixer.replaceTextRange([previousToken.end, closeBrace.start - closeBrace.loc.start.column], "\n");
+                        }
                     });
                 }
             }

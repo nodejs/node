@@ -67,6 +67,10 @@ module.exports = {
                                 }
                             }
                         ]
+                    },
+                    outerIIFEBody: {
+                        type: "integer",
+                        minimum: 0
                     }
                 },
                 additionalProperties: false
@@ -87,8 +91,11 @@ module.exports = {
                 var: DEFAULT_VARIABLE_INDENT,
                 let: DEFAULT_VARIABLE_INDENT,
                 const: DEFAULT_VARIABLE_INDENT
-            }
+            },
+            outerIIFEBody: null
         };
+
+        var sourceCode = context.getSourceCode();
 
         if (context.options.length) {
             if (context.options[0] === "tab") {
@@ -113,6 +120,10 @@ module.exports = {
                     };
                 } else if (typeof variableDeclaratorRules === "object") {
                     lodash.assign(options.VariableDeclarator, variableDeclaratorRules);
+                }
+
+                if (typeof opts.outerIIFEBody === "number") {
+                    options.outerIIFEBody = opts.outerIIFEBody;
                 }
             }
         }
@@ -206,15 +217,15 @@ module.exports = {
         }
 
         /**
-         * Get node indent
+         * Get the actual indent of node
          * @param {ASTNode|Token} node Node to examine
          * @param {boolean} [byLastLine=false] get indent of node's last line
          * @param {boolean} [excludeCommas=false] skip comma on start of line
          * @returns {int} Indent
          */
         function getNodeIndent(node, byLastLine, excludeCommas) {
-            var token = byLastLine ? context.getLastToken(node) : context.getFirstToken(node);
-            var src = context.getSource(token, token.loc.start.column);
+            var token = byLastLine ? sourceCode.getLastToken(node) : sourceCode.getFirstToken(node);
+            var src = sourceCode.getText(token, token.loc.start.column);
             var regExp = excludeCommas ? indentPattern.excludeCommas : indentPattern.normal;
             var indent = regExp.exec(src);
 
@@ -228,7 +239,7 @@ module.exports = {
          * @returns {boolean} true if its the first in the its start line
          */
         function isNodeFirstInLine(node, byEndLocation) {
-            var firstToken = byEndLocation === true ? context.getLastToken(node, 1) : context.getTokenBefore(node),
+            var firstToken = byEndLocation === true ? sourceCode.getLastToken(node, 1) : sourceCode.getTokenBefore(node),
                 startLine = byEndLocation === true ? node.loc.end.line : node.loc.start.line,
                 endLine = firstToken ? firstToken.loc.end.line : -1;
 
@@ -263,7 +274,7 @@ module.exports = {
         function checkNodesIndent(nodes, indent, excludeCommas) {
             nodes.forEach(function(node) {
                 if (node.type === "IfStatement" && node.alternate) {
-                    var elseToken = context.getTokenBefore(node.alternate);
+                    var elseToken = sourceCode.getTokenBefore(node.alternate);
 
                     checkNodeIndent(elseToken, indent, excludeCommas);
                 }
@@ -278,7 +289,7 @@ module.exports = {
          * @returns {void}
          */
         function checkLastNodeLineIndent(node, lastLineIndent) {
-            var lastToken = context.getLastToken(node);
+            var lastToken = sourceCode.getLastToken(node);
             var endIndent = getNodeIndent(lastToken, true);
 
             if (endIndent !== lastLineIndent && isNodeFirstInLine(node, true)) {
@@ -356,9 +367,25 @@ module.exports = {
             return false;
         }
 
+		/**
+         * Check to see if the node is a file level IIFE
+         * @param {ASTNode} node The function node to check.
+         * @returns {boolean} True if the node is the outer IIFE
+         */
+        function isOuterIIFE(node) {
+            var parent = node.parent;
+
+            return (
+                parent.type === "CallExpression" &&
+                parent.callee === node &&
+                parent.parent.type === "ExpressionStatement" &&
+                parent.parent.parent && parent.parent.parent.type === "Program"
+            );
+        }
+
         /**
          * Check indent for function block content
-         * @param {ASTNode} node node to examine
+         * @param {ASTNode} node A BlockStatement node that is inside of a function.
          * @returns {void}
          */
         function checkIndentInFunctionBlock(node) {
@@ -407,8 +434,14 @@ module.exports = {
                 }
             }
 
-            // function body indent should be indent + indent size
-            indent += indentSize;
+            // function body indent should be indent + indent size, unless this
+            // is the outer IIFE and that option is enabled.
+            var functionOffset = indentSize;
+
+            if (options.outerIIFEBody !== null && isOuterIIFE(calleeNode)) {
+                functionOffset = options.outerIIFEBody * indentSize;
+            }
+            indent += functionOffset;
 
             // check if the node is inside a variable
             var parentVarNode = getVariableDeclaratorNode(node);
@@ -421,7 +454,7 @@ module.exports = {
                 checkNodesIndent(node.body, indent);
             }
 
-            checkLastNodeLineIndent(node, indent - indentSize);
+            checkLastNodeLineIndent(node, indent - functionOffset);
         }
 
 
@@ -431,7 +464,7 @@ module.exports = {
          * @returns {boolean} Whether or not the block starts and ends on the same line.
          */
         function isSingleLineNode(node) {
-            var lastToken = context.getLastToken(node),
+            var lastToken = sourceCode.getLastToken(node),
                 startLine = node.loc.start.line,
                 endLine = lastToken.loc.end.line;
 
@@ -641,11 +674,11 @@ module.exports = {
             checkNodesIndent(elements, elementsIndent, true);
 
             // Only check the last line if there is any token after the last item
-            if (context.getLastToken(node).loc.end.line <= lastElement.loc.end.line) {
+            if (sourceCode.getLastToken(node).loc.end.line <= lastElement.loc.end.line) {
                 return;
             }
 
-            var tokenBeforeLastElement = context.getTokenBefore(lastElement);
+            var tokenBeforeLastElement = sourceCode.getTokenBefore(lastElement);
 
             if (tokenBeforeLastElement.value === ",") {
 

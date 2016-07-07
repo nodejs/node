@@ -5,7 +5,6 @@
  * @static
  * @memberOf _
  * @since 2.4.0
- * @type {Function}
  * @category Date
  * @returns {number} Returns the timestamp.
  * @example
@@ -13,8 +12,10 @@
  * _.defer(function(stamp) {
  *   console.log(_.now() - stamp);
  * }, _.now());
- * // => Logs the number of milliseconds it took for the deferred function to be invoked.
+ * // => Logs the number of milliseconds it took for the deferred invocation.
  */
-var now = Date.now;
+function now() {
+  return Date.now();
+}
 
 module.exports = now;

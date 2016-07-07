@@ -1,56 +1,44 @@
 /*!
- * XRegExp Unicode Base 3.1.0
+ * XRegExp Unicode Base 3.1.1
  * <xregexp.com>
  * Steven Levithan (c) 2008-2016 MIT License
  */
 
-/**
- * Adds base support for Unicode matching:
- * - Adds syntax `\p{..}` for matching Unicode tokens. Tokens can be inverted using `\P{..}` or
- *   `\p{^..}`. Token names ignore case, spaces, hyphens, and underscores. You can omit the braces
- *   for token names that are a single letter (e.g. `\pL` or `PL`).
- * - Adds flag A (astral), which enables 21-bit Unicode support.
- * - Adds the `XRegExp.addUnicodeData` method used by other addons to provide character data.
- *
- * Unicode Base relies on externally provided Unicode character data. Official addons are available
- * to provide data for Unicode categories, scripts, blocks, and properties.
- *
- * @requires XRegExp
- */
 module.exports = function(XRegExp) {
     'use strict';
 
-// Storage for Unicode data
+    /**
+     * Adds base support for Unicode matching:
+     * - Adds syntax `\p{..}` for matching Unicode tokens. Tokens can be inverted using `\P{..}` or
+     *   `\p{^..}`. Token names ignore case, spaces, hyphens, and underscores. You can omit the
+     *   braces for token names that are a single letter (e.g. `\pL` or `PL`).
+     * - Adds flag A (astral), which enables 21-bit Unicode support.
+     * - Adds the `XRegExp.addUnicodeData` method used by other addons to provide character data.
+     *
+     * Unicode Base relies on externally provided Unicode character data. Official addons are
+     * available to provide data for Unicode categories, scripts, blocks, and properties.
+     *
+     * @requires XRegExp
+     */
+
+    // ==--------------------------==
+    // Private stuff
+    // ==--------------------------==
+
+    // Storage for Unicode data
     var unicode = {};
 
-/* ==============================
- * Private functions
- * ============================== */
+    // Reuse utils
+    var dec = XRegExp._dec;
+    var hex = XRegExp._hex;
+    var pad4 = XRegExp._pad4;
 
-// Generates a token lookup name: lowercase, with hyphens, spaces, and underscores removed
+    // Generates a token lookup name: lowercase, with hyphens, spaces, and underscores removed
     function normalize(name) {
         return name.replace(/[- _]+/g, '').toLowerCase();
     }
 
-// Adds leading zeros if shorter than four characters
-    function pad4(str) {
-        while (str.length < 4) {
-            str = '0' + str;
-        }
-        return str;
-    }
-
-// Converts a hexadecimal number to decimal
-    function dec(hex) {
-        return parseInt(hex, 16);
-    }
-
-// Converts a decimal number to hexadecimal
-    function hex(dec) {
-        return parseInt(dec, 10).toString(16);
-    }
-
-// Gets the decimal code of a literal code unit, \xHH, \uHHHH, or a backslash-escaped literal
+    // Gets the decimal code of a literal code unit, \xHH, \uHHHH, or a backslash-escaped literal
     function charCode(chr) {
         var esc = /^\\[xu](.+)/.exec(chr);
         return esc ?
@@ -58,21 +46,24 @@ module.exports = function(XRegExp) {
             chr.charCodeAt(chr.charAt(0) === '\\' ? 1 : 0);
     }
 
-// Inverts a list of ordered BMP characters and ranges
+    // Inverts a list of ordered BMP characters and ranges
     function invertBmp(range) {
-        var output = '',
-            lastEnd = -1,
-            start;
-        XRegExp.forEach(range, /(\\x..|\\u....|\\?[\s\S])(?:-(\\x..|\\u....|\\?[\s\S]))?/, function(m) {
-            start = charCode(m[1]);
-            if (start > (lastEnd + 1)) {
-                output += '\\u' + pad4(hex(lastEnd + 1));
-                if (start > (lastEnd + 2)) {
-                    output += '-\\u' + pad4(hex(start - 1));
+        var output = '';
+        var lastEnd = -1;
+        XRegExp.forEach(
+            range,
+            /(\\x..|\\u....|\\?[\s\S])(?:-(\\x..|\\u....|\\?[\s\S]))?/,
+            function(m) {
+                var start = charCode(m[1]);
+                if (start > (lastEnd + 1)) {
+                    output += '\\u' + pad4(hex(lastEnd + 1));
+                    if (start > (lastEnd + 2)) {
+                        output += '-\\u' + pad4(hex(start - 1));
+                    }
                 }
+                lastEnd = charCode(m[2] || m[1]);
             }
-            lastEnd = charCode(m[2] || m[1]);
-        });
+        );
         if (lastEnd < 0xFFFF) {
             output += '\\u' + pad4(hex(lastEnd + 1));
             if (lastEnd < 0xFFFE) {
@@ -82,7 +73,7 @@ module.exports = function(XRegExp) {
         return output;
     }
 
-// Generates an inverted BMP range on first use
+    // Generates an inverted BMP range on first use
     function cacheInvertedBmp(slug) {
         var prop = 'b!';
         return unicode[slug][prop] || (
@@ -90,7 +81,7 @@ module.exports = function(XRegExp) {
         );
     }
 
-// Combines and optionally negates BMP and astral data
+    // Combines and optionally negates BMP and astral data
     function buildAstral(slug, isNegated) {
         var item = unicode[slug],
             combined = '';
@@ -109,7 +100,7 @@ module.exports = function(XRegExp) {
             '(?:' + combined + ')';
     }
 
-// Builds a complete astral pattern on first use
+    // Builds a complete astral pattern on first use
     function cacheAstral(slug, isNegated) {
         var prop = isNegated ? 'a!' : 'a=';
         return unicode[slug][prop] || (
@@ -117,13 +108,13 @@ module.exports = function(XRegExp) {
         );
     }
 
-/* ==============================
- * Core functionality
- * ============================== */
+    // ==--------------------------==
+    // Core functionality
+    // ==--------------------------==
 
-/*
- * Add Unicode token syntax: \p{..}, \P{..}, \p{^..}. Also add astral mode (flag A).
- */
+    /*
+     * Add Unicode token syntax: \p{..}, \P{..}, \p{^..}. Also add astral mode (flag A).
+     */
     XRegExp.addToken(
         // Use `*` instead of `+` to avoid capturing `^` as the token name in `\p{^}`
         /\\([pP])(?:{(\^?)([^}]*)}|([A-Za-z]))/,
@@ -181,33 +172,33 @@ module.exports = function(XRegExp) {
         }
     );
 
-/**
- * Adds to the list of Unicode tokens that XRegExp regexes can match via `\p` or `\P`.
- *
- * @memberOf XRegExp
- * @param {Array} data Objects with named character ranges. Each object may have properties `name`,
- *   `alias`, `isBmpLast`, `inverseOf`, `bmp`, and `astral`. All but `name` are optional, although
- *   one of `bmp` or `astral` is required (unless `inverseOf` is set). If `astral` is absent, the
- *   `bmp` data is used for BMP and astral modes. If `bmp` is absent, the name errors in BMP mode
- *   but works in astral mode. If both `bmp` and `astral` are provided, the `bmp` data only is used
- *   in BMP mode, and the combination of `bmp` and `astral` data is used in astral mode.
- *   `isBmpLast` is needed when a token matches orphan high surrogates *and* uses surrogate pairs
- *   to match astral code points. The `bmp` and `astral` data should be a combination of literal
- *   characters and `\xHH` or `\uHHHH` escape sequences, with hyphens to create ranges. Any regex
- *   metacharacters in the data should be escaped, apart from range-creating hyphens. The `astral`
- *   data can additionally use character classes and alternation, and should use surrogate pairs to
- *   represent astral code points. `inverseOf` can be used to avoid duplicating character data if a
- *   Unicode token is defined as the exact inverse of another token.
- * @example
- *
- * // Basic use
- * XRegExp.addUnicodeData([{
- *   name: 'XDigit',
- *   alias: 'Hexadecimal',
- *   bmp: '0-9A-Fa-f'
- * }]);
- * XRegExp('\\p{XDigit}:\\p{Hexadecimal}+').test('0:3D'); // -> true
- */
+    /**
+     * Adds to the list of Unicode tokens that XRegExp regexes can match via `\p` or `\P`.
+     *
+     * @param {Array} data Objects with named character ranges. Each object may have properties
+     *   `name`, `alias`, `isBmpLast`, `inverseOf`, `bmp`, and `astral`. All but `name` are
+     *   optional, although one of `bmp` or `astral` is required (unless `inverseOf` is set). If
+     *   `astral` is absent, the `bmp` data is used for BMP and astral modes. If `bmp` is absent,
+     *   the name errors in BMP mode but works in astral mode. If both `bmp` and `astral` are
+     *   provided, the `bmp` data only is used in BMP mode, and the combination of `bmp` and
+     *   `astral` data is used in astral mode. `isBmpLast` is needed when a token matches orphan
+     *   high surrogates *and* uses surrogate pairs to match astral code points. The `bmp` and
+     *   `astral` data should be a combination of literal characters and `\xHH` or `\uHHHH` escape
+     *   sequences, with hyphens to create ranges. Any regex metacharacters in the data should be
+     *   escaped, apart from range-creating hyphens. The `astral` data can additionally use
+     *   character classes and alternation, and should use surrogate pairs to represent astral code
+     *   points. `inverseOf` can be used to avoid duplicating character data if a Unicode token is
+     *   defined as the exact inverse of another token.
+     * @example
+     *
+     * // Basic use
+     * XRegExp.addUnicodeData([{
+     *   name: 'XDigit',
+     *   alias: 'Hexadecimal',
+     *   bmp: '0-9A-Fa-f'
+     * }]);
+     * XRegExp('\\p{XDigit}:\\p{Hexadecimal}+').test('0:3D'); // -> true
+     */
     XRegExp.addUnicodeData = function(data) {
         var ERR_NO_NAME = 'Unicode token requires name',
             ERR_NO_DATA = 'Unicode token has no character data ',

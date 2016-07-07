@@ -31,12 +31,12 @@ function isVariadicApplyCalling(node) {
  * Checks whether or not the tokens of two given nodes are same.
  * @param {ASTNode} left - A node 1 to compare.
  * @param {ASTNode} right - A node 2 to compare.
- * @param {RuleContext} context - The ESLint rule context object.
+ * @param {SourceCode} sourceCode - The ESLint source code object.
  * @returns {boolean} the source code for the given node.
  */
-function equalTokens(left, right, context) {
-    var tokensL = context.getTokens(left);
-    var tokensR = context.getTokens(right);
+function equalTokens(left, right, sourceCode) {
+    var tokensL = sourceCode.getTokens(left);
+    var tokensR = sourceCode.getTokens(right);
 
     if (tokensL.length !== tokensR.length) {
         return false;
@@ -82,6 +82,8 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
+
         return {
             CallExpression: function(node) {
                 if (!isVariadicApplyCalling(node)) {
@@ -92,7 +94,7 @@ module.exports = {
                 var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
                 var thisArg = node.arguments[0];
 
-                if (isValidThisArg(expectedThis, thisArg, context)) {
+                if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
                     context.report(node, "use the spread operator instead of the '.apply()'.");
                 }
             }

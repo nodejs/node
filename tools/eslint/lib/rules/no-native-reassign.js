@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to flag when re-assigning native objects
+ * @fileoverview Rule to disallow assignments to native objects or read-only global variables
  * @author Ilya Volodin
  */
 
@@ -12,9 +12,9 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow reassigning native objects",
+            description: "disallow assignments to native objects or read-only global variables",
             category: "Best Practices",
-            recommended: false
+            recommended: true
         },
 
         schema: [
@@ -55,14 +55,14 @@ module.exports = {
             ) {
                 context.report({
                     node: identifier,
-                    message: "{{name}} is a read-only native object.",
+                    message: "Read-only global '{{name}}' should not be modified.",
                     data: identifier
                 });
             }
         }
 
         /**
-         * Reports write references if a given variable is readonly builtin.
+         * Reports write references if a given variable is read-only builtin.
          * @param {Variable} variable - A variable to check.
          * @returns {void}
          */

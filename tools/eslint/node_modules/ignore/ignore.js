@@ -299,7 +299,9 @@ function () {
 }],
 
 // two globstars
-[/\\\/\\\*\\\*(?=\\\/|$)/g,
+[
+// Use lookahead assertions so that we could match more than one `'/**'`
+/\\\/\\\*\\\*(?=\\\/|$)/g,
 
 // Zero, one or several directories
 // should not use '*', or it will be replaced by the next replacer

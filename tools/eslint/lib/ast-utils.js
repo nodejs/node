@@ -57,7 +57,7 @@ function isModifyingReference(reference, index, references) {
 function isES5Constructor(node) {
     return (
         node.id &&
-        node.id.name[0] === node.id.name[0].toLocaleUpperCase()
+        node.id.name[0] !== node.id.name[0].toLocaleLowerCase()
     );
 }
 
@@ -176,14 +176,14 @@ function hasJSDocThisTag(node, sourceCode) {
 
 /**
  * Determines if a node is surrounded by parentheses.
- * @param {RuleContext} context The context object passed to the rule
+ * @param {SourceCode} sourceCode The ESLint source code object
  * @param {ASTNode} node The node to be checked.
  * @returns {boolean} True if the node is parenthesised.
  * @private
  */
-function isParenthesised(context, node) {
-    var previousToken = context.getTokenBefore(node),
-        nextToken = context.getTokenAfter(node);
+function isParenthesised(sourceCode, node) {
+    var previousToken = sourceCode.getTokenBefore(node),
+        nextToken = sourceCode.getTokenAfter(node);
 
     return Boolean(previousToken && nextToken) &&
         previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
@@ -460,5 +460,96 @@ module.exports = {
 
         /* istanbul ignore next */
         return true;
+    },
+
+    /**
+     * Get the precedence level based on the node type
+     * @param {ASTNode} node node to evaluate
+     * @returns {int} precedence level
+     * @private
+     */
+    getPrecedence: function(node) {
+        switch (node.type) {
+            case "SequenceExpression":
+                return 0;
+
+            case "AssignmentExpression":
+            case "ArrowFunctionExpression":
+            case "YieldExpression":
+                return 1;
+
+            case "ConditionalExpression":
+                return 3;
+
+            case "LogicalExpression":
+                switch (node.operator) {
+                    case "||":
+                        return 4;
+                    case "&&":
+                        return 5;
+
+                    // no default
+                }
+
+                /* falls through */
+
+            case "BinaryExpression":
+
+                switch (node.operator) {
+                    case "|":
+                        return 6;
+                    case "^":
+                        return 7;
+                    case "&":
+                        return 8;
+                    case "==":
+                    case "!=":
+                    case "===":
+                    case "!==":
+                        return 9;
+                    case "<":
+                    case "<=":
+                    case ">":
+                    case ">=":
+                    case "in":
+                    case "instanceof":
+                        return 10;
+                    case "<<":
+                    case ">>":
+                    case ">>>":
+                        return 11;
+                    case "+":
+                    case "-":
+                        return 12;
+                    case "*":
+                    case "/":
+                    case "%":
+                        return 13;
+
+                    // no default
+                }
+
+                /* falls through */
+
+            case "UnaryExpression":
+                return 14;
+
+            case "UpdateExpression":
+                return 15;
+
+            case "CallExpression":
+
+                // IIFE is allowed to have parens in any position (#655)
+                if (node.callee.type === "FunctionExpression") {
+                    return -1;
+                }
+                return 16;
+
+            case "NewExpression":
+                return 17;
+
+            // no default
+        }
+        return 18;
     }
 };

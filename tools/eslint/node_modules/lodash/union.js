@@ -16,8 +16,8 @@ var baseFlatten = require('./_baseFlatten'),
  * @returns {Array} Returns the new array of combined values.
  * @example
  *
- * _.union([2, 1], [4, 2], [1, 2]);
- * // => [2, 1, 4]
+ * _.union([2], [1, 2]);
+ * // => [2, 1]
  */
 var union = rest(function(arrays) {
   return baseUniq(baseFlatten(arrays, 1, isArrayLikeObject, true));

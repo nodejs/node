@@ -71,7 +71,7 @@ function loadConfig(configToLoad) {
 
 /**
  * Get personal config object from ~/.eslintrc.
- * @returns {Object} the personal config object (empty object if there is no personal config)
+ * @returns {Object} the personal config object (null if there is no personal config)
  * @private
  */
 function getPersonalConfig() {
@@ -87,7 +87,16 @@ function getPersonalConfig() {
         }
     }
 
-    return config || {};
+    return config || null;
+}
+
+/**
+ * Determine if rules were explicitly passed in as options.
+ * @param {Object} options The options used to create our configuration.
+ * @returns {boolean} True if rules were passed in as options, false otherwise.
+ */
+function hasRules(options) {
+    return options.rules && Object.keys(options.rules).length > 0;
 }
 
 /**
@@ -105,7 +114,8 @@ function getLocalConfig(thisConfig, directory) {
         localConfigFiles = thisConfig.findLocalConfigFiles(directory),
         numFiles = localConfigFiles.length,
         rootPath,
-        projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd);
+        projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd),
+        personalConfig;
 
     for (i = 0; i < numFiles; i++) {
 
@@ -140,8 +150,34 @@ function getLocalConfig(thisConfig, directory) {
         config = ConfigOps.merge(localConfig, config);
     }
 
-    // Use the personal config file if there are no other local config files found.
-    return found || thisConfig.useSpecificConfig ? config : ConfigOps.merge(config, getPersonalConfig());
+    if (!found && !thisConfig.useSpecificConfig) {
+
+        /*
+         * - Is there a personal config in the user's home directory? If so,
+         *   merge that with the passed-in config.
+         * - Otherwise, if no rules were manually passed in, throw and error.
+         * - Note: This function is not called if useEslintrc is false.
+         */
+        personalConfig = getPersonalConfig();
+
+        if (personalConfig) {
+            config = ConfigOps.merge(config, personalConfig);
+        } else if (!hasRules(thisConfig.options)) {
+
+            // No config file, no manual configuration, and no rules, so error.
+            var noConfigError = new Error("No ESLint configuration found.");
+
+            noConfigError.messageTemplate = "no-config-found";
+            noConfigError.messageData = {
+                directory: directory,
+                filesExamined: localConfigFiles
+            };
+
+            throw noConfigError;
+        }
+    }
+
+    return config;
 }
 
 //------------------------------------------------------------------------------
@@ -231,7 +267,7 @@ Config.prototype.getConfig = function(filePath) {
     }
 
     // Step 2: Create a copy of the baseConfig
-    config = ConfigOps.merge({parser: this.parser, parserOptions: this.parserOptions}, this.baseConfig);
+    config = ConfigOps.merge({}, this.baseConfig);
 
     // Step 3: Merge in the user-specified configuration from .eslintrc and package.json
     config = ConfigOps.merge(config, userConfig);
@@ -255,6 +291,20 @@ Config.prototype.getConfig = function(filePath) {
 
     // Step 7: Merge in command line globals
     config = ConfigOps.merge(config, { globals: this.globals });
+
+    // Only override parser if it is passed explicitly through the command line or if it's not
+    // defined yet (because the final object will at least have the parser key)
+    if (this.parser || !config.parser) {
+        config = ConfigOps.merge(config, {
+            parser: this.parser
+        });
+    }
+
+    if (this.parserOptions) {
+        config = ConfigOps.merge(config, {
+            parserOptions: this.parserOptions
+        });
+    }
 
     // Step 8: Merge in command line plugins
     if (this.options.plugins) {

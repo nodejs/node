@@ -1,5 +1,6 @@
 var castPath = require('./_castPath'),
-    isKey = require('./_isKey');
+    isKey = require('./_isKey'),
+    toKey = require('./_toKey');
 
 /**
  * The base implementation of `_.get` without support for default values.
@@ -16,7 +17,7 @@ function baseGet(object, path) {
       length = path.length;
 
   while (object != null && index < length) {
-    object = object[path[index++]];
+    object = object[toKey(path[index++])];
   }
   return (index && index == length) ? object : undefined;
 }

@@ -1,4 +1,5 @@
-var castSlice = require('./_castSlice'),
+var baseToString = require('./_baseToString'),
+    castSlice = require('./_castSlice'),
     isObject = require('./isObject'),
     isRegExp = require('./isRegExp'),
     reHasComplexSymbol = require('./_reHasComplexSymbol'),
@@ -58,7 +59,7 @@ function truncate(string, options) {
   if (isObject(options)) {
     var separator = 'separator' in options ? options.separator : separator;
     length = 'length' in options ? toInteger(options.length) : length;
-    omission = 'omission' in options ? toString(options.omission) : omission;
+    omission = 'omission' in options ? baseToString(options.omission) : omission;
   }
   string = toString(string);
 
@@ -98,7 +99,7 @@ function truncate(string, options) {
       }
       result = result.slice(0, newEnd === undefined ? end : newEnd);
     }
-  } else if (string.indexOf(separator, end) != end) {
+  } else if (string.indexOf(baseToString(separator), end) != end) {
     var index = result.lastIndexOf(separator);
     if (index > -1) {
       result = result.slice(0, index);

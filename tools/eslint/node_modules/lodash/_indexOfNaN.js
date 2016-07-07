@@ -9,7 +9,7 @@
  */
 function indexOfNaN(array, fromIndex, fromRight) {
   var length = array.length,
-      index = fromIndex + (fromRight ? 0 : -1);
+      index = fromIndex + (fromRight ? 1 : -1);
 
   while ((fromRight ? index-- : ++index < length)) {
     var other = array[index];

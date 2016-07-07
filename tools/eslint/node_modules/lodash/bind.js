@@ -1,5 +1,5 @@
 var createWrapper = require('./_createWrapper'),
-    getPlaceholder = require('./_getPlaceholder'),
+    getHolder = require('./_getHolder'),
     replaceHolders = require('./_replaceHolders'),
     rest = require('./rest');
 
@@ -14,7 +14,7 @@ var BIND_FLAG = 1,
  * The `_.bind.placeholder` value, which defaults to `_` in monolithic builds,
  * may be used as a placeholder for partially applied arguments.
  *
- * **Note:** Unlike native `Function#bind` this method doesn't set the "length"
+ * **Note:** Unlike native `Function#bind`, this method doesn't set the "length"
  * property of bound functions.
  *
  * @static
@@ -45,7 +45,7 @@ var BIND_FLAG = 1,
 var bind = rest(function(func, thisArg, partials) {
   var bitmask = BIND_FLAG;
   if (partials.length) {
-    var holders = replaceHolders(partials, getPlaceholder(bind));
+    var holders = replaceHolders(partials, getHolder(bind));
     bitmask |= PARTIAL_FLAG;
   }
   return createWrapper(func, bitmask, thisArg, partials, holders);

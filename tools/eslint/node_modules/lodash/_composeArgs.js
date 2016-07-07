@@ -6,7 +6,7 @@ var nativeMax = Math.max;
  * placeholders, and provided arguments into a single array of arguments.
  *
  * @private
- * @param {Array|Object} args The provided arguments.
+ * @param {Array} args The provided arguments.
  * @param {Array} partials The arguments to prepend to those provided.
  * @param {Array} holders The `partials` placeholder indexes.
  * @params {boolean} [isCurried] Specify composing for a curried function.

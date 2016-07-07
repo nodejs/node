@@ -52,7 +52,7 @@
   "directories": {},
   "dist": {
     "shasum": "f69b192d3f7d91e382e4b71bddb77878619ab0c6",
-    "tarball": "http://registry.npmjs.org/code-point-at/-/code-point-at-1.0.0.tgz"
+    "tarball": "https://registry.npmjs.org/code-point-at/-/code-point-at-1.0.0.tgz"
   },
   "engines": {
     "node": ">=0.10.0"

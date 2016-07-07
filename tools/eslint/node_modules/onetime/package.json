@@ -50,7 +50,7 @@
   "directories": {},
   "dist": {
     "shasum": "a1f7838f8314c516f05ecefcbc4ccfe04b4ed789",
-    "tarball": "http://registry.npmjs.org/onetime/-/onetime-1.1.0.tgz"
+    "tarball": "https://registry.npmjs.org/onetime/-/onetime-1.1.0.tgz"
   },
   "engines": {
     "node": ">=0.10.0"

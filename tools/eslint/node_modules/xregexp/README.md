@@ -1,9 +1,9 @@
-[XRegExp](http://xregexp.com/) 3.1.0
+[XRegExp](http://xregexp.com/) 3.1.1
 ====================================
 
-XRegExp provides augmented (and extensible) JavaScript regular expressions. You get new modern syntax and flags beyond what browsers support natively. XRegExp is also a regex utility belt with tools to make your client-side grepping and parsing easier, while freeing you from worrying about pesky aspects of JavaScript regexes like cross-browser inconsistencies and manually manipulating `lastIndex`.
+XRegExp provides augmented (and extensible) JavaScript regular expressions. You get new modern syntax and flags beyond what browsers support natively. XRegExp is also a regex utility belt with tools to make your client-side grepping and parsing easier, while freeing you from worrying about pesky aspects of JavaScript regexes like cross-browser inconsistencies or manually manipulating `lastIndex`.
 
-XRegExp supports all native ES6 regular expression syntax. It supports Internet Explorer 5.5+, Firefox 1.5+, Chrome, Safari 3+, and Opera 11+. You can also use it with Node.js, or as a RequireJS module. The base library is about 4.25 KB, minified and gzipped.
+XRegExp supports all native ES6 regular expression syntax. It supports Internet Explorer 5.5+, Firefox 1.5+, Chrome, Safari 3+, and Opera 11+. You can also use it with Node.js or as a RequireJS module.
 
 ## Performance
 
@@ -22,23 +22,30 @@ var match = XRegExp.exec('2015-02-22', date);
 match.year; // -> '2015'
 
 // It also includes optional pos and sticky arguments
-var pos = 3, result = [];
+var pos = 3;
+var result = [];
 while (match = XRegExp.exec('<1><2><3><4>5<6>', /<(\d+)>/, pos, 'sticky')) {
     result.push(match[1]);
     pos = match.index + match[0].length;
-} // result -> ['2', '3', '4']
+}
+// result -> ['2', '3', '4']
 
 // XRegExp.replace allows named backreferences in replacements
-XRegExp.replace('2015-02-22', date, '${month}/${day}/${year}'); // -> '02/22/2015'
+XRegExp.replace('2015-02-22', date, '${month}/${day}/${year}');
+// -> '02/22/2015'
 XRegExp.replace('2015-02-22', date, function(match) {
     return match.month + '/' + match.day + '/' + match.year;
-}); // -> '02/22/2015'
+});
+// -> '02/22/2015'
 
 // In fact, XRegExps compile to RegExps and work perfectly with native methods
-date.test('2015-02-22'); // -> true
+date.test('2015-02-22');
+// -> true
 
-// The *only* caveat is that named captures must be referenced using numbered backreferences
-'2015-02-22'.replace(date, '$2/$3/$1'); // -> '02/22/2015'
+// The only caveat is that named captures must be referenced using numbered
+// backreferences if used with native methods
+'2015-02-22'.replace(date, '$2/$3/$1');
+// -> '02/22/2015'
 
 // Extract every other digit from a string using XRegExp.forEach
 var evens = [];
@@ -51,7 +58,8 @@ XRegExp.forEach('1a2345', /\d/, function(match, i) {
 XRegExp.matchChain('1 <b>2</b> 3 <b>4 a 56</b>', [
     XRegExp('(?is)<b>.*?</b>'),
     /\d+/
-]); // -> ['2', '4', '56']
+]);
+// -> ['2', '4', '56']
 
 // You can also pass forward and return specific backreferences
 var html = '<a href="http://xregexp.com/">XRegExp</a>' +
@@ -59,29 +67,23 @@ var html = '<a href="http://xregexp.com/">XRegExp</a>' +
 XRegExp.matchChain(html, [
     {regex: /<a href="([^"]+)">/i, backref: 1},
     {regex: XRegExp('(?i)^https?://(?<domain>[^/?#]+)'), backref: 'domain'}
-]); // -> ['xregexp.com', 'www.google.com']
+]);
+// -> ['xregexp.com', 'www.google.com']
 
-// Merge strings and regexes into a single pattern, safely rewriting backreferences
+// Merge strings and regexes into a single pattern with updated backreferences
 XRegExp.union(['a+b*c', /(dog)\1/, /(cat)\1/], 'i');
 // -> /a\+b\*c|(dog)\1|(cat)\2/i
 ```
 
-These examples should give you the flavor of what's possible, but XRegExp has more syntax, flags, methods, options, and browser fixes that aren't shown here. You can even augment XRegExp's regular expression syntax with addons (see below) or write your own. See [xregexp.com](http://xregexp.com/) for more details.
+These examples give the flavor of what's possible, but XRegExp has more syntax, flags, methods, options, and browser fixes that aren't shown here. You can even augment XRegExp's regular expression syntax with addons (see below) or write your own. See [xregexp.com](http://xregexp.com/) for details.
 
 ## Addons
 
-You can either load addons individually, or bundle all addons together with XRegExp by loading `xregexp-all.js`. XRegExp's [npm package](https://www.npmjs.com/package/xregexp) uses `xregexp-all.js`, so addons are always available when XRegExp is installed using npm.
+You can either load addons individually, or bundle all addons with XRegExp by loading `xregexp-all.js`.
 
 ### Unicode
 
-In browsers, first include the Unicode Base script and then one or more of the addons for Unicode blocks, categories, properties, or scripts.
-
-```html
-<script src="src/xregexp.js"></script>
-<script src="src/addons/unicode-base.js"></script>
-<script src="src/addons/unicode-categories.js"></script>
-<script src="src/addons/unicode-scripts.js"></script>
-```
+If not using `xregexp-all.js`, first include the Unicode Base script and then one or more of the addons for Unicode blocks, categories, properties, or scripts.
 
 Then you can do this:
 
@@ -118,14 +120,7 @@ XRegExp uses Unicode 8.0.0.
 
 ### XRegExp.build
 
-In browsers, first include the script:
-
-```html
-<script src="src/xregexp.js"></script>
-<script src="src/addons/build.js"></script>
-```
-
-You can then build regular expressions using named subpatterns, for readability and pattern reuse:
+Build regular expressions using named subpatterns, for readability and pattern reuse:
 
 ```js
 var time = XRegExp.build('(?x)^ {{hours}} ({{minutes}}) $', {
@@ -146,14 +141,7 @@ See also: *[Creating Grammatical Regexes Using XRegExp.build](http://blog.steven
 
 ### XRegExp.matchRecursive
 
-In browsers, first include the script:
-
-```html
-<script src="src/xregexp.js"></script>
-<script src="src/addons/matchrecursive.js"></script>
-```
-
-You can then match recursive constructs using XRegExp pattern strings as left and right delimiters:
+Match recursive constructs using XRegExp pattern strings as left and right delimiters:
 
 ```js
 var str = '(t((e))s)t()(ing)';
@@ -196,13 +184,7 @@ XRegExp.matchRecursive(str, '<', '>', 'gy');
 
 ## Installation and usage
 
-In browsers:
-
-```html
-<script src="src/xregexp.js"></script>
-```
-
-Or, to bundle XRegExp with all of its addons:
+In browsers (bundle XRegExp with all of its addons):
 
 ```html
 <script src="xregexp-all.js"></script>
@@ -232,12 +214,8 @@ require({paths: {xregexp: 'xregexp-all'}}, ['xregexp'], function(XRegExp) {
 
 XRegExp copyright 2007-2016 by [Steven Levithan](http://stevenlevithan.com/).
 
-Tools: Unicode range generators by [Mathias Bynens](http://mathiasbynens.be/), and adapted from his [unicode-data](https://github.com/mathiasbynens/unicode-data) project.
+Unicode range generators by [Mathias Bynens](http://mathiasbynens.be/), and adapted from his [unicode-data](https://github.com/mathiasbynens/unicode-data) project. Uses [Jasmine](http://jasmine.github.io/) for unit tests, and [Benchmark.js](http://benchmarkjs.com) for performance tests. `XRegExp.build` inspired by [RegExp.create](http://lea.verou.me/2011/03/create-complex-regexps-more-easily/) by [Lea Verou](http://lea.verou.me/). `XRegExp.union` inspired by [Ruby](http://www.ruby-lang.org/). XRegExp's syntax extensions and flags come from [Perl](http://www.perl.org/), [.NET](http://www.microsoft.com/net), etc.
 
-Tests: Uses [Jasmine](http://jasmine.github.io/) for unit tests, and [Benchmark.js](http://benchmarkjs.com) for performance tests.
-
-Prior art: `XRegExp.build` inspired by [Lea Verou](http://lea.verou.me/)'s [RegExp.create](http://lea.verou.me/2011/03/create-complex-regexps-more-easily/). `XRegExp.union` inspired by [Ruby](http://www.ruby-lang.org/). XRegExp's syntax extensions and flags come from [Perl](http://www.perl.org/), [.NET](http://www.microsoft.com/net), etc.
-
-All code, including addons, tools, and tests, is released under the terms of the [MIT](http://mit-license.org/) license.
+All code, including addons, tools, and tests, is released under the terms of the [MIT License](http://mit-license.org/).
 
 Fork me to show support, fix, and extend.

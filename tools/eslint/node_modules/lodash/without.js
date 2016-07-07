@@ -11,12 +11,13 @@ var baseDifference = require('./_baseDifference'),
  * @memberOf _
  * @since 0.1.0
  * @category Array
- * @param {Array} array The array to filter.
+ * @param {Array} array The array to inspect.
  * @param {...*} [values] The values to exclude.
  * @returns {Array} Returns the new array of filtered values.
+ * @see _.difference, _.xor
  * @example
  *
- * _.without([1, 2, 1, 3], 1, 2);
+ * _.without([2, 1, 2, 3], 1, 2);
  * // => [3]
  */
 var without = rest(function(array, values) {
