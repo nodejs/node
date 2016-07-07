@@ -120,7 +120,7 @@ function error_test() {
       expect: prompt_unix },
     // But passing the same string to eval() should throw
     { client: client_unix, send: 'eval("function test_func() {")',
-      expect: /^SyntaxError: Unexpected end of input/ },
+      expect: /\bSyntaxError: Unexpected end of input/ },
     // Can handle multiline template literals
     { client: client_unix, send: '`io.js',
       expect: prompt_multiline },
@@ -149,35 +149,35 @@ function error_test() {
     // invalid input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-      expect: /^SyntaxError: Unexpected token i/ },
+      expect: /\bSyntaxError: Unexpected token i/ },
     // end of input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'066\');',
-      expect: /^SyntaxError: Unexpected number/ },
+      expect: /\bSyntaxError: Unexpected number/ },
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{\');',
-      expect: /^SyntaxError: Unexpected end of JSON input/ },
+      expect: /\bSyntaxError: Unexpected end of JSON input/ },
     // invalid RegExps are a special case of syntax error,
     // should throw
     { client: client_unix, send: '/(/;',
-      expect: /^SyntaxError: Invalid regular expression\:/ },
+      expect: /\bSyntaxError: Invalid regular expression\:/ },
     // invalid RegExp modifiers are a special case of syntax error,
     // should throw (GH-4012)
     { client: client_unix, send: 'new RegExp("foo", "wrong modifier");',
-      expect: /^SyntaxError: Invalid flags supplied to RegExp constructor/ },
+      expect: /\bSyntaxError: Invalid flags supplied to RegExp constructor/ },
     // strict mode syntax errors should be caught (GH-5178)
     { client: client_unix, send: '(function() { "use strict"; return 0755; })()',
-      expect: /^SyntaxError: Octal literals are not allowed in strict mode/ },
+      expect: /\bSyntaxError: Octal literals are not allowed in strict mode/ },
     { client: client_unix, send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect: /^SyntaxError: Duplicate parameter name not allowed in this context/ },
+      expect: /\bSyntaxError: Duplicate parameter name not allowed in this context/ },
     { client: client_unix, send: '(function() { "use strict"; with (this) {} })()',
-      expect: /^SyntaxError: Strict mode code may not include a with statement/ },
+      expect: /\bSyntaxError: Strict mode code may not include a with statement/ },
     { client: client_unix, send: '(function() { "use strict"; var x; delete x; })()',
-      expect: /^SyntaxError: Delete of an unqualified identifier in strict mode/ },
+      expect: /\bSyntaxError: Delete of an unqualified identifier in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; eval = 17; })()',
-      expect: /^SyntaxError: Unexpected eval or arguments in strict mode/ },
+      expect: /\bSyntaxError: Unexpected eval or arguments in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect: /^SyntaxError: In strict mode code, functions can only be declared at top level or inside a block./ },
+      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block./ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
@@ -228,7 +228,7 @@ function error_test() {
       expect: 'Invalid REPL keyword\n' + prompt_unix },
     // fail when we are not inside a String and a line continuation is used
     { client: client_unix, send: '[] \\',
-      expect: /^SyntaxError: Invalid or unexpected token/ },
+      expect: /\bSyntaxError: Invalid or unexpected token/ },
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
       expect: prompt_multiline + prompt_multiline +
@@ -327,12 +327,18 @@ function error_test() {
     // Illegal token is not recoverable outside string literal, RegExp literal,
     // or block comment. https://github.com/nodejs/node/issues/3611
     { client: client_unix, send: 'a = 3.5e',
-      expect: /^SyntaxError: Invalid or unexpected token/ },
+      expect: /\bSyntaxError: Invalid or unexpected token/ },
     // Mitigate https://github.com/nodejs/node/issues/548
     { client: client_unix, send: 'function name(){ return "node"; };name()',
       expect: "'node'\n" + prompt_unix },
     { client: client_unix, send: 'function name(){ return "nodejs"; };name()',
       expect: "'nodejs'\n" + prompt_unix },
+    // Avoid emitting repl:line-number for SyntaxError
+    { client: client_unix, send: 'a = 3.5e',
+      expect: /^(?!repl)/ },
+    // Avoid emitting stack trace
+    { client: client_unix, send: 'a = 3.5e',
+      expect: /^(?!\s+at\s)/gm },
   ]);
 }
 
