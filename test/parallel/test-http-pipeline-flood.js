@@ -27,7 +27,6 @@ switch (process.argv[2]) {
 function parent() {
   const http = require('http');
   const bigResponse = new Buffer(10240).fill('x');
-  var requests = 0;
   var connections = 0;
   var backloggedReqs = 0;
 
