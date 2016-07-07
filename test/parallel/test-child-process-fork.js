@@ -7,12 +7,9 @@ var args = ['foo', 'bar'];
 var n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
 assert.deepStrictEqual(args, ['foo', 'bar']);
 
-var messageCount = 0;
-
 n.on('message', function(m) {
   console.log('PARENT got message:', m);
   assert.ok(m.foo);
-  messageCount++;
 });
 
 // https://github.com/joyent/node/issues/2355 - JSON.stringify(undefined)
