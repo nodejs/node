@@ -10,7 +10,7 @@
 
 namespace node {
 
-class TCPWrap : public StreamWrap, ConnectionWrap {
+class TCPWrap : public StreamWrap, ConnectionWrap<TCPWrap, uv_tcp_t> {
  public:
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   static void Initialize(v8::Local<v8::Object> target,

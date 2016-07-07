@@ -18,7 +18,8 @@ using v8::Value;
 
 
 template<typename WrapType, typename UVType>
-void ConnectionWrap::OnConnection(uv_stream_t* handle, int status) {
+void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
+                                                    int status) {
   WrapType* wrap_data = static_cast<WrapType*>(handle->data);
   CHECK_EQ(&wrap_data->handle_, reinterpret_cast<UVType*>(handle));
 
@@ -52,13 +53,11 @@ void ConnectionWrap::OnConnection(uv_stream_t* handle, int status) {
   wrap_data->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
-template void ConnectionWrap::OnConnection<PipeWrap, uv_pipe_t>(
-    uv_stream_t* handle,
-    int status);
+template void ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection(
+    uv_stream_t* handle, int status);
 
-template void ConnectionWrap::OnConnection<TCPWrap, uv_tcp_t>(
-    uv_stream_t* handle,
-    int status);
+template void ConnectionWrap<TCPWrap, uv_tcp_t>::OnConnection(
+    uv_stream_t* handle, int status);
 
 
 }  // namespace node

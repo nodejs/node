@@ -10,7 +10,7 @@
 
 namespace node {
 
-class PipeWrap : public StreamWrap, ConnectionWrap {
+class PipeWrap : public StreamWrap, ConnectionWrap<PipeWrap, uv_pipe_t> {
  public:
   uv_pipe_t* UVHandle();
 

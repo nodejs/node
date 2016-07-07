@@ -8,9 +8,9 @@
 
 namespace node {
 
+template<typename WrapType, typename UVType>
 class ConnectionWrap {
  protected:
-  template<typename WrapType, typename UVType>
   static void OnConnection(uv_stream_t* handle, int status);
 };
 
