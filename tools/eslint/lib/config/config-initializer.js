@@ -46,7 +46,6 @@ function writeFile(config, format) {
         extname = ".json";
     }
 
-
     ConfigFile.write(config, "./.eslintrc" + extname);
     log.info("Successfully created .eslintrc" + extname + " file in " + process.cwd());
 
@@ -318,7 +317,8 @@ function promptUser(callback) {
             message: "Which style guide do you want to follow?",
             choices: [{name: "Google", value: "google"}, {name: "AirBnB", value: "airbnb"}, {name: "Standard", value: "standard"}],
             when: function(answers) {
-                return answers.source === "guide";
+                answers.packageJsonExists = npmUtil.checkPackageJson();
+                return answers.source === "guide" && answers.packageJsonExists;
             }
         },
         {
@@ -342,13 +342,18 @@ function promptUser(callback) {
             default: "JavaScript",
             choices: ["JavaScript", "YAML", "JSON"],
             when: function(answers) {
-                return (answers.source === "guide" || answers.source === "auto");
+                return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
             }
         }
     ], function(earlyAnswers) {
 
         // early exit if you are using a style guide
         if (earlyAnswers.source === "guide") {
+            if (!earlyAnswers.packageJsonExists) {
+                log.info("A package.json is necessary to install plugins such as style guides. Run `npm init` to create a package.json file and try again.");
+                return;
+            }
+
             try {
                 config = getConfigForStyleGuide(earlyAnswers.styleguide);
                 writeFile(config, earlyAnswers.format);

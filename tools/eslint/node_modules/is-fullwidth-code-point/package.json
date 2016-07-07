@@ -53,7 +53,7 @@
   "directories": {},
   "dist": {
     "shasum": "ef9e31386f031a7f0d643af82fde50c457ef00cb",
-    "tarball": "http://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-1.0.0.tgz"
+    "tarball": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-1.0.0.tgz"
   },
   "engines": {
     "node": ">=0.10.0"

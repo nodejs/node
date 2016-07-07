@@ -136,19 +136,19 @@ module.exports = {
          * @returns {void}
          */
         function addNullElementsToIgnoreList(node) {
-            var previousToken = context.getFirstToken(node);
+            var previousToken = sourceCode.getFirstToken(node);
 
             node.elements.forEach(function(element) {
                 var token;
 
                 if (element === null) {
-                    token = context.getTokenAfter(previousToken);
+                    token = sourceCode.getTokenAfter(previousToken);
 
                     if (isComma(token)) {
                         commaTokensToIgnore.push(token);
                     }
                 } else {
-                    token = context.getTokenAfter(element);
+                    token = sourceCode.getTokenAfter(element);
                 }
 
                 previousToken = token;

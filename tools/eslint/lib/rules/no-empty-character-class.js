@@ -39,11 +39,12 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         return {
 
             Literal: function(node) {
-                var token = context.getFirstToken(node);
+                var token = sourceCode.getFirstToken(node);
 
                 if (token.type === "RegularExpression" && !regex.test(token.value)) {
                     context.report(node, "Empty class.");

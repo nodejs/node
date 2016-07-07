@@ -51,7 +51,7 @@
   "directories": {},
   "dist": {
     "shasum": "34f5049ce1ecdf2b0649af3ef24e45ed35416d91",
-    "tarball": "http://registry.npmjs.org/has-ansi/-/has-ansi-2.0.0.tgz"
+    "tarball": "https://registry.npmjs.org/has-ansi/-/has-ansi-2.0.0.tgz"
   },
   "engines": {
     "node": ">=0.10.0"

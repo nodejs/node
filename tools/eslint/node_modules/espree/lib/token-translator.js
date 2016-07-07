@@ -122,7 +122,8 @@ TokenTranslator.prototype = {
                  type === tt.bracketR || type === tt.ellipsis ||
                  type === tt.arrow || type === tt.jsxTagStart ||
                  type === tt.incDec || type === tt.starstar ||
-                 type === tt.jsxTagEnd || (type.binop && !type.keyword) ||
+                 type === tt.jsxTagEnd || type === tt.prefix ||
+                 (type.binop && !type.keyword) ||
                  type.isAssign) {
 
             token.type = Token.Punctuator;

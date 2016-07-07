@@ -9,25 +9,25 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
-    Traverser = require("./util/traverser"),
-    escope = require("escope"),
-    Environments = require("./config/environments"),
-    blankScriptAST = require("../conf/blank-script.json"),
-    rules = require("./rules"),
-    RuleContext = require("./rule-context"),
-    timing = require("./timing"),
-    SourceCode = require("./util/source-code"),
-    NodeEventGenerator = require("./util/node-event-generator"),
-    CommentEventGenerator = require("./util/comment-event-generator"),
+var assert = require("assert"),
     EventEmitter = require("events").EventEmitter,
+    escope = require("escope"),
+    levn = require("levn"),
+    lodash = require("lodash"),
+    blankScriptAST = require("../conf/blank-script.json"),
+    DEFAULT_PARSER = require("../conf/eslint.json").parser,
+    replacements = require("../conf/replacements.json"),
+    CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer"),
     ConfigOps = require("./config/config-ops"),
     validator = require("./config/config-validator"),
-    replacements = require("../conf/replacements.json"),
-    assert = require("assert"),
-    CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer");
-
-var DEFAULT_PARSER = require("../conf/eslint.json").parser;
+    Environments = require("./config/environments"),
+    CommentEventGenerator = require("./util/comment-event-generator"),
+    NodeEventGenerator = require("./util/node-event-generator"),
+    SourceCode = require("./util/source-code"),
+    Traverser = require("./util/traverser"),
+    RuleContext = require("./rule-context"),
+    rules = require("./rules"),
+    timing = require("./timing");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -80,6 +80,25 @@ function parseBooleanConfig(string, comment) {
 function parseJsonConfig(string, location, messages) {
     var items = {};
 
+    // Parses a JSON-like comment by the same way as parsing CLI option.
+    try {
+        items = levn.parse("Object", string) || {};
+
+        // Some tests say that it should ignore invalid comments such as `/*eslint no-alert:abc*/`.
+        // Also, commaless notations have invalid severity:
+        //     "no-alert: 2 no-console: 2" --> {"no-alert": "2 no-console: 2"}
+        // Should ignore that case as well.
+        if (ConfigOps.isEverySeverityValid(items)) {
+            return items;
+        }
+    } catch (ex) {
+
+        // ignore to parse the string by a fallback.
+    }
+
+    // Optionator cannot parse commaless notations.
+    // But we are supporting that. So this is a fallback for that.
+    items = {};
     string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
     try {
         items = JSON.parse("{" + string + "}");
@@ -962,8 +981,14 @@ module.exports = (function() {
             source: sourceCode.lines[location.line - 1] || ""
         };
 
-        // ensure there's range and text properties as well as metadata switch, otherwise it's not a valid fix
-        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string") && (!meta || meta.fixable)) {
+        // ensure there's range and text properties, otherwise it's not a valid fix
+        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string")) {
+
+            // If rule uses fix, has metadata, but has no metadata.fixable, we should throw
+            if (meta && !meta.fixable) {
+                throw new Error("Fixable rules should export a `meta.fixable` property.");
+            }
+
             problem.fix = fix;
         }
 

@@ -73,7 +73,7 @@ function isPropertyDescriptor(node) {
 module.exports = {
     meta: {
         docs: {
-            description: "Enforces getter/setter pairs in objects",
+            description: "enforce getter and setter pairs in objects",
             category: "Best Practices",
             recommended: false
         },

@@ -1,6 +1,8 @@
-var baseFlatten = require('./_baseFlatten'),
+var arrayMap = require('./_arrayMap'),
+    baseFlatten = require('./_baseFlatten'),
     basePick = require('./_basePick'),
-    rest = require('./rest');
+    rest = require('./rest'),
+    toKey = require('./_toKey');
 
 /**
  * Creates an object composed of the picked `object` properties.
@@ -20,7 +22,7 @@ var baseFlatten = require('./_baseFlatten'),
  * // => { 'a': 1, 'c': 3 }
  */
 var pick = rest(function(object, props) {
-  return object == null ? {} : basePick(object, baseFlatten(props, 1));
+  return object == null ? {} : basePick(object, arrayMap(baseFlatten(props, 1), toKey));
 });
 
 module.exports = pick;

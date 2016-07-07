@@ -17,6 +17,8 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "whitespace",
+
         schema: [
             {
                 type: "object",
@@ -52,9 +54,11 @@ module.exports = {
 
         if (context.options.length) {
             max = context.options[0].max;
-            maxEOF = context.options[0].maxEOF;
-            maxBOF = context.options[0].maxBOF;
+            maxEOF = typeof context.options[0].maxEOF !== "undefined" ? context.options[0].maxEOF : max;
+            maxBOF = typeof context.options[0].maxBOF !== "undefined" ? context.options[0].maxBOF : max;
         }
+
+        var sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Public
@@ -73,22 +77,35 @@ module.exports = {
             },
 
             "Program:exit": function checkBlankLines(node) {
-                var lines = context.getSourceLines(),
-                    currentLocation = -1,
-                    lastLocation,
+                var lines = sourceCode.lines,
+                    fullLines = sourceCode.text.match(/.*(\r\n|\r|\n|\u2028|\u2029)/g) || [],
+                    firstNonBlankLine = -1,
+                    trimmedLines = [],
+                    linesRangeStart = [],
                     blankCounter = 0,
+                    currentLocation,
+                    lastLocation,
                     location,
                     firstOfEndingBlankLines,
-                    firstNonBlankLine = -1,
-                    trimmedLines = [];
+                    diff,
+                    fix,
+                    rangeStart,
+                    rangeEnd;
 
+                fix = function(fixer) {
+                    return fixer.removeRange([rangeStart, rangeEnd]);
+                };
+
+                linesRangeStart.push(0);
                 lines.forEach(function(str, i) {
-                    var trimmed = str.trim();
+                    var length = i < fullLines.length ? fullLines[i].length : 0,
+                        trimmed = str.trim();
 
                     if ((firstNonBlankLine === -1) && (trimmed !== "")) {
                         firstNonBlankLine = i;
                     }
 
+                    linesRangeStart.push(linesRangeStart[linesRangeStart.length - 1] + length);
                     trimmedLines.push(trimmed);
                 });
 
@@ -120,9 +137,17 @@ module.exports = {
 
                 // Aggregate and count blank lines
                 if (firstNonBlankLine > maxBOF) {
-                    context.report(node, 0,
-                            "Too many blank lines at the beginning of file. Max of " + maxBOF + " allowed.");
+                    diff = firstNonBlankLine - maxBOF;
+                    rangeStart = linesRangeStart[firstNonBlankLine - diff];
+                    rangeEnd = linesRangeStart[firstNonBlankLine];
+                    context.report({
+                        node: node,
+                        loc: node.loc.start,
+                        message: "Too many blank lines at the beginning of file. Max of " + maxBOF + " allowed.",
+                        fix: fix
+                    });
                 }
+                currentLocation = firstNonBlankLine - 1;
 
                 lastLocation = currentLocation;
                 currentLocation = trimmedLines.indexOf("", currentLocation + 1);
@@ -141,20 +166,29 @@ module.exports = {
 
                             // within the file, not at the end
                             if (blankCounter >= max) {
+                                diff = blankCounter - max + 1;
+                                rangeStart = linesRangeStart[location.line - diff];
+                                rangeEnd = linesRangeStart[location.line];
+
                                 context.report({
                                     node: node,
                                     loc: location,
-                                    message: "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed."
+                                    message: "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed.",
+                                    fix: fix
                                 });
                             }
                         } else {
 
                             // inside the last blank lines
                             if (blankCounter > maxEOF) {
+                                diff = blankCounter - maxEOF + 1;
+                                rangeStart = linesRangeStart[location.line - diff];
+                                rangeEnd = linesRangeStart[location.line - 1];
                                 context.report({
                                     node: node,
                                     loc: location,
-                                    message: "Too many blank lines at the end of file. Max of " + maxEOF + " allowed."
+                                    message: "Too many blank lines at the end of file. Max of " + maxEOF + " allowed.",
+                                    fix: fix
                                 });
                             }
                         }

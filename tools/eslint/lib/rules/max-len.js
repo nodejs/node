@@ -81,6 +81,8 @@ module.exports = {
          */
         var URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Computes the length of a line that may contain tabs. The width of each
          * tab will be the number of spaces to the next tab stop.
@@ -155,11 +157,12 @@ module.exports = {
          */
         function isFullLineComment(line, lineNumber, comment) {
             var start = comment.loc.start,
-                end = comment.loc.end;
+                end = comment.loc.end,
+                isFirstTokenOnLine = !line.slice(0, comment.loc.start.column).trim();
 
             return comment &&
-                (start.line < lineNumber || (start.line === lineNumber && start.column === 0)) &&
-                (end.line > lineNumber || end.column === line.length);
+                (start.line < lineNumber || (start.line === lineNumber && isFirstTokenOnLine)) &&
+                (end.line > lineNumber || (end.line === lineNumber && end.column === line.length));
         }
 
         /**
@@ -185,10 +188,10 @@ module.exports = {
         function checkProgramForMaxLength(node) {
 
             // split (honors line-ending)
-            var lines = context.getSourceLines(),
+            var lines = sourceCode.lines,
 
                 // list of comments to ignore
-                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? context.getAllComments() : [],
+                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? sourceCode.getAllComments() : [],
 
                 // we iterate over comments in parallel with the lines
                 commentsIndex = 0;

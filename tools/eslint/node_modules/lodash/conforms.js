@@ -11,7 +11,7 @@ var baseClone = require('./_baseClone'),
  * @since 4.0.0
  * @category Util
  * @param {Object} source The object of property predicates to conform to.
- * @returns {Function} Returns the new function.
+ * @returns {Function} Returns the new spec function.
  * @example
  *
  * var users = [
@@ -19,7 +19,7 @@ var baseClone = require('./_baseClone'),
  *   { 'user': 'fred',   'age': 40 }
  * ];
  *
- * _.filter(users, _.conforms({ 'age': _.partial(_.gt, _, 38) }));
+ * _.filter(users, _.conforms({ 'age': function(n) { return n > 38; } }));
  * // => [{ 'user': 'fred', 'age': 40 }]
  */
 function conforms(source) {

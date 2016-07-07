@@ -40,20 +40,20 @@ function simple(node, visitors, base, state, override) {
   })(node, state, override);
 }
 
-// An ancestor walk builds up an array of ancestor nodes (including
-// the current node) and passes them to the callback as the state parameter.
+// An ancestor walk keeps an array of ancestor nodes (including the
+// current node) and passes them to the callback as third parameter
+// (and also as state parameter when no other state is present).
 
 function ancestor(node, visitors, base, state) {
   if (!base) base = exports.base;
-  if (!state) state = [];(function c(node, st, override) {
+  var ancestors = [];(function c(node, st, override) {
     var type = override || node.type,
         found = visitors[type];
-    if (node != st[st.length - 1]) {
-      st = st.slice();
-      st.push(node);
-    }
+    var isNew = node != ancestors[ancestors.length - 1];
+    if (isNew) ancestors.push(node);
     base[type](node, st, c);
-    if (found) found(node, st);
+    if (found) found(node, st || ancestors, ancestors);
+    if (isNew) ancestors.pop();
   })(node, state);
 }
 
@@ -154,13 +154,19 @@ function findNodeBefore(node, pos, test, base, state) {
   return max;
 }
 
+// Fallback to an Object.create polyfill for older environments.
+var create = Object.create || function (proto) {
+  function Ctor() {}
+  Ctor.prototype = proto;
+  return new Ctor();
+};
+
 // Used to create a custom walker. Will fill in all missing node
 // type properties with the defaults.
 
 function make(funcs, base) {
   if (!base) base = exports.base;
-  var visitor = {};
-  for (var type in base) visitor[type] = base[type];
+  var visitor = create(base);
   for (var type in funcs) visitor[type] = funcs[type];
   return visitor;
 }

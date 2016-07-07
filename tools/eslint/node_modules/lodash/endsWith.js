@@ -1,4 +1,5 @@
 var baseClamp = require('./_baseClamp'),
+    baseToString = require('./_baseToString'),
     toInteger = require('./toInteger'),
     toString = require('./toString');
 
@@ -11,7 +12,7 @@ var baseClamp = require('./_baseClamp'),
  * @category String
  * @param {string} [string=''] The string to search.
  * @param {string} [target] The string to search for.
- * @param {number} [position=string.length] The position to search from.
+ * @param {number} [position=string.length] The position to search up to.
  * @returns {boolean} Returns `true` if `string` ends with `target`,
  *  else `false`.
  * @example
@@ -27,7 +28,7 @@ var baseClamp = require('./_baseClamp'),
  */
 function endsWith(string, target, position) {
   string = toString(string);
-  target = typeof target == 'string' ? target : (target + '');
+  target = baseToString(target);
 
   var length = string.length;
   position = position === undefined

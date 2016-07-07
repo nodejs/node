@@ -14,7 +14,7 @@ var arrayMap = require('./_arrayMap'),
  * @returns {Function} Returns the new function.
  * @example
  *
- * var func = _.over(Math.max, Math.min);
+ * var func = _.over([Math.max, Math.min]);
  *
  * func(1, 2, 3, 4);
  * // => [4, 1]

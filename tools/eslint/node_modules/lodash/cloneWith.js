@@ -13,6 +13,7 @@ var baseClone = require('./_baseClone');
  * @param {*} value The value to clone.
  * @param {Function} [customizer] The function to customize cloning.
  * @returns {*} Returns the cloned value.
+ * @see _.cloneDeepWith
  * @example
  *
  * function customizer(value) {

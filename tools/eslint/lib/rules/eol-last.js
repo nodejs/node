@@ -35,8 +35,8 @@ module.exports = {
 
             Program: function checkBadEOF(node) {
 
-                // Get the whole source code, not for node only.
-                var src = context.getSource(),
+                var sourceCode = context.getSourceCode(),
+                    src = sourceCode.getText(),
                     location = {column: 1},
                     linebreakStyle = context.options[0] || "unix",
                     linebreak = linebreakStyle === "unix" ? "\n" : "\r\n";

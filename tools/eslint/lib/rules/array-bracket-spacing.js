@@ -13,7 +13,7 @@ var astUtils = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "Enforce spacing inside array brackets",
+            description: "enforce consistent spacing inside array brackets",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -77,7 +77,7 @@ module.exports = {
                 loc: token.loc.start,
                 message: "There should be no space after '" + token.value + "'",
                 fix: function(fixer) {
-                    var nextToken = context.getSourceCode().getTokenAfter(token);
+                    var nextToken = sourceCode.getTokenAfter(token);
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
@@ -96,7 +96,7 @@ module.exports = {
                 loc: token.loc.start,
                 message: "There should be no space before '" + token.value + "'",
                 fix: function(fixer) {
-                    var previousToken = context.getSourceCode().getTokenBefore(token);
+                    var previousToken = sourceCode.getTokenBefore(token);
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
@@ -165,10 +165,10 @@ module.exports = {
                 return;
             }
 
-            var first = context.getFirstToken(node),
-                second = context.getFirstToken(node, 1),
-                penultimate = context.getLastToken(node, 1),
-                last = context.getLastToken(node),
+            var first = sourceCode.getFirstToken(node),
+                second = sourceCode.getFirstToken(node, 1),
+                penultimate = sourceCode.getLastToken(node, 1),
+                last = sourceCode.getLastToken(node),
                 firstElement = node.elements[0],
                 lastElement = node.elements[node.elements.length - 1];
 

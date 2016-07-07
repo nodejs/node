@@ -24,6 +24,8 @@ module.exports = {
         var PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
         var TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Check to see if there is a newline between the node and the following open bracket
          * line's expression
@@ -34,12 +36,12 @@ module.exports = {
          */
         function checkForBreakAfter(node, msg) {
             var nodeExpressionEnd = node;
-            var openParen = context.getTokenAfter(node);
+            var openParen = sourceCode.getTokenAfter(node);
 
             // Move along until the end of the wrapped expression
             while (openParen.value === ")") {
                 nodeExpressionEnd = openParen;
-                openParen = context.getTokenAfter(nodeExpressionEnd);
+                openParen = sourceCode.getTokenAfter(nodeExpressionEnd);
             }
 
             if (openParen.loc.start.line !== nodeExpressionEnd.loc.end.line) {

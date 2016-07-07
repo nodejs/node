@@ -23,7 +23,9 @@ var messages = {
     unnecessary: "Unnecessary 'use strict' directive.",
     module: "'use strict' is unnecessary inside of modules.",
     implied: "'use strict' is unnecessary when implied strict mode is enabled.",
-    unnecessaryInClasses: "'use strict' is unnecessary inside of classes."
+    unnecessaryInClasses: "'use strict' is unnecessary inside of classes.",
+    nonSimpleParameterList: "'use strict' directive inside a function with non-simple parameter list throws a syntax error since ES2016.",
+    wrap: "Wrap this function in a function with 'use strict' directive."
 };
 
 /**
@@ -51,6 +53,26 @@ function getUseStrictDirectives(statements) {
     }
 
     return directives;
+}
+
+/**
+ * Checks whether a given parameter is a simple parameter.
+ *
+ * @param {ASTNode} node - A pattern node to check.
+ * @returns {boolean} `true` if the node is an Identifier node.
+ */
+function isSimpleParameter(node) {
+    return node.type === "Identifier";
+}
+
+/**
+ * Checks whether a given parameter list is a simple parameter list.
+ *
+ * @param {ASTNode[]} params - A parameter list to check.
+ * @returns {boolean} `true` if the every parameter is an Identifier node.
+ */
+function isSimpleParameterList(params) {
+    return params.every(isSimpleParameter);
 }
 
 //------------------------------------------------------------------------------
@@ -136,7 +158,9 @@ module.exports = {
                 isStrict = useStrictDirectives.length > 0;
 
             if (isStrict) {
-                if (isParentStrict) {
+                if (!isSimpleParameterList(node.params)) {
+                    context.report(useStrictDirectives[0], messages.nonSimpleParameterList);
+                } else if (isParentStrict) {
                     context.report(useStrictDirectives[0], messages.unnecessary);
                 } else if (isInClass) {
                     context.report(useStrictDirectives[0], messages.unnecessaryInClasses);
@@ -144,7 +168,11 @@ module.exports = {
 
                 reportAllExceptFirst(useStrictDirectives, messages.multiple);
             } else if (isParentGlobal) {
-                context.report(node, messages.function);
+                if (isSimpleParameterList(node.params)) {
+                    context.report(node, messages.function);
+                } else {
+                    context.report(node, messages.wrap);
+                }
             }
 
             scopes.push(isParentStrict || isStrict);
@@ -172,8 +200,13 @@ module.exports = {
 
             if (mode === "function") {
                 enterFunctionInFunctionMode(node, useStrictDirectives);
-            } else {
-                reportAll(useStrictDirectives, messages[mode]);
+            } else if (useStrictDirectives.length > 0) {
+                if (isSimpleParameterList(node.params)) {
+                    reportAll(useStrictDirectives, messages[mode]);
+                } else {
+                    context.report(useStrictDirectives[0], messages.nonSimpleParameterList);
+                    reportAllExceptFirst(useStrictDirectives, messages.multiple);
+                }
             }
         }
 

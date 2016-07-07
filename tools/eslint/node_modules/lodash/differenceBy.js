@@ -22,8 +22,8 @@ var baseDifference = require('./_baseDifference'),
  * @returns {Array} Returns the new array of filtered values.
  * @example
  *
- * _.differenceBy([3.1, 2.2, 1.3], [4.4, 2.5], Math.floor);
- * // => [3.1, 1.3]
+ * _.differenceBy([2.1, 1.2], [2.3, 3.4], Math.floor);
+ * // => [1.2]
  *
  * // The `_.property` iteratee shorthand.
  * _.differenceBy([{ 'x': 2 }, { 'x': 1 }], [{ 'x': 1 }], 'x');
