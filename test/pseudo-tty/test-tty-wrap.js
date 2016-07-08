@@ -1,28 +1,11 @@
 'use strict';
-const common = require('../common');
-var assert = require('assert');
+require('../common');
 
-var TTY = process.binding('tty_wrap').TTY;
-var isTTY = process.binding('tty_wrap').isTTY;
+const TTY = process.binding('tty_wrap').TTY;
+const WriteWrap = process.binding('stream_wrap').WriteWrap;
 
-if (isTTY(1) == false) {
-  common.skip('fd 1 is not a tty.');
-  return;
-}
+const handle = new TTY(1);
+const req = new WriteWrap();
 
-var handle = new TTY(1);
-var callbacks = 0;
-
-var req1 = handle.writeBuffer(Buffer.from('hello world\n'));
-req1.oncomplete = function() {
-  callbacks++;
-};
-
-var req2 = handle.writeBuffer(Buffer.from('hello world\n'));
-req2.oncomplete = function() {
-  callbacks++;
-};
-
-process.on('exit', function() {
-  assert.equal(2, callbacks);
-});
+handle.writeBuffer(req, Buffer.from('hello world 1\n'));
+handle.writeBuffer(req, Buffer.from('hello world 2\n'));
