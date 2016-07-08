@@ -2,7 +2,7 @@
 
 | subsystem | maintainers |
 | --- | --- |
-| `benchamrk/*` | @nodejs/benchmarking, @mscdex, @bnoordhuis |
+| `benchmark/*` | @nodejs/benchmarking, @mscdex |
 | `bootstrap_node.js` | @fishrock123 |
 | `lib/assert` | @nodejs/testing |
 | `lib/buffer` | @nodejs/buffer |
