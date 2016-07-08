@@ -22,6 +22,7 @@ test-tls-connect-address-family : PASS,FLAKY
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
+test-debug-signal-cluster         : PASS,FLAKY
 
 [$system==freebsd]
 

@@ -50,7 +50,10 @@ int wmain(int argc, wchar_t *wargv[]) {
 #else
 // UNIX
 int main(int argc, char *argv[]) {
-  setvbuf(stderr, NULL, _IOLBF, 1024);
+  // Disable stdio buffering, it interacts poorly with printf()
+  // calls elsewhere in the program (e.g., any logging from V8.)
+  setvbuf(stdout, nullptr, _IONBF, 0);
+  setvbuf(stderr, nullptr, _IONBF, 0);
   return node::Start(argc, argv);
 }
 #endif
