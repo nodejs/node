@@ -11,17 +11,16 @@ function main(conf) {
   const len = conf.len | 0;
   const n = conf.n | 0;
   const buf = Buffer.alloc(len);
-  var i, b;
 
-  for (i = 0; i < buf.length; i++)
+  for (let i = 0; i < buf.length; i++)
     buf[i] = i & 0xff;
 
   const hex = buf.toString('hex');
 
   bench.start();
 
-  for (i = 0; i < n; i += 1)
-    b = Buffer.from(hex, 'hex');
+  for (let i = 0; i < n; i += 1)
+    Buffer.from(hex, 'hex');
 
   bench.end(n);
 }
