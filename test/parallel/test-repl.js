@@ -338,7 +338,7 @@ function error_test() {
       expect: /^(?!repl)/ },
     // Avoid emitting stack trace
     { client: client_unix, send: 'a = 3.5e',
-      expect: /^(?!\s+at\s)/ },
+      expect: /^(?!\s+at\s)/gm },
   ]);
 }
 
