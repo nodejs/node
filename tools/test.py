@@ -696,15 +696,6 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
   return CommandOutput(exit_code, timed_out, output, errors)
 
 
-def ExecuteNoCapture(args, context, timeout=None):
-  (process, exit_code, timed_out) = RunProcess(
-    context,
-    timeout,
-    args = args,
-  )
-  return CommandOutput(exit_code, False, "", "")
-
-
 def CarCdr(path):
   if len(path) == 0:
     return (None, [ ])
@@ -876,14 +867,6 @@ class Context(object):
 def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode):
   progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode)
   return progress.Run(tasks)
-
-
-def BuildRequirements(context, requirements, mode, scons_flags):
-  command_line = (['scons', '-Y', context.workspace, 'mode=' + ",".join(mode)]
-                  + requirements
-                  + scons_flags)
-  output = ExecuteNoCapture(command_line, context)
-  return output.exit_code == 0
 
 
 # -------------------------------------------
@@ -1323,15 +1306,9 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option('--logfile', dest='logfile',
       help='write test output to file. NOTE: this only applies the tap progress indicator')
-  result.add_option("-S", dest="scons_flags", help="Flag to pass through to scons",
-      default=[], action="append")
   result.add_option("-p", "--progress",
       help="The style of progress indicator (verbose, dots, color, mono, tap)",
       choices=PROGRESS_INDICATORS.keys(), default="mono")
-  result.add_option("--no-build", help="Don't build requirements",
-      default=True, action="store_true")
-  result.add_option("--build-only", help="Only build requirements, don't run the tests",
-      default=False, action="store_true")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
@@ -1548,21 +1525,6 @@ def Main():
                     options.suppress_dialogs,
                     options.store_unexpected_output,
                     options.repeat)
-  # First build the required targets
-  if not options.no_build:
-    reqs = [ ]
-    for path in paths:
-      reqs += root.GetBuildRequirements(path, context)
-    reqs = list(set(reqs))
-    if len(reqs) > 0:
-      if options.j != 1:
-        options.scons_flags += ['-j', str(options.j)]
-      if not BuildRequirements(context, reqs, options.mode, options.scons_flags):
-        return 1
-
-  # Just return if we are only building the targets for running the tests.
-  if options.build_only:
-    return 0
 
   # Get status for tests
   sections = [ ]
