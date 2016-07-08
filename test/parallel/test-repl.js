@@ -333,9 +333,12 @@ function error_test() {
       expect: "'node'\n" + prompt_unix },
     { client: client_unix, send: 'function name(){ return "nodejs"; };name()',
       expect: "'nodejs'\n" + prompt_unix },
-    // Avoid emitting filename:line-number for SyntaxError
+    // Avoid emitting repl:line-number for SyntaxError
     { client: client_unix, send: 'a = 3.5e',
       expect: /^(?!repl)/ },
+    // Avoid emitting stack trace
+    { client: client_unix, send: 'a = 3.5e',
+      expect: /^(?!\s+at\s)/ },
   ]);
 }
 
