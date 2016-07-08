@@ -33,7 +33,7 @@ if os.path.isdir(options.icusmall):
     shutil.rmtree(options.icusmall)
 
 if not os.path.isdir(options.icusrc):
-    print 'Missing source ICU dir --icusrc=%' % (options.icusrc)
+    print 'Missing source ICU dir --icusrc=%s' % (options.icusrc)
     sys.exit(1)
 
 
