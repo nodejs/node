@@ -1492,8 +1492,12 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ GetObjectType(function, function_map, scratch);
   __ Branch(&slow_case, ne, scratch, Operand(JS_FUNCTION_TYPE));
 
-  // Ensure that {function} has an instance prototype.
+  // Go to the runtime if the function is not a constructor.
   __ lbu(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
+  __ And(at, scratch, Operand(1 << Map::kIsConstructor));
+  __ Branch(&slow_case, eq, at, Operand(zero_reg));
+
+  // Ensure that {function} has an instance prototype.
   __ And(at, scratch, Operand(1 << Map::kHasNonInstancePrototype));
   __ Branch(&slow_case, ne, at, Operand(zero_reg));
 

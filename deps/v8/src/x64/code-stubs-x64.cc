@@ -2069,6 +2069,11 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ CmpObjectType(function, JS_FUNCTION_TYPE, function_map);
   __ j(not_equal, &slow_case);
 
+  // Go to the runtime if the function is not a constructor.
+  __ testb(FieldOperand(function_map, Map::kBitFieldOffset),
+           Immediate(1 << Map::kIsConstructor));
+  __ j(zero, &slow_case);
+
   // Ensure that {function} has an instance prototype.
   __ testb(FieldOperand(function_map, Map::kBitFieldOffset),
            Immediate(1 << Map::kHasNonInstancePrototype));
