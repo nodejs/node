@@ -302,3 +302,19 @@ assert.throws(function() {
 assert.throws(function() {
   b.indexOf([]);
 });
+
+// test truncation of Number arguments to uint8
+{
+  const buf = Buffer.from('this is a test');
+  assert.strictEqual(buf.indexOf(0x6973), 3);
+  assert.strictEqual(buf.indexOf(0x697320), 4);
+  assert.strictEqual(buf.indexOf(0x69732069), 2);
+  assert.strictEqual(buf.indexOf(0x697374657374), 0);
+  assert.strictEqual(buf.indexOf(0x69737374), 0);
+  assert.strictEqual(buf.indexOf(0x69737465), 11);
+  assert.strictEqual(buf.indexOf(0x69737465), 11);
+  assert.strictEqual(buf.indexOf(-140), 0);
+  assert.strictEqual(buf.indexOf(-152), 1);
+  assert.strictEqual(buf.indexOf(0xff), -1);
+  assert.strictEqual(buf.indexOf(0xffff), -1);
+}
