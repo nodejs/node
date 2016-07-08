@@ -2,6 +2,8 @@
 
 | subsystem | maintainers |
 | --- | --- |
+| `benchamrk/*` | @nodejs/benchmarking, @mscdex, @bnoordhuis |
+| `bootstrap_node.js` | @fishrock123 |
 | `lib/assert` | @nodejs/testing |
 | `lib/buffer` | @nodejs/buffer |
 | `lib/child_process` | @bnoordhuis, @cjihrig |
@@ -16,7 +18,6 @@
 | `lib/timers` | @fishrock123, @misterdjules |
 | `lib/util` | @bnoordhuis, @cjihrig, @evanlucas |
 | `lib/zlib` | @addaleax, @bnoordhuis, @indutny |
-| `bootstrap_node.js` | @fishrock123 |
 | `src/async-wrap.*` | @trevnorris |
 | `src/node_crypto.*` | @nodejs/crypto |
 | `test/*` | @nodejs/testing |
