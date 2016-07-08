@@ -99,7 +99,8 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 
   // Mark the new block as FreeSpace to make sure the heap is iterable while we
   // are taking the sample.
-  heap()->CreateFillerObjectAt(soon_object, static_cast<int>(size));
+  heap()->CreateFillerObjectAt(soon_object, static_cast<int>(size),
+                               ClearRecordedSlots::kNo);
 
   Local<v8::Value> loc = v8::Utils::ToLocal(obj);
 
@@ -199,19 +200,22 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
   int column = v8::AllocationProfile::kNoColumnNumberInfo;
   std::vector<v8::AllocationProfile::Allocation> allocations;
   allocations.reserve(node->allocations_.size());
-  if (node->script_id_ != v8::UnboundScript::kNoScriptId) {
+  if (node->script_id_ != v8::UnboundScript::kNoScriptId &&
+      scripts.find(node->script_id_) != scripts.end()) {
     // Cannot use std::map<T>::at because it is not available on android.
     auto non_const_scripts = const_cast<std::map<int, Script*>&>(scripts);
     Script* script = non_const_scripts[node->script_id_];
-    if (script->name()->IsName()) {
-      Name* name = Name::cast(script->name());
-      script_name = ToApiHandle<v8::String>(
-          isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
+    if (script) {
+      if (script->name()->IsName()) {
+        Name* name = Name::cast(script->name());
+        script_name = ToApiHandle<v8::String>(
+            isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
+      }
+      Handle<Script> script_handle(script);
+      line = 1 + Script::GetLineNumber(script_handle, node->script_position_);
+      column =
+          1 + Script::GetColumnNumber(script_handle, node->script_position_);
     }
-    Handle<Script> script_handle(script);
-
-    line = 1 + Script::GetLineNumber(script_handle, node->script_position_);
-    column = 1 + Script::GetColumnNumber(script_handle, node->script_position_);
     for (auto alloc : node->allocations_) {
       allocations.push_back(ScaleSample(alloc.first, alloc.second));
     }

@@ -676,7 +676,7 @@ Set to true to run in "production" mode.
 
 ### progress
 
-* Default: true
+* Default: true, unless TRAVIS or CI env vars set.
 * Type: Boolean
 
 When set to `true`, npm will display a progress bar during time intensive

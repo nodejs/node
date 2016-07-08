@@ -12,11 +12,11 @@ var pkg = path.resolve(__dirname, 'logout')
 var outfile = path.join(pkg, '_npmrc')
 var opts = { cwd: pkg }
 
-var contents = function () {/*
+var contents = function () { /*
 foo=boo
 @bar:registry=http://localhost:1337
 //localhost:1337/:_authToken=glarb
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 
 function mocks (server) {
   server.delete('/-/user/token/glarb')
@@ -47,7 +47,7 @@ test('npm logout', function (t) {
         t.notOk(code, 'exited OK')
 
         var config = fs.readFileSync(outfile, 'utf8')
-        t.equal(config, 'foo=boo\n', 'creds gone')
+        t.equal(config.trim(), 'foo=boo', 'creds gone')
         s.close()
         t.end()
       }

@@ -419,10 +419,19 @@ class AstGraphBuilder : public AstVisitor {
   void VisitTypeof(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
 
+  // Dispatched from VisitTypeof, VisitLiteralCompareTypeof.
+  void VisitTypeofExpression(Expression* expr);
+
   // Dispatched from VisitBinaryOperation.
   void VisitComma(BinaryOperation* expr);
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);
+
+  // Dispatched from VisitCompareOperation.
+  void VisitLiteralCompareNil(CompareOperation* expr, Expression* sub_expr,
+                              Node* nil_value);
+  void VisitLiteralCompareTypeof(CompareOperation* expr, Expression* sub_expr,
+                                 Handle<String> check);
 
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value,

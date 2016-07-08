@@ -46,27 +46,13 @@ const LocalType kAstF64 = MachineRepresentation::kFloat64;
 // We use kTagged here because kNone is already used by kAstStmt.
 const LocalType kAstEnd = MachineRepresentation::kTagged;
 
-// Functionality related to encoding memory accesses.
-struct MemoryAccess {
-  // Atomicity annotations for access to the memory and globals.
-  enum Atomicity {
-    kNone = 0,        // non-atomic
-    kSequential = 1,  // sequential consistency
-    kAcquire = 2,     // acquire semantics
-    kRelease = 3      // release semantics
-  };
-
-  // Alignment annotations for memory accesses.
-  enum Alignment { kAligned = 0, kUnaligned = 1 };
-
-  // Bitfields for the various annotations for memory accesses.
-  typedef BitField<Alignment, 7, 1> AlignmentField;
-  typedef BitField<Atomicity, 5, 2> AtomicityField;
-  typedef BitField<bool, 4, 1> OffsetField;
-};
-
 typedef Signature<LocalType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
+
+struct WasmName {
+  const char* name;
+  uint32_t length;
+};
 
 // TODO(titzer): Renumber all the opcodes to fill in holes.
 
@@ -80,7 +66,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(Select, 0x05, _)              \
   V(Br, 0x06, _)                  \
   V(BrIf, 0x07, _)                \
-  V(TableSwitch, 0x08, _)         \
+  V(BrTable, 0x08, _)             \
   V(Return, 0x14, _)              \
   V(Unreachable, 0x15, _)
 
@@ -97,7 +83,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(StoreGlobal, 0x11, _)      \
   V(CallFunction, 0x12, _)     \
   V(CallIndirect, 0x13, _)     \
-  V(CallImport, 0x1F, _)
+  V(CallImport, 0x1F, _)       \
+  V(DeclLocals, 0x1E, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -161,7 +148,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(I32Clz, 0x57, i_i)            \
   V(I32Ctz, 0x58, i_i)            \
   V(I32Popcnt, 0x59, i_i)         \
-  V(BoolNot, 0x5a, i_i)           \
+  V(I32Eqz, 0x5a, i_i)            \
   V(I64Add, 0x5b, l_ll)           \
   V(I64Sub, 0x5c, l_ll)           \
   V(I64Mul, 0x5d, l_ll)           \
@@ -188,6 +175,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(I64Clz, 0x72, l_l)            \
   V(I64Ctz, 0x73, l_l)            \
   V(I64Popcnt, 0x74, l_l)         \
+  V(I64Eqz, 0xba, i_l)            \
   V(F32Add, 0x75, f_ff)           \
   V(F32Sub, 0x76, f_ff)           \
   V(F32Mul, 0x77, f_ff)           \
@@ -252,7 +240,47 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(F64ConvertF32, 0xb2, d_f)     \
   V(F64ReinterpretI64, 0xb3, d_l) \
   V(I32ReinterpretF32, 0xb4, i_f) \
-  V(I64ReinterpretF64, 0xb5, l_d)
+  V(I64ReinterpretF64, 0xb5, l_d) \
+  V(I32Ror, 0xb6, i_ii)           \
+  V(I32Rol, 0xb7, i_ii)           \
+  V(I64Ror, 0xb8, l_ll)           \
+  V(I64Rol, 0xb9, l_ll)
+
+// For compatibility with Asm.js.
+#define FOREACH_ASMJS_COMPAT_OPCODE(V) \
+  V(F64Acos, 0xc0, d_d)                \
+  V(F64Asin, 0xc1, d_d)                \
+  V(F64Atan, 0xc2, d_d)                \
+  V(F64Cos, 0xc3, d_d)                 \
+  V(F64Sin, 0xc4, d_d)                 \
+  V(F64Tan, 0xc5, d_d)                 \
+  V(F64Exp, 0xc6, d_d)                 \
+  V(F64Log, 0xc7, d_d)                 \
+  V(F64Atan2, 0xc8, d_dd)              \
+  V(F64Pow, 0xc9, d_dd)                \
+  V(F64Mod, 0xca, d_dd)
+
+// TODO(titzer): sketch of asm-js compatibility bytecodes
+/* V(I32AsmjsDivS, 0xd0, i_ii)          \ */
+/* V(I32AsmjsDivU, 0xd1, i_ii)          \ */
+/* V(I32AsmjsRemS, 0xd2, i_ii)          \ */
+/* V(I32AsmjsRemU, 0xd3, i_ii)          \ */
+/* V(I32AsmjsLoad8S, 0xd4, i_i)         \ */
+/* V(I32AsmjsLoad8U, 0xd5, i_i)         \ */
+/* V(I32AsmjsLoad16S, 0xd6, i_i)        \ */
+/* V(I32AsmjsLoad16U, 0xd7, i_i)        \ */
+/* V(I32AsmjsLoad, 0xd8, i_i)           \ */
+/* V(F32AsmjsLoad, 0xd9, f_i)           \ */
+/* V(F64AsmjsLoad, 0xda, d_i)           \ */
+/* V(I32AsmjsStore8, 0xdb, i_i)         \ */
+/* V(I32AsmjsStore16, 0xdc, i_i)        \ */
+/* V(I32AsmjsStore, 0xdd, i_ii)         \ */
+/* V(F32AsmjsStore, 0xde, i_if)         \ */
+/* V(F64AsmjsStore, 0xdf, i_id)         \ */
+/* V(I32SAsmjsConvertF32, 0xe0, i_f)    \ */
+/* V(I32UAsmjsConvertF32, 0xe1, i_f)    \ */
+/* V(I32SAsmjsConvertF64, 0xe2, i_d)    \ */
+/* V(I32SAsmjsConvertF64, 0xe3, i_d) */
 
 // All opcodes.
 #define FOREACH_OPCODE(V)     \
@@ -261,7 +289,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   FOREACH_SIMPLE_OPCODE(V)    \
   FOREACH_STORE_MEM_OPCODE(V) \
   FOREACH_LOAD_MEM_OPCODE(V)  \
-  FOREACH_MISC_MEM_OPCODE(V)
+  FOREACH_MISC_MEM_OPCODE(V)  \
+  FOREACH_ASMJS_COMPAT_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \
@@ -298,6 +327,19 @@ enum WasmOpcode {
 #define DECLARE_NAMED_ENUM(name, opcode, sig) kExpr##name = opcode,
   FOREACH_OPCODE(DECLARE_NAMED_ENUM)
 #undef DECLARE_NAMED_ENUM
+};
+
+// The reason for a trap.
+enum TrapReason {
+  kTrapUnreachable,
+  kTrapMemOutOfBounds,
+  kTrapDivByZero,
+  kTrapDivUnrepresentable,
+  kTrapRemByZero,
+  kTrapFloatUnrepresentable,
+  kTrapFuncInvalid,
+  kTrapFuncSigMismatch,
+  kTrapCount
 };
 
 // A collection of opcode-related static methods.
@@ -428,10 +470,6 @@ class WasmOpcodes {
     }
   }
 
-  static byte LoadStoreAccessOf(bool with_offset) {
-    return MemoryAccess::OffsetField::encode(with_offset);
-  }
-
   static char ShortNameOf(LocalType type) {
     switch (type) {
       case kAstI32:
@@ -468,6 +506,29 @@ class WasmOpcodes {
         return "<end>";
       default:
         return "<unknown>";
+    }
+  }
+
+  static const char* TrapReasonName(TrapReason reason) {
+    switch (reason) {
+      case kTrapUnreachable:
+        return "unreachable";
+      case kTrapMemOutOfBounds:
+        return "memory access out of bounds";
+      case kTrapDivByZero:
+        return "divide by zero";
+      case kTrapDivUnrepresentable:
+        return "divide result unrepresentable";
+      case kTrapRemByZero:
+        return "remainder by zero";
+      case kTrapFloatUnrepresentable:
+        return "integer result unrepresentable";
+      case kTrapFuncInvalid:
+        return "invalid function";
+      case kTrapFuncSigMismatch:
+        return "function signature mismatch";
+      default:
+        return "<?>";
     }
   }
 };

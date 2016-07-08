@@ -179,7 +179,7 @@ content.
 ### [HTTP](https://github.com/nodejs/http)
 
 The HTTP working group is chartered for the support and improvement of the
-HTTP implementation in Node. It's responsibilities are:
+HTTP implementation in Node. Its responsibilities are:
 
 * Addressing HTTP issues on the Node.js issue tracker.
 * Authoring and editing HTTP documentation within the Node.js project.
@@ -293,7 +293,7 @@ Its responsibilities are:
 The Node.js Testing Working Group's purpose is to extend and improve testing of
 the Node.js source code.
 
-It's responsibilities are:
+Its responsibilities are:
 
 * Coordinating an overall strategy for improving testing.
 * Documenting guidelines around tests.

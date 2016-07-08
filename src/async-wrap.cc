@@ -18,6 +18,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
@@ -37,11 +38,11 @@ class RetainedAsyncInfo: public RetainedObjectInfo {
  public:
   explicit RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap);
 
-  virtual void Dispose() override;
-  virtual bool IsEquivalent(RetainedObjectInfo* other) override;
-  virtual intptr_t GetHash() override;
-  virtual const char* GetLabel() override;
-  virtual intptr_t GetSizeInBytes() override;
+  void Dispose() override;
+  bool IsEquivalent(RetainedObjectInfo* other) override;
+  intptr_t GetHash() override;
+  const char* GetLabel() override;
+  intptr_t GetSizeInBytes() override;
 
  private:
   const char* label_;
@@ -197,7 +198,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Value> uid = Integer::New(env()->isolate(), get_uid());
+  Local<Value> uid = Number::New(env()->isolate(), get_uid());
   Local<Object> context = object();
   Local<Object> domain;
   bool has_domain = false;

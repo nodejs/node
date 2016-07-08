@@ -20,13 +20,11 @@ break in /home/indutny/Code/git/indutny/myscript.js:1
 debug>
 ```
 
-Node.js's debugger client does not yet support the full range of commands, but
-simple step and inspection are possible.
+Node.js's debugger client is not a full-featured debugger, but simple step and
+inspection are possible.
 
 Inserting the statement `debugger;` into the source code of a script will
-enable a breakpoint at that position in the code.
-
-For example, suppose `myscript.js` is written as:
+enable a breakpoint at that position in the code:
 
 ```js
 // myscript.js
@@ -81,8 +79,7 @@ debug> quit
 ```
 
 The `repl` command allows code to be evaluated remotely. The `next` command
-steps over to the next line. Type `help` to see what other commands are
-available.
+steps to the next line. Type `help` to see what other commands are available.
 
 Pressing `enter` without typing a command will repeat the previous debugger
 command.
@@ -98,7 +95,7 @@ To begin watching an expression, type `watch('my_expression')`. The command
 `watchers` will print the active watchers. To remove a watcher, type
 `unwatch('my_expression')`.
 
-## Commands reference
+## Command reference
 
 ### Stepping
 
@@ -145,7 +142,7 @@ break in test/fixtures/break-in-module/mod.js:23
 debug>
 ```
 
-### Info
+### Information
 
 * `backtrace`, `bt` - Print backtrace of current execution frame
 * `list(5)` - List scripts source code with 5 line context (5 lines before and
@@ -174,12 +171,26 @@ An alternative way of enabling and accessing the debugger is to start
 Node.js with the `--debug` command-line flag or by signaling an existing
 Node.js process with `SIGUSR1`.
 
-Once a process has been set in debug mode this way, it can be connected to
+Once a process has been set in debug mode this way, it can be inspected
 using the Node.js debugger by either connecting to the `pid` of the running
 process or via URI reference to the listening debugger:
 
 * `node debug -p <pid>` - Connects to the process via the `pid`
 * `node debug <URI>` - Connects to the process via the URI such as
 localhost:5858
+
+## V8 Inspector Integration for Node.js
+
+__NOTE: This is an experimental feature.__
+
+V8 Inspector integration allows attaching Chrome DevTools to Node.js
+instances for debugging and profiling.
+
+V8 Inspector can be enabled by passing the `--inspect` flag when starting a
+Node.js application. It is also possible to supply a custom port with that flag,
+e.g. `--inspect=9222` will accept DevTools connections on port 9222.
+
+To break on the first line of the application code, provide the `--debug-brk`
+flag in addition to `--inspect`.
 
 [TCP-based protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol

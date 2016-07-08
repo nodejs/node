@@ -69,8 +69,6 @@ test('bundled-git', function (t) {
   common.npm(['install', '--global-style', fixturepath], {cwd: basepath}, installCheckAndTest)
   function installCheckAndTest (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'install went ok')
 
     var actual = require(path.resolve(installedpath, 'node_modules/glob/node_modules/minimatch/package.json'))
@@ -82,8 +80,6 @@ test('bundled-git', function (t) {
   }
   function removeCheckAndDone (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'remove went ok')
     t.done()
   }

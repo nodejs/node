@@ -15,11 +15,17 @@ JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
 
 ## Class: vm.Script
+<!-- YAML
+added: v0.3.1
+-->
 
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific sandboxes (or "contexts").
 
 ### new vm.Script(code, options)
+<!-- YAML
+added: v0.3.1
+-->
 
 * `code` {string} The JavaScript code to compile.
 * `options`
@@ -52,6 +58,9 @@ that the `code` is not bound to any global object; rather, it is bound before
 each run, just for that run.
 
 ### script.runInContext(contextifiedSandbox[, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `contextifiedSandbox` {Object} A [contextified][] object as returned by the
   `vm.createContext()` method.
@@ -68,6 +77,12 @@ each run, just for that run.
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `breakOnSigint`: if `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on("SIGINT")` will be disabled
+    during script execution, but will continue to work after that.
+    If execution is terminated, an [`Error`][] will be thrown.
+
 
 Runs the compiled code contained by the `vm.Script` object within the given
 `contextifiedSandbox` and returns the result. Running code does not have access
@@ -99,6 +114,9 @@ console.log(util.inspect(sandbox));
 ```
 
 ### script.runInNewContext([sandbox][, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
   new object will be created.
@@ -141,6 +159,9 @@ console.log(util.inspect(sandboxes));
 ```
 
 ### script.runInThisContext([options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `options` {Object}
   * `filename` {string} Specifies the filename used in stack traces produced
@@ -180,16 +201,19 @@ console.log(globalVar);
 ```
 
 ## vm.createContext([sandbox])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `sandbox` {Object}
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
-that sandbox][#vm_what_does_it_mean_to_contextify_an_object] so that it can be
-used in calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside
-such scripts, the `sandbox` object will be the global object, retaining all of
-its existing properties but also having the built-in objects and functions any
-standard [global object][] has. Outside of scripts run by the vm module,
-`sandbox` will remain unchanged.
+that sandbox][contextified] so that it can be used in calls to
+[`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
+the `sandbox` object will be the global object, retaining all of its existing
+properties but also having the built-in objects and functions any standard
+[global object][] has. Outside of scripts run by the vm module, `sandbox` will
+remain unchanged.
 
 If `sandbox` is omitted (or passed explicitly as `undefined`), a new, empty
 [contextified][] sandbox object will be returned.
@@ -201,6 +225,9 @@ window's global object, then run all `<script>` tags together within the context
 of that sandbox.
 
 ## vm.isContext(sandbox)
+<!-- YAML
+added: v0.11.7
+-->
 
 * `sandbox` {Object}
 
@@ -250,6 +277,9 @@ console.log(util.inspect(sandbox));
 ```
 
 ## vm.runInDebugContext(code)
+<!-- YAML
+added: v0.11.14
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 
@@ -270,6 +300,9 @@ The `Debug` object can also be made available using the V8-specific
 `--expose_debug_as=` [command line option][cli.md].
 
 ## vm.runInNewContext(code[, sandbox][, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
@@ -312,6 +345,9 @@ console.log(util.inspect(sandbox));
 ```
 
 ## vm.runInThisContext(code[, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 * `options`
@@ -354,7 +390,7 @@ console.log('localVar: ', localVar);
 Because `vm.runInThisContext()` does not have access to the local scope,
 `localVar` is unchanged. In contrast, [`eval()`][] *does* have access to the
 local scope, so the value `localVar` is changed. In this way
-`vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g. 
+`vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g.
 `(0,eval)('code')`.
 
 ## Example: Running an HTTP Server within a VM
@@ -385,7 +421,7 @@ let code =
  })`;
 
  vm.runInThisContext(code)(require);
- ```   
+ ```
 
 *Note*: The `require()` in the above case shares the state with context it is
 passed from. This may introduce risks when untrusted code is executed, e.g.

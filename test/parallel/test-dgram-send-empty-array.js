@@ -23,7 +23,7 @@ client.on('message', common.mustCall(function onMessage(buf, info) {
 }));
 
 client.on('listening', function() {
-  client.send([], common.PORT, common.localhostIPv4);
+  client.send([], this.address().port, common.localhostIPv4);
 });
 
-client.bind(common.PORT);
+client.bind(0);

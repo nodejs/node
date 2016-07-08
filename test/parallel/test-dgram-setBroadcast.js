@@ -26,14 +26,14 @@ runTest((socket) => { socket.setBroadcast(true); }, /EBADF/);
 
 // Should not throw if broadcast set to false after binding.
 runTest((socket) => {
-  socket.bind(common.PORT, common.localhostIPv4, () => {
+  socket.bind(0, common.localhostIPv4, () => {
     socket.setBroadcast(false);
   });
 });
 
 // Should not throw if broadcast set to true after binding.
 runTest((socket) => {
-  socket.bind(common.PORT, common.localhostIPv4, () => {
+  socket.bind(0, common.localhostIPv4, () => {
     socket.setBroadcast(true);
   });
 });

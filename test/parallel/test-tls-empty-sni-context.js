@@ -27,9 +27,9 @@ const server = tls.createServer(options, (c) => {
 }).on('tlsClientError', common.mustCall((err, c) => {
   assert(/SSL_use_certificate:passed a null parameter/i.test(err.message));
   server.close();
-})).listen(common.PORT, common.mustCall(() => {
+})).listen(0, common.mustCall(() => {
   const c = tls.connect({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: false,
     servername: 'any.name'
   }, () => {

@@ -21,7 +21,7 @@ BackgroundParsingTask::BackgroundParsingTask(
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  Zone* zone = new Zone();
+  Zone* zone = new Zone(isolate->allocator());
   ParseInfo* info = new ParseInfo(zone);
   source->zone.Reset(zone);
   source->info.Reset(info);
@@ -32,7 +32,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->set_global();
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_compile_options(options);
-  info->set_allow_lazy_parsing(true);
+  // Parse eagerly with ignition since we will compile eagerly.
+  info->set_allow_lazy_parsing(!(i::FLAG_ignition && i::FLAG_ignition_eager));
 }
 
 

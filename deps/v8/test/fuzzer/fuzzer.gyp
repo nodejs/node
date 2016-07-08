@@ -87,6 +87,58 @@
       ],
     },
     {
+      'target_name': 'wasm_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'wasm_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'wasm_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'wasm.cc',
+      ],
+    },
+    {
+      'target_name': 'wasm_asmjs_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'wasm_asmjs_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'wasm_asmjs_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'wasm-asmjs.cc',
+      ],
+    },
+    {
       'target_name': 'fuzzer_support',
       'type': 'static_library',
       'dependencies': [

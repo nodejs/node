@@ -1,0 +1,285 @@
+// This file is generated
+
+// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef protocol_{{domain.domain}}_h
+#define protocol_{{domain.domain}}_h
+
+{% if export_macro == "PLATFORM_EXPORT" %}
+#include "platform/inspector_protocol/Platform.h"
+{% else %}
+#include "core/CoreExport.h"
+{% endif %}
+#include "platform/inspector_protocol/Array.h"
+#include "platform/inspector_protocol/BackendCallback.h"
+#include "platform/inspector_protocol/DispatcherBase.h"
+#include "platform/inspector_protocol/ErrorSupport.h"
+#include "platform/inspector_protocol/FrontendChannel.h"
+#include "platform/inspector_protocol/Maybe.h"
+#include "platform/inspector_protocol/Object.h"
+#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/Values.h"
+#include "platform/inspector_protocol/ValueConversions.h"
+{% for name in domain.dependencies %}
+#include "{{output_package}}/{{name}}.h"
+{% endfor %}
+
+namespace blink {
+namespace protocol {
+namespace {{domain.domain}} {
+
+// ------------- Forward and enum declarations.
+  {% for type in domain.types %}
+    {% if type.type == "object" %}
+      {% if "properties" in type %}
+// {{type.description}}
+class {{type.id}};
+      {% else %}
+// {{type.description}}
+using {{type.id}} = Object;
+      {% endif %}
+    {% elif type.type != "array" %}
+// {{type.description}}
+using {{type.id}} = {{resolve_type(type).type}};
+    {% endif %}
+  {% endfor %}
+  {% for type in domain.types %}
+    {% if "enum" in type %}
+
+namespace {{type.id}}Enum {
+      {% for literal in type.enum %}
+{{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+      {% endfor %}
+} // {{type.id}}Enum
+    {% endif %}
+  {% endfor %}
+  {% for command in join_arrays(domain, ["commands", "events"]) %}
+    {% for param in join_arrays(command, ["parameters", "returns"]) %}
+      {% if "enum" in param %}
+
+namespace {{command.name | to_title_case}} {
+namespace {{param.name | to_title_case}}Enum {
+        {% for literal in param.enum %}
+{{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+        {% endfor %}
+} // {{param.name | to_title_case}}Enum
+} // {{command.name | to_title_case }}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+// ------------- Type and builder declarations.
+  {% for type in domain.types %}
+    {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
+    {% set type_def = type_definition(domain.domain + "." + type.id)%}
+
+// {{type.description}}
+class {{export_macro}} {{type.id}} {
+public:
+    static std::unique_ptr<{{type.id}}> parse(protocol::Value* value, ErrorSupport* errors);
+
+    ~{{type.id}}() { }
+    {% for property in type.properties %}
+      {% if "enum" in property %}
+
+    struct {{export_macro}} {{property.name | to_title_case}}Enum {
+        {% for literal in property.enum %}
+        static const char* {{ literal | dash_to_camelcase}};
+        {% endfor %}
+    }; // {{property.name | to_title_case}}Enum
+      {% endif %}
+
+      {% if property.optional %}
+    bool has{{property.name | to_title_case}}() { return m_{{property.name}}.isJust(); }
+    {{resolve_type(property).raw_return_type}} get{{property.name | to_title_case}}({{resolve_type(property).raw_pass_type}} defaultValue) { return m_{{property.name}}.isJust() ? m_{{property.name}}.fromJust() : defaultValue; }
+      {% else %}
+    {{resolve_type(property).raw_return_type}} get{{property.name | to_title_case}}() { return {{resolve_type(property).to_raw_type % ("m_" + property.name)}}; }
+      {% endif %}
+    void set{{property.name | to_title_case}}({{resolve_type(property).pass_type}} value) { m_{{property.name}} = {{resolve_type(property).to_rvalue % "value"}}; }
+    {% endfor %}
+
+    std::unique_ptr<protocol::DictionaryValue> serialize() const;
+    std::unique_ptr<{{type.id}}> clone() const;
+
+    template<int STATE>
+    class {{type.id}}Builder {
+    public:
+        enum {
+            NoFieldsSet = 0,
+    {% set count = 0 %}
+    {% for property in type.properties %}
+      {% if not(property.optional) %}
+        {% set count = count + 1 %}
+          {{property.name | to_title_case}}Set = 1 << {{count}},
+      {% endif %}
+    {% endfor %}
+            AllFieldsSet = (
+    {%- for property in type.properties %}
+      {% if not(property.optional) %}{{property.name | to_title_case}}Set | {%endif %}
+    {% endfor %}0)};
+
+    {% for property in type.properties %}
+
+      {% if property.optional %}
+        {{type.id}}Builder<STATE>& set{{property.name | to_title_case}}({{resolve_type(property).pass_type}} value)
+        {
+            m_result->set{{property.name | to_title_case}}({{resolve_type(property).to_rvalue % "value"}});
+            return *this;
+        }
+      {% else %}
+        {{type.id}}Builder<STATE | {{property.name | to_title_case}}Set>& set{{property.name | to_title_case}}({{resolve_type(property).pass_type}} value)
+        {
+            static_assert(!(STATE & {{property.name | to_title_case}}Set), "property {{property.name}} should not be set yet");
+            m_result->set{{property.name | to_title_case}}({{resolve_type(property).to_rvalue % "value"}});
+            return castState<{{property.name | to_title_case}}Set>();
+        }
+      {% endif %}
+    {% endfor %}
+
+        std::unique_ptr<{{type.id}}> build()
+        {
+            static_assert(STATE == AllFieldsSet, "state should be AllFieldsSet");
+            return std::move(m_result);
+        }
+
+    private:
+        friend class {{type.id}};
+        {{type.id}}Builder() : m_result(new {{type.id}}()) { }
+
+        template<int STEP> {{type.id}}Builder<STATE | STEP>& castState()
+        {
+            return *reinterpret_cast<{{type.id}}Builder<STATE | STEP>*>(this);
+        }
+
+        {{type_def.type}} m_result;
+    };
+
+    static {{type.id}}Builder<0> create()
+    {
+        return {{type.id}}Builder<0>();
+    }
+
+private:
+    {{type.id}}()
+    {
+    {% for property in type.properties %}
+      {% if not(property.optional) and "default_value" in resolve_type(property) %}
+          m_{{property.name}} = {{resolve_type(property).default_value}};
+      {%endif %}
+    {% endfor %}
+    }
+
+    {% for property in type.properties %}
+      {% if property.optional %}
+    Maybe<{{resolve_type(property).raw_type}}> m_{{property.name}};
+      {% else %}
+    {{resolve_type(property).type}} m_{{property.name}};
+      {% endif %}
+    {% endfor %}
+};
+
+  {% endfor %}
+
+// ------------- Backend interface.
+
+class {{export_macro}} Backend {
+public:
+  {% for command in domain.commands %}
+    {% if "redirect" in command %}{% continue %}{% endif %}
+    {% if ("handlers" in command) and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if "async" in command %}
+    class {{export_macro}} {{command.name | to_title_case}}Callback : public BackendCallback {
+    public:
+        virtual void sendSuccess(
+            {%- for parameter in command.returns -%}
+              {%- if "optional" in parameter -%}
+            const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}}
+              {%- else -%}
+                {{resolve_type(parameter).pass_type}} {{parameter.name}}
+              {%- endif -%}
+              {%- if not loop.last -%}, {% endif -%}
+            {%- endfor -%}
+        ) = 0;
+    };
+    {% endif %}
+    virtual void {{command.name}}(ErrorString*
+    {%- for parameter in command.parameters -%}
+        {%- if "optional" in parameter -%}
+        , const Maybe<{{resolve_type(parameter).raw_type}}>& in_{{parameter.name}}
+        {%- else -%}
+        , {{resolve_type(parameter).pass_type}} in_{{parameter.name}}
+        {%- endif -%}
+    {%- endfor -%}
+    {%- if "async" in command -%}
+        , std::unique_ptr<{{command.name | to_title_case}}Callback> callback
+    {%- else -%}
+      {%- for parameter in command.returns -%}
+        {%- if "optional" in parameter -%}
+        , Maybe<{{resolve_type(parameter).raw_type}}>* out_{{parameter.name}}
+        {%- else -%}
+        , {{resolve_type(parameter).type}}* out_{{parameter.name}}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    ) = 0;
+  {% endfor %}
+
+  {% if not has_disable(domain.commands) %}
+    virtual void disable(ErrorString*) { }
+  {% endif %}
+
+protected:
+    virtual ~Backend() { }
+};
+
+// ------------- Frontend interface.
+
+class {{export_macro}} Frontend {
+public:
+    Frontend(FrontendChannel* frontendChannel) : m_frontendChannel(frontendChannel) { }
+  {% for event in domain.events %}
+    {% if "handlers" in event and not ("renderer" in event["handlers"]) %}{% continue %}{% endif %}
+    void {{event.name}}(
+    {%- for parameter in event.parameters -%}
+      {%- if "optional" in parameter -%}
+        const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}} = Maybe<{{resolve_type(parameter).raw_type}}>()
+      {%- else -%}
+        {{resolve_type(parameter).pass_type}} {{parameter.name}}
+      {%- endif -%}{%- if not loop.last -%}, {% endif -%}
+    {%- endfor -%}
+    );
+  {% endfor %}
+
+    void flush() { m_frontendChannel->flushProtocolNotifications(); }
+private:
+    FrontendChannel* m_frontendChannel;
+};
+
+// ------------- Dispatcher.
+
+class {{export_macro}} Dispatcher {
+public:
+    static void wire(UberDispatcher*, blink::protocol::{{domain.domain}}::Backend*);
+
+private:
+    Dispatcher() { }
+};
+
+// ------------- Metainfo.
+
+class {{export_macro}} Metainfo {
+public:
+    using BackendClass = Backend;
+    using FrontendClass = Frontend;
+    using DispatcherClass = Dispatcher;
+    static const char domainName[];
+};
+
+} // namespace {{domain.domain}}
+} // namespace protocol
+} // namespace blink
+
+#endif // !defined(protocol_{{domain.domain}}_h)

@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+const double IncrementalMarkingJob::kLongDelayInSeconds = 5;
+const double IncrementalMarkingJob::kShortDelayInSeconds = 0.5;
 
 void IncrementalMarkingJob::Start(Heap* heap) {
   DCHECK(!heap->incremental_marking()->IsStopped());
@@ -58,8 +60,10 @@ void IncrementalMarkingJob::ScheduleDelayedTask(Heap* heap) {
     delayed_task_pending_ = true;
     made_progress_since_last_delayed_task_ = false;
     auto task = new DelayedTask(heap->isolate(), this);
+    double delay =
+        heap->HighMemoryPressure() ? kShortDelayInSeconds : kLongDelayInSeconds;
     V8::GetCurrentPlatform()->CallDelayedOnForegroundThread(isolate, task,
-                                                            kDelayInSeconds);
+                                                            delay);
   }
 }
 
@@ -79,7 +83,7 @@ IncrementalMarkingJob::IdleTask::Progress IncrementalMarkingJob::IdleTask::Step(
   }
   const double remaining_idle_time_in_ms =
       incremental_marking->AdvanceIncrementalMarking(
-          0, deadline_in_ms, IncrementalMarking::IdleStepActions());
+          deadline_in_ms, IncrementalMarking::IdleStepActions());
   if (remaining_idle_time_in_ms > 0.0) {
     heap->TryFinalizeIdleIncrementalMarking(remaining_idle_time_in_ms);
   }
@@ -117,10 +121,10 @@ void IncrementalMarkingJob::DelayedTask::Step(Heap* heap) {
   double deadline =
       heap->MonotonicallyIncreasingTimeInMs() + kIncrementalMarkingDelayMs;
   heap->incremental_marking()->AdvanceIncrementalMarking(
-      0, deadline, i::IncrementalMarking::StepActions(
-                       i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                       i::IncrementalMarking::FORCE_MARKING,
-                       i::IncrementalMarking::FORCE_COMPLETION));
+      deadline, i::IncrementalMarking::StepActions(
+                    i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                    i::IncrementalMarking::FORCE_MARKING,
+                    i::IncrementalMarking::FORCE_COMPLETION));
   heap->FinalizeIncrementalMarkingIfComplete(
       "Incremental marking task: finalize incremental marking");
 }

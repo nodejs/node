@@ -191,13 +191,11 @@ function parseOpts(options) {
   var num = keys.length;
   var conf = {};
   for (var i = 2; i < process.argv.length; i++) {
-    var match = process.argv[i].match(/^(.+)=(.*)$/);
+    var match = process.argv[i].match(/^(.+?)=([\s\S]*)$/);
     if (!match || !match[1] || !options[match[1]]) {
       return null;
     } else {
-      conf[match[1]] = (match[2].length && isFinite(match[2])
-                        ? +match[2]
-                        : match[2]);
+      conf[match[1]] = match[2];
       num--;
     }
   }
@@ -238,8 +236,6 @@ Benchmark.prototype.report = function(value) {
     console.log('%s: %s', heading, value.toFixed(5));
   else if (outputFormat == 'csv')
     console.log('%s,%s', heading, value.toFixed(5));
-
-  process.exit(0);
 };
 
 Benchmark.prototype.getHeading = function() {
@@ -247,11 +243,11 @@ Benchmark.prototype.getHeading = function() {
 
   if (outputFormat == 'default') {
     return this._name + ' ' + Object.keys(conf).map(function(key) {
-      return key + '=' + conf[key];
+      return key + '=' + JSON.stringify('' + conf[key]);
     }).join(' ');
   } else if (outputFormat == 'csv') {
     return this._name + ',' + Object.keys(conf).map(function(key) {
-      return conf[key];
+      return JSON.stringify('' + conf[key]);
     }).join(',');
   }
 };

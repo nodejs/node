@@ -2,19 +2,39 @@
 
     Stability: 2 - Stable
 
-[Punycode.js][] is bundled with Node.js v0.5.1+. Use `require('punycode')` to
-access it. (To use it with other Node.js versions, use npm to install the
-`punycode` module first.)
+The `punycode` module is a bundled version of the [Punycode.js][] module. It
+can be accessed using:
+
+```js
+const punycode = require('punycode');
+```
+
+[Punycode][] is a character encoding scheme defined by RFC 3492 that is
+primarily intended for use in Internationalized Domain Names. Because host
+names in URLs are limited to ASCII characters only, Domain Names that contain
+non-ASCII characters must be converted into ASCII using the Punycode scheme.
+For instance, the Japanese character that translates into the English word,
+`'example'` is `'例'`. The Internationalized Domain Name, `'例.com'` (equivalent
+to `'example.com'`) is represented by Punycode as the ASCII string
+`'xn--fsq.com'`.
+
+The `punycode` module provides a simple implementation of the Punycode standard.
+
+*Note*: The `punycode` module is a third-party dependency used by Node.js and
+made available to developers as a convenience. Fixes or other modifications to
+the module must be directed to the [Punycode.js][] project.
 
 ## punycode.decode(string)
 <!-- YAML
 added: v0.5.1
 -->
 
-Converts a Punycode string of ASCII-only symbols to a string of Unicode symbols.
+* `string` {String}
+
+The `punycode.decode()` method converts a [Punycode][] string of ASCII-only
+characters to the equivalent string of Unicode codepoints.
 
 ```js
-// decode domain name parts
 punycode.decode('maana-pta'); // 'mañana'
 punycode.decode('--dqo34k'); // '☃-⌘'
 ```
@@ -24,10 +44,12 @@ punycode.decode('--dqo34k'); // '☃-⌘'
 added: v0.5.1
 -->
 
-Converts a string of Unicode symbols to a Punycode string of ASCII-only symbols.
+* `string` {String}
+
+The `punycode.encode()` method converts a string of Unicode codepoints to a
+[Punycode][] string of ASCII-only characters.
 
 ```js
-// encode domain name parts
 punycode.encode('mañana'); // 'maana-pta'
 punycode.encode('☃-⌘'); // '--dqo34k'
 ```
@@ -37,14 +59,18 @@ punycode.encode('☃-⌘'); // '--dqo34k'
 added: v0.6.1
 -->
 
-Converts a Unicode string representing a domain name to Punycode. Only the
-non-ASCII parts of the domain name will be converted, i.e. it doesn't matter if
-you call it with a domain that's already in ASCII.
+* `domain` {String}
+
+The `punycode.toASCII()` method converts a Unicode string representing an
+Internationalized Domain Name to [Punycode][]. Only the non-ASCII parts of the
+domain name will be converted. Calling `punycode.toASCII()` on a string that
+already only contains ASCII characters will have no effect.
 
 ```js
 // encode domain names
-punycode.toASCII('mañana.com'); // 'xn--maana-pta.com'
-punycode.toASCII('☃-⌘.com'); // 'xn----dqo34k.com'
+punycode.toASCII('mañana.com');  // 'xn--maana-pta.com'
+punycode.toASCII('☃-⌘.com');   // 'xn----dqo34k.com'
+punycode.toASCII('example.com'); // 'example.com'
 ```
 
 ## punycode.toUnicode(domain)
@@ -52,14 +78,17 @@ punycode.toASCII('☃-⌘.com'); // 'xn----dqo34k.com'
 added: v0.6.1
 -->
 
-Converts a Punycode string representing a domain name to Unicode. Only the
-Punycoded parts of the domain name will be converted, i.e. it doesn't matter if
-you call it on a string that has already been converted to Unicode.
+* `domain` {String}
+
+The `punycode.toUnicode()` method converts a string representing a domain name
+containing [Punycode][] encoded characters into Unicode. Only the [Punycode][]
+encoded parts of the domain name are be converted.
 
 ```js
 // decode domain names
 punycode.toUnicode('xn--maana-pta.com'); // 'mañana.com'
-punycode.toUnicode('xn----dqo34k.com'); // '☃-⌘.com'
+punycode.toUnicode('xn----dqo34k.com');  // '☃-⌘.com'
+punycode.toUnicode('example.com');       // 'example.com'
 ```
 
 ## punycode.ucs2
@@ -72,10 +101,10 @@ added: v0.7.0
 added: v0.7.0
 -->
 
-Creates an array containing the numeric code point values of each Unicode
-symbol in the string. While [JavaScript uses UCS-2 internally][], this function
-will convert a pair of surrogate halves (each of which UCS-2 exposes as
-separate characters) into a single code point, matching UTF-16.
+* `string` {String}
+
+The `punycode.ucs2.decode()` method returns an array containing the numeric
+codepoint values of each Unicode symbol in the string.
 
 ```js
 punycode.ucs2.decode('abc'); // [0x61, 0x62, 0x63]
@@ -88,7 +117,10 @@ punycode.ucs2.decode('\uD834\uDF06'); // [0x1D306]
 added: v0.7.0
 -->
 
-Creates a string based on an array of numeric code point values.
+* `codePoints` {Array}
+
+The `punycode.ucs2.encode()` method returns a string based on an array of
+numeric code point values.
 
 ```js
 punycode.ucs2.encode([0x61, 0x62, 0x63]); // 'abc'
@@ -100,7 +132,7 @@ punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 added: v0.6.1
 -->
 
-A string representing the current Punycode.js version number.
+Returns a string identifying the current [Punycode.js][] version number.
 
+[Punycode]: https://tools.ietf.org/html/rfc3492
 [Punycode.js]: https://mths.be/punycode
-[JavaScript uses UCS-2 internally]: https://mathiasbynens.be/notes/javascript-encoding

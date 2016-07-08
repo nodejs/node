@@ -1,7 +1,7 @@
 'use strict';
 // Serving up a zero-length buffer should work.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -16,8 +16,8 @@ var server = http.createServer(function(req, res) {
 var gotResponse = false;
 var resBodySize = 0;
 
-server.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+server.listen(0, function() {
+  http.get({ port: this.address().port }, function(res) {
     gotResponse = true;
 
     res.on('data', function(d) {

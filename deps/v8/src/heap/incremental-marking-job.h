@@ -49,7 +49,8 @@ class IncrementalMarkingJob {
   };
 
   // Delay of the delayed task.
-  static const int kDelayInSeconds = 5;
+  static const double kLongDelayInSeconds;
+  static const double kShortDelayInSeconds;
 
   IncrementalMarkingJob()
       : idle_task_pending_(false),

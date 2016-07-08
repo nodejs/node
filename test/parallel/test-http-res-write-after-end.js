@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -17,8 +17,8 @@ var server = http.Server(function(req, res) {
   assert.equal(r, true, 'write after end should return true');
 });
 
-server.listen(common.PORT, function() {
-  http.get({port: common.PORT}, function(res) {
+server.listen(0, function() {
+  http.get({port: this.address().port}, function(res) {
     server.close();
   });
 });

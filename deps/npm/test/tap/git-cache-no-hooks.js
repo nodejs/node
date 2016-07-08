@@ -1,12 +1,11 @@
 var test = require('tap').test
 var fs = require('fs')
 var path = require('path')
+var common = require('../common-tap.js')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
-var spawn = require('child_process').spawn
-var npmCli = require.resolve('../../bin/npm-cli.js')
-var node = process.execPath
 var pkg = path.resolve(__dirname, 'git-cache-no-hooks')
+var osenv = require('osenv')
 var tmp = path.join(pkg, 'tmp')
 var cache = path.join(pkg, 'cache')
 
@@ -23,27 +22,15 @@ test('git-cache-no-hooks: install a git dependency', function (t) {
   // disable git integration tests on Travis.
   if (process.env.TRAVIS) return t.end()
 
-  var command = [
-    npmCli,
-    'install',
-    'git://github.com/nigelzor/npm-4503-a.git'
-  ]
-  var child = spawn(node, command, {
-    cwd: pkg,
-    env: {
-      'npm_config_cache': cache,
-      'npm_config_tmp': tmp,
-      'npm_config_prefix': pkg,
-      'npm_config_global': 'false',
-      'npm_config_umask': '00',
-      HOME: process.env.HOME,
-      Path: process.env.PATH,
-      PATH: process.env.PATH
-    },
-    stdio: 'inherit'
-  })
-
-  child.on('close', function (code) {
+  common.npm([
+    'install', 'git://github.com/nigelzor/npm-4503-a.git',
+    '--cache', cache,
+    '--tmp', tmp
+  ], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifErr(err, 'npm completed')
+    t.equal(stderr, '', 'no error output')
     t.equal(code, 0, 'npm install should succeed')
 
     // verify permissions on git hooks
@@ -57,6 +44,7 @@ test('git-cache-no-hooks: install a git dependency', function (t) {
 })
 
 test('cleanup', function (t) {
+  process.chdir(osenv.tmpdir())
   rimraf.sync(pkg)
   t.end()
 })

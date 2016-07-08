@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 const assert = require('assert');
-const common = require('../common');
 const fork = require('child_process').fork;
 const net = require('net');
 
@@ -91,7 +91,7 @@ if (process.argv[2] === 'child') {
       console.log('PARENT: server listening');
       child.send({what: 'server'}, server);
     });
-    server.listen(common.PORT);
+    server.listen(0);
 
     // handle client messages
     var messageHandlers = function(msg) {
@@ -100,7 +100,7 @@ if (process.argv[2] === 'child') {
         // make connections
         var socket;
         for (var i = 0; i < 4; i++) {
-          socket = net.connect(common.PORT, function() {
+          socket = net.connect(server.address().port, function() {
             console.log('CLIENT: connected');
           });
           socket.on('close', function() {
@@ -143,9 +143,9 @@ if (process.argv[2] === 'child') {
     //
     // An isolated test for this would be lovely, but for now, this
     // will have to do.
-    server.listen(common.PORT + 1, function() {
+    server.listen(0, function() {
       console.error('testSocket, listening');
-      var connect = net.connect(common.PORT + 1);
+      var connect = net.connect(server.address().port);
       var store = '';
       connect.on('data', function(chunk) {
         store += chunk;

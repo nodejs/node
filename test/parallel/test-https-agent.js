@@ -26,13 +26,13 @@ var responses = 0;
 var N = 4;
 var M = 4;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   for (var i = 0; i < N; i++) {
     setTimeout(function() {
       for (var j = 0; j < M; j++) {
         https.get({
           path: '/',
-          port: common.PORT,
+          port: server.address().port,
           rejectUnauthorized: false
         }, function(res) {
           res.resume();

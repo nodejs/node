@@ -57,7 +57,7 @@ using v8::internal::TickSample;
 
 
 static bool IsAddressWithinFuncCode(JSFunction* function, Address addr) {
-  i::Code* code = function->code();
+  i::AbstractCode* code = function->abstract_code();
   return code->contains(addr);
 }
 

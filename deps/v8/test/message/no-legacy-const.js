@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --no-legacy-const --no-harmony-sloppy --no-harmony-sloppy-let
+// Flags: --no-harmony-sloppy --no-harmony-sloppy-let
 // Flags: --no-harmony-sloppy-function
 
 const x = 42;

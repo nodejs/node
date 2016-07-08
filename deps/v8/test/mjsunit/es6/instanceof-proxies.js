@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 
-// Flags: --harmony-proxies --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 // Test instanceof with proxies.
 

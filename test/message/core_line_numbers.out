@@ -1,9 +1,9 @@
-punycode.js:67
-		throw new RangeError(errors[type]);
-		^
+punycode.js:42
+	throw new RangeError(errors[type]);
+	^
 
 RangeError: Invalid input
-    at error (punycode.js:67:*)
+    at error (punycode.js:42:*)
     at Object.decode (punycode.js:*:*)
     at Object.<anonymous> (*test*message*core_line_numbers.js:*:*)
     at Module._compile (module.js:*:*)
@@ -11,5 +11,5 @@ RangeError: Invalid input
     at Module.load (module.js:*:*)
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*:*)
-    at Function.Module.runMain (module.js:*:*)
-    at startup (node.js:*:*)
+    at Module.runMain (module.js:*:*)
+    at run (bootstrap_node.js:*:*)

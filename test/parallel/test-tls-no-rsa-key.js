@@ -19,8 +19,8 @@ var cert = null;
 
 var server = tls.createServer(options, function(conn) {
   conn.end('ok');
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+}).listen(0, function() {
+  var c = tls.connect(this.address().port, {
     rejectUnauthorized: false
   }, function() {
     c.on('end', common.mustCall(function() {

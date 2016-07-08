@@ -32,9 +32,9 @@ function f(x, y) {
   a=1;
 };
 
-var m = function() {
+var m = (0, function() {
   new f(1);
-};
+});
 
 function g() {
   m();

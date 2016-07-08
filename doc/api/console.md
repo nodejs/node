@@ -53,10 +53,14 @@ duplicate the browser's functionality exactly.
 
 ## Asynchronous vs Synchronous Consoles
 
-The console functions are asynchronous unless the destination is a file.
+The console functions are usually asynchronous unless the destination is a file.
 Disks are fast and operating systems normally employ write-back caching;
 it should be a very rare occurrence indeed that a write blocks, but it
 is possible.
+
+Additionally, console functions are blocking when outputting to TTYs
+(terminals) on OS X as a workaround for the OS's very small, 1kb buffer size.
+This is to prevent interleaving between `stdout` and `stderr`.
 
 ## Class: Console
 
@@ -97,6 +101,9 @@ new Console(process.stdout, process.stderr);
 ```
 
 ### console.assert(value[, message][, ...])
+<!-- YAML
+added: v0.1.101
+-->
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
 an `AssertionError` is thrown. If provided, the error `message` is formatted
@@ -150,6 +157,9 @@ console.log('this will also print');
 ```
 
 ### console.dir(obj[, options])
+<!-- YAML
+added: v0.1.101
+-->
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`. An
@@ -168,6 +178,9 @@ Defaults to `false`. Colors are customizable; see
 [customizing `util.inspect()` colors][].
 
 ### console.error([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 Prints to `stderr` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
@@ -187,10 +200,16 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 values are concatenated. See [`util.format()`][] for more information.
 
 ### console.info([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 The `console.info()` function is an alias for [`console.log()`][].
 
 ### console.log([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 Prints to `stdout` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
@@ -210,16 +229,22 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 values are concatenated. See [`util.format()`][] for more information.
 
 ### console.time(label)
+<!-- YAML
+added: v0.1.104
+-->
 
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when you call
 [`console.timeEnd()`][] to stop the timer and output the elapsed time in
-milliseconds to stdout. Timer durations are accurate to the sub-millisecond.
+milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 
 ### console.timeEnd(label)
+<!-- YAML
+added: v0.1.104
+-->
 
 Stops a timer that was previously started by calling [`console.time()`][] and
-prints the result to stdout:
+prints the result to `stdout`:
 
 ```js
 console.time('100-elements');
@@ -236,6 +261,9 @@ leaking it. On older versions, the timer persisted. This allowed
 functionality was unintended and is no longer supported.*
 
 ### console.trace(message[, ...])
+<!-- YAML
+added: v0.1.104
+-->
 
 Prints to `stderr` the string `'Trace :'`, followed by the [`util.format()`][]
 formatted message and stack trace to the current position in the code.
@@ -257,6 +285,9 @@ console.trace('Show me');
 ```
 
 ### console.warn([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 The `console.warn()` function is an alias for [`console.error()`][].
 

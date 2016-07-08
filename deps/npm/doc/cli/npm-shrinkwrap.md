@@ -109,6 +109,14 @@ resolution using "version" if one isn't.
 
 2. The tree is walked and any missing dependencies are installed in the usual fashion.
 
+If `preshrinkwrap`, `shrinkwrap` or `postshrinkwrap` are in the `scripts` property of the
+`package.json`, they will be executed by running `npm shrinkwrap`.
+`preshrinkwrap` and `shrinkwrap` are executed before the shrinkwrap, `postshrinkwrap` is
+executed afterwards. For example to run some postprocessing on the generated file:
+
+    "scripts": { "postshrinkwrap": "node fix-shrinkwrap.js" }
+
+
 ### Using shrinkwrapped packages
 
 Using a shrinkwrapped package is no different than using any other
@@ -174,5 +182,7 @@ contents rather than versions.
 ## SEE ALSO
 
 * npm-install(1)
+* npm-run-script(1)
+* npm-scripts(7)
 * package.json(5)
 * npm-ls(1)

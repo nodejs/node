@@ -8,5 +8,5 @@ function f() {
   "use asm";
 
 }
-assertFalse(_WASMEXP_ == undefined);
-assertThrows(function() { _WASMEXP_.instantiateModuleFromAsm(f.toString()); });
+assertFalse(Wasm == undefined);
+assertThrows(function() { Wasm.instantiateModuleFromAsm(f.toString()); });

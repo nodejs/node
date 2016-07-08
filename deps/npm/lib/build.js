@@ -22,6 +22,7 @@ var asyncMap = require('slide').asyncMap
 var ini = require('ini')
 var writeFile = require('write-file-atomic')
 var packageId = require('./utils/package-id.js')
+var output = require('./utils/output.js')
 
 module.exports = build
 build.usage = 'npm build [<folder>]'
@@ -211,9 +212,7 @@ function linkBins (pkg, folder, parent, gtop, cb) {
           var out = npm.config.get('parseable')
                   ? dest + '::' + src + ':BINFILE'
                   : dest + ' -> ' + src
-          log.clearProgress()
-          console.log(out)
-          log.showProgress()
+          output(out)
           cb()
         })
       }

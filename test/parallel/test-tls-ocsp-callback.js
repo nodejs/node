@@ -72,9 +72,9 @@ function test(testOptions, cb) {
                testOptions.response ? Buffer.from(testOptions.response) : null);
     }, 100);
   });
-  server.listen(common.PORT, function() {
+  server.listen(0, function() {
     var client = tls.connect({
-      port: common.PORT,
+      port: this.address().port,
       requestOCSP: testOptions.ocsp !== false,
       secureOptions: testOptions.ocsp === false ?
           SSL_OP_NO_TICKET : 0,

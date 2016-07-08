@@ -37,12 +37,12 @@ var dependency = {
 
 var extend = Object.assign || require('util')._extend
 
-var foo = function () {/*
+var foo = function () { /*
 #!/usr/bin/env node
 
 if (process.argv.length === 8)
   console.log('npm-test-fine')
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 
 test('setup', function (t) {
   cleanup()

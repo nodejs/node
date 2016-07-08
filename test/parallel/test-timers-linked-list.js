@@ -103,3 +103,8 @@ assert.equal(C, L.shift(list));
 // list
 assert.ok(L.isEmpty(list));
 
+const list2 = L.create();
+const list3 = L.create();
+assert.ok(L.isEmpty(list2));
+assert.ok(L.isEmpty(list3));
+assert.ok(list2 != list3);

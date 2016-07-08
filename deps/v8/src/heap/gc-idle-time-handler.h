@@ -90,9 +90,6 @@ class GCIdleTimeHandler {
   static const size_t kInitialConservativeFinalIncrementalMarkCompactSpeed =
       2 * MB;
 
-  // Maximum mark-compact time returned by EstimateMarkCompactTime.
-  static const size_t kMaxMarkCompactTimeInMs;
-
   // Maximum final incremental mark-compact time returned by
   // EstimateFinalIncrementalMarkCompactTime.
   static const size_t kMaxFinalIncrementalMarkCompactTimeInMs;
@@ -130,27 +127,20 @@ class GCIdleTimeHandler {
 
   void ResetNoProgressCounter() { idle_times_which_made_no_progress_ = 0; }
 
-  static size_t EstimateMarkingStepSize(size_t idle_time_in_ms,
-                                        size_t marking_speed_in_bytes_per_ms);
+  static size_t EstimateMarkingStepSize(double idle_time_in_ms,
+                                        double marking_speed_in_bytes_per_ms);
 
-  static size_t EstimateMarkCompactTime(
-      size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms);
-
-  static size_t EstimateFinalIncrementalMarkCompactTime(
-      size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms);
-
-  static bool ShouldDoMarkCompact(size_t idle_time_in_ms,
-                                  size_t size_of_objects,
-                                  size_t mark_compact_speed_in_bytes_per_ms);
+  static double EstimateFinalIncrementalMarkCompactTime(
+      size_t size_of_objects, double mark_compact_speed_in_bytes_per_ms);
 
   static bool ShouldDoContextDisposalMarkCompact(int context_disposed,
                                                  double contexts_disposal_rate);
 
   static bool ShouldDoFinalIncrementalMarkCompact(
-      size_t idle_time_in_ms, size_t size_of_objects,
-      size_t final_incremental_mark_compact_speed_in_bytes_per_ms);
+      double idle_time_in_ms, size_t size_of_objects,
+      double final_incremental_mark_compact_speed_in_bytes_per_ms);
 
-  static bool ShouldDoOverApproximateWeakClosure(size_t idle_time_in_ms);
+  static bool ShouldDoOverApproximateWeakClosure(double idle_time_in_ms);
 
  private:
   GCIdleTimeAction NothingOrDone(double idle_time_in_ms);

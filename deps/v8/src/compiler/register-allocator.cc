@@ -25,7 +25,6 @@ void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
   v->erase(it);
 }
 
-
 int GetRegisterCount(const RegisterConfiguration* cfg, RegisterKind kind) {
   return kind == DOUBLE_REGISTERS ? cfg->num_double_registers()
                                   : cfg->num_general_registers();
@@ -1561,7 +1560,6 @@ bool RegisterAllocationData::RangesDefinedInDeferredStayInDeferred() {
   return true;
 }
 
-
 SpillRange* RegisterAllocationData::AssignSpillRangeToLiveRange(
     TopLevelLiveRange* range) {
   DCHECK(!range->HasSpillOperand());
@@ -2197,8 +2195,22 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
     int phi_vreg = phi->virtual_register();
     live->Remove(phi_vreg);
     InstructionOperand* hint = nullptr;
-    Instruction* instr = GetLastInstruction(
-        code(), code()->InstructionBlockAt(block->predecessors()[0]));
+    const InstructionBlock::Predecessors& predecessors = block->predecessors();
+    const InstructionBlock* predecessor_block =
+        code()->InstructionBlockAt(predecessors[0]);
+    const Instruction* instr = GetLastInstruction(code(), predecessor_block);
+    if (predecessor_block->IsDeferred()) {
+      // "Prefer the hint from the first non-deferred predecessor, if any.
+      for (size_t i = 1; i < predecessors.size(); ++i) {
+        predecessor_block = code()->InstructionBlockAt(predecessors[i]);
+        if (!predecessor_block->IsDeferred()) {
+          instr = GetLastInstruction(code(), predecessor_block);
+          break;
+        }
+      }
+    }
+    DCHECK_NOT_NULL(instr);
+
     for (MoveOperands* move : *instr->GetParallelMove(Instruction::END)) {
       InstructionOperand& to = move->destination();
       if (to.IsUnallocated() &&
@@ -2322,11 +2334,79 @@ void LiveRangeBuilder::Verify() const {
   for (auto& hint : phi_hints_) {
     CHECK(hint.second->IsResolved());
   }
-  for (TopLevelLiveRange* current : data()->live_ranges()) {
-    if (current != nullptr && !current->IsEmpty()) current->Verify();
+  for (const TopLevelLiveRange* current : data()->live_ranges()) {
+    if (current != nullptr && !current->IsEmpty()) {
+      // New LiveRanges should not be split.
+      CHECK_NULL(current->next());
+      // General integrity check.
+      current->Verify();
+      const UseInterval* first = current->first_interval();
+      if (first->next() == nullptr) continue;
+
+      // Consecutive intervals should not end and start in the same block,
+      // otherwise the intervals should have been joined, because the
+      // variable is live throughout that block.
+      CHECK(NextIntervalStartsInDifferentBlocks(first));
+
+      for (const UseInterval* i = first->next(); i != nullptr; i = i->next()) {
+        // Except for the first interval, the other intevals must start at
+        // a block boundary, otherwise data wouldn't flow to them.
+        CHECK(IntervalStartsAtBlockBoundary(i));
+        // The last instruction of the predecessors of the block the interval
+        // starts must be covered by the range.
+        CHECK(IntervalPredecessorsCoveredByRange(i, current));
+        if (i->next() != nullptr) {
+          // Check the consecutive intervals property, except for the last
+          // interval, where it doesn't apply.
+          CHECK(NextIntervalStartsInDifferentBlocks(i));
+        }
+      }
+    }
   }
 }
 
+bool LiveRangeBuilder::IntervalStartsAtBlockBoundary(
+    const UseInterval* interval) const {
+  LifetimePosition start = interval->start();
+  if (!start.IsFullStart()) return false;
+  int instruction_index = start.ToInstructionIndex();
+  const InstructionBlock* block =
+      data()->code()->GetInstructionBlock(instruction_index);
+  return block->first_instruction_index() == instruction_index;
+}
+
+bool LiveRangeBuilder::IntervalPredecessorsCoveredByRange(
+    const UseInterval* interval, const TopLevelLiveRange* range) const {
+  LifetimePosition start = interval->start();
+  int instruction_index = start.ToInstructionIndex();
+  const InstructionBlock* block =
+      data()->code()->GetInstructionBlock(instruction_index);
+  for (RpoNumber pred_index : block->predecessors()) {
+    const InstructionBlock* predecessor =
+        data()->code()->InstructionBlockAt(pred_index);
+    LifetimePosition last_pos = LifetimePosition::GapFromInstructionIndex(
+        predecessor->last_instruction_index());
+    last_pos = last_pos.NextStart().End();
+    if (!range->Covers(last_pos)) return false;
+  }
+  return true;
+}
+
+bool LiveRangeBuilder::NextIntervalStartsInDifferentBlocks(
+    const UseInterval* interval) const {
+  DCHECK_NOT_NULL(interval->next());
+  LifetimePosition end = interval->end();
+  LifetimePosition next_start = interval->next()->start();
+  // Since end is not covered, but the previous position is, move back a
+  // position
+  end = end.IsStart() ? end.PrevStart().End() : end.Start();
+  int last_covered_index = end.ToInstructionIndex();
+  const InstructionBlock* block =
+      data()->code()->GetInstructionBlock(last_covered_index);
+  const InstructionBlock* next_block =
+      data()->code()->GetInstructionBlock(next_start.ToInstructionIndex());
+  return block->rpo_number() < next_block->rpo_number();
+}
 
 RegisterAllocator::RegisterAllocator(RegisterAllocationData* data,
                                      RegisterKind kind)
@@ -3081,21 +3161,14 @@ void SpillSlotLocator::LocateSpillSlots() {
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     if (range == nullptr || range->IsEmpty()) continue;
     // We care only about ranges which spill in the frame.
-    if (!range->HasSpillRange()) continue;
-    if (range->IsSpilledOnlyInDeferredBlocks()) {
-      for (LiveRange* child = range; child != nullptr; child = child->next()) {
-        if (child->spilled()) {
-          code->GetInstructionBlock(child->Start().ToInstructionIndex())
-              ->mark_needs_frame();
-        }
-      }
-    } else {
-      TopLevelLiveRange::SpillMoveInsertionList* spills =
-          range->GetSpillMoveInsertionLocations();
-      DCHECK_NOT_NULL(spills);
-      for (; spills != nullptr; spills = spills->next) {
-        code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
-      }
+    if (!range->HasSpillRange() || range->IsSpilledOnlyInDeferredBlocks()) {
+      continue;
+    }
+    TopLevelLiveRange::SpillMoveInsertionList* spills =
+        range->GetSpillMoveInsertionLocations();
+    DCHECK_NOT_NULL(spills);
+    for (; spills != nullptr; spills = spills->next) {
+      code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
     }
   }
 }
@@ -3558,7 +3631,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
     worklist.pop();
     if (done_blocks.Contains(block_id)) continue;
     done_blocks.Add(block_id);
-    const InstructionBlock* spill_block =
+    InstructionBlock* spill_block =
         code->InstructionBlockAt(RpoNumber::FromInt(block_id));
 
     for (const RpoNumber& pred : spill_block->predecessors()) {
@@ -3578,6 +3651,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
         data()->AddGapMove(spill_block->first_instruction_index(),
                            Instruction::GapPosition::START, pred_op,
                            spill_operand);
+        spill_block->mark_needs_frame();
       }
     }
   }

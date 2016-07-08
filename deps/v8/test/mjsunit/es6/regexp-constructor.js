@@ -21,32 +21,47 @@ function should_not_be_called() {
 })();
 
 (function() {
+  let allow = false;
   class A extends RegExp {
-    get source() { throw new Error("should not be called") }
-    get flags() { throw new Error("should not be called") }
+    get source() {
+      if (!allow) throw new Error("should not be called");
+      return super.source;
+    }
+    get flags() {
+      if (!allow) throw new Error("should not be called");
+      return super.flags
+    }
   }
 
   var r = new A("biep");
   var r2 = RegExp(r);
 
   assertFalse(r === r2);
+  allow = true;
   assertEquals(r, r2);
+  allow = false;
   assertTrue(A.prototype === r.__proto__);
   assertTrue(RegExp.prototype === r2.__proto__);
 
   var r3 = RegExp(r);
   assertFalse(r3 === r);
+  allow = true;
   assertEquals(r3, r);
+  allow = false;
 
   var r4 = new A(r2);
   assertFalse(r4 === r2);
+  allow = true;
   assertEquals(r4, r2);
+  allow = false;
   assertTrue(A.prototype === r4.__proto__);
 
   r[Symbol.match] = false;
   var r5 = new A(r);
   assertFalse(r5 === r);
+  allow = true;
   assertEquals(r5, r);
+  allow = false;
   assertTrue(A.prototype === r5.__proto__);
 })();
 

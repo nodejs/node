@@ -25,7 +25,7 @@ assert.equal(util.inspect([1, [2, 3]]), '[ 1, [ 2, 3 ] ]');
 
 assert.equal(util.inspect({}), '{}');
 assert.equal(util.inspect({a: 1}), '{ a: 1 }');
-assert.equal(util.inspect({a: function() {}}), '{ a: [Function] }');
+assert.equal(util.inspect({a: function() {}}), '{ a: [Function: a] }');
 assert.equal(util.inspect({a: 1, b: 2}), '{ a: 1, b: 2 }');
 assert.equal(util.inspect({'a': {}}), '{ a: {} }');
 assert.equal(util.inspect({'a': {'b': 2}}), '{ a: { b: 2 } }');
@@ -218,7 +218,7 @@ assert.equal(util.inspect(value), '[ 1, 2, 3, growingLength: [Getter] ]');
 // Function with properties
 value = function() {};
 value.aprop = 42;
-assert.equal(util.inspect(value), '{ [Function] aprop: 42 }');
+assert.equal(util.inspect(value), '{ [Function: value] aprop: 42 }');
 
 // Regular expressions with properties
 value = /123/ig;
@@ -708,4 +708,17 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 {
   const x = new Uint8Array(101);
   assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: Infinity})));
+}
+
+{
+  const obj = {foo: 'abc', bar: 'xyz'};
+  const oneLine = util.inspect(obj, {breakLength: Infinity});
+  // Subtract four for the object's two curly braces and two spaces of padding.
+  // Add one more to satisfy the strictly greater than condition in the code.
+  const breakpoint = oneLine.length - 5;
+  const twoLines = util.inspect(obj, {breakLength: breakpoint});
+
+  assert.strictEqual(oneLine, '{ foo: \'abc\', bar: \'xyz\' }');
+  assert.strictEqual(oneLine, util.inspect(obj, {breakLength: breakpoint + 1}));
+  assert.strictEqual(twoLines, '{ foo: \'abc\',\n  bar: \'xyz\' }');
 }

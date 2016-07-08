@@ -276,6 +276,14 @@ class V8_EXPORT Debug {
    */
   static MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
                                                  Local<Value> value);
+
+  /**
+   * Defines if the ES2015 tail call elimination feature is enabled or not.
+   * The change of this flag triggers deoptimization of all functions that
+   * contain calls at tail position.
+   */
+  static bool IsTailCallEliminationEnabled(Isolate* isolate);
+  static void SetTailCallEliminationEnabled(Isolate* isolate, bool enabled);
 };
 
 

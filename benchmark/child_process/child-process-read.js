@@ -1,7 +1,14 @@
 'use strict';
 const common = require('../common.js');
+const os = require('os');
+
+var messagesLength = [64, 256, 1024, 4096];
+// Windows does not support that long arguments
+if (os.platform() !== 'win32')
+  messagesLength.push(32768);
+
 const bench = common.createBenchmark(main, {
-  len: [64, 256, 1024, 4096, 32768],
+  len: messagesLength,
   dur: [5]
 });
 
@@ -13,11 +20,11 @@ function main(conf) {
   const len = +conf.len;
 
   const msg = '"' + Array(len).join('.') + '"';
-  const options = {'stdio': ['ignore', 'ipc', 'ignore']};
+  const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };
   const child = spawn('yes', [msg], options);
 
   var bytes = 0;
-  child.on('message', function(msg) {
+  child.stdout.on('data', function(msg) {
     bytes += msg.length;
   });
 

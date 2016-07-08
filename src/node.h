@@ -190,28 +190,22 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
+class IsolateData;
 class Environment;
 
-NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
-                                           struct uv_loop_s* loop,
+NODE_EXTERN IsolateData* CreateIsolateData(v8::Isolate* isolate,
+                                           struct uv_loop_s* loop);
+NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
+
+NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            v8::Local<v8::Context> context,
                                            int argc,
                                            const char* const* argv,
                                            int exec_argc,
                                            const char* const* exec_argv);
+
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
-
-// NOTE: Calling this is the same as calling
-// CreateEnvironment() + LoadEnvironment() from above.
-// `uv_default_loop()` will be passed as `loop`.
-NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
-                                           v8::Local<v8::Context> context,
-                                           int argc,
-                                           const char* const* argv,
-                                           int exec_argc,
-                                           const char* const* exec_argv);
-
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);
@@ -284,15 +278,17 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate> recv,
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
-enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
+// BINARY is a deprecated alias of LATIN1.
+enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER, LATIN1 = BINARY};
+
 NODE_EXTERN enum encoding ParseEncoding(
     v8::Isolate* isolate,
     v8::Local<v8::Value> encoding_v,
-    enum encoding default_encoding = BINARY);
+    enum encoding default_encoding = LATIN1);
 NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
                 inline enum encoding ParseEncoding(
       v8::Local<v8::Value> encoding_v,
-      enum encoding default_encoding = BINARY) {
+      enum encoding default_encoding = LATIN1) {
   return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, default_encoding);
 })
 
@@ -308,7 +304,7 @@ NODE_DEPRECATED("Use FatalException(isolate, ...)",
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const char* buf,
                                         size_t len,
-                                        enum encoding encoding = BINARY);
+                                        enum encoding encoding = LATIN1);
 
 // The input buffer should be in host endianness.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
@@ -319,7 +315,7 @@ NODE_DEPRECATED("Use Encode(isolate, ...)",
                 inline v8::Local<v8::Value> Encode(
     const void* buf,
     size_t len,
-    enum encoding encoding = BINARY) {
+    enum encoding encoding = LATIN1) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   if (encoding == UCS2) {
     assert(reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t) == 0 &&
@@ -333,11 +329,11 @@ NODE_DEPRECATED("Use Encode(isolate, ...)",
 // Returns -1 if the handle was not valid for decoding
 NODE_EXTERN ssize_t DecodeBytes(v8::Isolate* isolate,
                                 v8::Local<v8::Value>,
-                                enum encoding encoding = BINARY);
+                                enum encoding encoding = LATIN1);
 NODE_DEPRECATED("Use DecodeBytes(isolate, ...)",
                 inline ssize_t DecodeBytes(
     v8::Local<v8::Value> val,
-    enum encoding encoding = BINARY) {
+    enum encoding encoding = LATIN1) {
   return DecodeBytes(v8::Isolate::GetCurrent(), val, encoding);
 })
 
@@ -346,12 +342,12 @@ NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
                                 char* buf,
                                 size_t buflen,
                                 v8::Local<v8::Value>,
-                                enum encoding encoding = BINARY);
+                                enum encoding encoding = LATIN1);
 NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
                 inline ssize_t DecodeWrite(char* buf,
                                            size_t buflen,
                                            v8::Local<v8::Value> val,
-                                           enum encoding encoding = BINARY) {
+                                           enum encoding encoding = LATIN1) {
   return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
 })
 
@@ -415,17 +411,23 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 # define NODE_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
+#ifdef NODE_SHARED_MODE
+# define NODE_CTOR_PREFIX
+#else
+# define NODE_CTOR_PREFIX static
+#endif
+
 #if defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
 #define NODE_C_CTOR(fn)                                               \
-  static void __cdecl fn(void);                                       \
+  NODE_CTOR_PREFIX void __cdecl fn(void);                             \
   __declspec(dllexport, allocate(".CRT$XCU"))                         \
       void (__cdecl*fn ## _)(void) = fn;                              \
-  static void __cdecl fn(void)
+  NODE_CTOR_PREFIX void __cdecl fn(void)
 #else
 #define NODE_C_CTOR(fn)                                               \
-  static void fn(void) __attribute__((constructor));                  \
-  static void fn(void)
+  NODE_CTOR_PREFIX void fn(void) __attribute__((constructor));        \
+  NODE_CTOR_PREFIX void fn(void)
 #endif
 
 #define NODE_MODULE_X(modname, regfunc, priv, flags)                  \

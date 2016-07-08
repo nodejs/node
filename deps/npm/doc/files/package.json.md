@@ -183,9 +183,10 @@ Certain files are always included, regardless of settings:
 * `README`
 * `CHANGES` / `CHANGELOG` / `HISTORY`
 * `LICENSE` / `LICENCE`
+* `NOTICE`
 * The file in the "main" field
 
-`README`, `CHANGES` & `LICENSE` can have any case and extension.
+`README`, `CHANGES`, `LICENSE` & `NOTICE` can have any case and extension.
 
 Conversely, some files are always ignored:
 
@@ -201,6 +202,7 @@ Conversely, some files are always ignored:
 * `npm-debug.log`
 * `.npmrc`
 * `node_modules`
+* `config.gypi`
 
 ## main
 
@@ -654,10 +656,10 @@ field is advisory only will produce warnings when your package is installed as a
 
 ## engineStrict
 
-**This feature was deprecated with npm 3.0.0**
+**This feature was removed in npm 3.0.0**
 
 Prior to npm 3.0.0, this feature was used to treat this package as if the
-user had set `engine-strict`.
+user had set `engine-strict`. It is no longer used.
 
 ## os
 
@@ -731,10 +733,10 @@ npm will default some values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"scripts":{"preinstall": "node-gyp rebuild"}`
+* `"scripts":{"install": "node-gyp rebuild"}`
 
-  If there is a `binding.gyp` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-gyp.
+  If there is a `binding.gyp` file in the root of your package and you have not defined an `install` or `preinstall` script, npm will
+  default the `install` command to compile using node-gyp.
 
 * `"contributors": [...]`
 

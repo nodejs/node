@@ -35,7 +35,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
     HandleScope scope1(isolate);
     PageIterator it(heap->old_space());
     while (it.has_next()) {
-      it.next()->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+      it.next()->MarkNeverAllocateForTesting();
     }
 
     {
@@ -80,7 +80,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
     HandleScope scope1(isolate);
     PageIterator it(heap->old_space());
     while (it.has_next()) {
-      it.next()->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+      it.next()->MarkNeverAllocateForTesting();
     }
 
     {
@@ -155,7 +155,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
     PageIterator it(heap->old_space());
     while (it.has_next()) {
-      it.next()->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+      it.next()->MarkNeverAllocateForTesting();
     }
 
     Page* to_be_aborted_page = nullptr;
@@ -241,7 +241,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
         isolate->factory()->NewFixedArray(10, TENURED);
     PageIterator it(heap->old_space());
     while (it.has_next()) {
-      it.next()->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+      it.next()->MarkNeverAllocateForTesting();
     }
 
     Page* to_be_aborted_page = nullptr;

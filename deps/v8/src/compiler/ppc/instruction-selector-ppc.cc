@@ -71,22 +71,22 @@ class PPCOperandGenerator final : public OperandGenerator {
 
 namespace {
 
-void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+void VisitRR(InstructionSelector* selector, InstructionCode opcode,
+             Node* node) {
   PPCOperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
 }
 
-
-void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+void VisitRRR(InstructionSelector* selector, InstructionCode opcode,
+              Node* node) {
   PPCOperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
 }
 
-
-void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
+void VisitRRO(InstructionSelector* selector, InstructionCode opcode, Node* node,
               ImmediateMode operand_mode) {
   PPCOperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -96,8 +96,8 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
 
 
 #if V8_TARGET_ARCH_PPC64
-void VisitTryTruncateDouble(InstructionSelector* selector, ArchOpcode opcode,
-                            Node* node) {
+void VisitTryTruncateDouble(InstructionSelector* selector,
+                            InstructionCode opcode, Node* node) {
   PPCOperandGenerator g(selector);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
   InstructionOperand outputs[2];
@@ -144,15 +144,20 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  opcode = cont->Encode(opcode);
+  if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
+                             cont->frame_state());
+  } else {
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  }
 }
 
 
 // Shared routine for multiple binary operations.
 template <typename Matcher>
-void VisitBinop(InstructionSelector* selector, Node* node, ArchOpcode opcode,
-                ImmediateMode operand_mode) {
+void VisitBinop(InstructionSelector* selector, Node* node,
+                InstructionCode opcode, ImmediateMode operand_mode) {
   FlagsContinuation cont;
   VisitBinop<Matcher>(selector, node, opcode, operand_mode, &cont);
 }
@@ -247,9 +252,7 @@ void InstructionSelector::VisitStore(Node* node) {
       inputs[input_count++] = g.UseUniqueRegister(offset);
       addressing_mode = kMode_MRR;
     }
-    inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
-                                ? g.UseRegister(value)
-                                : g.UseUniqueRegister(value);
+    inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
     switch (write_barrier_kind) {
       case kNoWriteBarrier:
@@ -720,7 +723,6 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   VisitRRO(this, kPPC_ShiftRight32, node, kShift32Imm);
 }
 
-
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Shr(Node* node) {
   PPCOperandGenerator g(this);
@@ -782,9 +784,109 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitRRO(this, kPPC_ShiftRightAlg32, node, kShift32Imm);
 }
 
+#if !V8_TARGET_ARCH_PPC64
+void VisitPairBinop(InstructionSelector* selector, InstructionCode opcode,
+                    Node* node) {
+  PPCOperandGenerator g(selector);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // registers.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 4, inputs);
+}
+
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  VisitPairBinop(this, kPPC_AddPair, node);
+}
+
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  VisitPairBinop(this, kPPC_SubPair, node);
+}
+
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  PPCOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(2)),
+                                 g.UseRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+
+  Emit(kPPC_MulPair, 2, outputs, 4, inputs, 2, temps);
+}
+
+void VisitPairShift(InstructionSelector* selector, InstructionCode opcode,
+                    Node* node) {
+  PPCOperandGenerator g(selector);
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitPairShift(this, kPPC_ShiftLeftPair, node);
+}
+
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  VisitPairShift(this, kPPC_ShiftRightPair, node);
+}
+
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  VisitPairShift(this, kPPC_ShiftRightAlgPair, node);
+}
+#endif
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Sar(Node* node) {
+  PPCOperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
+      m.right().Is(32)) {
+    // Just load and sign-extend the interesting 4 bytes instead. This happens,
+    // for example, when we're loading and untagging SMIs.
+    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(), true);
+    if (mleft.matches() && mleft.index() == nullptr) {
+      int64_t offset = 0;
+      Node* displacement = mleft.displacement();
+      if (displacement != nullptr) {
+        Int64Matcher mdisplacement(displacement);
+        DCHECK(mdisplacement.HasValue());
+        offset = mdisplacement.Value();
+      }
+      offset = SmiWordOffset(offset);
+      if (g.CanBeImmediate(offset, kInt16Imm_4ByteAligned)) {
+        Emit(kPPC_LoadWordS32 | AddressingModeField::encode(kMode_MRI),
+             g.DefineAsRegister(node), g.UseRegister(mleft.base()),
+             g.TempImmediate(offset));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kPPC_ShiftRightAlg64, node, kShift64Imm);
 }
 #endif
@@ -860,7 +962,6 @@ void InstructionSelector::VisitInt64Add(Node* node) {
   VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm);
 }
 #endif
-
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   PPCOperandGenerator g(this);
@@ -994,6 +1095,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kPPC_DoubleToUint32, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kPPC_DoubleToUint32, node);
+}
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
@@ -1108,7 +1212,7 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
-  VisitRRR(this, kPPC_AddDouble, node);
+  VisitRRR(this, kPPC_AddDouble | MiscField::encode(1), node);
 }
 
 
@@ -1122,11 +1226,11 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   PPCOperandGenerator g(this);
   Float32BinopMatcher m(node);
   if (m.left().IsMinusZero()) {
-    Emit(kPPC_NegDouble, g.DefineAsRegister(node),
+    Emit(kPPC_NegDouble | MiscField::encode(1), g.DefineAsRegister(node),
          g.UseRegister(m.right().node()));
     return;
   }
-  VisitRRR(this, kPPC_SubDouble, node);
+  VisitRRR(this, kPPC_SubDouble | MiscField::encode(1), node);
 }
 
 
@@ -1157,7 +1261,7 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
-  VisitRRR(this, kPPC_MulDouble, node);
+  VisitRRR(this, kPPC_MulDouble | MiscField::encode(1), node);
 }
 
 
@@ -1168,7 +1272,7 @@ void InstructionSelector::VisitFloat64Mul(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Div(Node* node) {
-  VisitRRR(this, kPPC_DivDouble, node);
+  VisitRRR(this, kPPC_DivDouble | MiscField::encode(1), node);
 }
 
 
@@ -1198,7 +1302,7 @@ void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
 
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
-  VisitRR(this, kPPC_AbsDouble, node);
+  VisitRR(this, kPPC_AbsDouble | MiscField::encode(1), node);
 }
 
 
@@ -1208,7 +1312,7 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
-  VisitRR(this, kPPC_SqrtDouble, node);
+  VisitRR(this, kPPC_SqrtDouble | MiscField::encode(1), node);
 }
 
 
@@ -1218,7 +1322,7 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundDown(Node* node) {
-  VisitRR(this, kPPC_FloorDouble, node);
+  VisitRR(this, kPPC_FloorDouble | MiscField::encode(1), node);
 }
 
 
@@ -1228,7 +1332,7 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundUp(Node* node) {
-  VisitRR(this, kPPC_CeilDouble, node);
+  VisitRR(this, kPPC_CeilDouble | MiscField::encode(1), node);
 }
 
 
@@ -1238,7 +1342,7 @@ void InstructionSelector::VisitFloat64RoundUp(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
-  VisitRR(this, kPPC_TruncateDouble, node);
+  VisitRR(this, kPPC_TruncateDouble | MiscField::encode(1), node);
 }
 
 
@@ -1264,7 +1368,7 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop<Int32BinopMatcher>(this, node, kPPC_AddWithOverflow32,
                                          kInt16Imm, &cont);
   }
@@ -1276,7 +1380,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop<Int32BinopMatcher>(this, node, kPPC_SubWithOverflow32,
                                          kInt16Imm_Negate, &cont);
   }
@@ -1289,7 +1393,7 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm,
                                          &cont);
   }
@@ -1300,7 +1404,7 @@ void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Sub, kInt16Imm_Negate,
                                          &cont);
   }
@@ -1336,6 +1440,9 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right,
+                             cont->frame_state());
   } else {
     DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
@@ -1573,6 +1680,17 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   VisitWord32CompareZero(this, branch, branch->InputAt(0), &cont);
 }
 
+void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kNotEqual, node->InputAt(1));
+  VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kEqual, node->InputAt(1));
+  VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   PPCOperandGenerator g(this);
@@ -1603,7 +1721,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
     return VisitWord32CompareZero(this, m.node(), m.left().node(), &cont);
@@ -1613,32 +1731,34 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
 
 
 void InstructionSelector::VisitInt32LessThan(Node* node) {
-  FlagsContinuation cont(kSignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWord32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWord32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWord32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWord32Compare(this, node, &cont);
 }
 
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Equal(Node* const node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int64BinopMatcher m(node);
   if (m.right().Is(0)) {
     return VisitWord64CompareZero(this, m.node(), m.left().node(), &cont);
@@ -1648,62 +1768,66 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
 
 
 void InstructionSelector::VisitInt64LessThan(Node* node) {
-  FlagsContinuation cont(kSignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 #endif
 
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64Equal(Node* node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
@@ -1750,6 +1874,7 @@ void InstructionSelector::EmitPrepareArguments(
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
+int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
 void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
   PPCOperandGenerator g(this);

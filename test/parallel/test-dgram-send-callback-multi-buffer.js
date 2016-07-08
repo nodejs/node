@@ -19,7 +19,8 @@ const buf1 = Buffer.alloc(256, 'x');
 const buf2 = Buffer.alloc(256, 'y');
 
 client.on('listening', function() {
-  client.send([buf1, buf2], common.PORT, common.localhostIPv4, messageSent);
+  const port = this.address().port;
+  client.send([buf1, buf2], port, common.localhostIPv4, messageSent);
 });
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
@@ -28,4 +29,4 @@ client.on('message', common.mustCall(function onMessage(buf, info) {
   client.close();
 }));
 
-client.bind(common.PORT);
+client.bind(0);

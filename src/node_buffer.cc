@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include <limits.h>
+#include <utility>
 
 #define BUFFER_ID 0xB0E4
 
@@ -51,12 +52,37 @@
 #define BUFFER_MALLOC(length)                                               \
   zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
 
-#define SWAP_BYTES(arr, a, b)                                               \
-  do {                                                                      \
-    const uint8_t lo = arr[a];                                              \
-    arr[a] = arr[b];                                                        \
-    arr[b] = lo;                                                            \
-  } while (0)
+#if defined(__GNUC__) || defined(__clang__)
+#define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
+#define BSWAP_INTRINSIC_4(x) __builtin_bswap32(x)
+#define BSWAP_INTRINSIC_8(x) __builtin_bswap64(x)
+#elif defined(__linux__)
+#include <byteswap.h>
+#define BSWAP_INTRINSIC_2(x) bswap_16(x)
+#define BSWAP_INTRINSIC_4(x) bswap_32(x)
+#define BSWAP_INTRINSIC_8(x) bswap_64(x)
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#define BSWAP_INTRINSIC_2(x) _byteswap_ushort(x);
+#define BSWAP_INTRINSIC_4(x) _byteswap_ulong(x);
+#define BSWAP_INTRINSIC_8(x) _byteswap_uint64(x);
+#else
+#define BSWAP_INTRINSIC_2(x) ((x) << 8) | ((x) >> 8)
+#define BSWAP_INTRINSIC_4(x)                                                  \
+  (((x) & 0xFF) << 24) |                                                      \
+  (((x) & 0xFF00) << 8) |                                                     \
+  (((x) >> 8) & 0xFF00) |                                                     \
+  (((x) >> 24) & 0xFF)
+#define BSWAP_INTRINSIC_8(x)                                                  \
+  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
+  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
+  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
+  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
+  (((x) & 0x00000000FF000000ull) << 8) |                                      \
+  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
+  (((x) & 0x000000000000FF00ull) << 40) |                                     \
+  (((x) & 0x00000000000000FFull) << 56)
+#endif
 
 namespace node {
 
@@ -164,6 +190,30 @@ void CallbackInfo::WeakCallback(Isolate* isolate) {
   callback_(data_, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+}
+
+
+// Parse index for external array data.
+inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
+                                            size_t def,
+                                            size_t* ret) {
+  if (arg->IsUndefined()) {
+    *ret = def;
+    return true;
+  }
+
+  int64_t tmp_i = arg->IntegerValue();
+
+  if (tmp_i < 0)
+    return false;
+
+  // Check that the result fits in a size_t.
+  const uint64_t kSizeMax = static_cast<uint64_t>(static_cast<size_t>(-1));
+  if (static_cast<uint64_t>(tmp_i) > kSizeMax)
+    return false;
+
+  *ret = static_cast<size_t>(tmp_i);
+  return true;
 }
 
 
@@ -427,33 +477,6 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if (!args[0]->IsArrayBuffer())
-    return env->ThrowTypeError("argument is not an ArrayBuffer");
-  Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
-
-  size_t ab_length = ab->ByteLength();
-  size_t offset;
-  size_t max_length;
-
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], ab_length - offset, &max_length));
-
-  if (offset >= ab_length)
-    return env->ThrowRangeError("'offset' is out of bounds");
-  if (max_length > ab_length - offset)
-    return env->ThrowRangeError("'length' is out of bounds");
-
-  Local<Uint8Array> ui = Uint8Array::New(ab, offset, max_length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false))
-    return env->ThrowError("Unable to set Object prototype");
-  args.GetReturnValue().Set(ui);
-}
-
-
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -518,8 +541,8 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void BinarySlice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<BINARY>(args);
+void Latin1Slice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<LATIN1>(args);
 }
 
 
@@ -719,8 +742,8 @@ void Base64Write(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void BinaryWrite(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<BINARY>(args);
+void Latin1Write(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<LATIN1>(args);
 }
 
 
@@ -1062,7 +1085,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           needle_length,
                           offset,
                           is_forward);
-  } else if (enc == BINARY) {
+  } else if (enc == LATIN1) {
     uint8_t* needle_data = static_cast<uint8_t*>(malloc(needle_length));
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
@@ -1177,28 +1200,85 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
+
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], ts_obj);
 
-  for (size_t i = 0; i < ts_obj_length; i += 2) {
-    SWAP_BYTES(ts_obj_data, i, i + 1);
+  CHECK_EQ(ts_obj_length % 2, 0);
+
+  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint16_t);
+
+  if (align == 0) {
+    uint16_t* data16 = reinterpret_cast<uint16_t*>(ts_obj_data);
+    size_t len16 = ts_obj_length / 2;
+    for (size_t i = 0; i < len16; i++) {
+      data16[i] = BSWAP_INTRINSIC_2(data16[i]);
+    }
+  } else {
+    for (size_t i = 0; i < ts_obj_length; i += 2) {
+      std::swap(ts_obj_data[i], ts_obj_data[i + 1]);
+    }
   }
-  args.GetReturnValue().Set(args.This());
+
+  args.GetReturnValue().Set(args[0]);
 }
+
 
 void Swap32(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], ts_obj);
 
-  for (size_t i = 0; i < ts_obj_length; i += 4) {
-    SWAP_BYTES(ts_obj_data, i, i + 3);
-    SWAP_BYTES(ts_obj_data, i + 1, i + 2);
+  CHECK_EQ(ts_obj_length % 4, 0);
+
+  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint32_t);
+
+  if (align == 0) {
+    uint32_t* data32 = reinterpret_cast<uint32_t*>(ts_obj_data);
+    size_t len32 = ts_obj_length / 4;
+    for (size_t i = 0; i < len32; i++) {
+      data32[i] = BSWAP_INTRINSIC_4(data32[i]);
+    }
+  } else {
+    for (size_t i = 0; i < ts_obj_length; i += 4) {
+      std::swap(ts_obj_data[i], ts_obj_data[i + 3]);
+      std::swap(ts_obj_data[i + 1], ts_obj_data[i + 2]);
+    }
   }
-  args.GetReturnValue().Set(args.This());
+
+  args.GetReturnValue().Set(args[0]);
 }
+
+
+void Swap64(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], ts_obj);
+
+  CHECK_EQ(ts_obj_length % 8, 0);
+
+  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint64_t);
+
+  if (align == 0) {
+    uint64_t* data64 = reinterpret_cast<uint64_t*>(ts_obj_data);
+    size_t len32 = ts_obj_length / 8;
+    for (size_t i = 0; i < len32; i++) {
+      data64[i] = BSWAP_INTRINSIC_8(data64[i]);
+    }
+  } else {
+    for (size_t i = 0; i < ts_obj_length; i += 8) {
+      std::swap(ts_obj_data[i], ts_obj_data[i + 7]);
+      std::swap(ts_obj_data[i + 1], ts_obj_data[i + 6]);
+      std::swap(ts_obj_data[i + 2], ts_obj_data[i + 5]);
+      std::swap(ts_obj_data[i + 3], ts_obj_data[i + 4]);
+    }
+  }
+
+  args.GetReturnValue().Set(args[0]);
+}
+
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -1210,32 +1290,30 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   env->SetMethod(proto, "asciiSlice", AsciiSlice);
   env->SetMethod(proto, "base64Slice", Base64Slice);
-  env->SetMethod(proto, "binarySlice", BinarySlice);
+  env->SetMethod(proto, "latin1Slice", Latin1Slice);
   env->SetMethod(proto, "hexSlice", HexSlice);
   env->SetMethod(proto, "ucs2Slice", Ucs2Slice);
   env->SetMethod(proto, "utf8Slice", Utf8Slice);
 
   env->SetMethod(proto, "asciiWrite", AsciiWrite);
   env->SetMethod(proto, "base64Write", Base64Write);
-  env->SetMethod(proto, "binaryWrite", BinaryWrite);
+  env->SetMethod(proto, "latin1Write", Latin1Write);
   env->SetMethod(proto, "hexWrite", HexWrite);
   env->SetMethod(proto, "ucs2Write", Ucs2Write);
   env->SetMethod(proto, "utf8Write", Utf8Write);
 
   env->SetMethod(proto, "copy", Copy);
 
-  CHECK(args[1]->IsObject());
-  Local<Object> bObj = args[1].As<Object>();
-
-  uint32_t* const fields = env->array_buffer_allocator_info()->fields();
-  uint32_t const fields_count =
-      env->array_buffer_allocator_info()->fields_count();
-
-  Local<ArrayBuffer> array_buffer =
-      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
-
-  bObj->Set(String::NewFromUtf8(env->isolate(), "flags"),
-            Uint32Array::New(array_buffer, 0, fields_count));
+  if (auto zero_fill_field = env->isolate_data()->zero_fill_field()) {
+    CHECK(args[1]->IsObject());
+    auto binding_object = args[1].As<Object>();
+    auto array_buffer = ArrayBuffer::New(env->isolate(),
+                                         zero_fill_field,
+                                         sizeof(*zero_fill_field));
+    auto name = FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill");
+    auto value = Uint32Array::New(array_buffer, 0, 1);
+    CHECK(binding_object->Set(env->context(), name, value).FromJust());
+  }
 }
 
 
@@ -1246,7 +1324,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
   env->SetMethod(target, "createFromString", CreateFromString);
-  env->SetMethod(target, "createFromArrayBuffer", CreateFromArrayBuffer);
 
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
@@ -1268,6 +1345,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
+  env->SetMethod(target, "swap64", Swap64);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),

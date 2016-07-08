@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-reflect --harmony-regexp-subclass
-// Flags: --expose-gc --strong-mode
+// Flags: --allow-natives-syntax --harmony-regexp-subclass
+// Flags: --expose-gc
 
 "use strict";
 
@@ -78,11 +78,6 @@ function checkPrototypeChain(object, constructors) {
     constructor(...args) {
       assertFalse(new.target === undefined);
       super(...args);
-      // Strong functions are not extensible, so don't add fields.
-      if (args[args.length - 1].indexOf("use strong") >= 0) {
-        assertThrows(()=>{ this.a = 10; }, TypeError);
-        return;
-      }
       this.a = 42;
       this.d = 4.2;
       this.o = {foo:153};
@@ -95,26 +90,24 @@ function checkPrototypeChain(object, constructors) {
   assertNull(Object.getOwnPropertyDescriptor(sloppy_func, "caller").value);
   assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
 
-  function CheckFunction(func, is_strong) {
+  function CheckFunction(func) {
     assertEquals("function", typeof func);
     assertTrue(func instanceof Object);
     assertTrue(func instanceof Function);
     assertTrue(func instanceof A);
     checkPrototypeChain(func, [A, Function, Object]);
-    if (!is_strong) {
-      assertEquals(42, func.a);
-      assertEquals(4.2, func.d);
-      assertEquals(153, func.o.foo);
-      assertTrue(undefined !== func.prototype);
-      func.prototype.bar = "func.bar";
-      var obj = new func();
-      assertTrue(obj instanceof Object);
-      assertTrue(obj instanceof func);
-      assertEquals("object", typeof obj);
-      assertEquals(113, obj.foo);
-      assertEquals("func.bar", obj.bar);
-      delete func.prototype.bar;
-    }
+    assertEquals(42, func.a);
+    assertEquals(4.2, func.d);
+    assertEquals(153, func.o.foo);
+    assertTrue(undefined !== func.prototype);
+    func.prototype.bar = "func.bar";
+    var obj = new func();
+    assertTrue(obj instanceof Object);
+    assertTrue(obj instanceof func);
+    assertEquals("object", typeof obj);
+    assertEquals(113, obj.foo);
+    assertEquals("func.bar", obj.bar);
+    delete func.prototype.bar;
   }
 
   var source = "this.foo = 113;";
@@ -134,15 +127,6 @@ function checkPrototypeChain(object, constructors) {
 
   var strict_func1 = new A("'use strict'; return 312;");
   assertTrue(%HaveSameMap(strict_func, strict_func1));
-
-  // Strong function
-  var strong_func = new A("'use strong'; " + source);
-  assertFalse(%HaveSameMap(strong_func, sloppy_func));
-  assertFalse(%HaveSameMap(strong_func, strict_func));
-  CheckFunction(strong_func, true);
-
-  var strong_func1 = new A("'use strong'; return 312;");
-  assertTrue(%HaveSameMap(strong_func, strong_func1));
 
   gc();
 })();
@@ -592,11 +576,6 @@ function TestMapSetSubclassing(container, is_map) {
     constructor(...args) {
       assertFalse(new.target === undefined);
       super(...args);
-      // Strong functions are not extensible, so don't add fields.
-      if (args[args.length - 1].indexOf("use strong") >= 0) {
-        assertThrows(()=>{ this.a = 10; }, TypeError);
-        return;
-      }
       this.a = 42;
       this.d = 4.2;
       this.o = {foo:153};
@@ -610,35 +589,34 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(undefined, Object.getOwnPropertyDescriptor(sloppy_func, "caller"));
   assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
 
-  function CheckFunction(func, is_strong) {
+  function CheckFunction(func) {
     assertEquals("function", typeof func);
     assertTrue(func instanceof Object);
     assertTrue(func instanceof Function);
     assertTrue(func instanceof GeneratorFunction);
     assertTrue(func instanceof A);
     checkPrototypeChain(func, [A, GeneratorFunction, Function, Object]);
-    if (!is_strong) {
-      assertEquals(42, func.a);
-      assertEquals(4.2, func.d);
-      assertEquals(153, func.o.foo);
 
-      assertTrue(undefined !== func.prototype);
-      func.prototype.bar = "func.bar";
-      var obj = func();  // Generator object.
-      assertTrue(obj instanceof Object);
-      assertTrue(obj instanceof func);
-      assertEquals("object", typeof obj);
-      assertEquals("func.bar", obj.bar);
-      delete func.prototype.bar;
+    assertEquals(42, func.a);
+    assertEquals(4.2, func.d);
+    assertEquals(153, func.o.foo);
 
-      assertPropertiesEqual({done: false, value: 1}, obj.next());
-      assertPropertiesEqual({done: false, value: 1}, obj.next());
-      assertPropertiesEqual({done: false, value: 2}, obj.next());
-      assertPropertiesEqual({done: false, value: 3}, obj.next());
-      assertPropertiesEqual({done: false, value: 5}, obj.next());
-      assertPropertiesEqual({done: false, value: 8}, obj.next());
-      assertPropertiesEqual({done: true, value: undefined}, obj.next());
-    }
+    assertTrue(undefined !== func.prototype);
+    func.prototype.bar = "func.bar";
+    var obj = func();  // Generator object.
+    assertTrue(obj instanceof Object);
+    assertTrue(obj instanceof func);
+    assertEquals("object", typeof obj);
+    assertEquals("func.bar", obj.bar);
+    delete func.prototype.bar;
+
+    assertPropertiesEqual({done: false, value: 1}, obj.next());
+    assertPropertiesEqual({done: false, value: 1}, obj.next());
+    assertPropertiesEqual({done: false, value: 2}, obj.next());
+    assertPropertiesEqual({done: false, value: 3}, obj.next());
+    assertPropertiesEqual({done: false, value: 5}, obj.next());
+    assertPropertiesEqual({done: false, value: 8}, obj.next());
+    assertPropertiesEqual({done: true, value: undefined}, obj.next());
   }
 
   var source = "yield 1; yield 1; yield 2; yield 3; yield 5; yield 8;";
@@ -658,15 +636,6 @@ function TestMapSetSubclassing(container, is_map) {
 
   var strict_func1 = new A("'use strict'; yield 312;");
   assertTrue(%HaveSameMap(strict_func, strict_func1));
-
-  // Strong generator function
-  var strong_func = new A("'use strong'; " + source);
-  assertFalse(%HaveSameMap(strong_func, sloppy_func));
-  assertFalse(%HaveSameMap(strong_func, strict_func));
-  CheckFunction(strong_func, true);
-
-  var strong_func1 = new A("'use strong'; yield 312;");
-  assertTrue(%HaveSameMap(strong_func, strong_func1));
 
   gc();
 })();
@@ -950,7 +919,13 @@ function TestMapSetSubclassing(container, is_map) {
 
   var o = Reflect.construct(RegExp, [pattern], f);
   assertEquals(["match", "tostring"], log);
-  assertEquals(/biep/, o);
+  // TODO(littledan): Is the RegExp constructor correct to create
+  // the internal slots and do these type checks this way?
+  assertEquals("biep", %_RegExpSource(o));
+  assertThrows(() => Object.getOwnPropertyDescriptor(RegExp.prototype,
+                                                     'source').get(o),
+               TypeError);
+  assertEquals("/undefined/undefined", RegExp.prototype.toString.call(o));
   assertTrue(o.__proto__ === p2);
   assertTrue(f.prototype === p3);
 })();

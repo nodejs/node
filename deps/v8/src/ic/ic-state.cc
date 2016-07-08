@@ -404,7 +404,9 @@ CompareICState::State CompareICState::NewInputState(State old_state,
       if (value->IsInternalizedString()) return INTERNALIZED_STRING;
       if (value->IsString()) return STRING;
       if (value->IsSymbol()) return UNIQUE_NAME;
-      if (value->IsJSReceiver()) return RECEIVER;
+      if (value->IsJSReceiver() && !value->IsUndetectable()) {
+        return RECEIVER;
+      }
       break;
     case BOOLEAN:
       if (value->IsBoolean()) return BOOLEAN;
@@ -428,7 +430,9 @@ CompareICState::State CompareICState::NewInputState(State old_state,
       if (value->IsUniqueName()) return UNIQUE_NAME;
       break;
     case RECEIVER:
-      if (value->IsJSReceiver()) return RECEIVER;
+      if (value->IsJSReceiver() && !value->IsUndetectable()) {
+        return RECEIVER;
+      }
       break;
     case GENERIC:
       break;
@@ -464,6 +468,9 @@ CompareICState::State CompareICState::TargetState(
       }
       if (x->IsString() && y->IsString()) return STRING;
       if (x->IsJSReceiver() && y->IsJSReceiver()) {
+        if (x->IsUndetectable() || y->IsUndetectable()) {
+          return GENERIC;
+        }
         if (Handle<JSReceiver>::cast(x)->map() ==
             Handle<JSReceiver>::cast(y)->map()) {
           return KNOWN_RECEIVER;

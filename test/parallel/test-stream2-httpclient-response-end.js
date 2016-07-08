@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var msg = 'Hello';
@@ -8,8 +8,8 @@ var end_event = false;
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end(msg);
-}).listen(common.PORT, function() {
-  http.get({port: common.PORT}, function(res) {
+}).listen(0, function() {
+  http.get({port: this.address().port}, function(res) {
     var data = '';
     res.on('readable', function() {
       console.log('readable event');

@@ -76,9 +76,9 @@ class LinkageLocation {
                               kPointerSize);
   }
 
-  static LinkageLocation ForSavedCallerMarker() {
+  static LinkageLocation ForSavedCallerFunction() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
-                               StandardFrameConstants::kMarkerOffset) /
+                               StandardFrameConstants::kFunctionOffset) /
                               kPointerSize);
   }
 
@@ -160,10 +160,11 @@ class CallDescriptor final : public ZoneObject {
     kCanUseRoots = 1u << 6,
     // (arm64 only) native stack should be used for arguments.
     kUseNativeStack = 1u << 7,
-    // (arm64 only) call instruction has to restore JSSP.
+    // (arm64 only) call instruction has to restore JSSP or CSP.
     kRestoreJSSP = 1u << 8,
+    kRestoreCSP = 1u << 9,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 9,
+    kInitializeRootRegister = 1u << 10,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
@@ -366,6 +367,11 @@ class Linkage : public ZoneObject {
 
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;
+
+  // A special {Parameter} index for Stub Calls that represents context.
+  static int GetStubCallContextParamIndex(int parameter_count) {
+    return parameter_count + 0;  // Parameter (arity + 0) is special.
+  }
 
   // A special {Parameter} index for JSCalls that represents the new target.
   static int GetJSCallNewTargetParamIndex(int parameter_count) {

@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-const PORT_MIN = common.PORT;
+const PORT_MIN = common.PORT + 1;  // The fixture uses common.PORT.
 const PORT_MAX = PORT_MIN + 2;
 
 const args = [
@@ -16,7 +16,8 @@ child.stderr.setEncoding('utf8');
 
 const checkMessages = common.mustCall(() => {
   for (let port = PORT_MIN; port <= PORT_MAX; port += 1) {
-    assert(stderr.includes(`Debugger listening on port ${port}`));
+    const re = RegExp(`Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):${port}`);
+    assert(re.test(stderr));
   }
 });
 

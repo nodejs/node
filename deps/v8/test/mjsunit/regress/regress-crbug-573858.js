@@ -9,7 +9,7 @@ var throw_type_error = Object.getOwnPropertyDescriptor(
 
 function create_initial_map() { this instanceof throw_type_error }
 %OptimizeFunctionOnNextCall(create_initial_map);
-create_initial_map();
+assertThrows(create_initial_map);
 
 function test() { new throw_type_error }
 %OptimizeFunctionOnNextCall(test);

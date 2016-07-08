@@ -31,5 +31,5 @@ if (cluster.isMaster) {
   }
 } else {
   var server = http.createServer(handleRequest);
-  server.listen(common.PORT+1000);
+  server.listen(common.PORT);
 }

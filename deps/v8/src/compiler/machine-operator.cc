@@ -148,6 +148,7 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                \
   V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
   V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)                \
   V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)              \
@@ -195,7 +196,13 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
   V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
-  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)
+  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)                 \
+  V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                           \
+  V(Int32PairSub, Operator::kNoProperties, 4, 0, 2)                           \
+  V(Int32PairMul, Operator::kNoProperties, 4, 0, 2)                           \
+  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                          \
+  V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                          \
+  V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -467,6 +474,19 @@ const Operator* MachineOperatorBuilder::CheckedStore(
   return nullptr;
 }
 
+// On 32 bit platforms we need to get a reference to optional operators of
+// 64-bit instructions for later Int64Lowering, even though 32 bit platforms
+// don't support the original 64-bit instruction.
+const Operator* MachineOperatorBuilder::Word64PopcntPlaceholder() {
+  return &cache_.kWord64Popcnt;
+}
+
+// On 32 bit platforms we need to get a reference to optional operators of
+// 64-bit instructions for later Int64Lowering, even though 32 bit platforms
+// don't support the original 64-bit instruction.
+const Operator* MachineOperatorBuilder::Word64CtzPlaceholder() {
+  return &cache_.kWord64Ctz;
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

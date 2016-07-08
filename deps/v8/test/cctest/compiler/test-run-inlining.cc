@@ -268,7 +268,8 @@ TEST(InlineTwice) {
       "(function () {"
       "  var x = 42;"
       "  function bar(s) { AssertInlineCount(2); return x + s; };"
-      "  return (function (s,t) { return bar(s) + bar(t); });"
+      "  function foo(s, t) { return bar(s) + bar(t); };"
+      "  return foo;"
       "})();",
       kInlineFlags);
 
@@ -539,33 +540,6 @@ TEST(InlineNestedBuiltin) {
 
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.true_value());
-}
-
-
-TEST(StrongModeArity) {
-  FLAG_strong_mode = true;
-  FunctionTester T(
-      "(function () {"
-      "  function foo(x, y) { 'use strong'; return x; }"
-      "  function bar(x, y) { return foo(x); }"
-      "  return bar;"
-      "})();",
-      kInlineFlags);
-  T.CheckThrows(T.undefined(), T.undefined());
-}
-
-
-TEST(StrongModeArityOuter) {
-  FLAG_strong_mode = true;
-  FunctionTester T(
-      "(function () {"
-      "  'use strong';"
-      "  function foo(x, y) { return x; }"
-      "  function bar(x, y) { return foo(x); }"
-      "  return bar;"
-      "})();",
-      kInlineFlags);
-  T.CheckThrows(T.undefined(), T.undefined());
 }
 
 

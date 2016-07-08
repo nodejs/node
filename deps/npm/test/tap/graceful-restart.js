@@ -70,7 +70,7 @@ test('graceless restart', function (t) {
   createChild(['run-script', 'restart'], function (err, code, out) {
     t.ifError(err, 'restart finished successfully')
     t.equal(code, 0, 'npm run-script exited with code')
-    t.equal(out, outGraceless, 'expected all scripts to run')
+    t.equal(out.replace(/\r/g, ''), outGraceless, 'expected all scripts to run')
     t.end()
   })
 })
@@ -80,7 +80,7 @@ test('graceful restart', function (t) {
   createChild(['run-script', 'restart'], function (err, code, out) {
     t.ifError(err, 'restart finished successfully')
     t.equal(code, 0, 'npm run-script exited with code')
-    t.equal(out, outGraceful, 'expected only *restart scripts to run')
+    t.equal(out.replace(/\r/g, ''), outGraceful, 'expected only *restart scripts to run')
     t.end()
   })
 })

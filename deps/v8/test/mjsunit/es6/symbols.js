@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax --harmony-tostring
+// Flags: --expose-gc --allow-natives-syntax
 
 var symbols = []
 
@@ -86,6 +86,7 @@ TestPrototype()
 
 
 function TestConstructor() {
+  assertEquals(0, Symbol.length);
   assertSame(Function.prototype, Symbol.__proto__)
   assertFalse(Object === Symbol.prototype.constructor)
   assertFalse(Symbol === Object.prototype.constructor)

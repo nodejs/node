@@ -48,6 +48,10 @@ Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
 it is removed with npm-unpublish(1).
 
+For a "dry run" that does everything except actually publishing to the
+registry, see `npm-pack(1)`, which figures out the files to be included and
+packs them into a tarball to be uploaded to the registry.
+
 ## SEE ALSO
 
 * npm-registry(7)
@@ -56,3 +60,4 @@ it is removed with npm-unpublish(1).
 * npm-owner(1)
 * npm-deprecate(1)
 * npm-tag(1)
+* npm-pack(1)

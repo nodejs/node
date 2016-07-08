@@ -11,6 +11,11 @@
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'python%': 'python',
 
+    'node_shared%': 'false',
+    'node_use_v8_platform%': 'true',
+    'node_use_bundled_v8%': 'true',
+    'node_module_version%': '',
+
     'node_tag%': '',
     'uv_library%': 'static_library',
 
@@ -288,7 +293,11 @@
                 'ldflags': [ '-maix64' ],
               }],
             ],
+            'ldflags': [ '-Wl,-bbigtoc' ],
             'ldflags!': [ '-rdynamic' ],
+          }],
+          [ 'node_shared=="true"', {
+            'cflags': [ '-fPIC' ],
           }],
         ],
       }],

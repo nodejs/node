@@ -86,6 +86,7 @@ static bool EqualDetails(DescriptorArray* descriptors, int descriptor,
 class Expectations {
   static const int MAX_PROPERTIES = 10;
   Isolate* isolate_;
+  ElementsKind elements_kind_;
   PropertyType types_[MAX_PROPERTIES];
   PropertyAttributes attributes_[MAX_PROPERTIES];
   Representation representations_[MAX_PROPERTIES];
@@ -97,8 +98,15 @@ class Expectations {
   int number_of_properties_;
 
  public:
+  explicit Expectations(Isolate* isolate, ElementsKind elements_kind)
+      : isolate_(isolate),
+        elements_kind_(elements_kind),
+        number_of_properties_(0) {}
+
   explicit Expectations(Isolate* isolate)
-      : isolate_(isolate), number_of_properties_(0) {}
+      : Expectations(
+            isolate,
+            isolate->object_function()->initial_map()->elements_kind()) {}
 
   void Init(int index, PropertyType type, PropertyAttributes attributes,
             Representation representation, Handle<Object> value) {
@@ -141,6 +149,10 @@ class Expectations {
       os << ", attrs: " << attributes_[i] << ")\n";
     }
     os << "\n";
+  }
+
+  void SetElementsKind(ElementsKind elements_kind) {
+    elements_kind_ = elements_kind;
   }
 
   Handle<FieldType> GetFieldType(int index) {
@@ -252,6 +264,7 @@ class Expectations {
   }
 
   bool Check(Map* map, int expected_nof) const {
+    CHECK_EQ(elements_kind_, map->elements_kind());
     CHECK(number_of_properties_ <= MAX_PROPERTIES);
     CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
     CHECK(!map->is_dictionary_map());
@@ -278,6 +291,13 @@ class Expectations {
   // Helper methods for initializing expectations and adding properties to
   // given |map|.
   //
+
+  Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind elements_kind) {
+    elements_kind_ = elements_kind;
+    map = Map::AsElementsKind(map, elements_kind);
+    CHECK_EQ(elements_kind_, map->elements_kind());
+    return map;
+  }
 
   Handle<Map> AddDataField(Handle<Map> map, PropertyAttributes attributes,
                            Representation representation,
@@ -399,13 +419,17 @@ class Expectations {
     Handle<Object> getter(pair->getter(), isolate);
     Handle<Object> setter(pair->setter(), isolate);
 
-    map = Map::TransitionToAccessorProperty(map, name, ACCESSOR_GETTER, getter,
-                                            attributes);
+    int descriptor =
+        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
+    map = Map::TransitionToAccessorProperty(
+        map, name, descriptor, ACCESSOR_GETTER, getter, attributes);
     CHECK(!map->is_deprecated());
     CHECK(!map->is_dictionary_map());
 
-    map = Map::TransitionToAccessorProperty(map, name, ACCESSOR_SETTER, setter,
-                                            attributes);
+    descriptor =
+        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
+    map = Map::TransitionToAccessorProperty(
+        map, name, descriptor, ACCESSOR_SETTER, setter, attributes);
     CHECK(!map->is_deprecated());
     CHECK(!map->is_dictionary_map());
     return map;
@@ -570,7 +594,7 @@ static void TestGeneralizeRepresentation(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-  Zone zone;
+  Zone zone(isolate->allocator());
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
@@ -962,7 +986,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone;
+  Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
@@ -1047,7 +1071,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone;
+  Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
@@ -1525,6 +1549,271 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// A set of tests for elements kind reconfiguration case.
+//
+
+// This test ensures that representation/field type generalization is correctly
+// propagated from one branch of transition tree (|map2) to another (|map|).
+//
+//   + - p0 - p1 - p2A - p3 - p4: |map|
+//   |
+//  ek
+//   |
+//  {} - p0 - p1 - p2B - p3 - p4: |map2|
+//
+// where "p2A" and "p2B" differ only in the representation/field type.
+//
+static void TestReconfigureElementsKind_GeneralizeRepresentation(
+    Representation from_representation, Handle<FieldType> from_type,
+    Representation to_representation, Handle<FieldType> to_type,
+    Representation expected_representation, Handle<FieldType> expected_type) {
+  Isolate* isolate = CcTest::i_isolate();
+
+  Expectations expectations(isolate, FAST_SMI_ELEMENTS);
+
+  // Create a map, add required properties to it and initialize expectations.
+  Handle<Map> initial_map = Map::Create(isolate, 0);
+  initial_map->set_elements_kind(FAST_SMI_ELEMENTS);
+
+  Handle<Map> map = initial_map;
+  map = expectations.AsElementsKind(map, FAST_ELEMENTS);
+  for (int i = 0; i < kPropCount; i++) {
+    map = expectations.AddDataField(map, NONE, from_representation, from_type);
+  }
+  CHECK(!map->is_deprecated());
+  CHECK(map->is_stable());
+  CHECK(expectations.Check(*map));
+
+  // Create another branch in transition tree (property at index |kDiffProp|
+  // has different representatio/field type), initialize expectations.
+  const int kDiffProp = kPropCount / 2;
+  Expectations expectations2(isolate, FAST_SMI_ELEMENTS);
+
+  Handle<Map> map2 = initial_map;
+  for (int i = 0; i < kPropCount; i++) {
+    if (i == kDiffProp) {
+      map2 = expectations2.AddDataField(map2, NONE, to_representation, to_type);
+    } else {
+      map2 = expectations2.AddDataField(map2, NONE, from_representation,
+                                        from_type);
+    }
+  }
+  CHECK(!map2->is_deprecated());
+  CHECK(map2->is_stable());
+  CHECK(expectations2.Check(*map2));
+
+  Zone zone(isolate->allocator());
+  Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
+  CompilationInfo info("testing", isolate, &zone);
+  CHECK(!info.dependencies()->HasAborted());
+  info.dependencies()->AssumeFieldType(field_owner);
+
+  // Reconfigure elements kinds of |map2|, which should generalize
+  // representations in |map|.
+  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, FAST_ELEMENTS);
+
+  // |map2| should be left unchanged but marked unstable.
+  CHECK(!map2->is_stable());
+  CHECK(!map2->is_deprecated());
+  CHECK_NE(*map2, *new_map);
+  CHECK(expectations2.Check(*map2));
+
+  // |map| should be deprecated and |new_map| should match new expectations.
+  expectations.SetDataField(kDiffProp, expected_representation, expected_type);
+
+  CHECK(map->is_deprecated());
+  CHECK(!info.dependencies()->HasAborted());
+  info.dependencies()->Rollback();  // Properly cleanup compilation info.
+  CHECK_NE(*map, *new_map);
+
+  CHECK(!new_map->is_deprecated());
+  CHECK(expectations.Check(*new_map));
+
+  // Update deprecated |map|, it should become |new_map|.
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*new_map, *updated_map);
+
+  // Ensure Map::FindElementsKindTransitionedMap() is able to find the
+  // transitioned map.
+  {
+    MapHandleList map_list;
+    map_list.Add(updated_map);
+    Map* transitioned_map = map2->FindElementsKindTransitionedMap(&map_list);
+    CHECK_EQ(*updated_map, transitioned_map);
+  }
+}
+
+// This test ensures that trivial representation/field type generalization
+// (from HeapObject to HeapObject) is correctly propagated from one branch of
+// transition tree (|map2|) to another (|map|).
+//
+//   + - p0 - p1 - p2A - p3 - p4: |map|
+//   |
+//  ek
+//   |
+//  {} - p0 - p1 - p2B - p3 - p4: |map2|
+//
+// where "p2A" and "p2B" differ only in the representation/field type.
+//
+static void TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
+    Representation from_representation, Handle<FieldType> from_type,
+    Representation to_representation, Handle<FieldType> to_type,
+    Representation expected_representation, Handle<FieldType> expected_type,
+    bool expected_field_type_dependency = true) {
+  Isolate* isolate = CcTest::i_isolate();
+
+  Expectations expectations(isolate, FAST_SMI_ELEMENTS);
+
+  // Create a map, add required properties to it and initialize expectations.
+  Handle<Map> initial_map = Map::Create(isolate, 0);
+  initial_map->set_elements_kind(FAST_SMI_ELEMENTS);
+
+  Handle<Map> map = initial_map;
+  map = expectations.AsElementsKind(map, FAST_ELEMENTS);
+  for (int i = 0; i < kPropCount; i++) {
+    map = expectations.AddDataField(map, NONE, from_representation, from_type);
+  }
+  CHECK(!map->is_deprecated());
+  CHECK(map->is_stable());
+  CHECK(expectations.Check(*map));
+
+  // Create another branch in transition tree (property at index |kDiffProp|
+  // has different attributes), initialize expectations.
+  const int kDiffProp = kPropCount / 2;
+  Expectations expectations2(isolate, FAST_SMI_ELEMENTS);
+
+  Handle<Map> map2 = initial_map;
+  for (int i = 0; i < kPropCount; i++) {
+    if (i == kDiffProp) {
+      map2 = expectations2.AddDataField(map2, NONE, to_representation, to_type);
+    } else {
+      map2 = expectations2.AddDataField(map2, NONE, from_representation,
+                                        from_type);
+    }
+  }
+  CHECK(!map2->is_deprecated());
+  CHECK(map2->is_stable());
+  CHECK(expectations2.Check(*map2));
+
+  Zone zone(isolate->allocator());
+  Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
+  CompilationInfo info("testing", isolate, &zone);
+  CHECK(!info.dependencies()->HasAborted());
+  info.dependencies()->AssumeFieldType(field_owner);
+
+  // Reconfigure elements kinds of |map2|, which should generalize
+  // representations in |map|.
+  Handle<Map> new_map = Map::ReconfigureElementsKind(map2, FAST_ELEMENTS);
+
+  // |map2| should be left unchanged but marked unstable.
+  CHECK(!map2->is_stable());
+  CHECK(!map2->is_deprecated());
+  CHECK_NE(*map2, *new_map);
+  CHECK(expectations2.Check(*map2));
+
+  // In trivial case |map| should be returned as a result of the elements
+  // kind reconfiguration, respective field types should be generalized and
+  // respective code dependencies should be invalidated. |map| should be NOT
+  // deprecated and it should match new expectations.
+  expectations.SetDataField(kDiffProp, expected_representation, expected_type);
+  CHECK(!map->is_deprecated());
+  CHECK_EQ(*map, *new_map);
+  CHECK_EQ(expected_field_type_dependency, info.dependencies()->HasAborted());
+  info.dependencies()->Rollback();  // Properly cleanup compilation info.
+
+  CHECK(!new_map->is_deprecated());
+  CHECK(expectations.Check(*new_map));
+
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*new_map, *updated_map);
+
+  // Ensure Map::FindElementsKindTransitionedMap() is able to find the
+  // transitioned map.
+  {
+    MapHandleList map_list;
+    map_list.Add(updated_map);
+    Map* transitioned_map = map2->FindElementsKindTransitionedMap(&map_list);
+    CHECK_EQ(*updated_map, transitioned_map);
+  }
+}
+
+TEST(ReconfigureElementsKind_GeneralizeRepresentationSmiToDouble) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+
+  TestReconfigureElementsKind_GeneralizeRepresentation(
+      Representation::Smi(), any_type, Representation::Double(), any_type,
+      Representation::Double(), any_type);
+}
+
+TEST(ReconfigureElementsKind_GeneralizeRepresentationSmiToTagged) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+  Handle<FieldType> value_type =
+      FieldType::Class(Map::Create(isolate, 0), isolate);
+
+  TestReconfigureElementsKind_GeneralizeRepresentation(
+      Representation::Smi(), any_type, Representation::HeapObject(), value_type,
+      Representation::Tagged(), any_type);
+}
+
+TEST(ReconfigureElementsKind_GeneralizeRepresentationDoubleToTagged) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+  Handle<FieldType> value_type =
+      FieldType::Class(Map::Create(isolate, 0), isolate);
+
+  TestReconfigureElementsKind_GeneralizeRepresentation(
+      Representation::Double(), any_type, Representation::HeapObject(),
+      value_type, Representation::Tagged(), any_type);
+}
+
+TEST(ReconfigureElementsKind_GeneralizeRepresentationHeapObjToHeapObj) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+
+  Handle<FieldType> current_type =
+      FieldType::Class(Map::Create(isolate, 0), isolate);
+
+  Handle<FieldType> new_type =
+      FieldType::Class(Map::Create(isolate, 0), isolate);
+
+  Handle<FieldType> expected_type = any_type;
+
+  TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
+      Representation::HeapObject(), current_type, Representation::HeapObject(),
+      new_type, Representation::HeapObject(), expected_type);
+  current_type = expected_type;
+
+  new_type = FieldType::Class(Map::Create(isolate, 0), isolate);
+
+  TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
+      Representation::HeapObject(), any_type, Representation::HeapObject(),
+      new_type, Representation::HeapObject(), any_type, false);
+}
+
+TEST(ReconfigureElementsKind_GeneralizeRepresentationHeapObjectToTagged) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+  Handle<FieldType> value_type =
+      FieldType::Class(Map::Create(isolate, 0), isolate);
+
+  TestReconfigureElementsKind_GeneralizeRepresentation(
+      Representation::HeapObject(), value_type, Representation::Smi(), any_type,
+      Representation::Tagged(), any_type);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // A set of tests checking split map deprecation.
 //
 
@@ -1640,15 +1929,16 @@ static void TestGeneralizeRepresentationWithSpecialTransition(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
+  Expectations expectations2 = expectations;
+
   // Apply some special transition to |map|.
   CHECK(map->owns_descriptors());
-  Handle<Map> map2 = config.Transition(map);
+  Handle<Map> map2 = config.Transition(map, expectations2);
 
   // |map| should still match expectations.
   CHECK(!map->is_deprecated());
   CHECK(expectations.Check(*map));
 
-  Expectations expectations2 = expectations;
   if (config.generalizes_representations()) {
     for (int i = 0; i < kPropCount; i++) {
       expectations2.GeneralizeRepresentation(i);
@@ -1720,13 +2010,15 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
-    Handle<Map> Transition(Handle<Map> map) {
-      return Map::CopyAsElementsKind(map, DICTIONARY_ELEMENTS,
-                                     INSERT_TRANSITION);
+    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
+      Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol());
+      expectations.SetElementsKind(DICTIONARY_ELEMENTS);
+      return Map::CopyForPreventExtensions(map, NONE, frozen_symbol,
+                                           "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return false; }
+    bool is_non_equevalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1744,7 +2036,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
-    Handle<Map> Transition(Handle<Map> map) {
+    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -1756,12 +2048,14 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      return Map::CopyAsElementsKind(map, DICTIONARY_ELEMENTS,
-                                     INSERT_TRANSITION);
+      Handle<Symbol> frozen_symbol(map->GetHeap()->frozen_symbol());
+      expectations.SetElementsKind(DICTIONARY_ELEMENTS);
+      return Map::CopyForPreventExtensions(map, NONE, frozen_symbol,
+                                           "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return false; }
+    bool is_non_equevalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1779,7 +2073,7 @@ TEST(ForObservedTransitionFromMapOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
-    Handle<Map> Transition(Handle<Map> map) {
+    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       return Map::CopyForObserved(map);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
@@ -1802,7 +2096,7 @@ TEST(ForObservedTransitionFromMapNotOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
-    Handle<Map> Transition(Handle<Map> map) {
+    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -1845,7 +2139,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map) {
+    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       return Map::TransitionToPrototype(map, prototype_, REGULAR_PROTOTYPE);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
@@ -1879,7 +2173,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map) {
+    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 

@@ -260,3 +260,26 @@ putIn.run(['.clear']);
 testMe.complete('var log = console.lo', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
+
+// tab completion for defined commands
+putIn.run(['.clear']);
+
+testMe.complete('.b', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['break'], 'b']);
+}));
+
+const testNonGlobal = repl.start({
+  input: putIn,
+  output: putIn,
+  useGlobal: false
+});
+
+const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
+                                 'Int8Array'], 'I'];
+
+if (typeof Intl === 'object') {
+  builtins[0].push('Intl');
+}
+testNonGlobal.complete('I', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, builtins);
+}));

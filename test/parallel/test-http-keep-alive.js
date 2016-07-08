@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -13,11 +13,12 @@ var server = http.createServer(function(req, res) {
 
 var agent = new http.Agent({maxSockets: 1});
 var headers = {'connection': 'keep-alive'};
-var name = agent.getName({ port: common.PORT });
+var name;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  name = agent.getName({ port: this.address().port });
   http.get({
-    path: '/', headers: headers, port: common.PORT, agent: agent
+    path: '/', headers: headers, port: this.address().port, agent: agent
   }, function(response) {
     assert.equal(agent.sockets[name].length, 1);
     assert.equal(agent.requests[name].length, 2);
@@ -25,7 +26,7 @@ server.listen(common.PORT, function() {
   });
 
   http.get({
-    path: '/', headers: headers, port: common.PORT, agent: agent
+    path: '/', headers: headers, port: this.address().port, agent: agent
   }, function(response) {
     assert.equal(agent.sockets[name].length, 1);
     assert.equal(agent.requests[name].length, 1);
@@ -33,7 +34,7 @@ server.listen(common.PORT, function() {
   });
 
   http.get({
-    path: '/', headers: headers, port: common.PORT, agent: agent
+    path: '/', headers: headers, port: this.address().port, agent: agent
   }, function(response) {
     response.on('end', function() {
       assert.equal(agent.sockets[name].length, 1);

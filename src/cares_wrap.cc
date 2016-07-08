@@ -91,7 +91,7 @@ static void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
+static int cmp_ares_tasks(const node_ares_task* a, const node_ares_task* b) {
   if (a->sock < b->sock)
     return -1;
   if (a->sock > b->sock)
@@ -100,7 +100,7 @@ static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
 }
 
 
-RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
+RB_GENERATE_STATIC(node_ares_task_list, node_ares_task, node, cmp_ares_tasks)
 
 
 
@@ -114,7 +114,7 @@ static void ares_timeout(uv_timer_t* handle) {
 
 
 static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
-  ares_task_t* task = ContainerOf(&ares_task_t::poll_watcher, watcher);
+  node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher, watcher);
   Environment* env = task->env;
 
   /* Reset the idle timer */
@@ -135,15 +135,15 @@ static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 
 
 static void ares_poll_close_cb(uv_handle_t* watcher) {
-  ares_task_t* task = ContainerOf(&ares_task_t::poll_watcher,
+  node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher,
                                   reinterpret_cast<uv_poll_t*>(watcher));
   free(task);
 }
 
 
-/* Allocates and returns a new ares_task_t */
-static ares_task_t* ares_task_create(Environment* env, ares_socket_t sock) {
-  ares_task_t* task = static_cast<ares_task_t*>(malloc(sizeof(*task)));
+/* Allocates and returns a new node_ares_task */
+static node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
+  node_ares_task* task = static_cast<node_ares_task*>(malloc(sizeof(*task)));
 
   if (task == nullptr) {
     /* Out of memory. */
@@ -169,11 +169,11 @@ static void ares_sockstate_cb(void* data,
                               int read,
                               int write) {
   Environment* env = static_cast<Environment*>(data);
-  ares_task_t* task;
+  node_ares_task* task;
 
-  ares_task_t lookup_task;
+  node_ares_task lookup_task;
   lookup_task.sock = sock;
-  task = RB_FIND(ares_task_list, env->cares_task_list(), &lookup_task);
+  task = RB_FIND(node_ares_task_list, env->cares_task_list(), &lookup_task);
 
   if (read || write) {
     if (!task) {
@@ -194,7 +194,7 @@ static void ares_sockstate_cb(void* data,
         return;
       }
 
-      RB_INSERT(ares_task_list, env->cares_task_list(), task);
+      RB_INSERT(node_ares_task_list, env->cares_task_list(), task);
     }
 
     /* This should never fail. If it fails anyway, the query will eventually */
@@ -210,7 +210,7 @@ static void ares_sockstate_cb(void* data,
     CHECK(task &&
           "When an ares socket is closed we should have a handle for it");
 
-    RB_REMOVE(ares_task_list, env->cares_task_list(), task);
+    RB_REMOVE(node_ares_task_list, env->cares_task_list(), task);
     uv_close(reinterpret_cast<uv_handle_t*>(&task->poll_watcher),
              ares_poll_close_cb);
 
@@ -257,7 +257,7 @@ class QueryWrap : public AsyncWrap {
       req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
   }
 
-  virtual ~QueryWrap() override {
+  ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
     ClearWrap(object());
     persistent().Reset();
@@ -371,11 +371,11 @@ class QueryWrap : public AsyncWrap {
   // Subclasses should implement the appropriate Parse method.
   virtual void Parse(unsigned char* buf, int len) {
     UNREACHABLE();
-  };
+  }
 
   virtual void Parse(struct hostent* host) {
     UNREACHABLE();
-  };
+  }
 };
 
 

@@ -371,14 +371,13 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
   Handle<String> substring =
       isolate->factory()->NewSubString(subject, offsets.at(0), offsets.at(1));
   elements->set(0, *substring);
-  for (int i = 1; i < matches; i++) {
-    HandleScope temp_scope(isolate);
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 1, i, i < matches, i++, {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
     Handle<String> substring =
         isolate->factory()->NewProperSubString(subject, from, to);
     elements->set(i, *substring);
-  }
+  });
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
   return *result;
@@ -557,6 +556,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   RUNTIME_ASSERT(fixed_array->get(0)->IsString());
   String* first = String::cast(fixed_array->get(0));
   String* separator_raw = *separator;
+
   int first_length = first->length();
   String::WriteToFlat(first, sink, 0, first_length);
   sink += first_length;
@@ -580,6 +580,26 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   return *answer;
 }
 
+template <typename sinkchar>
+static void WriteRepeatToFlat(String* src, Vector<sinkchar> buffer, int cursor,
+                              int repeat, int length) {
+  if (repeat == 0) return;
+
+  sinkchar* start = &buffer[cursor];
+  String::WriteToFlat<sinkchar>(src, start, 0, length);
+
+  int done = 1;
+  sinkchar* next = start + length;
+
+  while (done < repeat) {
+    int block = Min(done, repeat - done);
+    int block_chars = block * length;
+    CopyChars(next, start, block_chars);
+    next += block_chars;
+    done += block;
+  }
+}
+
 template <typename Char>
 static void JoinSparseArrayWithSeparator(FixedArray* elements,
                                          int elements_length,
@@ -589,34 +609,30 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   DisallowHeapAllocation no_gc;
   int previous_separator_position = 0;
   int separator_length = separator->length();
+  DCHECK_LT(0, separator_length);
   int cursor = 0;
   for (int i = 0; i < elements_length; i += 2) {
     int position = NumberToInt32(elements->get(i));
     String* string = String::cast(elements->get(i + 1));
     int string_length = string->length();
     if (string->length() > 0) {
-      while (previous_separator_position < position) {
-        String::WriteToFlat<Char>(separator, &buffer[cursor], 0,
-                                  separator_length);
-        cursor += separator_length;
-        previous_separator_position++;
-      }
+      int repeat = position - previous_separator_position;
+      WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat,
+                              separator_length);
+      cursor += repeat * separator_length;
+      previous_separator_position = position;
       String::WriteToFlat<Char>(string, &buffer[cursor], 0, string_length);
       cursor += string->length();
     }
   }
-  if (separator_length > 0) {
-    // Array length must be representable as a signed 32-bit number,
-    // otherwise the total string length would have been too large.
-    DCHECK(array_length <= 0x7fffffff);  // Is int32_t.
-    int last_array_index = static_cast<int>(array_length - 1);
-    while (previous_separator_position < last_array_index) {
-      String::WriteToFlat<Char>(separator, &buffer[cursor], 0,
-                                separator_length);
-      cursor += separator_length;
-      previous_separator_position++;
-    }
-  }
+
+  int last_array_index = static_cast<int>(array_length - 1);
+  // Array length must be representable as a signed 32-bit number,
+  // otherwise the total string length would have been too large.
+  DCHECK(array_length <= 0x7fffffff);  // Is int32_t.
+  int repeat = last_array_index - previous_separator_position;
+  WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat, separator_length);
+  cursor += repeat * separator_length;
   DCHECK(cursor <= buffer.length());
 }
 
@@ -642,13 +658,6 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   RUNTIME_ASSERT(elements_length <= elements_array->elements()->length());
   RUNTIME_ASSERT((elements_length & 1) == 0);  // Even length.
   FixedArray* elements = FixedArray::cast(elements_array->elements());
-  for (int i = 0; i < elements_length; i += 2) {
-    RUNTIME_ASSERT(elements->get(i)->IsNumber());
-    CONVERT_NUMBER_CHECKED(uint32_t, position, Uint32, elements->get(i));
-    RUNTIME_ASSERT(position < array_length);
-    RUNTIME_ASSERT(elements->get(i + 1)->IsString());
-  }
-
   {
     DisallowHeapAllocation no_gc;
     for (int i = 0; i < elements_length; i += 2) {
@@ -1145,24 +1154,93 @@ RUNTIME_FUNCTION(Runtime_NewString) {
   return *result;
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringEquals) {
+RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-
-  bool not_equal = !String::Equals(x, y);
-  // This is slightly convoluted because the value that signifies
-  // equality is 0 and inequality is 1 so we have to negate the result
-  // from String::Equals.
-  DCHECK(not_equal == 0 || not_equal == 1);
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(NOT_EQUAL == 1);
-  return Smi::FromInt(not_equal);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
 }
 
+RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+RUNTIME_FUNCTION(Runtime_StringEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  return isolate->heap()->ToBoolean(String::Equals(x, y));
+}
+
+RUNTIME_FUNCTION(Runtime_StringNotEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  return isolate->heap()->ToBoolean(!String::Equals(x, y));
+}
 
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);

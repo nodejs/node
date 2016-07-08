@@ -6,7 +6,7 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 42
@@ -16,10 +16,11 @@ throw new Error("hello")
 ^
 Error: hello
     at [eval]:1:7
+    at ContextifyScript.Script.runInThisContext (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 [eval]:1
@@ -27,10 +28,11 @@ throw new Error("hello")
 ^
 Error: hello
     at [eval]:1:7
+    at ContextifyScript.Script.runInThisContext (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 100
@@ -39,10 +41,11 @@ var x = 100; y = x;
                ^
 ReferenceError: y is not defined
     at [eval]:1:16
+    at ContextifyScript.Script.runInThisContext (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 [eval]:1

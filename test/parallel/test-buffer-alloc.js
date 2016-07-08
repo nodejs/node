@@ -235,7 +235,7 @@ assert.strictEqual('Unknown encoding: invalid', caught_error.message);
 // try to create 0-length buffers
 Buffer.from('');
 Buffer.from('', 'ascii');
-Buffer.from('', 'binary');
+Buffer.from('', 'latin1');
 Buffer.alloc(0);
 Buffer.allocUnsafe(0);
 
@@ -689,7 +689,7 @@ assert.equal(dot.toString('base64'), '//4uAA==');
   for (let i = 0; i < segments.length; ++i) {
     pos += b.write(segments[i], pos, 'base64');
   }
-  assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
+  assert.equal(b.toString('latin1', 0, pos), 'Madness?! This is node.js!');
 }
 
 // Regression test for https://github.com/nodejs/node/issues/3496.
@@ -845,13 +845,13 @@ assert.equal(0, Buffer.from('hello').slice(0, 0).length);
   // Binary encoding should write only one byte per character.
   const b = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
   let s = String.fromCharCode(0xffff);
-  b.write(s, 0, 'binary');
+  b.write(s, 0, 'latin1');
   assert.equal(0xff, b[0]);
   assert.equal(0xad, b[1]);
   assert.equal(0xbe, b[2]);
   assert.equal(0xef, b[3]);
   s = String.fromCharCode(0xaaee);
-  b.write(s, 0, 'binary');
+  b.write(s, 0, 'latin1');
   assert.equal(0xee, b[0]);
   assert.equal(0xad, b[1]);
   assert.equal(0xbe, b[2]);
@@ -969,7 +969,7 @@ assert.equal(0, Buffer.from('hello').slice(0, 0).length);
   // test for buffer overrun
   const buf = Buffer.from([0, 0, 0, 0, 0]); // length: 5
   var sub = buf.slice(0, 4);         // length: 4
-  written = sub.write('12345', 'binary');
+  written = sub.write('12345', 'latin1');
   assert.equal(written, 4);
   assert.equal(buf[4], 0);
 }
@@ -992,7 +992,7 @@ assert.equal(Buffer.from('99').length, 2);
 assert.equal(Buffer.from('13.37').length, 5);
 
 // Ensure that the length argument is respected.
-'ascii utf8 hex base64 binary'.split(' ').forEach(function(enc) {
+'ascii utf8 hex base64 latin1'.split(' ').forEach(function(enc) {
   assert.equal(Buffer.allocUnsafe(1).write('aaaaaa', 0, 1, enc), 1);
 });
 
@@ -1011,6 +1011,7 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
   'utf8',
   'utf-8',
   'ascii',
+  'latin1',
   'binary',
   'base64',
   'ucs2',
@@ -1023,7 +1024,15 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 [ 'utf9',
   'utf-7',
   'Unicode-FTW',
-  'new gnu gun' ].forEach(function(enc) {
+  'new gnu gun',
+  false,
+  NaN,
+  {},
+  Infinity,
+  [],
+  1,
+  0,
+  -1 ].forEach(function(enc) {
     assert.equal(Buffer.isEncoding(enc), false);
   });
 
@@ -1453,8 +1462,20 @@ assert.throws(function() {
   Buffer.from(new ArrayBuffer(0), -1 >>> 0);
 }, /RangeError: 'offset' is out of bounds/);
 
+// ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
+assert.throws(() => {
+  const a = Buffer(1).fill(0);
+  const b = Buffer(1).fill(0);
+  a.copy(b, 0, 0x100000000, 0x100000001);
+}), /out of range index/;
+
 // Unpooled buffer (replaces SlowBuffer)
 const ubuf = Buffer.allocUnsafeSlow(10);
 assert(ubuf);
 assert(ubuf.buffer);
 assert.equal(ubuf.buffer.byteLength, 10);
+
+// Regression test
+assert.doesNotThrow(() => {
+  Buffer.from(new ArrayBuffer());
+});

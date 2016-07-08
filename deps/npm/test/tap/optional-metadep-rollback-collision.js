@@ -63,7 +63,7 @@ var opdep_json = {
   }
 }
 
-var badServer = function () {/*
+var badServer = function () { /*
 var createServer = require('http').createServer
 var spawn = require('child_process').spawn
 var fs = require('fs')
@@ -98,9 +98,9 @@ if (process.argv[2]) {
 
   fs.writeFileSync(pidfile, child.pid + '\n')
 }
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 
-var blart = function () {/*
+var blart = function () { /*
 var rando = require('crypto').randomBytes
 var resolve = require('path').resolve
 
@@ -152,7 +152,7 @@ mkdirp(BASEDIR, function go () {
     keepItGoingLouder = {}
   }, 3 * 1000)
 })
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 test('setup', function (t) {
   cleanup()
 

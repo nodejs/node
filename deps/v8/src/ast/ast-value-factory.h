@@ -271,7 +271,6 @@ class AstValue : public ZoneObject {
   F(throw, "throw")                             \
   F(undefined, "undefined")                     \
   F(use_asm, "use asm")                         \
-  F(use_strong, "use strong")                   \
   F(use_strict, "use strict")                   \
   F(value, "value")
 

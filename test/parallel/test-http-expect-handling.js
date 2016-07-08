@@ -13,11 +13,11 @@ const s = http.createServer(function(req, res) {
   throw new Error('this should never be executed');
 });
 
-s.listen(common.PORT, nextTest);
+s.listen(0, nextTest);
 
 function nextTest() {
   const options = {
-    port: common.PORT,
+    port: s.address().port,
     headers: { 'Expect': 'meoww' }
   };
 

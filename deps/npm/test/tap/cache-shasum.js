@@ -1,4 +1,3 @@
-var npm = require.resolve('../../')
 var test = require('tap').test
 var path = require('path')
 var rimraf = require('rimraf')
@@ -6,7 +5,6 @@ var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
 var common = require('../common-tap.js')
 var cache = path.resolve(__dirname, 'cache-shasum')
-var spawn = require('child_process').spawn
 var sha = require('sha')
 var server
 
@@ -21,20 +19,15 @@ test('mock reg', function (t) {
 })
 
 test('npm cache add request', function (t) {
-  var c = spawn(process.execPath, [
-    npm, 'cache', 'add', 'request@2.27.0',
+  common.npm([
+    'cache', 'add', 'request@2.27.0',
     '--cache=' + cache,
     '--registry=' + common.registry,
-    '--loglevel=quiet'
-  ])
-  c.stderr.pipe(process.stderr)
-
-  c.stdout.on('data', function (d) {
-    t.fail('Should not get data on stdout: ' + d)
-  })
-
-  c.on('close', function (code) {
-    t.notOk(code, 'exit ok')
+    '--loglevel=error'
+  ], {}, function (err, code, stdout) {
+    if (err) throw err
+    t.is(code, 0, 'cmd ran without error')
+    t.is(stdout, '', 'should not get data on stdout')
     t.end()
   })
 })
@@ -53,6 +46,5 @@ test('compare', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  rimraf.sync(cache)
-  t.end()
+  rimraf(cache, t.end)
 })

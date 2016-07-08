@@ -164,9 +164,10 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
 }
 
 
-long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
+long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                   void* ptr) {
   NodeBIO* nbio;
-  long ret;
+  long ret;  // NOLINT(runtime/int)
 
   nbio = FromBIO(bio);
   ret = 1;

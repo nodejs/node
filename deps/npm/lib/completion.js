@@ -1,4 +1,3 @@
-
 module.exports = completion
 
 completion.usage = 'source <(npm completion)'
@@ -14,6 +13,8 @@ var configNames = Object.keys(configTypes)
 var shorthandNames = Object.keys(shorthands)
 var allConfs = configNames.concat(shorthandNames)
 var once = require('once')
+var isWindowsShell = require('./utils/is-windows-shell.js')
+var output = require('./utils/output.js')
 
 completion.completion = function (opts, cb) {
   if (opts.w > 3) return cb()
@@ -45,7 +46,7 @@ completion.completion = function (opts, cb) {
 }
 
 function completion (args, cb) {
-  if (process.platform === 'win32' && !(/^MINGW(32|64)$/.test(process.env.MSYSTEM))) {
+  if (isWindowsShell) {
     var e = new Error('npm completion supported only in MINGW / Git bash on Windows')
     e.code = 'ENOTSUP'
     e.errno = require('constants').ENOTSUP
@@ -153,7 +154,7 @@ function dumpScript (cb) {
 
     process.stdout.write(d, function () { cb() })
     process.stdout.on('error', function (er) {
-      // Darwin is a real dick sometimes.
+      // Darwin is a pain sometimes.
       //
       // This is necessary because the "source" or "." program in
       // bash on OS X closes its file argument before reading
@@ -203,7 +204,7 @@ function wrapCb (cb, opts) {
     console.error([er && er.stack, compls, opts.partialWord])
     if (er || compls.length === 0) return cb(er)
 
-    console.log(compls.join('\n'))
+    output(compls.join('\n'))
     cb()
   }
 }

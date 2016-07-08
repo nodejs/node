@@ -121,7 +121,10 @@ void JSInliningHeuristic::Finalize() {
 
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
-  return left.node != right.node && left.calls >= right.calls;
+  if (left.calls != right.calls) {
+    return left.calls > right.calls;
+  }
+  return left.node < right.node;
 }
 
 

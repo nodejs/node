@@ -4,7 +4,7 @@
 
 // Test for conflicting variable bindings.
 
-// Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
+// Flags: --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
 
 function CheckException(e) {
   var string = e.toString();

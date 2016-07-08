@@ -3,7 +3,7 @@
 // of the same header as per RFC2616: joining the handful of fields by ', '
 // that support it, and dropping duplicates for other fields.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -24,10 +24,10 @@ var srv = http.createServer(function(req, res) {
   srv.close();
 });
 
-srv.listen(common.PORT, function() {
+srv.listen(0, function() {
   http.get({
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     headers: [
       ['accept', 'abc'],

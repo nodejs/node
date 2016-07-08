@@ -113,6 +113,9 @@ exec('my.bat', (err, stdout, stderr) => {
 ```
 
 ### child_process.exec(command[, options][, callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `command` {String} The command to run, with space-separated arguments
 * `options` {Object}
@@ -161,8 +164,8 @@ The `stdout` and `stderr` arguments passed to the callback will contain the
 stdout and stderr output of the child process. By default, Node.js will decode
 the output as UTF-8 and pass strings to the callback. The `encoding` option
 can be used to specify the character encoding used to decode the stdout and
-stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
-the callback instead.
+stderr output. If `encoding` is `'buffer'`, or an unrecognized character
+encoding, `Buffer` objects will be passed to the callback instead.
 
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
@@ -186,6 +189,9 @@ child runs longer than `timeout` milliseconds.
 replace the existing process and uses a shell to execute the command.*
 
 ### child_process.execFile(file[, args][, options][, callback])
+<!-- YAML
+added: v0.1.91
+-->
 
 * `file` {String} The name or path of the executable file to run
 * `args` {Array} List of string arguments
@@ -227,10 +233,13 @@ The `stdout` and `stderr` arguments passed to the callback will contain the
 stdout and stderr output of the child process. By default, Node.js will decode
 the output as UTF-8 and pass strings to the callback. The `encoding` option
 can be used to specify the character encoding used to decode the stdout and
-stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
-the callback instead.
+stderr output. If `encoding` is `'buffer'`, or an unrecognized character
+encoding, `Buffer` objects will be passed to the callback instead.
 
 ### child_process.fork(modulePath[, args][, options])
+<!-- YAML
+added: v0.5.0
+-->
 
 * `modulePath` {String} The module to run in the child
 * `args` {Array} List of string arguments
@@ -275,6 +284,9 @@ output on this fd is expected to be line delimited JSON objects.
 not clone the current process.*
 
 ### child_process.spawn(command[, args][, options])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `command` {String} The command to run
 * `args` {Array} List of string arguments
@@ -384,6 +396,9 @@ child.on('error', (err) => {
 ```
 
 #### options.detached
+<!-- YAML
+added: v0.7.10
+-->
 
 On Windows, setting `options.detached` to `true` makes it possible for the
 child process to continue running after the parent exits. The child will have
@@ -415,7 +430,7 @@ const spawn = require('child_process').spawn;
 
 const child = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
-  stdio: ['ignore']
+  stdio: 'ignore'
 });
 
 child.unref();
@@ -438,6 +453,9 @@ child.unref();
 ```
 
 #### options.stdio
+<!-- YAML
+added: v0.7.10
+-->
 
 The `options.stdio` option is used to configure the pipes that are established
 between the parent and child process. By default, the child's stdin, stdout,
@@ -524,6 +542,9 @@ scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
 ### child_process.execFileSync(file[, args][, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 * `file` {String} The name or path of the executable file to run
 * `args` {Array} List of string arguments
@@ -560,6 +581,9 @@ throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
 ### child_process.execSync(command[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 * `command` {String} The command to run
 * `options` {Object}
@@ -600,6 +624,9 @@ throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
 ### child_process.spawnSync(command[, args][, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 * `command` {String} The command to run
 * `args` {Array} List of string arguments
@@ -642,6 +669,9 @@ completely exited. Note that if the process intercepts and handles the
 process has exited.
 
 ## Class: ChildProcess
+<!-- YAML
+added: v2.2.0
+-->
 
 Instances of the `ChildProcess` class are [`EventEmitters`][`EventEmitter`] that represent
 spawned child processes.
@@ -652,6 +682,9 @@ use the [`child_process.spawn()`][], [`child_process.exec()`][],
 instances of `ChildProcess`.
 
 ### Event: 'close'
+<!-- YAML
+added: v0.7.7
+-->
 
 * `code` {Number} the exit code if the child exited on its own.
 * `signal` {String} the signal by which the child process was terminated.
@@ -661,13 +694,16 @@ been closed. This is distinct from the [`'exit'`][] event, since multiple
 processes might share the same stdio streams.
 
 ### Event: 'disconnect'
+<!-- YAML
+added: v0.7.2
+-->
 
 The `'disconnect'` event is emitted after calling the
 [`child.disconnect()`][] method in parent process or [`process.disconnect()`][] in child process. After
 disconnecting it is no longer possible to send or receive messages, and the
 [`child.connected`][] property is `false`.
 
-### Event:  'error'
+### Event: 'error'
 
 * `err` {Error} the error.
 
@@ -683,7 +719,10 @@ to guard against accidentally invoking handler functions multiple times.
 
 See also [`child.kill()`][] and [`child.send()`][].
 
-### Event:  'exit'
+### Event: 'exit'
+<!-- YAML
+added: v0.1.90
+-->
 
 * `code` {Number} the exit code if the child exited on its own.
 * `signal` {String} the signal by which the child process was terminated.
@@ -704,6 +743,9 @@ and then will re-raise the handled signal.
 See waitpid(2).
 
 ### Event: 'message'
+<!-- YAML
+added: v0.5.9
+-->
 
 * `message` {Object} a parsed JSON object or primitive value.
 * `sendHandle` {Handle} a [`net.Socket`][] or [`net.Server`][] object, or
@@ -713,6 +755,9 @@ The `'message'` event is triggered when a child process uses [`process.send()`][
 to send messages.
 
 ### child.connected
+<!-- YAML
+added: v0.7.2
+-->
 
 * {Boolean} Set to `false` after `child.disconnect()` is called
 
@@ -721,6 +766,9 @@ and receive messages from a child process. When `child.connected` is `false`, it
 is no longer possible to send or receive messages.
 
 ### child.disconnect()
+<!-- YAML
+added: v0.7.2
+-->
 
 Closes the IPC channel between parent and child, allowing the child to exit
 gracefully once there are no other connections keeping it alive. After calling
@@ -737,6 +785,9 @@ Note that when the child process is a Node.js instance (e.g. spawned using
 within the child process to close the IPC channel as well.
 
 ### child.kill([signal])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `signal` {String}
 
@@ -791,6 +842,9 @@ setTimeout(() => {
 ```
 
 ### child.pid
+<!-- YAML
+added: v0.1.90
+-->
 
 * {Number} Integer
 
@@ -807,6 +861,9 @@ grep.stdin.end();
 ```
 
 ### child.send(message[, sendHandle[, options]][, callback])
+<!-- YAML
+added: v0.5.9
+-->
 
 * `message` {Object}
 * `sendHandle` {Handle}
@@ -856,7 +913,8 @@ Applications should avoid using such messages or listening for
 The optional `sendHandle` argument that may be passed to `child.send()` is for
 passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
-registered on the [`process.on('message')`][] event.
+registered on the [`process.on('message')`][] event. Any data that is received
+and buffered in the socket will not be sent to the child.
 
 The `options` argument, if present, is an object used to parameterize the
 sending of certain types of handles. `options` supports the following
@@ -962,6 +1020,9 @@ this occurs.
 `message`.*
 
 ### child.stderr
+<!-- YAML
+added: v0.1.90
+-->
 
 * {Stream}
 
@@ -974,6 +1035,9 @@ then this will be `undefined`.
 the same value.
 
 ### child.stdin
+<!-- YAML
+added: v0.1.90
+-->
 
 * {Stream}
 
@@ -989,6 +1053,9 @@ then this will be `undefined`.
 the same value.
 
 ### child.stdio
+<!-- YAML
+added: v0.7.10
+-->
 
 * {Array}
 
@@ -1026,6 +1093,9 @@ assert.equal(child.stdio[2], child.stderr);
 ```
 
 ### child.stdout
+<!-- YAML
+added: v0.1.90
+-->
 
 * {Stream}
 

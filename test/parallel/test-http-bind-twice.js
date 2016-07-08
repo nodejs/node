@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -14,14 +14,13 @@ function dontCall() {
 }
 
 var server1 = http.createServer(dontCall);
-server1.listen(common.PORT, '127.0.0.1', function() {});
+server1.listen(0, '127.0.0.1', function() {
+  var server2 = http.createServer(dontCall);
+  server2.listen(this.address().port, '127.0.0.1', dontCall);
 
-var server2 = http.createServer(dontCall);
-server2.listen(common.PORT, '127.0.0.1', dontCall);
-
-server2.on('error', function(e) {
-  assert.equal(e.code, 'EADDRINUSE');
-  server1.close();
-  gotError = true;
+  server2.on('error', function(e) {
+    assert.equal(e.code, 'EADDRINUSE');
+    server1.close();
+    gotError = true;
+  });
 });
-

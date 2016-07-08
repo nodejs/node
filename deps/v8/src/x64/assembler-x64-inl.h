@@ -326,6 +326,10 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Memory::Address_at(pc_);
+}
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -364,6 +368,20 @@ void RelocInfo::set_target_address(Address target,
   }
 }
 
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, size_t old_size, size_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  DCHECK(old_base <= wasm_memory_reference() &&
+         wasm_memory_reference() < old_base + old_size);
+  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
+  DCHECK(new_base <= updated_reference &&
+         updated_reference < new_base + new_size);
+  Memory::Address_at(pc_) = updated_reference;
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
+  }
+}
 
 Object* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -410,8 +428,8 @@ void RelocInfo::set_target_object(Object* target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
   }
 }
 

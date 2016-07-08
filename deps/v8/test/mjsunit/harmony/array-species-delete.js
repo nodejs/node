@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-species
+// Flags: --harmony-species --allow-natives-syntax
 
 // Overwriting the constructor of an instance updates the protector
 
@@ -19,6 +19,7 @@ class MyArray extends Array { }
 
 Object.prototype[Symbol.species] = MyArray;
 delete Array[Symbol.species];
+assertFalse(%SpeciesProtector());
 
 assertEquals(MyArray, x.map(()=>{}).constructor);
 assertEquals(MyArray, x.filter(()=>{}).constructor);

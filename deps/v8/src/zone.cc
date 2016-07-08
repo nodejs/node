@@ -72,14 +72,13 @@ class Segment {
   size_t size_;
 };
 
-
-Zone::Zone()
+Zone::Zone(base::AccountingAllocator* allocator)
     : allocation_size_(0),
       segment_bytes_allocated_(0),
       position_(0),
       limit_(0),
+      allocator_(allocator),
       segment_head_(nullptr) {}
-
 
 Zone::~Zone() {
   DeleteAll();
@@ -204,7 +203,7 @@ void Zone::DeleteKeptSegment() {
 // Creates a new segment, sets it size, and pushes it to the front
 // of the segment chain. Returns the new segment.
 Segment* Zone::NewSegment(size_t size) {
-  Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
+  Segment* result = reinterpret_cast<Segment*>(allocator_->Allocate(size));
   segment_bytes_allocated_ += size;
   if (result != nullptr) {
     result->Initialize(segment_head_, size);
@@ -217,7 +216,7 @@ Segment* Zone::NewSegment(size_t size) {
 // Deletes the given segment. Does not touch the segment chain.
 void Zone::DeleteSegment(Segment* segment, size_t size) {
   segment_bytes_allocated_ -= size;
-  Malloced::Delete(segment);
+  allocator_->Free(segment, size);
 }
 
 

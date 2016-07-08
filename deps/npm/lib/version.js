@@ -13,6 +13,7 @@ var git = require('./utils/git.js')
 var assert = require('assert')
 var lifecycle = require('./utils/lifecycle.js')
 var parseJSON = require('./utils/parse-json.js')
+var output = require('./utils/output.js')
 
 version.usage = 'npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]' +
                 '\n(run in package dir)\n' +
@@ -121,7 +122,7 @@ function readPackage (cb) {
 
 function updatePackage (newVersion, silent, cb_) {
   function cb (er) {
-    if (!er && !silent) console.log('v' + newVersion)
+    if (!er && !silent) output('v' + newVersion)
     cb_(er)
   }
 
@@ -174,7 +175,7 @@ function dump (data, cb) {
 
   if (npm.config.get('json')) v = JSON.stringify(v, null, 2)
 
-  console.log(v)
+  output(v)
   cb()
 }
 

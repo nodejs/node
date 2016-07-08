@@ -7,8 +7,10 @@ var path = require('path')
 var log = require('npmlog')
 var writeFileAtomic = require('write-file-atomic')
 var iferr = require('iferr')
+var readPackageJson = require('read-package-json')
 var readPackageTree = require('read-package-tree')
 var validate = require('aproba')
+var chain = require('slide').chain
 var npm = require('./npm.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var validatePeerDeps = require('./install/deps.js').validatePeerDeps
@@ -16,6 +18,8 @@ var isExtraneous = require('./install/is-extraneous.js')
 var isOnlyDev = require('./install/is-dev.js').isOnlyDev
 var packageId = require('./utils/package-id.js')
 var moduleName = require('./utils/module-name.js')
+var output = require('./utils/output.js')
+var lifecycle = require('./utils/lifecycle.js')
 
 shrinkwrap.usage = 'npm shrinkwrap'
 
@@ -30,11 +34,24 @@ function shrinkwrap (args, silent, cb) {
   }
 
   var dir = path.resolve(npm.dir, '..')
+  var packagePath = path.join(npm.localPrefix, 'package.json')
   npm.config.set('production', true)
-  readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
-    var pkginfo = treeToShrinkwrap(tree, !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also')))
-    shrinkwrap_(pkginfo, silent, cb)
-  })))
+
+  readPackageJson(packagePath, iferr(cb, function (data) {
+    lifecycle(data, 'preshrinkwrap', function () {
+      readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
+        var pkginfo = treeToShrinkwrap(tree, !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also')))
+
+        chain([
+          [lifecycle, tree.package, 'shrinkwrap'],
+          [shrinkwrap_, pkginfo, silent],
+          [lifecycle, tree.package, 'postshrinkwrap']
+        ], iferr(cb, function (data) {
+          cb(null, data[0])
+        }))
+      })))
+    })
+  }))
 }
 
 function andRecalculateMetadata (next) {
@@ -122,9 +139,7 @@ function save (pkginfo, silent, cb) {
   writeFileAtomic(file, swdata, function (er) {
     if (er) return cb(er)
     if (silent) return cb(null, pkginfo)
-    log.clearProgress()
-    console.log('wrote npm-shrinkwrap.json')
-    log.showProgress()
+    output('wrote npm-shrinkwrap.json')
     cb(null, pkginfo)
   })
 }

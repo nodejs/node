@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 const http = require('http');
-const common = require('../common');
 const assert = require('assert');
 const httpServer = http.createServer(reqHandler);
 
@@ -9,7 +9,7 @@ function reqHandler(req, res) {
   if (req.url === '/setHostFalse5') {
     assert.equal(req.headers.host, undefined);
   } else {
-    assert.equal(req.headers.host, 'localhost:' + common.PORT,
+    assert.equal(req.headers.host, `localhost:${this.address().port}`,
                  'Wrong host header for req[' + req.url + ']: ' +
                  req.headers.host);
   }
@@ -26,8 +26,6 @@ testHttp();
 
 function testHttp() {
 
-  console.log('testing http on port ' + common.PORT);
-
   var counter = 0;
 
   function cb(res) {
@@ -39,8 +37,8 @@ function testHttp() {
     res.resume();
   }
 
-  httpServer.listen(common.PORT, function(er) {
-    console.error('listening on ' + common.PORT);
+  httpServer.listen(0, function(er) {
+    console.error(`test http server listening on ${this.address().port}`);
 
     if (er) throw er;
 
@@ -49,7 +47,7 @@ function testHttp() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower);
 
@@ -58,7 +56,7 @@ function testHttp() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -67,7 +65,7 @@ function testHttp() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -76,7 +74,7 @@ function testHttp() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -85,7 +83,7 @@ function testHttp() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
   });

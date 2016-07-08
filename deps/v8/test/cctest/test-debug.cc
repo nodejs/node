@@ -2747,7 +2747,7 @@ TEST(DebugStepKeyedLoadLoop) {
   foo->Call(context, env->Global(), kArgc, args).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(45, break_point_hit_count);
+  CHECK_EQ(44, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2888,7 +2888,6 @@ static void DoDebugStepNamedStoreLoop(int expected) {
 // Test of the stepping mechanism for named load in a loop.
 TEST(DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(34); }
 
-
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
   DebugLocalContext env;
@@ -2917,7 +2916,7 @@ TEST(DebugStepLinearMixedICs) {
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(11, break_point_hit_count);
+  CHECK_EQ(10, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2964,7 +2963,7 @@ TEST(DebugStepDeclarations) {
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(6, break_point_hit_count);
+  CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
@@ -2998,7 +2997,7 @@ TEST(DebugStepLocals) {
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(6, break_point_hit_count);
+  CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
@@ -3459,26 +3458,25 @@ TEST(DebugConditional) {
   v8::Local<v8::Context> context = env.context();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
-  const char* src = "function foo(x) { "
-                    "  var a;"
-                    "  a = x ? 1 : 2;"
-                    "  return a;"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  return x ? 1 : 2;"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);  // "var a;"
 
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(4, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   step_action = StepIn;
   break_point_hit_count = 0;
   const int argc = 1;
   v8::Local<v8::Value> argv_true[argc] = {v8::True(isolate)};
   foo->Call(context, env->Global(), argc, argv_true).ToLocalChecked();
-  CHECK_EQ(4, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(isolate, nullptr);
@@ -8071,4 +8069,119 @@ TEST(BreakLocationIterator) {
   delete iterator;
 
   DisableDebugger(isolate);
+}
+
+TEST(DisableTailCallElimination) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_harmony_tailcalls = true;
+  // TODO(ishell, 4698): Investigate why TurboFan in --always-opt mode makes
+  // stack[2].getFunctionName() return null.
+  i::FLAG_turbo_inlining = false;
+
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CHECK(v8::Debug::IsTailCallEliminationEnabled(isolate));
+
+  CompileRun(
+      "'use strict';                                                         \n"
+      "Error.prepareStackTrace = (error,stack) => {                          \n"
+      "  error.strace = stack;                                               \n"
+      "  return error.message + \"\\n    at \" + stack.join(\"\\n    at \"); \n"
+      "}                                                                     \n"
+      "                                                                      \n"
+      "function getCaller() {                                                \n"
+      "  var e = new Error();                                                \n"
+      "  e.stack;  // prepare stack trace                                    \n"
+      "  var stack = e.strace;                                               \n"
+      "  %GlobalPrint('caller: ');                                           \n"
+      "  %GlobalPrint(stack[2].getFunctionName());                           \n"
+      "  %GlobalPrint('\\n');                                                \n"
+      "  return stack[2].getFunctionName();                                  \n"
+      "}                                                                     \n"
+      "function f() {                                                        \n"
+      "  var caller = getCaller();                                           \n"
+      "  if (caller === 'g') return 1;                                       \n"
+      "  if (caller === 'h') return 2;                                       \n"
+      "  return 0;                                                           \n"
+      "}                                                                     \n"
+      "function g() {                                                        \n"
+      "  return f();                                                         \n"
+      "}                                                                     \n"
+      "function h() {                                                        \n"
+      "  var result = g();                                                   \n"
+      "  return result;                                                      \n"
+      "}                                                                     \n"
+      "%NeverOptimizeFunction(getCaller);                                    \n"
+      "%NeverOptimizeFunction(f);                                            \n"
+      "%NeverOptimizeFunction(h);                                            \n"
+      "");
+  ExpectInt32("h();", 2);
+  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
+  v8::Debug::SetTailCallEliminationEnabled(isolate, false);
+  CHECK(!v8::Debug::IsTailCallEliminationEnabled(isolate));
+  ExpectInt32("h();", 1);
+  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 1);
+  v8::Debug::SetTailCallEliminationEnabled(isolate, true);
+  CHECK(v8::Debug::IsTailCallEliminationEnabled(isolate));
+  ExpectInt32("h();", 2);
+  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
+}
+
+TEST(DebugStepNextTailCallEliminiation) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_harmony_tailcalls = true;
+  // TODO(ishell, 4698): Investigate why TurboFan in --always-opt mode makes
+  // stack[2].getFunctionName() return null.
+  i::FLAG_turbo_inlining = false;
+
+  DebugLocalContext env;
+  env.ExposeDebug();
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CHECK(v8::Debug::IsTailCallEliminationEnabled(isolate));
+
+  const char* source =
+      "'use strict';                                           \n"
+      "var Debug = debug.Debug;                                \n"
+      "var exception = null;                                   \n"
+      "var breaks = 0;                                         \n"
+      "var log = [];                                           \n"
+      "function f(x) {                                         \n"
+      "  if (x == 2) {                                         \n"
+      "    debugger;             // Break a                    \n"
+      "  }                                                     \n"
+      "  if (x-- > 0) {          // Break b                    \n"
+      "    return f(x);          // Break c                    \n"
+      "  }                                                     \n"
+      "}                         // Break e                    \n"
+      "function listener(event, exec_state, event_data, data) {\n"
+      "  if (event != Debug.DebugEvent.Break) return;          \n"
+      "  try {                                                 \n"
+      "    var line = exec_state.frame(0).sourceLineText();    \n"
+      "    var col = exec_state.frame(0).sourceColumn();       \n"
+      "    var match = line.match(/\\/\\/ Break (\\w)/);       \n"
+      "    log.push(match[1] + col);                           \n"
+      "    exec_state.prepareStep(Debug.StepAction.StepNext);  \n"
+      "  } catch (e) {                                         \n"
+      "    exception = e;                                      \n"
+      "  };                                                    \n"
+      "};                                                      \n"
+      "Debug.setListener(listener);                            \n"
+      "f(4);                                                   \n"
+      "Debug.setListener(null);  // Break d                    \n";
+
+  CompileRun(source);
+  ExpectNull("exception");
+  ExpectString("JSON.stringify(log)", "[\"a4\",\"b2\",\"c4\",\"c11\",\"d0\"]");
+
+  v8::Debug::SetTailCallEliminationEnabled(isolate, false);
+  CompileRun(
+      "log = [];                            \n"
+      "Debug.setListener(listener);         \n"
+      "f(5);                                \n"
+      "Debug.setListener(null);  // Break f \n");
+  ExpectNull("exception");
+  ExpectString("JSON.stringify(log)",
+               "[\"a4\",\"b2\",\"c4\",\"e0\",\"e0\",\"e0\",\"e0\",\"f0\"]");
 }

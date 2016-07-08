@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
-var PORT = common.PORT;
 var spawn = require('child_process').spawn;
 
 if (common.isWindows) {
@@ -38,7 +37,7 @@ function test() {
     // now make sure that we can request to the child, then kill it.
     http.get({
       server: 'localhost',
-      port: PORT,
+      port: child.port,
       path: '/',
     }).on('response', function(res) {
       var s = '';
@@ -64,8 +63,8 @@ function parent() {
   var server = net.createServer(function(conn) {
     console.error('connection on parent');
     conn.end('hello from parent\n');
-  }).listen(PORT, function() {
-    console.error('server listening on %d', PORT);
+  }).listen(0, function() {
+    console.error('server listening on %d', this.address().port);
 
     var spawn = require('child_process').spawn;
     var child = spawn(process.execPath, [__filename, 'child'], {
@@ -73,7 +72,7 @@ function parent() {
       detached: true
     });
 
-    console.log('%j\n', { pid: child.pid });
+    console.log('%j\n', { pid: child.pid, port: this.address().port });
 
     // Now close the parent, so that the child is the only thing
     // referencing that handle.  Note that connections will still
