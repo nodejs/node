@@ -328,7 +328,7 @@ function error_test() {
     // or block comment. https://github.com/nodejs/node/issues/3611
     { client: client_unix, send: 'a = 3.5e',
       expect: /^SyntaxError: Invalid or unexpected token/ },
-    // Mitigate #548 issue
+    // Mitigate https://github.com/nodejs/node/issues/548
     { client: client_unix, send: 'function name(){ return "node"; };name()',
       expect: "'node'\n" + prompt_unix },
     { client: client_unix, send: 'function name(){ return "nodejs"; };name()',
