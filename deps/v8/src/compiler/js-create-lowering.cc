@@ -471,6 +471,9 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   PretenureFlag pretenure = site->GetPretenureMode();
   ElementsKind elements_kind = site->GetElementsKind();
   DCHECK(IsFastElementsKind(elements_kind));
+  if (NodeProperties::GetType(length)->Max() > 0) {
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
   dependencies()->AssumeTenuringDecision(site);
   dependencies()->AssumeTransitionStable(site);
 

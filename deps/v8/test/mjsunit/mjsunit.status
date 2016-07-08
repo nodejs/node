@@ -758,6 +758,14 @@
   'regress/regress-1132': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 
+['arch == ppc64', {
+
+  # stack overflow
+  'big-array-literal': [SKIP],
+}],  # 'arch == ppc64'
+
+##############################################################################
+
 ##############################################################################
 ['ignition == True', {
   # TODO(yangguo,4690): assertion failures in debugger tests.

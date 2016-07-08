@@ -8428,6 +8428,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     TraceInline(target, caller, "parse failure");
     return false;
   }
+  if (target_shared->dont_crankshaft()) {
+    TraceInline(target, caller, "ParseAndAnalyze found incompatibility");
+    return false;
+  }
 
   if (target_info.scope()->num_heap_slots() > 0) {
     TraceInline(target, caller, "target has context-allocated variables");
