@@ -143,7 +143,7 @@ const int8_t unbase64_table[256] =
   };
 
 
-const int8_t unhex_table[256] =
+static const int8_t unhex_table[256] =
   { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -163,7 +163,7 @@ const int8_t unhex_table[256] =
   };
 
 #define unhex(x)                                                              \
-  static_cast<uint8_t>(unhex_table[static_cast<uint8_t>(x)])
+  static_cast<unsigned>(unhex_table[static_cast<uint8_t>(x)])
 
 
 template <typename TypeName>
