@@ -21,7 +21,7 @@ template<typename WrapType, typename UVType>
 void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
                                                     int status) {
   WrapType* wrap_data = static_cast<WrapType*>(handle->data);
-  CHECK_EQ(&wrap_data->handle_, reinterpret_cast<UVType*>(handle));
+  CHECK_EQ(&wrap_data->uvhandle_, reinterpret_cast<UVType*>(handle));
 
   Environment* env = wrap_data->env();
   HandleScope handle_scope(env->isolate());
@@ -43,7 +43,8 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
     // Unwrap the client javascript object.
     WrapType* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, client_obj);
-    uv_stream_t* client_handle = reinterpret_cast<uv_stream_t*>(&wrap->handle_);
+    uv_stream_t* client_handle =
+        reinterpret_cast<uv_stream_t*>(&wrap->uvhandle_);
     if (uv_accept(handle, client_handle))
       return;
 
@@ -58,6 +59,15 @@ template void ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection(
 
 template void ConnectionWrap<TCPWrap, uv_tcp_t>::OnConnection(
     uv_stream_t* handle, int status);
+
+template<typename WrapType, typename UVType>
+UVType* ConnectionWrap<WrapType, UVType>::UVHandle() {
+  return &uvhandle_;
+}
+
+template uv_pipe_t* ConnectionWrap<PipeWrap, uv_pipe_t>::UVHandle();
+
+template uv_tcp_t* ConnectionWrap<TCPWrap, uv_tcp_t>::UVHandle();
 
 
 }  // namespace node

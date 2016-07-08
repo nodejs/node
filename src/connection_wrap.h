@@ -10,8 +10,12 @@ namespace node {
 
 template<typename WrapType, typename UVType>
 class ConnectionWrap {
+ public:
+  UVType* UVHandle();
+
  protected:
   static void OnConnection(uv_stream_t* handle, int status);
+  UVType uvhandle_;
 };
 
 

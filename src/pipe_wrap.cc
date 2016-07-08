@@ -51,11 +51,6 @@ static void NewPipeConnectWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-uv_pipe_t* PipeWrap::UVHandle() {
-  return &handle_;
-}
-
-
 Local<Object> PipeWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope handle_scope(env->isolate());
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
@@ -127,10 +122,10 @@ PipeWrap::PipeWrap(Environment* env,
                    AsyncWrap* parent)
     : StreamWrap(env,
                  object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
+                 reinterpret_cast<uv_stream_t*>(&uvhandle_),
                  AsyncWrap::PROVIDER_PIPEWRAP,
                  parent) {
-  int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
+  int r = uv_pipe_init(env->event_loop(), &uvhandle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
   UpdateWriteQueueSize();
@@ -141,7 +136,7 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   node::Utf8Value name(args.GetIsolate(), args[0]);
-  int err = uv_pipe_bind(&wrap->handle_, *name);
+  int err = uv_pipe_bind(&wrap->uvhandle_, *name);
   args.GetReturnValue().Set(err);
 }
 
@@ -151,7 +146,7 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   int instances = args[0]->Int32Value();
-  uv_pipe_pending_instances(&wrap->handle_, instances);
+  uv_pipe_pending_instances(&wrap->uvhandle_, instances);
 }
 #endif
 
@@ -160,7 +155,7 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   int backlog = args[0]->Int32Value();
-  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
+  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->uvhandle_),
                       backlog,
                       OnConnection);
   args.GetReturnValue().Set(err);
@@ -213,7 +208,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
   int fd = args[0]->Int32Value();
 
-  int err = uv_pipe_open(&wrap->handle_, fd);
+  int err = uv_pipe_open(&wrap->uvhandle_, fd);
 
   if (err != 0)
     env->isolate()->ThrowException(UVException(err, "uv_pipe_open"));
@@ -234,7 +229,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   PipeConnectWrap* req_wrap = new PipeConnectWrap(env, req_wrap_obj);
   uv_pipe_connect(&req_wrap->req_,
-                  &wrap->handle_,
+                  &wrap->uvhandle_,
                   *name,
                   AfterConnect);
   req_wrap->Dispatched();

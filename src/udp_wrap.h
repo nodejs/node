@@ -67,7 +67,7 @@ class UDPWrap: public HandleWrap {
                      const struct sockaddr* addr,
                      unsigned int flags);
 
-  uv_udp_t handle_;
+  uv_udp_t uvhandle_;
 };
 
 }  // namespace node

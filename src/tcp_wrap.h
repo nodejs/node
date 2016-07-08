@@ -10,14 +10,12 @@
 
 namespace node {
 
-class TCPWrap : public StreamWrap, ConnectionWrap<TCPWrap, uv_tcp_t> {
+class TCPWrap : public StreamWrap, public ConnectionWrap<TCPWrap, uv_tcp_t> {
  public:
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
-
-  uv_tcp_t* UVHandle();
 
   size_t self_size() const override { return sizeof(*this); }
 
@@ -48,8 +46,6 @@ class TCPWrap : public StreamWrap, ConnectionWrap<TCPWrap, uv_tcp_t> {
 #endif
 
   static void AfterConnect(uv_connect_t* req, int status);
-
-  uv_tcp_t handle_;
 };
 
 
