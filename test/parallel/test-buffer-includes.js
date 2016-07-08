@@ -264,3 +264,19 @@ assert.throws(function() {
 assert.throws(function() {
   b.includes([]);
 });
+
+// test truncation of Number arguments to uint8
+{
+  const buf = Buffer.from('this is a test');
+  assert.ok(buf.includes(0x6973));
+  assert.ok(buf.includes(0x697320));
+  assert.ok(buf.includes(0x69732069));
+  assert.ok(buf.includes(0x697374657374));
+  assert.ok(buf.includes(0x69737374));
+  assert.ok(buf.includes(0x69737465));
+  assert.ok(buf.includes(0x69737465));
+  assert.ok(buf.includes(-140));
+  assert.ok(buf.includes(-152));
+  assert.ok(!buf.includes(0xff));
+  assert.ok(!buf.includes(0xffff));
+}
