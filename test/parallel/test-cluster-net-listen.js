@@ -14,8 +14,7 @@ if (cluster.isMaster) {
   process.on('exit', function() {
     assert.equal(worker, null);
   });
-}
-else {
+} else {
   // listen() without port should not trigger a libuv assert
   net.createServer(common.fail).listen(process.exit);
 }
