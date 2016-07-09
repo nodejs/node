@@ -143,10 +143,10 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
     : StreamWrap(env,
                  object,
-                 reinterpret_cast<uv_stream_t*>(&uvhandle_),
+                 reinterpret_cast<uv_stream_t*>(&handle_),
                  AsyncWrap::PROVIDER_TCPWRAP,
                  parent) {
-  int r = uv_tcp_init(env->event_loop(), &uvhandle_);
+  int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
   UpdateWriteQueueSize();
@@ -164,7 +164,7 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   int enable = static_cast<int>(args[0]->BooleanValue());
-  int err = uv_tcp_nodelay(&wrap->uvhandle_, enable);
+  int err = uv_tcp_nodelay(&wrap->handle_, enable);
   args.GetReturnValue().Set(err);
 }
 
@@ -176,7 +176,7 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
                           args.GetReturnValue().Set(UV_EBADF));
   int enable = args[0]->Int32Value();
   unsigned int delay = args[1]->Uint32Value();
-  int err = uv_tcp_keepalive(&wrap->uvhandle_, enable, delay);
+  int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
   args.GetReturnValue().Set(err);
 }
 
@@ -188,7 +188,7 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   bool enable = args[0]->BooleanValue();
-  int err = uv_tcp_simultaneous_accepts(&wrap->uvhandle_, enable);
+  int err = uv_tcp_simultaneous_accepts(&wrap->handle_, enable);
   args.GetReturnValue().Set(err);
 }
 #endif
@@ -200,7 +200,7 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   int fd = static_cast<int>(args[0]->IntegerValue());
-  uv_tcp_open(&wrap->uvhandle_, fd);
+  uv_tcp_open(&wrap->handle_, fd);
 }
 
 
@@ -214,7 +214,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
   if (err == 0) {
-    err = uv_tcp_bind(&wrap->uvhandle_,
+    err = uv_tcp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr),
                       0);
   }
@@ -232,7 +232,7 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
   if (err == 0) {
-    err = uv_tcp_bind(&wrap->uvhandle_,
+    err = uv_tcp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr),
                       0);
   }
@@ -246,7 +246,7 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   int backlog = args[0]->Int32Value();
-  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->uvhandle_),
+  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
                       OnConnection);
   args.GetReturnValue().Set(err);
@@ -303,7 +303,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   if (err == 0) {
     TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
     err = uv_tcp_connect(&req_wrap->req_,
-                         &wrap->uvhandle_,
+                         &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
     req_wrap->Dispatched();
@@ -337,7 +337,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   if (err == 0) {
     TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
     err = uv_tcp_connect(&req_wrap->req_,
-                         &wrap->uvhandle_,
+                         &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
     req_wrap->Dispatched();

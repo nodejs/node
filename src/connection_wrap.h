@@ -15,7 +15,7 @@ class ConnectionWrap {
 
  protected:
   static void OnConnection(uv_stream_t* handle, int status);
-  UVType uvhandle_;
+  UVType handle_;
 };
 
 

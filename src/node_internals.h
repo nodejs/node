@@ -86,7 +86,7 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   sockaddr_storage storage;
   int addrlen = sizeof(storage);
   sockaddr* const addr = reinterpret_cast<sockaddr*>(&storage);
-  const int err = F(&wrap->uvhandle_, addr, &addrlen);
+  const int err = F(&wrap->handle_, addr, &addrlen);
   if (err == 0)
     AddressToJS(wrap->env(), addr, args[0].As<v8::Object>());
   args.GetReturnValue().Set(err);
