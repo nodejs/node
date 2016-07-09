@@ -20,7 +20,6 @@ class PipeWrap : public StreamWrap, public ConnectionWrap<PipeWrap, uv_pipe_t> {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
-  friend class ConnectionWrap;  // So handle_ can be accessed
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,
            bool ipc,

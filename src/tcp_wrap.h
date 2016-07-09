@@ -20,7 +20,6 @@ class TCPWrap : public StreamWrap, public ConnectionWrap<TCPWrap, uv_tcp_t> {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
-  friend class ConnectionWrap;  // So handle_ can be accessed
   typedef uv_tcp_t HandleType;
 
   template <typename T,
