@@ -20,7 +20,7 @@ The `util.debuglog()` method is used to create a function that conditionally
 writes debug messages to `stderr` based on the existence of the `NODE_DEBUG`
 environment variable.  If the `section` name appears within the value of that
 environment variable, then the returned function operates similar to
-`console.error()`.  If not, then the returned function is a no-op.
+[`console.error()`][].  If not, then the returned function is a no-op.
 
 For example:
 
@@ -34,7 +34,7 @@ debuglog('hello from foo [%d]', 123);
 If this program is run with `NODE_DEBUG=foo` in the environment, then
 it will output something like:
 
-```
+```txt
 FOO 3245: hello from foo [123]
 ```
 
@@ -663,7 +663,6 @@ similar built-in functionality through [`Object.assign()`].
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
-[here]: #util_customizing_util_inspect_colors
 [`Error`]: errors.html#errors_class_error
 [`console.log()`]: console.html#console_console_log_data
 [`console.error()`]: console.html#console_console_error_data

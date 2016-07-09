@@ -858,7 +858,7 @@ server.listen(8124, () => {
 
 Test this by using `telnet`:
 
-```
+```sh
 telnet localhost 8124
 ```
 
@@ -912,7 +912,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`'timeout'`]: #net_event_timeout
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`connect()`]: #net_socket_connect_options_connectlistener
-[`destroy()`]: #net_socket_destroy
+[`destroy()`]: #net_socket_destroy_exception
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding

@@ -74,7 +74,7 @@ Most fs functions let you omit the callback argument. If you do, a default
 callback is used that rethrows errors. To get a trace to the original call
 site, set the `NODE_DEBUG` environment variable:
 
-```
+```txt
 $ cat script.js
 function bad() {
   require('fs').readFile('/');

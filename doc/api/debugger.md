@@ -9,7 +9,7 @@ via a simple [TCP-based protocol][] and built-in debugging client. To use it,
 start Node.js with the `debug` argument followed by the path to the script to
 debug; a prompt will be displayed indicating successful launch of the debugger:
 
-```
+```txt
 $ node debug myscript.js
 < debugger listening on port 5858
 connecting... ok
@@ -38,7 +38,7 @@ console.log('hello');
 
 Once the debugger is run, a breakpoint will occur at line 4:
 
-```
+```txt
 $ node debug myscript.js
 < debugger listening on port 5858
 connecting... ok
@@ -119,7 +119,7 @@ on line 1
 It is also possible to set a breakpoint in a file (module) that
 isn't loaded yet:
 
-```
+```txt
 $ ./node debug test/fixtures/break-in-module/main.js
 < debugger listening on port 5858
 connecting to port 5858... ok

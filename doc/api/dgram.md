@@ -425,7 +425,6 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`EventEmitter`]: events.html
 [`Buffer`]: buffer.html
 [`'close'`]: #dgram_event_close
-[`addMembership()`]: #dgram_socket_addmembership_multicastaddress_multicastinterface
 [`close()`]: #dgram_socket_close_callback
 [`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
 [`dgram.Socket#bind()`]: #dgram_socket_bind_options_callback

@@ -86,7 +86,7 @@ Alternatively, `options` can be an object containing these properties:
 
 All properties are optional. An example usage of options is shown below.
 
-```
+```js
 {
   family: 4,
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
@@ -279,7 +279,7 @@ be an object with the following properties:
 * `expire`
 * `minttl`
 
-```
+```js
 {
   nsname: 'ns.example.com',
   hostmaster: 'root.example.com',
@@ -305,7 +305,7 @@ be an array of objects with the following properties:
 * `port`
 * `name`
 
-```
+```js
 {
   priority: 10,
   weight: 5,
@@ -437,8 +437,6 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
 [DNS error codes]: #dns_error_codes
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
-[`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
-[`dns.resolve4()`]: #dns_dns_resolve4_hostname_callback
 [`dns.resolveSoa()`]: #dns_dns_resolvesoa_hostname_callback
 [`Error`]: errors.html#errors_class_error
 [Implementation considerations section]: #dns_implementation_considerations

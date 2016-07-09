@@ -102,7 +102,7 @@ top-level of the project describing the build configuration of your module
 using a JSON-like format. This file is used by [node-gyp][] -- a tool written
 specifically to compile Node.js Addons.
 
-```
+```json
 {
   "targets": [
     {
@@ -222,7 +222,7 @@ templates, etc.
 
 Each of these examples using the following `binding.gyp` file:
 
-```
+```json
 {
   "targets": [
     {
@@ -236,14 +236,14 @@ Each of these examples using the following `binding.gyp` file:
 In cases where there is more than one `.cc` file, simply add the additional
 filename to the `sources` array. For example:
 
-```
+```json
 "sources": ["addon.cc", "myexample.cc"]
 ```
 
 Once the `binding.gyp` file is ready, the example Addons can be configured and
 built using `node-gyp`:
 
-```
+```sh
 $ node-gyp configure build
 ```
 
@@ -621,7 +621,7 @@ void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
 To build this example, the `myobject.cc` file must be added to the
 `binding.gyp`:
 
-```
+```json
 {
   "targets": [
     {
@@ -813,7 +813,7 @@ void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
 Once again, to build this example, the `myobject.cc` file must be added to the
 `binding.gyp`:
 
-```
+```json
 {
   "targets": [
     {
