@@ -149,6 +149,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ReflectSet, kNone)                                         \
   V(ReflectSetPrototypeOf, kNone)                              \
                                                                \
+  V(StringFromCharCode, kNone)                                 \
+                                                               \
   V(SymbolConstructor, kNone)                                  \
   V(SymbolConstructor_ConstructStub, kTarget)                  \
                                                                \

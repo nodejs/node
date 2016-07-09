@@ -3732,6 +3732,74 @@ BUILTIN(ObjectProtoToString) {
   return *result;
 }
 
+// -----------------------------------------------------------------------------
+// ES6 section 21.1 String Objects
+
+namespace {
+
+bool ToUint16(Handle<Object> value, uint16_t* result) {
+  if (value->IsNumber() || Object::ToNumber(value).ToHandle(&value)) {
+    *result = DoubleToUint32(value->Number());
+    return true;
+  }
+  return false;
+}
+
+}  // namespace
+
+// ES6 21.1.2.1 String.fromCharCode ( ...codeUnits )
+BUILTIN(StringFromCharCode) {
+  HandleScope scope(isolate);
+  // Check resulting string length.
+  int index = 0;
+  Handle<String> result;
+  int const length = args.length() - 1;
+  if (length == 0) return isolate->heap()->empty_string();
+  DCHECK_LT(0, length);
+  // Load the first character code.
+  uint16_t code;
+  if (!ToUint16(args.at<Object>(1), &code)) return isolate->heap()->exception();
+  // Assume that the resulting String contains only one byte characters.
+  if (code <= String::kMaxOneByteCharCodeU) {
+    // Check for single one-byte character fast case.
+    if (length == 1) {
+      return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
+    }
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawOneByteString(length));
+    do {
+      Handle<SeqOneByteString>::cast(result)->Set(index, code);
+      if (++index == length) break;
+      if (!ToUint16(args.at<Object>(1 + index), &code)) {
+        return isolate->heap()->exception();
+      }
+    } while (code <= String::kMaxOneByteCharCodeU);
+  }
+  // Check if all characters fit into the one byte range.
+  if (index < length) {
+    // Fallback to two byte string.
+    Handle<String> new_result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, new_result, isolate->factory()->NewRawTwoByteString(length));
+    for (int new_index = 0; new_index < index; ++new_index) {
+      uint16_t new_code =
+          Handle<SeqOneByteString>::cast(result)->Get(new_index);
+      Handle<SeqTwoByteString>::cast(new_result)->Set(new_index, new_code);
+    }
+    while (true) {
+      Handle<SeqTwoByteString>::cast(new_result)->Set(index, code);
+      if (++index == length) break;
+      if (!ToUint16(args.at<Object>(1 + index), &code)) {
+        return isolate->heap()->exception();
+      }
+    }
+    result = new_result;
+  }
+  return *result;
+}
+
+// -----------------------------------------------------------------------------
+// ES6 section 21.1 ArrayBuffer Objects
 
 // ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Call]] case.
 BUILTIN(ArrayBufferConstructor) {

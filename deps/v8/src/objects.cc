@@ -2681,6 +2681,16 @@ const char* Representation::Mnemonic() const {
   }
 }
 
+bool Map::InstancesNeedRewriting(Map* target) {
+  int target_number_of_fields = target->NumberOfFields();
+  int target_inobject = target->GetInObjectProperties();
+  int target_unused = target->unused_property_fields();
+  int old_number_of_fields;
+
+  return InstancesNeedRewriting(target, target_number_of_fields,
+                                target_inobject, target_unused,
+                                &old_number_of_fields);
+}
 
 bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
                                  int target_inobject, int target_unused,
@@ -3141,10 +3151,10 @@ int Map::NumberOfFields() {
   return result;
 }
 
-
 Handle<Map> Map::CopyGeneralizeAllRepresentations(
-    Handle<Map> map, int modify_index, StoreMode store_mode, PropertyKind kind,
-    PropertyAttributes attributes, const char* reason) {
+    Handle<Map> map, ElementsKind elements_kind, int modify_index,
+    StoreMode store_mode, PropertyKind kind, PropertyAttributes attributes,
+    const char* reason) {
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
@@ -3200,6 +3210,7 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(
           MaybeHandle<Object>());
     }
   }
+  new_map->set_elements_kind(elements_kind);
   return new_map;
 }
 
@@ -3437,9 +3448,9 @@ static inline Handle<FieldType> GetFieldType(
   }
 }
 
-
-// Reconfigures property at |modify_index| with |new_kind|, |new_attributes|,
-// |store_mode| and/or |new_representation|/|new_field_type|.
+// Reconfigures elements kind to |new_elements_kind| and/or property at
+// |modify_index| with |new_kind|, |new_attributes|, |store_mode| and/or
+// |new_representation|/|new_field_type|.
 // If |modify_index| is negative then no properties are reconfigured but the
 // map is migrated to the up-to-date non-deprecated state.
 //
@@ -3449,6 +3460,7 @@ static inline Handle<FieldType> GetFieldType(
 // any potential new (partial) version of the type in the transition tree.
 // To do this, on each rewrite:
 // - Search the root of the transition tree using FindRootMap.
+// - Find/create a |root_map| with requested |new_elements_kind|.
 // - Find |target_map|, the newest matching version of this map using the
 //   virtually "enhanced" |old_map|'s descriptor array (i.e. whose entry at
 //   |modify_index| is considered to be of |new_kind| and having
@@ -3464,12 +3476,13 @@ static inline Handle<FieldType> GetFieldType(
 //   Return it.
 // - Otherwise, invalidate the outdated transition target from |target_map|, and
 //   replace its transition tree with a new branch for the updated descriptors.
-Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
-                                     PropertyKind new_kind,
-                                     PropertyAttributes new_attributes,
-                                     Representation new_representation,
-                                     Handle<FieldType> new_field_type,
-                                     StoreMode store_mode) {
+Handle<Map> Map::Reconfigure(Handle<Map> old_map,
+                             ElementsKind new_elements_kind, int modify_index,
+                             PropertyKind new_kind,
+                             PropertyAttributes new_attributes,
+                             Representation new_representation,
+                             Handle<FieldType> new_field_type,
+                             StoreMode store_mode) {
   DCHECK_NE(kAccessor, new_kind);  // TODO(ishell): not supported yet.
   DCHECK(store_mode != FORCE_FIELD || modify_index >= 0);
   Isolate* isolate = old_map->GetIsolate();
@@ -3484,7 +3497,8 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
   // uninitialized value for representation None can be overwritten by both
   // smi and tagged values. Doubles, however, would require a box allocation.
   if (modify_index >= 0 && !new_representation.IsNone() &&
-      !new_representation.IsDouble()) {
+      !new_representation.IsDouble() &&
+      old_map->elements_kind() == new_elements_kind) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
     Representation old_representation = old_details.representation();
 
@@ -3517,38 +3531,39 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
   // Check the state of the root map.
   Handle<Map> root_map(old_map->FindRootMap(), isolate);
   if (!old_map->EquivalentToForTransition(*root_map)) {
-    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                            new_kind, new_attributes,
-                                            "GenAll_NotEquivalent");
+    return CopyGeneralizeAllRepresentations(
+        old_map, new_elements_kind, modify_index, store_mode, new_kind,
+        new_attributes, "GenAll_NotEquivalent");
   }
 
   ElementsKind from_kind = root_map->elements_kind();
-  ElementsKind to_kind = old_map->elements_kind();
+  ElementsKind to_kind = new_elements_kind;
   // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
   if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
+      to_kind != SLOW_STRING_WRAPPER_ELEMENTS &&
       to_kind != SLOW_SLOPPY_ARGUMENTS_ELEMENTS &&
       !(IsTransitionableFastElementsKind(from_kind) &&
         IsMoreGeneralElementsKindTransition(from_kind, to_kind))) {
-    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                            new_kind, new_attributes,
-                                            "GenAll_InvalidElementsTransition");
+    return CopyGeneralizeAllRepresentations(
+        old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
+        "GenAll_InvalidElementsTransition");
   }
   int root_nof = root_map->NumberOfOwnDescriptors();
   if (modify_index >= 0 && modify_index < root_nof) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
     if (old_details.kind() != new_kind ||
         old_details.attributes() != new_attributes) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                              new_kind, new_attributes,
-                                              "GenAll_RootModification1");
+      return CopyGeneralizeAllRepresentations(
+          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
+          "GenAll_RootModification1");
     }
     if ((old_details.type() != DATA && store_mode == FORCE_FIELD) ||
         (old_details.type() == DATA &&
          (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
           !new_representation.fits_into(old_details.representation())))) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                              new_kind, new_attributes,
-                                              "GenAll_RootModification2");
+      return CopyGeneralizeAllRepresentations(
+          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
+          "GenAll_RootModification2");
     }
   }
 
@@ -3602,9 +3617,9 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
     if (next_kind == kAccessor &&
         !EqualImmutableValues(old_descriptors->GetValue(i),
                               tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                              new_kind, new_attributes,
-                                              "GenAll_Incompatible");
+      return CopyGeneralizeAllRepresentations(
+          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
+          "GenAll_Incompatible");
     }
     if (next_location == kField && tmp_details.location() == kDescriptor) break;
 
@@ -3697,9 +3712,9 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
     if (next_kind == kAccessor &&
         !EqualImmutableValues(old_descriptors->GetValue(i),
                               tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                              new_kind, new_attributes,
-                                              "GenAll_Incompatible");
+      return CopyGeneralizeAllRepresentations(
+          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
+          "GenAll_Incompatible");
     }
     DCHECK(!tmp_map->is_deprecated());
     target_map = tmp_map;
@@ -3930,9 +3945,9 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
   // could be inserted regardless of whether transitions array is full or not.
   if (maybe_transition == NULL &&
       !TransitionArray::CanHaveMoreTransitions(split_map)) {
-    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                            new_kind, new_attributes,
-                                            "GenAll_CantHaveMoreTransitions");
+    return CopyGeneralizeAllRepresentations(
+        old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
+        "GenAll_CantHaveMoreTransitions");
   }
 
   old_map->NotifyLeafMapLayoutChange();
@@ -4013,18 +4028,27 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
     if (root_map == NULL) return MaybeHandle<Map>();
     // From here on, use the map with correct elements kind as root map.
   }
-  int root_nof = root_map->NumberOfOwnDescriptors();
+  Map* new_map = root_map->TryReplayPropertyTransitions(*old_map);
+  if (new_map == nullptr) return MaybeHandle<Map>();
+  return handle(new_map);
+}
+
+Map* Map::TryReplayPropertyTransitions(Map* old_map) {
+  DisallowHeapAllocation no_allocation;
+  DisallowDeoptimization no_deoptimization(GetIsolate());
+
+  int root_nof = NumberOfOwnDescriptors();
 
   int old_nof = old_map->NumberOfOwnDescriptors();
   DescriptorArray* old_descriptors = old_map->instance_descriptors();
 
-  Map* new_map = root_map;
+  Map* new_map = this;
   for (int i = root_nof; i < old_nof; ++i) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     Map* transition = TransitionArray::SearchTransition(
         new_map, old_details.kind(), old_descriptors->GetKey(i),
         old_details.attributes());
-    if (transition == NULL) return MaybeHandle<Map>();
+    if (transition == NULL) return nullptr;
     new_map = transition;
     DescriptorArray* new_descriptors = new_map->instance_descriptors();
 
@@ -4032,7 +4056,7 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
     DCHECK_EQ(old_details.kind(), new_details.kind());
     DCHECK_EQ(old_details.attributes(), new_details.attributes());
     if (!old_details.representation().fits_into(new_details.representation())) {
-      return MaybeHandle<Map>();
+      return nullptr;
     }
     switch (new_details.type()) {
       case DATA: {
@@ -4040,20 +4064,20 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
         // Cleared field types need special treatment. They represent lost
         // knowledge, so we must first generalize the new_type to "Any".
         if (FieldTypeIsCleared(new_details.representation(), new_type)) {
-          return MaybeHandle<Map>();
+          return nullptr;
         }
         PropertyType old_property_type = old_details.type();
         if (old_property_type == DATA) {
           FieldType* old_type = old_descriptors->GetFieldType(i);
           if (FieldTypeIsCleared(old_details.representation(), old_type) ||
               !old_type->NowIs(new_type)) {
-            return MaybeHandle<Map>();
+            return nullptr;
           }
         } else {
           DCHECK(old_property_type == DATA_CONSTANT);
           Object* old_value = old_descriptors->GetValue(i);
           if (!new_type->NowContains(old_value)) {
-            return MaybeHandle<Map>();
+            return nullptr;
           }
         }
         break;
@@ -4071,14 +4095,14 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
         Object* old_value = old_descriptors->GetValue(i);
         Object* new_value = new_descriptors->GetValue(i);
         if (old_details.location() == kField || old_value != new_value) {
-          return MaybeHandle<Map>();
+          return nullptr;
         }
         break;
       }
     }
   }
-  if (new_map->NumberOfOwnDescriptors() != old_nof) return MaybeHandle<Map>();
-  return handle(new_map);
+  if (new_map->NumberOfOwnDescriptors() != old_nof) return nullptr;
+  return new_map;
 }
 
 
@@ -4736,17 +4760,30 @@ static bool ContainsMap(MapHandleList* maps, Map* map) {
   return false;
 }
 
+Map* Map::FindElementsKindTransitionedMap(MapHandleList* candidates) {
+  DisallowHeapAllocation no_allocation;
+  DisallowDeoptimization no_deoptimization(GetIsolate());
 
-Handle<Map> Map::FindTransitionedMap(Handle<Map> map,
-                                     MapHandleList* candidates) {
-  ElementsKind kind = map->elements_kind();
+  ElementsKind kind = elements_kind();
   bool packed = IsFastPackedElementsKind(kind);
 
   Map* transition = nullptr;
   if (IsTransitionableFastElementsKind(kind)) {
-    for (Map* current = map->ElementsTransitionMap();
-         current != nullptr && current->has_fast_elements();
-         current = current->ElementsTransitionMap()) {
+    // Check the state of the root map.
+    Map* root_map = FindRootMap();
+    if (!EquivalentToForTransition(root_map)) return nullptr;
+    root_map = root_map->LookupElementsTransitionMap(kind);
+    DCHECK_NOT_NULL(root_map);
+    // Starting from the next existing elements kind transition try to
+    // replay the property transitions that does not involve instance rewriting
+    // (ElementsTransitionAndStoreStub does not support that).
+    for (root_map = root_map->ElementsTransitionMap();
+         root_map != nullptr && root_map->has_fast_elements();
+         root_map = root_map->ElementsTransitionMap()) {
+      Map* current = root_map->TryReplayPropertyTransitions(this);
+      if (current == nullptr) continue;
+      if (InstancesNeedRewriting(current)) continue;
+
       if (ContainsMap(candidates, current) &&
           (packed || !IsFastPackedElementsKind(current->elements_kind()))) {
         transition = current;
@@ -4754,11 +4791,14 @@ Handle<Map> Map::FindTransitionedMap(Handle<Map> map,
       }
     }
   }
-  return transition == nullptr ? Handle<Map>() : handle(transition);
+  return transition;
 }
 
 
 static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
+  // Ensure we are requested to search elements kind transition "near the root".
+  DCHECK_EQ(map->FindRootMap()->NumberOfOwnDescriptors(),
+            map->NumberOfOwnDescriptors());
   Map* current_map = map;
 
   ElementsKind kind = map->elements_kind();
@@ -4889,7 +4929,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
     return Map::CopyAsElementsKind(map, to_kind, OMIT_TRANSITION);
   }
 
-  return Map::AsElementsKind(map, to_kind);
+  return Map::ReconfigureElementsKind(map, to_kind);
 }
 
 
@@ -5215,7 +5255,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     } else {
       TransitionElementsKind(object, to_kind);
     }
-    map = Map::AsElementsKind(map, to_kind);
+    map = Map::ReconfigureElementsKind(map, to_kind);
   }
   JSObject::MigrateToMap(object, map);
 }
@@ -9563,6 +9603,10 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
                                     TransitionFlag flag) {
   Map* maybe_elements_transition_map = NULL;
   if (flag == INSERT_TRANSITION) {
+    // Ensure we are requested to add elements kind transition "near the root".
+    DCHECK_EQ(map->FindRootMap()->NumberOfOwnDescriptors(),
+              map->NumberOfOwnDescriptors());
+
     maybe_elements_transition_map = map->ElementsTransitionMap();
     DCHECK(maybe_elements_transition_map == NULL ||
            (maybe_elements_transition_map->elements_kind() ==
@@ -9890,7 +9934,7 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
     // There is no benefit from reconstructing transition tree for maps without
     // back pointers.
     return CopyGeneralizeAllRepresentations(
-        map, descriptor, FORCE_FIELD, kind, attributes,
+        map, map->elements_kind(), descriptor, FORCE_FIELD, kind, attributes,
         "GenAll_AttributesMismatchProtoMap");
   }
 
