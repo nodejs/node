@@ -19,7 +19,6 @@ if (cluster.isMaster) {
     // ensure that the 'listening' handler has been called
     assert(port);
   });
-}
-else {
+} else {
   net.createServer(common.fail).listen(0);
 }
