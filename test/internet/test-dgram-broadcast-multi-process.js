@@ -96,8 +96,7 @@ if (process.argv[2] !== 'child') {
             //all child process are listening, so start sending
             sendSocket.sendNext();
           }
-        }
-        else if (msg.message) {
+        } else if (msg.message) {
           worker.messagesReceived.push(msg.message);
 
           if (worker.messagesReceived.length === messages.length) {

@@ -64,8 +64,7 @@ if (!id) {
   process.on('exit', function() {
     assert(ok);
   });
-}
-else if (id === 'one') {
+} else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
   http.createServer(common.fail).listen(common.PORT, function() {
@@ -75,8 +74,7 @@ else if (id === 'one') {
   process.on('message', function(m) {
     if (m === 'QUIT') process.exit();
   });
-}
-else if (id === 'two') {
+} else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
   let ok = false;
@@ -96,8 +94,7 @@ else if (id === 'two') {
       ok = true;
     });
   });
-}
-else {
+} else {
   assert(0); // bad command line argument
 }
 

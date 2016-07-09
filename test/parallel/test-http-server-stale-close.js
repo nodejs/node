@@ -13,8 +13,7 @@ if (process.env.NODE_TEST_FORK_PORT) {
   }, process.exit);
   req.write('BAM');
   req.end();
-}
-else {
+} else {
   var server = http.createServer(function(req, res) {
     res.writeHead(200, {'Content-Length': '42'});
     req.pipe(res);
