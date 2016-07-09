@@ -6044,60 +6044,34 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<AllocationSite> site;
   Handle<LiteralsArray> literals(environment()->closure()->literals(),
                                  isolate());
-  bool uninitialized = false;
   Handle<Object> literals_cell(literals->literal(expr->literal_index()),
                                isolate());
   Handle<JSObject> boilerplate_object;
-  if (literals_cell->IsUndefined()) {
-    uninitialized = true;
-    Handle<Object> raw_boilerplate;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate(), raw_boilerplate,
-        Runtime::CreateArrayLiteralBoilerplate(
-            isolate(), literals, expr->constant_elements(),
-            is_strong(function_language_mode())),
-        Bailout(kArrayBoilerplateCreationFailed));
-
-    boilerplate_object = Handle<JSObject>::cast(raw_boilerplate);
-    AllocationSiteCreationContext creation_context(isolate());
-    site = creation_context.EnterNewScope();
-    if (JSObject::DeepWalk(boilerplate_object, &creation_context).is_null()) {
-      return Bailout(kArrayBoilerplateCreationFailed);
-    }
-    creation_context.ExitScope(site, boilerplate_object);
-    literals->set_literal(expr->literal_index(), *site);
-
-    if (boilerplate_object->elements()->map() ==
-        isolate()->heap()->fixed_cow_array_map()) {
-      isolate()->counters()->cow_arrays_created_runtime()->Increment();
-    }
-  } else {
+  if (!literals_cell->IsUndefined()) {
     DCHECK(literals_cell->IsAllocationSite());
     site = Handle<AllocationSite>::cast(literals_cell);
     boilerplate_object = Handle<JSObject>(
         JSObject::cast(site->transition_info()), isolate());
   }
 
-  DCHECK(!boilerplate_object.is_null());
-  DCHECK(site->SitePointsToLiteral());
-
-  ElementsKind boilerplate_elements_kind =
-      boilerplate_object->GetElementsKind();
+  ElementsKind boilerplate_elements_kind = expr->constant_elements_kind();
+  if (!boilerplate_object.is_null()) {
+    boilerplate_elements_kind = boilerplate_object->GetElementsKind();
+  }
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
-  if (IsFastLiteral(boilerplate_object,
-                    kMaxFastLiteralDepth,
+  if (!boilerplate_object.is_null() &&
+      IsFastLiteral(boilerplate_object, kMaxFastLiteralDepth,
                     &max_properties)) {
+    DCHECK(site->SitePointsToLiteral());
     AllocationSiteUsageContext site_context(isolate(), site, false);
     site_context.EnterNewScope();
     literal = BuildFastLiteral(boilerplate_object, &site_context);
     site_context.ExitScope(site, boilerplate_object);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    // Boilerplate already exists and constant elements are never accessed,
-    // pass an empty fixed array to the runtime function instead.
-    Handle<FixedArray> constants = isolate()->factory()->empty_fixed_array();
+    Handle<FixedArray> constants = expr->constant_elements();
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
 
@@ -6108,7 +6082,9 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     literal = Add<HCallRuntime>(Runtime::FunctionForId(function_id), 4);
 
     // Register to deopt if the boilerplate ElementsKind changes.
-    top_info()->dependencies()->AssumeTransitionStable(site);
+    if (!site.is_null()) {
+      top_info()->dependencies()->AssumeTransitionStable(site);
+    }
   }
 
   // The array is expected in the bailout environment during computation
@@ -6140,9 +6116,8 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS: {
-        HStoreKeyed* instr = Add<HStoreKeyed>(elements, key, value, nullptr,
-                                              boilerplate_elements_kind);
-        instr->SetUninitialized(uninitialized);
+        Add<HStoreKeyed>(elements, key, value, nullptr,
+                         boilerplate_elements_kind);
         break;
       }
       default:
