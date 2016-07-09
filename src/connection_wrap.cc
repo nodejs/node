@@ -37,7 +37,7 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
   };
 
   if (status == 0) {
-    // Instanciate the client javascript object and handle.
+    // Instantiate the client javascript object and handle.
     Local<Object> client_obj = WrapType::Instantiate(env, wrap_data);
 
     // Unwrap the client javascript object.
