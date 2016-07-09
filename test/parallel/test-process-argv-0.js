@@ -16,7 +16,6 @@ if (process.argv[2] !== 'child') {
   process.on('exit', function() {
     assert.equal(childArgv0, process.execPath);
   });
-}
-else {
+} else {
   process.stdout.write(process.argv[0]);
 }
