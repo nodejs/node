@@ -13,7 +13,7 @@
 namespace node {
 
 inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
-    : handle_(env->isolate(), handle),
+    : objecthandle_(env->isolate(), handle),
       env_(env) {
   CHECK_EQ(false, handle.IsEmpty());
   // The zero field holds a pointer to the handle. Immediately set it to
@@ -24,17 +24,17 @@ inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
 
 
 inline BaseObject::~BaseObject() {
-  CHECK(handle_.IsEmpty());
+  CHECK(objecthandle_.IsEmpty());
 }
 
 
 inline v8::Persistent<v8::Object>& BaseObject::persistent() {
-  return handle_;
+  return objecthandle_;
 }
 
 
 inline v8::Local<v8::Object> BaseObject::object() {
-  return PersistentToLocal(env_->isolate(), handle_);
+  return PersistentToLocal(env_->isolate(), objecthandle_);
 }
 
 
@@ -58,14 +58,14 @@ inline void BaseObject::MakeWeak(Type* ptr) {
   v8::Local<v8::Object> handle = object();
   CHECK_GT(handle->InternalFieldCount(), 0);
   Wrap(handle, ptr);
-  handle_.MarkIndependent();
-  handle_.SetWeak<Type>(ptr, WeakCallback<Type>,
+  objecthandle_.MarkIndependent();
+  objecthandle_.SetWeak<Type>(ptr, WeakCallback<Type>,
                         v8::WeakCallbackType::kParameter);
 }
 
 
 inline void BaseObject::ClearWeak() {
-  handle_.ClearWeak();
+  objecthandle_.ClearWeak();
 }
 
 }  // namespace node

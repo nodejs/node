@@ -44,7 +44,7 @@ class BaseObject {
   static inline void WeakCallback(
       const v8::WeakCallbackInfo<Type>& data);
 
-  v8::Persistent<v8::Object> handle_;
+  v8::Persistent<v8::Object> objecthandle_;
   Environment* env_;
 };
 
