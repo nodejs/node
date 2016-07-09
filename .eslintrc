@@ -54,6 +54,7 @@ rules:
 
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
+  brace-style: [2, "1tbs", {allowSingleLine: true}]
   comma-spacing: 2
   eol-last: 2
   indent: [2, 2, {SwitchCase: 1}]
