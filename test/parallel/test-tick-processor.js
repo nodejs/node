@@ -1,5 +1,6 @@
 'use strict';
 var fs = require('fs');
+var path = require('path');
 var assert = require('assert');
 var cp = require('child_process');
 var common = require('../common');
@@ -18,7 +19,7 @@ common.refreshTmpDir();
 process.chdir(common.tmpDir);
 // Unknown checked for to prevent flakiness, if pattern is not found,
 // then a large number of unknown ticks should be present
-runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
+runTest(/LazyCompile.*test.js:1|.*%  UNKNOWN/,
         `function f() {
            for (var i = 0; i < 1000000; i++) {
              i++;
@@ -44,7 +45,9 @@ runTest(/RunInDebugContext/,
          f();`);
 
 function runTest(pattern, code) {
-  cp.execFileSync(process.execPath, ['-prof', '-pe', code]);
+  var testCodePath = path.join(common.tmpDir, "test.js");
+  fs.writeFileSync(testCodePath, code);
+  cp.execSync(process.execPath + ' -prof ' + testCodePath);
   var matches = fs.readdirSync(common.tmpDir).filter(function(file) {
     return /^isolate-/.test(file);
   });
@@ -57,4 +60,5 @@ function runTest(pattern, code) {
                         {encoding: 'utf8'});
   assert(pattern.test(out));
   fs.unlinkSync(log);
+  fs.unlinkSync(testCodePath);
 }
