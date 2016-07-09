@@ -1954,12 +1954,9 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: http://www.linux.org/threads/intro-to-inodes.4130
 [FS Constants]: #fs_fs_constants
-<<<<<<< HEAD
 [`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
 [`FSEvents`]: https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/FSEvents_ProgGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005289-CH1-SW1
 [`event ports`]: http://illumos.org/man/port_create
 [`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
-=======
->>>>>>> dcccbfd... src: refactor require('constants')
