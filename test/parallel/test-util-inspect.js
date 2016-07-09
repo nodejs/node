@@ -333,6 +333,7 @@ test_lines({
 
 // test boxed primitives output the correct values
 assert.equal(util.inspect(new String('test')), '[String: \'test\']');
+assert.equal(util.inspect(Object(Symbol('test'))), '[Symbol: Symbol(test)]');
 assert.equal(util.inspect(new Boolean(false)), '[Boolean: false]');
 assert.equal(util.inspect(new Boolean(true)), '[Boolean: true]');
 assert.equal(util.inspect(new Number(0)), '[Number: 0]');
