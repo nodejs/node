@@ -28,7 +28,7 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // We should not be getting this callback if someone as already called
+  // We should not be getting this callback if someone has already called
   // uv_close() on the handle.
   CHECK_EQ(wrap_data->persistent().IsEmpty(), false);
 
