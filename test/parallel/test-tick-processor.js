@@ -64,6 +64,5 @@ function runTest(pattern, code) {
                         ' --prof-process --call-graph-size=10 ' + log,
                         {encoding: 'utf8'});
   assert(pattern.test(out));
-  //fs.unlinkSync(log);
-  fs.unlinkSync(testCodePath);
+  fs.unlinkSync(log);
 }
