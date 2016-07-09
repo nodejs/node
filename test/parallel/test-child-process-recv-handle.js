@@ -49,14 +49,12 @@ function worker() {
     if (n === 1) {
       assert.equal(msg, 'one');
       assert.equal(handle, undefined);
-    }
-    else if (n === 2) {
+    } else if (n === 2) {
       assert.equal(msg, 'two');
       assert.equal(typeof handle, 'object');  // Also matches null, therefore...
       assert.ok(handle);                      // also check that it's truthy.
       handle.close();
-    }
-    else if (n === 3) {
+    } else if (n === 3) {
       assert.equal(msg, 'three');
       assert.equal(handle, undefined);
       process.exit();

@@ -362,8 +362,7 @@ for (var i in TEST_CASES) {
   (function() {
     if (!test.password) return;
     if (common.hasFipsCrypto) {
-      assert.throws(function()
-                    { crypto.createCipher(test.algo, test.password); },
+      assert.throws(() => { crypto.createCipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
     } else {
       var encrypt = crypto.createCipher(test.algo, test.password);
@@ -383,8 +382,7 @@ for (var i in TEST_CASES) {
   (function() {
     if (!test.password) return;
     if (common.hasFipsCrypto) {
-      assert.throws(function()
-                    { crypto.createDecipher(test.algo, test.password); },
+      assert.throws(() => { crypto.createDecipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
     } else {
       var decrypt = crypto.createDecipher(test.algo, test.password);
@@ -415,9 +413,9 @@ for (var i in TEST_CASES) {
       'ipxp9a6i1Mb4USb4', '6fKjEjR3Vl30EUYC');
     encrypt.update('blah', 'ascii');
     encrypt.final();
-    assert.throws(function() { encrypt.getAuthTag(); }, / state/);
-    assert.throws(function() {
-      encrypt.setAAD(new Buffer('123', 'ascii')); }, / state/);
+    assert.throws(() => { encrypt.getAuthTag(); }, / state/);
+    assert.throws(() => { encrypt.setAAD(Buffer.from('123', 'ascii')); },
+                  / state/);
   })();
 
   (function() {
@@ -431,9 +429,9 @@ for (var i in TEST_CASES) {
   (function() {
     // trying to set tag on encryption object:
     var encrypt = crypto.createCipheriv(test.algo,
-      new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
-    assert.throws(function() {
-      encrypt.setAuthTag(new Buffer(test.tag, 'hex')); }, / state/);
+      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+    assert.throws(() => { encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); },
+                  / state/);
   })();
 
   (function() {

@@ -53,8 +53,7 @@ function asynctest(testBlock, args, callback, assertBlock) {
     if (assertBlock) {
       try {
         ignoreError = assertBlock.apply(assertBlock, arguments);
-      }
-      catch (e) {
+      } catch (e) {
         err = e;
       }
     }

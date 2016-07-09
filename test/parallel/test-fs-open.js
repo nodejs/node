@@ -8,8 +8,7 @@ try {
   // should throw ENOENT, not EBADF
   // see https://github.com/joyent/node/pull/1228
   fs.openSync('/path/to/file/that/does/not/exist', 'r');
-}
-catch (e) {
+} catch (e) {
   assert.equal(e.code, 'ENOENT');
   caughtException = true;
 }

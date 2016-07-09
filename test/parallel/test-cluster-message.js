@@ -40,9 +40,7 @@ if (cluster.isWorker) {
   });
 
   server.listen(common.PORT, '127.0.0.1');
-}
-
-else if (cluster.isMaster) {
+} else if (cluster.isMaster) {
 
   var checks = {
     global: {

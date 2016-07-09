@@ -20,8 +20,7 @@ if (cluster.isMaster) {
   cluster.fork().on('exit', common.mustCall(function(exitCode) {
     assert.equal(exitCode, 0);
   }));
-}
-else {
+} else {
   var s = net.createServer(common.fail);
   s.listen(42, common.fail.bind(null, 'listen should have failed'));
   s.on('error', common.mustCall(function(err) {
