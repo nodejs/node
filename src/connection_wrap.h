@@ -8,7 +8,7 @@
 
 namespace node {
 
-template<typename WrapType, typename UVType>
+template <typename WrapType, typename UVType>
 class ConnectionWrap {
  public:
   UVType* UVHandle() {

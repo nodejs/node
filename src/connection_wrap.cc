@@ -17,7 +17,7 @@ using v8::Object;
 using v8::Value;
 
 
-template<typename WrapType, typename UVType>
+template <typename WrapType, typename UVType>
 void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
                                                     int status) {
   WrapType* wrap_data = static_cast<WrapType*>(handle->data);
