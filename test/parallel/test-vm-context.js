@@ -32,8 +32,7 @@ console.error('test runInContext signature');
 var gh1140Exception;
 try {
   vm.runInContext('throw new Error()', context, 'expected-filename.js');
-}
-catch (e) {
+} catch (e) {
   gh1140Exception = e;
   assert.ok(/expected-filename/.test(e.stack),
             'expected appearance of filename in Error stack');
