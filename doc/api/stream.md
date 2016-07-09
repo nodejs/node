@@ -378,7 +378,7 @@ If the `writable.cork()` method is called multiple times on a stream, the same
 number of calls to `writable.uncork()` must be called to flush the buffered
 data.
 
-```
+```js
 stream.cork();
 stream.write('some ');
 stream.cork();
@@ -408,7 +408,7 @@ first argument. To reliably detect write errors, add a listener for the
 The return value indicates whether the written `chunk` was buffered internally
 and the buffer has exceeded the `highWaterMark` configured when the stream was
 created. If `false` is returned, further attempts to write data to the stream
-should be paused until the `'drain'` event is emitted.
+should be paused until the [`'drain'`][] event is emitted.
 
 A Writable stream in object mode will always ignore the `encoding` argument.
 
@@ -622,7 +622,7 @@ rr.on('end', () => {
 
 The output of running this script is:
 
-```
+```txt
 $ node test.js
 readable: null
 end
@@ -1175,7 +1175,7 @@ write succeeded.
 It is important to note that all calls to `writable.write()` that occur between
 the time `writable._write()` is called and the `callback` is called will cause
 the written data to be buffered. Once the `callback` is invoked, the stream will
-emit a `'drain'` event. If a stream implementation is capable of processing
+emit a [`'drain'`][] event. If a stream implementation is capable of processing
 multiple chunks of data at once, the `writable._writev()` method should be
 implemented.
 
@@ -1881,7 +1881,6 @@ readable buffer so there is nothing for a user to consume.
 [`'end'`]: #stream_event_end
 [`'finish'`]: #stream_event_finish
 [`'readable'`]: #stream_event_readable
-[`buf.toString(encoding)`]: buffer.html#buffer_buf_tostring_encoding_start_end
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
@@ -1891,7 +1890,6 @@ readable buffer so there is nothing for a user to consume.
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
-[`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementers]: #stream_api_for_stream_implementers
 [child process stdin]: child_process.html#child_process_child_stdin
@@ -1908,9 +1906,7 @@ readable buffer so there is nothing for a user to consume.
 [HTTP requests, on the client]: http.html#http_class_http_clientrequest
 [HTTP responses, on the server]: http.html#http_class_http_serverresponse
 [http-incoming-message]: http.html#http_class_http_incomingmessage
-[Object mode]: #stream_object_mode
 [Readable]: #stream_class_stream_readable
-[SimpleProtocol v2]: #stream_example_simpleprotocol_parser_v2
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback

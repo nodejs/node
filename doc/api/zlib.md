@@ -148,7 +148,7 @@ From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
-```
+```js
 (1 << (windowBits+2)) +  (1 << (memLevel+9))
 ```
 
@@ -158,7 +158,7 @@ That is: 128K for windowBits=15  +  128K for memLevel = 8
 For example, to reduce the default memory requirements from 256K to 128K, the
 options shoud be set to:
 
-```
+```js
 { windowBits: 14, memLevel: 7 }
 ```
 
@@ -166,7 +166,7 @@ This will, however, generally degrade compression.
 
 The memory requirements for inflate are (in bytes)
 
-```
+```js
 1 << windowBits
 ```
 
@@ -386,7 +386,7 @@ added: v0.7.0
 
 ## zlib.constants
 
-Provides an object enumerating Zlib-related [constants][].
+Provides an object enumerating Zlib-related constants.
 
 Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
@@ -542,4 +542,3 @@ Decompress a Buffer or string with Unzip.
 [Unzip]: #zlib_class_zlib_unzip
 [`.flush()`]: #zlib_zlib_flush_kind_callback
 [Buffer]: buffer.html
-[constants]: #constants_constants

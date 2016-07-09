@@ -19,7 +19,7 @@ Private keys can be generated in multiple ways. The example below illustrates
 use of the OpenSSL command-line interface to generate a 2048-bit RSA private
 key:
 
-```
+```sh
 openssl genrsa -out ryans-key.pem 2048
 ```
 
@@ -33,7 +33,7 @@ step to obtaining a certificate is to create a *Certificate Signing Request*
 The OpenSSL command-line interface can be used to generate a CSR for a private
 key:
 
-```
+```sh
 openssl req -new -sha256 -key ryans-key.pem -out ryans-csr.pem
 ```
 
@@ -43,14 +43,14 @@ Authority for signing or used to generate a self-signed certificate.
 Creating a self-signed certificate using the OpenSSL command-line interface
 is illustrated in the example below:
 
-```
+```sh
 openssl x509 -req -in ryans-csr.pem -signkey ryans-key.pem -out ryans-cert.pem
 ```
 
 Once the certificate is generated, it can be used to generate a `.pfx` or
 `.p12` file:
 
-```
+```sh
 openssl pkcs12 -export -in ryans-cert.pem -inkey ryans-key.pem \
       -certfile ca-cert.pem -out ryans.pfx
 ```
@@ -92,7 +92,7 @@ To use Perfect Forward Secrecy using `DHE` with the `tls` module, it is required
 to generate Diffie-Hellman parameters. The following illustrates the use of the
 OpenSSL command-line interface to generate such parameters:
 
-```
+```sh
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
@@ -147,7 +147,7 @@ command-line client (`openssl s_client -connect address:port`) then input
 Node.js is built with a default suite of enabled and disabled TLS ciphers.
 Currently, the default cipher suite is:
 
-```
+```txt
 ECDHE-RSA-AES128-GCM-SHA256:
 ECDHE-ECDSA-AES128-GCM-SHA256:
 ECDHE-RSA-AES256-GCM-SHA384:
@@ -175,7 +175,7 @@ This default can be replaced entirely using the `--tls-cipher-list` command
 line switch. For instance, the following makes
 `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS cipher suite:
 
-```
+```sh
 node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
 ```
 
@@ -1128,7 +1128,7 @@ server.listen(8000, () => {
 
 This server can be tested by connecting to it using `openssl s_client`:
 
-```
+```sh
 openssl s_client -connect 127.0.0.1:8000
 ```
 
@@ -1176,7 +1176,7 @@ deprecated: v0.11.3
 
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
-Returned by `tls.createSecurePair()`.
+Returned by [`tls.createSecurePair()`][].
 
 #### Event: 'secure'
 <!-- YAML
@@ -1255,7 +1255,6 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
@@ -1270,7 +1269,6 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [tls.Server]: #tls_class_tls_server
 [SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
-[RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
