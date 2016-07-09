@@ -5,8 +5,7 @@ var cluster = require('cluster');
 
 if (!cluster.isMaster) {
   process.exit(42);
-}
-else {
+} else {
   var seenExit = 0;
   var seenDeath = 0;
   var worker = cluster.fork();

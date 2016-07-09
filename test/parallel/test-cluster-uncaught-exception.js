@@ -23,8 +23,7 @@ if (isTestRunner) {
   master.on('exit', function(code) {
     exitCode = code;
   });
-}
-else if (cluster.isMaster) {
+} else if (cluster.isMaster) {
   process.on('uncaughtException', function() {
     process.nextTick(function() {
       process.exit(MAGIC_EXIT_CODE);
@@ -33,7 +32,6 @@ else if (cluster.isMaster) {
 
   cluster.fork();
   throw new Error('kill master');
-}
-else { // worker
+} else { // worker
   process.exit();
 }

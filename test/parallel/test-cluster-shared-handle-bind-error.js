@@ -16,8 +16,7 @@ if (cluster.isMaster) {
       server.close();
     }));
   });
-}
-else {
+} else {
   var s = net.createServer(common.fail);
   s.listen(common.PORT, common.fail.bind(null, 'listen should have failed'));
   s.on('error', common.mustCall(function(err) {
