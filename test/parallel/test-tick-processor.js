@@ -6,7 +6,8 @@ var cp = require('child_process');
 var common = require('../common');
 
 //This test is designed test correctness of the integration of the V8
-//tick processor with Node.js. (https://developers.google.com/v8/profiler_example)
+//tick processor with Node.js.
+//(https://developers.google.com/v8/profiler_example)
 //It is designed to test that the names of profiled functions appear in
 //profiler output (as an approximation to profiler correctness)
 
@@ -50,7 +51,7 @@ runTest(/RunInDebugContext/,
          profiled_function();`);
 
 function runTest(pattern, code) {
-  var testCodePath = path.join(common.tmpDir, "test.js");
+  var testCodePath = path.join(common.tmpDir, 'test.js');
   fs.writeFileSync(testCodePath, code);
   cp.execSync(process.execPath + ' -prof ' + testCodePath);
   var matches = fs.readdirSync(common.tmpDir).filter(function(file) {
