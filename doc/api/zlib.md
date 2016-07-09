@@ -9,7 +9,7 @@ Deflate/Inflate. It can be accessed using:
 const zlib = require('zlib');
 ```
 
-Compressing or decompressing a stream (such as a file) can be accomplished by 
+Compressing or decompressing a stream (such as a file) can be accomplished by
 piping the source stream data through a `zlib` stream into a destination stream:
 
 ```js
@@ -46,12 +46,12 @@ zlib.unzip(buffer, (err, buffer) => {
 ## Compressing HTTP requests and responses
 
 The `zlib` module can be used to implement support for the `gzip` and `deflate`
-content-encoding mechanisms defined by 
+content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
 The HTTP [`Accept-Encoding`][] header is used within an http request to identify
-the compression encodings accepted by the client. The [`Content-Encoding`][] 
-header is used to identify the compression encodings actually applied to a 
+the compression encodings accepted by the client. The [`Content-Encoding`][]
+header is used to identify the compression encodings actually applied to a
 message.
 
 **Note: the examples given below are drastically simplified to show
@@ -146,7 +146,7 @@ From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
-```
+```js
 (1 << (windowBits+2)) +  (1 << (memLevel+9))
 ```
 
@@ -156,7 +156,7 @@ That is: 128K for windowBits=15  +  128K for memLevel = 8
 For example, to reduce the default memory requirements from 256K to 128K, the
 options shoud be set to:
 
-```
+```js
 { windowBits: 14, memLevel: 7 }
 ```
 
@@ -164,7 +164,7 @@ This will, however, generally degrade compression.
 
 The memory requirements for inflate are (in bytes)
 
-```
+```js
 1 << windowBits
 ```
 
@@ -222,8 +222,8 @@ added: v0.5.8
 <!--type=misc-->
 
 All of the constants defined in `zlib.h` are also defined on `require('zlib')`.
-In the normal course of operations, it will not be necessary to use these 
-constants. They are documented so that their presence is not surprising. This 
+In the normal course of operations, it will not be necessary to use these
+constants. They are documented so that their presence is not surprising. This
 section is taken almost directly from the [zlib documentation][].  See
 <http://zlib.net/manual.html#Constants> for more details.
 
@@ -387,6 +387,10 @@ added: v0.7.0
 Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
 
+## zlib.constants
+
+Provides an object enumerating Zlib-related constants.
+
 ## zlib.createDeflate([options])
 <!-- YAML
 added: v0.5.8
@@ -440,8 +444,8 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional 
-second argument to supply options to the `zlib` classes and will call the 
+All of these take a [Buffer][] or string as the first argument, an optional
+second argument to supply options to the `zlib` classes and will call the
 supplied callback with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but

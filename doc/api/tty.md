@@ -17,7 +17,7 @@ default be instances of `tty.WriteStream`. The preferred method of determining
 whether Node.js is being run within a TTY context is to check that the value of
 the `process.stdout.isTTY` property is `true`:
 
-```
+```sh
 $ node -p -e "Boolean(process.stdout.isTTY)"
 true
 $ node -p -e "Boolean(process.stdout.isTTY)" | cat
@@ -106,5 +106,3 @@ added: v0.5.8
 
 The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if is not.
-
-[tty.ReadStream#setRawMode]: #tty_readstream_setrawmode_mode

@@ -324,7 +324,7 @@ replServer.defineCommand('saybye', function() {
 
 The new commands can then be used from within the REPL instance:
 
-```
+```txt
 > .sayhello Node.js User
 Hello, Node.js User!
 > .saybye
@@ -524,8 +524,6 @@ For an example of running a REPL instance over `curl(1)`,
 see: https://gist.github.com/2053342
 
 [stream]: stream.html
-[`readline.prompt`]: readline.html#readline_rl_prompt_preservecursor
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[here]: util.html#util_custom_inspect_function_on_objects
 [`readline.Interface`]: readline.html#readline_class_interface
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function

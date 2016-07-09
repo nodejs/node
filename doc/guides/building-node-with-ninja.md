@@ -9,7 +9,7 @@ To build Node with ninja, there are 3 steps that must be taken:
 3. Lastly, make symlink to `./node` using `ln -fs out/Release/node node`.
 
 When running `ninja -C out/Release` you will see output similar to the following if the build has succeeded:
-```
+```txt
 ninja: Entering directory `out/Release`
 [4/4] LINK node, POSTBUILDS
 ```

@@ -6,7 +6,7 @@ prior knowledge of those topics is required. Readers are assumed to have a
 basic understanding of the JavaScript language and Node.js callback pattern.
 
 > "I/O" refers primarily to interaction with the system's disk and
-network supported by [libuv](http://libuv.org/).
+> network supported by [libuv](http://libuv.org/).
 
 
 ## Blocking
