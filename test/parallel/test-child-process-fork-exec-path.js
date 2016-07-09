@@ -12,13 +12,11 @@ if (process.env.FORK) {
   assert.equal(process.argv[0], copyPath);
   process.send(msg);
   process.exit();
-}
-else {
+} else {
   common.refreshTmpDir();
   try {
     fs.unlinkSync(copyPath);
-  }
-  catch (e) {
+  } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
   fs.writeFileSync(copyPath, fs.readFileSync(nodePath));

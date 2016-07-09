@@ -1,6 +1,5 @@
 'use strict';
-if (process.argv[2] === 'child')
-{
+if (process.argv[2] === 'child') {
   const len = +process.argv[3];
   const msg = `"${'.'.repeat(len)}"`;
   while (true) {

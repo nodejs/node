@@ -42,14 +42,18 @@ assert.throws(function() { process.cpuUsage({ user: null, system: 'c' }); });
 assert.throws(function() { process.cpuUsage({ user: 'd', system: null }); });
 assert.throws(function() { process.cpuUsage({ user: -1, system: 2 }); });
 assert.throws(function() { process.cpuUsage({ user: 3, system: -2 }); });
-assert.throws(function() { process.cpuUsage({
-  user: Number.POSITIVE_INFINITY,
-  system: 4
-});});
-assert.throws(function() { process.cpuUsage({
-  user: 5,
-  system: Number.NEGATIVE_INFINITY
-});});
+assert.throws(function() {
+  process.cpuUsage({
+    user: Number.POSITIVE_INFINITY,
+    system: 4
+  });
+});
+assert.throws(function() {
+  process.cpuUsage({
+    user: 5,
+    system: Number.NEGATIVE_INFINITY
+  });
+});
 
 // Ensure that the return value is the expected shape.
 function validateResult(result) {
