@@ -202,7 +202,7 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                           \
     CHECK_EQ(args.Length(), 1);                                               \
     int flag = args[0]->Int32Value();                                         \
-    int err = wrap == nullptr ? UV_EBADF : fn(&wrap->handle_, flag);        \
+    int err = wrap == nullptr ? UV_EBADF : fn(&wrap->handle_, flag);          \
     args.GetReturnValue().Set(err);                                           \
   }
 
