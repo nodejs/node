@@ -21,6 +21,7 @@ template <typename WrapType, typename UVType>
 void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
                                                     int status) {
   WrapType* wrap_data = static_cast<WrapType*>(handle->data);
+  CHECK_NE(wrap_data, nullptr);
   CHECK_EQ(&wrap_data->handle_, reinterpret_cast<UVType*>(handle));
 
   Environment* env = wrap_data->env();
