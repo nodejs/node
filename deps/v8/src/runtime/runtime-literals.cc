@@ -138,7 +138,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
 }
 
 
-MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
+static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
     Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> elements, bool is_strong) {
   // Create the JSArray.
@@ -225,8 +225,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
       return CreateObjectLiteralBoilerplate(isolate, literals, elements, false,
                                             kHasNoFunctionLiteral, is_strong);
     case CompileTimeValue::ARRAY_LITERAL:
-      return Runtime::CreateArrayLiteralBoilerplate(isolate, literals,
-                                                    elements, is_strong);
+      return CreateArrayLiteralBoilerplate(isolate, literals,
+                                           elements, is_strong);
     default:
       UNREACHABLE();
       return MaybeHandle<Object>();
@@ -318,8 +318,7 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
     Handle<Object> boilerplate;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, boilerplate,
-        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements,
-                                               is_strong),
+        CreateArrayLiteralBoilerplate(isolate, literals, elements, is_strong),
         AllocationSite);
 
     AllocationSiteCreationContext creation_context(isolate);
