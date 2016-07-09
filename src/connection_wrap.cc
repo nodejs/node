@@ -60,11 +60,6 @@ template void ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection(
 template void ConnectionWrap<TCPWrap, uv_tcp_t>::OnConnection(
     uv_stream_t* handle, int status);
 
-template<typename WrapType, typename UVType>
-UVType* ConnectionWrap<WrapType, UVType>::UVHandle() {
-  return &uvhandle_;
-}
-
 template uv_pipe_t* ConnectionWrap<PipeWrap, uv_pipe_t>::UVHandle();
 
 template uv_tcp_t* ConnectionWrap<TCPWrap, uv_tcp_t>::UVHandle();
