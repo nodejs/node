@@ -342,7 +342,8 @@ goto jslint
 :jslint
 if not defined jslint goto exit
 echo running jslint
-%config%\node tools\eslint\bin\eslint.js benchmark lib src test tools\doc tools\eslint-rules --rulesdir tools\eslint-rules
+<<<<<<< d1e2db2a13ddc9fb2f8cd1400b52656910d7374f
+%config%\node tools\eslint\bin\eslint.js benchmark lib src test tools --rulesdir tools\eslint-rules
 goto exit
 
 :create-msvs-files-failed
