@@ -1,7 +1,8 @@
+'use strict';
 
 var assert = require('assert'),
-    Stream = require('stream'),
-    inherits = require('util').inherits;
+  Stream = require('stream'),
+  inherits = require('util').inherits;
 
 
 /*
@@ -9,7 +10,7 @@ var assert = require('assert'),
  */
 function LineSplitter() {
   var self = this,
-      buffer = "";
+    buffer = '';
 
   Stream.call(this);
   this.writable = true;
@@ -39,32 +40,30 @@ inherits(LineSplitter, Stream);
  */
 function ParagraphParser() {
   var self = this,
-      block_is_license_block = false,
-      block_has_c_style_comment,
-      is_first_line_in_paragraph,
-      paragraph_line_indent,
-      paragraph;
+    block_is_license_block = false,
+    block_has_c_style_comment,
+    paragraph_line_indent,
+    paragraph;
 
-   Stream.call(this);
-   this.writable = true;
+  Stream.call(this);
+  this.writable = true;
 
-   resetBlock(false);
+  resetBlock(false);
 
-   this.write = function(data) {
-     parseLine(data + '');
-     return true;
-   };
+  this.write = function(data) {
+    parseLine(data + '');
+    return true;
+  };
 
-   this.end = function(data) {
-     if (data) {
-       parseLine(data + '');
-     }
-     flushParagraph();
-     self.emit('end');
-   };
+  this.end = function(data) {
+    if (data) {
+      parseLine(data + '');
+    }
+    flushParagraph();
+    self.emit('end');
+  };
 
   function resetParagraph() {
-    is_first_line_in_paragraph = true;
     paragraph_line_indent = -1;
 
     paragraph = {
@@ -165,8 +164,6 @@ function ParagraphParser() {
 
     if (line)
       paragraph.lines.push(line);
-
-    is_first_line_in_paragraph = false;
   }
 }
 inherits(ParagraphParser, Stream);
@@ -185,15 +182,15 @@ function Unwrapper() {
 
   this.write = function(paragraph) {
     var lines = paragraph.lines,
-        break_after = [],
-        i;
+      break_after = [],
+      i;
 
     for (i = 0; i < lines.length - 1; i++) {
       var line = lines[i];
 
       // When a line is really short, the line was probably kept separate for a
       // reason.
-      if (line.length < 50)  {
+      if (line.length < 50) {
         // If the first word on the next line really didn't fit after the line,
         // it probably was just ordinary wrapping after all.
         var next_first_word_length = lines[i + 1].replace(/\s.*$/, '').length;
@@ -203,7 +200,7 @@ function Unwrapper() {
       }
     }
 
-    for (i = 0; i < lines.length - 1; ) {
+    for (i = 0; i < lines.length - 1;) {
       if (!break_after[i]) {
         lines[i] += ' ' + lines.splice(i + 1, 1)[0];
       } else {
@@ -234,7 +231,7 @@ inherits(Unwrapper, Stream);
  */
 function RtfGenerator() {
   var self = this,
-      did_write_anything = false;
+    did_write_anything = false;
 
   Stream.call(this);
   this.writable = true;
@@ -246,10 +243,10 @@ function RtfGenerator() {
     }
 
     var li = paragraph.li,
-        level = paragraph.level + (li ? 1 : 0),
-        lic = paragraph.in_license_block;
+      level = paragraph.level + (li ? 1 : 0),
+      lic = paragraph.in_license_block;
 
-    var rtf = "\\pard";
+    var rtf = '\\pard';
     rtf += '\\sa150\\sl300\\slmult1';
     if (level > 0)
       rtf += '\\li' + (level * 240);
@@ -290,18 +287,19 @@ function RtfGenerator() {
   function rtfEscape(string) {
     return string
       .replace(/[\\\{\}]/g, function(m) {
-       return '\\' + m;
+        return '\\' + m;
       })
       .replace(/\t/g, function() {
         return '\\tab ';
       })
+      // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
         return '\\\'' + toHex(m.charCodeAt(0), 2);
       })
       .replace(/\ufeff/g, '')
       .replace(/[\u0100-\uffff]/g, function(m) {
         return '\\u' + toHex(m.charCodeAt(0), 4) + '?';
-     });
+      });
   }
 
   function emitHeader() {
@@ -318,11 +316,11 @@ inherits(RtfGenerator, Stream);
 
 
 var stdin = process.stdin,
-    stdout = process.stdout,
-    line_splitter = new LineSplitter(),
-    paragraph_parser = new ParagraphParser(),
-    unwrapper = new Unwrapper(),
-    rtf_generator = new RtfGenerator();
+  stdout = process.stdout,
+  line_splitter = new LineSplitter(),
+  paragraph_parser = new ParagraphParser(),
+  unwrapper = new Unwrapper(),
+  rtf_generator = new RtfGenerator();
 
 stdin.setEncoding('utf-8');
 stdin.resume();
