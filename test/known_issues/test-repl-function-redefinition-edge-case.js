@@ -15,7 +15,7 @@ r.input.emit('data', '.exit');
 
 const expected = '1\n[Function a]\n';
 const got = r.output.accumulator.join('');
-assert.equal(got, expected);
+assert.strictEqual(got, expected);
 
 function initRepl() {
   const input = new stream();
@@ -36,5 +36,3 @@ function initRepl() {
     prompt: ''
   });
 }
-
-
