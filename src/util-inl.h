@@ -200,9 +200,47 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   return static_cast<TypeName*>(pointer);
 }
 
-void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
-  for (size_t i = 0; i < buflen; i += 1)
-    dst[i] = (src[i] << 8) | (src[i] >> 8);
+void SwapBytes16(char* dst, const char* src, size_t size) {
+  for (size_t i = 0; i < size; i += 2) {
+    char a = src[i + 0];
+    char b = src[i + 1];
+    dst[i + 0] = b;
+    dst[i + 1] = a;
+  }
+}
+
+void SwapBytes32(char* dst, const char* src, size_t size) {
+  for (size_t i = 0; i < size; i += 4) {
+    char a = src[i + 0];
+    char b = src[i + 1];
+    char c = src[i + 2];
+    char d = src[i + 3];
+    dst[i + 0] = d;
+    dst[i + 1] = c;
+    dst[i + 2] = b;
+    dst[i + 3] = a;
+  }
+}
+
+void SwapBytes64(char* dst, const char* src, size_t size) {
+  for (size_t i = 0; i < size; i += 8) {
+    char a = src[i + 0];
+    char b = src[i + 1];
+    char c = src[i + 2];
+    char d = src[i + 3];
+    char e = src[i + 4];
+    char f = src[i + 5];
+    char g = src[i + 6];
+    char h = src[i + 7];
+    dst[i + 0] = h;
+    dst[i + 1] = g;
+    dst[i + 2] = f;
+    dst[i + 3] = e;
+    dst[i + 4] = d;
+    dst[i + 5] = c;
+    dst[i + 6] = b;
+    dst[i + 7] = a;
+  }
 }
 
 char ToLower(char c) {

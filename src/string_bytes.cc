@@ -299,27 +299,13 @@ size_t StringBytes::Write(Isolate* isolate,
       if (chars_written != nullptr)
         *chars_written = nchars;
 
-      if (!IsBigEndian())
-        break;
-
       // Node's "ucs2" encoding wants LE character data stored in
       // the Buffer, so we need to reorder on BE platforms.  See
       // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
       // encoding specification
+      if (IsBigEndian())
+        SwapBytes16(buf, buf, nbytes);
 
-      const bool is_aligned =
-          reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t);
-      if (is_aligned) {
-        uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
-        SwapBytes(dst, dst, nchars);
-      }
-
-      ASSERT_EQ(sizeof(uint16_t), 2);
-      for (size_t i = 0; i < nchars; i++) {
-        char tmp = buf[i * 2];
-        buf[i * 2] = buf[i * 2 + 1];
-        buf[i * 2 + 1] = tmp;
-      }
       break;
     }
 
@@ -703,7 +689,9 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
     // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
     // encoding specification
     dst.resize(buflen);
-    SwapBytes(&dst[0], buf, buflen);
+    SwapBytes16(reinterpret_cast<char*>(&dst[0]),
+                reinterpret_cast<const char*>(&buf[0]),
+                buflen * sizeof(buf[0]));
     buf = &dst[0];
   }
   if (buflen < EXTERN_APEX) {

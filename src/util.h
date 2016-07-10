@@ -238,7 +238,11 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
-inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+// |src| and |dst| are allowed to overlap.  |size| is in bytes and must be
+// a multiple of the word size.
+inline void SwapBytes16(char* dst, const char* src, size_t size);
+inline void SwapBytes32(char* dst, const char* src, size_t size);
+inline void SwapBytes64(char* dst, const char* src, size_t size);
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);

@@ -12,7 +12,6 @@
 
 #include <string.h>
 #include <limits.h>
-#include <utility>
 
 #define BUFFER_ID 0xB0E4
 
@@ -1174,13 +1173,8 @@ void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
-
   CHECK_EQ(ts_obj_length % 2, 0);
-
-  for (size_t i = 0; i < ts_obj_length; i += 2) {
-    std::swap(ts_obj_data[i], ts_obj_data[i + 1]);
-  }
-
+  SwapBytes16(ts_obj_data, ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1189,14 +1183,8 @@ void Swap32(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
-
   CHECK_EQ(ts_obj_length % 4, 0);
-
-  for (size_t i = 0; i < ts_obj_length; i += 4) {
-    std::swap(ts_obj_data[i], ts_obj_data[i + 3]);
-    std::swap(ts_obj_data[i + 1], ts_obj_data[i + 2]);
-  }
-
+  SwapBytes32(ts_obj_data, ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1205,16 +1193,8 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
-
   CHECK_EQ(ts_obj_length % 8, 0);
-
-  for (size_t i = 0; i < ts_obj_length; i += 8) {
-    std::swap(ts_obj_data[i], ts_obj_data[i + 7]);
-    std::swap(ts_obj_data[i + 1], ts_obj_data[i + 6]);
-    std::swap(ts_obj_data[i + 2], ts_obj_data[i + 5]);
-    std::swap(ts_obj_data[i + 3], ts_obj_data[i + 4]);
-  }
-
+  SwapBytes64(ts_obj_data, ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
 
