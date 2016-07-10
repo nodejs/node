@@ -355,11 +355,36 @@ size_t StringBytes::Write(Isolate* isolate,
   return nbytes;
 }
 
+template <typename Type>
+bool IsValidHexString(Isolate* isolate, const Type* str, const size_t len) {
+  for (size_t i = 0; i < len; i += 1) {
+    if (!((str[i] >= '0' && str[i] <= '9') ||
+          (str[i] >= 'a' && str[i] <= 'f') ||
+          (str[i] >= 'A' && str[i] <= 'F')))
+      return false;
+  }
+  return true;
+}
+
+bool IsValidHexString(Isolate* isolate, Local<String> string) {
+  if (string->Length() % 2 != 0)
+    return false;
+
+  const char* str = nullptr;
+  size_t n = 0;
+  bool external = StringBytes::GetExternalParts(isolate, string, &str, &n);
+
+  if (external)
+    return IsValidHexString(isolate, str, n);
+
+  String::Value value(string);
+  return IsValidHexString(isolate, *value, value.length());
+}
 
 bool StringBytes::IsValidString(Isolate* isolate,
                                 Local<String> string,
                                 enum encoding enc) {
-  if (enc == HEX && string->Length() % 2 != 0)
+  if (enc == HEX && IsValidHexString(isolate, string) == false)
     return false;
   // TODO(bnoordhuis) Add BASE64 check?
   return true;

@@ -711,9 +711,6 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0]->ToString(env->isolate());
 
-  if (encoding == HEX && str->Length() % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
-
   size_t offset;
   size_t max_length;
 
@@ -727,6 +724,11 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   if (offset >= ts_obj_length)
     return env->ThrowRangeError("Offset is out of bounds");
+
+  if (StringBytes::IsValidString(env->isolate(), str, encoding) == false) {
+    if (encoding == HEX)
+      return env->ThrowTypeError("Invalid hex string");
+  }
 
   uint32_t written = StringBytes::Write(env->isolate(),
                                         ts_obj_data + offset,

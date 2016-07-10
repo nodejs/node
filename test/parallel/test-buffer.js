@@ -771,6 +771,15 @@ assert.strictEqual(Buffer.from('A', 'base64').length, 0);
   assert.equal(b2, b4);
 }
 
+// invalid HEX strings should throw an error
+assert.throws(() => new Buffer('xx', 'hex'), /TypeError: Invalid hex string/);
+// following will fail even though it has zero as the first character, because
+// `x` is an invalid hexa-decimal value
+assert.throws(() => new Buffer('0x', 'hex'), /TypeError: Invalid hex string/);
+// following invalid HEX strings will fail because of the odd length
+assert.throws(() => new Buffer('0', 'hex'), /TypeError: Invalid hex string/);
+assert.throws(() => new Buffer('000', 'hex'), /TypeError: Invalid hex string/);
+
 function buildBuffer(data) {
   if (Array.isArray(data)) {
     var buffer = Buffer(data.length);
