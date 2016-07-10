@@ -1,2 +1,45 @@
+* -text
+./* text=auto
+*.bat text
+*.c text
+*.cc text
+*.css text
+*.d text
+*.def text
+*.gyp text
+*.gypi text
+*.h text
+*.html text
+*.inc text
+*.js text
+*.json text
+*.man text
+*.manifest text
+*.md text
+*.out text
+*.pl text
+*.py text
+*.rb text
+*.rc text
+*.sln text
+*.status text
+*.txt text
+*.vcxproj text
+*.wixproj text
+*.wxl text
+*.wxs text
+*.yml text
+tools/msvs/npm/npmrc text
+deps/v8/test/mjsunit/regress/regress-2825.js -text
+
 test/fixtures/* -text
-vcbuild.bat text eol=crlf
+
+# Exceptions for dependencies committed with CRLF line endings
+# Should be removed when the files are updated
+deps/npm/node_modules/node-gyp/gyp/gyp.bat -text
+deps/npm/node_modules/node-gyp/gyp/samples/samples.bat -text
+deps/uv/docs/make.bat -text
+deps/v8/test/message/regress/regress-73.js -text
+deps/zlib/contrib/minizip/ChangeLogUnzip -text
+tools/gyp/gyp.bat -text
+tools/gyp/samples/samples.bat -text
