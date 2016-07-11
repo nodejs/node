@@ -703,17 +703,17 @@ class ContextifyScript : public BaseObject {
       result = script->Run();
     }
 
-    if (try_catch.HasCaught() && try_catch.HasTerminated()) {
+    if (try_catch->HasCaught() && try_catch->HasTerminated()) {
       V8::CancelTerminateExecution(env->isolate());
       env->ThrowError("Script execution timed out.");
-      try_catch.ReThrow();
+      try_catch->ReThrow();
       return false;
     }
 
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
       if (display_errors) {
-        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
+        AppendExceptionLine(env, try_catch->Exception(), try_catch->Message());
       }
       try_catch->ReThrow();
       return false;
