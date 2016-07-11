@@ -70,6 +70,8 @@ class ExternString: public ResourceType {
                            const TypeName* data,
                            size_t length) {
     EscapableHandleScope scope(isolate);
+    if (length == 0)
+      return scope.Escape(String::Empty(isolate));
 
     ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                    data,
@@ -77,11 +79,6 @@ class ExternString: public ResourceType {
     MaybeLocal<String> str = String::NewExternal(isolate, h_str);
     isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
-    ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
-                                                                   data,
-                                                                   length);
-    MaybeLocal<String> str = NewExternal(isolate, h_str);
-    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
     if (str.IsEmpty()) {
       delete h_str;
