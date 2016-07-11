@@ -238,6 +238,13 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
+template <typename T, typename U>
+inline bool IsAlignedTo(const U* p);
+
+inline uint16_t ByteSwap(uint16_t v);
+inline uint32_t ByteSwap(uint32_t v);
+inline uint64_t ByteSwap(uint64_t v);
+
 // |src| and |dst| are allowed to overlap.  |size| is in bytes and must be
 // a multiple of the word size.
 inline void SwapBytes16(char* dst, const char* src, size_t size);
