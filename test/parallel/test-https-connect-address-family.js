@@ -39,7 +39,7 @@ dns.lookup('localhost', {family: 6, all: true}, (err, addresses) => {
   if (err)
     throw err;
 
-  if (addresses.some((val) => { return val.address === '::1'; }))
+  if (addresses.some((val) => val.address === '::1'))
     runTest();
   else
     common.skip('localhost does not resolve to ::1');
