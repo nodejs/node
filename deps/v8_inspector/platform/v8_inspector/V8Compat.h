@@ -23,6 +23,6 @@ public:
 
 } // namespace v8
 
-#endif // V8_MAJOR_VERSION < 5 || (V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION < 2)
+#endif // V8_MAJOR_VERSION < 5 || (V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION < 1)
 
 #endif // V8Compat_h

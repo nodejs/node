@@ -35,31 +35,31 @@ struct is_convertible
 private:
     struct True_ { char x[2]; };
     struct False_ { };
-
+ 
     static True_ helper(T2 const &);
     static False_ helper(...);
-
+ 
 public:
     static bool const value = (
         sizeof(True_) == sizeof(is_convertible::helper(T1()))
     );
 };
 
-template <bool, class T = void>
+template <bool, class T = void> 
 struct enable_if {};
 
-template <class T>
-struct enable_if<true, T>
+template <class T> 
+struct enable_if<true, T> 
 {
-    typedef T type;
+    typedef T type; 
 };
 
 template<class T>
 struct remove_extent { typedef T type; };
-
+ 
 template<class T>
 struct remove_extent<T[]> { typedef T type; };
-
+ 
 template<class T, std::size_t N>
 struct remove_extent<T[N]> { typedef T type;};
 
@@ -82,7 +82,7 @@ struct is_array : false_type {};
 
 template<class T>
 struct is_array<T[]> : true_type {};
-
+ 
 template<class T, std::size_t N>
 struct is_array<T[N]> : true_type {};
 

@@ -64,7 +64,7 @@ which will install the package via `distribute` in development mode.  This also
 has the advantage that the C extensions are compiled.
 
 .. _download page: http://pypi.python.org/pypi/Jinja2
-.. _distribute: http://pypi.python.org/pypi/distribute
+.. _distribute: http://pypi.python.org/pypi/distribute 
 .. _setuptools: http://peak.telecommunity.com/DevCenter/setuptools
 .. _easy_install: http://peak.telecommunity.com/DevCenter/EasyInstall
 .. _pip: http://pypi.python.org/pypi/pip
