@@ -350,7 +350,7 @@ buffered writes in a more optimized manner.
 
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
-added: v0.9.9
+added: v0.9.4
 -->
 
 * `chunk` {String|Buffer|any} Optional data to write. For streams not operating
