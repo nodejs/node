@@ -193,6 +193,9 @@ Instead of accepting just raw TCP connections, this accepts encrypted
 connections using TLS or SSL.
 
 ### Event: 'clientError'
+<!-- YAML
+added: v0.11.11
+-->
 
 `function (exception, tlsSocket) { }`
 
@@ -365,6 +368,9 @@ when the server has been bound.
 See `net.Server` for more information.
 
 ### server.maxConnections
+<!-- YAML
+added: v0.2.0
+-->
 
 Set this property to reject connections when the server's connection count
 gets high.
