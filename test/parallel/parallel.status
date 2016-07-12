@@ -7,8 +7,7 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-tick-processor : PASS,FLAKY
-test-vm-timeout     : PASS,FLAKY
+test-tick-processor     : PASS,FLAKY
 
 [$system==linux]
 test-tick-processor     : PASS,FLAKY
