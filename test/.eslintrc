@@ -2,4 +2,4 @@
 
 rules:
   ## common module is mandatory in tests
-  required-modules: [2, "common"]
+  required-modules: [2, common]
