@@ -822,7 +822,6 @@ function MyThing(options) {
     this.startDoingStuff();
   });
 }
-```
 
 var thing = new MyThing();
 thing.getReadyForStuff();
