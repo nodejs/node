@@ -31,7 +31,6 @@ function parent() {
   var backloggedReqs = 0;
 
   const server = http.createServer(function(req, res) {
-    requests++;
     res.setHeader('content-length', bigResponse.length);
     if (!res.write(bigResponse)) {
       if (backloggedReqs === 0) {
