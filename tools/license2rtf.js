@@ -1,16 +1,16 @@
 'use strict';
 
-var assert = require('assert'),
-  Stream = require('stream'),
-  inherits = require('util').inherits;
+const assert = require('assert');
+const Stream = require('stream');
+const inherits = require('util').inherits;
 
 
 /*
  * This filter consumes a stream of characters and emits one string per line.
  */
 function LineSplitter() {
-  var self = this,
-    buffer = '';
+  const self = this;
+  var buffer = '';
 
   Stream.call(this);
   this.writable = true;
@@ -39,11 +39,11 @@ inherits(LineSplitter, Stream);
  * This filter consumes lines and emits paragraph objects.
  */
 function ParagraphParser() {
-  var self = this,
-    block_is_license_block = false,
-    block_has_c_style_comment,
-    paragraph_line_indent,
-    paragraph;
+  const self = this;
+  var block_is_license_block = false;
+  var block_has_c_style_comment;
+  var paragraph_line_indent;
+  var paragraph;
 
   Stream.call(this);
   this.writable = true;
@@ -181,9 +181,9 @@ function Unwrapper() {
   this.writable = true;
 
   this.write = function(paragraph) {
-    var lines = paragraph.lines,
-      break_after = [],
-      i;
+    var lines = paragraph.lines;
+    var break_after = [];
+    var i;
 
     for (i = 0; i < lines.length - 1; i++) {
       var line = lines[i];
@@ -230,8 +230,8 @@ inherits(Unwrapper, Stream);
  * This filter generates an rtf document from a stream of paragraph objects.
  */
 function RtfGenerator() {
-  var self = this,
-    did_write_anything = false;
+  const self = this;
+  var did_write_anything = false;
 
   Stream.call(this);
   this.writable = true;
@@ -242,9 +242,9 @@ function RtfGenerator() {
       did_write_anything = true;
     }
 
-    var li = paragraph.li,
-      level = paragraph.level + (li ? 1 : 0),
-      lic = paragraph.in_license_block;
+    var li = paragraph.li;
+    var level = paragraph.level + (li ? 1 : 0);
+    var lic = paragraph.in_license_block;
 
     var rtf = '\\pard';
     rtf += '\\sa150\\sl300\\slmult1';
@@ -315,12 +315,12 @@ function RtfGenerator() {
 inherits(RtfGenerator, Stream);
 
 
-var stdin = process.stdin,
-  stdout = process.stdout,
-  line_splitter = new LineSplitter(),
-  paragraph_parser = new ParagraphParser(),
-  unwrapper = new Unwrapper(),
-  rtf_generator = new RtfGenerator();
+const stdin = process.stdin;
+const stdout = process.stdout;
+const line_splitter = new LineSplitter();
+const paragraph_parser = new ParagraphParser();
+const unwrapper = new Unwrapper();
+const rtf_generator = new RtfGenerator();
 
 stdin.setEncoding('utf-8');
 stdin.resume();
