@@ -896,7 +896,8 @@ Applications should avoid using such messages or listening for
 The optional `sendHandle` argument that may be passed to `child.send()` is for
 passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
-registered on the `process.on('message')` event.
+registered on the `process.on('message')` event. Any data that is received and
+buffered in the socket will not be sent to the child.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it.  The function is called with a
