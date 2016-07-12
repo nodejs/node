@@ -1024,6 +1024,9 @@ myReader.on('readable', () => {
 ### Duplex and Transform Streams
 
 #### Class: stream.Duplex
+<!-- YAML
+added: v0.9.4
+-->
 
 <!--type=class-->
 
