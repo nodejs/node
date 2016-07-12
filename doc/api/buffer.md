@@ -916,39 +916,6 @@ utf16Buffer.indexOf('\u03a3', -4, 'ucs2');
   // returns 6
 ```
 
-### buf.includes(value[, byteOffset][, encoding])
-
-* `value` {String|Buffer|Number}
-* `byteOffset` {Number} Default: 0
-* `encoding` {String} Default: `'utf8'`
-* Return: {Boolean}
-
-Operates similar to [`Array#includes()`][]. The `value` can be a String, Buffer
-or Number. Strings are interpreted as UTF8 unless overridden with the
-`encoding` argument. Buffers will use the entire Buffer (to compare a partial
-Buffer use [`buf.slice()`][]). Numbers can range from 0 to 255.
-
-The `byteOffset` indicates the index in `buf` where searching begins.
-
-```js
-const buf = new Buffer('this is a buffer');
-
-buf.includes('this');
-  // returns true
-buf.includes('is');
-  // returns true
-buf.includes(new Buffer('a buffer'));
-  // returns true
-buf.includes(97); // ascii for 'a'
-  // returns true
-buf.includes(new Buffer('a buffer example'));
-  // returns false
-buf.includes(new Buffer('a buffer example').slice(0,8));
-  // returns true
-buf.includes('this', 4);
-  // returns false
-```
-
 ### buf.keys()
 <!-- YAML
 added: v1.1.0
