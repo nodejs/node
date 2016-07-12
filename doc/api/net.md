@@ -136,11 +136,11 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 [`'listening'`][] event will be emitted.
-The last parameter `callback` will be added as a listener for the
-[`'listening'`][] event.
 
-The parameter `backlog` behaves the same as in
+`backlog` behaves the same as in
 [`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+
+`callback` will be added as a listener for the [`'listening'`][] event.
 
 ### server.listen(options[, callback])
 <!-- YAML
@@ -186,8 +186,12 @@ added: v0.1.90
 Start a local socket server listening for connections on the given `path`.
 
 This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.  The last parameter `callback`
-will be added as a listener for the [`'listening'`][] event.
+[`'listening'`][] event will be emitted.
+
+`backlog` behaves the same as in
+[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+
+`callback` will be added as a listener for the [`'listening'`][] event.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
 filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path)`
@@ -208,9 +212,6 @@ double-backslashes, such as:
     net.createServer().listen(
         path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
 
-The parameter `backlog` behaves the same as in
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
-
 ### server.listen(port[, hostname][, backlog][, callback])
 <!-- YAML
 added: v0.1.90
@@ -221,14 +222,15 @@ Begin accepting connections on the specified `port` and `hostname`. If the
 (`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. Use a
 port value of `0` to have the operating system assign an available port.
 
-Backlog is the maximum length of the queue of pending connections.
+`backlog` is the maximum length of the queue of pending connections.
 The actual length will be determined by the OS through sysctl settings such as
 `tcp_max_syn_backlog` and `somaxconn` on Linux. The default value of this
 parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.  The last parameter `callback`
-will be added as a listener for the [`'listening'`][] event.
+[`'listening'`][] event will be emitted.
+
+`callback` will be added as a listener for the [`'listening'`][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
