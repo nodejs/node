@@ -9,10 +9,11 @@ assert(typeof global.gc === 'function', 'Run this test with --expose-gc');
 net.createServer(function() {}).listen(common.PORT);
 
 var before = 0;
-(function() {
+{
   // 2**26 == 64M entries
   global.gc();
-  for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
+  let junk = [0];
+  for (let i = 0; i < 26; ++i) junk = junk.concat(junk);
   before = process.memoryUsage().rss;
 
   net.createConnection(common.PORT, '127.0.0.1', function() {
@@ -20,7 +21,7 @@ var before = 0;
     setTimeout(done, 10);
     global.gc();
   });
-})();
+}
 
 function done() {
   global.gc();

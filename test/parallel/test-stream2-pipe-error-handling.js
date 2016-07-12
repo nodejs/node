@@ -3,77 +3,77 @@ require('../common');
 var assert = require('assert');
 var stream = require('stream');
 
-(function testErrorListenerCatches() {
-  var count = 1000;
+{
+  let count = 1000;
 
-  var source = new stream.Readable();
+  const source = new stream.Readable();
   source._read = function(n) {
     n = Math.min(count, n);
     count -= n;
     source.push(Buffer.allocUnsafe(n));
   };
 
-  var unpipedDest;
+  let unpipedDest;
   source.unpipe = function(dest) {
     unpipedDest = dest;
     stream.Readable.prototype.unpipe.call(this, dest);
   };
 
-  var dest = new stream.Writable();
+  const dest = new stream.Writable();
   dest._write = function(chunk, encoding, cb) {
     cb();
   };
 
   source.pipe(dest);
 
-  var gotErr = null;
+  let gotErr = null;
   dest.on('error', function(err) {
     gotErr = err;
   });
 
-  var unpipedSource;
+  let unpipedSource;
   dest.on('unpipe', function(src) {
     unpipedSource = src;
   });
 
-  var err = new Error('This stream turned into bacon.');
+  const err = new Error('This stream turned into bacon.');
   dest.emit('error', err);
   assert.strictEqual(gotErr, err);
   assert.strictEqual(unpipedSource, source);
   assert.strictEqual(unpipedDest, dest);
-})();
+}
 
-(function testErrorWithoutListenerThrows() {
-  var count = 1000;
+{
+  let count = 1000;
 
-  var source = new stream.Readable();
+  const source = new stream.Readable();
   source._read = function(n) {
     n = Math.min(count, n);
     count -= n;
     source.push(Buffer.allocUnsafe(n));
   };
 
-  var unpipedDest;
+  let unpipedDest;
   source.unpipe = function(dest) {
     unpipedDest = dest;
     stream.Readable.prototype.unpipe.call(this, dest);
   };
 
-  var dest = new stream.Writable();
+  const dest = new stream.Writable();
   dest._write = function(chunk, encoding, cb) {
     cb();
   };
 
   source.pipe(dest);
 
-  var unpipedSource;
+  let unpipedSource;
   dest.on('unpipe', function(src) {
     unpipedSource = src;
   });
 
-  var err = new Error('This stream turned into bacon.');
+  const err = new Error('This stream turned into bacon.');
 
-  var gotErr = null;
+  let gotErr = null;
   try {
     dest.emit('error', err);
   } catch (e) {
@@ -82,4 +82,4 @@ var stream = require('stream');
   assert.strictEqual(gotErr, err);
   assert.strictEqual(unpipedSource, source);
   assert.strictEqual(unpipedDest, dest);
-})();
+}

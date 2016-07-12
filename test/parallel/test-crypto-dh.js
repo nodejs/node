@@ -57,19 +57,19 @@ var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 assert.equal(secret1, secret3);
 
 // Run this one twice to make sure that the dh3 clears its error properly
-(function() {
-  var c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
+{
+  const c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
   assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
-})();
+}
 
 assert.throws(function() {
   dh3.computeSecret('');
 }, /key is too small/i);
 
-(function() {
-  var c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
+{
+  const c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
   assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
-})();
+}
 
 // Create a shared using a DH group.
 var alice = crypto.createDiffieHellmanGroup('modp5');

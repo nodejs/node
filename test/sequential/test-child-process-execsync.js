@@ -70,8 +70,8 @@ assert.strictEqual(ret, msg + '\n',
 }
 
 // Verify that stderr is not accessed when stdio = 'ignore' - GH #7966
-(function() {
+{
   assert.throws(function() {
     execSync('exit -1', {stdio: 'ignore'});
   }, /Command failed: exit -1/);
-})();
+}
