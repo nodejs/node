@@ -1,8 +1,15 @@
 'use strict';
 var fs = require('fs');
+var path = require('path');
 var assert = require('assert');
 var cp = require('child_process');
 var common = require('../common');
+
+//This test is designed test correctness of the integration of the V8
+//tick processor with Node.js.
+//(https://developers.google.com/v8/profiler_example)
+//It is designed to test that the names of profiled functions appear in
+//profiler output (as an approximation to profiler correctness)
 
 // TODO(mhdawson) Currently the test-tick-processor functionality in V8
 // depends on addresses being smaller than a full 64 bits.  Aix supports
@@ -18,15 +25,15 @@ common.refreshTmpDir();
 process.chdir(common.tmpDir);
 // Unknown checked for to prevent flakiness, if pattern is not found,
 // then a large number of unknown ticks should be present
-runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
-        `function f() {
+runTest(/LazyCompile: \*profiled_function|.*%  UNKNOWN/,
+        `function profiled_function() {
            for (var i = 0; i < 1000000; i++) {
              i++;
            }
-           setImmediate(function() { f(); });
+           setImmediate(function() { profiled_function(); });
          };
          setTimeout(function() { process.exit(0); }, 2000);
-         f();`);
+         profiled_function();`);
 if (common.isWindows ||
     common.isSunOS ||
     common.isAix ||
@@ -36,15 +43,17 @@ if (common.isWindows ||
   return;
 }
 runTest(/RunInDebugContext/,
-        `function f() {
+        `function profiled_function() {
            require(\'vm\').runInDebugContext(\'Debug\');
-           setImmediate(function() { f(); });
+           setImmediate(function() { profiled_function(); });
          };
          setTimeout(function() { process.exit(0); }, 2000);
-         f();`);
+         profiled_function();`);
 
 function runTest(pattern, code) {
-  cp.execFileSync(process.execPath, ['-prof', '-pe', code]);
+  var testCodePath = path.join(common.tmpDir, 'test.js');
+  fs.writeFileSync(testCodePath, code);
+  cp.execSync(process.execPath + ' -prof ' + testCodePath);
   var matches = fs.readdirSync(common.tmpDir).filter(function(file) {
     return /^isolate-/.test(file);
   });
