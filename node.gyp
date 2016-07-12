@@ -249,7 +249,7 @@
           ],
           'conditions': [
             [ 'node_module_version!="" and OS!="win"', {
-              'product_extension': 'so.<(node_module_version)',
+              'product_extension': '<(shlib_suffix)',
             }]
           ],
         }],
