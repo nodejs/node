@@ -73,35 +73,35 @@ testCipher2('0123456789abcdef');
 testCipher2(Buffer.from('0123456789abcdef'));
 
 // Base64 padding regression test, see #4837.
-(function() {
-  var c = crypto.createCipher('aes-256-cbc', 'secret');
-  var s = c.update('test', 'utf8', 'base64') + c.final('base64');
-  assert.equal(s, '375oxUQCIocvxmC5At+rvA==');
-})();
+{
+  const c = crypto.createCipher('aes-256-cbc', 'secret');
+  const s = c.update('test', 'utf8', 'base64') + c.final('base64');
+  assert.strictEqual(s, '375oxUQCIocvxmC5At+rvA==');
+}
 
 // Calling Cipher.final() or Decipher.final() twice should error but
 // not assert. See #4886.
-(function() {
-  var c = crypto.createCipher('aes-256-cbc', 'secret');
+{
+  const c = crypto.createCipher('aes-256-cbc', 'secret');
   try { c.final('xxx'); } catch (e) { /* Ignore. */ }
   try { c.final('xxx'); } catch (e) { /* Ignore. */ }
   try { c.final('xxx'); } catch (e) { /* Ignore. */ }
-  var d = crypto.createDecipher('aes-256-cbc', 'secret');
+  const d = crypto.createDecipher('aes-256-cbc', 'secret');
   try { d.final('xxx'); } catch (e) { /* Ignore. */ }
   try { d.final('xxx'); } catch (e) { /* Ignore. */ }
   try { d.final('xxx'); } catch (e) { /* Ignore. */ }
-})();
+}
 
 // Regression test for #5482: string to Cipher#update() should not assert.
-(function() {
-  var c = crypto.createCipher('aes192', '0123456789abcdef');
+{
+  const c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update');
   c.final();
-})();
+}
 
 // #5655 regression tests, 'utf-8' and 'utf8' are identical.
-(function() {
-  var c = crypto.createCipher('aes192', '0123456789abcdef');
+{
+  let c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update', '');  // Defaults to "utf8".
   c.final('utf-8');  // Should not throw.
 
@@ -112,4 +112,4 @@ testCipher2(Buffer.from('0123456789abcdef'));
   c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update', 'utf-8');
   c.final('utf8');  // Should not throw.
-})();
+}

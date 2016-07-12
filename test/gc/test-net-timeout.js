@@ -35,19 +35,16 @@ function getall() {
   if (count >= todo)
     return;
 
-  (function() {
-    var req = net.connect(server.address().port, server.address().address);
-    req.resume();
-    req.setTimeout(10, function() {
-      //console.log('timeout (expected)')
-      req.destroy();
-      done++;
-      global.gc();
-    });
+  const req = net.connect(server.address().port, server.address().address);
+  req.resume();
+  req.setTimeout(10, function() {
+    req.destroy();
+    done++;
+    global.gc();
+  });
 
-    count++;
-    weak(req, afterGC);
-  })();
+  count++;
+  weak(req, afterGC);
 
   setImmediate(getall);
 }
@@ -76,4 +73,3 @@ function status() {
     }, 200);
   }
 }
-

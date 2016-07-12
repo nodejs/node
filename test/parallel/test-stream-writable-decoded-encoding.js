@@ -17,24 +17,22 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
   callback();
 };
 
-(function decodeStringsTrue() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
+{
+  const m = new MyWritable(function(isBuffer, type, enc) {
     assert(isBuffer);
-    assert.equal(type, 'object');
-    assert.equal(enc, 'buffer');
-    console.log('ok - decoded string is decoded');
+    assert.strictEqual(type, 'object');
+    assert.strictEqual(enc, 'buffer');
   }, { decodeStrings: true });
   m.write('some-text', 'utf8');
   m.end();
-})();
+}
 
-(function decodeStringsFalse() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
+{
+  const m = new MyWritable(function(isBuffer, type, enc) {
     assert(!isBuffer);
-    assert.equal(type, 'string');
-    assert.equal(enc, 'utf8');
-    console.log('ok - un-decoded string is not decoded');
+    assert.strictEqual(type, 'string');
+    assert.strictEqual(enc, 'utf8');
   }, { decodeStrings: false });
   m.write('some-text', 'utf8');
   m.end();
-})();
+}
