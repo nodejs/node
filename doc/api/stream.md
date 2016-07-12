@@ -1040,6 +1040,9 @@ Examples of Duplex streams include:
 * [crypto streams][crypto]
 
 #### Class: stream.Transform
+<!-- YAML
+added: v0.9.4
+-->
 
 <!--type=class-->
 
