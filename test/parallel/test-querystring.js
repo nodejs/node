@@ -134,7 +134,7 @@ qsNoMungeTestCases.forEach(function(testCase) {
 });
 
 // test the nested qs-in-qs case
-(function() {
+{
   const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   check(f, createWithNoPrototype([
     { key: 'a', value: 'b'},
@@ -147,10 +147,10 @@ qsNoMungeTestCases.forEach(function(testCase) {
     {key: 'y', value: 'z' }
   ]);
   check(f.q, expectedInternal);
-})();
+}
 
 // nested in colon
-(function() {
+{
   const f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
   check(f, createWithNoPrototype([
     {key: 'a', value: 'b'},
@@ -162,7 +162,7 @@ qsNoMungeTestCases.forEach(function(testCase) {
     {key: 'y', value: 'z' }
   ]);
   check(f.q, expectedInternal);
-})();
+}
 
 // now test stringifying
 

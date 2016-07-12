@@ -1029,28 +1029,28 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 
 
 // GH-5110
-(function() {
+{
   const buffer = Buffer.from('test');
   const string = JSON.stringify(buffer);
 
-  assert.equal(string, '{"type":"Buffer","data":[116,101,115,116]}');
+  assert.strictEqual(string, '{"type":"Buffer","data":[116,101,115,116]}');
 
   assert.deepStrictEqual(buffer, JSON.parse(string, function(key, value) {
     return value && value.type === 'Buffer'
       ? Buffer.from(value.data)
       : value;
   }));
-})();
+}
 
 // issue GH-7849
-(function() {
-  var buf = Buffer.from('test');
-  var json = JSON.stringify(buf);
-  var obj = JSON.parse(json);
-  var copy = Buffer.from(obj);
+{
+  const buf = Buffer.from('test');
+  const json = JSON.stringify(buf);
+  const obj = JSON.parse(json);
+  const copy = Buffer.from(obj);
 
   assert(buf.equals(copy));
-})();
+}
 
 // issue GH-4331
 assert.throws(function() {
@@ -1156,30 +1156,30 @@ assert.throws(function() {
 });
 
 // test for common read(U)IntLE/BE
-(function() {
+{
   var buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
 
-  assert.equal(buf.readUIntLE(0, 1), 0x01);
-  assert.equal(buf.readUIntBE(0, 1), 0x01);
-  assert.equal(buf.readUIntLE(0, 3), 0x030201);
-  assert.equal(buf.readUIntBE(0, 3), 0x010203);
-  assert.equal(buf.readUIntLE(0, 5), 0x0504030201);
-  assert.equal(buf.readUIntBE(0, 5), 0x0102030405);
-  assert.equal(buf.readUIntLE(0, 6), 0x060504030201);
-  assert.equal(buf.readUIntBE(0, 6), 0x010203040506);
-  assert.equal(buf.readIntLE(0, 1), 0x01);
-  assert.equal(buf.readIntBE(0, 1), 0x01);
-  assert.equal(buf.readIntLE(0, 3), 0x030201);
-  assert.equal(buf.readIntBE(0, 3), 0x010203);
-  assert.equal(buf.readIntLE(0, 5), 0x0504030201);
-  assert.equal(buf.readIntBE(0, 5), 0x0102030405);
-  assert.equal(buf.readIntLE(0, 6), 0x060504030201);
-  assert.equal(buf.readIntBE(0, 6), 0x010203040506);
-})();
+  assert.strictEqual(buf.readUIntLE(0, 1), 0x01);
+  assert.strictEqual(buf.readUIntBE(0, 1), 0x01);
+  assert.strictEqual(buf.readUIntLE(0, 3), 0x030201);
+  assert.strictEqual(buf.readUIntBE(0, 3), 0x010203);
+  assert.strictEqual(buf.readUIntLE(0, 5), 0x0504030201);
+  assert.strictEqual(buf.readUIntBE(0, 5), 0x0102030405);
+  assert.strictEqual(buf.readUIntLE(0, 6), 0x060504030201);
+  assert.strictEqual(buf.readUIntBE(0, 6), 0x010203040506);
+  assert.strictEqual(buf.readIntLE(0, 1), 0x01);
+  assert.strictEqual(buf.readIntBE(0, 1), 0x01);
+  assert.strictEqual(buf.readIntLE(0, 3), 0x030201);
+  assert.strictEqual(buf.readIntBE(0, 3), 0x010203);
+  assert.strictEqual(buf.readIntLE(0, 5), 0x0504030201);
+  assert.strictEqual(buf.readIntBE(0, 5), 0x0102030405);
+  assert.strictEqual(buf.readIntLE(0, 6), 0x060504030201);
+  assert.strictEqual(buf.readIntBE(0, 6), 0x010203040506);
+}
 
 // test for common write(U)IntLE/BE
-(function() {
-  var buf = Buffer.allocUnsafe(3);
+{
+  let buf = Buffer.allocUnsafe(3);
   buf.writeUIntLE(0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
   assert.equal(buf.readUIntLE(0, 3), 0x123456);
@@ -1268,11 +1268,11 @@ assert.throws(function() {
   buf.writeIntBE(-0x0012000000, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0xff, 0xee, 0x00, 0x00, 0x00]);
   assert.equal(buf.readIntBE(0, 5), -0x0012000000);
-})();
+}
 
 // test Buffer slice
-(function() {
-  var buf = Buffer.from('0123456789');
+{
+  const buf = Buffer.from('0123456789');
   assert.equal(buf.slice(-10, 10), '0123456789');
   assert.equal(buf.slice(-20, 10), '0123456789');
   assert.equal(buf.slice(-20, -10), '');
@@ -1305,7 +1305,7 @@ assert.throws(function() {
     assert.equal(buf.slice(0, -i), s.slice(0, -i));
   }
 
-  var utf16Buf = Buffer.from('0123456789', 'utf16le');
+  const utf16Buf = Buffer.from('0123456789', 'utf16le');
   assert.deepStrictEqual(utf16Buf.slice(0, 6), Buffer.from('012', 'utf16le'));
 
   assert.equal(buf.slice('0', '1'), '0');
@@ -1319,7 +1319,7 @@ assert.throws(function() {
   // try to slice a zero length Buffer
   // see https://github.com/joyent/node/issues/5881
   Buffer.alloc(0).slice(0, 1);
-})();
+}
 
 // Regression test for #5482: should throw but not assert in C++ land.
 assert.throws(function() {
@@ -1328,20 +1328,20 @@ assert.throws(function() {
 
 // Regression test for #6111. Constructing a buffer from another buffer
 // should a) work, and b) not corrupt the source buffer.
-(function() {
-  var a = [0];
+{
+  let a = [0];
   for (let i = 0; i < 7; ++i) a = a.concat(a);
   a = a.map(function(_, i) { return i; });
   const b = Buffer.from(a);
   const c = Buffer.from(b);
-  assert.equal(b.length, a.length);
-  assert.equal(c.length, a.length);
+  assert.strictEqual(b.length, a.length);
+  assert.strictEqual(c.length, a.length);
   for (let i = 0, k = a.length; i < k; ++i) {
-    assert.equal(a[i], i);
-    assert.equal(b[i], i);
-    assert.equal(c[i], i);
+    assert.strictEqual(a[i], i);
+    assert.strictEqual(b[i], i);
+    assert.strictEqual(c[i], i);
   }
-})();
+}
 
 
 assert.throws(function() {

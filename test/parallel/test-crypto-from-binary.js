@@ -29,18 +29,18 @@ var b = Buffer.from(ucs2_control + ucs2_control, 'ucs2');
 //
 // Test updating from birant data
 //
-(function() {
-  var datum1 = b.slice(700000);
-  var hash1_converted = crypto.createHash('sha1')
+{
+  const datum1 = b.slice(700000);
+  const hash1_converted = crypto.createHash('sha1')
     .update(datum1.toString('base64'), 'base64')
     .digest('hex');
-  var hash1_direct = crypto.createHash('sha1').update(datum1).digest('hex');
-  assert.equal(hash1_direct, hash1_converted, 'should hash the same.');
+  const hash1_direct = crypto.createHash('sha1').update(datum1).digest('hex');
+  assert.strictEqual(hash1_direct, hash1_converted, 'should hash the same.');
 
-  var datum2 = b;
-  var hash2_converted = crypto.createHash('sha1')
+  const datum2 = b;
+  const hash2_converted = crypto.createHash('sha1')
     .update(datum2.toString('base64'), 'base64')
     .digest('hex');
-  var hash2_direct = crypto.createHash('sha1').update(datum2).digest('hex');
-  assert.equal(hash2_direct, hash2_converted, 'should hash the same.');
-})();
+  const hash2_direct = crypto.createHash('sha1').update(datum2).digest('hex');
+  assert.strictEqual(hash2_direct, hash2_converted, 'should hash the same.');
+}
