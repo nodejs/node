@@ -5,4 +5,4 @@ test/fixtures
 test/disabled
 test/tmp*/
 tools/eslint
-**/node_modules
+node_modules
