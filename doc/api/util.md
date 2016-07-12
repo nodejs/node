@@ -52,7 +52,7 @@ it is marked as deprecated.
 ```js
 const util = require('util');
 
-exports.puts = util.deprecate(() => {
+exports.puts = util.deprecate(function() {
   for (var i = 0, len = arguments.length; i < len; ++i) {
     process.stdout.write(arguments[i] + '\n');
   }
