@@ -10,7 +10,7 @@ struct atomic {
   atomic() = default;
   T exchange(T value) { return __sync_lock_test_and_set(&value_, value); }
   T value_ = T();
-  DISALLOW_COPY_AND_ASSIGN(atomic);
+  DISALLOW_COPY_AND_ASSIGN(atomic);  // NOLINT(readability/constructors)
 };
 
 }  // namespace nonstd

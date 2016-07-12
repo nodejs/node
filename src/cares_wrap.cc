@@ -256,7 +256,7 @@ class QueryWrap : public AsyncWrap {
       req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
   }
 
-  virtual ~QueryWrap() override {
+  ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
     persistent().Reset();
   }
@@ -369,11 +369,11 @@ class QueryWrap : public AsyncWrap {
   // Subclasses should implement the appropriate Parse method.
   virtual void Parse(unsigned char* buf, int len) {
     UNREACHABLE();
-  };
+  }
 
   virtual void Parse(struct hostent* host) {
     UNREACHABLE();
-  };
+  }
 };
 
 
