@@ -44,18 +44,11 @@ if (common.isWindows) {
 }
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
-(function() {
-  var errors = 0;
-
-  testCwd({cwd: 'does-not-exist'}, -1).on('error', function(e) {
+{
+  testCwd({cwd: 'does-not-exist'}, -1).on('error', common.mustCall(function(e) {
     assert.equal(e.code, 'ENOENT');
-    errors++;
-  });
-
-  process.on('exit', function() {
-    assert.equal(errors, 1);
-  });
-})();
+  }));
+}
 
 // Spawn() shouldn't try to chdir() so this should just work
 testCwd(undefined, 0);
