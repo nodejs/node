@@ -18,29 +18,44 @@ false
 ```
 
 ## Class: ReadStream
+<!-- YAML
+added: v0.5.8
+-->
 
 A `net.Socket` subclass that represents the readable portion of a tty. In normal
 circumstances, `process.stdin` will be the only `tty.ReadStream` instance in any
 Node.js program (only when `isatty(0)` is true).
 
 ### rs.isRaw
+<!-- YAML
+added: v0.7.7
+-->
 
 A `Boolean` that is initialized to `false`. It represents the current "raw" state
 of the `tty.ReadStream` instance.
 
 ### rs.setRawMode(mode)
+<!-- YAML
+added: v0.7.7
+-->
 
 `mode` should be `true` or `false`. This sets the properties of the
 `tty.ReadStream` to act either as a raw device or default. `isRaw` will be set
 to the resulting mode.
 
 ## Class: WriteStream
+<!-- YAML
+added: v0.5.8
+-->
 
 A `net.Socket` subclass that represents the writable portion of a tty. In normal
 circumstances, `process.stdout` will be the only `tty.WriteStream` instance
 ever created (and only when `isatty(1)` is true).
 
 ### Event: 'resize'
+<!-- YAML
+added: v0.7.7
+-->
 
 `function () {}`
 
@@ -55,16 +70,25 @@ process.stdout.on('resize', () => {
 ```
 
 ### ws.columns
+<!-- YAML
+added: v0.7.7
+-->
 
 A `Number` that gives the number of columns the TTY currently has. This property
 gets updated on `'resize'` events.
 
 ### ws.rows
+<!-- YAML
+added: v0.7.7
+-->
 
 A `Number` that gives the number of rows the TTY currently has. This property
 gets updated on `'resize'` events.
 
 ## tty.isatty(fd)
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns `true` or `false` depending on if the `fd` is associated with a
 terminal.
