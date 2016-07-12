@@ -53,7 +53,7 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-    ASSERT(0 <= index && index < length_);
+    ASSERT(index < length_);
     return start_[index];
   }
 
@@ -416,7 +416,7 @@ size_t StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
         return subject.length();
       }
     }
-    while (j >= 0 && pattern[j] == (c = subject[index + j])) {
+    while (pattern[j] == (c = subject[index + j])) {
       if (j == 0) {
         return index;
       }
@@ -544,7 +544,7 @@ size_t StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
       }
     }
     j--;
-    while (j >= 0 && pattern[j] == (subject[index + j])) {
+    while (pattern[j] == (subject[index + j])) {
       if (j == 0) {
         return index;
       }
