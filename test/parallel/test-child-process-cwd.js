@@ -36,12 +36,11 @@ function testCwd(options, forCode, forData) {
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
+testCwd({cwd: common.rootDir}, 0, common.rootDir);
 if (common.isWindows) {
   testCwd({cwd: process.env.windir}, 0, process.env.windir);
-  testCwd({cwd: 'c:\\'}, 0, 'c:\\');
 } else {
   testCwd({cwd: '/dev'}, 0, '/dev');
-  testCwd({cwd: '/'}, 0, '/');
 }
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
