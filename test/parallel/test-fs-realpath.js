@@ -464,12 +464,12 @@ function test_lying_cache_liar(cb) {
   // this should not require *any* stat calls, since everything
   // checked by realpath will be found in the cache.
   console.log('test_lying_cache_liar');
-  var cache = { '/foo/bar/baz/bluff' : '/foo/bar/bluff',
-                '/1/2/3/4/5/6/7' : '/1',
-                '/a' : '/a',
-                '/a/b' : '/a/b',
-                '/a/b/c' : '/a/b',
-                '/a/b/d' : '/a/b/d' };
+  var cache = { '/foo/bar/baz/bluff': '/foo/bar/bluff',
+                '/1/2/3/4/5/6/7': '/1',
+                '/a': '/a',
+                '/a/b': '/a/b',
+                '/a/b/c': '/a/b',
+                '/a/b/d': '/a/b/d' };
   if (common.isWindows) {
     var wc = {};
     Object.keys(cache).forEach(function(k) {

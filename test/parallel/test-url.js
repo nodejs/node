@@ -912,7 +912,7 @@ var parseTestsWithQueryString = {
     path: '/example',
     href: '/example'
   },
-  '/example?query=value':{
+  '/example?query=value': {
     protocol: null,
     slashes: null,
     auth: null,
