@@ -26,6 +26,7 @@ import nodedownload
 
 # imports in tools/
 sys.path.insert(0, os.path.join(root_dir, 'tools'))
+import getmoduleversion
 
 # parse our options
 parser = optparse.OptionParser()
