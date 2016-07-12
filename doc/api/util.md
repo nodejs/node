@@ -46,7 +46,7 @@ environment variable. For example: `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(function, string)
 
-The `util.deprecate()` method wraps the given `function` in such a way that
+The `util.deprecate()` method wraps the given `function` or class in such a way that
 it is marked as deprecated.
 
 ```js
