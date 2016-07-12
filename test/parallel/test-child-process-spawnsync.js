@@ -20,7 +20,7 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 
 {
   // Test the cwd option
-  const cwd = common.isWindows ? 'c:\\' : '/';
+  const cwd = common.rootDir;
   const response = common.spawnSyncPwd({cwd});
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);
