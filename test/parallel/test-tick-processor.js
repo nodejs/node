@@ -55,6 +55,6 @@ function runTest(pattern, code) {
   var out = cp.execSync(process.execPath +
                         ' --prof-process --call-graph-size=10 ' + log,
                         {encoding: 'utf8'});
-  assert(pattern.test(out), `${pattern} not matchint ${out}`);
+  assert(pattern.test(out), `${pattern} not matching ${out}`);
   fs.unlinkSync(log);
 }
