@@ -1,6 +1,50 @@
+### v2.15.9 (2016-06-30):
+
+What's this? An LTS release? Yes, that is indeed so. Small, as usual, and as
+LTSs should be, really, but a release nonetheless!
+
+The star of the show is an updated `node-gyp` with some goodies. The rest is
+just docs and some CI stuff.
+
+Happy hacking!
+
+#### DEPENDENCY UPDATE!
+
+* [`f9a07cc`](https://github.com/npm/npm/commit/f9a07cc873f1915827d8df97d0c43204d1eb128c)
+  [#13200](https://github.com/npm/npm/pull/13200)
+  [`node-gyp@3.4.0`](https://github.com/nodejs/node-gyp/blob/master/CHANGELOG.md):
+  AIX, Visual Studio 2015, and logging improvements. Oh my~!
+  ([@rvagg](https://github.com/rvagg))
+
+#### CI TWEAKS
+
+* [`bee83b8`](https://github.com/npm/npm/commit/bee83b8500c31aba65451dfcb082f9b5d1d5ce34)
+  Globally install `rimraf` on CI to make the LTS self-install work better.
+  ([@othiym23](https://github.com/othiym23))
+* [`6b8c0ab`](https://github.com/npm/npm/commit/6b8c0ab6fcbf8a37e8693acb8bbac22293b10893)
+  This new Travis configuration only runs coverage checks against Node.js LTS,
+  which speeds up all the other test runs. By, like, a lot. Also, the entire
+  file has been extensively commented, so the next time we need to mess with it,
+  we'll be able to better remember why all the weird bits are there.
+  ([@othiym23](https://github.com/othiym23))
+
+#### DOCUMENTATION FIXES
+
+* [`2c7a5be`](https://github.com/npm/npm/commit/2c7a5be080276e3fdca3375ab0f8f5edffff753e)
+  [#13156](https://github.com/npm/npm/pull/13156)
+  Fix old reference to `doc/install` in a source comment.
+  ([@sheerun](https://github.com/sheerun))
+* [`e1cf78c`](https://github.com/npm/npm/commit/e1cf78c5b77f95383bd4a7fc6eeb8adbbe68e12e)
+  [#13189](https://github.com/npm/npm/pull/13189)
+  [#13113](https://github.com/npm/npm/issues/13113)
+  [#13189](https://github.com/npm/npm/pull/13189)
+  Fixes a link to `npm-tag(3)` that was breaking to instead point to
+  `npm-dist-tag(1)`, as reported by [@SimenB](https://github.com/SimenB)
+  ([@macdonst](https://github.com/macdonst))
+
 ### v2.15.8 (2016-06-17):
 
-There's a very important bug fix and a long-awaited (and signifcant!)
+There's a very important bug fix and a long-awaited (and significant!)
 deprecation in this hotfix release. [Hold on.](http://butt.holdings/)
 
 #### *WHOA*

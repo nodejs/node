@@ -1,7 +1,7 @@
 // npm install <pkg> <pkg> <pkg>
 //
-// See doc/install.md for more description
-
+// See doc/cli/npm-install.md for more description
+//
 // Managing contexts...
 // there's a lot of state associated with an "install" operation, including
 // packages that are already installed, parent packages, current shrinkwrap, and
