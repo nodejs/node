@@ -61,20 +61,13 @@ assert.strictEqual(ret, msg + '\n',
                    'execFileSync encoding result should match');
 
 // Verify that the cwd option works - GH #7824
-(function() {
-  var response;
-  var cwd;
-
-  if (common.isWindows) {
-    cwd = 'c:\\';
-    response = execSync('echo %cd%', {cwd: cwd});
-  } else {
-    cwd = '/';
-    response = execSync('pwd', {cwd: cwd});
-  }
+{
+  const cwd = common.rootDir;
+  const cmd = common.isWindows ? 'echo %cd%' : 'pwd';
+  const response = execSync(cmd, {cwd});
 
   assert.strictEqual(response.toString().trim(), cwd);
-})();
+}
 
 // Verify that stderr is not accessed when stdio = 'ignore' - GH #7966
 (function() {
