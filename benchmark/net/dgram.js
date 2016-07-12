@@ -33,6 +33,7 @@ var dgram = require('dgram');
 
 function server() {
   var sent = 0;
+  var received = 0;
   var socket = dgram.createSocket('udp4');
 
   function onsend() {
@@ -50,6 +51,10 @@ function server() {
       var gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
     }, dur * 1000);
+  });
+
+  socket.on('message', function(buf, rinfo) {
+    received++;
   });
 
   socket.bind(PORT);
