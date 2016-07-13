@@ -83,7 +83,7 @@ members affiliated with the over-represented employer(s).
 ## CTC Meetings
 
 The CTC meets weekly. The meeting is run by a designated moderator approved by
-the CTC. Each meeting should is streamed via YouTube.
+the CTC. Each meeting is streamed on YouTube.
 
 Items are added to the CTC agenda which are considered contentious or
 are modifications of governance, contribution policy, CTC membership,
