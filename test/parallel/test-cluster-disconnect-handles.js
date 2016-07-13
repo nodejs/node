@@ -92,7 +92,7 @@ if (cluster.isMaster) {
     debugger;
   };
   if (common.hasIPv6)
-    server.listen(cb);
+    server.listen(0, '::1', cb);
   else
     server.listen(0, common.localhostIPv4, cb);
   process.on('disconnect', process.exit);
