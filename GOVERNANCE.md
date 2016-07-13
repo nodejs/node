@@ -56,6 +56,8 @@ For the current list of Collaborators, see the project
 A guide for Collaborators is maintained in
 [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md).
 
+### Collaborator Activities
+
 Typical activities of a Collaborator include:
 
 * helping users and novice contributors
@@ -79,11 +81,15 @@ membership beyond these rules.
 
 The CTC may add additional members to the CTC by a standard CTC motion.
 
-A CTC member may be removed from the CTC by voluntary resignation, or by
-a standard CTC motion.
+When a CTC member's participation in [CTC activities](#ctc-activities) has become
+minimal for a sustained period of time, the CTC will request that the member
+either indicate an intention to increase participation or voluntarily resign.
+
+CTC members may only be removed by voluntary resignation or through a standard
+CTC motion.
 
 Changes to CTC membership should be posted in the agenda, and may be
-suggested as any other agenda item (see "CTC Meetings" below).
+suggested as any other agenda item (see [CTC Meetings](#ctc-meetings) below).
 
 No more than 1/3 of the CTC members may be affiliated with the same
 employer.  If removal or resignation of a CTC member, or a change of
@@ -91,6 +97,8 @@ employment by a CTC member, creates a situation where more than 1/3 of
 the CTC membership shares an employer, then the situation must be
 immediately remedied by the resignation or removal of one or more CTC
 members affiliated with the over-represented employer(s).
+
+### CTC Activities
 
 Typical activities of a CTC member include:
 
@@ -104,7 +112,7 @@ Typical activities of a CTC member include:
 Note that CTC members are also Collaborators and therefore typically perform
 Collaborator activities as well.
 
-## CTC Meetings
+### CTC Meetings
 
 The CTC meets weekly in a voice conference call. The meeting is run by a
 designated moderator approved by the CTC. Each meeting is streamed on YouTube.
