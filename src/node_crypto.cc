@@ -1776,8 +1776,6 @@ template <class Base>
 void SSLWrap<Base>::SetOCSPResponse(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  HandleScope scope(args.GetIsolate());
-
   Base* w = Unwrap<Base>(args.Holder());
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return w->env()->ThrowTypeError("Must give a Buffer as first argument");
@@ -1791,8 +1789,6 @@ template <class Base>
 void SSLWrap<Base>::RequestOCSP(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  HandleScope scope(args.GetIsolate());
-
   Base* w = Unwrap<Base>(args.Holder());
 
   SSL_set_tlsext_status_type(w->ssl_, TLSEXT_STATUSTYPE_ocsp);
@@ -1804,7 +1800,6 @@ void SSLWrap<Base>::RequestOCSP(
 template <class Base>
 void SSLWrap<Base>::SetMaxSendFragment(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
   CHECK(args.Length() >= 1 && args[0]->IsNumber());
 
   Base* w = Unwrap<Base>(args.Holder());
