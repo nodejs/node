@@ -1822,8 +1822,6 @@ template <class Base>
 void SSLWrap<Base>::SetOCSPResponse(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  HandleScope scope(args.GetIsolate());
-
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->env();
@@ -1842,8 +1840,6 @@ template <class Base>
 void SSLWrap<Base>::RequestOCSP(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  HandleScope scope(args.GetIsolate());
-
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
@@ -1901,7 +1897,6 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
 template <class Base>
 void SSLWrap<Base>::SetMaxSendFragment(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
   CHECK(args.Length() >= 1 && args[0]->IsNumber());
 
   Base* w;
@@ -2204,7 +2199,6 @@ template <class Base>
 void SSLWrap<Base>::GetALPNNegotiatedProto(
     const FunctionCallbackInfo<v8::Value>& args) {
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-  HandleScope scope(args.GetIsolate());
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
@@ -2226,7 +2220,6 @@ template <class Base>
 void SSLWrap<Base>::SetALPNProtocols(
     const FunctionCallbackInfo<v8::Value>& args) {
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-  HandleScope scope(args.GetIsolate());
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->env();
