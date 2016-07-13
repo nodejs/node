@@ -295,6 +295,8 @@ added: v0.1.90
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
+  * `argv0` {String} Explicitly set the value of `argv[0]` sent to the child
+    process. This will be set to `command` if not specified.
   * `stdio` {Array|String} Child's stdio configuration. (See
     [`options.stdio`][`stdio`])
   * `detached` {Boolean} Prepare child to run independently of its parent
@@ -396,6 +398,14 @@ child.on('error', (err) => {
   console.log('Failed to start child process.');
 });
 ```
+
+*Note: Certain platforms (OS X, Linux) will use the value of `argv[0]` for the
+process title while others (Windows, SunOS) will use `command`.*
+
+*Note: Node.js currently overwrites `argv[0]` with `process.execPath` on
+startup, so `process.argv[0]` in a Node.js child process will not match the
+`argv0` parameter passed to `spawn` from the parent, retrieve it with the
+`process.argv0` property instead.*
 
 #### options.detached
 <!-- YAML
