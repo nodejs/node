@@ -2,8 +2,8 @@
 
 ## Core Technical Committee
 
-The Node.js project is jointly governed by a Core Technical Committee (CTC)
-which is responsible for high-level guidance of the project.
+The Node.js project is governed by a Core Technical Committee (CTC) which is
+responsible for high-level guidance of the project.
 
 The CTC has final authority over this project including:
 
@@ -13,11 +13,6 @@ The CTC has final authority over this project including:
 * GitHub repository hosting
 * Conduct guidelines
 * Maintaining the list of additional Collaborators
-
-Initial membership invitations to the CTC were given to individuals who
-had been active contributors to Node.js, and who have significant
-experience with the management of the Node.js project. Membership is
-expected to evolve over time according to the needs of the project.
 
 For the current list of CTC members, see the project
 [README.md](./README.md#current-project-team-members).
@@ -46,8 +41,8 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off. Consensus should be sought if additional Collaborators
 participate and there is disagreement around a particular
-modification. See [Consensus Seeking Process](#consensus-seeking-process) below for further detail
-on the consensus model used for governance.
+modification. See [Consensus Seeking Process](#consensus-seeking-process) below
+for further detail on the consensus model used for governance.
 
 Collaborators may opt to elevate significant or controversial
 modifications, or modifications that have not found consensus to the
@@ -87,9 +82,8 @@ members affiliated with the over-represented employer(s).
 
 ## CTC Meetings
 
-The CTC meets weekly on a Google Hangout On Air. The meeting is run by
-a designated moderator approved by the CTC. Each meeting should be
-published to YouTube.
+The CTC meets weekly in a voice conference call. The meeting is run by a
+designated moderator approved by the CTC. Each meeting is streamed on YouTube.
 
 Items are added to the CTC agenda which are considered contentious or
 are modifications of governance, contribution policy, CTC membership,
@@ -100,20 +94,20 @@ That should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
 Any community member or contributor can ask that something be added to
-the next meeting's agenda by logging a GitHub Issue. Any Collaborator,
+the next meeting's agenda by logging a GitHub issue. Any Collaborator,
 CTC member or the moderator can add the item to the agenda by adding
 the ***ctc-agenda*** tag to the issue.
 
-Prior to each CTC meeting, the moderator will share the Agenda with
-members of the CTC. CTC members can add any items they like to the
-agenda at the beginning of each meeting. The moderator and the CTC
-cannot veto or remove items.
+Prior to each CTC meeting, the moderator will share the agenda with
+members of the CTC. CTC members can also add items to the agenda at the
+beginning of each meeting. The moderator and the CTC cannot veto or remove
+items.
 
 The CTC may invite persons or representatives from certain projects to
 participate in a non-voting capacity.
 
-The moderator is responsible for summarizing the discussion of each
-agenda item and sending it as a pull request after the meeting.
+The moderator is responsible for summarizing the discussion of each agenda item
+and sending it as a pull request after the meeting.
 
 ## Consensus Seeking Process
 
@@ -121,11 +115,10 @@ The CTC follows a
 [Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
 decision making model.
 
-When an agenda item has appeared to reach a consensus, the moderator
-will ask "Does anyone object?" as a final call for dissent from the
-consensus.
+When an agenda item has appeared to reach a consensus, the moderator will ask
+"Does anyone object?" as a final call for dissent from the consensus.
 
-If an agenda item cannot reach a consensus, a CTC member can call for
-either a closing vote or a vote to table the issue to the next
-meeting. The call for a vote must be approved by a majority of the CTC
-or else the discussion will continue. Simple majority wins.
+If an agenda item cannot reach a consensus, a CTC member can call for either a
+closing vote or a vote to table the issue to the next meeting. The call for a
+vote must be approved by a simple majority of the CTC or else the discussion
+will continue.
