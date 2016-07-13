@@ -40,6 +40,20 @@ The following special commands are supported by all REPL instances:
   `> .load ./file/to/load.js`
 * `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
 
+```js
+> .editor
+// Entering editor mode (^D to finish, ^C to cancel)
+function welcome(name) {
+  return `Hello ${name}!`;
+}
+
+welcome('Node.js User');
+
+// ^D
+'Hello Node.js User!'
+>
+```
+
 The following key combinations in the REPL have these special effects:
 
 * `<ctrl>-C` - When pressed once, has the same effect as the `.break` command.
