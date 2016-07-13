@@ -420,10 +420,10 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 
 
 Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
+  EscapableHandleScope handle_scope(env->isolate());
+
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
-
-  EscapableHandleScope handle_scope(env->isolate());
 
   // The code below is very nasty-looking but it prevents a segmentation fault
   // when people run JS code like the snippet below. It's apparently more
