@@ -436,9 +436,9 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
 
 Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
+  EscapableHandleScope scope(env->isolate());
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
-  EscapableHandleScope scope(env->isolate());
   Local<Value> ptr = External::New(env->isolate(), parent);
   return scope.Escape(env->udp_constructor_function()
       ->NewInstance(env->context(), 1, &ptr).ToLocalChecked());
