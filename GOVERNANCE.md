@@ -79,8 +79,10 @@ membership beyond these rules.
 
 The CTC may add additional members to the CTC by a standard CTC motion.
 
-A CTC member may be removed from the CTC by voluntary resignation, or by
-a standard CTC motion.
+When a CTC member's participation in CTC matters has become minimal for a
+sustained period of time, the CTC will respectfully ask that member to resign
+from the CTC. In addition to voluntary resignation, a CTC member may be removed
+by a standard CTC motion.
 
 Changes to CTC membership should be posted in the agenda, and may be
 suggested as any other agenda item (see "CTC Meetings" below).
