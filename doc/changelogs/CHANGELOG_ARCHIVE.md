@@ -1314,13 +1314,13 @@ https://github.com/nodejs/node/commit/8b8a7a7f9b41e74e1e810d0330738ad06fc302ec
 https://github.com/nodejs/node/commit/a72120190a8ffdbcd3d6ad2a2e6ceecd2087111e
 
 * npm: Upgrade to 1.1.30
-	- Improved 'npm init'
-	- Fix the 'cb never called' error from 'oudated' and 'update'
-	- Add --save-bundle|-B config
-	- Fix isaacs/npm[#2465](https://github.com/joyent/node/issues/2465): Make npm script and windows shims cygwin-aware
-	- Fix isaacs/npm[#2452](https://github.com/joyent/node/issues/2452) Use --save(-dev|-optional) in npm rm
-	- `logstream` option to replace removed `logfd` (Rod Vagg)
-	- Read default descriptions from README.md files
+  - Improved 'npm init'
+  - Fix the 'cb never called' error from 'oudated' and 'update'
+  - Add --save-bundle|-B config
+  - Fix isaacs/npm[#2465](https://github.com/joyent/node/issues/2465): Make npm script and windows shims cygwin-aware
+  - Fix isaacs/npm[#2452](https://github.com/joyent/node/issues/2452) Use --save(-dev|-optional) in npm rm
+  - `logstream` option to replace removed `logfd` (Rod Vagg)
+  - Read default descriptions from README.md files
 
 * Shims to support deprecated ev_* and eio_* methods (Ben Noordhuis)
 * [#3118](https://github.com/joyent/node/issues/3118) net.Socket: Delay pause/resume until after connect (isaacs)
@@ -1381,9 +1381,9 @@ https://github.com/nodejs/node/commit/12a32a48a30182621b3f8e9b9695d1946b53c131
 * child_process: new stdio API for .spawn() method (Fedor Indutny)
 * child_process: spawn().ref() and spawn().unref() (Fedor Indutny)
 * Upgrade npm to 1.1.25
-	- Enable npm link on windows
-	- Properly remove sh-shim on Windows
-	- Abstract out registry client and logger
+  - Enable npm link on windows
+  - Properly remove sh-shim on Windows
+  - Abstract out registry client and logger
 
 <a id="0.7.9"></a>
 ## 2012.05.28, Version 0.7.9 (unstable)
@@ -1981,7 +1981,7 @@ https://github.com/nodejs/node/commit/865b077819a9271a29f982faaef99dc635b57fbc
 https://github.com/nodejs/node/commit/220e61c1f65bf4db09699fcf6399c0809c0bc446
 
 * Remove cmake build system, support for Cygwin, legacy code base,
-	process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
+  process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
 
 * Documentation improvements (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
 koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
@@ -2207,7 +2207,7 @@ https://github.com/nodejs/node/commit/4585330afef44ddfb6a4054bd9b0f190b352628b
 * Add support for TLS SNI (Fedor Indutny)
 * New http agent implementation. Off by default the command line flag
   --use-http2 will enable it. "make test-http2" will run the tests
-	for the new implementation. (Mikeal Rogers)
+  for the new implementation. (Mikeal Rogers)
 
 * Revert AMD compatibility. (isaacs)
 * Windows: improvements, child_process support.
@@ -2375,7 +2375,7 @@ https://github.com/nodejs/node/commit/7dd22c26e4365698dc3efddf138c4d399cb912c8
 * [#983](https://github.com/joyent/node/issues/983) Better JSON.parse error detection in REPL (isaacs)
 * [#836](https://github.com/joyent/node/issues/836) Agent socket errors bubble up to req only if req exists
 * [#1041](https://github.com/joyent/node/issues/1041) Fix event listener leak check timing (koichik)
-*	[#1038](https://github.com/joyent/node/issues/1038) Fix dns.resolve() with 'PTR' throws Error: Unknown type "PTR"
+* [#1038](https://github.com/joyent/node/issues/1038) Fix dns.resolve() with 'PTR' throws Error: Unknown type "PTR"
   (koichik)
 
 * [#1073](https://github.com/joyent/node/issues/1073) Share SSL context between server connections (Fedor Indutny)
@@ -2389,7 +2389,7 @@ https://github.com/nodejs/node/commit/7dd22c26e4365698dc3efddf138c4d399cb912c8
 
 * Doc improvements
 * cleartextstream.destroy() should close(2) the socket. Previously was being
-	mapped to a shutdown(2) syscall.
+  mapped to a shutdown(2) syscall.
 
 * No longer compile out asserts and debug statements in normal build.
 * Debugger improvements.
@@ -2417,16 +2417,16 @@ https://github.com/nodejs/node/commit/58002d56bc79410c5ff397fc0e1ffec0665db38a
 
 * Don't error on ENOTCONN from shutdown() [#670](https://github.com/joyent/node/issues/670)
 * Auto completion of built-in debugger suggests prefix match rather than
-	partial match. (koichik)
+  partial match. (koichik)
 
 * circular reference in vm modules. [#822](https://github.com/joyent/node/issues/822) (Jakub Lekstan)
 * http response.readable should be false after 'end' [#867](https://github.com/joyent/node/issues/867) (Abe Fettig)
 * Implement os.cpus() and os.uptime() on Solaris (Scott McWhirter)
 * fs.ReadStream: Allow omission of end option for range reads [#801](https://github.com/joyent/node/issues/801)
-	(Felix Geisendörfer)
+  (Felix Geisendörfer)
 
 * Buffer.write() with UCS-2 should not be write partial char
-	[#916](https://github.com/joyent/node/issues/916) (koichik)
+  [#916](https://github.com/joyent/node/issues/916) (koichik)
 
 * Pass secureProtocol through on tls.Server creation (Theo Schlossnagle)
 * TLS use RC4-SHA by default
@@ -2467,7 +2467,7 @@ https://github.com/nodejs/node/commit/25122b986a90ba0982697b7abcb0158c302a1019
 https://github.com/nodejs/node/commit/c095ce1a1b41ca015758a713283bf1f0bd41e4c4
 
 * Don't decrease server connection counter again if destroy() is called more
-	than once GH-431 (Andreas Reich, Anders Conbere)
+  than once GH-431 (Andreas Reich, Anders Conbere)
 
 * Documentation improvements (koichik)
 * Fix bug with setMaxListeners GH-682
@@ -2794,7 +2794,7 @@ https://github.com/nodejs/node/commit/b14dd49222687c12f3e8eac597cff4f2674f84e8
 * Set cwd for child processes (Bert Belder)
 * Tab completion for readline (Trent Mick)
 * process.title getter/setter for OSX, Linux, Cygwin.
-	(Rasmus Andersson, Bert Belder)
+  (Rasmus Andersson, Bert Belder)
 
 * Upgrade V8 to 2.3.6
 
