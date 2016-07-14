@@ -60,7 +60,7 @@ inline void BaseObject::MakeWeak(Type* ptr) {
   Wrap(handle, ptr);
   objecthandle_.MarkIndependent();
   objecthandle_.SetWeak<Type>(ptr, WeakCallback<Type>,
-                        v8::WeakCallbackType::kParameter);
+                              v8::WeakCallbackType::kParameter);
 }
 
 
