@@ -452,9 +452,10 @@ added: v0.1.27
 
 The `process.argv` property returns an array containing the command line
 arguments passed when the Node.js process was launched. The first element will
-be [`process.execPath`]. The second element will be the path to the
-JavaScript file being executed. The remaining elements will be any additional
-command line arguments.
+be [`process.execPath`]. See `process.argv0` if access to the original value of
+`argv[0]` is needed.  The second element will be the path to the JavaScript
+file being executed. The remaining elements will be any additional command line
+arguments.
 
 For example, assuming the following script for `process-args.js`:
 
@@ -479,6 +480,22 @@ Would generate the output:
 2: one
 3: two=three
 4: four
+```
+
+## process.argv0
+<!-- YAML
+added: REPLACEME
+-->
+
+The `process.argv0` property stores a read-only copy of the original value of
+`argv[0]` passed when Node.js starts.
+
+```js
+$ bash -c 'exec -a customArgv0 ./node'
+> process.argv[0]
+'/Volumes/code/external/node/out/Release/node'
+> process.argv0
+'customArgv0'
 ```
 
 ## process.chdir(directory)
