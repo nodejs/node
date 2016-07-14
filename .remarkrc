@@ -1,0 +1,35 @@
+{
+  "plugins": {
+    "remark-lint": {
+      "code-block-style": false,
+      "definition-case": false,
+      "emphasis-marker": false,
+      "first-heading-level": false,
+      "heading-increment": false,
+      "list-item-content-indent": false,
+      "list-item-bullet-indent": false,
+      "list-item-indent": false,
+      "list-item-spacing": false,
+      "maximum-heading-length": false,
+      "maximum-line-length": false,
+      "no-consecutive-blank-lines": false,
+      "no-duplicate-headings": false,
+      "no-emphasis-as-heading": false,
+      "no-file-name-articles": false,
+      "no-file-name-irregular-characters": false,
+      "no-heading-punctuation": false,
+      "no-html": false,
+      "no-inline-padding": false,
+      "no-shell-dollars": false,
+      "no-shortcut-reference-link": false,
+      "no-literal-urls": false,
+      "no-missing-blank-lines": false,
+      "no-multiple-toplevel-headings": false,
+      "no-undefined-references": false,
+      "ordered-list-marker-style": false,
+      "ordered-list-marker-value": false,
+      "table-pipe-alignment": false,
+      "unordered-list-marker-style": false
+    }
+  }
+}
