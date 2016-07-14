@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var events = require('events');
 
@@ -16,7 +16,7 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
 var remove = function() {
-  assert.fail(1, 0, 'once->foo should not be emitted', '!');
+  common.fail('once->foo should not be emitted');
 };
 
 e.once('foo', remove);

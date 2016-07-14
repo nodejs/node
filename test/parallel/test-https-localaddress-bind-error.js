@@ -35,7 +35,7 @@ server.listen(0, '127.0.0.1', function() {
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
-    assert.fail(null, null, 'unexpectedly got response from server');
+    common.fail('unexpectedly got response from server');
   }).on('error', function(e) {
     console.log('client got error: ' + e.message);
     gotError = true;
