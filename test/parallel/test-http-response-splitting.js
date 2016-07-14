@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
       }));
       break;
     default:
-      assert.fail(null, null, 'should not get to here.');
+      common.fail('should not get to here.');
   }
   if (count === 3)
     server.close();
