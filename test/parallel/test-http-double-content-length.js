@@ -23,8 +23,7 @@ server.listen(0, () => {
     // Send two content-length header values.
     headers: {'Content-Length': [1, 2]}},
     (res) => {
-      assert.fail(null, null, 'an error should have occurred');
-      server.close();
+      common.fail('an error should have occurred');
     }
   );
   req.on('error', common.mustCall(() => {

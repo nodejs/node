@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 
@@ -169,7 +169,7 @@ function checkErrors(path) {
       return;
     }
 
-    assert.fail(null, null, 'should have thrown');
+    common.fail('should have thrown');
   });
 }
 

@@ -1,6 +1,5 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 var net = require('net');
 
@@ -10,6 +9,6 @@ net.createServer(function(conn) {
   net.connect(this.address().port, 'localhost').pause();
 
   setTimeout(function() {
-    assert.fail(null, null, 'expected to exit');
+    common.fail('expected to exit');
   }, 1000).unref();
 }).unref();

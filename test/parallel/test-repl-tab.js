@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var repl = require('repl');
 var zlib = require('zlib');
@@ -10,9 +10,7 @@ var testMe = repl.start('', putIn, function(cmd, context, filename, callback) {
   callback(null, cmd);
 });
 
-testMe._domain.on('error', function(e) {
-  assert.fail();
-});
+testMe._domain.on('error', common.fail);
 
 testMe.complete('', function(err, results) {
   assert.equal(err, null);
