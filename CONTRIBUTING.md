@@ -100,7 +100,7 @@ changed and why. Follow these guidelines when writing one:
 
 A good commit log can look something like this:
 
-```
+```txt
 subsystem: explaining the commit in one line
 
 Body of commit message is a few lines of text, explaining things
@@ -122,7 +122,7 @@ what subsystem (or subsystems) your changes touch.
 If your patch fixes an open issue, you can add a reference to it at the end
 of the log. Use the `Fixes:` prefix and the full issue URL. For example:
 
-```
+```txt
 Fixes: https://github.com/nodejs/node/issues/1337
 ```
 
