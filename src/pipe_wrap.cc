@@ -157,7 +157,7 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
-                      OnConnection);
+                      ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection);
   args.GetReturnValue().Set(err);
 }
 

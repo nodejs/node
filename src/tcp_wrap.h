@@ -10,8 +10,11 @@
 
 namespace node {
 
-class TCPWrap : public StreamWrap, public ConnectionWrap<TCPWrap, uv_tcp_t> {
+class TCPWrap : public StreamWrap {
  public:
+  uv_tcp_t* UVHandle() {
+    return &handle_;
+  }
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
@@ -20,6 +23,7 @@ class TCPWrap : public StreamWrap, public ConnectionWrap<TCPWrap, uv_tcp_t> {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
+  friend class ConnectionWrap<TCPWrap, uv_tcp_t>;
   typedef uv_tcp_t HandleType;
 
   template <typename T,
@@ -45,6 +49,8 @@ class TCPWrap : public StreamWrap, public ConnectionWrap<TCPWrap, uv_tcp_t> {
 #endif
 
   static void AfterConnect(uv_connect_t* req, int status);
+
+  uv_tcp_t handle_;
 };
 
 
