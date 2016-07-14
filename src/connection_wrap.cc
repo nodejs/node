@@ -47,7 +47,7 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
     uv_stream_t* client_handle =
         reinterpret_cast<uv_stream_t*>(&wrap->handle_);
     // uv_accept can fail if the new connection has already been closed, in
-    // which case an EAGAIN (resource temporarily unavailabile) will be
+    // which case an EAGAIN (resource temporarily unavailable) will be
     // returned.
     if (uv_accept(handle, client_handle))
       return;
