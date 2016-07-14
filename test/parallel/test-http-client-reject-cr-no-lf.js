@@ -17,7 +17,7 @@ server.listen(0, () => {
   // The callback should not be called because the server is sending a
   // header field that ends only in \r with no following \n
   const req = http.get({port: server.address().port}, (res) => {
-    assert.fail(null, null, 'callback should not be called');
+    common.fail('callback should not be called');
   });
   req.on('error', common.mustCall((err) => {
     assert(/^Parse Error/.test(err.message));

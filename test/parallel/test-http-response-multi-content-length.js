@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, {'content-length': [1, 2]});
       break;
     default:
-      assert.fail(null, null, 'should never get here');
+      common.fail('should never get here');
   }
   res.end('ok');
 });
