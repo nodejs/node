@@ -28,7 +28,7 @@ function callbackOnly(err) {
 }
 
 function onEvent(err) {
-  assert.fail(null, null, 'Error should not be emitted if there is callback');
+  common.fail('Error should not be emitted if there is callback');
 }
 
 function onError(err) {

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -17,12 +17,12 @@ net.Server().listen({ port: '0' }, close);
   '-Infinity'
 ].forEach(function(port) {
   assert.throws(function() {
-    net.Server().listen({ port: port }, assert.fail);
+    net.Server().listen({ port: port }, common.fail);
   }, /port should be >= 0 and < 65536/i);
 });
 
 [null, true, false].forEach(function(port) {
   assert.throws(function() {
-    net.Server().listen({ port: port }, assert.fail);
+    net.Server().listen({ port: port }, common.fail);
   }, /invalid listen argument/i);
 });
