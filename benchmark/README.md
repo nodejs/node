@@ -30,8 +30,6 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
-[wrk]: https://github.com/wg/wrk
-
 ## Running benchmarks
 
 ### Running individual benchmarks
@@ -43,7 +41,7 @@ conclusions about the performance.
 Individual benchmarks can be executed by simply executing the benchmark script
 with node.
 
-```
+```console
 $ node benchmark/buffers/buffer-tostring.js
 
 buffers/buffer-tostring.js n=10000000 len=0 arg=true: 62710590.393305704
@@ -65,7 +63,7 @@ measured in ops/sec (higher is better).**
 Furthermore you can specify a subset of the configurations, by setting them in
 the process arguments:
 
-```
+```console
 $ node benchmark/buffers/buffer-tostring.js len=1024
 
 buffers/buffer-tostring.js n=10000000 len=1024 arg=true: 3498295.68561504
@@ -78,7 +76,7 @@ Similar to running individual benchmarks, a group of benchmarks can be executed
 by using the `run.js` tool. Again this does not provide the statistical
 information to make any conclusions.
 
-```
+```console
 $ node benchmark/run.js arrays
 
 arrays/var-int.js
@@ -98,7 +96,7 @@ arrays/zero-int.js n=25 type=Buffer: 90.49906662339653
 ```
 
 It is possible to execute more groups by adding extra process arguments.
-```
+```console
 $ node benchmark/run.js arrays buffers
 ```
 
@@ -119,13 +117,13 @@ First build two versions of node, one from the master branch (here called
 
 The `compare.js` tool will then produce a csv file with the benchmark results.
 
-```
+```console
 $ node benchmark/compare.js --old ./node-master --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
 ```
 
 For analysing the benchmark results use the `compare.R` tool.
 
-```
+```console
 $ cat compare-pr-5134.csv | Rscript benchmark/compare.R
 
                                                                                       improvement significant      p.value
@@ -159,8 +157,6 @@ _For the statistically minded, the R script performs an [independent/unpaired
 same for both versions. The significant field will show a star if the p-value
 is less than `0.05`._
 
-[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
-
 The `compare.R` tool can also produce a box plot by using the `--plot filename`
 option. In this case there are 48 different benchmark combinations, thus you
 may want to filter the csv file. This can be done while benchmarking using the
@@ -168,7 +164,7 @@ may want to filter the csv file. This can be done while benchmarking using the
 afterwards using tools such as `sed` or `grep`. In the `sed` case be sure to
 keep the first line since that contains the header information.
 
-```
+```console
 $ cat compare-pr-5134.csv | sed '1p;/encoding=ascii/!d' | Rscript benchmark/compare.R --plot compare-plot.png
 
                                                                                improvement significant      p.value
@@ -190,7 +186,7 @@ example to analyze the time complexity.
 To do this use the `scatter.js` tool, this will run a benchmark multiple times
 and generate a csv with the results.
 
-```
+```console
 $ node benchmark/scatter.js benchmark/string_decoder/string-decoder.js > scatter.csv
 ```
 
@@ -198,7 +194,7 @@ After generating the csv, a comparison table can be created using the
 `scatter.R` tool. Even more useful it creates an actual scatter plot when using
 the `--plot filename` option.
 
-```
+```console
 $ cat scatter.csv | Rscript benchmark/scatter.R --xaxis chunk --category encoding --plot scatter-plot.png --log
 
 aggregating variable: inlen
@@ -229,7 +225,7 @@ can be solved by filtering. This can be done while benchmarking using the
 afterwards using tools such as `sed` or `grep`. In the `sed` case be
 sure to keep the first line since that contains the header information.
 
-```
+```console
 $ cat scatter.csv | sed -E '1p;/([^,]+, ){3}128,/!d' | Rscript benchmark/scatter.R --xaxis chunk --category encoding --plot scatter-plot.png --log
 
 chunk     encoding       mean confidence.interval
@@ -290,3 +286,6 @@ function main(conf) {
   bench.end(conf.n);
 }
 ```
+
+[wrk]: https://github.com/wg/wrk
+[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
