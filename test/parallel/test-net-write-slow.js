@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -13,8 +13,7 @@ var server = net.createServer(function(socket) {
   socket.setNoDelay();
   socket.setTimeout(9999);
   socket.on('timeout', function() {
-    assert.fail(null, null, 'flushed: ' + flushed +
-                ', received: ' + received + '/' + SIZE * N);
+    common.fail(`flushed: ${flushed}, received: ${received}/${SIZE * N}`);
   });
 
   for (var i = 0; i < N; ++i) {
