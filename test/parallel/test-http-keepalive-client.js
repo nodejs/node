@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -16,7 +16,9 @@ var server = http.createServer(function(req, res) {
 
   res.end(req.url);
 });
-server.listen(common.PORT);
+server.listen(0, function() {
+  makeRequest(expectRequests);
+});
 
 var agent = http.Agent({ keepAlive: true });
 
@@ -26,7 +28,6 @@ var expectRequests = 10;
 var actualRequests = 0;
 
 
-makeRequest(expectRequests);
 function makeRequest(n) {
   if (n === 0) {
     server.close();
@@ -35,7 +36,7 @@ function makeRequest(n) {
   }
 
   var req = http.request({
-    port: common.PORT,
+    port: server.address().port,
     agent: agent,
     path: '/' + n
   });

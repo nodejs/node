@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -15,8 +15,8 @@ var server = http.createServer(function(req, res) {
   seen_req = true;
 });
 
-server.listen(common.PORT, function() {
-  http.get('http://127.0.0.1:' + common.PORT + '/foo?bar');
+server.listen(0, function() {
+  http.get(`http://127.0.0.1:${this.address().port}/foo?bar`);
 });
 
 process.on('exit', function() {

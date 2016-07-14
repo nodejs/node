@@ -28,11 +28,11 @@ var server = tls.Server(options, function(socket) {
 });
 
 // start listening
-server.listen(common.PORT, function() {
+server.listen(0, function() {
 
   var session1 = null;
   var client1 = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function() {
     console.log('connect1');
@@ -44,7 +44,7 @@ server.listen(common.PORT, function() {
     console.log('close1');
 
     var opts = {
-      port: common.PORT,
+      port: server.address().port,
       rejectUnauthorized: false,
       session: session1
     };

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var http = require('http');
 var assert = require('assert');
 
@@ -23,7 +23,7 @@ function nextRequest() {
   console.error('writing request: %s', method);
 
   var request = http.request({
-    port: common.PORT,
+    port: server.address().port,
     method: method,
     path: '/'
   }, function(response) {
@@ -43,4 +43,4 @@ function nextRequest() {
   request.end();
 }
 
-server.listen(common.PORT, nextRequest);
+server.listen(0, nextRequest);

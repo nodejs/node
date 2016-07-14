@@ -1,21 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var tcpPort = common.PORT;
-var expectedConnections = 7;
+const expectedConnections = 7;
 var clientConnected = 0;
 var serverConnected = 0;
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.end();
   if (++serverConnected === expectedConnections) {
     server.close();
   }
 });
 
-server.listen(tcpPort, 'localhost', function() {
+server.listen(0, 'localhost', function() {
   function cb() {
     ++clientConnected;
   }
@@ -28,13 +27,13 @@ server.listen(tcpPort, 'localhost', function() {
     });
   }
 
-  net.createConnection(tcpPort).on('connect', cb);
-  net.createConnection(tcpPort, 'localhost').on('connect', cb);
-  net.createConnection(tcpPort, cb);
-  net.createConnection(tcpPort, 'localhost', cb);
-  net.createConnection(tcpPort + '', 'localhost', cb);
-  net.createConnection({port: tcpPort + ''}).on('connect', cb);
-  net.createConnection({port: '0x' + tcpPort.toString(16)}, cb);
+  net.createConnection(this.address().port).on('connect', cb);
+  net.createConnection(this.address().port, 'localhost').on('connect', cb);
+  net.createConnection(this.address().port, cb);
+  net.createConnection(this.address().port, 'localhost', cb);
+  net.createConnection(this.address().port + '', 'localhost', cb);
+  net.createConnection({port: this.address().port + ''}).on('connect', cb);
+  net.createConnection({port: '0x' + this.address().port.toString(16)}, cb);
 
   fail({
     port: true

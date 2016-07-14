@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
 function close() { this.close(); }
 net.Server().listen({ port: undefined }, close);
-net.Server().listen({ port: '' + common.PORT }, close);
+net.Server().listen({ port: '0' }, close);
 
 [ 'nan',
   -1,

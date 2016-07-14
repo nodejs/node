@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
@@ -19,8 +19,8 @@ var server = http.createServer(function(req, res) {
   setTimeout(function() {
     res.end();
   }, (Math.random() * 100) | 0);
-}).listen(common.PORT, function() {
-  const s = net.connect(common.PORT);
+}).listen(0, function() {
+  const s = net.connect(this.address().port);
 
   var big = 'GET / HTTP/1.0\r\n\r\n'.repeat(COUNT);
 

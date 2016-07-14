@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -17,12 +17,15 @@ server.on('upgrade', function(req, socket, head) {
 
 var successCount = 0;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
 
   function upgradeRequest(fn) {
     console.log('req');
     var header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
-    var request = http.request({ port: common.PORT, headers: header });
+    var request = http.request({
+      port: server.address().port,
+      headers: header
+    });
     var wasUpgrade = false;
 
     function onUpgrade(res, socket, head) {

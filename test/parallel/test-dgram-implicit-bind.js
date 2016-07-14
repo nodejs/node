@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var dgram = require('dgram');
 
@@ -22,8 +22,9 @@ target.on('message', function(buf) {
 
 target.on('listening', function() {
   // Second .send() call should not throw a bind error.
-  source.send(Buffer('abc'), 0, 3, common.PORT, '127.0.0.1');
-  source.send(Buffer('def'), 0, 3, common.PORT, '127.0.0.1');
+  const port = this.address().port;
+  source.send(Buffer('abc'), 0, 3, port, '127.0.0.1');
+  source.send(Buffer('def'), 0, 3, port, '127.0.0.1');
 });
 
-target.bind(common.PORT);
+target.bind(0);

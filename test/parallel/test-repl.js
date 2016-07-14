@@ -324,10 +324,10 @@ function tcp_test() {
     repl.start(prompt_tcp, socket);
   });
 
-  server_tcp.listen(common.PORT, function() {
+  server_tcp.listen(0, function() {
     var read_buffer = '';
 
-    client_tcp = net.createConnection(common.PORT);
+    client_tcp = net.createConnection(this.address().port);
 
     client_tcp.on('connect', function() {
       assert.equal(true, client_tcp.readable);

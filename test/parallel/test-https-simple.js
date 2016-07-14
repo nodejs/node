@@ -34,11 +34,11 @@ const serverCallback = common.mustCall(function(req, res) {
 
 const server = https.createServer(options, serverCallback);
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   // Do a request ignoring the unauthorized server certs
   const noCertCheckOptions = {
     hostname: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     rejectUnauthorized: false
@@ -65,7 +65,7 @@ server.listen(common.PORT, function() {
   // Do a request that throws error due to the invalid server certs
   const checkCertOptions = {
     hostname: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET'
   };

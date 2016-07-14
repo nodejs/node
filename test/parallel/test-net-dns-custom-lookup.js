@@ -12,9 +12,9 @@ function check(addressType, cb) {
   });
 
   var address = addressType === 4 ? common.localhostIPv4 : '::1';
-  server.listen(common.PORT, address, function() {
+  server.listen(0, address, function() {
     net.connect({
-      port: common.PORT,
+      port: this.address().port,
       host: 'localhost',
       family: addressType,
       lookup: lookup

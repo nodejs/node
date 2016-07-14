@@ -22,10 +22,10 @@ var server = https.Server(options, function(req, res) {
 });
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   https.get({
     path: '/',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: true,
     servername: 'agent1',
     ca: options.ca

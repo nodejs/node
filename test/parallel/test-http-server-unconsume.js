@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -15,8 +15,8 @@ var server = http.createServer(function(req, res) {
   });
 
   server.close();
-}).listen(common.PORT, function() {
-  var socket = net.connect(common.PORT, function() {
+}).listen(0, function() {
+  var socket = net.connect(this.address().port, function() {
     socket.write('PUT / HTTP/1.1\r\n\r\n');
 
     socket.once('data', function() {
