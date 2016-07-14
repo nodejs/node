@@ -87,7 +87,7 @@ total size of the internal write buffer is below the threshold set by
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
-A key goal of the `stream` API, an in particular the [`stream.pipe()`] method,
+A key goal of the `stream` API, and in particular the [`stream.pipe()`] method,
 is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
