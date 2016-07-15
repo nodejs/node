@@ -1,6 +1,6 @@
 # util
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `util` module is primarily designed to support the needs of Node.js' own
 internal APIs. However, many of the utilities are useful for application and
@@ -278,7 +278,7 @@ applications and modules should be updated to find alternative approaches.
 
 ### util.debug(string)
 
-    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 * `string` {string} The message to print to `stderr`
 
@@ -286,7 +286,7 @@ Deprecated predecessor of `console.error`.
 
 ### util.error([...])
 
-    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 * `string` {string} The message to print to `stderr`
 
@@ -294,7 +294,7 @@ Deprecated predecessor of `console.error`.
 
 ### util.isArray(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -315,7 +315,7 @@ util.isArray({});
 
 ### util.isBoolean(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -334,7 +334,7 @@ util.isBoolean(false);
 
 ### util.isBuffer(object)
 
-    Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
+> Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
 * `object` {any}
 
@@ -353,7 +353,7 @@ util.isBuffer(Buffer.from('hello world'));
 
 ### util.isDate(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -372,7 +372,7 @@ util.isDate({});
 
 ### util.isError(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -407,7 +407,7 @@ util.isError(obj);
 
 ### util.isFunction(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -430,7 +430,7 @@ util.isFunction(Bar);
 
 ### util.isNull(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -450,7 +450,7 @@ util.isNull(null);
 
 ### util.isNullOrUndefined(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -470,7 +470,7 @@ util.isNullOrUndefined(null);
 
 ### util.isNumber(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -491,7 +491,7 @@ util.isNumber(NaN);
 
 ### util.isObject(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -513,7 +513,7 @@ util.isObject(function(){});
 
 ### util.isPrimitive(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -545,7 +545,7 @@ util.isPrimitive(new Date());
 
 ### util.isRegExp(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -564,7 +564,7 @@ util.isRegExp({});
 
 ### util.isString(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -585,7 +585,7 @@ util.isString(5);
 
 ### util.isSymbol(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -604,7 +604,7 @@ util.isSymbol(Symbol('foo'));
 
 ### util.isUndefined(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * `object` {any}
 
@@ -624,7 +624,7 @@ util.isUndefined(null);
 
 ### util.log(string)
 
-    Stability: 0 - Deprecated: Use a third party module instead.
+> Stability: 0 - Deprecated: Use a third party module instead.
 
 * `string` {string}
 
@@ -639,19 +639,19 @@ util.log('Timestamped message.');
 
 ### util.print([...])
 
-    Stability: 0 - Deprecated: Use [`console.log()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
 ### util.puts([...])
 
-    Stability: 0 - Deprecated: Use [`console.log()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
 ### util._extend(obj)
 
-    Stability: 0 - Deprecated: Use [`Object.assign()`] instead.
+> Stability: 0 - Deprecated: Use [`Object.assign()`] instead.
 
 The `util._extend()` method was never intended to be used outside of internal
 Node.js modules. The community found and used it anyway.
