@@ -82,19 +82,19 @@ function doJSON(input, filename, cb) {
 
     // Immediately after a heading, we can expect the following
     //
-    // { type: 'code', text: 'Stability: ...' },
+    // { type: 'blockquote_start' }
+    // { type: 'paragraph', text: 'Stability: ...' },
+    // { type: 'blockquote_end' }
     //
     // a list: starting with list_start, ending with list_end,
     // maybe containing other nested lists in each item.
     //
-    // If one of these isnt' found, then anything that comes between
+    // If one of these isn't found, then anything that comes between
     // here and the next heading should be parsed as the desc.
     var stability;
     if (state === 'AFTERHEADING') {
-      if (type === 'code' &&
-          (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
-        current.stability = parseInt(stability[1], 10);
-        current.stabilityText = stability[2].trim();
+      if (type === 'blockquote_start') {
+        state = 'AFTERHEADING_BLOCKQUOTE';
         return;
       } else if (type === 'list_start' && !tok.ordered) {
         state = 'AFTERHEADING_LIST';
@@ -127,6 +127,20 @@ function doJSON(input, filename, cb) {
         processList(current);
       }
       return;
+    }
+
+    if (state === 'AFTERHEADING_BLOCKQUOTE') {
+      if (type === 'blockquote_end') {
+        state = 'AFTERHEADING';
+        return;
+      }
+
+      if (type === 'paragraph' &&
+          (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
+        current.stability = parseInt(stability[1], 10);
+        current.stabilityText = stability[2].trim();
+        return;
+      }
     }
 
     current.desc = current.desc || [];

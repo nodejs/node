@@ -1,6 +1,6 @@
 # REPL
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 A Read-Eval-Print-Loop (REPL) is available both as a standalone program and
 easily includable in other programs. The REPL provides a way to interactively
@@ -56,7 +56,7 @@ disabled by setting the environment variable `NODE_REPL_HISTORY=""`.
 
 ### NODE_REPL_HISTORY_FILE
 
-    Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
+> Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
 
 Previously in Node.js/io.js v2.x, REPL history was controlled by using a
 `NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON

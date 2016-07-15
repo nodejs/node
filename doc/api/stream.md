@@ -1,6 +1,6 @@
 # Stream
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 A stream is an abstract interface implemented by various objects in
 Node.js. For example a [request to an HTTP server][http-incoming-message] is a
