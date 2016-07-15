@@ -26,7 +26,7 @@ var server = net.createServer(function(socket) {
   }
   socket.end();
 
-}).listen(0, function() {
+}).listen(0, common.mustCall(function() {
   var conn = net.connect(this.address().port);
   conn.on('data', function(buf) {
     received += buf.length;
@@ -35,11 +35,8 @@ var server = net.createServer(function(socket) {
       conn.resume();
     }, 20);
   });
-  conn.on('end', function() {
+  conn.on('end', common.mustCall(function() {
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(received, SIZE * N);
-});
+    assert.strictEqual(received, SIZE * N);
+  }));
+}));

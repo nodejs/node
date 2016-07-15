@@ -25,9 +25,7 @@ var srv = net.createServer(function(c) {
   });
 });
 
-var gotUpgrade = false;
-
-srv.listen(0, '127.0.0.1', function() {
+srv.listen(0, '127.0.0.1', common.mustCall(function() {
 
   var req = http.get({
     port: this.address().port,
@@ -36,7 +34,7 @@ srv.listen(0, '127.0.0.1', function() {
       upgrade: 'websocket'
     }
   });
-  req.on('upgrade', function(res, socket, upgradeHead) {
+  req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
     var recvData = upgradeHead;
     socket.on('data', function(d) {
       recvData += d;
@@ -54,11 +52,5 @@ srv.listen(0, '127.0.0.1', function() {
 
     socket.end();
     srv.close();
-
-    gotUpgrade = true;
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(gotUpgrade);
-});
+  }));
+}));

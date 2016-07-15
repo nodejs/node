@@ -6,30 +6,25 @@ const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 const filename = path.join(common.tmpDir, 'write.txt');
 const expected = Buffer.from('hello');
-let openCalled = 0;
-let writeCalled = 0;
-
 
 common.refreshTmpDir();
 
-fs.open(filename, 'w', 0o644, function(err, fd) {
-  openCalled++;
+fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
   if (err) throw err;
 
-  fs.write(fd, expected, 0, expected.length, null, function(err, written) {
-    writeCalled++;
-    if (err) throw err;
+  fs.write(fd,
+           expected,
+           0,
+           expected.length,
+           null,
+           common.mustCall(function(err, written) {
+             if (err) throw err;
 
-    assert.equal(expected.length, written);
-    fs.closeSync(fd);
+             assert.equal(expected.length, written);
+             fs.closeSync(fd);
 
-    var found = fs.readFileSync(filename, 'utf8');
-    assert.deepStrictEqual(expected.toString(), found);
-    fs.unlinkSync(filename);
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(1, openCalled);
-  assert.equal(1, writeCalled);
-});
+             var found = fs.readFileSync(filename, 'utf8');
+             assert.deepStrictEqual(expected.toString(), found);
+             fs.unlinkSync(filename);
+           }));
+}));

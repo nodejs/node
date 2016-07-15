@@ -42,15 +42,9 @@ function test(size, useBuffer, cb) {
   });
 }
 
-var finished = false;
-test(1024 * 1024, false, function() {
+test(1024 * 1024, false, common.mustCall(function() {
   console.log('Done printing with string');
-  test(1024 * 1024, true, function() {
+  test(1024 * 1024, true, common.mustCall(function() {
     console.log('Done printing with buffer');
-    finished = true;
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(finished);
-});
+  }));
+}));

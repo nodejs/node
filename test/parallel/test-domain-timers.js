@@ -1,16 +1,16 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var domain = require('domain');
 var assert = require('assert');
 
-var timeout_err, timeout, immediate_err;
+var timeout;
 
 var timeoutd = domain.create();
 
-timeoutd.on('error', function(e) {
-  timeout_err = e;
+timeoutd.on('error', common.mustCall(function(e) {
+  assert.equal(e.message, 'Timeout UNREFd', 'Domain should catch timer error');
   clearTimeout(timeout);
-});
+}));
 
 timeoutd.run(function() {
   setTimeout(function() {
@@ -20,9 +20,10 @@ timeoutd.run(function() {
 
 var immediated = domain.create();
 
-immediated.on('error', function(e) {
-  immediate_err = e;
-});
+immediated.on('error', common.mustCall(function(e) {
+  assert.equal(e.message, 'Immediate Error',
+               'Domain should catch immediate error');
+}));
 
 immediated.run(function() {
   setImmediate(function() {
@@ -31,10 +32,3 @@ immediated.run(function() {
 });
 
 timeout = setTimeout(function() {}, 10 * 1000);
-
-process.on('exit', function() {
-  assert.equal(timeout_err.message, 'Timeout UNREFd',
-               'Domain should catch timer error');
-  assert.equal(immediate_err.message, 'Immediate Error',
-               'Domain should catch immediate error');
-});
