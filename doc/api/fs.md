@@ -1022,12 +1022,12 @@ will be returned._
 // OS X and Linux
 fs.open('<directory>', 'a+', (err, fd) => {
   // => [Error: EISDIR: illegal operation on a directory, open <directory>]
-})
+});
 
 // Windows and FreeBSD
 fs.open('<directory>', 'a+', (err, fd) => {
   // => null, <fd>
-})
+});
 ```
 
 ## fs.openSync(path, flags[, mode])
