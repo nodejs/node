@@ -1,24 +1,19 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var dgram = require('dgram');
 
 var source = dgram.createSocket('udp4');
 var target = dgram.createSocket('udp4');
 var messages = 0;
 
-process.on('exit', function() {
-  assert.equal(messages, 2);
-});
-
-target.on('message', function(buf) {
+target.on('message', common.mustCall(function(buf) {
   if (buf.toString() === 'abc') ++messages;
   if (buf.toString() === 'def') ++messages;
   if (messages === 2) {
     source.close();
     target.close();
   }
-});
+}, 2));
 
 target.on('listening', function() {
   // Second .send() call should not throw a bind error.

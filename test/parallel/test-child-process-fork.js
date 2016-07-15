@@ -1,6 +1,6 @@
 'use strict';
+const common = require('../common');
 var assert = require('assert');
-var common = require('../common');
 var fork = require('child_process').fork;
 var args = ['foo', 'bar'];
 
@@ -19,11 +19,6 @@ assert.throws(function() { n.send(); }, TypeError);
 
 n.send({ hello: 'world' });
 
-var childExitCode = -1;
-n.on('exit', function(c) {
-  childExitCode = c;
-});
-
-process.on('exit', function() {
-  assert.ok(childExitCode == 0);
-});
+n.on('exit', common.mustCall(function(c) {
+  assert.strictEqual(c, 0);
+}));
