@@ -3,9 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.createServer(function(req, res) {
-  assert(false);
-});
+const server = http.createServer(common.fail);
 server.on('connect', common.mustCall(function(req, socket, firstBodyChunk) {
   assert.equal(req.method, 'CONNECT');
   assert.equal(req.url, 'example.com:443');
@@ -33,9 +31,7 @@ server.listen(0, common.mustCall(function() {
     port: this.address().port,
     method: 'CONNECT',
     path: 'example.com:443'
-  }, function(res) {
-    assert(false);
-  });
+  }, common.fail);
 
   req.on('close', common.mustCall(function() { }));
 

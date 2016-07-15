@@ -15,8 +15,6 @@ assert.strictEqual(false, cat.stdin.readable);
 cat.stdin.end();
 
 var response = '';
-var exitStatus = -1;
-var closed = false;
 
 cat.stdout.setEncoding('utf8');
 cat.stdout.on('data', function(chunk) {
@@ -26,33 +24,18 @@ cat.stdout.on('data', function(chunk) {
 
 cat.stdout.on('end', common.mustCall(function() {}));
 
-cat.stderr.on('data', function(chunk) {
-  // shouldn't get any stderr output
-  assert.ok(false);
-});
+cat.stderr.on('data', common.fail);
 
 cat.stderr.on('end', common.mustCall(function() {}));
 
-cat.on('exit', function(status) {
-  console.log('exit event');
-  exitStatus = status;
-});
+cat.on('exit', common.mustCall(function(status) {
+  assert.strictEqual(0, status);
+}));
 
-cat.on('close', function() {
-  closed = true;
-  if (common.isWindows) {
-    assert.equal('hello world\r\n', response);
-  } else {
-    assert.equal('hello world', response);
-  }
-});
-
-process.on('exit', function() {
-  assert.equal(0, exitStatus);
-  assert(closed);
+cat.on('close', common.mustCall(function() {
   if (common.isWindows) {
     assert.strictEqual('hello world\r\n', response);
   } else {
     assert.strictEqual('hello world', response);
   }
-});
+}));

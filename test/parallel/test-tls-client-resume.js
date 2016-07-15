@@ -19,13 +19,10 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var connections = 0;
-
 // create server
-var server = tls.Server(options, function(socket) {
+var server = tls.Server(options, common.mustCall(function(socket) {
   socket.end('Goodbye');
-  connections++;
-});
+}, 2));
 
 // start listening
 server.listen(0, function() {
@@ -59,8 +56,4 @@ server.listen(0, function() {
       server.close();
     });
   });
-});
-
-process.on('exit', function() {
-  assert.equal(2, connections);
 });

@@ -2,7 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
-var ok = false;
 
 function check(addressType, cb) {
   var server = net.createServer(function(client) {
@@ -12,19 +11,18 @@ function check(addressType, cb) {
   });
 
   var address = addressType === 4 ? common.localhostIPv4 : '::1';
-  server.listen(0, address, function() {
+  server.listen(0, address, common.mustCall(function() {
     net.connect({
       port: this.address().port,
       host: 'localhost',
       family: addressType,
       lookup: lookup
-    }).on('lookup', function(err, ip, type) {
+    }).on('lookup', common.mustCall(function(err, ip, type) {
       assert.equal(err, null);
       assert.equal(address, ip);
       assert.equal(type, addressType);
-      ok = true;
-    });
-  });
+    }));
+  }));
 
   function lookup(host, dnsopts, cb) {
     dnsopts.family = addressType;
@@ -42,8 +40,4 @@ function check(addressType, cb) {
 
 check(4, function() {
   common.hasIPv6 && check(6);
-});
-
-process.on('exit', function() {
-  assert.ok(ok);
 });

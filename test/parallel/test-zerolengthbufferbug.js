@@ -1,8 +1,7 @@
 'use strict';
 // Serving up a zero-length buffer should work.
 
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {
@@ -13,24 +12,13 @@ var server = http.createServer(function(req, res) {
   res.end(buffer);
 });
 
-var gotResponse = false;
-var resBodySize = 0;
+server.listen(0, common.mustCall(function() {
+  http.get({ port: this.address().port }, common.mustCall(function(res) {
 
-server.listen(0, function() {
-  http.get({ port: this.address().port }, function(res) {
-    gotResponse = true;
-
-    res.on('data', function(d) {
-      resBodySize += d.length;
-    });
+    res.on('data', common.fail);
 
     res.on('end', function(d) {
       server.close();
     });
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(gotResponse);
-  assert.equal(0, resBodySize);
-});
+  }));
+}));

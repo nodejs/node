@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 
 if (common.isWindows) {
   common.skip('SIGUSR1 and SIGHUP signals are not supported');
@@ -10,23 +9,14 @@ if (common.isWindows) {
 
 console.log('process.pid: ' + process.pid);
 
-let first = 0;
-let second = 0;
+process.on('SIGUSR1', common.mustCall(function() {}));
 
-var sighup = false;
-
-process.on('SIGUSR1', function() {
-  console.log('Interrupted by SIGUSR1');
-  first += 1;
-});
-
-process.on('SIGUSR1', function() {
-  second += 1;
+process.on('SIGUSR1', common.mustCall(function() {
   setTimeout(function() {
     console.log('End.');
     process.exit(0);
   }, 5);
-});
+}));
 
 var i = 0;
 setInterval(function() {
@@ -41,11 +31,5 @@ setInterval(function() {
 // has been previously registered, and `process.listeners(SIGNAL).length === 1`
 process.on('SIGHUP', function() { common.fail('should not run'); });
 process.removeAllListeners('SIGHUP');
-process.on('SIGHUP', function() { sighup = true; });
+process.on('SIGHUP', common.mustCall(function() {}));
 process.kill(process.pid, 'SIGHUP');
-
-process.on('exit', function() {
-  assert.equal(1, first);
-  assert.equal(1, second);
-  assert.equal(true, sighup);
-});

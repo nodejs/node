@@ -12,7 +12,6 @@ var fs = require('fs');
 
 var buf = new Buffer(10000);
 var received = 0;
-var ended = 0;
 var maxChunk = 768;
 
 var server = tls.createServer({
@@ -27,25 +26,20 @@ var server = tls.createServer({
   assert(c.setMaxSendFragment(maxChunk));
 
   c.end(buf);
-}).listen(0, function() {
+}).listen(0, common.mustCall(function() {
   var c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     c.on('data', function(chunk) {
       assert(chunk.length <= maxChunk);
       received += chunk.length;
     });
 
     // Ensure that we receive 'end' event anyway
-    c.on('end', function() {
-      ended++;
+    c.on('end', common.mustCall(function() {
       c.destroy();
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(ended, 1);
-  assert.equal(received, buf.length);
-});
+      assert.strictEqual(received, buf.length);
+    }));
+  }));
+}));

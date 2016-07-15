@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 var Stream = require('stream');
@@ -12,10 +12,7 @@ r._read = function(n) {
   return r.push(++reads === N ? null : new Buffer(1));
 };
 
-var rended = false;
-r.on('end', function() {
-  rended = true;
-});
+r.on('end', common.mustCall(function() {}));
 
 var w = new Stream();
 w.writable = true;
@@ -32,11 +29,7 @@ function drain() {
   w.emit('drain');
 }
 
-
-var wended = false;
-w.end = function() {
-  wended = true;
-};
+w.end = common.mustCall(function() {});
 
 // Just for kicks, let's mess with the drain count.
 // This verifies that even if it gets negative in the
@@ -46,8 +39,3 @@ r.on('readable', function() {
 });
 
 r.pipe(w);
-process.on('exit', function() {
-  assert(rended);
-  assert(wended);
-  console.error('ok');
-});

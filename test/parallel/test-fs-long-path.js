@@ -2,14 +2,11 @@
 var common = require('../common');
 var fs = require('fs');
 var path = require('path');
-var assert = require('assert');
 
 if (!common.isWindows) {
   common.skip('this test is Windows-specific.');
   return;
 }
-
-var successes = 0;
 
 // make a path that will be at least 260 chars long.
 var fileNameLen = Math.max(260 - common.tmpDir.length - 1, 1);
@@ -23,17 +20,14 @@ console.log({
   fullPathLength: fullPath.length
 });
 
-fs.writeFile(fullPath, 'ok', function(err) {
+fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {
   if (err) throw err;
-  successes++;
 
-  fs.stat(fullPath, function(err, stats) {
+  fs.stat(fullPath, common.mustCall(function(err, stats) {
     if (err) throw err;
-    successes++;
-  });
-});
+  }));
+}));
 
 process.on('exit', function() {
   fs.unlinkSync(fullPath);
-  assert.equal(2, successes);
 });

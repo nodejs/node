@@ -1,5 +1,4 @@
 'use strict';
-var assert = require('assert');
 var common = require('../common');
 
 if (!common.hasCrypto) {
@@ -42,13 +41,6 @@ function test(cert, key, cb) {
   });
 }
 
-var completed = false;
-test(cert, key, function() {
-  test(new Buffer(cert), new Buffer(key), function() {
-    completed = true;
-  });
-});
-
-process.on('exit', function() {
-  assert(completed);
-});
+test(cert, key, common.mustCall(function() {
+  test(Buffer.from(cert), Buffer.from(key), common.mustCall(function() {}));
+}));

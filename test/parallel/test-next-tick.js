@@ -1,28 +1,18 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
-var complete = 0;
+process.nextTick(common.mustCall(function() {
+  process.nextTick(common.mustCall(function() {
+    process.nextTick(common.mustCall(function() {}));
+  }));
+}));
 
-process.nextTick(function() {
-  complete++;
-  process.nextTick(function() {
-    complete++;
-    process.nextTick(function() {
-      complete++;
-    });
-  });
-});
+setTimeout(common.mustCall(function() {
+  process.nextTick(common.mustCall(function() {}));
+}), 50);
 
-setTimeout(function() {
-  process.nextTick(function() {
-    complete++;
-  });
-}, 50);
-
-process.nextTick(function() {
-  complete++;
-});
+process.nextTick(common.mustCall(function() {}));
 
 var obj = {};
 
@@ -32,8 +22,5 @@ process.nextTick(function(a, b) {
 }, 42, obj);
 
 process.on('exit', function() {
-  assert.equal(5, complete);
-  process.nextTick(function() {
-    throw new Error('this should not occur');
-  });
+  process.nextTick(common.fail);
 });

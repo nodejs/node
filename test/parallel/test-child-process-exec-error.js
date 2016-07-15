@@ -4,17 +4,10 @@ var assert = require('assert');
 var child_process = require('child_process');
 
 function test(fun, code) {
-  var errors = 0;
-
-  fun('does-not-exist', function(err) {
+  fun('does-not-exist', common.mustCall(function(err) {
     assert.equal(err.code, code);
     assert(/does\-not\-exist/.test(err.cmd));
-    errors++;
-  });
-
-  process.on('exit', function() {
-    assert.equal(errors, 1);
-  });
+  }));
 }
 
 if (common.isWindows) {

@@ -1,11 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
 var responses_sent = 0;
-var responses_recvd = 0;
 var body0 = '';
 var body1 = '';
 
@@ -37,37 +36,32 @@ var server = http.createServer(function(req, res) {
   req.resume();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   var client = http.createClient(this.address().port);
   var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
   setTimeout(function() {
     req.end();
   }, 100);
-  req.on('response', function(res) {
+  req.on('response', common.mustCall(function(res) {
     assert.equal(200, res.statusCode);
-    responses_recvd += 1;
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body0 += chunk; });
     console.error('Got /hello response');
-  });
+  }));
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(function() {
     var req = client.request('POST', '/world');
     req.end();
-    req.on('response', function(res) {
+    req.on('response', common.mustCall(function(res) {
       assert.equal(200, res.statusCode);
-      responses_recvd += 1;
       res.setEncoding('utf8');
       res.on('data', function(chunk) { body1 += chunk; });
       console.error('Got /world response');
-    });
-  }, 1);
-});
+    }));
+  }), 1);
+}));
 
 process.on('exit', function() {
-  console.error('responses_recvd: ' + responses_recvd);
-  assert.equal(2, responses_recvd);
-
   console.error('responses_sent: ' + responses_sent);
   assert.equal(2, responses_sent);
 

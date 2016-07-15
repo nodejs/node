@@ -48,17 +48,6 @@ function client() {
 function parent() {
   var spawn = require('child_process').spawn;
   var node = process.execPath;
-  var assert = require('assert');
-  var serverExited = false;
-  var clientExited = false;
-  var serverListened = false;
-
-  process.on('exit', function() {
-    assert(serverExited);
-    assert(clientExited);
-    assert(serverListened);
-    console.log('ok');
-  });
 
   setTimeout(function() {
     if (s) s.kill();
@@ -77,21 +66,14 @@ function parent() {
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
   wrap(s.stdout, process.stdout, 'SERVER 1>');
-  s.on('exit', function(c) {
-    console.error('server exited', c);
-    serverExited = true;
-  });
+  s.on('exit', common.mustCall(function(c) {}));
 
-  s.stdout.once('data', function() {
-    serverListened = true;
+  s.stdout.once('data', common.mustCall(function() {
     c = spawn(node, [__filename, 'client']);
     wrap(c.stderr, process.stderr, 'CLIENT 2>');
     wrap(c.stdout, process.stdout, 'CLIENT 1>');
-    c.on('exit', function(c) {
-      console.error('client exited', c);
-      clientExited = true;
-    });
-  });
+    c.on('exit', common.mustCall(function(c) {}));
+  }));
 
   function wrap(inp, out, w) {
     inp.setEncoding('utf8');

@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 // Make sure that throwing in 'end' handler doesn't lock
 // up the socket forever.
@@ -29,11 +28,4 @@ server.listen(0, common.mustCall(() => {
   }
 }));
 
-let errors = 0;
-process.on('uncaughtException', () => {
-  errors++;
-});
-
-process.on('exit', () => {
-  assert.equal(errors, 10);
-});
+process.on('uncaughtException', common.mustCall(() => {}, 10));

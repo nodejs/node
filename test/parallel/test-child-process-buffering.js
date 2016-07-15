@@ -2,10 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-var pwd_called = false;
-var childClosed = false;
-var childExited = false;
-
 function pwd(callback) {
   var output = '';
   var child = common.spawnPwd();
@@ -16,17 +12,14 @@ function pwd(callback) {
     output += s;
   });
 
-  child.on('exit', function(c) {
+  child.on('exit', common.mustCall(function(c) {
     console.log('exit: ' + c);
     assert.equal(0, c);
-    childExited = true;
-  });
+  }));
 
-  child.on('close', function() {
+  child.on('close', common.mustCall(function() {
     callback(output);
-    pwd_called = true;
-    childClosed = true;
-  });
+  }));
 }
 
 
@@ -34,10 +27,4 @@ pwd(function(result) {
   console.dir(result);
   assert.equal(true, result.length > 1);
   assert.equal('\n', result[result.length - 1]);
-});
-
-process.on('exit', function() {
-  assert.equal(true, pwd_called);
-  assert.equal(true, childExited);
-  assert.equal(true, childClosed);
 });

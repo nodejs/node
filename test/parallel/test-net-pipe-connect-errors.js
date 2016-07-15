@@ -1,12 +1,10 @@
 'use strict';
+var common = require('../common');
 var fs = require('fs');
 var net = require('net');
 var path = require('path');
 var assert = require('assert');
-var common = require('../common');
 
-var notSocketErrorFired = false;
-var noEntErrorFired = false;
 var accessErrorFired = false;
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
@@ -43,11 +41,10 @@ var notSocketClient = net.createConnection(emptyTxt, function() {
   assert.ok(false);
 });
 
-notSocketClient.on('error', function(err) {
+notSocketClient.on('error', common.mustCall(function(err) {
   assert(err.code === 'ENOTSOCK' || err.code === 'ECONNREFUSED',
-    `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
-  notSocketErrorFired = true;
-});
+         `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
+}));
 
 
 // Trying to connect to not-existing socket should result in ENOENT error
@@ -55,10 +52,9 @@ var noEntSocketClient = net.createConnection('no-ent-file', function() {
   assert.ok(false);
 });
 
-noEntSocketClient.on('error', function(err) {
+noEntSocketClient.on('error', common.mustCall(function(err) {
   assert.equal(err.code, 'ENOENT');
-  noEntErrorFired = true;
-});
+}));
 
 
 // On Windows or when running as root, a chmod has no effect on named pipes
@@ -85,10 +81,7 @@ if (!common.isWindows && process.getuid() !== 0) {
 
 // Assert that all error events were fired
 process.on('exit', function() {
-  assert.ok(notSocketErrorFired);
-  assert.ok(noEntErrorFired);
   if (!common.isWindows && process.getuid() !== 0) {
     assert.ok(accessErrorFired);
   }
 });
-

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
 
@@ -26,13 +26,6 @@ fs.fstatSync = function(fd) {
 var d = fs.readFileSync(__filename, 'utf8');
 assert.equal(d, dataExpected);
 
-var called = false;
-fs.readFile(__filename, 'utf8', function(er, d) {
+fs.readFile(__filename, 'utf8', common.mustCall(function(er, d) {
   assert.equal(d, dataExpected);
-  called = true;
-});
-
-process.on('exit', function() {
-  assert(called);
-  console.log('ok');
-});
+}));

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 if (process.argv[2] === 'child')
@@ -23,7 +23,6 @@ function test(environ, shouldWrite) {
                 'TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}\n';
   }
   var expectOut = 'ok\n';
-  var didTest = false;
 
   var spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
@@ -44,17 +43,12 @@ function test(environ, shouldWrite) {
     out += c;
   });
 
-  child.on('close', function(c) {
+  child.on('close', common.mustCall(function(c) {
     assert(!c);
     assert.equal(err, expectErr);
     assert.equal(out, expectOut);
-    didTest = true;
     console.log('ok %j %j', environ, shouldWrite);
-  });
-
-  process.on('exit', function() {
-    assert(didTest);
-  });
+  }));
 }
 
 

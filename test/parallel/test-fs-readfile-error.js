@@ -11,8 +11,6 @@ if (process.platform === 'freebsd') {
   return;
 }
 
-var callbacks = 0;
-
 function test(env, cb) {
   const filename = path.join(common.fixturesDir, 'test-fs-readfile-error.js');
   const execPath = '"' + process.execPath + '" "' + filename + '"';
@@ -28,15 +26,9 @@ function test(env, cb) {
 test({ NODE_DEBUG: '' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(!/test-fs-readfile-error/.test(data));
-  callbacks++;
 }));
 
 test({ NODE_DEBUG: 'fs' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
-  callbacks++;
 }));
-
-process.on('exit', function() {
-  assert.equal(callbacks, 2);
-});

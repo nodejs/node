@@ -20,37 +20,32 @@ var options = {
 };
 
 var big = new Buffer(2 * 1024 * 1024);
-var connections = 0;
-var bytesRead = 0;
 
 big.fill('Y');
 
 // create server
-var server = tls.createServer(options, function(socket) {
+var server = tls.createServer(options, common.mustCall(function(socket) {
   socket.end(big);
   socket.destroySoon();
-  connections++;
-});
+}));
 
 // start listening
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   var client = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
+    var bytesRead = 0;
+
     client.on('readable', function() {
       var d = client.read();
       if (d)
         bytesRead += d.length;
     });
 
-    client.on('end', function() {
+    client.on('end', common.mustCall(function() {
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(1, connections);
-  assert.equal(big.length, bytesRead);
-});
+      assert.strictEqual(big.length, bytesRead);
+    }));
+  }));
+}));

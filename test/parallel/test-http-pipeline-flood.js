@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 // Here we are testing the HTTP server module's flood prevention mechanism.
 // When writeable.write returns false (ie the underlying send() indicated the
@@ -26,8 +25,7 @@ switch (process.argv[2]) {
 
 function parent() {
   const http = require('http');
-  const bigResponse = new Buffer(10240).fill('x');
-  var connections = 0;
+  const bigResponse = Buffer.alloc(10240, 'x');
   var backloggedReqs = 0;
 
   const server = http.createServer(function(req, res) {
@@ -48,9 +46,7 @@ function parent() {
     res.end();
   });
 
-  server.on('connection', function(conn) {
-    connections++;
-  });
+  server.on('connection', common.mustCall(function(conn) {}));
 
   server.listen(0, function() {
     const spawn = require('child_process').spawn;
@@ -63,10 +59,6 @@ function parent() {
     server.setTimeout(200, common.mustCall(function() {
       child.kill();
     }));
-  });
-
-  process.on('exit', function() {
-    assert.equal(connections, 1);
   });
 }
 

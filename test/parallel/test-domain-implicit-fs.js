@@ -1,15 +1,13 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
-var caught = 0;
-var expectCaught = 1;
 
 var d = new domain.Domain();
 
-d.on('error', function(er) {
+d.on('error', common.mustCall(function(er) {
   console.error('caught', er);
 
   assert.strictEqual(er.domain, d);
@@ -18,15 +16,7 @@ d.on('error', function(er) {
   assert.strictEqual(er.code, 'ENOENT');
   assert.ok(/\bthis file does not exist\b/i.test(er.path));
   assert.strictEqual(typeof er.errno, 'number');
-
-  caught++;
-});
-
-process.on('exit', function() {
-  console.error('exit');
-  assert.equal(caught, expectCaught);
-  console.log('ok');
-});
+}));
 
 
 // implicit handling of thrown errors while in a domain, via the

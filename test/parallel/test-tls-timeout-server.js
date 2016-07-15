@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -11,12 +10,6 @@ var tls = require('tls');
 var net = require('net');
 var fs = require('fs');
 
-var clientErrors = 0;
-
-process.on('exit', function() {
-  assert.equal(clientErrors, 1);
-});
-
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
@@ -25,11 +18,10 @@ var options = {
 
 var server = tls.createServer(options, common.fail);
 
-server.on('clientError', function(err, conn) {
+server.on('clientError', common.mustCall(function(err, conn) {
   conn.destroy();
   server.close();
-  clientErrors++;
-});
+}));
 
 server.listen(0, function() {
   net.connect({ host: '127.0.0.1', port: this.address().port });

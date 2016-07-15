@@ -1,11 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 var WINDOW = 200; // why is does this need to be so big?
 
 var interval_count = 0;
-var setTimeout_called = false;
 
 // check that these don't blow up.
 clearTimeout(null);
@@ -13,7 +12,7 @@ clearInterval(null);
 
 assert.equal(true, setTimeout instanceof Function);
 var starttime = new Date();
-setTimeout(function() {
+setTimeout(common.mustCall(function() {
   var endtime = new Date();
 
   var diff = endtime - starttime;
@@ -21,8 +20,7 @@ setTimeout(function() {
   console.error('diff: ' + diff);
 
   assert.equal(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
-  setTimeout_called = true;
-}, 1000);
+}), 1000);
 
 // this timer shouldn't execute
 var id = setTimeout(function() { assert.equal(true, false); }, 500);
@@ -101,7 +99,6 @@ clearTimeout(y);
 
 
 process.on('exit', function() {
-  assert.equal(true, setTimeout_called);
   assert.equal(3, interval_count);
   assert.equal(11, count4);
   assert.equal(0, expectedTimeouts, 'clearTimeout cleared too many timeouts');
