@@ -45,14 +45,14 @@ const Stream = require('stream').Stream;
   const w = new W();
   let removed = false;
 
-  r._read = function() {
+  r._read = common.mustCall(function() {
     setTimeout(common.mustCall(function() {
       assert(removed);
       assert.throws(function() {
         w.emit('error', new Error('fail'));
       });
     }));
-  };
+  });
 
   w.on('error', myOnError);
   r.pipe(w);
@@ -72,12 +72,12 @@ const Stream = require('stream').Stream;
   const w = new W();
   let removed = false;
 
-  r._read = function() {
+  r._read = common.mustCall(function() {
     setTimeout(common.mustCall(function() {
       assert(removed);
       w.emit('error', new Error('fail'));
     }));
-  };
+  });
 
   w.on('error', common.mustCall(function(er) {}));
   w._write = function() {};

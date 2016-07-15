@@ -3,7 +3,6 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
-var assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -14,8 +13,6 @@ var https = require('https');
 var tls = require('tls');
 var fs = require('fs');
 
-var seen_req = false;
-
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
@@ -25,13 +22,12 @@ var options = {
 tls.SLAB_BUFFER_SIZE = 1;
 
 var server = https.createServer(options);
-server.on('upgrade', function(req, socket, upgrade) {
+server.on('upgrade', common.mustCall(function(req, socket, upgrade) {
   socket.on('data', function(data) {
     throw new Error('Unexpected data: ' + data);
   });
   socket.end('HTTP/1.1 200 Ok\r\n\r\n');
-  seen_req = true;
-});
+}));
 
 server.listen(0, function() {
   var req = https.request({
@@ -48,9 +44,4 @@ server.listen(0, function() {
   });
 
   req.end();
-});
-
-process.on('exit', function() {
-  assert(seen_req);
-  console.log('ok');
 });

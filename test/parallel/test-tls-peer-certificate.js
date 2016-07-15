@@ -17,16 +17,15 @@ var options = {
   cert: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-cert.pem')),
   ca: [ fs.readFileSync(join(common.fixturesDir, 'keys', 'ca1-cert.pem')) ]
 };
-var verified = false;
 
 var server = tls.createServer(options, function(cleartext) {
   cleartext.end('World');
 });
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   var socket = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     var peerCert = socket.getPeerCertificate();
     assert.ok(!peerCert.issuerCertificate);
 
@@ -46,12 +45,7 @@ server.listen(0, function() {
     var issuer = peerCert.issuerCertificate;
     assert.ok(issuer.issuerCertificate === issuer);
     assert.equal(issuer.serialNumber, '8DF21C01468AF393');
-    verified = true;
     server.close();
-  });
+  }));
   socket.end('Hello');
-});
-
-process.on('exit', function() {
-  assert.ok(verified);
-});
+}));

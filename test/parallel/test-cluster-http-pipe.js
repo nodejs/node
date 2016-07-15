@@ -13,17 +13,12 @@ if (common.isWindows) {
 
 if (cluster.isMaster) {
   common.refreshTmpDir();
-  var ok = false;
   var worker = cluster.fork();
-  worker.on('message', function(msg) {
+  worker.on('message', common.mustCall(function(msg) {
     assert.equal(msg, 'DONE');
-    ok = true;
-  });
+  }));
   worker.on('exit', function() {
     process.exit();
-  });
-  process.on('exit', function() {
-    assert(ok);
   });
   return;
 }

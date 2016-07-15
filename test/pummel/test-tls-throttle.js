@@ -21,13 +21,9 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var connections = 0;
-
-
-var server = tls.Server(options, function(socket) {
+var server = tls.Server(options, common.mustCall(function(socket) {
   socket.end(body);
-  connections++;
-});
+}));
 
 var recvCount = 0;
 
@@ -67,6 +63,5 @@ var timeout = setTimeout(displayCounts, 10 * 1000);
 
 process.on('exit', function() {
   displayCounts();
-  assert.equal(1, connections);
   assert.equal(body.length, recvCount);
 });

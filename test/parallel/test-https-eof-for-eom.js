@@ -46,37 +46,27 @@ var server = tls.Server(options, function(socket) {
   }, 100);
 });
 
-
-var gotHeaders = false;
-var gotEnd = false;
-var bodyBuffer = '';
-
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   console.log('1) Making Request');
   https.get({
     port: this.address().port,
     rejectUnauthorized: false
-  }, function(res) {
+  }, common.mustCall(function(res) {
+    var bodyBuffer = '';
+
     server.close();
     console.log('3) Client got response headers.');
 
     assert.equal('gws', res.headers.server);
-    gotHeaders = true;
 
     res.setEncoding('utf8');
     res.on('data', function(s) {
       bodyBuffer += s;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(function() {
       console.log('5) Client got "end" event.');
-      gotEnd = true;
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(gotHeaders);
-  assert.ok(gotEnd);
-  assert.equal('hello world\nhello world\n', bodyBuffer);
-});
+      assert.strictEqual('hello world\nhello world\n', bodyBuffer);
+    }));
+  }));
+}));
