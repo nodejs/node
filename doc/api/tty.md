@@ -1,6 +1,6 @@
 # TTY
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `tty` module houses the `tty.ReadStream` and `tty.WriteStream` classes. In
 most cases, you will not need to use this module directly.
@@ -95,6 +95,6 @@ terminal.
 
 ## tty.setRawMode(mode)
 
-    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
+> Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
 
 [tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode

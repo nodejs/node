@@ -64,7 +64,7 @@ Please do not suggest API changes in this area; they will be refused.
 
 ## JSON Output
 
-    Stability: 1 - Experimental
+> Stability: 1 - Experimental
 
 Every HTML file in the markdown has a corresponding JSON file with the
 same data.
