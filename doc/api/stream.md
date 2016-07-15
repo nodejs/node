@@ -1229,7 +1229,7 @@ const myWritable = new Writable({
     if (chunk.toString().indexOf('a') >= 0) {
       callback(new Error('chunk is invalid'));
     } else {
-       callback();
+      callback();
     }
   }
 });
