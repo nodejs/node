@@ -1,6 +1,6 @@
 # TTY
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `tty` module provides the `tty.ReadStream` and `tty.WriteStream` classes.
 In most cases, it will not be necessary or possible to use this module directly.

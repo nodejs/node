@@ -1,6 +1,6 @@
 # TLS (SSL)
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
@@ -1153,7 +1153,7 @@ added: v0.3.4
 deprecated: v0.11.3
 -->
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 The `tls.CryptoStream` class represents a stream of encrypted data. This class
 has been deprecated and should no longer be used.
@@ -1174,7 +1174,7 @@ added: v0.3.2
 deprecated: v0.11.3
 -->
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 Returned by [`tls.createSecurePair()`][].
 
@@ -1197,7 +1197,7 @@ added: v0.3.2
 deprecated: v0.11.3
 -->
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 * `context` {Object} A secure context object as returned by
   `tls.createSecureContext()`

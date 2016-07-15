@@ -1,6 +1,6 @@
 # Events
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!--type=module-->
 
@@ -222,7 +222,7 @@ The `'removeListener'` event is emitted *after* the `listener` is removed.
 
 ### EventEmitter.listenerCount(emitter, eventName)
 
-    Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
+> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
 
 A class method that returns the number of listeners for the given `eventName`
 registered on the given `emitter`.
