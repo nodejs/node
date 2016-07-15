@@ -71,7 +71,7 @@ const obj3 = {
   a : {
     b : 1
   }
-}
+};
 const obj4 = Object.create(obj1);
 
 assert.deepEqual(obj1, obj1);
@@ -230,7 +230,7 @@ const assert = require('assert');
 
 assert.ifError(0); // OK
 assert.ifError(1); // Throws 1
-assert.ifError('error') // Throws 'error'
+assert.ifError('error'); // Throws 'error'
 assert.ifError(new Error()); // Throws Error
 ```
 
