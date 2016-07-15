@@ -494,7 +494,7 @@ net.createServer((socket) => {
     output: socket
   }).on('exit', () => {
     socket.end();
-  })
+  });
 }).listen('/tmp/node-repl-sock');
 
 net.createServer((socket) => {
