@@ -1,6 +1,6 @@
 # Buffer
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 Prior to the introduction of `TypedArray` in ECMAScript 2015 (ES6), the
 JavaScript language had no mechanism for reading or manipulating streams
