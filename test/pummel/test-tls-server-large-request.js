@@ -12,8 +12,6 @@ var fs = require('fs');
 var stream = require('stream');
 var util = require('util');
 
-var clientConnected = 0;
-var serverConnected = 0;
 var request = new Buffer(new Array(1024 * 256).join('ABCD')); // 1mb
 
 var options = {
@@ -39,22 +37,15 @@ Mediator.prototype._write = function _write(data, enc, cb) {
 
 var mediator = new Mediator();
 
-var server = tls.Server(options, function(socket) {
+var server = tls.Server(options, common.mustCall(function(socket) {
   socket.pipe(mediator);
-  serverConnected++;
-});
+}));
 
-server.listen(common.PORT, function() {
+server.listen(common.PORT, common.mustCall(function() {
   var client1 = tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
-  }, function() {
-    ++clientConnected;
+  }, common.mustCall(function() {
     client1.end(request);
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(clientConnected, 1);
-  assert.equal(serverConnected, 1);
-});
+  }));
+}));

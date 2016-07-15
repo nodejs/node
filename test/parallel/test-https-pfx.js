@@ -28,16 +28,16 @@ var server = https.createServer(options, function(req, res) {
   res.end('OK');
 });
 
-server.listen(0, options.host, function() {
+server.listen(0, options.host, common.mustCall(function() {
   options.port = this.address().port;
-  var data = '';
 
-  https.get(options, function(res) {
+  https.get(options, common.mustCall(function(res) {
+    var data = '';
+
     res.on('data', function(data_) { data += data_; });
-    res.on('end', function() { server.close(); });
-  });
-
-  process.on('exit', function() {
-    assert.equal(data, 'OK');
-  });
-});
+    res.on('end', common.mustCall(function() {
+      assert.strictEqual(data, 'OK');
+      server.close();
+    }));
+  }));
+}));

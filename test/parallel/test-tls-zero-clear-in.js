@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -14,8 +13,6 @@ var path = require('path');
 var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
 var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-var errorEmitted = false;
-
 var server = tls.createServer({
   cert: cert,
   key: key
@@ -25,7 +22,7 @@ var server = tls.createServer({
     c.end();
     server.close();
   }, 20);
-}).listen(0, function() {
+}).listen(0, common.mustCall(function() {
   var conn = tls.connect({
     cert: cert,
     key: key,
@@ -41,12 +38,5 @@ var server = tls.createServer({
   // treated as error.
   conn.end('');
 
-  conn.on('error', function(err) {
-    console.log(err);
-    errorEmitted = true;
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(!errorEmitted);
-});
+  conn.on('error', common.fail);
+}));

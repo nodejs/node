@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var util = require('util');
@@ -39,22 +39,18 @@ FakeAgent.prototype.createConnection = function createConnection() {
 };
 
 var received = '';
-var ended = 0;
 
 var req = http.request({
   agent: new FakeAgent()
-}, function(res) {
+}, common.mustCall(function(res) {
   res.on('data', function(chunk) {
     received += chunk;
   });
 
-  res.on('end', function() {
-    ended++;
-  });
-});
+  res.on('end', common.mustCall(function() {}));
+}));
 req.end();
 
 process.on('exit', function() {
   assert.equal(received, 'hello world');
-  assert.equal(ended, 1);
 });

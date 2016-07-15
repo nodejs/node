@@ -152,13 +152,7 @@ out.on('data', function(c) {
   console.error('out data', c.length);
 });
 
-var didSomething = false;
-out.on('data', function(c) {
-  didSomething = true;
+out.on('data', common.mustCall(function(c) {
   console.error('hash=%s', c);
   assert.equal(c, inp._hash, 'hashes should match');
-});
-
-process.on('exit', function() {
-  assert(didSomething, 'should have done something');
-});
+}));

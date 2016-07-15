@@ -7,26 +7,18 @@
  * both code paths.
  */
 
-require('../common');
+const common = require('../common');
 var cluster = require('cluster');
-var assert = require('assert');
-
-var worker1, worker2, workerExited, workerDisconnected;
+var worker1, worker2;
 
 if (cluster.isMaster) {
   worker1 = cluster.fork();
   worker2 = cluster.fork();
 
-  workerExited = 0;
-  workerDisconnected = 0;
-
   [worker1, worker2].forEach(function(worker) {
-    worker.on('disconnect', ondisconnect);
-    worker.on('exit', onexit);
+    worker.on('disconnect', common.mustCall(function() {}));
+    worker.on('exit', common.mustCall(function() {}));
   });
-
-  process.on('exit', onProcessExit);
-
 } else {
   if (cluster.worker.id === 1) {
     // Call destroy when worker is disconnected
@@ -39,21 +31,4 @@ if (cluster.isMaster) {
     // Call destroy when worker is not disconnected yet
     cluster.worker.destroy();
   }
-}
-
-function onProcessExit() {
-  assert.equal(workerExited,
-               2,
-               'When master exits, all workers should have exited too');
-  assert.equal(workerDisconnected,
-               2,
-               'When master exits, all workers should have disconnected');
-}
-
-function ondisconnect() {
-  ++workerDisconnected;
-}
-
-function onexit() {
-  ++workerExited;
 }

@@ -18,16 +18,7 @@ var options = {
   ecdhCurve: false
 };
 
-var nconns = 0;
-
-process.on('exit', function() {
-  assert.equal(nconns, 0);
-});
-
-var server = tls.createServer(options, function(conn) {
-  conn.end();
-  nconns++;
-});
+var server = tls.createServer(options, common.fail);
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
   var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +

@@ -25,21 +25,18 @@ var server = tls.Server({
   s.end();
 });
 
-var connectCount = 0;
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   var c = tls.connect({
     port: this.address().port,
     key: key,
     passphrase: 'passphrase',
     cert: cert,
     rejectUnauthorized: false
-  }, function() {
-    ++connectCount;
-  });
+  }, common.mustCall(function() {}));
   c.on('end', function() {
     server.close();
   });
-});
+}));
 
 assert.throws(function() {
   tls.connect({
@@ -49,8 +46,4 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-});
-
-process.on('exit', function() {
-  assert.equal(connectCount, 1);
 });

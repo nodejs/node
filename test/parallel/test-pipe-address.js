@@ -2,20 +2,11 @@
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
-
-var address = null;
-
-var server = net.createServer(function() {
-  assert(false); // should not be called
-});
+var server = net.createServer(common.fail);
 
 common.refreshTmpDir();
 
-server.listen(common.PIPE, function() {
-  address = server.address();
+server.listen(common.PIPE, common.mustCall(function() {
+  assert.strictEqual(server.address(), common.PIPE);
   server.close();
-});
-
-process.on('exit', function() {
-  assert.equal(address, common.PIPE);
-});
+}));

@@ -43,20 +43,12 @@ assert.equal(stat.size, 0);
 fs.closeSync(fd);
 
 // async tests
-var success = 0;
-testTruncate(function(er) {
+testTruncate(common.mustCall(function(er) {
   if (er) throw er;
-  success++;
-  testFtruncate(function(er) {
+  testFtruncate(common.mustCall(function(er) {
     if (er) throw er;
-    success++;
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(success, 2);
-  console.log('ok');
-});
+  }));
+}));
 
 function testTruncate(cb) {
   fs.writeFile(filename, data, function(er) {
