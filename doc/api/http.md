@@ -90,7 +90,7 @@ http.get({
   agent: false  // create a new agent just for this one request
 }, (res) => {
   // Do stuff with response
-})
+});
 ```
 
 ### new Agent([options])
@@ -1451,8 +1451,8 @@ var req = http.request(options, (res) => {
     console.log(`BODY: ${chunk}`);
   });
   res.on('end', () => {
-    console.log('No more data in response.')
-  })
+    console.log('No more data in response.');
+  });
 });
 
 req.on('error', (e) => {

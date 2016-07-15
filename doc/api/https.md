@@ -231,7 +231,7 @@ options.agent = new https.Agent(options);
 
 var req = https.request(options, (res) => {
   ...
-}
+});
 ```
 
 Alternatively, opt out of connection pooling by not using an `Agent`.
@@ -251,7 +251,7 @@ var options = {
 
 var req = https.request(options, (res) => {
   ...
-}
+});
 ```
 
 [`Agent`]: #https_class_https_agent
