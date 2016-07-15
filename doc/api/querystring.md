@@ -1,6 +1,6 @@
 # Query String
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!--name=querystring-->
 

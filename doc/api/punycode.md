@@ -1,6 +1,6 @@
 # punycode
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 [Punycode.js][] is bundled with Node.js v0.5.1+. Use `require('punycode')` to
 access it. (To use it with other Node.js versions, use npm to install the

@@ -1,6 +1,6 @@
 # TLS (SSL)
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 Use `require('tls')` to access this module.
 
@@ -159,7 +159,7 @@ is expensive.
 
 ## Class: CryptoStream
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 This is an encrypted stream.
 
