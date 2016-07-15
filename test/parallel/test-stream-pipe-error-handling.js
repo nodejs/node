@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var Stream = require('stream').Stream;
 
@@ -51,7 +51,7 @@ var Stream = require('stream').Stream;
     console.log('ok');
   });
 
-  r._read = function() {
+  r._read = common.mustCall(function() {
     setTimeout(function() {
       assert(removed);
       assert.throws(function() {
@@ -59,7 +59,7 @@ var Stream = require('stream').Stream;
       });
       didTest = true;
     });
-  };
+  });
 
   w.on('error', myOnError);
   r.pipe(w);
@@ -86,13 +86,13 @@ var Stream = require('stream').Stream;
     console.log('ok');
   });
 
-  r._read = function() {
+  r._read = common.mustCall(function() {
     setTimeout(function() {
       assert(removed);
       w.emit('error', new Error('fail'));
       didTest = true;
     });
-  };
+  });
 
   w.on('error', myOnError);
   w._write = function() {};

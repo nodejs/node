@@ -15,28 +15,24 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var reqCount = 0;
-
 process.stdout.write('build body...');
 var body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
 
-var server = https.createServer(options, function(req, res) {
-  reqCount++;
+var server = https.createServer(options, common.mustCall(function(req, res) {
   console.log('got request');
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
-});
+}));
 
-var count = 0;
-var gotResEnd = false;
-
-server.listen(common.PORT, function() {
+server.listen(common.PORT, common.mustCall(function() {
   https.get({
     port: common.PORT,
     rejectUnauthorized: false
-  }, function(res) {
+  }, common.mustCall(function(res) {
     console.log('response!');
+
+    var count = 0;
 
     res.on('data', function(d) {
       process.stdout.write('.');
@@ -47,19 +43,12 @@ server.listen(common.PORT, function() {
       });
     });
 
-    res.on('end', function(d) {
+    res.on('end', common.mustCall(function(d) {
       process.stdout.write('\n');
       console.log('expected: ', body.length);
       console.log('     got: ', count);
       server.close();
-      gotResEnd = true;
-    });
-  });
-});
-
-
-process.on('exit', function() {
-  assert.equal(1, reqCount);
-  assert.equal(body.length, count);
-  assert.ok(gotResEnd);
-});
+      assert.strictEqual(count, body.length);
+    }));
+  }));
+}));

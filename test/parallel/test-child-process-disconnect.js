@@ -48,21 +48,16 @@ if (process.argv[2] === 'child') {
   var child = fork(process.argv[1], ['child']);
 
   var childFlag = false;
-  var childSelfTerminate = false;
-  var parentEmit = false;
   var parentFlag = false;
 
   // when calling .disconnect the event should emit
   // and the disconnected flag should be true.
-  child.on('disconnect', function() {
-    parentEmit = true;
+  child.on('disconnect', common.mustCall(function() {
     parentFlag = child.connected;
-  });
+  }));
 
   // the process should also self terminate without using signals
-  child.on('exit', function() {
-    childSelfTerminate = true;
-  });
+  child.on('exit', common.mustCall(function() {}));
 
   // when child is listening
   child.on('message', function(obj) {
@@ -91,8 +86,5 @@ if (process.argv[2] === 'child') {
   process.on('exit', function() {
     assert.equal(childFlag, false);
     assert.equal(parentFlag, false);
-
-    assert.ok(childSelfTerminate);
-    assert.ok(parentEmit);
   });
 }

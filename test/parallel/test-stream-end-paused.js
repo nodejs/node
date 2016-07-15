@@ -1,7 +1,6 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
-var gotEnd = false;
 
 // Make sure we don't miss the end event for paused 0-length streams
 
@@ -19,15 +18,12 @@ stream.on('data', function() {
 });
 stream.pause();
 
-setTimeout(function() {
-  stream.on('end', function() {
-    gotEnd = true;
-  });
+setTimeout(common.mustCall(function() {
+  stream.on('end', common.mustCall(function() {}));
   stream.resume();
-});
+}));
 
 process.on('exit', function() {
-  assert(gotEnd);
   assert(calledRead);
   console.log('ok');
 });

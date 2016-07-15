@@ -10,8 +10,6 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var requests = 0;
-
 var server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/0-dns-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/0-dns-cert.pem')
@@ -20,11 +18,10 @@ var server = tls.createServer({
     c.destroy();
     server.close();
   });
-}).listen(0, function() {
+}).listen(0, common.mustCall(function() {
   var c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
-    requests++;
+  }, common.mustCall(function() {
     var cert = c.getPeerCertificate();
     assert.equal(cert.subjectaltname,
                  'DNS:google.com\0.evil.com, ' +
@@ -33,9 +30,5 @@ var server = tls.createServer({
                      'IP Address:8.8.4.4, ' +
                      'DNS:last.com');
     c.write('ok');
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(requests, 1);
-});
+  }));
+}));
