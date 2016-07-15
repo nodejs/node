@@ -1,20 +1,18 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var net = require('net');
-var closed = false;
 
 var server = net.createServer(function(s) {
   console.error('SERVER: got connection');
   s.end();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   var c = net.createConnection(this.address().port);
-  c.on('close', function() {
+  c.on('close', common.mustCall(function() {
     console.error('connection closed');
     assert.strictEqual(c._handle, null);
-    closed = true;
     assert.doesNotThrow(function() {
       c.setNoDelay();
       c.setKeepAlive();
@@ -26,9 +24,5 @@ server.listen(0, function() {
       c.remotePort;
     });
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  assert(closed);
-});
+  }));
+}));

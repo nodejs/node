@@ -28,22 +28,15 @@ for (let i = 0; i < validDelays.length; i++) {
   });
 }
 
-var timedout = false;
-
 var server = net.Server();
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   var socket = net.createConnection(this.address().port);
-  socket.setTimeout(100, function() {
-    timedout = true;
+  socket.setTimeout(100, common.mustCall(function() {
     socket.destroy();
     server.close();
     clearTimeout(timer);
-  });
+  }));
   var timer = setTimeout(function() {
     process.exit(1);
   }, common.platformTimeout(200));
-});
-
-process.on('exit', function() {
-  assert.ok(timedout);
-});
+}));

@@ -1,29 +1,20 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var http = require('http');
 var server = http.createServer(function(req, res) {
   res.end();
 });
-var count = 0;
-server.listen(0, function() {
+
+server.listen(0, common.mustCall(function() {
   var req = http.request({
     port: this.address().port
-  }, function() {
-    assert(false, 'should not receive data');
-  });
+  }, common.fail);
 
-  req.on('abort', function() {
-    // should only be emitted once
-    count++;
+  req.on('abort', common.mustCall(function() {
     server.close();
-  });
+  }));
 
   req.end();
   req.abort();
   req.abort();
-});
-
-process.on('exit', function() {
-  assert.equal(count, 1);
-});
+}));

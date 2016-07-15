@@ -1,14 +1,12 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
 var serverGotConnect = false;
 var clientGotConnect = false;
 
-var server = http.createServer(function(req, res) {
-  assert(false);
-});
+var server = http.createServer(common.fail);
 server.on('connect', function(req, socket, firstBodyChunk) {
   assert.equal(req.method, 'CONNECT');
   assert.equal(req.url, 'google.com:443');
@@ -30,9 +28,7 @@ server.listen(0, function() {
     port: this.address().port,
     method: 'CONNECT',
     path: 'google.com:443'
-  }, function(res) {
-    assert(false);
-  });
+  }, common.fail);
 
   var clientRequestClosed = false;
   req.on('close', function() {
