@@ -150,14 +150,30 @@ function parseText(lexed) {
 // lists that come right after a heading are what we're after.
 function parseLists(input) {
   var state = null;
+  var savedState = [];
   var depth = 0;
   var output = [];
   output.links = input.links;
   input.forEach(function(tok) {
-    if (tok.type === 'code' && tok.text.match(/Stability:.*/g)) {
-      tok.text = parseAPIHeader(tok.text);
-      output.push({ type: 'html', text: tok.text });
+    if (tok.type === 'blockquote_start') {
+      savedState.push(state);
+      state = 'MAYBE_STABILITY_BQ';
       return;
+    }
+    if (tok.type === 'blockquote_end' && state === 'MAYBE_STABILITY_BQ') {
+      state = savedState.pop();
+      return;
+    }
+    if ((tok.type === 'paragraph' && state === 'MAYBE_STABILITY_BQ') ||
+      tok.type === 'code') {
+      if (tok.text.match(/Stability:.*/g)) {
+        tok.text = parseAPIHeader(tok.text);
+        output.push({ type: 'html', text: tok.text });
+        return;
+      } else if (state === 'MAYBE_STABILITY_BQ') {
+        output.push({ type: 'blockquote_start' });
+        state = savedState.pop();
+      }
     }
     if (state === null ||
       (state === 'AFTERHEADING' && tok.type === 'heading')) {

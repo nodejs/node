@@ -1,6 +1,6 @@
 # HTTP
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 To use the HTTP server and client one must `require('http')`.
 
@@ -1331,7 +1331,7 @@ added: v0.1.13
 deprecated: v0.3.6
 -->
 
-    Stability: 0 - Deprecated: Use [`http.request()`][] instead.
+> Stability: 0 - Deprecated: Use [`http.request()`][] instead.
 
 Constructs a new HTTP client. `port` and `host` refer to the server to be
 connected to.

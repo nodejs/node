@@ -1,6 +1,6 @@
 # Stream
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 A stream is an abstract interface for working with streaming data in Node.js.
 The `stream` module provides a base API that makes it easy to build objects

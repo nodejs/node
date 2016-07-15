@@ -1,6 +1,6 @@
 # Buffer
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 Prior to the introduction of [`TypedArray`] in ECMAScript 2015 (ES6), the
 JavaScript language had no mechanism for reading or manipulating streams
@@ -300,7 +300,7 @@ It can be constructed in a variety of ways.
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`Buffer.from(array)`] instead.
+> Stability: 0 - Deprecated: Use [`Buffer.from(array)`] instead.
 
 * `array` {Array} An array of bytes to copy from
 
@@ -318,7 +318,7 @@ const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
+> Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
 
 * `buffer` {Buffer} An existing `Buffer` to copy data from
 
@@ -344,9 +344,9 @@ console.log(buf2.toString());
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated: Use
-    [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
-    instead.
+> Stability: 0 - Deprecated: Use
+> [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
+> instead.
 
 * `arrayBuffer` {ArrayBuffer} The `.buffer` property of a [`TypedArray`] or
   [`ArrayBuffer`]
@@ -387,8 +387,8 @@ console.log(buf);
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`Buffer.alloc()`] instead (also see
-    [`Buffer.allocUnsafe()`]).
+> Stability: 0 - Deprecated: Use [`Buffer.alloc()`] instead (also see
+> [`Buffer.allocUnsafe()`]).
 
 * `size` {Integer} The desired length of the new `Buffer`
 
@@ -420,8 +420,8 @@ console.log(buf);
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated:
-    Use [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] instead.
+> Stability: 0 - Deprecated:
+> Use [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] instead.
 
 * `string` {String} String to encode
 * `encoding` {String} The encoding of `string`. **Default:** `'utf8'`
@@ -2309,7 +2309,7 @@ On 64-bit architectures, this value is `(2^31)-1` (~2GB).
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`] instead.
+> Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`] instead.
 
 Returns an un-pooled `Buffer`.
 
@@ -2349,7 +2349,7 @@ has observed undue memory retention in their applications.
 deprecated: v6.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`] instead.
+> Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`] instead.
 
 * `size` {Integer} The desired length of the new `SlowBuffer`
 

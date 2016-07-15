@@ -1,6 +1,6 @@
 # Cluster
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 A single instance of Node.js runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node.js
@@ -395,7 +395,7 @@ if (cluster.isMaster) {
 
 ### worker.suicide
 
-    Stability: 0 - Deprecated: Use [`worker.exitedAfterDisconnect`][] instead.
+> Stability: 0 - Deprecated: Use [`worker.exitedAfterDisconnect`][] instead.
 
 An alias to [`worker.exitedAfterDisconnect`][].
 
