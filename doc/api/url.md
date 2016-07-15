@@ -1,6 +1,6 @@
 # URL
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 This module has utilities for URL resolution and parsing.
 Call `require('url')` to use it.

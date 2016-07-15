@@ -1,6 +1,6 @@
 # util
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 These functions are in the module `'util'`. Use `require('util')` to
 access them.
@@ -14,7 +14,7 @@ are unnecessary for Node.js's internal functionality.
 
 ## util.debug(string)
 
-    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 Deprecated predecessor of `console.error`.
 
@@ -83,7 +83,7 @@ when the deprecated API is used.  Configurable at run-time through the
 
 ## util.error([...])
 
-    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 Deprecated predecessor of `console.error`.
 
@@ -250,7 +250,7 @@ util.inspect(obj);
 
 ## util.isArray(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Internal alias for [`Array.isArray`][].
 
@@ -269,7 +269,7 @@ util.isArray({})
 
 ## util.isBoolean(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Boolean`. Otherwise, returns `false`.
 
@@ -286,7 +286,7 @@ util.isBoolean(false)
 
 ## util.isBuffer(object)
 
-    Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
+> Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
 Returns `true` if the given "object" is a `Buffer`. Otherwise, returns `false`.
 
@@ -303,7 +303,7 @@ util.isBuffer(new Buffer('hello world'))
 
 ## util.isDate(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Date`. Otherwise, returns `false`.
 
@@ -320,7 +320,7 @@ util.isDate({})
 
 ## util.isError(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is an [`Error`][]. Otherwise, returns
 `false`.
@@ -338,7 +338,7 @@ util.isError({ name: 'Error', message: 'an error occurred' })
 
 ## util.isFunction(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Function`. Otherwise, returns
 `false`.
@@ -359,7 +359,7 @@ util.isFunction(Bar)
 
 ## util.isNull(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is strictly `null`. Otherwise, returns
 `false`.
@@ -377,7 +377,7 @@ util.isNull(null)
 
 ## util.isNullOrUndefined(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is `null` or `undefined`. Otherwise,
 returns `false`.
@@ -395,7 +395,7 @@ util.isNullOrUndefined(null)
 
 ## util.isNumber(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Number`. Otherwise, returns `false`.
 
@@ -414,7 +414,7 @@ util.isNumber(NaN)
 
 ## util.isObject(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is strictly an `Object` __and__ not a
 `Function`. Otherwise, returns `false`.
@@ -434,7 +434,7 @@ util.isObject(function(){})
 
 ## util.isPrimitive(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a primitive type. Otherwise, returns
 `false`.
@@ -464,7 +464,7 @@ util.isPrimitive(new Date())
 
 ## util.isRegExp(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `RegExp`. Otherwise, returns `false`.
 
@@ -481,7 +481,7 @@ util.isRegExp({})
 
 ## util.isString(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `String`. Otherwise, returns `false`.
 
@@ -500,7 +500,7 @@ util.isString(5)
 
 ### util.isSymbol(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Symbol`. Otherwise, returns `false`.
 
@@ -517,7 +517,7 @@ util.isSymbol(Symbol('foo'))
 
 ## util.isUndefined(object)
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is `undefined`. Otherwise, returns `false`.
 
@@ -541,19 +541,19 @@ Output with timestamp on `stdout`.
 
 ## util.print([...])
 
-    Stability: 0 - Deprecated: Use [`console.log()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
 ## util.pump(readableStream, writableStream[, callback])
 
-    Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
+> Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
 
 Deprecated predecessor of `stream.pipe()`.
 
 ## util.puts([...])
 
-    Stability: 0 - Deprecated: Use [`console.log()`][] instead.
+> Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
