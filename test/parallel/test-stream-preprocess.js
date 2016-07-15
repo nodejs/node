@@ -33,8 +33,8 @@ const inputWithoutBOM = fs.createReadStream(
 inputWithoutBOM.once('readable', common.mustCall(() => {
   const maybeBOM = inputWithoutBOM.read(1);
   assert.strictEqual(maybeBOM, modelDataFirstCharacter);
-
   assert.notStrictEqual(maybeBOM, BOM);
+
   inputWithoutBOM.unshift(maybeBOM);
 
   let streamedData = '';
@@ -54,8 +54,6 @@ const inputWithBOM = fs.createReadStream(
 
 inputWithBOM.once('readable', common.mustCall(() => {
   const maybeBOM = inputWithBOM.read(1);
-  assert.strictEqual(maybeBOM, BOM);
-
   assert.strictEqual(maybeBOM, BOM);
 
   let streamedData = '';
