@@ -1227,9 +1227,9 @@ const Writable = require('stream').Writable;
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
     if (chunk.toString().indexOf('a') >= 0) {
-      callback(new Error('chunk is invalid'))
+      callback(new Error('chunk is invalid'));
     } else {
-       callback()
+      callback();
     }
   }
 });
@@ -1252,9 +1252,9 @@ class MyWritable extends Writable {
 
   _write(chunk, encoding, callback) {
     if (chunk.toString().indexOf('a') >= 0) {
-      callback(new Error('chunk is invalid'))
+      callback(new Error('chunk is invalid'));
     } else {
-       callback()
+      callback();
     }
   }
 }

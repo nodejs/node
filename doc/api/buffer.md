@@ -247,7 +247,7 @@ Buffers can be iterated over using the ECMAScript 2015 (ES6) `for..of` syntax:
 const buf = Buffer.from([1, 2, 3]);
 
 for (var b of buf)
-  console.log(b)
+  console.log(b);
 
 // Prints:
 //   1

@@ -398,10 +398,10 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 
 ```js
 function completer(line) {
-  var completions = '.help .error .exit .quit .q'.split(' ')
-  var hits = completions.filter((c) => { return c.indexOf(line) == 0 })
+  var completions = '.help .error .exit .quit .q'.split(' ');
+  var hits = completions.filter((c) => { return c.indexOf(line) == 0 });
   // show all completions if none found
-  return [hits.length ? hits : completions, line]
+  return [hits.length ? hits : completions, line];
 }
 ```
 
