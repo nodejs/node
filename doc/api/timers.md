@@ -1,6 +1,6 @@
 # Timers
 
-    Stability: 3 - Locked
+> Stability: 3 - Locked
 
 The `timer` module exposes a global API for scheduling functions to
 be called at some future period of time. Because the timer functions are

@@ -155,7 +155,7 @@ Error.
 
 ### require.extensions
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 * {Object}
 

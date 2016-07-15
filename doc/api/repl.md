@@ -1,6 +1,6 @@
 # REPL
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `repl` module provides a Read-Eval-Print-Loop (REPL) implementation that
 is available both as a standalone program or includable in other applications.
@@ -444,7 +444,7 @@ added: v2.0.0
 deprecated: v3.0.0
 -->
 
-   Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
+> Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
 
 Previously in Node.js/io.js v2.x, REPL history was controlled by using a
 `NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON

@@ -1,6 +1,6 @@
 # Executing JavaScript
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!--name=vm-->
 
