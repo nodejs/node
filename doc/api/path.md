@@ -234,7 +234,7 @@ path.format({
     base : "file.txt",
     ext : ".txt",
     name : "file"
-})
+});
 // returns 'C:\\path\\dir\\file.txt'
 ```
 
