@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 // verify that stdout is never read from.
@@ -22,7 +22,6 @@ else
 function parent() {
   var spawn = require('child_process').spawn;
   var node = process.execPath;
-  var closes = 0;
 
   var c1 = spawn(node, [__filename, 'child']);
   var c1out = '';
@@ -34,13 +33,12 @@ function parent() {
   c1.stderr.on('data', function(chunk) {
     console.error('c1err: ' + chunk.split('\n').join('\nc1err: '));
   });
-  c1.on('close', function(code, signal) {
-    closes++;
+  c1.on('close', common.mustCall(function(code, signal) {
     assert(!code);
     assert(!signal);
     assert.equal(c1out, 'ok\n');
     console.log('ok');
-  });
+  }));
 
   var c2 = spawn(node, ['-e', 'console.log("ok")']);
   var c2out = '';
@@ -52,17 +50,12 @@ function parent() {
   c1.stderr.on('data', function(chunk) {
     console.error('c1err: ' + chunk.split('\n').join('\nc1err: '));
   });
-  c2.on('close', function(code, signal) {
-    closes++;
+  c2.on('close', common.mustCall(function(code, signal) {
     assert(!code);
     assert(!signal);
     assert.equal(c2out, 'ok\n');
     console.log('ok');
-  });
-
-  process.on('exit', function() {
-    assert.equal(closes, 2, 'saw both closes');
-  });
+  }));
 }
 
 function child() {

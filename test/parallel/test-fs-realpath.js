@@ -64,18 +64,11 @@ function asynctest(testBlock, args, callback, assertBlock) {
 
 // sub-tests:
 function test_simple_error_callback(cb) {
-  var ncalls = 0;
-
-  fs.realpath('/this/path/does/not/exist', function(err, s) {
+  fs.realpath('/this/path/does/not/exist', common.mustCall(function(err, s) {
     assert(err);
     assert(!s);
-    ncalls++;
     cb();
-  });
-
-  process.on('exit', function() {
-    assert.equal(ncalls, 1);
-  });
+  }));
 }
 
 function test_simple_relative_symlink(callback) {

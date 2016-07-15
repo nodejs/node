@@ -3,10 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var status_ok = false; // status code == 200?
-var headers_ok = false;
-var body_ok = false;
-
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Type': 'text/plain',
@@ -19,19 +15,16 @@ var server = http.createServer(function(req, res) {
 
 common.refreshTmpDir();
 
-server.listen(common.PIPE, function() {
+server.listen(common.PIPE, common.mustCall(function() {
 
   var options = {
     socketPath: common.PIPE,
     path: '/'
   };
 
-  var req = http.get(options, function(res) {
+  var req = http.get(options, common.mustCall(function(res) {
     assert.equal(res.statusCode, 200);
-    status_ok = true;
-
     assert.equal(res.headers['content-type'], 'text/plain');
-    headers_ok = true;
 
     res.body = '';
     res.setEncoding('utf8');
@@ -40,17 +33,16 @@ server.listen(common.PIPE, function() {
       res.body += chunk;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(function() {
       assert.equal(res.body, 'hello world\n');
-      body_ok = true;
       server.close(function(error) {
         assert.equal(error, undefined);
         server.close(function(error) {
           assert.equal(error && error.message, 'Not running');
         });
       });
-    });
-  });
+    }));
+  }));
 
   req.on('error', function(e) {
     console.log(e.stack);
@@ -59,10 +51,4 @@ server.listen(common.PIPE, function() {
 
   req.end();
 
-});
-
-process.on('exit', function() {
-  assert.ok(status_ok);
-  assert.ok(headers_ok);
-  assert.ok(body_ok);
-});
+}));

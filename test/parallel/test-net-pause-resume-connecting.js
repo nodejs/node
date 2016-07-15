@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -34,7 +34,7 @@ server.listen(0, function() {
   // Client 3
   conn = require('net').createConnection(this.address().port, 'localhost');
   conn.pause();
-  conn.on('data', onDataError);
+  conn.on('data', common.fail);
   scheduleTearDown(conn);
 
 
@@ -51,14 +51,8 @@ server.listen(0, function() {
   conn.resume();
   conn.resume();
   conn.pause();
-  conn.on('data', onDataError);
+  conn.on('data', common.fail);
   scheduleTearDown(conn);
-
-
-  // Client helper functions
-  function onDataError() {
-    assert(false);
-  }
 
   function onDataOk() {
     dataEvents++;

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
 
@@ -14,24 +14,14 @@ try {
 }
 assert.ok(caughtException);
 
-var openFd;
-fs.open(__filename, 'r', function(err, fd) {
+fs.open(__filename, 'r', common.mustCall(function(err, fd) {
   if (err) {
     throw err;
   }
-  openFd = fd;
-});
+}));
 
-var openFd2;
-fs.open(__filename, 'rs', function(err, fd) {
+fs.open(__filename, 'rs', common.mustCall(function(err, fd) {
   if (err) {
     throw err;
   }
-  openFd2 = fd;
-});
-
-process.on('exit', function() {
-  assert.ok(openFd);
-  assert.ok(openFd2);
-});
-
+}));

@@ -12,14 +12,7 @@ c.on('connect', function() {
   assert.ok(false);
 });
 
-var gotError = false;
-c.on('error', function(e) {
+c.on('error', common.mustCall(function(e) {
   console.error('couldn\'t connect.');
-  gotError = true;
   assert.equal('ECONNREFUSED', e.code);
-});
-
-
-process.on('exit', function() {
-  assert.ok(gotError);
-});
+}));
