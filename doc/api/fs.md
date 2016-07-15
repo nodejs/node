@@ -1,6 +1,6 @@
 # File System
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!--name=fs-->
 
@@ -476,7 +476,7 @@ added: v0.0.2
 deprecated: v1.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
+> Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
@@ -499,7 +499,8 @@ added: v0.1.21
 deprecated: v1.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][] instead.
+> Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][]
+> instead.
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.

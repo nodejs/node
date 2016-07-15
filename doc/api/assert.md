@@ -1,6 +1,6 @@
 # Assert
 
-    Stability: 3 - Locked
+> Stability: 3 - Locked
 
 The `assert` module provides a simple set of assertion tests that can be used to
 test invariants. The module is intended for internal use by Node.js, but can be

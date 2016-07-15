@@ -1,6 +1,6 @@
 # DNS
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `dns` module contains functions belonging to two different categories:
 
