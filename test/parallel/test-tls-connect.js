@@ -17,32 +17,16 @@ var path = require('path');
   const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
   const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-  let errorEmitted = false;
-
-  process.on('exit', function() {
-    assert.ok(errorEmitted);
-  });
-
   const options = {cert: cert, key: key, port: common.PORT};
-  const conn = tls.connect(options, function() {
-    assert.ok(false); // callback should never be executed
-  });
+  const conn = tls.connect(options, common.fail);
 
-  conn.on('error', function() {
-    errorEmitted = true;
-  });
+  conn.on('error', common.mustCall(function() {}));
 }
 
 // SSL_accept/SSL_connect error handling
 {
   const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
   const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
-
-  let errorEmitted = false;
-
-  process.on('exit', function() {
-    assert.ok(errorEmitted);
-  });
 
   const conn = tls.connect({
     cert: cert,
@@ -53,7 +37,5 @@ var path = require('path');
     assert.ok(false); // callback should never be executed
   });
 
-  conn.on('error', function() {
-    errorEmitted = true;
-  });
+  conn.on('error', common.mustCall(function() {}));
 }

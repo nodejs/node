@@ -18,15 +18,8 @@ var options = {
   honorCipherOrder: true
 };
 
-var nconns = 0;
-
-process.on('exit', function() {
-  assert.equal(nconns, 1);
-});
-
-var server = tls.createServer(options, function(cleartextStream) {
-  nconns++;
-});
+var server = tls.createServer(options,
+                              common.mustCall(function(cleartextStream) {}));
 
 server.listen(0, '127.0.0.1', function() {
   var client = tls.connect({

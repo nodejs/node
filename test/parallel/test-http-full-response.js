@@ -17,8 +17,6 @@ var server = http.createServer(function(req, res) {
   res.end(body);
 });
 
-var runs = 0;
-
 function runAb(opts, callback) {
   var command = `ab ${opts} http://127.0.0.1:${server.address().port}/`;
   exec(command, function(err, stdout, stderr) {
@@ -43,28 +41,21 @@ function runAb(opts, callback) {
     assert.equal(bodyLength, documentLength);
     assert.equal(completeRequests * documentLength, htmlTransfered);
 
-    runs++;
-
     if (callback) callback();
   });
 }
 
-server.listen(0, function() {
-  runAb('-c 1 -n 10', function() {
+server.listen(0, common.mustCall(function() {
+  runAb('-c 1 -n 10', common.mustCall(function() {
     console.log('-c 1 -n 10 okay');
 
-    runAb('-c 1 -n 100', function() {
+    runAb('-c 1 -n 100', common.mustCall(function() {
       console.log('-c 1 -n 100 okay');
 
-      runAb('-c 1 -n 1000', function() {
+      runAb('-c 1 -n 1000', common.mustCall(function() {
         console.log('-c 1 -n 1000 okay');
         server.close();
-      });
-    });
-  });
-
-});
-
-process.on('exit', function() {
-  assert.equal(3, runs);
-});
+      }));
+    }));
+  }));
+}));

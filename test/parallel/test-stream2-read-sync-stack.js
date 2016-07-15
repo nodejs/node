@@ -1,6 +1,5 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var Readable = require('stream').Readable;
 var r = new Readable();
 var N = 256 * 1024;
@@ -21,14 +20,6 @@ r.on('readable', function onReadable() {
   r.read(N * 2);
 });
 
-var ended = false;
-r.on('end', function onEnd() {
-  ended = true;
-});
+r.on('end', common.mustCall(function() {}));
 
 r.read(0);
-
-process.on('exit', function() {
-  assert(ended);
-  console.log('ok');
-});

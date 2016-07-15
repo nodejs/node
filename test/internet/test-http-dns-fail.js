@@ -4,11 +4,10 @@
  * should trigger the error event after each attempt.
  */
 
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var resDespiteError = false;
 var hadError = 0;
 
 function httpreq(count) {
@@ -19,9 +18,7 @@ function httpreq(count) {
     port: 80,
     path: '/',
     method: 'GET'
-  }, function(res) {
-    resDespiteError = true;
-  });
+  }, common.fail);
 
   req.on('error', function(e) {
     console.log(e.message);
@@ -37,6 +34,5 @@ httpreq(0);
 
 
 process.on('exit', function() {
-  assert.equal(false, resDespiteError);
   assert.equal(2, hadError);
 });

@@ -3,9 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-
-var tests_run = 0;
-
 function pingPongTest(port, host, on_complete) {
   var N = 100;
   var DELAY = 1;
@@ -45,7 +42,7 @@ function pingPongTest(port, host, on_complete) {
     });
   });
 
-  server.listen(port, host, function() {
+  server.listen(port, host, common.mustCall(function() {
     var client = net.createConnection(port, host);
 
     client.setEncoding('utf8');
@@ -77,18 +74,13 @@ function pingPongTest(port, host, on_complete) {
       assert.equal(false, true);
     });
 
-    client.on('close', function() {
+    client.on('close', common.mustCall(function() {
       console.log('client.end');
       assert.equal(N + 1, count);
       assert.ok(client_ended);
       if (on_complete) on_complete();
-      tests_run += 1;
-    });
-  });
+    }));
+  }));
 }
 
 pingPongTest(common.PORT);
-
-process.on('exit', function() {
-  assert.equal(1, tests_run);
-});

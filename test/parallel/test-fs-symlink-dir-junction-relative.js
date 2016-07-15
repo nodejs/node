@@ -5,8 +5,6 @@ var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
-var completed = 0;
-var expected_tests = 2;
 
 var linkPath1 = path.join(common.tmpDir, 'junction1');
 var linkPath2 = path.join(common.tmpDir, 'junction2');
@@ -16,10 +14,10 @@ var linkData = path.join(common.fixturesDir);
 common.refreshTmpDir();
 
 // Test fs.symlink()
-fs.symlink(linkData, linkPath1, 'junction', function(err) {
+fs.symlink(linkData, linkPath1, 'junction', common.mustCall(function(err) {
   if (err) throw err;
   verifyLink(linkPath1);
-});
+}));
 
 // Test fs.symlinkSync()
 fs.symlinkSync(linkData, linkPath2, 'junction');
@@ -35,10 +33,4 @@ function verifyLink(linkPath) {
 
   // Clean up.
   fs.unlinkSync(linkPath);
-
-  completed++;
 }
-
-process.on('exit', function() {
-  assert.equal(completed, expected_tests);
-});
