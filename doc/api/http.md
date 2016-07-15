@@ -1451,7 +1451,7 @@ var req = http.request(options, (res) => {
     console.log(`BODY: ${chunk}`);
   });
   res.on('end', () => {
-    console.log('No more data in response.')
+    console.log('No more data in response.');
   });
 });
 
