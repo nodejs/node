@@ -253,7 +253,7 @@ static void PrintErrorString(const char* format, ...) {
   vsprintf(out.data(), format, ap);
 
   // Get required wide buffer size
-  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
+  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), n, nullptr, 0);
 
   std::vector<wchar_t> wbuf(n);
   MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
