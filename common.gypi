@@ -301,9 +301,13 @@
           }],
         ],
       }],
-      [ 'OS=="android"', {
-        'defines': ['_GLIBCXX_USE_C99_MATH'],
-        'libraries': [ '-llog' ],
+      ['OS=="android"', {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'defines': [ '_GLIBCXX_USE_C99_MATH' ],
+            'libraries': [ '-llog' ],
+          }],
+        ],
       }],
       ['OS=="mac"', {
         'defines': ['_DARWIN_USE_64_BIT_INODE=1'],
