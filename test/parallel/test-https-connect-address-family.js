@@ -36,8 +36,13 @@ function runTest() {
 }
 
 dns.lookup('localhost', {family: 6, all: true}, (err, addresses) => {
-  if (err)
+  if (err) {
+    if (err.code === 'ENOTFOUND') {
+      common.skip('localhost does not resolve to ::1');
+      return;
+    }
     throw err;
+  }
 
   if (addresses.some((val) => val.address === '::1'))
     runTest();
