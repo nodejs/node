@@ -1,25 +1,25 @@
 /* eslint-disable required-modules */
 'use strict';
-var path = require('path');
-var fs = require('fs');
-var assert = require('assert');
-var os = require('os');
-var child_process = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
+const os = require('os');
+const child_process = require('child_process');
 const stream = require('stream');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
 
-const testRoot = path.resolve(process.env.NODE_TEST_DIR ||
-                              path.dirname(__filename));
+const testRoot = process.env.NODE_TEST_DIR ?
+                   path.resolve(process.env.NODE_TEST_DIR) : __dirname;
 
-exports.testDir = path.dirname(__filename);
+exports.testDir = __dirname;
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
 exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 exports.isWOW64 = exports.isWindows &&
-                  (process.env['PROCESSOR_ARCHITEW6432'] !== undefined);
+                  (process.env.PROCESSOR_ARCHITEW6432 !== undefined);
 exports.isAix = process.platform === 'aix';
 exports.isLinuxPPCBE = (process.platform === 'linux') &&
                        (process.arch === 'ppc64') &&
@@ -158,7 +158,7 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
 
   if (exports.isWindows) opensslCli += '.exe';
 
-  var openssl_cmd = child_process.spawnSync(opensslCli, ['version']);
+  const openssl_cmd = child_process.spawnSync(opensslCli, ['version']);
   if (openssl_cmd.status !== 0 || openssl_cmd.error !== undefined) {
     // openssl command cannot be executed
     opensslCli = false;
@@ -194,7 +194,7 @@ if (exports.isWindows) {
                                   'faketime');
 }
 
-var ifaces = os.networkInterfaces();
+const ifaces = os.networkInterfaces();
 exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   return /lo/.test(name) && ifaces[name].some(function(info) {
     return info.family === 'IPv6';
@@ -204,7 +204,7 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
-    var p = path.resolve(exports.fixturesDir, 'create-file.js');
+    const p = path.resolve(exports.fixturesDir, 'create-file.js');
     return '"' + process.argv[0] + '" "' + p + '" "' +
            filename + '" ' + (kilobytes * 1024);
   } else {
@@ -214,7 +214,7 @@ exports.ddCommand = function(filename, kilobytes) {
 
 
 exports.spawnCat = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('more', [], options);
@@ -225,7 +225,7 @@ exports.spawnCat = function(options) {
 
 
 exports.spawnSyncCat = function(options) {
-  var spawnSync = require('child_process').spawnSync;
+  const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
     return spawnSync('more', [], options);
@@ -236,7 +236,7 @@ exports.spawnSyncCat = function(options) {
 
 
 exports.spawnPwd = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('cmd.exe', ['/c', 'cd'], options);
@@ -277,7 +277,7 @@ exports.platformTimeout = function(ms) {
   return ms; // ARMv8+
 };
 
-var knownGlobals = [setTimeout,
+const knownGlobals = [setTimeout,
                     setInterval,
                     setImmediate,
                     clearTimeout,
@@ -344,7 +344,7 @@ if (global.Symbol) {
 }
 
 function leakedGlobals() {
-  var leaked = [];
+  const leaked = [];
 
   for (var val in global)
     if (-1 === knownGlobals.indexOf(global[val]))
@@ -359,7 +359,7 @@ exports.globalCheck = true;
 
 process.on('exit', function() {
   if (!exports.globalCheck) return;
-  var leaked = leakedGlobals();
+  const leaked = leakedGlobals();
   if (leaked.length > 0) {
     console.error('Unknown globals: %s', leaked);
     assert.ok(false, 'Unknown global found');
@@ -367,13 +367,13 @@ process.on('exit', function() {
 });
 
 
-var mustCallChecks = [];
+const mustCallChecks = [];
 
 
 function runCallChecks(exitCode) {
   if (exitCode !== 0) return;
 
-  var failed = mustCallChecks.filter(function(context) {
+  const failed = mustCallChecks.filter(function(context) {
     return context.actual !== context.expected;
   });
 
@@ -392,7 +392,7 @@ function runCallChecks(exitCode) {
 exports.mustCall = function(fn, expected) {
   if (typeof expected !== 'number') expected = 1;
 
-  var context = {
+  const context = {
     expected: expected,
     actual: 0,
     stack: (new Error()).stack,
@@ -411,9 +411,9 @@ exports.mustCall = function(fn, expected) {
 };
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
-  var TCP = process.binding('tcp_wrap').TCP;
-  var t = new TCP();
-  var ret = t.bind('127.0.0.2', exports.PORT);
+  const TCP = process.binding('tcp_wrap').TCP;
+  const t = new TCP();
+  const ret = t.bind('127.0.0.2', exports.PORT);
   t.close();
   return ret === 0;
 };
@@ -487,7 +487,7 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
 };
 
 exports.busyLoop = function busyLoop(time) {
-  var startTime = Timer.now();
-  var stopTime = startTime + time;
+  const startTime = Timer.now();
+  const stopTime = startTime + time;
   while (Timer.now() < stopTime) {}
 };
