@@ -1,5 +1,6 @@
 #include "tcp_wrap.h"
 
+#include "connection_wrap.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -8,7 +9,6 @@
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "stream_wrap.h"
-#include "connection_wrap.h"
 #include "util.h"
 #include "util-inl.h"
 
@@ -141,11 +141,10 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_TCPWRAP,
-                 parent) {
+    : ConnectionWrap(env,
+                     object,
+                     AsyncWrap::PROVIDER_TCPWRAP,
+                     parent) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.

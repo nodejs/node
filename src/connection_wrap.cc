@@ -3,6 +3,7 @@
 #include "env-inl.h"
 #include "env.h"
 #include "pipe_wrap.h"
+#include "stream_wrap.h"
 #include "tcp_wrap.h"
 #include "util.h"
 #include "util-inl.h"
@@ -15,6 +16,18 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::Value;
+
+
+template <typename WrapType, typename UVType>
+ConnectionWrap<WrapType, UVType>::ConnectionWrap(Environment* env,
+                                                 Local<Object> object,
+                                                 ProviderType provider,
+                                                 AsyncWrap* parent)
+    : StreamWrap(env,
+                 object,
+                 reinterpret_cast<uv_stream_t*>(&handle_),
+                 provider,
+                 parent) {}
 
 
 template <typename WrapType, typename UVType>
@@ -57,6 +70,18 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
   }
   wrap_data->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
+
+template ConnectionWrap<PipeWrap, uv_pipe_t>::ConnectionWrap(
+    Environment* env,
+    Local<Object> object,
+    ProviderType provider,
+    AsyncWrap* parent);
+
+template ConnectionWrap<TCPWrap, uv_tcp_t>::ConnectionWrap(
+    Environment* env,
+    Local<Object> object,
+    ProviderType provider,
+    AsyncWrap* parent);
 
 template void ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection(
     uv_stream_t* handle, int status);

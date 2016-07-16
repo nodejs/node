@@ -1,6 +1,7 @@
 #include "pipe_wrap.h"
 
 #include "async-wrap.h"
+#include "connection_wrap.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -10,7 +11,6 @@
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "stream_wrap.h"
-#include "connection_wrap.h"
 #include "util-inl.h"
 #include "util.h"
 
@@ -120,11 +120,10 @@ PipeWrap::PipeWrap(Environment* env,
                    Local<Object> object,
                    bool ipc,
                    AsyncWrap* parent)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_PIPEWRAP,
-                 parent) {
+    : ConnectionWrap(env,
+                     object,
+                     AsyncWrap::PROVIDER_PIPEWRAP,
+                     parent) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
