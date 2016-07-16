@@ -20,7 +20,7 @@ const stream = require('stream');
 ```
 
 While it is important for all Node.js users to understand how streams works,
-the `stream` module itself is most useful for developer's that are creating new
+the `stream` module itself is most useful for developers that are creating new
 types of stream instances. Developer's who are primarily *consuming* stream
 objects will rarely (if ever) have need to use the `stream` module directly.
 
@@ -319,7 +319,7 @@ The buffered data will be flushed when either the [`stream.uncork()`][] or
 [`stream.end()`][stream-end] methods are called.
 
 The primary intent of `writable.cork()` is to avoid a situation where writing
-many small chunks of data to a stream do not cause an backup in the internal
+many small chunks of data to a stream do not cause a backup in the internal
 buffer that would have an adverse impact on performance. In such situations,
 implementations that implement the `writable._writev()` method can perform
 buffered writes in a more optimized manner.
@@ -1467,7 +1467,7 @@ class Counter extends Readable {
 A [Duplex][] stream is one that implements both [Readable][] and [Writable][],
 such as a TCP socket connection.
 
-Because Javascript does not have support for multiple inheritance, the
+Because JavaScript does not have support for multiple inheritance, the
 `stream.Duplex` class is extended to implement a [Duplex][] stream (as opposed
 to extending the `stream.Readable` *and* `stream.Writable` classes).
 
@@ -1579,7 +1579,7 @@ For Duplex streams, `objectMode` can be set exclusively for either the Readable
 or Writable side using the `readableObjectMode` and `writableObjectMode` options
 respectively.
 
-In the following example, for instance, a new Transform stream (which is a 
+In the following example, for instance, a new Transform stream (which is a
 type of [Duplex][] stream) is created that has an object mode Writable side
 that accepts JavaScript numbers that are converted to hexidecimal strings on
 the Readable side.
