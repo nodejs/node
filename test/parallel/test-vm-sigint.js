@@ -33,7 +33,7 @@ process.on('SIGUSR2', common.mustCall(() => {
   process.kill(child.pid, 'SIGINT');
 }));
 
-child.on('close', function(code, signal) {
+child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
   assert.strictEqual(code, 0);
-});
+}));
