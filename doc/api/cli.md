@@ -280,7 +280,7 @@ with small-icu support.
 
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
-added: v5.0.0
+added: v3.0.0
 -->
 
 Path to the file used to store the persistent REPL history. The default path is
