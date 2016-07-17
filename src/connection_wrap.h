@@ -24,6 +24,8 @@ class ConnectionWrap : public StreamWrap {
                  v8::Local<v8::Object> object,
                  ProviderType provider,
                  AsyncWrap* parent);
+  ~ConnectionWrap() {
+  }
 
   UVType handle_;
 };
