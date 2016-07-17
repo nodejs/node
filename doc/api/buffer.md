@@ -815,7 +815,7 @@ console.log(buf1.compare(buf1));
 console.log(buf1.compare(buf2));
   // Prints: -1
 console.log(buf1.compare(buf3));
-  // Prints: 1
+  // Prints: -1
 console.log(buf2.compare(buf1));
   // Prints: 1
 console.log(buf2.compare(buf3));
