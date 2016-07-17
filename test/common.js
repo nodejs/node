@@ -27,7 +27,7 @@ exports.isLinuxPPCBE = (process.platform === 'linux') &&
 exports.isSunOS = process.platform === 'sunos';
 exports.isFreeBSD = process.platform === 'freebsd';
 
-exports.enoughTestMem = os.totalmem() > 0x20000000; /* 512MB */
+exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
 
 function rimrafSync(p) {
