@@ -1,10 +1,9 @@
 'use strict';
 
+const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
-
-const common = require('../common');
 
 var node = process.execPath;
 

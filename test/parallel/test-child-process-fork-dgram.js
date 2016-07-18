@@ -13,10 +13,10 @@
  * and the test will fail.
  */
 
+const common = require('../common');
 var dgram = require('dgram');
 var fork = require('child_process').fork;
 var assert = require('assert');
-var common = require('../common');
 
 if (common.isWindows) {
   common.skip('Sending dgram sockets to child processes is ' +

@@ -4,9 +4,9 @@
 // The --no-warnings flag only supresses writing the warning to stderr, not the
 // emission of the corresponding event. This test file can be run without it.
 
+const common = require('../common');
 process.noDeprecation = true;
 
-const common = require('../common');
 const assert = require('assert');
 
 function listener() {

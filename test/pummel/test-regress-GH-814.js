@@ -1,6 +1,8 @@
 'use strict';
 // Flags: --expose_gc
 
+const common = require('../common');
+
 function newBuffer(size, value) {
   var buffer = Buffer.allocUnsafe(size);
   while (size--) {
@@ -11,8 +13,6 @@ function newBuffer(size, value) {
   return buffer;
 }
 
-
-var common = require('../common');
 var fs = require('fs');
 var testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
 var testFileFD = fs.openSync(testFileName, 'w');
