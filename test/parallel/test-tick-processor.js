@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
 const cp = require('child_process');
-const common = require('../common');
 
 // TODO(mhdawson) Currently the test-tick-processor functionality in V8
 // depends on addresses being smaller than a full 64 bits.  Aix supports

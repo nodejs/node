@@ -1,7 +1,7 @@
 'use strict';
 
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 
 // Make sure we test 0ms timers, since they would had always wanted to run on
 // the current tick, and greater than 0ms timers, for scenarios where the

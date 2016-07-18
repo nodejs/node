@@ -2,6 +2,8 @@
 // just like test/gc/http-client.js,
 // but with an on('error') handler that does nothing.
 
+require('../common');
+
 function serverHandler(req, res) {
   req.resume();
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -10,7 +12,6 @@ function serverHandler(req, res) {
 
 const http = require('http');
 const weak = require('weak');
-require('../common');
 const assert = require('assert');
 const todo = 500;
 let done = 0;
