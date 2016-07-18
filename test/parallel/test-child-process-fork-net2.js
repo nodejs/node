@@ -1,6 +1,6 @@
 'use strict';
+const common = require('../common');
 var assert = require('assert');
-var common = require('../common');
 var fork = require('child_process').fork;
 var net = require('net');
 var count = 12;

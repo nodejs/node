@@ -2,6 +2,8 @@
 // just like test/gc/http-client.js,
 // but with a timeout set
 
+require('../common');
+
 function serverHandler(req, res) {
   setTimeout(function() {
     req.resume();
@@ -12,7 +14,6 @@ function serverHandler(req, res) {
 
 const http = require('http');
 const weak = require('weak');
-require('../common');
 const assert = require('assert');
 const todo = 550;
 let done = 0;

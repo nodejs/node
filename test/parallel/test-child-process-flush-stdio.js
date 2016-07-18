@@ -1,6 +1,6 @@
 'use strict';
-const cp = require('child_process');
 const common = require('../common');
+const cp = require('child_process');
 const assert = require('assert');
 
 // Windows' `echo` command is a built-in shell command and not an external

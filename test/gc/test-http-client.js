@@ -1,6 +1,8 @@
 'use strict';
 // just a simple http server and client.
 
+require('../common');
+
 function serverHandler(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
@@ -8,7 +10,6 @@ function serverHandler(req, res) {
 
 const http = require('http');
 const weak = require('weak');
-require('../common');
 const assert = require('assert');
 const todo = 500;
 let done = 0;
