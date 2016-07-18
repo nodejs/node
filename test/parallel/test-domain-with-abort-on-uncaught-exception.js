@@ -1,8 +1,8 @@
 'use strict';
 
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const common = require('../common');
 
 /*
  * The goal of this test is to make sure that:

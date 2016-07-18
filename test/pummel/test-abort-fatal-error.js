@@ -1,6 +1,6 @@
 'use strict';
+const common = require('../common');
 var assert = require('assert');
-var common = require('../common');
 
 if (common.isWindows) {
   common.skip('no RLIMIT_NOFILE on Windows');

@@ -7,10 +7,10 @@
 // we also send packets to ourselves to verify that after receiving an error
 // we can still receive packets successfully.
 
+const common = require('../common');
 var ITERATIONS = 1000;
 
 var assert = require('assert'),
-    common = require('../common'),
     dgram = require('dgram');
 
 var buf = Buffer.alloc(1024, 42);

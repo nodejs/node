@@ -1,13 +1,13 @@
 'use strict';
 // Original test written by Jakub Lekstan <kuebzky@gmail.com>
 
+require('../common');
 // FIXME add sunos support
 if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
   console.log(`1..0 # Skipped: Unsupported platform [${process.platform}]`);
   return;
 }
 
-require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 var path = require('path');

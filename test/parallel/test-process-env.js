@@ -1,10 +1,10 @@
 'use strict';
 /* eslint-disable max-len */
 
+require('../common');
 // first things first, set the timezone; see tzset(3)
 process.env.TZ = 'Europe/Amsterdam';
 
-require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 

@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {

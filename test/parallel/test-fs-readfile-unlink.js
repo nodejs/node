@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const dirName = path.resolve(common.fixturesDir, 'test-readfile-unlink');

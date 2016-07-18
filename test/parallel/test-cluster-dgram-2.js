@@ -1,9 +1,9 @@
 'use strict';
+const common = require('../common');
 var NUM_WORKERS = 4;
 var PACKETS_PER_WORKER = 10;
 
 var cluster = require('cluster');
-var common = require('../common');
 var dgram = require('dgram');
 
 

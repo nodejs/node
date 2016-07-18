@@ -22,8 +22,8 @@
  * is not empty (see testAddingTimerToNonEmptyTimersList).
  */
 
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const Timer = process.binding('timer_wrap').Timer;
 
 const TIMEOUT = 100;
