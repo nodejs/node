@@ -41,6 +41,8 @@ valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
+valid_v8_target_arch = ('arm', 'arm64', 'mips', 'mipsel', 'mips64', 'mips64el', 
+              'ia32', 'x32', 'x64', 'x87', 'ppc', 'ppc64', 's390', 's390x')
 
 # create option groups
 shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
@@ -75,6 +77,29 @@ parser.add_option('--dest-os',
     dest='dest_os',
     choices=valid_os,
     help='operating system to build for ({0})'.format(', '.join(valid_os)))
+
+parser.add_option('--host-cc',
+    action='store',
+    dest='host_cc',
+    help="Cross compiling option. It defines CC compiler with mandatory options "
+         "to build host tools. It has a higher priority than CC_host and is "
+         "used to detect a host architecture. Use CPPFLAGS_host and CFLAGS_host "
+         "environment variables during a cross compilation. "
+         "Example: --host-cc='gcc -m32' ")
+
+parser.add_option('--host-cxx',
+    action='store',
+    dest='host_cxx',
+    help="Cross compiling option. It defines CXX compiler (also used as a linker) with "
+         "mandatory options to build host tools. It has a higher priority than CXX_host. "
+         "Example: --host-cxx='g++ -m32' ")
+
+parser.add_option('--host-ar',
+    action='store',
+    dest='host_ar',
+    help="Cross compiling option. It defines archiver with mandatory options to build "
+         " host tools. It has a higher priority than AR_host. "
+         "Example: --host-ar='ar' ")
 
 parser.add_option('--gdb',
     action='store_true',
@@ -257,6 +282,12 @@ parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
     help='v8 options to pass, see `node --v8-options` for examples.')
+
+parser.add_option('--v8-target-arch',
+    action='store',
+    dest='v8_target_arch',
+    choices=valid_v8_target_arch,
+    help='Set also v8_target_arch if --dest-cpu does not provide a required value.')
 
 parser.add_option('--with-arm-float-abi',
     action='store',
@@ -746,6 +777,14 @@ def configure_node(o):
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
+  # Provided cross compiling options have a higher priority than environment variables
+  if options.host_cc:
+    os.environ['CC_host'] = options.host_cc
+  if options.host_cxx:
+    os.environ['CXX_host'] = options.host_cxx
+  if options.host_ar:
+    os.environ['AR_host'] = options.host_ar
+
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
   # ia32 is preferred by the build tools (GYP) over x86 even if we prefer the latter
@@ -894,6 +933,8 @@ def configure_v8(o):
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8 and options.enable_d8:
     raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+  if options.v8_target_arch:
+    o['variables']['v8_target_arch'] = options.v8_target_arch  # Set it manually if --dest-cpu does not provide a correct value
 
 
 def configure_openssl(o):
