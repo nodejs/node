@@ -98,7 +98,8 @@ Typical activities of a CTC member include:
 * commenting on the weekly CTC meeting issue and issues labeled `ctc-agenda`
 * participating in CTC email threads
 * volunteering for tasks that arise from CTC meetings and related discussions
-* other activities (beyond those typical of Collaborators) that facilitate the smooth day-to-day operation of the Node.js project
+* other activities (beyond those typical of Collaborators) that facilitate the
+  smooth day-to-day operation of the Node.js project
 
 Note that CTC members are also Collaborators and therefore typically perform
 Collaborator activities as well.
