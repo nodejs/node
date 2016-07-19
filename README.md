@@ -165,6 +165,7 @@ information about the governance of the Node.js project, see
 ### Collaborators
 
 * [addaleax](https://github.com/addaleax) - **Anna Henningsen** &lt;anna@addaleax.net&gt;
+* [andrasq](https://github.com/andrasq) - **Andras** &lt;andras@kinvey.com&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) - **Andreas Madsen** &lt;amwebdk@gmail.com&gt;
 * [bengl](https://github.com/bengl) - **Bryan English** &lt;bryan@bryanenglish.com&gt;
 * [benjamingr](https://github.com/benjamingr) - **Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
