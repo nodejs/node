@@ -391,11 +391,9 @@ deprecated: v6.0.0
 
 * `size` {Number}
 
-Allocates a new `Buffer` of `size` bytes.  The `size` must be less than
-or equal to the value of `require('buffer').kMaxLength` (on 64-bit
-architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
-thrown. A zero-length Buffer will be created if a `size` less than or equal to
-0 is specified.
+Allocates a new `Buffer` of `size` bytes.  The `size` must be less than or equal
+to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is thrown.
+A zero-length `Buffer` will be created if `size <= 0`.
 
 Unlike [`ArrayBuffers`][`ArrayBuffer`], the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created `Buffer`
@@ -469,10 +467,9 @@ const buf = Buffer.alloc(5);
 console.log(buf);
 ```
 
-The `size` must be less than or equal to the value of
-`require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
-`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. A zero-length Buffer will
-be created if a `size` less than or equal to 0 is specified.
+The `size` must be less than or equal to the value of [`buffer.kMaxLength`].
+Otherwise, a [`RangeError`] is thrown. A zero-length `Buffer` will be created if
+`size <= 0`.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
 [`buf.fill(fill)`][`buf.fill()`].
@@ -512,10 +509,8 @@ added: v5.10.0
 * `size` {Number}
 
 Allocates a new *non-zero-filled* `Buffer` of `size` bytes. The `size` must
-be less than or equal to the value of `require('buffer').kMaxLength` (on 64-bit
-architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
-thrown. A zero-length Buffer will be created if a `size` less than or equal to
-0 is specified.
+be less than or equal to the value of [`buffer.kMaxLength`]. Otherwise, a
+[`RangeError`] is thrown. A zero-length `Buffer` will be created if `size <= 0`.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -542,14 +537,13 @@ Note that the `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`] (and the deprecated
 `new Buffer(size)` constructor) only when `size` is less than or equal to
-`Buffer.poolSize >> 1` (floor of `Buffer.poolSize` divided by two). The default
-value of `Buffer.poolSize` is `8192` but can be modified.
+`Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`] divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
 Specifically, `Buffer.alloc(size, fill)` will *never* use the internal `Buffer`
 pool, while `Buffer.allocUnsafe(size).fill(fill)` *will* use the internal
-Buffer pool if `size` is less than or equal to half `Buffer.poolSize`. The
+`Buffer` pool if `size` is less than or equal to half [`Buffer.poolSize`]. The
 difference is subtle but can be important when an application requires the
 additional performance that [`Buffer.allocUnsafe()`] provides.
 
@@ -561,10 +555,9 @@ added: v5.10.0
 * `size` {Number}
 
 Allocates a new *non-zero-filled* and non-pooled `Buffer` of `size` bytes. The
-`size` must be less than or equal to the value of
-`require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
-`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. A zero-length Buffer will
-be created if a `size` less than or equal to 0 is specified.
+`size` must be less than or equal to the value of [`buffer.kMaxLength`].
+Otherwise, a [`RangeError`] is thrown. A zero-length `Buffer` will be created if
+`size <= 0`.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -841,6 +834,16 @@ added: v0.9.1
 
 Returns `true` if `encoding` contains a supported character encoding, or `false`
 otherwise.
+
+### Class Property: Buffer.poolSize
+<!-- YAML
+added: v0.11.3
+-->
+
+* {Number} **Default:** `8192`
+
+This is the number of bytes used to determine the size of pre-allocated, internal
+`Buffer` instances used for pooling. This value may be modified.
 
 ### buf[index]
 <!-- YAML
@@ -2197,6 +2200,16 @@ Returns the maximum number of bytes that will be returned when
 Note that this is a property on the `buffer` module as returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
+## buffer.kMaxLength
+<!-- YAML
+added: v3.0.0
+-->
+
+* {Number} The largest size allowed for a single `Buffer` instance
+
+On 32-bit architectures, this value is `(2^30)-1` (~1GB).
+On 64-bit architectures, this value is `(2^31)-1` (~2GB).
+
 ## Class: SlowBuffer
 <!-- YAML
 deprecated: v6.0.0
@@ -2247,10 +2260,8 @@ deprecated: v6.0.0
 * `size` Number
 
 Allocates a new `SlowBuffer` of `size` bytes. The `size` must be less than
-or equal to the value of `require('buffer').kMaxLength` (on 64-bit
-architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
-thrown. A zero-length Buffer will be created if a `size` less than or equal to
-0 is specified.
+or equal to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is
+thrown. A zero-length `Buffer` will be created if `size <= 0`.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and could contain
