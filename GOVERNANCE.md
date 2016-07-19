@@ -64,6 +64,10 @@ Typical activities of a Collaborator include:
 * participation in working groups
 * helping users and novice contributors
 
+While the above are typical things done by Collaborators, there are no required
+activities to retain Collaborator status. There is currently no process by which
+inactive Collaborators are removed from the project.
+
 ## CTC Membership
 
 CTC seats are not time-limited. There is no fixed size of the CTC. The CTC
@@ -94,6 +98,7 @@ Typical activities of a CTC member include:
 * commenting on the weekly CTC meeting issue and issues labeled `ctc-agenda`
 * participating in CTC email threads
 * volunteering for tasks that arise from CTC meetings and related discussions
+* other activities (beyond those typical of Collaborators) that facilitate the smooth day-to-day operation of the Node.js project
 
 Note that CTC members are also Collaborators and therefore typically perform
 Collaborator activities as well.
