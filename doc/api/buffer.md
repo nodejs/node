@@ -2204,29 +2204,36 @@ buf.fill(0);
 console.log(buf);
 ```
 
-[iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
-[`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
-[`Buffer#indexOf()`]: #buffer_buf_indexof_value_byteoffset_encoding
-[`Array#includes()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
+[`buf.compare()`]: #buffer_buf_compare_target_targetstart_targetend_sourcestart_sourceend
 [`buf.entries()`]: #buffer_buf_entries
-[`buf.fill(0)`]: #buffer_buf_fill_value_offset_end_encoding
+[`buf.indexOf()`]: #buffer_buf_indexof_value_byteoffset_encoding
 [`buf.fill()`]: #buffer_buf_fill_value_offset_end_encoding
 [`buf.keys()`]: #buffer_buf_keys
+[`buf.length`]: #buffer_buf_length
 [`buf.slice()`]: #buffer_buf_slice_start_end
 [`buf.values()`]: #buffer_buf_values
-[`buf1.compare(buf2)`]: #buffer_buf_compare_target_targetstart_targetend_sourcestart_sourceend
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
+[`Buffer.alloc()`]: #buffer_class_method_buffer_alloc_size_fill_encoding
+[`Buffer.allocUnsafe()`]: #buffer_class_method_buffer_allocunsafe_size
+[`Buffer.allocUnsafeSlow()`]: #buffer_class_method_buffer_allocunsafeslow_size
+[`Buffer.from(array)`]: #buffer_class_method_buffer_from_array
+[`Buffer.from(arrayBuffer)`]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
+[`Buffer.from(buffer)`]: #buffer_class_method_buffer_from_buffer
+[`Buffer.from(string)`]: #buffer_class_method_buffer_from_str_encoding
+[`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`RangeError`]: errors.html#errors_class_rangeerror
-[`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
-[buffer_from_array]: #buffer_class_method_buffer_from_array
-[buffer_from_buffer]: #buffer_class_method_buffer_from_buffer
-[buffer_from_arraybuf]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
-[buffer_from_string]: #buffer_class_method_buffer_from_str_encoding
-[buffer_allocunsafe]: #buffer_class_method_buffer_allocunsafe_size
-[buffer_allocunsafeslow]: #buffer_class_method_buffer_allocunsafeslow_size
-[buffer_alloc]: #buffer_class_method_buffer_alloc_size_fill_encoding
-[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
+
+[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`ArrayBuffer#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/slice
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[RFC1345]: https://tools.ietf.org/html/rfc1345
+[RFC4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
+[`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
+[`Uint32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
+[WHATWG spec]: https://encoding.spec.whatwg.org/
