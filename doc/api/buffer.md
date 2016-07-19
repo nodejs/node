@@ -302,7 +302,7 @@ deprecated: v6.0.0
 
     Stability: 0 - Deprecated: Use [`Buffer.from(array)`] instead.
 
-* `array` {Array}
+* `array` {Array} An array of bytes to copy from
 
 Allocates a new `Buffer` using an `array` of octets.
 
@@ -320,7 +320,7 @@ deprecated: v6.0.0
 
     Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
 
-* `buffer` {Buffer}
+* `buffer` {Buffer} An existing `Buffer` to copy data from
 
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
@@ -348,10 +348,11 @@ deprecated: v6.0.0
     [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
     instead.
 
-* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a `TypedArray` or a
-  `new ArrayBuffer()`
-* `byteOffset` {Number} Default: `0`
-* `length` {Number} Default: `arrayBuffer.length - byteOffset`
+* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a [`TypedArray`] or
+  [`ArrayBuffer`]
+* `byteOffset` {Integer} Where to start copying from `arrayBuffer`. **Default:** `0`
+* `length` {Integer} How many bytes to copy from `arrayBuffer`.
+  **Default:** `arrayBuffer.length - byteOffset`
 
 When passed a reference to the `.buffer` property of a [`TypedArray`] instance,
 the newly created `Buffer` will share the same allocated memory as the
@@ -389,7 +390,7 @@ deprecated: v6.0.0
     Stability: 0 - Deprecated: Use [`Buffer.alloc()`] instead (also see
     [`Buffer.allocUnsafe()`]).
 
-* `size` {Number}
+* `size` {Integer} The desired length of the new `Buffer`
 
 Allocates a new `Buffer` of `size` bytes.  The `size` must be less than or equal
 to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is thrown.
@@ -414,19 +415,19 @@ buf.fill(0);
 console.log(buf);
 ```
 
-### new Buffer(str[, encoding])
+### new Buffer(string[, encoding])
 <!-- YAML
 deprecated: v6.0.0
 -->
 
     Stability: 0 - Deprecated:
-    Use [`Buffer.from(str[, encoding])`][buffer_from_string] instead.
+    Use [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] instead.
 
-* `str` {String} string to encode.
-* `encoding` {String} Default: `'utf8'`
+* `string` {String} String to encode
+* `encoding` {String} The encoding of `string`. **Default:** `'utf8'`
 
-Creates a new Buffer containing the given JavaScript string `str`. If
-provided, the `encoding` parameter identifies the strings character encoding.
+Creates a new `Buffer` containing the given JavaScript string `string`. If
+provided, the `encoding` parameter identifies the character encoding of `string`.
 
 Examples:
 
@@ -451,9 +452,11 @@ console.log(buf2.toString());
 added: v5.10.0
 -->
 
-* `size` {Number}
-* `fill` {Value} Default: `undefined`
-* `encoding` {String} Default: `utf8`
+* `size` {Integer} The desired length of the new `Buffer`
+* `fill` {String | Buffer | Integer} A value to pre-fill the new `Buffer` with.
+  **Default:** `0`
+* `encoding` {String} If `fill` is a string, this is its encoding.
+  **Default:** `'utf8'`
 
 Allocates a new `Buffer` of `size` bytes. If `fill` is `undefined`, the
 `Buffer` will be *zero-filled*.
@@ -506,7 +509,7 @@ A `TypeError` will be thrown if `size` is not a number.
 added: v5.10.0
 -->
 
-* `size` {Number}
+* `size` {Integer} The desired length of the new `Buffer`
 
 Allocates a new *non-zero-filled* `Buffer` of `size` bytes. The `size` must
 be less than or equal to the value of [`buffer.kMaxLength`]. Otherwise, a
@@ -552,7 +555,7 @@ additional performance that [`Buffer.allocUnsafe()`] provides.
 added: v5.10.0
 -->
 
-* `size` {Number}
+* `size` {Integer} The desired length of the new `Buffer`
 
 Allocates a new *non-zero-filled* and non-pooled `Buffer` of `size` bytes. The
 `size` must be less than or equal to the value of [`buffer.kMaxLength`].
@@ -602,9 +605,11 @@ A `TypeError` will be thrown if `size` is not a number.
 
 ### Class Method: Buffer.byteLength(string[, encoding])
 
-* `string` {String | Buffer | TypedArray | DataView | ArrayBuffer}
-* `encoding` {String} Default: `'utf8'`
-* Return: {Number}
+* `string` {String | Buffer | TypedArray | DataView | ArrayBuffer} A value to
+  calculate the length of
+* `encoding` {String} If `string` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Return: {Integer} The number of bytes contained within `string`
 
 Returns the actual byte length of a string. This is not the same as
 [`String.prototype.length`] since that returns the number of *characters* in
@@ -632,7 +637,7 @@ added: v0.11.13
 
 * `buf1` {Buffer}
 * `buf2` {Buffer}
-* Return: {Number}
+* Return: {Integer}
 
 Compares `buf1` to `buf2` typically for the purpose of sorting arrays of
 `Buffer` instances. This is equivalent to calling
@@ -655,8 +660,8 @@ console.log(arr.sort(Buffer.compare));
 added: v0.7.11
 -->
 
-* `list` {Array} List of Buffer objects to concat
-* `totalLength` {Number} Total length of the Buffers in the list
+* `list` {Array} List of `Buffer` instances to concat
+* `totalLength` {Integer} Total length of the `Buffer` instances in `list`
   when concatenated
 * Return: {Buffer}
 
@@ -714,10 +719,11 @@ A `TypeError` will be thrown if `array` is not an `Array`.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a `TypedArray` or
-  a `new ArrayBuffer()`
-* `byteOffset` {Number} Default: `0`
-* `length` {Number} Default: `arrayBuffer.length - byteOffset`
+* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a [`TypedArray`] or
+  [`ArrayBuffer`]
+* `byteOffset` {Integer} Where to start copying from `arrayBuffer`. **Default:** `0`
+* `length` {Integer} How many bytes to copy from `arrayBuffer`.
+  **Default:** `arrayBuffer.length - byteOffset`
 
 When passed a reference to the `.buffer` property of a [`TypedArray`] instance,
 the newly created `Buffer` will share the same allocated memory as the
@@ -764,7 +770,7 @@ A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`].
 added: v3.0.0
 -->
 
-* `buffer` {Buffer}
+* `buffer` {Buffer} An existing `Buffer` to copy data from
 
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
@@ -785,17 +791,16 @@ console.log(buf2.toString());
 
 A `TypeError` will be thrown if `buffer` is not a `Buffer`.
 
-### Class Method: Buffer.from(str[, encoding])
+### Class Method: Buffer.from(string[, encoding])
 <!-- YAML
 added: v5.10.0
 -->
 
-* `str` {String} String to encode.
-* `encoding` {String} Encoding to use, Default: `'utf8'`
+* `string` {String} A string to encode.
+* `encoding` {String} The encoding of `string`. **Default:** `'utf8'`
 
-Creates a new `Buffer` containing the given JavaScript string `str`. If
-provided, the `encoding` parameter identifies the character encoding.
-If not provided, `encoding` defaults to `'utf8'`.
+Creates a new `Buffer` containing the given JavaScript string `string`. If
+provided, the `encoding` parameter identifies the character encoding of `string`.
 
 Examples:
 
@@ -829,7 +834,7 @@ Returns `true` if `obj` is a `Buffer`, `false` otherwise.
 added: v0.9.1
 -->
 
-* `encoding` {String} The encoding string to test
+* `encoding` {String} A character encoding name to check
 * Return: {Boolean}
 
 Returns `true` if `encoding` contains a supported character encoding, or `false`
@@ -840,7 +845,7 @@ otherwise.
 added: v0.11.3
 -->
 
-* {Number} **Default:** `8192`
+* {Integer} **Default:** `8192`
 
 This is the number of bytes used to determine the size of pre-allocated, internal
 `Buffer` instances used for pooling. This value may be modified.
@@ -874,16 +879,18 @@ console.log(buf.toString('ascii'));
 added: v0.11.13
 -->
 
-* `target` {Buffer}
+* `target` {Buffer} A `Buffer` to compare to
 * `targetStart` {Integer} The offset within `target` at which to begin
-  comparison. default = `0`.
-* `targetEnd` {Integer} The offset with `target` at which to end comparison.
-  Ignored when `targetStart` is `undefined`. default = `target.byteLength`.
+  comparison. **Default:** `0`
+* `targetEnd` {Integer} The offset with `target` at which to end comparison
+  (not inclusive). Ignored when `targetStart` is `undefined`.
+  **Default:** `target.length`
 * `sourceStart` {Integer} The offset within `buf` at which to begin comparison.
-  Ignored when `targetStart` is `undefined`. default = `0`
-* `sourceEnd` {Integer} The offset within `buf` at which to end comparison.
-  Ignored when `targetStart` is `undefined`. default = `buf.byteLength`.
-* Return: {Number}
+  Ignored when `targetStart` is `undefined`. **Default:** `0`
+* `sourceEnd` {Integer} The offset within `buf` at which to end comparison
+  (not inclusive). Ignored when `targetStart` is `undefined`.
+  **Default:** [`buf.length`]
+* Return: {Integer}
 
 Compares `buf` with `target` and returns a number indicating whether `buf`
 comes before, after, or is the same as `target` in sort order.
@@ -943,13 +950,16 @@ console.log(buf1.compare(buf2, 5, 6, 5));
 A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
 `targetEnd > target.byteLength` or `sourceEnd > source.byteLength`.
 
-### buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
+### buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
 
-* `targetBuffer` {Buffer} Buffer to copy into
-* `targetStart` {Number} Default: 0
-* `sourceStart` {Number} Default: 0
-* `sourceEnd` {Number} Default: `buffer.length`
-* Return: {Number} The number of bytes copied.
+* `target` {Buffer} A `Buffer` to copy into.
+* `targetStart` {Integer} The offset within `target` at which to begin
+  copying to. **Default:** `0`
+* `sourceStart` {Integer} The offset within `buf` at which to begin copying from.
+  Ignored when `targetStart` is `undefined`. **Default:** `0`
+* `sourceEnd` {Integer} The offset within `buf` at which to stop copying (not
+  inclusive). Ignored when `sourceStart` is `undefined`. **Default:** [`buf.length`]
+* Return: {Integer} The number of bytes copied.
 
 Copies data from a region of `buf` to a region in `target` even if the `target`
 memory region overlaps with `buf`.
@@ -1021,7 +1031,7 @@ for (var pair of buf.entries()) {
 added: v1.0.0
 -->
 
-* `otherBuffer` {Buffer}
+* `otherBuffer` {Buffer} A `Buffer` to compare to
 * Return: {Boolean}
 
 Returns `true` if both `buf` and `otherBuffer` have exactly the same bytes,
@@ -1046,11 +1056,12 @@ console.log(buf1.equals(buf3));
 added: v0.5.0
 -->
 
-* `value` {String|Buffer|Number}
-* `offset` {Number} Default: 0
-* `end` {Number} Default: `buf.length`
-* `encoding` {String} Default: `'utf8'`
-* Return: {Buffer}
+* `value` {String | Buffer | Integer} The value to fill `buf` with
+* `offset` {Integer} Where to start filling `buf`. **Default:** `0`
+* `end` {Integer} Where to stop filling `buf` (not inclusive). **Default:** [`buf.length`]
+* `encoding` {String} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Return: {Buffer} A reference to `buf`
 
 Fills `buf` with the specified `value`. If the `offset` and `end` are not given,
 the entire `buf` will be filled. This is meant to be a small simplification to
@@ -1065,8 +1076,7 @@ const b = Buffer.allocUnsafe(50).fill('h');
 console.log(b.toString());
 ```
 
-`encoding` is only relevant if `value` is a string. Otherwise it is ignored.
-`value` is coerced to a `uint32` value if it is not a String or Number.
+`value` is coerced to a `uint32` value if it is not a String or Integer.
 
 If the final write of a `fill()` operation falls on a multi-byte character,
 then only the first bytes of that character that fit into `buf` are written.
@@ -1083,10 +1093,12 @@ console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 added: v1.5.0
 -->
 
-* `value` {String|Buffer|Number}
-* `byteOffset` {Number} Default: 0
-* `encoding` {String} Default: `'utf8'`
-* Return: {Number}
+* `value` {String | Buffer | Integer} What to search for
+* `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
+* `encoding` {String} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Return: {Integer} The index of the first occurrence of `value` in `buf` or `-1`
+  if `buf` does not contain `value`
 
 If `value` is:
 
@@ -1136,10 +1148,11 @@ console.log(utf16Buffer.indexOf('\u03a3', -4, 'ucs2'));
 added: v5.3.0
 -->
 
-* `value` {String|Buffer|Number}
-* `byteOffset` {Number} Default: 0
-* `encoding` {String} Default: `'utf8'`
-* Return: {Boolean}
+* `value` {String | Buffer | Integer} What to search for
+* `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
+* `encoding` {String} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Return: {Boolean} `true` if `value` was found in `buf`, `false` otherwise
 
 Equivalent to [`buf.indexOf() !== -1`][`buf.indexOf()`].
 
@@ -1202,10 +1215,13 @@ for (var key of buf.keys()) {
 added: v6.0.0
 -->
 
-* `value` {String|Buffer|Number}
-* `byteOffset` {Number} Default: `buf.length`
-* `encoding` {String} Default: `'utf8'`
-* Return: {Number}
+* `value` {String | Buffer | Integer} What to search for
+* `byteOffset` {Integer} Where to begin searching in `buf` (not inclusive).
+  **Default:** [`buf.length`]
+* `encoding` {String} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Return: {Integer} The index of the last occurrence of `value` in `buf` or `-1`
+  if `buf` does not contain `value`
 
 Identical to [`buf.indexOf()`], except `buf` is searched from back to front
 instead of front to back.
@@ -1249,7 +1265,7 @@ console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'ucs2'));
 
 ### buf.length
 
-* {Number}
+* {Integer}
 
 Returns the amount of memory allocated for `buf` in bytes. Note that this
 does not necessarily reflect the amount of "usable" data within `buf`.
@@ -1292,8 +1308,8 @@ console.log(buf.length);
 ### buf.readDoubleBE(offset[, noAssert])
 ### buf.readDoubleLE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 8`
-* `noAssert` {Boolean} Default: false
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
 * Return: {Number}
 
 Reads a 64-bit double from `buf` at the specified `offset` with specified
@@ -1325,8 +1341,8 @@ console.log(buf.readDoubleLE(1, true));
 ### buf.readFloatBE(offset[, noAssert])
 ### buf.readFloatLE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Default: false
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
 * Return: {Number}
 
 Reads a 32-bit float from `buf` at the specified `offset` with specified
@@ -1357,9 +1373,9 @@ console.log(buf.readFloatLE(1, true));
 
 ### buf.readInt8(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 1`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
 
@@ -1386,9 +1402,9 @@ console.log(buf.readInt8(2));
 ### buf.readInt16BE(offset[, noAssert])
 ### buf.readInt16LE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 2`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads a signed 16-bit integer from `buf` at the specified `offset` with
 the specified endian format (`readInt16BE()` returns big endian,
@@ -1417,9 +1433,9 @@ console.log(buf.readInt16LE(1));
 ### buf.readInt32BE(offset[, noAssert])
 ### buf.readInt32LE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads a signed 32-bit integer from `buf` at the specified `offset` with
 the specified endian format (`readInt32BE()` returns big endian,
@@ -1451,10 +1467,10 @@ console.log(buf.readInt32LE(1));
 added: v1.0.0
 -->
 
-* `offset` {Number} `0 <= offset <= buf.length - byteLength`
-* `byteLength` {Number} `0 < byteLength <= 6`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - byteLength`
+* `byteLength` {Integer} How many bytes to read. Must satisfy: `0 < byteLength <= 6`
+* `noAssert` {Boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as a two's complement signed value. Supports up to 48
@@ -1480,9 +1496,9 @@ console.log(buf.readIntBE(1, 6).toString(16));
 
 ### buf.readUInt8(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 1`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
 
@@ -1507,9 +1523,9 @@ console.log(buf.readUInt8(2));
 ### buf.readUInt16BE(offset[, noAssert])
 ### buf.readUInt16LE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 2`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads an unsigned 16-bit integer from `buf` at the specified `offset` with
 specified endian format (`readUInt16BE()` returns big endian, `readUInt16LE()`
@@ -1542,9 +1558,9 @@ console.log(buf.readUInt16LE(2).toString(16));
 ### buf.readUInt32BE(offset[, noAssert])
 ### buf.readUInt32LE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
+* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads an unsigned 32-bit integer from `buf` at the specified `offset` with
 specified endian format (`readUInt32BE()` returns big endian,
@@ -1574,10 +1590,10 @@ console.log(buf.readUInt32LE(1).toString(16));
 added: v1.0.0
 -->
 
-* `offset` {Number} `0 <= offset <= buf.length - byteLength`
-* `byteLength` {Number} `0 < byteLength <= 6`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
+* `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - byteLength`
+* `byteLength` {Integer} How many bytes to read. Must satisfy: `0 < byteLength <= 6`
+* `noAssert` {Boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
+* Return: {Integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned integer. Supports up to 48
@@ -1603,8 +1619,9 @@ console.log(buf.readUIntBE(1, 6).toString(16));
 
 ### buf.slice([start[, end]])
 
-* `start` {Number} Default: 0
-* `end` {Number} Default: `buffer.length`
+* `start` {Integer} Where the new `Buffer` will start. **Default:** `0`
+* `end` {Integer} Where the new `Buffer` will end (not inclusive).
+  **Default:** [`buf.length`]
 * Return: {Buffer}
 
 Returns a new `Buffer` that references the same memory as the original, but
@@ -1661,7 +1678,7 @@ console.log(buf.slice(-5, -2).toString());
 added: v5.10.0
 -->
 
-* Return: {Buffer}
+* Return: {Buffer} A reference to `buf`
 
 Interprets `buf` as an array of unsigned 16-bit integers and swaps the byte-order
 *in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 2.
@@ -1691,7 +1708,7 @@ buf2.swap32();
 added: v5.10.0
 -->
 
-* Return: {Buffer}
+* Return: {Buffer} A reference to `buf`
 
 Interprets `buf` as an array of unsigned 32-bit integers and swaps the byte-order
 *in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 4.
@@ -1721,7 +1738,7 @@ buf2.swap32();
 added: v6.3.0
 -->
 
-* Return: {Buffer}
+* Return: {Buffer} A reference to `buf`
 
 Interprets `buf` as an array of 64-bit numbers and swaps the byte-order *in-place*.
 Throws a `RangeError` if [`buf.length`] is not a multiple of 8.
@@ -1751,9 +1768,9 @@ for working with 64-bit floats.
 
 ### buf.toString([encoding[, start[, end]]])
 
-* `encoding` {String} Default: `'utf8'`
-* `start` {Number} Default: 0
-* `end` {Number} Default: `buffer.length`
+* `encoding` {String} The character encoding to decode to. **Default:** `'utf8'`
+* `start` {Integer} Where to start decoding. **Default:** `0`
+* `end` {Integer} Where to stop decoding (not inclusive). **Default:** [`buf.length`]
 * Return: {String}
 
 Decodes `buf` to a string according to the specified character encoding in `encoding`.
@@ -1854,11 +1871,11 @@ for (var value of buf) {
 
 ### buf.write(string[, offset[, length]][, encoding])
 
-* `string` {String} Bytes to be written to buffer
-* `offset` {Number} Default: 0
-* `length` {Number} Default: `buffer.length - offset`
-* `encoding` {String} Default: `'utf8'`
-* Return: {Number} Numbers of bytes written
+* `string` {String} String to be written to `buf`
+* `offset` {Integer} Where to start writing `string`. **Default:** `0`
+* `length` {Integer} How many bytes to write. **Default:** `buf.length - offset`
+* `encoding` {String} The character encoding of `string`. **Default:** `'utf8'`
+* Return: {Integer} Number of bytes written
 
 Writes `string` to `buf` at `offset` according to the character encoding in `encoding`.
 The `length` parameter is the number of bytes to write. If `buf` did not contain
@@ -1879,10 +1896,10 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 ### buf.writeDoubleBE(value, offset[, noAssert])
 ### buf.writeDoubleLE(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 8`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Number} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeDoubleBE()` writes big endian, `writeDoubleLE()` writes little
@@ -1911,10 +1928,10 @@ console.log(buf);
 ### buf.writeFloatBE(value, offset[, noAssert])
 ### buf.writeFloatLE(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Number} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeFloatBE()` writes big endian, `writeFloatLE()` writes little
@@ -1942,10 +1959,10 @@ console.log(buf);
 
 ### buf.writeInt8(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 1`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a valid
 signed 8-bit integer. Behavior is undefined when `value` is anything other than
@@ -1971,10 +1988,10 @@ console.log(buf);
 ### buf.writeInt16BE(value, offset[, noAssert])
 ### buf.writeInt16LE(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 2`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt16BE()` writes big endian, `writeInt16LE()` writes little
@@ -2001,10 +2018,10 @@ console.log(buf);
 ### buf.writeInt32BE(value, offset[, noAssert])
 ### buf.writeInt32LE(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt32BE()` writes big endian, `writeInt32LE()` writes little
@@ -2034,11 +2051,12 @@ console.log(buf);
 added: v1.0.0
 -->
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - byteLength`
-* `byteLength` {Number} `0 < byteLength <= 6`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - byteLength`
+* `byteLength` {Integer} How many bytes to write. Must satisfy: `0 < byteLength <= 6`
+* `noAssert` {Boolean} Skip `value`, `offset`, and `byteLength` validation?
+  **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`.
 Supports up to 48 bits of accuracy. Behavior is undefined when `value` is
@@ -2065,10 +2083,10 @@ console.log(buf);
 
 ### buf.writeUInt8(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 1`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a
 valid unsigned 8-bit integer. Behavior is undefined when `value` is anything
@@ -2094,10 +2112,10 @@ console.log(buf);
 ### buf.writeUInt16BE(value, offset[, noAssert])
 ### buf.writeUInt16LE(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 2`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeUInt16BE()` writes big endian, `writeUInt16LE()` writes little
@@ -2128,10 +2146,10 @@ console.log(buf);
 ### buf.writeUInt32BE(value, offset[, noAssert])
 ### buf.writeUInt32LE(value, offset[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
+* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeUInt32BE()` writes big endian, `writeUInt32LE()` writes little
@@ -2160,11 +2178,12 @@ console.log(buf);
 ### buf.writeUIntBE(value, offset, byteLength[, noAssert])
 ### buf.writeUIntLE(value, offset, byteLength[, noAssert])
 
-* `value` {Number} Bytes to be written to Buffer
-* `offset` {Number} `0 <= offset <= buf.length - byteLength`
-* `byteLength` {Number} `0 < byteLength <= 6`
-* `noAssert` {Boolean} Default: false
-* Return: {Number} The offset plus the number of written bytes
+* `value` {Integer} Number to be written to `buf`
+* `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - byteLength`
+* `byteLength` {Integer} How many bytes to write. Must satisfy: `0 < byteLength <= 6`
+* `noAssert` {Boolean} Skip `value`, `offset`, and `byteLength` validation?
+  **Default:** `false`
+* Return: {Integer} `offset` plus the number of bytes written
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`.
 Supports up to 48 bits of accuracy. Behavior is undefined when `value` is
@@ -2191,7 +2210,7 @@ console.log(buf);
 
 ## buffer.INSPECT_MAX_BYTES
 
-* {Number} Default: 50
+* {Integer} **Default:** `50`
 
 Returns the maximum number of bytes that will be returned when
 `buf.inspect()` is called. This can be overridden by user modules. See
@@ -2205,7 +2224,7 @@ Note that this is a property on the `buffer` module as returned by
 added: v3.0.0
 -->
 
-* {Number} The largest size allowed for a single `Buffer` instance
+* {Integer} The largest size allowed for a single `Buffer` instance
 
 On 32-bit architectures, this value is `(2^30)-1` (~1GB).
 On 64-bit architectures, this value is `(2^31)-1` (~2GB).
@@ -2257,7 +2276,7 @@ deprecated: v6.0.0
 
     Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`] instead.
 
-* `size` Number
+* `size` {Integer} The desired length of the new `SlowBuffer`
 
 Allocates a new `SlowBuffer` of `size` bytes. The `size` must be less than
 or equal to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is
