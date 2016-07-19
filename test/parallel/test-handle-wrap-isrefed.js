@@ -99,3 +99,6 @@ function makeAssert(message) {
   timer._handle.close(
       common.mustCall(() => assert(timer._handle.hasRef(), false)));
 }
+
+
+// see also test/pseudo-tty/test-handle-wrap-isrefed-tty.js
