@@ -106,6 +106,11 @@ On how to run tests in this direcotry, see
       <td>Various tests that are able to be run in parallel.</td>
     </tr>
     <tr>
+      <td>pseudo-tty</td>
+      <td>Yes</td>
+      <td>Tests that require stdin/stdout/stderr to be a TTY.</td>
+    </tr>
+    <tr>
       <td>pummel</td>
       <td>No</td>
       <td>
