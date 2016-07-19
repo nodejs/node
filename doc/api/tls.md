@@ -724,7 +724,7 @@ added: v0.11.3
     specified, `host` and `port` are ignored.
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
     certificate, and CA certs of the client in PFX or PKCS12 format.
-  * `key` {string|stringp[]|Buffer|Buffer[]} A string, `Buffer`, array of
+  * `key` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of
     strings, or array of `Buffer`s containing the private key of the client in
     PEM format.
   * `passphrase` {string} A string containing the passphrase for the private key
@@ -798,7 +798,7 @@ added: v0.11.3
     specified, `host` and `port` are ignored.
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
     certificate, and CA certs of the client in PFX or PKCS12 format.
-  * `key` {string|stringp[]|Buffer|Buffer[]} A string, `Buffer`, array of
+  * `key` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of
     strings, or array of `Buffer`s containing the private key of the client in
     PEM format.
   * `passphrase` {string} A string containing the passphrase for the private key
