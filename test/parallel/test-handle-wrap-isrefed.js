@@ -3,99 +3,128 @@
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
 
-function makeAssert(message) {
-  return function(actual, expected) {
-    strictEqual(actual, expected, message);
-  };
-}
-
-
 // child_process
 {
-  const assert = makeAssert('hasRef() not working on process_wrap');
   const spawn = require('child_process').spawn;
   const cmd = common.isWindows ? 'rundll32' : 'ls';
   const cp = spawn(cmd);
-  assert(Object.getPrototypeOf(cp._handle).hasOwnProperty('hasRef'), true);
-  assert(cp._handle.hasRef(), true);
+  strictEqual(Object.getPrototypeOf(cp._handle).hasOwnProperty('hasRef'),
+              true, 'process_wrap: hasRef() missing');
+  strictEqual(cp._handle.hasRef(),
+              true, 'process_wrap: not initially refed');
   cp.unref();
-  assert(cp._handle.hasRef(), false);
+  strictEqual(cp._handle.hasRef(),
+              false, 'process_wrap: unref() ineffective');
   cp.ref();
-  assert(cp._handle.hasRef(), true);
-  cp._handle.close(common.mustCall(() => assert(cp._handle.hasRef(), false)));
+  strictEqual(cp._handle.hasRef(),
+              true, 'process_wrap: ref() ineffective');
+  cp._handle.close(common.mustCall(() =>
+      strictEqual(cp._handle.hasRef(),
+                  false, 'process_wrap: not unrefed on close')));
 }
 
 
-// dgram
+// dgram ipv4
 {
-  const assert = makeAssert('hasRef() not working on udp_wrap');
   const dgram = require('dgram');
-
   const sock4 = dgram.createSocket('udp4');
-  assert(Object.getPrototypeOf(sock4._handle).hasOwnProperty('hasRef'), true);
-  assert(sock4._handle.hasRef(), true);
+  strictEqual(Object.getPrototypeOf(sock4._handle).hasOwnProperty('hasRef'),
+              true, 'udp_wrap: ipv4: hasRef() missing');
+  strictEqual(sock4._handle.hasRef(),
+              true, 'udp_wrap: ipv4: not initially refed');
   sock4.unref();
-  assert(sock4._handle.hasRef(), false);
+  strictEqual(sock4._handle.hasRef(),
+              false, 'udp_wrap: ipv4: unref() ineffective');
   sock4.ref();
-  assert(sock4._handle.hasRef(), true);
-  sock4._handle.close(
-      common.mustCall(() => assert(sock4._handle.hasRef(), false)));
+  strictEqual(sock4._handle.hasRef(),
+              true, 'udp_wrap: ipv4: ref() ineffective');
+  sock4._handle.close(common.mustCall(() =>
+      strictEqual(sock4._handle.hasRef(),
+                  false, 'udp_wrap: ipv4: not unrefed on close')));
+}
 
+
+// dgram ipv6
+{
+  const dgram = require('dgram');
   const sock6 = dgram.createSocket('udp6');
-  assert(Object.getPrototypeOf(sock6._handle).hasOwnProperty('hasRef'), true);
-  assert(sock6._handle.hasRef(), true);
+  strictEqual(Object.getPrototypeOf(sock6._handle).hasOwnProperty('hasRef'),
+              true, 'udp_wrap: ipv6: hasRef() missing');
+  strictEqual(sock6._handle.hasRef(),
+              true, 'udp_wrap: ipv6: not initially refed');
   sock6.unref();
-  assert(sock6._handle.hasRef(), false);
+  strictEqual(sock6._handle.hasRef(),
+              false, 'udp_wrap: ipv6: unref() ineffective');
   sock6.ref();
-  assert(sock6._handle.hasRef(), true);
-  sock6._handle.close(
-      common.mustCall(() => assert(sock6._handle.hasRef(), false)));
+  strictEqual(sock6._handle.hasRef(),
+              true, 'udp_wrap: ipv6: ref() ineffective');
+  sock6._handle.close(common.mustCall(() =>
+      strictEqual(sock6._handle.hasRef(),
+                  false, 'udp_wrap: ipv6: not unrefed on close')));
 }
 
 
 // pipe
 {
-  const assert = makeAssert('hasRef() not working on pipe_wrap');
   const Pipe = process.binding('pipe_wrap').Pipe;
   const handle = new Pipe();
-  assert(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'), true);
-  assert(handle.hasRef(), true);
+  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
+              true, 'pipe_wrap: hasRef() missing');
+  strictEqual(handle.hasRef(),
+              true, 'pipe_wrap: not initially refed');
   handle.unref();
-  assert(handle.hasRef(), false);
+  strictEqual(handle.hasRef(),
+              false, 'pipe_wrap: unref() ineffective');
   handle.ref();
-  assert(handle.hasRef(), true);
-  handle.close(common.mustCall(() => assert(handle.hasRef(), false)));
+  strictEqual(handle.hasRef(),
+              true, 'pipe_wrap: ref() ineffective');
+  handle.close(common.mustCall(() =>
+      strictEqual(handle.hasRef(),
+                  false, 'pipe_wrap: not unrefed on close')));
 }
 
 
 // tcp
 {
-  const assert = makeAssert('hasRef() not working on tcp_wrap');
   const net = require('net');
   const server = net.createServer(() => {}).listen(0);
-  assert(Object.getPrototypeOf(server._handle).hasOwnProperty('hasRef'), true);
-  assert(server._handle.hasRef(), true);
-  assert(server._unref, false);
+  strictEqual(Object.getPrototypeOf(server._handle).hasOwnProperty('hasRef'),
+              true, 'tcp_wrap: hasRef() missing');
+  strictEqual(server._handle.hasRef(),
+              true, 'tcp_wrap: not initially refed');
+  strictEqual(server._unref,
+              false, 'tcp_wrap: _unref initially incorrect');
   server.unref();
-  assert(server._handle.hasRef(), false);
-  assert(server._unref, true);
+  strictEqual(server._handle.hasRef(),
+              false, 'tcp_wrap: unref() ineffective');
+  strictEqual(server._unref,
+              true, 'tcp_wrap: _unref not updated on unref()');
   server.ref();
-  assert(server._handle.hasRef(), true);
-  assert(server._unref, false);
-  server._handle.close(
-      common.mustCall(() => assert(server._handle.hasRef(), false)));
+  strictEqual(server._handle.hasRef(),
+              true, 'tcp_wrap: ref() ineffective');
+  strictEqual(server._unref,
+              false, 'tcp_wrap: _unref not updated on ref()');
+  server._handle.close(common.mustCall(() =>
+      strictEqual(server._handle.hasRef(),
+                  false, 'tcp_wrap: not unrefed on close')));
 }
 
 
 // timers
 {
-  const assert = makeAssert('hasRef() not working on timer_wrap');
   const timer = setTimeout(() => {}, 500);
   timer.unref();
-  assert(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'), true);
-  assert(timer._handle.hasRef(), false);
+  strictEqual(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'),
+              true, 'timer_wrap: hasRef() missing');
+  strictEqual(timer._handle.hasRef(),
+              false, 'timer_wrap: unref() ineffective');
   timer.ref();
-  assert(timer._handle.hasRef(), true);
-  timer._handle.close(
-      common.mustCall(() => assert(timer._handle.hasRef(), false)));
+  strictEqual(timer._handle.hasRef(),
+              true, 'timer_wrap: ref() ineffective');
+  timer._handle.close(common.mustCall(() =>
+      strictEqual(timer._handle.hasRef(),
+                  false, 'timer_wrap: not unrefed on close')));
 }
+
+
+// see also test/pseudo-tty/test-handle-wrap-isrefed-tty.js
