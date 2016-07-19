@@ -54,9 +54,12 @@
     </WixExtension>
   </ItemGroup>
   <ItemGroup>
-    <!-- <EmbeddedResource Include="i18n\de-de.wxl" /> -->
-    <EmbeddedResource Include="i18n\en-us.wxl" />
+    <!--
+    <EmbeddedResource Include="i18n\de-de.wxl" />
     <EmbeddedResource Include="i18n\it-it.wxl" />
+    <EmbeddedResource Include="i18n\zh-cn.wxl" />
+    -->
+    <EmbeddedResource Include="i18n\en-us.wxl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="custom_actions.vcxproj">
@@ -80,9 +83,11 @@
     <PostBuildEvent>
       "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)de-de\$(TargetFileName)" -out "$(TargetDir)transforms\de-de.mst"
       "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)it-it\$(TargetFileName)" -out "$(TargetDir)transforms\it-it.mst"
+      "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)zh-cn\$(TargetFileName)" -out "$(TargetDir)transforms\zh-cn.mst"
       cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\de-de.mst" 1031
-      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\it-it.mst" 1031
-      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiLangId.vbs" "$(TargetDir)en-US\$(TargetFileName)" Package 1033,1031
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\it-it.mst" 1040
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\zh-cn.mst" 2052
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiLangId.vbs" "$(TargetDir)en-US\$(TargetFileName)" Package 1031,1033,1040,2052
     </PostBuildEvent>
     -->
   </PropertyGroup>
