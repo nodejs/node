@@ -604,6 +604,9 @@ a developer has observed undue memory retention in their applications.
 A `TypeError` will be thrown if `size` is not a number.
 
 ### Class Method: Buffer.byteLength(string[, encoding])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `string` {String | Buffer | TypedArray | DataView | ArrayBuffer} A value to
   calculate the length of
@@ -698,7 +701,7 @@ console.log(bufA.length);
 
 ### Class Method: Buffer.from(array)
 <!-- YAML
-added: v3.0.0
+added: v5.10.0
 -->
 
 * `array` {Array}
@@ -767,7 +770,7 @@ A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`].
 
 ### Class Method: Buffer.from(buffer)
 <!-- YAML
-added: v3.0.0
+added: v5.10.0
 -->
 
 * `buffer` {Buffer} An existing `Buffer` to copy data from
@@ -823,6 +826,9 @@ console.log(buf2.toString());
 A `TypeError` will be thrown if `str` is not a string.
 
 ### Class Method: Buffer.isBuffer(obj)
+<!-- YAML
+added: v0.1.101
+-->
 
 * `obj` {Object}
 * Return: {Boolean}
@@ -951,6 +957,9 @@ A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
 `targetEnd > target.byteLength` or `sourceEnd > source.byteLength`.
 
 ### buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `target` {Buffer} A `Buffer` to copy into.
 * `targetStart` {Integer} The offset within `target` at which to begin
@@ -1028,7 +1037,7 @@ for (var pair of buf.entries()) {
 
 ### buf.equals(otherBuffer)
 <!-- YAML
-added: v1.0.0
+added: v0.11.13
 -->
 
 * `otherBuffer` {Buffer} A `Buffer` to compare to
@@ -1264,6 +1273,9 @@ console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'ucs2'));
 ```
 
 ### buf.length
+<!-- YAML
+added: v0.1.90
+-->
 
 * {Integer}
 
@@ -1307,6 +1319,9 @@ console.log(buf.length);
 
 ### buf.readDoubleBE(offset[, noAssert])
 ### buf.readDoubleLE(offset[, noAssert])
+<!-- YAML
+added: v0.11.15
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1340,6 +1355,9 @@ console.log(buf.readDoubleLE(1, true));
 
 ### buf.readFloatBE(offset[, noAssert])
 ### buf.readFloatLE(offset[, noAssert])
+<!-- YAML
+added: v0.11.15
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1372,6 +1390,9 @@ console.log(buf.readFloatLE(1, true));
 ```
 
 ### buf.readInt8(offset[, noAssert])
+<!-- YAML
+added: v0.5.0
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 1`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1401,6 +1422,9 @@ console.log(buf.readInt8(2));
 
 ### buf.readInt16BE(offset[, noAssert])
 ### buf.readInt16LE(offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 2`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1432,6 +1456,9 @@ console.log(buf.readInt16LE(1));
 
 ### buf.readInt32BE(offset[, noAssert])
 ### buf.readInt32LE(offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1464,7 +1491,7 @@ console.log(buf.readInt32LE(1));
 ### buf.readIntBE(offset, byteLength[, noAssert])
 ### buf.readIntLE(offset, byteLength[, noAssert])
 <!-- YAML
-added: v1.0.0
+added: v0.11.15
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - byteLength`
@@ -1495,6 +1522,9 @@ console.log(buf.readIntBE(1, 6).toString(16));
 ```
 
 ### buf.readUInt8(offset[, noAssert])
+<!-- YAML
+added: v0.5.0
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 1`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1522,6 +1552,9 @@ console.log(buf.readUInt8(2));
 
 ### buf.readUInt16BE(offset[, noAssert])
 ### buf.readUInt16LE(offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 2`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1557,6 +1590,9 @@ console.log(buf.readUInt16LE(2).toString(16));
 
 ### buf.readUInt32BE(offset[, noAssert])
 ### buf.readUInt32LE(offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
@@ -1587,7 +1623,7 @@ console.log(buf.readUInt32LE(1).toString(16));
 ### buf.readUIntBE(offset, byteLength[, noAssert])
 ### buf.readUIntLE(offset, byteLength[, noAssert])
 <!-- YAML
-added: v1.0.0
+added: v0.11.15
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - byteLength`
@@ -1618,6 +1654,9 @@ console.log(buf.readUIntBE(1, 6).toString(16));
 ```
 
 ### buf.slice([start[, end]])
+<!-- YAML
+added: v0.3.0
+-->
 
 * `start` {Integer} Where the new `Buffer` will start. **Default:** `0`
 * `end` {Integer} Where the new `Buffer` will end (not inclusive).
@@ -1767,6 +1806,9 @@ Note that JavaScript cannot encode 64-bit integers. This method is intended
 for working with 64-bit floats.
 
 ### buf.toString([encoding[, start[, end]]])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `encoding` {String} The character encoding to decode to. **Default:** `'utf8'`
 * `start` {Integer} Where to start decoding. **Default:** `0`
@@ -1870,6 +1912,9 @@ for (var value of buf) {
 ```
 
 ### buf.write(string[, offset[, length]][, encoding])
+<!-- YAML
+added: v0.1.90
+-->
 
 * `string` {String} String to be written to `buf`
 * `offset` {Integer} Where to start writing `string`. **Default:** `0`
@@ -1895,6 +1940,9 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 
 ### buf.writeDoubleBE(value, offset[, noAssert])
 ### buf.writeDoubleLE(value, offset[, noAssert])
+<!-- YAML
+added: v0.11.15
+-->
 
 * `value` {Number} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
@@ -1927,6 +1975,9 @@ console.log(buf);
 
 ### buf.writeFloatBE(value, offset[, noAssert])
 ### buf.writeFloatLE(value, offset[, noAssert])
+<!-- YAML
+added: v0.11.15
+-->
 
 * `value` {Number} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
@@ -1958,6 +2009,9 @@ console.log(buf);
 ```
 
 ### buf.writeInt8(value, offset[, noAssert])
+<!-- YAML
+added: v0.5.0
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 1`
@@ -1987,6 +2041,9 @@ console.log(buf);
 
 ### buf.writeInt16BE(value, offset[, noAssert])
 ### buf.writeInt16LE(value, offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 2`
@@ -2017,6 +2074,9 @@ console.log(buf);
 
 ### buf.writeInt32BE(value, offset[, noAssert])
 ### buf.writeInt32LE(value, offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
@@ -2048,7 +2108,7 @@ console.log(buf);
 ### buf.writeIntBE(value, offset, byteLength[, noAssert])
 ### buf.writeIntLE(value, offset, byteLength[, noAssert])
 <!-- YAML
-added: v1.0.0
+added: v0.11.15
 -->
 
 * `value` {Integer} Number to be written to `buf`
@@ -2082,6 +2142,9 @@ console.log(buf);
 ```
 
 ### buf.writeUInt8(value, offset[, noAssert])
+<!-- YAML
+added: v0.5.0
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 1`
@@ -2111,6 +2174,9 @@ console.log(buf);
 
 ### buf.writeUInt16BE(value, offset[, noAssert])
 ### buf.writeUInt16LE(value, offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 2`
@@ -2145,6 +2211,9 @@ console.log(buf);
 
 ### buf.writeUInt32BE(value, offset[, noAssert])
 ### buf.writeUInt32LE(value, offset[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
@@ -2177,6 +2246,9 @@ console.log(buf);
 
 ### buf.writeUIntBE(value, offset, byteLength[, noAssert])
 ### buf.writeUIntLE(value, offset, byteLength[, noAssert])
+<!-- YAML
+added: v0.5.5
+-->
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - byteLength`
@@ -2209,6 +2281,9 @@ console.log(buf);
 ```
 
 ## buffer.INSPECT_MAX_BYTES
+<!-- YAML
+added: v0.5.4
+-->
 
 * {Integer} **Default:** `50`
 
