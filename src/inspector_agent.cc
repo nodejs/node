@@ -36,7 +36,7 @@ const char TAG_CONNECT[] = "#connect";
 const char TAG_DISCONNECT[] = "#disconnect";
 
 const char DEVTOOLS_PATH[] = "/node";
-const char DEVTOOLS_HASH[] = "521e5b7e2b7cc66b4006a8a54cb9c4e57494a5ef";
+const char DEVTOOLS_HASH[] = "851972d6da7463c353d712d2cb6c1ec23fa6c4fe";
 
 void PrintDebuggerReadyMessage(int port) {
   fprintf(stderr, "Debugger listening on port %d.\n"

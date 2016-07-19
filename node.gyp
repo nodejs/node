@@ -308,6 +308,7 @@
           'defines': [
             'HAVE_INSPECTOR=1',
             'V8_INSPECTOR_USE_STL=1',
+            'V8_INSPECTOR_USE_OLD_STL=1',
           ],
           'sources': [
             'src/inspector_agent.cc',
@@ -316,11 +317,11 @@
             'src/inspector-agent.h',
           ],
           'dependencies': [
-            'deps/v8_inspector/platform/v8_inspector/v8_inspector.gyp:v8_inspector_stl',
+            'deps/v8_inspector/third_party/v8_inspector/platform/'
+                'v8_inspector/v8_inspector.gyp:v8_inspector_stl',
           ],
           'include_dirs': [
-            'deps/v8_inspector',
-            'deps/v8_inspector/deps/wtf', # temporary
+            'deps/v8_inspector/third_party/v8_inspector',
             '<(SHARED_INTERMEDIATE_DIR)/blink', # for inspector
           ],
         }, {
