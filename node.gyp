@@ -15,6 +15,7 @@
     'node_enable_v8_vtunejit%': 'false',
     'node_target_type%': 'executable',
     'node_core_target_name%': 'node',
+    'node_module_version%': '',
     'library_files': [
       'src/node.js',
       'lib/_debug_agent.js',

@@ -769,6 +769,8 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
+  o['variables']['node_module_version'] = 46
+
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
 
