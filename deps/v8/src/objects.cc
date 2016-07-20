@@ -13766,14 +13766,8 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
   Isolate* isolate = table->GetIsolate();
   int capacity = table->Capacity();
   int nof = table->NumberOfElements() + n;
-  int nod = table->NumberOfDeletedElements();
-  // Return if:
-  //   50% is still free after adding n elements and
-  //   at most 50% of the free elements are deleted elements.
-  if (nod <= (capacity - nof) >> 1) {
-    int needed_free = nof >> 1;
-    if (nof + needed_free <= capacity) return table;
-  }
+
+  if (table->HasSufficientCapacityToAdd(n)) return table;
 
   const int kMinCapacityForPretenure = 256;
   bool should_pretenure = pretenure == TENURED ||
@@ -13787,6 +13781,23 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
 
   table->Rehash(new_table, key);
   return new_table;
+}
+
+
+template <typename Derived, typename Shape, typename Key>
+bool HashTable<Derived, Shape, Key>::HasSufficientCapacityToAdd(
+    int number_of_additional_elements) {
+  int capacity = Capacity();
+  int nof = NumberOfElements() + number_of_additional_elements;
+  int nod = NumberOfDeletedElements();
+  // Return true if:
+  //   50% is still free after adding number_of_additional_elements elements and
+  //   at most 50% of the free elements are deleted elements.
+  if ((nof < capacity) && ((nod <= (capacity - nof) >> 1))) {
+    int needed_free = nof >> 1;
+    if (nof + needed_free <= capacity) return true;
+  }
+  return false;
 }
 
 
@@ -14827,7 +14838,7 @@ Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
+template <typename Derived, typename Shape, typename Key>
 Handle<Derived> Dictionary<Derived, Shape, Key>::EnsureCapacity(
     Handle<Derived> dictionary, int n, Key key) {
   // Check whether there are enough enumeration indices to add n elements.
@@ -15215,8 +15226,8 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   }
   // If we're out of luck, we didn't get a GC recently, and so rehashing
   // isn't enough to avoid a crash.
-  int nof = table->NumberOfElements() + 1;
-  if (!table->HasSufficientCapacity(nof)) {
+  if (!table->HasSufficientCapacityToAdd(1)) {
+    int nof = table->NumberOfElements() + 1;
     int capacity = ObjectHashTable::ComputeCapacity(nof * 2);
     if (capacity > ObjectHashTable::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
