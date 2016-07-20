@@ -122,3 +122,9 @@ If an agenda item cannot reach a consensus, a CTC member can call for either a
 closing vote or a vote to table the issue to the next meeting. The call for a
 vote must be approved by a simple majority of the CTC or else the discussion
 will continue.
+
+A vote may be scheduled for a future date to allow time for CTC members to
+better educate themselves about relevant issues. A vote is not valid unless
+there is participation of a quorum of the CTC. A CTC quorum is more than half of
+the CTC. Absentee votes may be cast in advance by commenting on the weekly CTC
+agenda issue on GitHub.
