@@ -19,7 +19,7 @@ If you need help using or installing Node.js, please use the
 
 ## Resources for Newcomers
 
-* Website: [nodejs.org](https://nodejs.org/en/)
+* [nodejs.org](https://nodejs.org/)
 * Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md)
 * IRC (general questions): [#node.js on chat.freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
 * IRC (node core development): [#node-dev on chat.freenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
