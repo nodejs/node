@@ -60,7 +60,7 @@ Typical activities of a Collaborator include:
 
 * contributing code and documentation changes to improve the project
 * merging pull requests
-* commenting on issues and pull requests
+* reviewing and commenting on issues and pull requests
 * participation in working groups
 * helping users and novice contributors
 
