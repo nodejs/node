@@ -5,6 +5,7 @@ var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
+const dns = require('dns');
 const stream = require('stream');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
@@ -89,6 +90,7 @@ exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 var opensslCli = null;
 var inFreeBSDJail = null;
 var localhostIPv4 = null;
+var localhostIPv6 = null;
 
 exports.localIPv6Hosts = ['localhost'];
 if (process.platform === 'linux') {
@@ -105,6 +107,26 @@ if (process.platform === 'linux') {
     'localhost',
   ];
 }
+
+exports.getLocalIPv6Address = function getLocalIPv6Address(callback) {
+  const err = new Error('Unable to determine IPv6 address of localhost');
+
+  if (typeof localhostIPv6 === 'object' && localhostIPv6 !== null)
+    return process.nextTick(() => callback(null, localhostIPv6));
+  else if (typeof localhostIPv6 === 'undefined')
+    return process.nextTick(() => callback(err));
+
+  Promise.all(exports.localIPv6Hosts.map((host) => new Promise((res, _) => {
+    dns.lookup(host, {family: 6},
+               (_, addr) => res({hostname: host, address: addr || ''}));
+  }))).then((addresses) => {
+    localhostIPv6 = addresses.filter((d) => d.address)[0];
+    if (localhostIPv6 === undefined)
+      callback(err);
+    else
+      callback(null, localhostIPv6);
+  });
+};
 
 Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
