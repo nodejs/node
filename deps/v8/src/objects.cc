@@ -17437,7 +17437,7 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
   int capacity = table->Capacity();
   int nof = table->NumberOfElements() + n;
 
-  if (table->HasSufficientCapacity(n)) return table;
+  if (table->HasSufficientCapacityToAdd(n)) return table;
 
   const int kMinCapacityForPretenure = 256;
   bool should_pretenure = pretenure == TENURED ||
@@ -17453,16 +17453,16 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
   return new_table;
 }
 
-
 template <typename Derived, typename Shape, typename Key>
-bool HashTable<Derived, Shape, Key>::HasSufficientCapacity(int n) {
+bool HashTable<Derived, Shape, Key>::HasSufficientCapacityToAdd(
+    int number_of_additional_elements) {
   int capacity = Capacity();
-  int nof = NumberOfElements() + n;
+  int nof = NumberOfElements() + number_of_additional_elements;
   int nod = NumberOfDeletedElements();
   // Return true if:
-  //   50% is still free after adding n elements and
+  //   50% is still free after adding number_of_additional_elements elements and
   //   at most 50% of the free elements are deleted elements.
-  if (nod <= (capacity - nof) >> 1) {
+  if ((nof < capacity) && ((nod <= (capacity - nof) >> 1))) {
     int needed_free = nof >> 1;
     if (nof + needed_free <= capacity) return true;
   }
@@ -18378,7 +18378,7 @@ void Dictionary<Derived, Shape, Key>::SetRequiresCopyOnCapacityChange() {
   DCHECK_EQ(0, DerivedHashTable::NumberOfDeletedElements());
   // Make sure that HashTable::EnsureCapacity will create a copy.
   DerivedHashTable::SetNumberOfDeletedElements(DerivedHashTable::Capacity());
-  DCHECK(!DerivedHashTable::HasSufficientCapacity(1));
+  DCHECK(!DerivedHashTable::HasSufficientCapacityToAdd(1));
 }
 
 
@@ -18791,8 +18791,8 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   }
   // If we're out of luck, we didn't get a GC recently, and so rehashing
   // isn't enough to avoid a crash.
-  int nof = table->NumberOfElements() + 1;
-  if (!table->HasSufficientCapacity(nof)) {
+  if (!table->HasSufficientCapacityToAdd(1)) {
+    int nof = table->NumberOfElements() + 1;
     int capacity = ObjectHashTable::ComputeCapacity(nof * 2);
     if (capacity > ObjectHashTable::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
