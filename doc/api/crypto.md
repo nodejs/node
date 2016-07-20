@@ -913,7 +913,7 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'latin1'` encoded strings or
+[initialization vector][]. Both arguments must be `'utf8'` encoded strings or
 [buffers][`Buffer`].
 
 ### crypto.createCredentials(details)
@@ -968,7 +968,7 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'latin1'` encoded strings or
+[initialization vector][]. Both arguments must be `'utf8'` encoded strings or
 [buffers][`Buffer`].
 
 ### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
