@@ -39,6 +39,7 @@
     'ubsan_vptr%': 0,
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
+    'force_dynamic_crt%': 0,
     # Native Client builds currently use the V8 ARM JIT and
     # arm/simulator-arm.cc to defer the significant effort required
     # for NaCl JIT support. The nacl_target_arch variable provides
@@ -1104,7 +1105,7 @@
           'VCCLCompilerTool': {
             'Optimization': '0',
             'conditions': [
-              ['component=="shared_library"', {
+              ['component=="shared_library" or force_dynamic_crt==1', {
                 'RuntimeLibrary': '3',  # /MDd
               }, {
                 'RuntimeLibrary': '1',  # /MTd
@@ -1156,7 +1157,7 @@
             'StringPooling': 'true',
             'BasicRuntimeChecks': '0',
             'conditions': [
-              ['component=="shared_library"', {
+              ['component=="shared_library" or force_dynamic_crt==1', {
                 'RuntimeLibrary': '3',  #/MDd
               }, {
                 'RuntimeLibrary': '1',  #/MTd
@@ -1347,7 +1348,7 @@
                 'FavorSizeOrSpeed': '0',
                 'StringPooling': 'true',
                 'conditions': [
-                  ['component=="shared_library"', {
+                  ['component=="shared_library" or force_dynamic_crt==1', {
                     'RuntimeLibrary': '2',  #/MD
                   }, {
                     'RuntimeLibrary': '0',  #/MT
