@@ -208,7 +208,7 @@ class AgentImpl {
   State state_;
   node::Environment* parent_env_;
 
-  uv_async_t data_written_;
+  uv_async_t* data_written_;
   uv_async_t io_thread_req_;
   inspector_socket_t* client_socket_;
   blink::V8Inspector* inspector_;
@@ -316,6 +316,7 @@ AgentImpl::AgentImpl(Environment* env) : port_(0),
                                          shutting_down_(false),
                                          state_(State::kNew),
                                          parent_env_(env),
+                                         data_written_(new uv_async_t()),
                                          client_socket_(nullptr),
                                          inspector_(nullptr),
                                          platform_(nullptr),
@@ -323,24 +324,26 @@ AgentImpl::AgentImpl(Environment* env) : port_(0),
                                          frontend_session_id_(0),
                                          backend_session_id_(0) {
   CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
-  memset(&data_written_, 0, sizeof(data_written_));
   memset(&io_thread_req_, 0, sizeof(io_thread_req_));
+  CHECK_EQ(0, uv_async_init(env->event_loop(), data_written_, nullptr));
+  uv_unref(reinterpret_cast<uv_handle_t*>(data_written_));
 }
 
 AgentImpl::~AgentImpl() {
-  if (!inspector_)
-    return;
-  uv_close(reinterpret_cast<uv_handle_t*>(&data_written_), nullptr);
+  auto close_cb = [](uv_handle_t* handle) {
+    delete reinterpret_cast<uv_async_t*>(handle);
+  };
+  uv_close(reinterpret_cast<uv_handle_t*>(data_written_), close_cb);
+  data_written_ = nullptr;
 }
 
 bool AgentImpl::Start(v8::Platform* platform, int port, bool wait) {
   auto env = parent_env_;
   inspector_ = new V8NodeInspector(this, env, platform);
   platform_ = platform;
-  int err = uv_async_init(env->event_loop(), &data_written_, nullptr);
-  CHECK_EQ(err, 0);
 
-  uv_unref(reinterpret_cast<uv_handle_t*>(&data_written_));
+  int err = uv_loop_init(&child_loop_);
+  CHECK_EQ(err, 0);
 
   port_ = port;
   wait_ = wait;
@@ -516,7 +519,7 @@ void AgentImpl::PostIncomingMessage(const String16& message) {
   platform_->CallOnForegroundThread(isolate,
                                     new DispatchOnInspectorBackendTask(this));
   isolate->RequestInterrupt(InterruptCallback, this);
-  uv_async_send(&data_written_);
+  uv_async_send(data_written_);
 }
 
 void AgentImpl::OnInspectorConnectionIO(inspector_socket_t* socket) {
@@ -558,7 +561,7 @@ void AgentImpl::DispatchMessages() {
       inspector_->dispatchMessageFromFrontend(message);
     }
   }
-  uv_async_send(&data_written_);
+  uv_async_send(data_written_);
   dispatching_messages_ = false;
 }
 
