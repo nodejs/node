@@ -253,6 +253,8 @@ added: v0.5.0
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
     [`stdio`][] for more details (Default: `false`)
+  * `stdio` {Array} Supports the array version of [`child_process.spawn()`][]'s
+    [`stdio`][] option. When this option is provided, it overrides `silent`.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: {ChildProcess}
