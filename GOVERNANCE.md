@@ -127,4 +127,5 @@ A vote may be scheduled for a future date to allow time for CTC members to
 better educate themselves about relevant issues. A vote is not valid unless
 there is participation of a quorum of the CTC. A CTC quorum is more than half of
 the CTC. Absentee votes may be cast in advance by commenting on the weekly CTC
-agenda issue on GitHub.
+agenda issue on GitHub. Explicit abtentions from voting constitute
+participation.
