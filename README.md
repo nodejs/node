@@ -19,10 +19,21 @@ If you need help using or installing Node.js, please use the
 
 ## Resources for Newcomers
 
-* [Website](https://nodejs.org/en/)
-* [Contributing to the project](./CONTRIBUTING.md)
-* IRC (general questions): [#node.js on chat.freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
-* IRC (node core development): [#node-dev on chat.freenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
+### Official Resources
+
+* [Website][]
+* [Contributing to the project][]
+* IRC (node core development): [#node-dev on chat.freenode.net][]
+
+### Unofficial Resources
+
+* IRC (general questions): [#node.js on chat.freenode.net][]. Please see
+http://nodeirc.info/ for more information regarding the `#node.js` IRC channel.
+
+*Please note that unofficial resources are neither managed by (nor necessarily
+endorsed by) the Node.js TSC/CTC. Specifically, such resources are not
+currently covered by the [Node.js Moderation Policy][] and the selection and
+actions of resource operators/moderators are not subject to TSC/CTC oversight.*
 
 ## Release Types
 
@@ -265,3 +276,9 @@ keys:
 * **Isaac Z. Schlueter** &lt;i@izs.me&gt; `93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
 * **Julien Gilli** &lt;jgilli@fastmail.fm&gt; `114F43EE0176B71C7BC219DD50A3051F888C628D`
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt; `7937DFD2AB06298B2293C3187D33FF9D0246406D`
+
+[Website]: https://nodejs.org/en/
+[Contributing to the project]: CONTRIBUTING.md
+[Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md
+[#node.js on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
+[#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4
