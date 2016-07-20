@@ -288,10 +288,10 @@ static bool waiting_to_close = true;
 
 void handle_closed(uv_handle_t* handle) { waiting_to_close = false; }
 
-static void really_close(uv_tcp_t* socket) {
+static void really_close(uv_handle_t* handle) {
   waiting_to_close = true;
-  if (!uv_is_closing(reinterpret_cast<uv_handle_t*>(socket))) {
-    uv_close(reinterpret_cast<uv_handle_t*>(socket), handle_closed);
+  if (!uv_is_closing(handle)) {
+    uv_close(handle, handle_closed);
     SPIN_WHILE(waiting_to_close);
   }
 }
@@ -300,6 +300,7 @@ static void really_close(uv_tcp_t* socket) {
 static void manual_inspector_socket_cleanup() {
   EXPECT_EQ(0, uv_is_active(
                    reinterpret_cast<uv_handle_t*>(&inspector.client)));
+  really_close(reinterpret_cast<uv_handle_t*>(&inspector.client));
   free(inspector.ws_state);
   free(inspector.http_parsing_state);
   free(inspector.buffer);
@@ -339,21 +340,13 @@ protected:
                    reinterpret_cast<const sockaddr *>(&addr), on_connection);
     uv_tcp_nodelay(&client_socket, 1); // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
-    really_close(&server);
-    uv_unref(reinterpret_cast<uv_handle_t*>(&server));
+    really_close(reinterpret_cast<uv_handle_t*>(&server));
   }
 
   virtual void TearDown() {
-    really_close(&client_socket);
-    for (int i = 0; i < MAX_LOOP_ITERATIONS; i++)
-      uv_run(&loop, UV_RUN_NOWAIT);
+    really_close(reinterpret_cast<uv_handle_t*>(&client_socket));
+    really_close(reinterpret_cast<uv_handle_t*>(&timeout_timer));
     EXPECT_EQ(nullptr, inspector.buffer);
-    uv_stop(&loop);
-    int err = uv_run(&loop, UV_RUN_ONCE);
-    if (err != 0) {
-      uv_print_active_handles(&loop, stderr);
-    }
-    EXPECT_EQ(0, err);
     expectations* expects = static_cast<expectations*>(inspector.data);
     if (expects != nullptr) {
       GTEST_ASSERT_EQ(expects->actual_end, expects->actual_offset);
@@ -362,7 +355,11 @@ protected:
       free(expects);
       inspector.data = nullptr;
     }
-    uv_loop_close(&loop);
+    const int err = uv_loop_close(&loop);
+    if (err != 0) {
+      uv_print_all_handles(&loop, stderr);
+    }
+    EXPECT_EQ(0, err);
   }
 };
 
