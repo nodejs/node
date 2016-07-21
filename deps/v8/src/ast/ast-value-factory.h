@@ -242,6 +242,8 @@ class AstValue : public ZoneObject {
 #define STRING_CONSTANTS(F)                     \
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
+  F(async, "async")                             \
+  F(await, "await")                             \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \

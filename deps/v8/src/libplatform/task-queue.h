@@ -33,8 +33,8 @@ class TaskQueue {
   void Terminate();
 
  private:
-  base::Mutex lock_;
   base::Semaphore process_queue_semaphore_;
+  base::Mutex lock_;
   std::queue<Task*> task_queue_;
   bool terminated_;
 

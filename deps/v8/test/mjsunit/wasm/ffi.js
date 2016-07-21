@@ -10,13 +10,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function testCallFFI(func, check) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([kAstI32, kAstF64, kAstF64]);
+  var sig_index = builder.addSignature(kSig_i_dd);
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,       // --
-      kExprGetLocal, 0,         // --
-      kExprGetLocal, 1])        // --
+      kExprGetLocal, 0,            // --
+      kExprGetLocal, 1,            // --
+      kExprCallImport, kArity2, 0  // --
+    ])        // --
     .exportFunc();
 
   var main = builder.instantiate({func: func}).exports.main;
@@ -184,14 +185,14 @@ function testCallBinopVoid(type, func, check) {
 
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("func", [kAstStmt, type, type]);
-  builder.addFunction("main", [kAstI32, type, type])
+  builder.addImport("func", makeSig_v_xx(type));
+  builder.addFunction("main", makeSig_r_xx(kAstI32, type))
     .addBody([
-      kExprBlock, 2,          // --
-      kExprCallImport, 0,     // --
-      kExprGetLocal, 0,       // --
-      kExprGetLocal, 1,       // --
-      kExprI8Const, 99])      // --
+      kExprGetLocal, 0,            // --
+      kExprGetLocal, 1,            // --
+      kExprCallImport, kArity2, 0, // --
+      kExprI8Const, 99             // --
+    ])                             // --
     .exportFunc()
 
   var main = builder.instantiate(ffi).exports.main;
@@ -240,15 +241,15 @@ testCallBinopVoid(kAstF64);
 function testCallPrint() {
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("print", [kAstStmt, kAstI32]);
-  builder.addImport("print", [kAstStmt, kAstF64]);
-  builder.addFunction("main", [kAstStmt, kAstF64])
+  builder.addImport("print", makeSig_v_x(kAstI32));
+  builder.addImport("print", makeSig_v_x(kAstF64));
+  builder.addFunction("main", makeSig_v_x(kAstF64))
     .addBody([
-      kExprBlock, 2,            // --
-      kExprCallImport, 0,       // --
-      kExprI8Const, 97,         // --
-      kExprCallImport, 1,       // --
-      kExprGetLocal, 0])        // --
+      kExprI8Const, 97,             // --
+      kExprCallImport, kArity1, 0,  // --
+      kExprGetLocal, 0,             // --
+      kExprCallImport, kArity1, 1   // --
+    ])        // --
     .exportFunc()
 
   var main = builder.instantiate({print: print}).exports.main;

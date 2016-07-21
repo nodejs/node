@@ -213,7 +213,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     }
     accumulator.NextPrototype();
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    JSObject::CollectOwnElementKeys(current, &accumulator, ALL_PROPERTIES);
+    accumulator.CollectOwnElementIndices(current);
   }
   // Erase any keys >= length.
   Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);
@@ -455,6 +455,15 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
   return isolate->heap()->false_value();
 }
 
+// ES6 22.1.2.2 Array.isArray
+RUNTIME_FUNCTION(Runtime_ArrayIsArray) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Maybe<bool> result = Object::IsArray(object);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
 
 RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
@@ -462,7 +471,6 @@ RUNTIME_FUNCTION(Runtime_IsArray) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSArray());
 }
-
 
 RUNTIME_FUNCTION(Runtime_HasCachedArrayIndex) {
   SealHandleScope shs(isolate);

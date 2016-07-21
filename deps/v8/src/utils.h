@@ -13,6 +13,7 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/bits.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -36,6 +37,11 @@ inline int HexValue(uc32 c) {
   return -1;
 }
 
+inline char HexCharOfValue(int value) {
+  DCHECK(0 <= value && value <= 16);
+  if (value < 10) return value + '0';
+  return value - 10 + 'A';
+}
 
 inline int BoolToInt(bool b) { return b ? 1 : 0; }
 
@@ -932,42 +938,21 @@ class TokenDispenserForFinally {
 // ----------------------------------------------------------------------------
 // I/O support.
 
-#if __GNUC__ >= 4
-// On gcc we can ask the compiler to check the types of %d-style format
-// specifiers and their associated arguments.  TODO(erikcorry) fix this
-// so it works on MacOSX.
-#if defined(__MACH__) && defined(__APPLE__)
-#define PRINTF_CHECKING
-#define FPRINTF_CHECKING
-#define PRINTF_METHOD_CHECKING
-#define FPRINTF_METHOD_CHECKING
-#else  // MacOsX.
-#define PRINTF_CHECKING __attribute__ ((format (printf, 1, 2)))
-#define FPRINTF_CHECKING __attribute__ ((format (printf, 2, 3)))
-#define PRINTF_METHOD_CHECKING __attribute__ ((format (printf, 2, 3)))
-#define FPRINTF_METHOD_CHECKING __attribute__ ((format (printf, 3, 4)))
-#endif
-#else
-#define PRINTF_CHECKING
-#define FPRINTF_CHECKING
-#define PRINTF_METHOD_CHECKING
-#define FPRINTF_METHOD_CHECKING
-#endif
-
 // Our version of printf().
-void PRINTF_CHECKING PrintF(const char* format, ...);
-void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
+void PRINTF_FORMAT(1, 2) PrintF(const char* format, ...);
+void PRINTF_FORMAT(2, 3) PrintF(FILE* out, const char* format, ...);
 
 // Prepends the current process ID to the output.
-void PRINTF_CHECKING PrintPID(const char* format, ...);
+void PRINTF_FORMAT(1, 2) PrintPID(const char* format, ...);
 
 // Prepends the current process ID and given isolate pointer to the output.
-void PrintIsolate(void* isolate, const char* format, ...);
+void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
-int FPRINTF_CHECKING SNPrintF(Vector<char> str, const char* format, ...);
-int VSNPrintF(Vector<char> str, const char* format, va_list args);
+int PRINTF_FORMAT(2, 3) SNPrintF(Vector<char> str, const char* format, ...);
+int PRINTF_FORMAT(2, 0)
+    VSNPrintF(Vector<char> str, const char* format, va_list args);
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n);
 
@@ -1470,10 +1455,11 @@ class StringBuilder : public SimpleStringBuilder {
   StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) { }
 
   // Add formatted contents to the builder just like printf().
-  void AddFormatted(const char* format, ...);
+  void PRINTF_FORMAT(2, 3) AddFormatted(const char* format, ...);
 
   // Add formatted contents like printf based on a va_list.
-  void AddFormattedList(const char* format, va_list list);
+  void PRINTF_FORMAT(2, 0) AddFormattedList(const char* format, va_list list);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };

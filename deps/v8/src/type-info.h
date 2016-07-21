@@ -17,7 +17,7 @@ namespace internal {
 
 // Forward declarations.
 class SmallMapList;
-
+class FeedbackNexus;
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
@@ -56,8 +56,7 @@ class TypeFeedbackOracle: public ZoneObject {
                           SmallMapList* receiver_types);
 
   void CollectReceiverTypes(FeedbackVectorSlot slot, SmallMapList* types);
-  template <class T>
-  void CollectReceiverTypes(T* obj, SmallMapList* types);
+  void CollectReceiverTypes(FeedbackNexus* nexus, SmallMapList* types);
 
   static bool IsRelevantFeedback(Map* map, Context* native_context) {
     Object* constructor = map->GetConstructor();
@@ -98,9 +97,8 @@ class TypeFeedbackOracle: public ZoneObject {
  private:
   void CollectReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                             Code::Flags flags, SmallMapList* types);
-  template <class T>
-  void CollectReceiverTypes(T* obj, Handle<Name> name, Code::Flags flags,
-                            SmallMapList* types);
+  void CollectReceiverTypes(FeedbackNexus* nexus, Handle<Name> name,
+                            Code::Flags flags, SmallMapList* types);
 
   // Returns true if there is at least one string map and if
   // all maps are string maps.

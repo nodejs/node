@@ -515,6 +515,11 @@ class V8_EXPORT AllocationProfile {
  */
 class V8_EXPORT HeapProfiler {
  public:
+  enum SamplingFlags {
+    kSamplingNoFlags = 0,
+    kSamplingForceGC = 1 << 0,
+  };
+
   /**
    * Callback function invoked for obtaining RetainedObjectInfo for
    * the given JavaScript wrapper object. It is prohibited to enter V8
@@ -640,7 +645,8 @@ class V8_EXPORT HeapProfiler {
    * Returns false if a sampling heap profiler is already running.
    */
   bool StartSamplingHeapProfiler(uint64_t sample_interval = 512 * 1024,
-                                 int stack_depth = 16);
+                                 int stack_depth = 16,
+                                 SamplingFlags flags = kSamplingNoFlags);
 
   /**
    * Stops the sampling heap profile and discards the current profile.

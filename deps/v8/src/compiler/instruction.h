@@ -66,9 +66,13 @@ class InstructionOperand {
 
   inline bool IsAnyRegister() const;
   inline bool IsRegister() const;
+  inline bool IsFPRegister() const;
+  inline bool IsFloatRegister() const;
   inline bool IsDoubleRegister() const;
   inline bool IsSimd128Register() const;
   inline bool IsStackSlot() const;
+  inline bool IsFPStackSlot() const;
+  inline bool IsFloatStackSlot() const;
   inline bool IsDoubleStackSlot() const;
   inline bool IsSimd128StackSlot() const;
 
@@ -413,7 +417,7 @@ class LocationOperand : public InstructionOperand {
   }
 
   int index() const {
-    DCHECK(IsStackSlot() || IsDoubleStackSlot() || IsSimd128StackSlot());
+    DCHECK(IsStackSlot() || IsFPStackSlot());
     return static_cast<int64_t>(value_) >> IndexField::kShift;
   }
 
@@ -423,8 +427,16 @@ class LocationOperand : public InstructionOperand {
                                IndexField::kShift);
   }
 
+  FloatRegister GetFloatRegister() const {
+    DCHECK(IsFloatRegister());
+    return FloatRegister::from_code(static_cast<int64_t>(value_) >>
+                                    IndexField::kShift);
+  }
+
   DoubleRegister GetDoubleRegister() const {
-    DCHECK(IsDoubleRegister());
+    // TODO(bbudge) Tighten this test to IsDoubleRegister when all code
+    // generators are changed to use the correct Get*Register method.
+    DCHECK(IsFPRegister());
     return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
                                      IndexField::kShift);
   }
@@ -526,9 +538,21 @@ bool InstructionOperand::IsRegister() const {
          !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
-bool InstructionOperand::IsDoubleRegister() const {
+bool InstructionOperand::IsFPRegister() const {
   return IsAnyRegister() &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsFloatRegister() const {
+  return IsAnyRegister() &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat32;
+}
+
+bool InstructionOperand::IsDoubleRegister() const {
+  return IsAnyRegister() &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat64;
 }
 
 bool InstructionOperand::IsSimd128Register() const {
@@ -544,11 +568,27 @@ bool InstructionOperand::IsStackSlot() const {
          !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
-bool InstructionOperand::IsDoubleStackSlot() const {
+bool InstructionOperand::IsFPStackSlot() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsFloatStackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat32;
+}
+
+bool InstructionOperand::IsDoubleStackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat64;
 }
 
 bool InstructionOperand::IsSimd128StackSlot() const {
@@ -715,6 +755,8 @@ class ReferenceMap final : public ZoneObject {
 
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
 
+class InstructionBlock;
+
 class Instruction final {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
@@ -826,7 +868,8 @@ class Instruction final {
     return arch_opcode() == ArchOpcode::kArchTailCallCodeObject ||
            arch_opcode() == ArchOpcode::kArchTailCallCodeObjectFromJSFunction ||
            arch_opcode() == ArchOpcode::kArchTailCallJSFunction ||
-           arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction;
+           arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction ||
+           arch_opcode() == ArchOpcode::kArchTailCallAddress;
   }
   bool IsThrow() const {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;
@@ -859,6 +902,15 @@ class Instruction final {
   ParallelMove* const* parallel_moves() const { return &parallel_moves_[0]; }
   ParallelMove** parallel_moves() { return &parallel_moves_[0]; }
 
+  // The block_id may be invalidated in JumpThreading. It is only important for
+  // register allocation, to avoid searching for blocks from instruction
+  // indexes.
+  InstructionBlock* block() const { return block_; }
+  void set_block(InstructionBlock* block) {
+    DCHECK_NOT_NULL(block);
+    block_ = block;
+  }
+
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
 
@@ -879,6 +931,7 @@ class Instruction final {
   uint32_t bit_field_;
   ParallelMove* parallel_moves_[2];
   ReferenceMap* reference_map_;
+  InstructionBlock* block_;
   InstructionOperand operands_[1];
 
   DISALLOW_COPY_AND_ASSIGN(Instruction);
@@ -950,8 +1003,11 @@ class Constant final {
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
+  explicit Constant(RelocatablePtrConstantInfo info);
 
   Type type() const { return type_; }
+
+  RelocInfo::Mode rmode() const { return rmode_; }
 
   int32_t ToInt32() const {
     DCHECK(type() == kInt32 || type() == kInt64);
@@ -987,14 +1043,16 @@ class Constant final {
     return RpoNumber::FromInt(static_cast<int>(value_));
   }
 
-  Handle<HeapObject> ToHeapObject() const {
-    DCHECK_EQ(kHeapObject, type());
-    return bit_cast<Handle<HeapObject> >(static_cast<intptr_t>(value_));
-  }
+  Handle<HeapObject> ToHeapObject() const;
 
  private:
   Type type_;
   int64_t value_;
+#if V8_TARGET_ARCH_32_BIT
+  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
+#else
+  RelocInfo::Mode rmode_ = RelocInfo::NONE64;
+#endif
 };
 
 
@@ -1316,7 +1374,8 @@ class InstructionSequence final : public ZoneObject {
   Immediates& immediates() { return immediates_; }
 
   ImmediateOperand AddImmediate(const Constant& constant) {
-    if (constant.type() == Constant::kInt32) {
+    if (constant.type() == Constant::kInt32 &&
+        RelocInfo::IsNone(constant.rmode())) {
       return ImmediateOperand(ImmediateOperand::INLINE, constant.ToInt32());
     }
     int index = static_cast<int>(immediates_.size());
@@ -1374,9 +1433,10 @@ class InstructionSequence final : public ZoneObject {
   void PrintBlock(const RegisterConfiguration* config, int block_id) const;
   void PrintBlock(int block_id) const;
 
-  void ValidateEdgeSplitForm();
-  void ValidateDeferredBlockExitPaths();
-  void ValidateSSA();
+  void ValidateEdgeSplitForm() const;
+  void ValidateDeferredBlockExitPaths() const;
+  void ValidateDeferredBlockEntryPaths() const;
+  void ValidateSSA() const;
 
  private:
   friend std::ostream& operator<<(std::ostream& os,
@@ -1388,7 +1448,6 @@ class InstructionSequence final : public ZoneObject {
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
   SourcePositionMap source_positions_;
-  IntVector block_starts_;
   ConstantMap constants_;
   Immediates immediates_;
   InstructionDeque instructions_;
@@ -1396,6 +1455,9 @@ class InstructionSequence final : public ZoneObject {
   ReferenceMapDeque reference_maps_;
   ZoneVector<MachineRepresentation> representations_;
   DeoptimizationVector deoptimization_entries_;
+
+  // Used at construction time
+  InstructionBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(InstructionSequence);
 };

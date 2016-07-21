@@ -253,7 +253,8 @@ typedef BinopMatcher<UintPtrMatcher, UintPtrMatcher> UintPtrBinopMatcher;
 typedef BinopMatcher<Float32Matcher, Float32Matcher> Float32BinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
-
+typedef BinopMatcher<HeapObjectMatcher, HeapObjectMatcher>
+    HeapObjectBinopMatcher;
 
 template <class BinopMatcher, IrOpcode::Value kMulOpcode,
           IrOpcode::Value kShiftOpcode>

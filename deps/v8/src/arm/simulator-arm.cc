@@ -387,7 +387,7 @@ void ArmDebugger::Debug() {
         end = cur + words;
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d",
+          PrintF("  0x%08" V8PRIxPTR ":  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
@@ -449,8 +449,8 @@ void ArmDebugger::Debug() {
         while (cur < end) {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n",
-                 reinterpret_cast<intptr_t>(prev), buffer.start());
+          PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
+                 buffer.start());
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
@@ -1271,7 +1271,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
 
 // Unsupported instructions use Format to print an error and stop execution.
 void Simulator::Format(Instruction* instr, const char* format) {
-  PrintF("Simulator found unsupported instruction:\n 0x%08x: %s\n",
+  PrintF("Simulator found unsupported instruction:\n 0x%08" V8PRIxPTR ": %s\n",
          reinterpret_cast<intptr_t>(instr), format);
   UNIMPLEMENTED();
 }
@@ -4028,6 +4028,45 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         UNIMPLEMENTED();
       }
       break;
+    case 0x1C:
+      if ((instr->Bits(11, 9) == 0x5) && (instr->Bit(6) == 0) &&
+          (instr->Bit(4) == 0)) {
+        // VSEL* (floating-point)
+        bool condition_holds;
+        switch (instr->Bits(21, 20)) {
+          case 0x0:  // VSELEQ
+            condition_holds = (z_flag_ == 1);
+            break;
+          case 0x1:  // VSELVS
+            condition_holds = (v_flag_ == 1);
+            break;
+          case 0x2:  // VSELGE
+            condition_holds = (n_flag_ == v_flag_);
+            break;
+          case 0x3:  // VSELGT
+            condition_holds = ((z_flag_ == 0) && (n_flag_ == v_flag_));
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
+        }
+        if (instr->SzValue() == 0x1) {
+          int n = instr->VFPNRegValue(kDoublePrecision);
+          int m = instr->VFPMRegValue(kDoublePrecision);
+          int d = instr->VFPDRegValue(kDoublePrecision);
+          double result = get_double_from_d_register(condition_holds ? n : m);
+          set_d_register_from_double(d, result);
+        } else {
+          int n = instr->VFPNRegValue(kSinglePrecision);
+          int m = instr->VFPMRegValue(kSinglePrecision);
+          int d = instr->VFPDRegValue(kSinglePrecision);
+          float result = get_float_from_s_register(condition_holds ? n : m);
+          set_s_register_from_float(d, result);
+        }
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     default:
       UNIMPLEMENTED();
       break;
@@ -4048,7 +4087,8 @@ void Simulator::InstructionDecode(Instruction* instr) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(instr),
+           buffer.start());
   }
   if (instr->ConditionField() == kSpecialCondition) {
     DecodeSpecialCondition(instr);

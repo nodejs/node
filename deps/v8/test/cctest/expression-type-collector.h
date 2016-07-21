@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+class AstTypeBounds;
+
 // A Visitor over an AST that collects a human readable string summarizing
 // structure and types. Used for testing of the typing information attached
 // to the expression nodes of an AST.
@@ -24,6 +26,7 @@ struct ExpressionTypeEntry {
 class ExpressionTypeCollector : public AstExpressionVisitor {
  public:
   ExpressionTypeCollector(Isolate* isolate, FunctionLiteral* root,
+                          const AstTypeBounds* bounds,
                           ZoneVector<ExpressionTypeEntry>* dst);
   void Run();
 
@@ -31,6 +34,7 @@ class ExpressionTypeCollector : public AstExpressionVisitor {
   void VisitExpression(Expression* expression);
 
  private:
+  const AstTypeBounds* bounds_;
   ZoneVector<ExpressionTypeEntry>* result_;
 };
 }  // namespace internal

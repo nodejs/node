@@ -47,7 +47,7 @@ DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
 
 DeoptimizerData::~DeoptimizerData() {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
-    allocator_->Free(deopt_entry_code_[i]);
+    allocator_->Free<MemoryAllocator::kFull>(deopt_entry_code_[i]);
     deopt_entry_code_[i] = NULL;
   }
 }
@@ -228,7 +228,7 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
     VisitAllOptimizedFunctionsForContext(Context::cast(context), visitor);
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
 }
 
@@ -296,7 +296,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
                          !FLAG_turbo_asm_deoptimization;
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
-      CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned);
+      bool builtin = code->kind() == Code::BUILTIN;
+      CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned ||
+            builtin);
       if (topmost_optimized_code == NULL) {
         topmost_optimized_code = code;
         safe_to_deopt_topmost_optimized_code = safe_to_deopt;
@@ -372,6 +374,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (FLAG_trace_deopt) {
@@ -385,12 +389,14 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
     Context* native_context = Context::cast(context);
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
-    context = native_context->get(Context::NEXT_CONTEXT_LINK);
+    context = native_context->next_context_link();
   }
 }
 
 
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (FLAG_trace_deopt) {
@@ -403,7 +409,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   while (!context->IsUndefined()) {
     Context* native_context = Context::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
-    context = native_context->get(Context::NEXT_CONTEXT_LINK);
+    context = native_context->next_context_link();
   }
 }
 
@@ -420,7 +426,10 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  TimerEventScope<TimerEventDeoptimizeCode> timer(function->GetIsolate());
+  Isolate* isolate = function->GetIsolate();
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::DeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Code* code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
@@ -660,7 +669,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
       length++;
       element = code->next_code_link();
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
   return length;
 }
@@ -839,9 +848,8 @@ void Deoptimizer::DoComputeOutputFrames() {
            " @%d => node=%d, pc=0x%08" V8PRIxPTR ", caller sp=0x%08" V8PRIxPTR
            ", state=%s, took %0.3f ms]\n",
            bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
-           caller_frame_top_, FullCodeGenerator::State2String(
-                                  static_cast<FullCodeGenerator::State>(
-                                      output_[index]->GetState()->value())),
+           caller_frame_top_, BailoutStateToString(static_cast<BailoutState>(
+                                  output_[index]->GetState()->value())),
            ms);
   }
 }
@@ -1053,10 +1061,11 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
 
   // If we are going to the catch handler, then the exception lives in
   // the accumulator.
-  FullCodeGenerator::State state =
-      goto_catch_handler ? FullCodeGenerator::TOS_REG
-                         : FullCodeGenerator::StateField::decode(pc_and_state);
-  output_frame->SetState(Smi::FromInt(state));
+  BailoutState state =
+      goto_catch_handler
+          ? BailoutState::TOS_REGISTER
+          : FullCodeGenerator::BailoutStateField::decode(pc_and_state);
+  output_frame->SetState(Smi::FromInt(static_cast<int>(state)));
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
@@ -1272,7 +1281,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   Code* dispatch_builtin =
       builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
-  output_frame->SetState(0);
+  // Restore accumulator (TOS) register.
+  output_frame->SetState(
+      Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
 
   // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
@@ -1288,14 +1299,11 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
-    Code* continuation =
-        builtins->builtin(Builtins::kInterpreterNotifyDeoptimized);
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     if (bailout_type_ == LAZY) {
-      continuation =
-          builtins->builtin(Builtins::kInterpreterNotifyLazyDeoptimized);
+      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
     } else if (bailout_type_ == SOFT) {
-      continuation =
-          builtins->builtin(Builtins::kInterpreterNotifySoftDeoptimized);
+      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
     } else {
       CHECK_EQ(bailout_type_, EAGER);
     }
@@ -1509,7 +1517,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the constructor function to the
   // top of the reconstructed stack and then using the
-  // FullCodeGenerator::TOS_REG machinery.
+  // BailoutState::TOS_REGISTER machinery.
   if (is_topmost) {
     height_in_bytes += kPointerSize;
   }
@@ -1630,7 +1638,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "constructor result\n");
 
-    output_frame->SetState(Smi::FromInt(FullCodeGenerator::TOS_REG));
+    output_frame->SetState(
+        Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
   }
 
   CHECK_EQ(0u, output_offset);
@@ -1684,7 +1693,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the accessor function to the
   // top of the reconstructed stack and then using the
-  // FullCodeGenerator::TOS_REG machinery.
+  // BailoutState::TOS_REGISTER machinery.
   // We don't need to restore the result in case of a setter call because we
   // have to return the stored value but not the result of the setter function.
   bool should_preserve_result = is_topmost && !is_setter_stub_frame;
@@ -1803,9 +1812,11 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "accessor result\n");
 
-    output_frame->SetState(Smi::FromInt(FullCodeGenerator::TOS_REG));
+    output_frame->SetState(
+        Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
   } else {
-    output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+    output_frame->SetState(
+        Smi::FromInt(static_cast<int>(BailoutState::NO_REGISTERS)));
   }
 
   CHECK_EQ(0u, output_offset);
@@ -2060,7 +2071,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
     output_frame->SetConstantPool(constant_pool_value);
     output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
   }
-  output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+  output_frame->SetState(
+      Smi::FromInt(static_cast<int>(BailoutState::NO_REGISTERS)));
   Code* notify_failure =
       isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
   output_frame->SetContinuation(
@@ -2639,23 +2651,6 @@ Handle<Object> GetValueForDebugger(TranslatedFrame::iterator it,
   return it->GetValue();
 }
 
-int ComputeSourcePosition(Handle<SharedFunctionInfo> shared,
-                          BailoutId node_id) {
-  if (shared->HasBytecodeArray()) {
-    BytecodeArray* bytecodes = shared->bytecode_array();
-    // BailoutId points to the next bytecode in the bytecode aray. Subtract
-    // 1 to get the end of current bytecode.
-    return bytecodes->SourcePosition(node_id.ToInt() - 1);
-  } else {
-    Code* non_optimized_code = shared->code();
-    FixedArray* raw_data = non_optimized_code->deoptimization_data();
-    DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-    unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, *shared);
-    unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
-    return non_optimized_code->SourcePosition(pc_offset);
-  }
-}
-
 }  // namespace
 
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
@@ -2685,8 +2680,8 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
       parameter_frame != state->begin() &&
       (parameter_frame - 1)->kind() == TranslatedFrame::kConstructStub;
 
-  source_position_ =
-      ComputeSourcePosition(frame_it->shared_info(), frame_it->node_id());
+  source_position_ = Deoptimizer::ComputeSourcePosition(
+      *frame_it->shared_info(), frame_it->node_id());
 
   TranslatedFrame::iterator value_it = frame_it->begin();
   // Get the function. Note that this might materialize the function.
@@ -2750,22 +2745,46 @@ const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   SourcePosition last_position = SourcePosition::Unknown();
   Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
+  int last_deopt_id = Deoptimizer::DeoptInfo::kNoDeoptId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
+             RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
              RelocInfo::ModeMask(RelocInfo::POSITION);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    if (info->pc() >= pc) return DeoptInfo(last_position, NULL, last_reason);
+    if (info->pc() >= pc) {
+      return DeoptInfo(last_position, last_reason, last_deopt_id);
+    }
     if (info->rmode() == RelocInfo::POSITION) {
       int raw_position = static_cast<int>(info->data());
       last_position = raw_position ? SourcePosition::FromRaw(raw_position)
                                    : SourcePosition::Unknown();
+    } else if (info->rmode() == RelocInfo::DEOPT_ID) {
+      last_deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
       last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
     }
   }
-  return DeoptInfo(SourcePosition::Unknown(), NULL, Deoptimizer::kNoReason);
+  return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason, -1);
 }
 
+
+// static
+int Deoptimizer::ComputeSourcePosition(SharedFunctionInfo* shared,
+                                       BailoutId node_id) {
+  if (shared->HasBytecodeArray()) {
+    BytecodeArray* bytecodes = shared->bytecode_array();
+    // BailoutId points to the next bytecode in the bytecode aray. Subtract
+    // 1 to get the end of current bytecode.
+    return bytecodes->SourcePosition(node_id.ToInt() - 1);
+  } else {
+    Code* non_optimized_code = shared->code();
+    FixedArray* raw_data = non_optimized_code->deoptimization_data();
+    DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+    unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
+    unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
+    return non_optimized_code->SourcePosition(pc_offset);
+  }
+}
 
 // static
 TranslatedValue TranslatedValue::NewArgumentsObject(TranslatedState* container,
@@ -3486,6 +3505,7 @@ TranslatedState::TranslatedState(JavaScriptFrame* frame)
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
+  DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
   Init(frame->fp(), &it, data->LiteralArray(), nullptr /* registers */,

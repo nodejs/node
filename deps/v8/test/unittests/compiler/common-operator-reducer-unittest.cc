@@ -105,40 +105,6 @@ TEST_F(CommonOperatorReducerTest, BranchWithInt32OneConstant) {
 }
 
 
-TEST_F(CommonOperatorReducerTest, BranchWithInt64ZeroConstant) {
-  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
-    Node* const control = graph()->start();
-    Node* const branch =
-        graph()->NewNode(common()->Branch(hint), Int64Constant(0), control);
-    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
-    StrictMock<MockAdvancedReducerEditor> editor;
-    EXPECT_CALL(editor, Replace(if_true, IsDead()));
-    EXPECT_CALL(editor, Replace(if_false, control));
-    Reduction const r = Reduce(&editor, branch);
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsDead());
-  }
-}
-
-
-TEST_F(CommonOperatorReducerTest, BranchWithInt64OneConstant) {
-  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
-    Node* const control = graph()->start();
-    Node* const branch =
-        graph()->NewNode(common()->Branch(hint), Int64Constant(1), control);
-    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
-    StrictMock<MockAdvancedReducerEditor> editor;
-    EXPECT_CALL(editor, Replace(if_true, control));
-    EXPECT_CALL(editor, Replace(if_false, IsDead()));
-    Reduction const r = Reduce(&editor, branch);
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsDead());
-  }
-}
-
-
 TEST_F(CommonOperatorReducerTest, BranchWithFalseConstant) {
   TRACED_FOREACH(BranchHint, hint, kBranchHints) {
     Node* const control = graph()->start();
@@ -494,30 +460,6 @@ TEST_F(CommonOperatorReducerTest, SelectWithInt32OneConstant) {
   Node* select =
       graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                        Int32Constant(1), p0, p1);
-  Reduction r = Reduce(select);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_EQ(p0, r.replacement());
-}
-
-
-TEST_F(CommonOperatorReducerTest, SelectWithInt64ZeroConstant) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* select =
-      graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                       Int64Constant(0), p0, p1);
-  Reduction r = Reduce(select);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_EQ(p1, r.replacement());
-}
-
-
-TEST_F(CommonOperatorReducerTest, SelectWithInt64OneConstant) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* select =
-      graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                       Int64Constant(1), p0, p1);
   Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p0, r.replacement());

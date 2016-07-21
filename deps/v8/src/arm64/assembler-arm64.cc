@@ -51,26 +51,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-  // Probe for runtime features
-  base::CPU cpu;
-  if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER &&
-      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    // TODO(jkummerow): This is turned off as an experiment to see if it
-    // affects crash rates. Keep an eye on crash reports and either remove
-    // coherent cache support permanently, or re-enable it!
-    // supported_ |= 1u << COHERENT_CACHE;
-  }
+  // We used to probe for coherent cache support, but on older CPUs it
+  // causes crashes (crbug.com/524337), and newer CPUs don't even have
+  // the feature any more.
 }
-
 
 void CpuFeatures::PrintTarget() { }
-
-
-void CpuFeatures::PrintFeatures() {
-  printf("COHERENT_CACHE=%d\n", CpuFeatures::IsSupported(COHERENT_CACHE));
-}
-
+void CpuFeatures::PrintFeatures() {}
 
 // -----------------------------------------------------------------------------
 // CPURegList utilities.
@@ -192,6 +179,41 @@ bool RelocInfo::IsInConstantPool() {
   return instr->IsLdrLiteralX();
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return Memory::uint32_at(Assembler::target_pointer_address_at(pc_));
+}
+
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
+  if (IsWasmMemoryReference(rmode_) && old_base != new_base) {
+    Address updated_memory_reference;
+    DCHECK(old_base <= wasm_memory_reference() &&
+           wasm_memory_reference() < old_base + old_size);
+    updated_memory_reference = new_base + (wasm_memory_reference() - old_base);
+    DCHECK(new_base <= updated_memory_reference &&
+           updated_memory_reference < new_base + new_size);
+    Assembler::set_target_address_at(
+        isolate_, pc_, host_, updated_memory_reference, icache_flush_mode);
+  } else if (IsWasmMemorySizeReference(rmode_)) {
+    uint32_t updated_size_reference;
+    DCHECK(wasm_memory_size_reference() <= old_size);
+    updated_size_reference =
+        new_size + (wasm_memory_size_reference() - old_size);
+    DCHECK(updated_size_reference <= new_size);
+    Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) =
+        updated_size_reference;
+  } else {
+    UNREACHABLE();
+  }
+}
 
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
                                               Register reg3, Register reg4) {
@@ -294,13 +316,11 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
 // Constant Pool.
 void ConstPool::RecordEntry(intptr_t data,
                             RelocInfo::Mode mode) {
-  DCHECK(mode != RelocInfo::COMMENT &&
-         mode != RelocInfo::POSITION &&
+  DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::POSITION &&
          mode != RelocInfo::STATEMENT_POSITION &&
-         mode != RelocInfo::CONST_POOL &&
-         mode != RelocInfo::VENEER_POOL &&
+         mode != RelocInfo::CONST_POOL && mode != RelocInfo::VENEER_POOL &&
          mode != RelocInfo::CODE_AGE_SEQUENCE &&
-         mode != RelocInfo::DEOPT_REASON);
+         mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
   if (IsEmpty()) {
@@ -2878,11 +2898,12 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
-      (rmode == RelocInfo::DEOPT_REASON) ||
+      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
       (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode) ||
-           RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsPosition(rmode) ||
+           RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
+           RelocInfo::IsPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode) ||
            RelocInfo::IsGeneratorContinuation(rmode));

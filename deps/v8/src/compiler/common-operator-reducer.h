@@ -36,7 +36,6 @@ class CommonOperatorReducer final : public AdvancedReducer {
   Reduction ReducePhi(Node* node);
   Reduction ReduceReturn(Node* node);
   Reduction ReduceSelect(Node* node);
-  Reduction ReduceGuard(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);

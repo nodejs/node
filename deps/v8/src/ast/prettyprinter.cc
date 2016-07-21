@@ -192,10 +192,11 @@ void CallPrinter::VisitForInStatement(ForInStatement* node) {
 
 
 void CallPrinter::VisitForOfStatement(ForOfStatement* node) {
-  Find(node->each());
   Find(node->assign_iterator());
-  Find(node->body());
   Find(node->next_result());
+  Find(node->result_done());
+  Find(node->assign_each());
+  Find(node->body());
 }
 
 
@@ -675,11 +676,37 @@ void PrettyPrinter::VisitForInStatement(ForInStatement* node) {
 
 
 void PrettyPrinter::VisitForOfStatement(ForOfStatement* node) {
+  // TODO(adamk): ForOf is largely desugared as part of parsing,
+  // so it's hard to display useful stuff here. Should likely
+  // either bite the bullet and display less or try harder
+  // to preserve more.
   PrintLabels(node->labels());
-  Print("for (");
-  Visit(node->each());
-  Print(" of ");
-  Visit(node->iterable());
+  // The <each> is embedded inside a do-expression by the time we get here.
+  Print("for (<each> of ");
+  if (node->assign_iterator()->IsAssignment() &&
+      node->assign_iterator()->AsAssignment()->value()->IsCall() &&
+      node->assign_iterator()
+          ->AsAssignment()
+          ->value()
+          ->AsCall()
+          ->expression()
+          ->IsProperty() &&
+      node->assign_iterator()
+          ->AsAssignment()
+          ->value()
+          ->AsCall()
+          ->expression()
+          ->IsProperty()) {
+    Visit(node->assign_iterator()
+              ->AsAssignment()
+              ->value()
+              ->AsCall()
+              ->expression()
+              ->AsProperty()
+              ->obj());
+  } else {
+    Print("<iterable>");
+  }
   Print(") ");
   Visit(node->body());
 }
@@ -1055,7 +1082,8 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     if (object->IsJSFunction()) {
       Print("JS-Function");
     } else if (object->IsJSArray()) {
-      Print("JS-array[%u]", JSArray::cast(object)->length());
+      Print("JS-array[%u]",
+            Smi::cast(JSArray::cast(object)->length())->value());
     } else if (object->IsJSObject()) {
       Print("JS-Object");
     } else {
@@ -1145,7 +1173,7 @@ void AstPrinter::PrintIndented(const char* txt) {
   for (int i = 0; i < indent_; i++) {
     Print(". ");
   }
-  Print(txt);
+  Print("%s", txt);
 }
 
 
@@ -1191,6 +1219,10 @@ void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
 const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   Init();
   { IndentedScope indent(this, "FUNC", program->position());
+    PrintIndented("KIND");
+    Print(" %d\n", program->kind());
+    PrintIndented("YIELD COUNT");
+    Print(" %d\n", program->yield_count());
     PrintLiteralIndented("NAME", program->name(), true);
     PrintLiteralIndented("INFERRED NAME", program->inferred_name(), true);
     PrintParameters(program->scope());
@@ -1359,6 +1391,8 @@ void AstPrinter::VisitCaseClause(CaseClause* clause) {
 
 void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   IndentedScope indent(this, "DO", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("BODY", node->body());
   PrintIndentedVisit("COND", node->cond());
@@ -1367,6 +1401,8 @@ void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
 
 void AstPrinter::VisitWhileStatement(WhileStatement* node) {
   IndentedScope indent(this, "WHILE", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
@@ -1375,6 +1411,8 @@ void AstPrinter::VisitWhileStatement(WhileStatement* node) {
 
 void AstPrinter::VisitForStatement(ForStatement* node) {
   IndentedScope indent(this, "FOR", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintLabelsIndented(node->labels());
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
@@ -1385,6 +1423,8 @@ void AstPrinter::VisitForStatement(ForStatement* node) {
 
 void AstPrinter::VisitForInStatement(ForInStatement* node) {
   IndentedScope indent(this, "FOR IN", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("IN", node->enumerable());
   PrintIndentedVisit("BODY", node->body());
@@ -1393,13 +1433,13 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 
 void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
   IndentedScope indent(this, "FOR OF", node->position());
-  PrintIndentedVisit("FOR", node->each());
-  PrintIndentedVisit("OF", node->iterable());
-  PrintIndentedVisit("BODY", node->body());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintIndentedVisit("INIT", node->assign_iterator());
   PrintIndentedVisit("NEXT", node->next_result());
-  PrintIndentedVisit("EACH", node->assign_each());
   PrintIndentedVisit("DONE", node->result_done());
+  PrintIndentedVisit("EACH", node->assign_each());
+  PrintIndentedVisit("BODY", node->body());
 }
 
 
@@ -1522,7 +1562,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   if (node->flags() & RegExp::kSticky) buf[i++] = 'y';
   buf[i] = '\0';
   PrintIndented("FLAGS ");
-  Print(buf.start());
+  Print("%s", buf.start());
   Print("\n");
 }
 
@@ -1594,7 +1634,9 @@ void AstPrinter::VisitAssignment(Assignment* node) {
 
 
 void AstPrinter::VisitYield(Yield* node) {
-  IndentedScope indent(this, "YIELD", node->position());
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "YIELD id %d", node->yield_id());
+  IndentedScope indent(this, buf.start(), node->position());
   Visit(node->expression());
 }
 

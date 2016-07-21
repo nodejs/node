@@ -126,6 +126,7 @@ namespace compiler {
   V(S390_LoadWordS16)              \
   V(S390_LoadWordU16)              \
   V(S390_LoadWordS32)              \
+  V(S390_LoadWordU32)              \
   V(S390_LoadWord64)               \
   V(S390_LoadFloat32)              \
   V(S390_LoadDouble)               \

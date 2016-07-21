@@ -12,8 +12,9 @@
 namespace v8 {
 namespace internal {
 
-class Variable;
+class CompilationInfo;
 class Scope;
+class Variable;
 
 namespace compiler {
 

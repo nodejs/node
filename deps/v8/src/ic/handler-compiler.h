@@ -19,7 +19,7 @@ enum ReturnHolder { RETURN_HOLDER, DONT_RETURN_ANYTHING };
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
  public:
   static Handle<Code> Find(Handle<Name> name, Handle<Map> map, Code::Kind kind,
-                           CacheHolderFlag cache_holder, Code::StubType type);
+                           CacheHolderFlag cache_holder);
 
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
@@ -98,7 +98,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            Handle<Name> name, Label* miss,
                            PrototypeCheckType check, ReturnHolder return_what);
 
-  Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
+  Handle<Code> GetCode(Code::Kind kind, Handle<Name> name);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
   Handle<Map> map() const { return map_; }
   void set_map(Handle<Map> map) { map_ = map; }

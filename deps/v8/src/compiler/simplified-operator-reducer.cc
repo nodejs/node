@@ -8,6 +8,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/conversions-inl.h"
 #include "src/type-cache.h"
 
@@ -31,34 +32,39 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsBooleanNot()) return Replace(m.InputAt(0));
       break;
     }
-    case IrOpcode::kChangeBitToBool: {
+    case IrOpcode::kChangeBitToTagged: {
       Int32Matcher m(node->InputAt(0));
       if (m.Is(0)) return Replace(jsgraph()->FalseConstant());
       if (m.Is(1)) return Replace(jsgraph()->TrueConstant());
-      if (m.IsChangeBoolToBit()) return Replace(m.InputAt(0));
+      if (m.IsChangeTaggedToBit()) return Replace(m.InputAt(0));
       break;
     }
-    case IrOpcode::kChangeBoolToBit: {
+    case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(m.Value()->BooleanValue());
-      if (m.IsChangeBitToBool()) return Replace(m.InputAt(0));
+      if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
     }
     case IrOpcode::kChangeFloat64ToTagged: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceNumber(m.Value());
+      if (m.IsChangeTaggedToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kChangeInt31ToTaggedSigned:
     case IrOpcode::kChangeInt32ToTagged: {
       Int32Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceNumber(m.Value());
+      if (m.IsChangeTaggedToInt32() || m.IsChangeTaggedSignedToInt32()) {
+        return Replace(m.InputAt(0));
+      }
       break;
     }
     case IrOpcode::kChangeTaggedToFloat64: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(m.Value());
       if (m.IsChangeFloat64ToTagged()) return Replace(m.node()->InputAt(0));
-      if (m.IsChangeInt32ToTagged()) {
+      if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged()) {
         return Change(node, machine()->ChangeInt32ToFloat64(), m.InputAt(0));
       }
       if (m.IsChangeUint32ToTagged()) {
@@ -72,7 +78,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat64ToTagged()) {
         return Change(node, machine()->ChangeFloat64ToInt32(), m.InputAt(0));
       }
-      if (m.IsChangeInt32ToTagged()) return Replace(m.InputAt(0));
+      if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged()) {
+        return Replace(m.InputAt(0));
+      }
       break;
     }
     case IrOpcode::kChangeTaggedToUint32: {
@@ -89,6 +97,18 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(FastUI2D(m.Value()));
       break;
     }
+    case IrOpcode::kTruncateTaggedToWord32: {
+      NumberMatcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
+      if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged() ||
+          m.IsChangeUint32ToTagged()) {
+        return Replace(m.InputAt(0));
+      }
+      if (m.IsChangeFloat64ToTagged()) {
+        return Change(node, machine()->TruncateFloat64ToWord32(), m.InputAt(0));
+      }
+      break;
+    }
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberRound:
@@ -102,6 +122,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
+    case IrOpcode::kTypeGuard:
+      return ReduceTypeGuard(node);
     default:
       break;
   }
@@ -124,6 +146,14 @@ Reduction SimplifiedOperatorReducer::ReduceReferenceEqual(Node* node) {
   return NoChange();
 }
 
+Reduction SimplifiedOperatorReducer::ReduceTypeGuard(Node* node) {
+  DCHECK_EQ(IrOpcode::kTypeGuard, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetTypeOrAny(input);
+  Type* const guard_type = TypeOf(node->op());
+  if (input_type->Is(guard_type)) return Replace(input);
+  return NoChange();
+}
 
 Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
                                             Node* a) {

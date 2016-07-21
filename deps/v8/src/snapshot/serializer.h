@@ -128,7 +128,7 @@ class Serializer : public SerializerDeserializer {
 
   Isolate* isolate() const { return isolate_; }
 
-  BackReferenceMap* back_reference_map() { return &back_reference_map_; }
+  SerializerReferenceMap* reference_map() { return &reference_map_; }
   RootIndexMap* root_index_map() { return &root_index_map_; }
 
 #ifdef OBJECT_PRINT
@@ -162,7 +162,10 @@ class Serializer : public SerializerDeserializer {
 
   void PutSmi(Smi* smi);
 
-  void PutBackReference(HeapObject* object, BackReference reference);
+  void PutBackReference(HeapObject* object, SerializerReference reference);
+
+  void PutAttachedReference(SerializerReference reference,
+                            HowToCode how_to_code, WhereToPoint where_to_point);
 
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject* object);
@@ -178,11 +181,11 @@ class Serializer : public SerializerDeserializer {
     }
   }
 
-  bool BackReferenceIsAlreadyAllocated(BackReference back_reference);
+  bool BackReferenceIsAlreadyAllocated(SerializerReference back_reference);
 
   // This will return the space for an object.
-  BackReference AllocateLargeObject(int size);
-  BackReference Allocate(AllocationSpace space, int size);
+  SerializerReference AllocateLargeObject(int size);
+  SerializerReference Allocate(AllocationSpace space, int size);
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
@@ -207,7 +210,7 @@ class Serializer : public SerializerDeserializer {
   SnapshotByteSink* sink() const { return sink_; }
 
   void QueueDeferredObject(HeapObject* obj) {
-    DCHECK(back_reference_map_.Lookup(obj).is_valid());
+    DCHECK(reference_map_.Lookup(obj).is_back_reference());
     deferred_objects_.Add(obj);
   }
 
@@ -218,7 +221,7 @@ class Serializer : public SerializerDeserializer {
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder external_reference_encoder_;
 
-  BackReferenceMap back_reference_map_;
+  SerializerReferenceMap reference_map_;
   RootIndexMap root_index_map_;
 
   int recursion_depth_;

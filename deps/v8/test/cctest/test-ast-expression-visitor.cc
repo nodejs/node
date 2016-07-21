@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <stdlib.h>
+#include <map>
 
 #include "src/v8.h"
 
@@ -19,39 +20,25 @@ using namespace v8::internal;
 
 namespace {
 
-static void CollectTypes(HandleAndZoneScope* handles, const char* source,
-                         ZoneVector<ExpressionTypeEntry>* dst) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
+class NodeTypeCounter : public AstExpressionVisitor {
+ public:
+  typedef std::map<AstNode::NodeType, int> Counters;
 
-  i::Handle<i::String> source_code =
-      factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
+  NodeTypeCounter(Isolate* isolate, Expression* expr, Counters* counts)
+      : AstExpressionVisitor(isolate, expr), counts_(counts) {}
 
-  i::Handle<i::Script> script = factory->NewScript(source_code);
+ protected:
+  void VisitExpression(Expression* expr) override {
+    (*counts_)[expr->node_type()]++;
+  }
 
-  i::ParseInfo info(handles->main_zone(), script);
-  i::Parser parser(&info);
-  parser.set_allow_harmony_sloppy(true);
-  info.set_global();
-  info.set_lazy(false);
-  info.set_allow_lazy_parsing(false);
-  info.set_toplevel(true);
-
-  CHECK(i::Compiler::ParseAndAnalyze(&info));
-
-  ExpressionTypeCollector(
-      isolate,
-      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun(), dst)
-      .Run();
-}
+ private:
+  Counters* counts_;
+};
 
 }  // namespace
 
-
-TEST(VisitExpressions) {
-  v8::V8::Initialize();
-  HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+TEST(VisitExpression) {
   const char test_function[] =
       "function GeometricMean(stdlib, foreign, buffer) {\n"
       "  \"use asm\";\n"
@@ -85,339 +72,31 @@ TEST(VisitExpressions) {
       "  return { geometricMean: geometricMean };\n"
       "}\n";
 
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    // function logSum
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-      CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(start, Bounds::Unbounded());
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(start, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-        }
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(end, Bounds::Unbounded());
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(end, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-        }
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(sum, Bounds::Unbounded());
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(p, Bounds::Unbounded());
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(q, Bounds::Unbounded());
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-        // for (p = start << 3, q = end << 3;
-        CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-          CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-            CHECK_VAR(p, Bounds::Unbounded());
-            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-              CHECK_VAR(start, Bounds::Unbounded());
-              CHECK_EXPR(Literal, Bounds::Unbounded());
-            }
-          }
-          CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-            CHECK_VAR(q, Bounds::Unbounded());
-            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-              CHECK_VAR(end, Bounds::Unbounded());
-              CHECK_EXPR(Literal, Bounds::Unbounded());
-            }
-          }
-        }
-        // (p|0) < (q|0);
-        CHECK_EXPR(CompareOperation, Bounds::Unbounded()) {
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(p, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(q, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-        }
-        // p = (p + 8)|0) {\n"
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(p, Bounds::Unbounded());
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-              CHECK_VAR(p, Bounds::Unbounded());
-              CHECK_EXPR(Literal, Bounds::Unbounded());
-            }
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-        }
-        // sum = sum + +log(values[p>>3]);
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(sum, Bounds::Unbounded());
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(sum, Bounds::Unbounded());
-            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-              CHECK_EXPR(Call, Bounds::Unbounded()) {
-                CHECK_VAR(log, Bounds::Unbounded());
-                CHECK_EXPR(Property, Bounds::Unbounded()) {
-                  CHECK_VAR(values, Bounds::Unbounded());
-                  CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-                    CHECK_VAR(p, Bounds::Unbounded());
-                    CHECK_EXPR(Literal, Bounds::Unbounded());
-                  }
-                }
-              }
-              CHECK_EXPR(Literal, Bounds::Unbounded());
-            }
-          }
-        }
-        // return +sum;
-        CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-          CHECK_VAR(sum, Bounds::Unbounded());
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-      }
-      // function geometricMean
-      CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(start, Bounds::Unbounded());
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(start, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-        }
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(end, Bounds::Unbounded());
-          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-            CHECK_VAR(end, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-        }
-        // return +exp(+logSum(start, end) / +((end - start)|0));
-        CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-          CHECK_EXPR(Call, Bounds::Unbounded()) {
-            CHECK_VAR(exp, Bounds::Unbounded());
-            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-              CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-                CHECK_EXPR(Call, Bounds::Unbounded()) {
-                  CHECK_VAR(logSum, Bounds::Unbounded());
-                  CHECK_VAR(start, Bounds::Unbounded());
-                  CHECK_VAR(end, Bounds::Unbounded());
-                }
-                CHECK_EXPR(Literal, Bounds::Unbounded());
-              }
-              CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-                CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-                  CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-                    CHECK_VAR(end, Bounds::Unbounded());
-                    CHECK_VAR(start, Bounds::Unbounded());
-                  }
-                  CHECK_EXPR(Literal, Bounds::Unbounded());
-                }
-                CHECK_EXPR(Literal, Bounds::Unbounded());
-              }
-            }
-          }
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-      }
-      // "use asm";
-      CHECK_EXPR(Literal, Bounds::Unbounded());
-      // var exp = stdlib.Math.exp;
-      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-        CHECK_VAR(exp, Bounds::Unbounded());
-        CHECK_EXPR(Property, Bounds::Unbounded()) {
-          CHECK_EXPR(Property, Bounds::Unbounded()) {
-            CHECK_VAR(stdlib, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-      }
-      // var log = stdlib.Math.log;
-      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-        CHECK_VAR(log, Bounds::Unbounded());
-        CHECK_EXPR(Property, Bounds::Unbounded()) {
-          CHECK_EXPR(Property, Bounds::Unbounded()) {
-            CHECK_VAR(stdlib, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-      }
-      // var values = new stdlib.Float64Array(buffer);
-      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-        CHECK_VAR(values, Bounds::Unbounded());
-        CHECK_EXPR(CallNew, Bounds::Unbounded()) {
-          CHECK_EXPR(Property, Bounds::Unbounded()) {
-            CHECK_VAR(stdlib, Bounds::Unbounded());
-            CHECK_EXPR(Literal, Bounds::Unbounded());
-          }
-          CHECK_VAR(buffer, Bounds::Unbounded());
-        }
-      }
-      // return { geometricMean: geometricMean };
-      CHECK_EXPR(ObjectLiteral, Bounds::Unbounded()) {
-        CHECK_VAR(geometricMean, Bounds::Unbounded());
-      }
-    }
-  }
-  CHECK_TYPES_END
-}
-
-
-TEST(VisitConditional) {
+  // Parse + compile test_function, and extract the AST node for it.
   v8::V8::Initialize();
   HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  // Check that traversing the ternary operator works.
-  const char test_function[] =
-      "function foo() {\n"
-      "  var a, b, c;\n"
-      "  var x = a ? b : c;\n"
-      "}\n";
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-        CHECK_VAR(x, Bounds::Unbounded());
-        CHECK_EXPR(Conditional, Bounds::Unbounded()) {
-          CHECK_VAR(a, Bounds::Unbounded());
-          CHECK_VAR(b, Bounds::Unbounded());
-          CHECK_VAR(c, Bounds::Unbounded());
-        }
-      }
-    }
-  }
-  CHECK_TYPES_END
-}
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Handle<i::String> source_code =
+      isolate->factory()
+          ->NewStringFromUtf8(i::CStrVector(test_function))
+          .ToHandleChecked();
+  i::Handle<i::Script> script = isolate->factory()->NewScript(source_code);
+  i::ParseInfo info(handles.main_zone(), script);
+  i::Parser parser(&info);
+  info.set_global();
+  info.set_lazy(false);
+  info.set_allow_lazy_parsing(false);
+  info.set_toplevel(true);
+  CHECK(i::Compiler::ParseAndAnalyze(&info));
+  Expression* test_function_expr =
+      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
 
-
-TEST(VisitEmptyForStatment) {
-  v8::V8::Initialize();
-  HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  // Check that traversing an empty for statement works.
-  const char test_function[] =
-      "function foo() {\n"
-      "  for (;;) {}\n"
-      "}\n";
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {}
-  }
-  CHECK_TYPES_END
-}
-
-
-TEST(VisitSwitchStatment) {
-  v8::V8::Initialize();
-  HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  // Check that traversing a switch with a default works.
-  const char test_function[] =
-      "function foo() {\n"
-      "  switch (0) { case 1: break; default: break; }\n"
-      "}\n";
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-        CHECK_VAR(.switch_tag, Bounds::Unbounded());
-        CHECK_EXPR(Literal, Bounds::Unbounded());
-      }
-      CHECK_EXPR(Literal, Bounds::Unbounded());
-      CHECK_VAR(.switch_tag, Bounds::Unbounded());
-      CHECK_EXPR(Literal, Bounds::Unbounded());
-    }
-  }
-  CHECK_TYPES_END
-}
-
-
-TEST(VisitThrow) {
-  v8::V8::Initialize();
-  HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  const char test_function[] =
-      "function foo() {\n"
-      "  throw 123;\n"
-      "}\n";
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-      CHECK_EXPR(Throw, Bounds::Unbounded()) {
-        CHECK_EXPR(Literal, Bounds::Unbounded());
-      }
-    }
-  }
-  CHECK_TYPES_END
-}
-
-
-TEST(VisitYield) {
-  v8::V8::Initialize();
-  HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  const char test_function[] =
-      "function* foo() {\n"
-      "  yield 123;\n"
-      "}\n";
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-      // Implicit initial yield
-      CHECK_EXPR(Yield, Bounds::Unbounded()) {
-        CHECK_VAR(.generator_object, Bounds::Unbounded());
-        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
-          CHECK_VAR(.generator_object, Bounds::Unbounded());
-          CHECK_EXPR(CallRuntime, Bounds::Unbounded());
-        }
-      }
-      // Explicit yield (argument wrapped with CreateIterResultObject)
-      CHECK_EXPR(Yield, Bounds::Unbounded()) {
-        CHECK_VAR(.generator_object, Bounds::Unbounded());
-        CHECK_EXPR(CallRuntime, Bounds::Unbounded()) {
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-          CHECK_EXPR(Literal, Bounds::Unbounded());
-        }
-      }
-      // Argument to implicit final return
-      CHECK_EXPR(CallRuntime, Bounds::Unbounded()) {  // CreateIterResultObject
-        CHECK_EXPR(Literal, Bounds::Unbounded());
-        CHECK_EXPR(Literal, Bounds::Unbounded());
-      }
-      // Implicit finally clause
-      CHECK_EXPR(CallRuntime, Bounds::Unbounded()) {
-        CHECK_VAR(.generator_object, Bounds::Unbounded());
-      }
-    }
-  }
-  CHECK_TYPES_END
-}
-
-
-TEST(VisitSkipping) {
-  v8::V8::Initialize();
-  HandleAndZoneScope handles;
-  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  const char test_function[] =
-      "function foo(x) {\n"
-      "  return (x + x) + 1;\n"
-      "}\n";
-  CollectTypes(&handles, test_function, &types);
-  CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
-      CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
-        // Skip x + x
-        CHECK_SKIP();
-        CHECK_EXPR(Literal, Bounds::Unbounded());
-      }
-    }
-  }
-  CHECK_TYPES_END
+  // Run NodeTypeCounter and sanity check counts for 3 expression types,
+  // and for overall # of types found.
+  NodeTypeCounter::Counters counts;
+  NodeTypeCounter(isolate, test_function_expr, &counts).Run();
+  CHECK_EQ(21, counts[AstNode::kBinaryOperation]);
+  CHECK_EQ(26, counts[AstNode::kLiteral]);
+  CHECK_EQ(3, counts[AstNode::kFunctionLiteral]);
+  CHECK_EQ(10, counts.size());
 }

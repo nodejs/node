@@ -16,9 +16,9 @@ namespace {
 void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
   StackTraceFrameIterator it(CcTest::i_isolate());
   int frames_seen = 0;
-  JavaScriptFrame* topmost = it.frame();
+  JavaScriptFrame* topmost = it.javascript_frame();
   while (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
+    JavaScriptFrame* frame = it.javascript_frame();
     List<JSFunction*> functions(2);
     frame->GetFunctions(&functions);
     PrintF("%d %s, inline count: %d\n", frames_seen,
@@ -47,14 +47,11 @@ void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
             .FromJust());
 }
 
-
 const uint32_t kRestrictedInliningFlags =
-    CompilationInfo::kFunctionContextSpecializing |
-    CompilationInfo::kTypingEnabled;
+    CompilationInfo::kFunctionContextSpecializing;
 
 const uint32_t kInlineFlags = CompilationInfo::kInliningEnabled |
-                              CompilationInfo::kFunctionContextSpecializing |
-                              CompilationInfo::kTypingEnabled;
+                              CompilationInfo::kFunctionContextSpecializing;
 
 }  // namespace
 

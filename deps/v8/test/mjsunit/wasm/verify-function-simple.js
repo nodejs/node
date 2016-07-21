@@ -8,9 +8,9 @@ load("test/mjsunit/wasm/wasm-constants.js");
 
 try {
   var data = bytes(
-      0,       kAstStmt,  // signature
-      kDeclNoLocals,      // --
-      kExprNop            // body
+      kWasmFunctionTypeForm, 0, kAstStmt,  // signature
+      kDeclNoLocals,                       // --
+      kExprNop                             // body
   );
 
   Wasm.verifyFunction(data);
@@ -23,9 +23,9 @@ try {
 var threw = false;
 try {
   var data = bytes(
-      0,       kAstI32,   // signature
-      kDeclNoLocals,      // --
-      kExprBlock, 2, kExprNop, kExprNop  // body
+      kWasmFunctionTypeForm, 0, 1, kAstI32,     // signature
+      kDeclNoLocals,                            // --
+      kExprBlock, kExprNop, kExprNop, kExprEnd  // body
   );
 
   Wasm.verifyFunction(data);

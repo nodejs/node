@@ -20,11 +20,6 @@ class CodeSerializer : public Serializer {
   MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
-  static const int kSourceObjectIndex = 0;
-  STATIC_ASSERT(kSourceObjectReference == kSourceObjectIndex);
-
-  static const int kCodeStubsBaseIndex = 1;
-
   String* source() const {
     DCHECK(!AllowHeapAllocation::IsAllowed());
     return source_;
@@ -35,7 +30,7 @@ class CodeSerializer : public Serializer {
  private:
   CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source)
       : Serializer(isolate, sink), source_(source) {
-    back_reference_map_.AddSourceString(source);
+    reference_map_.AddAttachedReference(source);
   }
 
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
@@ -45,13 +40,10 @@ class CodeSerializer : public Serializer {
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
-  void SerializeIC(Code* ic, HowToCode how_to_code,
-                   WhereToPoint where_to_point);
-  void SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
+  void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
                         WhereToPoint where_to_point);
-  int AddCodeStubKey(uint32_t stub_key);
 
   DisallowHeapAllocation no_gc_;
   String* source_;

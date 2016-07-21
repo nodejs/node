@@ -204,7 +204,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new backing store.
   __ bind(&new_backing_store);
   __ leap(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
-  __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  __ Allocate(rdi, r14, r11, r15, fail, NO_ALLOCATION_FLAGS);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
   __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
@@ -296,7 +296,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // r8 : source FixedDoubleArray
   // r9 : number of elements
   __ leap(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
+  __ Allocate(rdi, r11, r14, r15, &gc_required, NO_ALLOCATION_FLAGS);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
   __ movp(FieldOperand(r11, HeapObject::kMapOffset), rdi);

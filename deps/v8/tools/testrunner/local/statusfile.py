@@ -36,6 +36,7 @@ TIMEOUT = "TIMEOUT"
 CRASH = "CRASH"
 SLOW = "SLOW"
 FAST_VARIANTS = "FAST_VARIANTS"
+NO_IGNITION = "NO_IGNITION"
 NO_VARIANTS = "NO_VARIANTS"
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = "FAIL_OK"
@@ -46,7 +47,8 @@ ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
 for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FAIL_OK,
-            FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, FAIL_SLOPPY, ALWAYS]:
+            FAST_VARIANTS, NO_IGNITION, NO_VARIANTS, PASS_OR_FAIL, FAIL_SLOPPY,
+            ALWAYS]:
   KEYWORDS[key] = key
 
 DEFS = {FAIL_OK: [FAIL, OKAY],
@@ -68,6 +70,10 @@ def DoSkip(outcomes):
 
 def IsSlow(outcomes):
   return SLOW in outcomes
+
+
+def NoIgnitionVariant(outcomes):
+  return NO_IGNITION in outcomes
 
 
 def OnlyStandardVariant(outcomes):

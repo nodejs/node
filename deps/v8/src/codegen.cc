@@ -162,16 +162,15 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
         info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
                                code->kind() == Code::FUNCTION);
     if (print_source) {
-      FunctionLiteral* literal = info->literal();
+      Handle<SharedFunctionInfo> shared = info->shared_info();
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(String::cast(script->source()),
-                                     literal->start_position());
+                                     shared->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
-        int source_len =
-            literal->end_position() - literal->start_position() + 1;
+        int source_len = shared->end_position() - shared->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
             os << AsReversiblyEscapedUC16(stream.GetNext());
@@ -191,8 +190,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       os << "--- Code ---\n";
     }
     if (print_source) {
-      FunctionLiteral* literal = info->literal();
-      os << "source_position = " << literal->start_position() << "\n";
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      os << "source_position = " << shared->start_position() << "\n";
     }
     code->Disassemble(debug_name.get(), os);
     os << "--- End code ---\n";

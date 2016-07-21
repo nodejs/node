@@ -17,9 +17,11 @@
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/compiler/zone-pool.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -159,18 +161,41 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
-  int AddFunction(FunctionSig* sig, Handle<Code> code) {
+  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code) {
     if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
       // structs from moving.
       module->functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module->functions.push_back(
-        {sig, index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false});
+    module->functions.push_back({sig, index, 0, 0, 0, 0, 0, false});
     instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
+  }
+
+  uint32_t AddJsFunction(FunctionSig* sig, const char* source) {
+    Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
+    uint32_t index = AddFunction(sig, Handle<Code>::null());
+    Isolate* isolate = module->shared_isolate;
+    WasmName module_name = ArrayVector("test");
+    WasmName function_name;
+    Handle<Code> code = CompileWasmToJSWrapper(isolate, this, jsfunc, sig,
+                                               module_name, function_name);
+    instance->function_code[index] = code;
+    return index;
+  }
+
+  Handle<JSFunction> WrapCode(uint32_t index) {
+    Isolate* isolate = module->shared_isolate;
+    // Wrap the code so it can be called as a JS function.
+    Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
+    Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
+    Handle<Code> code = instance->function_code[index];
+    WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
+    return compiler::CompileJSToWasmWrapper(isolate, this, name, code,
+                                            module_object, index);
   }
 
   void SetFunctionCode(uint32_t index, Handle<Code> code) {
@@ -218,9 +243,10 @@ class TestingModule : public ModuleEnv {
 };
 
 inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
-                              FunctionSig* sig, const byte* start,
-                              const byte* end) {
-  compiler::WasmGraphBuilder builder(zone, jsgraph, sig);
+                              FunctionSig* sig,
+                              SourcePositionTable* source_position_table,
+                              const byte* start, const byte* end) {
+  compiler::WasmGraphBuilder builder(zone, jsgraph, sig, source_position_table);
   TreeResult result =
       BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
@@ -356,7 +382,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
         r.LowerGraph();
       }
 
-      CompilationInfo info("testing", isolate, graph()->zone());
+      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone());
       code_ =
           Pipeline::GenerateCodeForTesting(&info, descriptor, graph(), nullptr);
       CHECK(!code_.is_null());
@@ -386,13 +412,18 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
 class WasmFunctionCompiler : public HandleAndZoneScope,
                              private GraphAndBuilders {
  public:
-  explicit WasmFunctionCompiler(FunctionSig* sig, TestingModule* module)
+  explicit WasmFunctionCompiler(
+      FunctionSig* sig, TestingModule* module,
+      Vector<const char> debug_name = ArrayVector("<WASM UNNAMED>"))
       : GraphAndBuilders(main_zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
         sig(sig),
         descriptor_(nullptr),
-        testing_module_(module) {
+        testing_module_(module),
+        debug_name_(debug_name),
+        local_decls(main_zone(), sig),
+        source_position_table_(this->graph()) {
     if (module) {
       // Get a new function from the testing module.
       function_ = nullptr;
@@ -414,9 +445,11 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModule* testing_module_;
+  Vector<const char> debug_name_;
   WasmFunction* function_;
   int function_index_;
   LocalDeclEncoder local_decls;
+  SourcePositionTable source_position_table_;
 
   Isolate* isolate() { return main_isolate(); }
   Graph* graph() const { return main_graph_; }
@@ -433,12 +466,13 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   void Build(const byte* start, const byte* end) {
     // Build the TurboFan graph.
     local_decls.Prepend(&start, &end);
-    TestBuildingGraph(main_zone(), &jsgraph, testing_module_, sig, start, end);
+    TestBuildingGraph(main_zone(), &jsgraph, testing_module_, sig,
+                      &source_position_table_, start, end);
     delete[] start;
   }
 
   byte AllocateLocal(LocalType type) {
-    uint32_t index = local_decls.AddLocals(1, type, sig);
+    uint32_t index = local_decls.AddLocals(1, type);
     byte result = static_cast<byte>(index);
     DCHECK_EQ(index, result);
     return result;
@@ -450,17 +484,34 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     if (kPointerSize == 4) {
       desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
-    CompilationInfo info("wasm compile", this->isolate(), this->zone());
-    Handle<Code> result =
-        Pipeline::GenerateCodeForTesting(&info, desc, this->graph());
+    CompilationInfo info(debug_name_, this->isolate(), this->zone(),
+                         Code::ComputeFlags(Code::WASM_FUNCTION));
+    v8::base::SmartPointer<CompilationJob> job(Pipeline::NewWasmCompilationJob(
+        &info, graph(), desc, &source_position_table_));
+    if (job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
+        job->GenerateCode() != CompilationJob::SUCCEEDED)
+      return Handle<Code>::null();
+
+    Handle<Code> code = info.code();
+
+    // Length is always 2, since usually <wasm_obj, func_index> is stored in the
+    // deopt data. Here, we only store the function index.
+    DCHECK(code->deoptimization_data() == nullptr ||
+           code->deoptimization_data()->length() == 0);
+    Handle<FixedArray> deopt_data =
+        isolate()->factory()->NewFixedArray(2, TENURED);
+    deopt_data->set(1, Smi::FromInt(function_index_));
+    deopt_data->set_length(2);
+    code->set_deoptimization_data(*deopt_data);
+
 #ifdef ENABLE_DISASSEMBLER
-    if (!result.is_null() && FLAG_print_opt_code) {
+    if (FLAG_print_opt_code) {
       OFStream os(stdout);
-      result->Disassemble("wasm code", os);
+      code->Disassemble("wasm code", os);
     }
 #endif
 
-    return result;
+    return code;
   }
 
   uint32_t CompileAndAdd(uint16_t sig_index = 0) {
@@ -474,6 +525,16 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   WasmFunction* function() {
     if (function_) return function_;
     return &testing_module_->module->functions[function_index_];
+  }
+
+  // Set the context, such that e.g. runtime functions can be called.
+  void SetModuleContext() {
+    if (!testing_module_->instance->context.is_null()) {
+      CHECK(testing_module_->instance->context.is_identical_to(
+          main_isolate()->native_context()));
+      return;
+    }
+    testing_module_->instance->context = main_isolate()->native_context();
   }
 };
 
@@ -596,6 +657,15 @@ class WasmRunner {
     return 4;
   }
 };
+
+// A macro to define tests that run in different engine configurations.
+// Currently only supports compiled tests, but a future
+// RunWasmInterpreted_##name version will allow each test to also run in the
+// interpreter.
+#define WASM_EXEC_TEST(name)                         \
+  void RunWasm_##name();                             \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(); } \
+  void RunWasm_##name()
 
 }  // namespace
 

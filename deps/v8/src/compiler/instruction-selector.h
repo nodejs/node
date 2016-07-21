@@ -247,7 +247,6 @@ class InstructionSelector final {
 #undef DECLARE_GENERATOR
 
   void VisitFinishRegion(Node* node);
-  void VisitGuard(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
   void VisitOsrValue(Node* node);

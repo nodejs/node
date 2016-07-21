@@ -81,18 +81,12 @@ class ElementsAccessor {
   // whose PropertyAttribute match |filter|.
   virtual void CollectElementIndices(Handle<JSObject> object,
                                      Handle<FixedArrayBase> backing_store,
-                                     KeyAccumulator* keys,
-                                     uint32_t range = kMaxUInt32,
-                                     PropertyFilter filter = ALL_PROPERTIES,
-                                     uint32_t offset = 0) = 0;
+                                     KeyAccumulator* keys) = 0;
 
   inline void CollectElementIndices(Handle<JSObject> object,
-                                    KeyAccumulator* keys,
-                                    uint32_t range = kMaxUInt32,
-                                    PropertyFilter filter = ALL_PROPERTIES,
-                                    uint32_t offset = 0) {
-    CollectElementIndices(object, handle(object->elements()), keys, range,
-                          filter, offset);
+                                    KeyAccumulator* keys) {
+    CollectElementIndices(object, handle(object->elements(), keys->isolate()),
+                          keys);
   }
 
   virtual Maybe<bool> CollectValuesOrEntries(
@@ -100,7 +94,6 @@ class ElementsAccessor {
       Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
       PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  //
   virtual Handle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
       Handle<FixedArray> keys, GetKeysConversion convert,
@@ -135,7 +128,7 @@ class ElementsAccessor {
                    uint32_t new_capacity) = 0;
 
   static Handle<JSArray> Concat(Isolate* isolate, Arguments* args,
-                                uint32_t concat_size);
+                                uint32_t concat_size, uint32_t result_length);
 
   virtual uint32_t Push(Handle<JSArray> receiver, Arguments* args,
                         uint32_t push_size) = 0;

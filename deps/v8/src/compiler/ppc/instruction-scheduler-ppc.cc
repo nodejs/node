@@ -113,6 +113,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadWordS16:
     case kPPC_LoadWordU16:
     case kPPC_LoadWordS32:
+    case kPPC_LoadWordU32:
     case kPPC_LoadWord64:
     case kPPC_LoadFloat32:
     case kPPC_LoadDouble:

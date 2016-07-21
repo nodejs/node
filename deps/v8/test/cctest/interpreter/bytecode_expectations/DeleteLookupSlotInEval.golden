@@ -23,12 +23,12 @@ frame size: 1
 parameter count: 1
 bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(LdaConstant), U8(0),
-  B(Star), R(0),
-  B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
-  B(LdaUndefined),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaConstant), U8(0),
+                B(Star), R(0),
+                B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
+                B(LdaUndefined),
+  /*   25 S> */ B(Return),
 ]
 constant pool: [
   "x",
@@ -51,9 +51,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 3
 bytecodes: [
-  B(StackCheck),
-  B(LdaFalse),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaFalse),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -75,11 +75,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 11
 bytecodes: [
-  B(StackCheck),
-  B(LdaConstant), U8(0),
-  B(Star), R(0),
-  B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaConstant), U8(0),
+                B(Star), R(0),
+                B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
   "z",

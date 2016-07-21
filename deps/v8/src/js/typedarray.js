@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var AddIndexedProperty;
 // array.js has to come before typedarray.js for this to work
 var ArrayToString = utils.ImportNow("ArrayToString");
 var ArrayValues;
@@ -22,7 +21,6 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
 var InnerArrayCopyWithin;
 var InnerArrayEvery;
 var InnerArrayFill;
@@ -71,7 +69,6 @@ endmacro
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
 utils.Import(function(from) {
-  AddIndexedProperty = from.AddIndexedProperty;
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;

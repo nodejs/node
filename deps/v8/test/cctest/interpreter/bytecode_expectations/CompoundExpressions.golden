@@ -15,15 +15,15 @@ frame size: 2
 parameter count: 1
 bytecode array length: 15
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LdaSmi), U8(2),
-  B(Add), R(1),
-  B(Star), R(0),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   45 S> */ B(Star), R(1),
+                B(LdaSmi), U8(2),
+                B(Add), R(1),
+  /*   47 E> */ B(Star), R(0),
+                B(LdaUndefined),
+  /*   53 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -38,15 +38,15 @@ frame size: 2
 parameter count: 1
 bytecode array length: 15
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LdaSmi), U8(2),
-  B(Div), R(1),
-  B(Star), R(0),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   45 S> */ B(Star), R(1),
+                B(LdaSmi), U8(2),
+                B(Div), R(1),
+  /*   47 E> */ B(Star), R(0),
+                B(LdaUndefined),
+  /*   53 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -61,18 +61,18 @@ frame size: 3
 parameter count: 1
 bytecode array length: 27
 bytecodes: [
-  B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
-  B(Star), R(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LoadIC), R(1), U8(1), U8(1),
-  B(Star), R(2),
-  B(LdaSmi), U8(2),
-  B(Mul), R(2),
-  B(StoreICSloppy), R(1), U8(1), U8(3),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
+                B(Star), R(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   54 S> */ B(Star), R(1),
+                B(LoadIC), R(1), U8(1), U8(1),
+                B(Star), R(2),
+                B(LdaSmi), U8(2),
+                B(Mul), R(2),
+  /*   61 E> */ B(StoreICSloppy), R(1), U8(1), U8(3),
+                B(LdaUndefined),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -89,20 +89,20 @@ frame size: 4
 parameter count: 1
 bytecode array length: 30
 bytecodes: [
-  B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
-  B(Star), R(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LdaSmi), U8(1),
-  B(Star), R(2),
-  B(KeyedLoadIC), R(1), U8(1),
-  B(Star), R(3),
-  B(LdaSmi), U8(2),
-  B(BitwiseXor), R(3),
-  B(KeyedStoreICSloppy), R(1), R(2), U8(3),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
+                B(Star), R(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   52 S> */ B(Star), R(1),
+                B(LdaSmi), U8(1),
+                B(Star), R(2),
+                B(KeyedLoadIC), R(1), U8(1),
+                B(Star), R(3),
+                B(LdaSmi), U8(2),
+                B(BitwiseXor), R(3),
+  /*   57 E> */ B(KeyedStoreICSloppy), R(1), R(2), U8(3),
+                B(LdaUndefined),
+  /*   63 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -118,19 +118,19 @@ frame size: 2
 parameter count: 1
 bytecode array length: 30
 bytecodes: [
-  B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
-  B(PushContext), R(0),
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(StaContextSlot), R(context), U8(4),
-  B(CreateClosure), U8(0), U8(0),
-  B(LdaContextSlot), R(context), U8(4),
-  B(Star), R(1),
-  B(LdaSmi), U8(24),
-  B(BitwiseOr), R(1),
-  B(StaContextSlot), R(context), U8(4),
-  B(LdaUndefined),
-  B(Return),
+                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(PushContext), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   45 S> */ B(CreateClosure), U8(0), U8(0),
+  /*   75 S> */ B(LdaContextSlot), R(context), U8(4),
+                B(Star), R(1),
+                B(LdaSmi), U8(24),
+                B(BitwiseOr), R(1),
+  /*   77 E> */ B(StaContextSlot), R(context), U8(4),
+                B(LdaUndefined),
+  /*   84 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::SHARED_FUNCTION_INFO_TYPE,

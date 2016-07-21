@@ -40,11 +40,13 @@ class HotObjectsList {
   }
 
   void Add(HeapObject* object) {
+    DCHECK(!AllowHeapAllocation::IsAllowed());
     circular_queue_[index_] = object;
     index_ = (index_ + 1) & kSizeMask;
   }
 
   HeapObject* Get(int index) {
+    DCHECK(!AllowHeapAllocation::IsAllowed());
     DCHECK_NOT_NULL(circular_queue_[index]);
     return circular_queue_[index];
   }
@@ -52,6 +54,7 @@ class HotObjectsList {
   static const int kNotFound = -1;
 
   int Find(HeapObject* object) {
+    DCHECK(!AllowHeapAllocation::IsAllowed());
     for (int i = 0; i < kSize; i++) {
       if (circular_queue_[i] == object) return i;
     }
@@ -210,12 +213,6 @@ class SerializerDeserializer : public ObjectVisitor {
 
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;
-
-  // Used as index for the attached reference representing the source object.
-  static const int kSourceObjectReference = 0;
-
-  // Used as index for the attached reference representing the global proxy.
-  static const int kGlobalProxyReference = 0;
 
   // ---------- member variable ----------
   HotObjectsList hot_objects_;

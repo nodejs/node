@@ -73,7 +73,11 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
 
 
 Handle<JSGlobalObject> Isolate::global_object() {
-  return Handle<JSGlobalObject>(context()->global_object(), this);
+  return handle(context()->global_object(), this);
+}
+
+Handle<JSObject> Isolate::global_proxy() {
+  return handle(context()->global_proxy(), this);
 }
 
 
@@ -111,9 +115,15 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->species_protector();
+  Cell* species_cell = heap()->species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::cast(species_cell->value())->value() == kArrayProtectorValid;
+}
+
+bool Isolate::IsHasInstanceLookupChainIntact() {
+  if (!FLAG_harmony_instanceof) return true;
+  PropertyCell* has_instance_cell = heap()->has_instance_protector();
+  return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
 }
 
 }  // namespace internal

@@ -1,7 +1,6 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 (function testArrayConcatArity() {
   "use strict";
   assertEquals(1, Array.prototype.concat.length);
@@ -20,6 +19,15 @@
   assertEquals(false, desc.enumerable);
 })();
 
+(function testNonConcatSpreadableArray() {
+  "use strict"
+  var array = [1, 2, 3];
+  assertEquals(array, [].concat(array));
+  assertEquals(array, array.concat([]));
+  array[Symbol.isConcatSpreadable] = false;
+  assertEquals([[1,2,3]], [].concat(array));
+  assertEquals([[1,2,3]], array.concat([]));
+})();
 
 (function testConcatArrayLike() {
   "use strict";

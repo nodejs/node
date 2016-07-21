@@ -28,7 +28,6 @@ std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code) {
   return os;
 }
 
-
 void ErrorThrower::Error(const char* format, ...) {
   if (error_) return;  // only report the first error.
   error_ = true;

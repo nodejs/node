@@ -467,23 +467,10 @@ try {
 }
 
 
-// Test runtime calls to DefineDataPropertyUnchecked and
-// DefineAccessorPropertyUnchecked - make sure we don't
+// Test runtime calls to DefineAccessorPropertyUnchecked - make sure we don't
 // crash.
 try {
   %DefineAccessorPropertyUnchecked(0, 0, 0, 0, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked(0, 0, 0, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked(null, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
@@ -494,22 +481,10 @@ try {
   assertTrue(/illegal access/.test(e));
 }
 
-try {
-  %DefineDataPropertyUnchecked({}, null, null, null);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
 // Defining properties null should fail even when we have
 // other allowed values
 try {
   %DefineAccessorPropertyUnchecked(null, 'foo', func, null, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked(null, 'foo', 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }

@@ -586,7 +586,7 @@ void MipsDebugger::Debug() {
         }
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d",
+          PrintF("  0x%08" PRIxPTR ":  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
@@ -649,8 +649,8 @@ void MipsDebugger::Debug() {
 
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n",
-              reinterpret_cast<intptr_t>(cur), buffer.start());
+          PrintF("  0x%08" PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(cur),
+                 buffer.start());
           cur += Instruction::kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -771,8 +771,8 @@ void MipsDebugger::Debug() {
 
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n",
-                 reinterpret_cast<intptr_t>(cur), buffer.start());
+          PrintF("  0x%08" PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(cur),
+                 buffer.start());
           cur += Instruction::kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
@@ -1786,12 +1786,12 @@ void Simulator::TraceMemWr(int32_t addr, int32_t value, TraceType t) {
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
   if (addr >=0 && addr < 0x400) {
     // This has to be a NULL-dereference, drop into debugger.
-    PrintF("Memory read from bad address: 0x%08x, pc=0x%08x\n",
-           addr, reinterpret_cast<intptr_t>(instr));
+    PrintF("Memory read from bad address: 0x%08x, pc=0x%08" PRIxPTR "\n", addr,
+           reinterpret_cast<intptr_t>(instr));
     MipsDebugger dbg(this);
     dbg.Debug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1808,12 +1808,12 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
   if (addr >= 0 && addr < 0x400) {
     // This has to be a NULL-dereference, drop into debugger.
-    PrintF("Memory write to bad address: 0x%08x, pc=0x%08x\n",
-           addr, reinterpret_cast<intptr_t>(instr));
+    PrintF("Memory write to bad address: 0x%08x, pc=0x%08" PRIxPTR "\n", addr,
+           reinterpret_cast<intptr_t>(instr));
     MipsDebugger dbg(this);
     dbg.Debug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     TraceMemWr(addr, value, WORD);
     *ptr = value;
@@ -1828,7 +1828,7 @@ void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
 
 
 double Simulator::ReadD(int32_t addr, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     double* ptr = reinterpret_cast<double*>(addr);
     return *ptr;
   }
@@ -1841,7 +1841,7 @@ double Simulator::ReadD(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     double* ptr = reinterpret_cast<double*>(addr);
     *ptr = value;
     return;
@@ -1854,7 +1854,7 @@ void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
 
 
 uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1868,7 +1868,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
 
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1882,7 +1882,7 @@ int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemWr(addr, value, HALF);
     *ptr = value;
@@ -1896,7 +1896,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
 
 
 void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemWr(addr, value, HALF);
     *ptr = value;
@@ -1953,7 +1953,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
 
 // Unsupported instructions use Format to print an error and stop execution.
 void Simulator::Format(Instruction* instr, const char* format) {
-  PrintF("Simulator found unsupported instruction:\n 0x%08x: %s\n",
+  PrintF("Simulator found unsupported instruction:\n 0x%08" PRIxPTR ": %s\n",
          reinterpret_cast<intptr_t>(instr), format);
   UNIMPLEMENTED_MIPS();
 }
@@ -3731,6 +3731,9 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case TNE:
       do_interrupt = rs() != rt();
       break;
+    case SYNC:
+      // TODO(palfia): Ignore sync instruction for now.
+      break;
     // Conditional moves.
     case MOVN:
       if (rt()) {
@@ -4413,8 +4416,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
       UNSUPPORTED();
   }
   if (::v8::internal::FLAG_trace_sim) {
-    PrintF("  0x%08x  %-44s   %s\n", reinterpret_cast<intptr_t>(instr),
-           buffer.start(), trace_buf_.start());
+    PrintF("  0x%08" PRIxPTR "  %-44s   %s\n",
+           reinterpret_cast<intptr_t>(instr), buffer.start(),
+           trace_buf_.start());
   }
   if (!pc_modified_) {
     set_register(pc, reinterpret_cast<int32_t>(instr) +

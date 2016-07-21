@@ -14,16 +14,14 @@
 namespace v8 {
 namespace internal {
 
-
 Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
                                            Handle<Map> stub_holder,
                                            Code::Kind kind,
-                                           CacheHolderFlag cache_holder,
-                                           Code::StubType type) {
-  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder);
-  Object* probe = stub_holder->FindInCodeCache(*name, flags);
-  if (probe->IsCode()) return handle(Code::cast(probe));
-  return Handle<Code>::null();
+                                           CacheHolderFlag cache_holder) {
+  Code::Flags flags = Code::ComputeHandlerFlags(kind, cache_holder);
+  Code* code = stub_holder->LookupInCodeCache(*name, flags);
+  if (code == nullptr) return Handle<Code>();
+  return handle(code);
 }
 
 
@@ -66,9 +64,10 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
   Handle<Code> handler = PropertyHandlerCompiler::Find(
-      cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
+      cache_name, stub_holder_map, Code::LOAD_IC, flag);
   if (!handler.is_null()) return handler;
 
+  TRACE_HANDLER_STATS(isolate, LoadIC_LoadNonexistent);
   NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
   handler = compiler.CompileLoadNonexistent(cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
@@ -77,9 +76,8 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
 
 
 Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
-                                              Code::StubType type,
                                               Handle<Name> name) {
-  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder());
+  Code::Flags flags = Code::ComputeHandlerFlags(kind, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::HANDLER_TAG,
                                      AbstractCode::cast(*code), *name));
@@ -194,7 +192,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(Handle<Name> name,
   __ Move(receiver(), reg);
   LoadFieldStub stub(isolate(), field);
   GenerateTailCall(masm(), stub.GetCode());
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -204,7 +202,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
   __ Move(receiver(), reg);
   LoadConstantStub stub(isolate(), constant_index);
   GenerateTailCall(masm(), stub.GetCode());
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -221,7 +219,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
   }
   GenerateLoadConstant(isolate()->factory()->undefined_value());
   FrontendFooter(name, &miss);
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -229,7 +227,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<AccessorInfo> callback) {
   Register reg = Frontend(name);
   GenerateLoadCallback(reg, callback);
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -240,7 +238,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -358,9 +356,21 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   } else {
     GenerateLoadInterceptor(reg);
   }
-  return GetCode(kind(), Code::FAST, it->name());
+  return GetCode(kind(), it->name());
 }
 
+void NamedLoadHandlerCompiler::GenerateLoadCallback(
+    Register reg, Handle<AccessorInfo> callback) {
+  DCHECK(receiver().is(ApiGetterDescriptor::ReceiverRegister()));
+  __ Move(ApiGetterDescriptor::HolderRegister(), reg);
+  // The callback is alive if this instruction is executed,
+  // so the weak cell is not cleared and points to data.
+  Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+  __ GetWeakValue(ApiGetterDescriptor::CallbackRegister(), cell);
+
+  CallApiGetterStub stub(isolate());
+  __ TailCallStub(&stub);
+}
 
 void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     LookupIterator* it, Register interceptor_reg) {
@@ -416,7 +426,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
   Register holder = Frontend(name);
   GenerateLoadViaGetter(masm(), map(), receiver(), holder, accessor_index,
                         expected_arguments, scratch2());
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -506,7 +516,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
@@ -534,7 +544,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   __ bind(&miss);
   if (need_save_restore) PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
-  return GetCode(kind(), Code::FAST, it->name());
+  return GetCode(kind(), it->name());
 }
 
 
@@ -545,7 +555,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
   GenerateStoreViaSetter(masm(), map(), receiver(), holder, accessor_index,
                          expected_arguments, scratch2());
 
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -556,7 +566,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
                           accessor_index);
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 

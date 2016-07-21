@@ -875,10 +875,6 @@ bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 
 bool HeapObject::IsCodeCacheHashTable() const { return IsHashTable(); }
 
-bool HeapObject::IsPolymorphicCodeCacheHashTable() const {
-  return IsHashTable();
-}
-
 bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
@@ -1151,6 +1147,12 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
       object, HeapObject::RawField(object, offset), value); \
   heap->RecordWrite(object, offset, value);
 
+#define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
+  do {                                                                 \
+    heap->RecordFixedArrayElements(array, start, length);              \
+    heap->incremental_marking()->IterateBlackObject(array);            \
+  } while (false)
+
 #define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode) \
   if (mode != SKIP_WRITE_BARRIER) {                                  \
     if (mode == UPDATE_WRITE_BARRIER) {                              \
@@ -1261,8 +1263,7 @@ Map* MapWord::ToMap() {
   return reinterpret_cast<Map*>(value_);
 }
 
-
-bool MapWord::IsForwardingAddress() {
+bool MapWord::IsForwardingAddress() const {
   return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
 }
 
@@ -1785,7 +1786,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
                                         Object** objects,
                                         uint32_t count,
                                         EnsureElementsMode mode) {
-  ElementsKind current_kind = object->map()->elements_kind();
+  ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;
   {
     DisallowHeapAllocation no_allocation;
@@ -1909,6 +1910,13 @@ InterceptorInfo* Map::GetIndexedInterceptor() {
       constructor->shared()->get_api_func_data()->indexed_property_handler());
 }
 
+double Oddball::to_number_raw() const {
+  return READ_DOUBLE_FIELD(this, kToNumberRawOffset);
+}
+
+void Oddball::set_to_number_raw(double value) {
+  WRITE_DOUBLE_FIELD(this, kToNumberRawOffset, value);
+}
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
@@ -2005,6 +2013,7 @@ int JSObject::GetHeaderSize(InstanceType type) {
   // field operations considerably on average.
   if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
   switch (type) {
+    case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -3057,13 +3066,14 @@ int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
+  Object* undefined = isolate->heap()->undefined_value();
+  Object* the_hole = isolate->heap()->the_hole_value();
   while (true) {
     Object* element = KeyAt(entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
-    if (element == isolate->heap()->root(Heap::kUndefinedValueRootIndex)) break;
-    if (element != isolate->heap()->root(Heap::kTheHoleValueRootIndex) &&
-        Shape::IsMatch(key, element)) return entry;
+    if (element == undefined) break;
+    if (element != the_hole && Shape::IsMatch(key, element)) return entry;
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
@@ -3169,7 +3179,6 @@ CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
-CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
@@ -3916,7 +3925,6 @@ void StringCharacterStream::VisitTwoByteString(
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
 
-
 byte ByteArray::get(int index) {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
@@ -3928,12 +3936,29 @@ void ByteArray::set(int index, byte value) {
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize, value);
 }
 
+void ByteArray::copy_in(int index, const byte* buffer, int length) {
+  DCHECK(index >= 0 && length >= 0 && index + length >= index &&
+         index + length <= this->length());
+  byte* dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(dst_addr, buffer, length);
+}
+
+void ByteArray::copy_out(int index, byte* buffer, int length) {
+  DCHECK(index >= 0 && length >= 0 && index + length >= index &&
+         index + length <= this->length());
+  const byte* src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(buffer, src_addr, length);
+}
 
 int ByteArray::get_int(int index) {
-  DCHECK(index >= 0 && (index * kIntSize) < this->length());
+  DCHECK(index >= 0 && index < this->length() / kIntSize);
   return READ_INT_FIELD(this, kHeaderSize + index * kIntSize);
 }
 
+void ByteArray::set_int(int index, int value) {
+  DCHECK(index >= 0 && index < this->length() / kIntSize);
+  WRITE_INT_FIELD(this, kHeaderSize + index * kIntSize, value);
+}
 
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
@@ -4461,11 +4486,6 @@ bool Map::is_undetectable() {
 }
 
 
-void Map::set_is_observed() { set_bit_field(bit_field() | (1 << kIsObserved)); }
-
-bool Map::is_observed() { return ((1 << kIsObserved) & bit_field()) != 0; }
-
-
 void Map::set_has_named_interceptor() {
   set_bit_field(bit_field() | (1 << kHasNamedInterceptor));
 }
@@ -4644,7 +4664,9 @@ bool Map::is_stable() {
 
 
 bool Map::has_code_cache() {
-  return code_cache() != GetIsolate()->heap()->empty_fixed_array();
+  // Code caches are always fixed arrays. The empty fixed array is used as a
+  // sentinel for an absent code cache.
+  return FixedArray::cast(code_cache())->length() != 0;
 }
 
 
@@ -4808,10 +4830,6 @@ ExtraICState Code::extra_ic_state() {
   return ExtractExtraICStateFromFlags(flags());
 }
 
-
-Code::StubType Code::type() {
-  return ExtractTypeFromFlags(flags());
-}
 
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
@@ -5051,18 +5069,8 @@ bool Code::is_inline_cache_stub() {
   }
 }
 
-
-bool Code::is_keyed_stub() {
-  return is_keyed_load_stub() || is_keyed_store_stub();
-}
-
-
 bool Code::is_debug_stub() { return ic_state() == DEBUG_STUB; }
 bool Code::is_handler() { return kind() == HANDLER; }
-bool Code::is_load_stub() { return kind() == LOAD_IC; }
-bool Code::is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
-bool Code::is_store_stub() { return kind() == STORE_IC; }
-bool Code::is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
 bool Code::is_call_stub() { return kind() == CALL_IC; }
 bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
 bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
@@ -5090,11 +5098,10 @@ Address Code::constant_pool() {
 }
 
 Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
-                               ExtraICState extra_ic_state, StubType type,
+                               ExtraICState extra_ic_state,
                                CacheHolderFlag holder) {
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind) | ICStateField::encode(ic_state) |
-                      TypeField::encode(type) |
                       ExtraICStateField::encode(extra_ic_state) |
                       CacheHolderField::encode(holder);
   return static_cast<Flags>(bits);
@@ -5102,15 +5109,13 @@ Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
-                                          CacheHolderFlag holder,
-                                          StubType type) {
-  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, holder);
+                                          CacheHolderFlag holder) {
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, holder);
 }
 
-
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind, StubType type,
+Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
                                       CacheHolderFlag holder) {
-  return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, type, holder);
+  return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, holder);
 }
 
 
@@ -5129,23 +5134,12 @@ ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 }
 
 
-Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
-  return TypeField::decode(flags);
-}
-
 CacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
   return CacheHolderField::decode(flags);
 }
 
-
-Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
-  int bits = flags & ~TypeField::kMask;
-  return static_cast<Flags>(bits);
-}
-
-
-Code::Flags Code::RemoveTypeAndHolderFromFlags(Flags flags) {
-  int bits = flags & ~TypeField::kMask & ~CacheHolderField::kMask;
+Code::Flags Code::RemoveHolderFromFlags(Flags flags) {
+  int bits = flags & ~CacheHolderField::kMask;
   return static_cast<Flags>(bits);
 }
 
@@ -5445,8 +5439,6 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
 }
 
 
-ACCESSORS(JSBoundFunction, length, Object, kLengthOffset)
-ACCESSORS(JSBoundFunction, name, Object, kNameOffset)
 ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
           kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
@@ -5469,6 +5461,7 @@ ACCESSORS(AccessorInfo, expected_receiver_type, Object,
 
 ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
+ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
@@ -5554,8 +5547,7 @@ ACCESSORS(Script, wrapper, HeapObject, kWrapperOffset)
 SMI_ACCESSORS(Script, type, kTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
-SMI_ACCESSORS(Script, eval_from_instructions_offset,
-              kEvalFrominstructionsOffsetOffset)
+SMI_ACCESSORS(Script, eval_from_position, kEvalFromPositionOffset)
 ACCESSORS(Script, shared_function_infos, Object, kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
@@ -5798,7 +5790,6 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   set_compiler_hints(hints);
 }
 
-
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
                kNeedsHomeObject)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
@@ -5814,6 +5805,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_crankshaft,
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_async, kIsAsyncFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
                kIsConciseMethod)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_getter_function,
@@ -5823,10 +5815,9 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_setter_function,
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
                kIsDefaultConstructor)
 
-ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
-ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
-
-ACCESSORS(PolymorphicCodeCache, cache, Object, kCacheOffset)
+inline bool SharedFunctionInfo::is_resumable() const {
+  return is_generator() || is_async();
+}
 
 bool Script::HasValidSource() {
   Object* src = this->source();
@@ -5910,6 +5901,7 @@ bool SharedFunctionInfo::is_compiled() {
   Builtins* builtins = GetIsolate()->builtins();
   DCHECK(code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent));
   DCHECK(code() != builtins->builtin(Builtins::kCompileOptimized));
+  DCHECK(code() != builtins->builtin(Builtins::kCompileBaseline));
   return code() != builtins->builtin(Builtins::kCompileLazy);
 }
 
@@ -5956,7 +5948,6 @@ void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
 bool SharedFunctionInfo::HasBytecodeArray() {
   return function_data()->IsBytecodeArray();
 }
-
 
 BytecodeArray* SharedFunctionInfo::bytecode_array() {
   DCHECK(HasBytecodeArray());
@@ -6105,6 +6096,10 @@ bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
 }
 
+bool JSFunction::IsMarkedForBaseline() {
+  return code() ==
+         GetIsolate()->builtins()->builtin(Builtins::kCompileBaseline);
+}
 
 bool JSFunction::IsMarkedForOptimization() {
   return code() == GetIsolate()->builtins()->builtin(
@@ -6270,6 +6265,7 @@ Object* JSFunction::prototype() {
 bool JSFunction::is_compiled() {
   Builtins* builtins = GetIsolate()->builtins();
   return code() != builtins->builtin(Builtins::kCompileLazy) &&
+         code() != builtins->builtin(Builtins::kCompileBaseline) &&
          code() != builtins->builtin(Builtins::kCompileOptimized) &&
          code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent);
 }
@@ -6326,13 +6322,14 @@ ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
 ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 ACCESSORS(JSGeneratorObject, input, Object, kInputOffset)
+SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
 
 bool JSGeneratorObject::is_suspended() {
-  DCHECK_LT(kGeneratorExecuting, kGeneratorClosed);
-  DCHECK_EQ(kGeneratorClosed, 0);
-  return continuation() > 0;
+  DCHECK_LT(kGeneratorExecuting, 0);
+  DCHECK_LT(kGeneratorClosed, 0);
+  return continuation() >= 0;
 }
 
 bool JSGeneratorObject::is_closed() {
@@ -7140,7 +7137,7 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        Handle<Name> name) {
   if (object->IsJSObject()) {  // Shortcut
     LookupIterator it = LookupIterator::PropertyOrElement(
-        object->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
+        object->GetIsolate(), object, name, object, LookupIterator::OWN);
     return HasProperty(&it);
   }
 
@@ -7150,6 +7147,19 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
   return Just(attributes.FromJust() != ABSENT);
 }
 
+Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
+                                       uint32_t index) {
+  if (object->IsJSObject()) {  // Shortcut
+    LookupIterator it(object->GetIsolate(), object, index, object,
+                      LookupIterator::OWN);
+    return HasProperty(&it);
+  }
+
+  Maybe<PropertyAttributes> attributes =
+      JSReceiver::GetOwnPropertyAttributes(object, index);
+  MAYBE_RETURN(attributes, Nothing<bool>());
+  return Just(attributes.FromJust() != ABSENT);
+}
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
@@ -7162,10 +7172,16 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
   LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
+      name->GetIsolate(), object, name, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 
+Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
+    Handle<JSReceiver> object, uint32_t index) {
+  LookupIterator it(object->GetIsolate(), object, index, object,
+                    LookupIterator::OWN);
+  return GetPropertyAttributes(&it);
+}
 
 Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
   LookupIterator it(object->GetIsolate(), object, index, object);
@@ -7184,7 +7200,7 @@ Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
     Handle<JSReceiver> object, uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index, object, LookupIterator::HIDDEN);
+  LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 
@@ -7555,7 +7571,6 @@ void Map::ClearCodeCache(Heap* heap) {
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
   //  - IncrementalMarking::Step
-  DCHECK(!heap->InNewSpace(heap->empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, heap->empty_fixed_array());
 }
 

@@ -119,9 +119,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
     return MaybeHandle<Object>();
   }
 
-  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(1);
-  attached_objects[kGlobalProxyReference] = global_proxy;
-  SetAttachedObjects(attached_objects);
+  AddAttachedObject(global_proxy);
 
   DisallowHeapAllocation no_gc;
   // Keep track of the code space start and end pointers in case new
@@ -167,7 +165,6 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
   // DCHECK(source_.AtEOF());
-  attached_objects_.Dispose();
 }
 
 // This is called on the roots.  It is the driver of the deserialization
@@ -315,7 +312,8 @@ void Deserializer::CommitPostProcessedObjects(Isolate* isolate) {
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
-  BackReference back_reference(source_.GetInt());
+  SerializerReference back_reference =
+      SerializerReference::FromBitfield(source_.GetInt());
   if (space == LO_SPACE) {
     CHECK(back_reference.chunk_index() == 0);
     uint32_t index = back_reference.large_object_index();
@@ -496,7 +494,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         new_object = reinterpret_cast<Object*>(address);                       \
       } else if (where == kAttachedReference) {                                \
         int index = source_.GetInt();                                          \
-        DCHECK(deserializing_user_code() || index == kGlobalProxyReference);   \
         new_object = *attached_objects_[index];                                \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else {                                                                 \

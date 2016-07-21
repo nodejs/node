@@ -379,8 +379,8 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
 #define CACHED_OP_LIST(V)                                  \
   V(Equal, Operator::kNoProperties, 2, 1)                  \
   V(NotEqual, Operator::kNoProperties, 2, 1)               \
-  V(StrictEqual, Operator::kNoThrow, 2, 1)                 \
-  V(StrictNotEqual, Operator::kNoThrow, 2, 1)              \
+  V(StrictEqual, Operator::kPure, 2, 1)                    \
+  V(StrictNotEqual, Operator::kPure, 2, 1)                 \
   V(LessThan, Operator::kNoProperties, 2, 1)               \
   V(GreaterThan, Operator::kNoProperties, 2, 1)            \
   V(LessThanOrEqual, Operator::kNoProperties, 2, 1)        \
@@ -389,13 +389,12 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(ToLength, Operator::kNoProperties, 1, 1)               \
   V(ToName, Operator::kNoProperties, 1, 1)                 \
   V(ToNumber, Operator::kNoProperties, 1, 1)               \
-  V(ToObject, Operator::kNoProperties, 1, 1)               \
+  V(ToObject, Operator::kFoldable, 1, 1)                   \
   V(ToString, Operator::kNoProperties, 1, 1)               \
-  V(Yield, Operator::kNoProperties, 1, 1)                  \
   V(Create, Operator::kEliminatable, 2, 1)                 \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1) \
   V(HasProperty, Operator::kNoProperties, 2, 1)            \
-  V(TypeOf, Operator::kEliminatable, 1, 1)                 \
+  V(TypeOf, Operator::kPure, 1, 1)                         \
   V(InstanceOf, Operator::kNoProperties, 2, 1)             \
   V(ForInDone, Operator::kPure, 2, 1)                      \
   V(ForInNext, Operator::kNoProperties, 4, 1)              \
@@ -541,11 +540,11 @@ const Operator* JSOperatorBuilder::Modulus(BinaryOperationHints hints) {
 
 const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
   // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<ToBooleanHints>(        //--
-      IrOpcode::kJSToBoolean, Operator::kEliminatable,  // opcode
-      "JSToBoolean",                                    // name
-      1, 1, 0, 1, 1, 0,                                 // inputs/outputs
-      hints);                                           // parameter
+  return new (zone()) Operator1<ToBooleanHints>(  //--
+      IrOpcode::kJSToBoolean, Operator::kPure,    // opcode
+      "JSToBoolean",                              // name
+      1, 0, 0, 1, 0, 0,                           // inputs/outputs
+      hints);                                     // parameter
 }
 
 const Operator* JSOperatorBuilder::CallFunction(
@@ -707,11 +706,11 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 
 
 const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
-  return new (zone()) Operator1<CreateArgumentsType>(    // --
-      IrOpcode::kJSCreateArguments, Operator::kNoThrow,  // opcode
-      "JSCreateArguments",                               // name
-      1, 1, 1, 1, 1, 0,                                  // counts
-      type);                                             // parameter
+  return new (zone()) Operator1<CreateArgumentsType>(         // --
+      IrOpcode::kJSCreateArguments, Operator::kEliminatable,  // opcode
+      "JSCreateArguments",                                    // name
+      1, 1, 0, 1, 1, 0,                                       // counts
+      type);                                                  // parameter
 }
 
 

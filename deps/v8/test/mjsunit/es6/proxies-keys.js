@@ -37,3 +37,14 @@ assertThrows("Object.keys(proxy)", Number);
 handler.ownKeys = undefined;
 assertEquals(["target"], Object.keys(proxy));
 assertEquals(["target"], Object.keys(target));
+
+var proxy2 = new Proxy(proxy, {});
+assertEquals(["target"], Object.keys(proxy2));
+
+
+(function testForSymbols() {
+  var symbol = Symbol();
+  var p = new Proxy({}, {ownKeys() { return ["1", symbol, "2"] }});
+  assertEquals(["1","2"], Object.getOwnPropertyNames(p));
+  assertEquals([symbol], Object.getOwnPropertySymbols(p));
+})();

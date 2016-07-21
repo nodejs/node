@@ -461,6 +461,7 @@ class Shell : public i::AllStatic {
   static i::List<Worker*> workers_;
   static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
 
+  static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
 #endif  // !V8_SHARED

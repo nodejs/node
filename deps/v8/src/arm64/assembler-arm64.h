@@ -40,6 +40,12 @@ namespace internal {
   R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
   R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27)
 
+#define FLOAT_REGISTERS(V)                               \
+  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
+  V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
+  V(s16) V(s17) V(s18) V(s19) V(s20) V(s21) V(s22) V(s23) \
+  V(s24) V(s25) V(s26) V(s27) V(s28) V(s29) V(s30) V(s31)
+
 #define DOUBLE_REGISTERS(R)                               \
   R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
   R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d15) \
@@ -366,7 +372,7 @@ bool AreSameSizeAndType(const CPURegister& reg1,
                         const CPURegister& reg7 = NoCPUReg,
                         const CPURegister& reg8 = NoCPUReg);
 
-
+typedef FPRegister FloatRegister;
 typedef FPRegister DoubleRegister;
 
 // TODO(arm64) Define SIMD registers.
@@ -929,7 +935,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, int raw_position);
+  void RecordDeoptReason(const int reason, int raw_position, int id);
 
   int buffer_space() const;
 

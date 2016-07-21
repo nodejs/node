@@ -257,8 +257,12 @@ class Schedule final : public ZoneObject {
   friend class BasicBlockInstrumentor;
   friend class RawMachineAssembler;
 
+  // Ensure properties of the CFG assumed by further stages.
+  void EnsureCFGWellFormedness();
   // Ensure split-edge form for a hand-assembled schedule.
-  void EnsureSplitEdgeForm();
+  void EnsureSplitEdgeForm(BasicBlock* block);
+  // Ensure entry into a deferred block happens from a single hot block.
+  void EnsureDeferredCodeSingleEntryPoint(BasicBlock* block);
   // Copy deferred block markers down as far as possible
   void PropagateDeferredMark();
 

@@ -35,7 +35,7 @@ void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(start);
-  if (entry != NULL) entry->set_deopt_info(deopt_reason, position, pc_offset);
+  if (entry != NULL) entry->set_deopt_info(deopt_reason, position, deopt_id);
 }
 
 

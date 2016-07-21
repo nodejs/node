@@ -152,20 +152,19 @@ class CallDescriptor final : public ZoneObject {
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
-    kPatchableCallSite = 1u << 1,
-    kNeedsNopAfterCall = 1u << 2,
-    kHasExceptionHandler = 1u << 3,
-    kHasLocalCatchHandler = 1u << 4,
-    kSupportsTailCalls = 1u << 5,
-    kCanUseRoots = 1u << 6,
+    kHasExceptionHandler = 1u << 1,
+    kHasLocalCatchHandler = 1u << 2,
+    kSupportsTailCalls = 1u << 3,
+    kCanUseRoots = 1u << 4,
     // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 7,
+    kUseNativeStack = 1u << 5,
     // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 8,
-    kRestoreCSP = 1u << 9,
+    kRestoreJSSP = 1u << 6,
+    kRestoreCSP = 1u << 7,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 10,
-    kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
+    kInitializeRootRegister = 1u << 8,
+    // Does not ever try to allocate space on our heap.
+    kNoAllocate = 1u << 9
   };
   typedef base::Flags<Flag> Flags;
 
@@ -304,10 +303,11 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // representing the architecture-specific location. The following call node
 // layouts are supported (where {n} is the number of value inputs):
 //
-//                  #0          #1     #2     #3     [...]             #n
-// Call[CodeStub]   code,       arg 1, arg 2, arg 3, [...],            context
-// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...], new, #arg, context
-// Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
+//                        #0          #1     #2     [...]             #n
+// Call[CodeStub]         code,       arg 1, arg 2, [...],            context
+// Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
+// Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
+// Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
 class Linkage : public ZoneObject {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
@@ -331,6 +331,11 @@ class Linkage : public ZoneObject {
       Operator::Properties properties = Operator::kNoProperties,
       MachineType return_type = MachineType::AnyTagged(),
       size_t return_count = 1);
+
+  static CallDescriptor* GetAllocateCallDescriptor(Zone* zone);
+  static CallDescriptor* GetBytecodeDispatchCallDescriptor(
+      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      int stack_parameter_count);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports

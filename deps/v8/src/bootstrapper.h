@@ -136,6 +136,7 @@ class Bootstrapper final {
   static v8::Extension* externalize_string_extension_;
   static v8::Extension* statistics_extension_;
   static v8::Extension* trigger_failure_extension_;
+  static v8::Extension* ignition_statistics_extension_;
 
   DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };

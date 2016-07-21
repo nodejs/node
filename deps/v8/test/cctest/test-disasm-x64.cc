@@ -29,10 +29,10 @@
 
 #include "src/v8.h"
 
+#include "src/code-factory.h"
 #include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
-#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
@@ -282,7 +282,7 @@ TEST(DisasmX64) {
   // TODO(mstarzinger): The following is protected.
   // __ call(Operand(rbx, rcx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(LoadIC::initialize_stub(isolate, NOT_INSIDE_TYPEOF));
+  Handle<Code> ic(CodeFactory::LoadIC(isolate, NOT_INSIDE_TYPEOF).code());
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ nop();

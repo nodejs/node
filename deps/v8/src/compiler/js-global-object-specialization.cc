@@ -74,6 +74,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   // properties of the global object here (represented as PropertyCell).
   LookupIterator it(global_object, name, LookupIterator::OWN);
   if (it.state() != LookupIterator::DATA) return NoChange();
+  if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
   PropertyDetails property_details = property_cell->property_details();
   Handle<Object> property_cell_value(property_cell->value(), isolate());
@@ -154,6 +155,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
   // properties of the global object here (represented as PropertyCell).
   LookupIterator it(global_object, name, LookupIterator::OWN);
   if (it.state() != LookupIterator::DATA) return NoChange();
+  if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
   PropertyDetails property_details = property_cell->property_details();
   Handle<Object> property_cell_value(property_cell->value(), isolate());

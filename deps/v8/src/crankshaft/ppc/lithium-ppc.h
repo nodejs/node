@@ -67,6 +67,7 @@ class LCodeGen;
   V(Drop)                                    \
   V(Dummy)                                   \
   V(DummyUse)                                \
+  V(FastAllocate)                            \
   V(FlooringDivByConstI)                     \
   V(FlooringDivByPowerOf2I)                  \
   V(FlooringDivI)                            \
@@ -78,7 +79,6 @@ class LCodeGen;
   V(HasInPrototypeChainAndBranch)            \
   V(HasInstanceTypeAndBranch)                \
   V(InnerAllocatedObject)                    \
-  V(InstanceOf)                              \
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
@@ -99,12 +99,14 @@ class LCodeGen;
   V(MathAbs)                                 \
   V(MathClz32)                               \
   V(MathExp)                                 \
-  V(MathFloor)                               \
+  V(MathFloorD)                              \
+  V(MathFloorI)                              \
   V(MathFround)                              \
   V(MathLog)                                 \
   V(MathMinMax)                              \
   V(MathPowHalf)                             \
-  V(MathRound)                               \
+  V(MathRoundD)                              \
+  V(MathRoundI)                              \
   V(MathSqrt)                                \
   V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
@@ -150,7 +152,6 @@ class LCodeGen;
   V(Uint32ToDouble)                          \
   V(UnknownOSRValue)                         \
   V(WrapReceiver)
-
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)            \
   Opcode opcode() const final { return LInstruction::k##type; } \
@@ -807,21 +808,43 @@ class LCompareNumericAndBranch final : public LControlInstruction<2, 0> {
   void PrintDataTo(StringStream* stream) override;
 };
 
-
-class LMathFloor final : public LTemplateInstruction<1, 1, 0> {
+// Math.floor with a double result.
+class LMathFloorD final : public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LMathFloor(LOperand* value) { inputs_[0] = value; }
+  explicit LMathFloorD(LOperand* value) { inputs_[0] = value; }
 
   LOperand* value() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathFloor, "math-floor")
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorD, "math-floor-d")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 };
 
-
-class LMathRound final : public LTemplateInstruction<1, 1, 1> {
+// Math.floor with an integer result.
+class LMathFloorI final : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathRound(LOperand* value, LOperand* temp) {
+  explicit LMathFloorI(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorI, "math-floor-i")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+// Math.round with a double result.
+class LMathRoundD final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathRoundD(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundD, "math-round-d")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+// Math.round with an integer result.
+class LMathRoundI final : public LTemplateInstruction<1, 1, 1> {
+ public:
+  LMathRoundI(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
@@ -829,7 +852,7 @@ class LMathRound final : public LTemplateInstruction<1, 1, 1> {
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundI, "math-round-i")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 };
 
@@ -1089,22 +1112,6 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
   Token::Value op() const { return hydrogen()->token(); }
-};
-
-
-class LInstanceOf final : public LTemplateInstruction<1, 3, 0> {
- public:
-  LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
-    inputs_[0] = context;
-    inputs_[1] = left;
-    inputs_[2] = right;
-  }
-
-  LOperand* context() const { return inputs_[0]; }
-  LOperand* left() const { return inputs_[1]; }
-  LOperand* right() const { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
 };
 
 
@@ -2291,6 +2298,22 @@ class LAllocate final : public LTemplateInstruction<1, 2, 2> {
   LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
+  DECLARE_HYDROGEN_ACCESSOR(Allocate)
+};
+
+class LFastAllocate final : public LTemplateInstruction<1, 1, 2> {
+ public:
+  LFastAllocate(LOperand* size, LOperand* temp1, LOperand* temp2) {
+    inputs_[0] = size;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* size() { return inputs_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FastAllocate, "fast-allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
 };
 

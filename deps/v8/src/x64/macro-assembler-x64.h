@@ -21,8 +21,8 @@ const Register kReturnRegister1 = {Register::kCode_rdx};
 const Register kReturnRegister2 = {Register::kCode_r8};
 const Register kJSFunctionRegister = {Register::kCode_rdi};
 const Register kContextRegister = {Register::kCode_rsi};
+const Register kAllocateSizeRegister = {Register::kCode_rdx};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r11};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r12};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r14};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r15};
@@ -818,7 +818,6 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
-  void Set(Register dst, int64_t x, RelocInfo::Mode rmode);
   void Set(const Operand& dst, intptr_t x);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
@@ -1224,6 +1223,10 @@ class MacroAssembler: public Assembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
+
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
 
@@ -1303,6 +1306,15 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Label* gc_required,
                 AllocationFlags flags);
+
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register result_end,
+                    AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    AllocationFlags flags);
 
   // Allocate a heap number in new space with undefined value. Returns
   // tagged pointer in result register, or jumps to gc_required if new

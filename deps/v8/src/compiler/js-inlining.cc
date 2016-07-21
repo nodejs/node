@@ -414,7 +414,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   Zone zone(info_->isolate()->allocator());
   ParseInfo parse_info(&zone, function);
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) {
@@ -519,7 +519,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // in that frame state tho, as the conversion of the receiver can be repeated
   // any number of times, it's not observable.
   if (node->opcode() == IrOpcode::kJSCallFunction &&
-      is_sloppy(info.language_mode()) && !shared_info->native()) {
+      is_sloppy(parse_info.language_mode()) && !shared_info->native()) {
     const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* convert = jsgraph_->graph()->NewNode(

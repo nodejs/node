@@ -63,37 +63,48 @@ static inline std::vector<Handle<FixedArray>> CreatePadding(
 
 
 // Helper function that simulates a full new-space in the heap.
-static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
+static inline bool FillUpOnePage(
+    v8::internal::NewSpace* space,
+    std::vector<Handle<FixedArray>>* out_handles = nullptr) {
   space->DisableInlineAllocationSteps();
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   if (space_remaining == 0) return false;
-  CreatePadding(space->heap(), space_remaining, i::NOT_TENURED);
+  std::vector<Handle<FixedArray>> handles =
+      CreatePadding(space->heap(), space_remaining, i::NOT_TENURED);
+  if (out_handles != nullptr)
+    out_handles->insert(out_handles->end(), handles.begin(), handles.end());
   return true;
 }
 
 
 // Helper function that simulates a fill new-space in the heap.
-static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
-                                        int extra_bytes) {
+static inline void AllocateAllButNBytes(
+    v8::internal::NewSpace* space, int extra_bytes,
+    std::vector<Handle<FixedArray>>* out_handles = nullptr) {
   space->DisableInlineAllocationSteps();
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
-  CreatePadding(space->heap(), new_linear_size, i::NOT_TENURED);
+  std::vector<Handle<FixedArray>> handles =
+      CreatePadding(space->heap(), new_linear_size, i::NOT_TENURED);
+  if (out_handles != nullptr)
+    out_handles->insert(out_handles->end(), handles.begin(), handles.end());
 }
 
-
-static inline void FillCurrentPage(v8::internal::NewSpace* space) {
-  AllocateAllButNBytes(space, 0);
+static inline void FillCurrentPage(
+    v8::internal::NewSpace* space,
+    std::vector<Handle<FixedArray>>* out_handles = nullptr) {
+  AllocateAllButNBytes(space, 0, out_handles);
 }
 
-
-static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
-  FillCurrentPage(space);
-  while (FillUpOnePage(space)) {
+static inline void SimulateFullSpace(
+    v8::internal::NewSpace* space,
+    std::vector<Handle<FixedArray>>* out_handles = nullptr) {
+  FillCurrentPage(space, out_handles);
+  while (FillUpOnePage(space, out_handles) || space->AddFreshPage()) {
   }
 }
 

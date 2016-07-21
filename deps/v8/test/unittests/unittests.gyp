@@ -6,7 +6,7 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
+  'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'unittests',
@@ -17,13 +17,13 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
-        '../../tools/gyp/v8.gyp:v8_libplatform',
+        '../../src/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
-        'atomic-utils-unittest.cc',
+        'base/atomic-utils-unittest.cc',
         'base/bits-unittest.cc',
         'base/cpu-unittest.cc',
         'base/division-by-constant-unittest.cc',
@@ -41,7 +41,6 @@
         'cancelable-tasks-unittest.cc',
         'char-predicates-unittest.cc',
         'compiler/branch-elimination-unittest.cc',
-        'compiler/change-lowering-unittest.cc',
         'compiler/coalesced-live-ranges-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
@@ -50,6 +49,7 @@
         'compiler/control-flow-optimizer-unittest.cc',
         'compiler/dead-code-elimination-unittest.cc',
         'compiler/diamond-unittest.cc',
+        'compiler/effect-control-linearizer-unittest.cc',
         'compiler/escape-analysis-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
         'compiler/graph-reducer-unittest.h',
@@ -96,7 +96,10 @@
         'interpreter/bytecodes-unittest.cc',
         'interpreter/bytecode-array-builder-unittest.cc',
         'interpreter/bytecode-array-iterator-unittest.cc',
+        'interpreter/bytecode-array-writer-unittest.cc',
+        'interpreter/bytecode-peephole-optimizer-unittest.cc',
         'interpreter/bytecode-register-allocator-unittest.cc',
+        'interpreter/bytecode-pipeline-unittest.cc',
         'interpreter/constant-array-builder-unittest.cc',
         'interpreter/interpreter-assembler-unittest.cc',
         'interpreter/interpreter-assembler-unittest.h',
@@ -118,8 +121,10 @@
         'wasm/ast-decoder-unittest.cc',
         'wasm/decoder-unittest.cc',
         'wasm/encoder-unittest.cc',
+        'wasm/leb-helper-unittest.cc',
         'wasm/loop-assignment-analysis-unittest.cc',
         'wasm/module-decoder-unittest.cc',
+        'wasm/switch-logic-unittest.cc',
         'wasm/wasm-macro-gen-unittest.cc',
       ],
       'conditions': [
@@ -138,9 +143,19 @@
             'compiler/ia32/instruction-selector-ia32-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="mips"', {
+          'sources': [  ### gcmole(arch:mips) ###
+            'compiler/mips/instruction-selector-mips-unittest.cc',
+          ],
+        }],
         ['v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             'compiler/mips/instruction-selector-mips-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="mips64"', {
+          'sources': [  ### gcmole(arch:mips64) ###
+            'compiler/mips64/instruction-selector-mips64-unittest.cc',
           ],
         }],
         ['v8_target_arch=="mips64el"', {
@@ -169,9 +184,9 @@
         ['component=="shared_library"', {
           # compiler-unittests can't be built against a shared library, so we
           # need to depend on the underlying static target in that case.
-          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
+          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
         }, {
-          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+          'dependencies': ['../../src/v8.gyp:v8'],
         }],
         ['os_posix == 1', {
           # TODO(svenpanne): This is a temporary work-around to fix the warnings
@@ -198,7 +213,7 @@
             'unittests',
           ],
           'includes': [
-            '../../build/isolate.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'unittests.isolate',

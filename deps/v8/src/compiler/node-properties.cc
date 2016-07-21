@@ -158,8 +158,9 @@ void NodeProperties::ReplaceContextInput(Node* node, Node* context) {
 
 
 // static
-void NodeProperties::ReplaceControlInput(Node* node, Node* control) {
-  node->ReplaceInput(FirstControlIndex(node), control);
+void NodeProperties::ReplaceControlInput(Node* node, Node* control, int index) {
+  DCHECK(index < node->op()->ControlInputCount());
+  node->ReplaceInput(FirstControlIndex(node) + index, control);
 }
 
 

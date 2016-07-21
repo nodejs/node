@@ -63,14 +63,12 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceCall(Node* node);
   Reduction ReduceNewObject(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
-  Reduction ReduceGetOrdinaryHasInstance(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c,
                    Node* d);
-  Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
   Reduction Change(Node* node, Callable const& callable,
                    int stack_parameter_count);
 

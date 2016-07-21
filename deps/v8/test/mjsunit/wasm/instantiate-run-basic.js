@@ -11,7 +11,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var kReturnValue = 107;
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", [kAstI32])
+  builder.addFunction("main", kSig_i_i)
     .addBody([kExprI8Const, kReturnValue])
     .exportFunc();
 

@@ -4,6 +4,7 @@
 
 #include "src/compiler/escape-analysis-reducer.h"
 
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/js-graph.h"
 #include "src/counters.h"
 
@@ -28,8 +29,7 @@ EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
       escape_analysis_(escape_analysis),
       zone_(zone),
       fully_reduced_(static_cast<int>(jsgraph->graph()->NodeCount() * 2), zone),
-      exists_virtual_allocate_(true) {}
-
+      exists_virtual_allocate_(escape_analysis->ExistsVirtualAllocate()) {}
 
 Reduction EscapeAnalysisReducer::Reduce(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
@@ -105,7 +105,7 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
     fully_reduced_.Add(node->id());
   }
   if (Node* rep = escape_analysis()->GetReplacement(node)) {
-    counters()->turbo_escape_loads_replaced()->Increment();
+    isolate()->counters()->turbo_escape_loads_replaced()->Increment();
     TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
           node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
     ReplaceWithValue(node, rep);
@@ -138,7 +138,7 @@ Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   }
   if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
-    counters()->turbo_escape_allocs_replaced()->Increment();
+    isolate()->counters()->turbo_escape_allocs_replaced()->Increment();
     TRACE("Removed allocate #%d from effect chain\n", node->id());
     return Changed(node);
   }
@@ -328,39 +328,18 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
 }
 
 
-Counters* EscapeAnalysisReducer::counters() const {
-  return jsgraph_->isolate()->counters();
-}
-
-
-class EscapeAnalysisVerifier final : public AdvancedReducer {
- public:
-  EscapeAnalysisVerifier(Editor* editor, EscapeAnalysis* escape_analysis)
-      : AdvancedReducer(editor), escape_analysis_(escape_analysis) {}
-
-  Reduction Reduce(Node* node) final {
-    switch (node->opcode()) {
-      case IrOpcode::kAllocate:
-        CHECK(!escape_analysis_->IsVirtual(node));
-        break;
-      default:
-        break;
-    }
-    return NoChange();
-  }
-
- private:
-  EscapeAnalysis* escape_analysis_;
-};
-
 void EscapeAnalysisReducer::VerifyReplacement() const {
 #ifdef DEBUG
-  GraphReducer graph_reducer(zone(), jsgraph()->graph());
-  EscapeAnalysisVerifier verifier(&graph_reducer, escape_analysis());
-  graph_reducer.AddReducer(&verifier);
-  graph_reducer.ReduceGraph();
+  AllNodes all(zone(), jsgraph()->graph());
+  for (Node* node : all.live) {
+    if (node->opcode() == IrOpcode::kAllocate) {
+      CHECK(!escape_analysis_->IsVirtual(node));
+    }
+  }
 #endif  // DEBUG
 }
+
+Isolate* EscapeAnalysisReducer::isolate() const { return jsgraph_->isolate(); }
 
 }  // namespace compiler
 }  // namespace internal

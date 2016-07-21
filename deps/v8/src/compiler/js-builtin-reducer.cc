@@ -174,7 +174,7 @@ Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
 // ES6 draft 08-24-14, section 20.2.2.17.
 Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
+  if (r.InputsMatchOne(Type::NumberOrUndefined())) {
     // Math.fround(a:number) -> TruncateFloat64ToFloat32(a)
     Node* value =
         graph()->NewNode(machine()->TruncateFloat64ToFloat32(), r.left());

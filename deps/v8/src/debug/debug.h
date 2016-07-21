@@ -417,7 +417,6 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnPromiseEvent(Handle<JSObject> data);
   void OnAsyncTaskEvent(Handle<JSObject> data);
 
   // API facing.
@@ -499,9 +498,6 @@ class Debug {
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
 
-  // Record function from which eval was called.
-  static void RecordEvalCaller(Handle<Script> script);
-
   bool CheckExecutionState(int id) {
     return is_active() && !debug_context().is_null() && break_id() != 0 &&
            break_id() == id;
@@ -580,8 +576,6 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakePromiseEvent(
-      Handle<JSObject> promise_event);
   MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
       Handle<JSObject> task_event);
 

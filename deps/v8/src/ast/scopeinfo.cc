@@ -438,16 +438,13 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
   return ContextLocalMaybeAssignedFlag::decode(value);
 }
 
-
-bool ScopeInfo::LocalIsSynthetic(int var) {
-  DCHECK(0 <= var && var < LocalCount());
+bool ScopeInfo::VariableIsSynthetic(String* name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
   // variable is a compiler-introduced temporary. However, to avoid conflict
   // with user declarations, the current temporaries like .generator_object and
   // .result start with a dot, so we can use that as a flag. It's a hack!
-  Handle<String> name(LocalName(var));
-  return (name->length() > 0 && name->Get(0) == '.') ||
-         name->Equals(*GetIsolate()->factory()->this_string());
+  return name->length() == 0 || name->Get(0) == '.' ||
+         name->Equals(name->GetHeap()->this_string());
 }
 
 

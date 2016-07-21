@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-object-observe
 // Flags: --allow-natives-syntax --expose-debug-as debug
 
 Debug = debug.Debug
@@ -46,6 +45,7 @@ Promise.resolve(42)
   .then(Boolean) // Should skip stepping into native.
   .then(promise2)
   .catch(promise3)
+  .then(promise4)
   .catch(function(e) {
     %AbortJS("FAIL: uncaught exception " + e);
   });
@@ -60,36 +60,16 @@ function promise2() {
 }
 
 function promise3() {
-  installObservers(); // Break 4. StepOver.
-  return break_count; // Break 5.
-} // Break 6.
-
-function installObservers() {
-  var dummy = {};
-  Object.observe(dummy, observer1);
-  Object.observe(dummy, Object); // Should skip stepping into native.
-  Object.observe(dummy, Boolean); // Should skip stepping into native.
-  Object.observe(dummy, observer2);
-  dummy.foo = 1;
-}
-
-function observer1() {
-  return exception || 3; // Break 7.
-} // Break 8.
-
-function observer2() {
-  Promise.resolve().then(promise4); // Break 9. StepOver.
-  return break_count + 1; // Break 10.
-} // Break 11.
+  return break_count; // Break 4.
+} // Break 5.
 
 function promise4() {
-  finalize(); // Break 12. StepOver.
-  return 0; // Break 13.
-} // Break 14. StepOver.
+  finalize(); // Break 6. StepOver.
+  return 0; // Break 7.
+} // Break 8. StepOver.
 
 function finalize() {
-  var dummy = {};
-  Object.observe(dummy, function() {
+  Promise.resolve().then(function() {
     if (expected_breaks !== break_count) {
       %AbortJS("FAIL: expected <" + expected_breaks + "> breaks instead of <" +
                break_count + ">");
@@ -98,5 +78,4 @@ function finalize() {
       %AbortJS("FAIL: exception: " + exception);
     }
   });
-  dummy.foo = 1;
 }

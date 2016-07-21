@@ -412,29 +412,26 @@ TEST(6) {
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(&assm, ARMv7);
-    __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
-    __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
-    __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
-    __ add(r0, r1, Operand(r2));
-    __ add(r0, r0, Operand(r3));
-    __ mov(pc, Operand(lr));
+  __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
+  __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
+  __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
+  __ add(r0, r1, Operand(r2));
+  __ add(r0, r0, Operand(r3));
+  __ mov(pc, Operand(lr));
 
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res = reinterpret_cast<int>(
-        CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
-    ::printf("f() = %d\n", res);
-    CHECK_EQ(382, res);
-  }
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(382, res);
 }
 
 
@@ -2231,6 +2228,158 @@ TEST(ARMv8_vrintX) {
   }
 }
 
+TEST(ARMv8_vsel) {
+  // Test the vsel floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // Used to indicate whether a condition passed or failed.
+  static constexpr float kResultPass = 1.0f;
+  static constexpr float kResultFail = -kResultPass;
+
+  struct ResultsF32 {
+    float vseleq_;
+    float vselge_;
+    float vselgt_;
+    float vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    float vselne_;
+    float vsellt_;
+    float vselle_;
+    float vselvc_;
+  };
+
+  struct ResultsF64 {
+    double vseleq_;
+    double vselge_;
+    double vselgt_;
+    double vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    double vselne_;
+    double vsellt_;
+    double vselle_;
+    double vselvc_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVsel(uint32_t nzcv,
+    //                ResultsF32* results_f32,
+    //                ResultsF64* results_f64);
+    __ msr(CPSR_f, Operand(r0));
+
+    __ vmov(s1, kResultPass);
+    __ vmov(s2, kResultFail);
+
+    __ vsel(eq, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vseleq_));
+    __ vsel(ge, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselge_));
+    __ vsel(gt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselgt_));
+    __ vsel(vs, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvs_));
+
+    __ vsel(ne, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselne_));
+    __ vsel(lt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vsellt_));
+    __ vsel(le, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselle_));
+    __ vsel(vc, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvc_));
+
+    __ vmov(d1, kResultPass);
+    __ vmov(d2, kResultFail);
+
+    __ vsel(eq, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vseleq_));
+    __ vsel(ge, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselge_));
+    __ vsel(gt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselgt_));
+    __ vsel(vs, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvs_));
+
+    __ vsel(ne, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselne_));
+    __ vsel(lt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vsellt_));
+    __ vsel(le, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselle_));
+    __ vsel(vc, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvc_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F5 f = FUNCTION_CAST<F5>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+    STATIC_ASSERT(kResultPass == -kResultFail);
+#define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)                \
+  do {                                                                        \
+    ResultsF32 results_f32;                                                   \
+    ResultsF64 results_f64;                                                   \
+    uint32_t nzcv = (n << 31) | (z << 30) | (c << 29) | (v << 28);            \
+    dummy = CALL_GENERATED_CODE(isolate, f, nzcv, &results_f32, &results_f64, \
+                                0, 0);                                        \
+    CHECK_EQ(vseleq, results_f32.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f32.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f32.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f32.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f32.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f32.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f32.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f32.vselvc_);                                   \
+    CHECK_EQ(vseleq, results_f64.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f64.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f64.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f64.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f64.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f64.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f64.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f64.vselvc_);                                   \
+  } while (0);
+
+    //         N  Z  C  V  vseleq       vselge       vselgt       vselvs
+    CHECK_VSEL(0, 0, 0, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 0, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 0, 1, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 1, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 0, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 0, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 1, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 1, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(1, 0, 0, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 0, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 0, 1, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 1, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 1, 0, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 0, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+    CHECK_VSEL(1, 1, 1, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 1, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+
+#undef CHECK_VSEL
+  }
+}
 
 TEST(regress4292_b) {
   CcTest::InitializeVM();

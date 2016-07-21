@@ -216,5 +216,16 @@ RUNTIME_FUNCTION(Runtime_GreaterThanOrEqual) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
+RUNTIME_FUNCTION(Runtime_InstanceOf) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, callable, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Object::InstanceOf(isolate, object, callable));
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

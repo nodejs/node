@@ -23,6 +23,20 @@ function EmptyTest() {
 
 assertWasm(11, EmptyTest);
 
+function VoidReturnTest() {
+  "use asm";
+  function caller() {
+    empty();
+    return 19;
+  }
+  function empty() {
+    var x = 0;
+    if (x) return;
+  }
+  return {caller: caller};
+}
+
+assertWasm(19, VoidReturnTest);
 
 function IntTest() {
   "use asm";
@@ -193,6 +207,55 @@ function TestReturnInWhileWithoutBraces() {
 assertWasm(7, TestReturnInWhileWithoutBraces);
 
 
+function TestBreakInIf() {
+  "use asm";
+
+  function caller() {
+    label: {
+      if(1) break label;
+      return 11;
+    }
+    return 12;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(12, TestBreakInIf);
+
+function TestBreakInIfInDoWhileFalse() {
+  "use asm";
+
+  function caller() {
+    do {
+      if(1) break;
+      return 11;
+    } while(0);
+    return 12;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(12, TestBreakInIfInDoWhileFalse);
+
+function TestBreakInElse() {
+  "use asm";
+
+  function caller() {
+    do {
+      if(0) ;
+      else break;
+      return 14;
+    } while(0);
+    return 15;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(15, TestBreakInElse);
+
 function TestBreakInWhile() {
   "use asm";
 
@@ -208,6 +271,22 @@ function TestBreakInWhile() {
 
 assertWasm(8, TestBreakInWhile);
 
+
+function TestBreakInIfInWhile() {
+  "use asm";
+
+  function caller() {
+    while(1) {
+      if (1) break;
+      else break;
+    }
+    return 8;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(8, TestBreakInIfInWhile);
 
 function TestBreakInNestedWhile() {
   "use asm";
@@ -767,82 +846,6 @@ function TestConditional() {
 }
 
 assertWasm(41, TestConditional);
-
-
-function TestSwitch() {
-  "use asm"
-
-  function caller() {
-    var ret = 0;
-    var x = 7;
-    switch (x) {
-      case 1: return 0;
-      case 7: {
-        ret = 12;
-        break;
-      }
-      default: return 0;
-    }
-    switch (x) {
-      case 1: return 0;
-      case 8: return 0;
-      default: ret = (ret + 11)|0;
-    }
-    return ret|0;
-  }
-
-  return {caller:caller};
-}
-
-assertWasm(23, TestSwitch);
-
-
-function TestSwitchFallthrough() {
-  "use asm"
-
-  function caller() {
-    var x = 17;
-    var ret = 0;
-    switch (x) {
-      case 17:
-      case 14: ret = 39;
-      case 1: ret = (ret + 3)|0;
-      case 4: break;
-      default: ret = (ret + 1)|0;
-    }
-    return ret|0;
-  }
-
-  return {caller:caller};
-}
-
-assertWasm(42, TestSwitchFallthrough);
-
-
-function TestNestedSwitch() {
-  "use asm"
-
-  function caller() {
-    var x = 3;
-    var y = -13;
-    switch (x) {
-      case 1: return 0;
-      case 3: {
-        switch (y) {
-          case 2: return 0;
-          case -13: return 43;
-          default: return 0;
-        }
-      }
-      default: return 0;
-    }
-    return 0;
-  }
-
-  return {caller:caller};
-}
-
-assertWasm(43, TestNestedSwitch);
 
 
 (function () {

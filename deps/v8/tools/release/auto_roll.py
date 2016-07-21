@@ -18,7 +18,9 @@ https://github.com/v8/v8/wiki/Triaging%20issues
 
 Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
-This only works with a Google account.""")
+This only works with a Google account.
+
+CQ_INCLUDE_TRYBOTS=tryserver.blink:linux_blink_rel""")
 
 class Preparation(Step):
   MESSAGE = "Preparation."

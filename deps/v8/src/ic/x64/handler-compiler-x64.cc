@@ -597,58 +597,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
   }
 }
 
-
-void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<AccessorInfo> callback) {
-  DCHECK(!AreAliased(kScratchRegister, scratch2(), scratch3(), receiver()));
-  DCHECK(!AreAliased(kScratchRegister, scratch2(), scratch3(), reg));
-
-  // Insert additional parameters into the stack frame above return address.
-  __ PopReturnAddressTo(scratch3());
-
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
-  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
-
-  __ Push(receiver());  // receiver
-  Handle<Object> data(callback->data(), isolate());
-  if (data->IsUndefined() || data->IsSmi()) {
-    __ Push(data);
-  } else {
-    Handle<WeakCell> cell =
-        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
-    // The callback is alive if this instruction is executed,
-    // so the weak cell is not cleared and points to data.
-    __ GetWeakValue(scratch2(), cell);
-    __ Push(scratch2());
-  }
-  __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-  __ Push(kScratchRegister);  // return value
-  __ Push(kScratchRegister);  // return value default
-  __ PushAddress(ExternalReference::isolate_address(isolate()));
-  __ Push(reg);     // holder
-  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
-
-  __ Push(name());  // name
-  __ PushReturnAddressFrom(scratch3());
-
-  // Abi for CallApiGetter
-  Register api_function_address = ApiGetterDescriptor::function_address();
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  __ Move(api_function_address, getter_address, RelocInfo::EXTERNAL_REFERENCE);
-
-  CallApiGetterStub stub(isolate());
-  __ TailCallStub(&stub);
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
   __ Move(rax, value);
@@ -756,7 +704,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);
 
   // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -798,7 +746,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendFooter(name, &miss);
 
   // Return the generated code.
-  return GetCode(kind(), Code::NORMAL, name);
+  return GetCode(kind(), name);
 }
 
 

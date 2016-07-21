@@ -112,6 +112,7 @@ namespace compiler {
   V(PPC_LoadWordS16)               \
   V(PPC_LoadWordU16)               \
   V(PPC_LoadWordS32)               \
+  V(PPC_LoadWordU32)               \
   V(PPC_LoadWord64)                \
   V(PPC_LoadFloat32)               \
   V(PPC_LoadDouble)                \

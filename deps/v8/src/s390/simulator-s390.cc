@@ -10,6 +10,7 @@
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
+#include "src/base/once.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/runtime/runtime-utils.h"
@@ -274,18 +275,40 @@ void S390Debugger::Debug() {
               reinterpret_cast<Instruction*>(sim_->get_pc()));
         }
 
-        if (argc == 2 && last_pc != sim_->get_pc() && GetValue(arg1, &value)) {
-          for (int i = 1; (!sim_->has_bad_pc()) && i < value; i++) {
-            disasm::NameConverter converter;
-            disasm::Disassembler dasm(converter);
-            // use a reasonably large buffer
-            v8::internal::EmbeddedVector<char, 256> buffer;
-            dasm.InstructionDecode(buffer,
-                                   reinterpret_cast<byte*>(sim_->get_pc()));
-            PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                   buffer.start());
-            sim_->ExecuteInstruction(
-                reinterpret_cast<Instruction*>(sim_->get_pc()));
+        if (argc == 2 && last_pc != sim_->get_pc()) {
+          disasm::NameConverter converter;
+          disasm::Disassembler dasm(converter);
+          // use a reasonably large buffer
+          v8::internal::EmbeddedVector<char, 256> buffer;
+
+          if (GetValue(arg1, &value)) {
+            // Interpret a numeric argument as the number of instructions to
+            // step past.
+            for (int i = 1; (!sim_->has_bad_pc()) &&  i < value; i++) {
+              dasm.InstructionDecode(buffer,
+                                    reinterpret_cast<byte*>(sim_->get_pc()));
+              PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
+                    buffer.start());
+              sim_->ExecuteInstruction(
+                      reinterpret_cast<Instruction*>(sim_->get_pc()));
+            }
+          } else {
+            // Otherwise treat it as the mnemonic of the opcode to stop at.
+            char mnemonic[256];
+            while (!sim_->has_bad_pc()) {
+              dasm.InstructionDecode(buffer,
+                                    reinterpret_cast<byte*>(sim_->get_pc()));
+              char* mnemonicStart = buffer.start();
+              while (*mnemonicStart != 0 && *mnemonicStart != ' ')
+                mnemonicStart++;
+              SScanF(mnemonicStart, "%s", mnemonic);
+              if (!strcmp(arg1, mnemonic)) break;
+
+              PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
+                    buffer.start());
+              sim_->ExecuteInstruction(
+                      reinterpret_cast<Instruction*>(sim_->get_pc()));
+            }
           }
         }
       } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
@@ -574,6 +597,8 @@ void S390Debugger::Debug() {
         } else {
           PrintF("Wrong usage. Use help command for more information.\n");
         }
+      } else if (strcmp(cmd, "icount") == 0) {
+        PrintF("%05" PRId64 "\n", sim_->icount_);
       } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
         ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
         PrintF("Trace of executed instructions is %s\n",
@@ -748,7 +773,742 @@ void Simulator::Initialize(Isolate* isolate) {
   isolate->set_simulator_initialized(true);
   ::v8::internal::ExternalReference::set_redirector(isolate,
                                                     &RedirectExternalReference);
+  static base::OnceType once = V8_ONCE_INIT;
+  base::CallOnce(&once, &Simulator::EvalTableInit);
 }
+
+Simulator::EvaluateFuncType Simulator::EvalTable[] = {NULL};
+
+void Simulator::EvalTableInit() {
+  for (int i = 0; i < MAX_NUM_OPCODES; i++) {
+    EvalTable[i] = &Simulator::Evaluate_Unknown;
+  }
+
+  EvalTable[BKPT] = &Simulator::Evaluate_BKPT;
+  EvalTable[SPM] = &Simulator::Evaluate_SPM;
+  EvalTable[BALR] = &Simulator::Evaluate_BALR;
+  EvalTable[BCTR] = &Simulator::Evaluate_BCTR;
+  EvalTable[BCR] = &Simulator::Evaluate_BCR;
+  EvalTable[SVC] = &Simulator::Evaluate_SVC;
+  EvalTable[BSM] = &Simulator::Evaluate_BSM;
+  EvalTable[BASSM] = &Simulator::Evaluate_BASSM;
+  EvalTable[BASR] = &Simulator::Evaluate_BASR;
+  EvalTable[MVCL] = &Simulator::Evaluate_MVCL;
+  EvalTable[CLCL] = &Simulator::Evaluate_CLCL;
+  EvalTable[LPR] = &Simulator::Evaluate_LPR;
+  EvalTable[LNR] = &Simulator::Evaluate_LNR;
+  EvalTable[LTR] = &Simulator::Evaluate_LTR;
+  EvalTable[LCR] = &Simulator::Evaluate_LCR;
+  EvalTable[NR] = &Simulator::Evaluate_NR;
+  EvalTable[CLR] = &Simulator::Evaluate_CLR;
+  EvalTable[OR] = &Simulator::Evaluate_OR;
+  EvalTable[XR] = &Simulator::Evaluate_XR;
+  EvalTable[LR] = &Simulator::Evaluate_LR;
+  EvalTable[CR] = &Simulator::Evaluate_CR;
+  EvalTable[AR] = &Simulator::Evaluate_AR;
+  EvalTable[SR] = &Simulator::Evaluate_SR;
+  EvalTable[MR] = &Simulator::Evaluate_MR;
+  EvalTable[DR] = &Simulator::Evaluate_DR;
+  EvalTable[ALR] = &Simulator::Evaluate_ALR;
+  EvalTable[SLR] = &Simulator::Evaluate_SLR;
+  EvalTable[LDR] = &Simulator::Evaluate_LDR;
+  EvalTable[CDR] = &Simulator::Evaluate_CDR;
+  EvalTable[LER] = &Simulator::Evaluate_LER;
+  EvalTable[STH] = &Simulator::Evaluate_STH;
+  EvalTable[LA] = &Simulator::Evaluate_LA;
+  EvalTable[STC] = &Simulator::Evaluate_STC;
+  EvalTable[IC_z] = &Simulator::Evaluate_IC_z;
+  EvalTable[EX] = &Simulator::Evaluate_EX;
+  EvalTable[BAL] = &Simulator::Evaluate_BAL;
+  EvalTable[BCT] = &Simulator::Evaluate_BCT;
+  EvalTable[BC] = &Simulator::Evaluate_BC;
+  EvalTable[LH] = &Simulator::Evaluate_LH;
+  EvalTable[CH] = &Simulator::Evaluate_CH;
+  EvalTable[AH] = &Simulator::Evaluate_AH;
+  EvalTable[SH] = &Simulator::Evaluate_SH;
+  EvalTable[MH] = &Simulator::Evaluate_MH;
+  EvalTable[BAS] = &Simulator::Evaluate_BAS;
+  EvalTable[CVD] = &Simulator::Evaluate_CVD;
+  EvalTable[CVB] = &Simulator::Evaluate_CVB;
+  EvalTable[ST] = &Simulator::Evaluate_ST;
+  EvalTable[LAE] = &Simulator::Evaluate_LAE;
+  EvalTable[N] = &Simulator::Evaluate_N;
+  EvalTable[CL] = &Simulator::Evaluate_CL;
+  EvalTable[O] = &Simulator::Evaluate_O;
+  EvalTable[X] = &Simulator::Evaluate_X;
+  EvalTable[L] = &Simulator::Evaluate_L;
+  EvalTable[C] = &Simulator::Evaluate_C;
+  EvalTable[A] = &Simulator::Evaluate_A;
+  EvalTable[S] = &Simulator::Evaluate_S;
+  EvalTable[M] = &Simulator::Evaluate_M;
+  EvalTable[D] = &Simulator::Evaluate_D;
+  EvalTable[AL] = &Simulator::Evaluate_AL;
+  EvalTable[SL] = &Simulator::Evaluate_SL;
+  EvalTable[STD] = &Simulator::Evaluate_STD;
+  EvalTable[LD] = &Simulator::Evaluate_LD;
+  EvalTable[CD] = &Simulator::Evaluate_CD;
+  EvalTable[STE] = &Simulator::Evaluate_STE;
+  EvalTable[MS] = &Simulator::Evaluate_MS;
+  EvalTable[LE] = &Simulator::Evaluate_LE;
+  EvalTable[BRXH] = &Simulator::Evaluate_BRXH;
+  EvalTable[BRXLE] = &Simulator::Evaluate_BRXLE;
+  EvalTable[BXH] = &Simulator::Evaluate_BXH;
+  EvalTable[BXLE] = &Simulator::Evaluate_BXLE;
+  EvalTable[SRL] = &Simulator::Evaluate_SRL;
+  EvalTable[SLL] = &Simulator::Evaluate_SLL;
+  EvalTable[SRA] = &Simulator::Evaluate_SRA;
+  EvalTable[SLA] = &Simulator::Evaluate_SLA;
+  EvalTable[SRDL] = &Simulator::Evaluate_SRDL;
+  EvalTable[SLDL] = &Simulator::Evaluate_SLDL;
+  EvalTable[SRDA] = &Simulator::Evaluate_SRDA;
+  EvalTable[SLDA] = &Simulator::Evaluate_SLDA;
+  EvalTable[STM] = &Simulator::Evaluate_STM;
+  EvalTable[TM] = &Simulator::Evaluate_TM;
+  EvalTable[MVI] = &Simulator::Evaluate_MVI;
+  EvalTable[TS] = &Simulator::Evaluate_TS;
+  EvalTable[NI] = &Simulator::Evaluate_NI;
+  EvalTable[CLI] = &Simulator::Evaluate_CLI;
+  EvalTable[OI] = &Simulator::Evaluate_OI;
+  EvalTable[XI] = &Simulator::Evaluate_XI;
+  EvalTable[LM] = &Simulator::Evaluate_LM;
+  EvalTable[MVCLE] = &Simulator::Evaluate_MVCLE;
+  EvalTable[CLCLE] = &Simulator::Evaluate_CLCLE;
+  EvalTable[MC] = &Simulator::Evaluate_MC;
+  EvalTable[CDS] = &Simulator::Evaluate_CDS;
+  EvalTable[STCM] = &Simulator::Evaluate_STCM;
+  EvalTable[ICM] = &Simulator::Evaluate_ICM;
+  EvalTable[BPRP] = &Simulator::Evaluate_BPRP;
+  EvalTable[BPP] = &Simulator::Evaluate_BPP;
+  EvalTable[TRTR] = &Simulator::Evaluate_TRTR;
+  EvalTable[MVN] = &Simulator::Evaluate_MVN;
+  EvalTable[MVC] = &Simulator::Evaluate_MVC;
+  EvalTable[MVZ] = &Simulator::Evaluate_MVZ;
+  EvalTable[NC] = &Simulator::Evaluate_NC;
+  EvalTable[CLC] = &Simulator::Evaluate_CLC;
+  EvalTable[OC] = &Simulator::Evaluate_OC;
+  EvalTable[XC] = &Simulator::Evaluate_XC;
+  EvalTable[MVCP] = &Simulator::Evaluate_MVCP;
+  EvalTable[TR] = &Simulator::Evaluate_TR;
+  EvalTable[TRT] = &Simulator::Evaluate_TRT;
+  EvalTable[ED] = &Simulator::Evaluate_ED;
+  EvalTable[EDMK] = &Simulator::Evaluate_EDMK;
+  EvalTable[PKU] = &Simulator::Evaluate_PKU;
+  EvalTable[UNPKU] = &Simulator::Evaluate_UNPKU;
+  EvalTable[MVCIN] = &Simulator::Evaluate_MVCIN;
+  EvalTable[PKA] = &Simulator::Evaluate_PKA;
+  EvalTable[UNPKA] = &Simulator::Evaluate_UNPKA;
+  EvalTable[PLO] = &Simulator::Evaluate_PLO;
+  EvalTable[LMD] = &Simulator::Evaluate_LMD;
+  EvalTable[SRP] = &Simulator::Evaluate_SRP;
+  EvalTable[MVO] = &Simulator::Evaluate_MVO;
+  EvalTable[PACK] = &Simulator::Evaluate_PACK;
+  EvalTable[UNPK] = &Simulator::Evaluate_UNPK;
+  EvalTable[ZAP] = &Simulator::Evaluate_ZAP;
+  EvalTable[AP] = &Simulator::Evaluate_AP;
+  EvalTable[SP] = &Simulator::Evaluate_SP;
+  EvalTable[MP] = &Simulator::Evaluate_MP;
+  EvalTable[DP] = &Simulator::Evaluate_DP;
+  EvalTable[UPT] = &Simulator::Evaluate_UPT;
+  EvalTable[PFPO] = &Simulator::Evaluate_PFPO;
+  EvalTable[IIHH] = &Simulator::Evaluate_IIHH;
+  EvalTable[IIHL] = &Simulator::Evaluate_IIHL;
+  EvalTable[IILH] = &Simulator::Evaluate_IILH;
+  EvalTable[IILL] = &Simulator::Evaluate_IILL;
+  EvalTable[NIHH] = &Simulator::Evaluate_NIHH;
+  EvalTable[NIHL] = &Simulator::Evaluate_NIHL;
+  EvalTable[NILH] = &Simulator::Evaluate_NILH;
+  EvalTable[NILL] = &Simulator::Evaluate_NILL;
+  EvalTable[OIHH] = &Simulator::Evaluate_OIHH;
+  EvalTable[OIHL] = &Simulator::Evaluate_OIHL;
+  EvalTable[OILH] = &Simulator::Evaluate_OILH;
+  EvalTable[OILL] = &Simulator::Evaluate_OILL;
+  EvalTable[LLIHH] = &Simulator::Evaluate_LLIHH;
+  EvalTable[LLIHL] = &Simulator::Evaluate_LLIHL;
+  EvalTable[LLILH] = &Simulator::Evaluate_LLILH;
+  EvalTable[LLILL] = &Simulator::Evaluate_LLILL;
+  EvalTable[TMLH] = &Simulator::Evaluate_TMLH;
+  EvalTable[TMLL] = &Simulator::Evaluate_TMLL;
+  EvalTable[TMHH] = &Simulator::Evaluate_TMHH;
+  EvalTable[TMHL] = &Simulator::Evaluate_TMHL;
+  EvalTable[BRC] = &Simulator::Evaluate_BRC;
+  EvalTable[BRAS] = &Simulator::Evaluate_BRAS;
+  EvalTable[BRCT] = &Simulator::Evaluate_BRCT;
+  EvalTable[BRCTG] = &Simulator::Evaluate_BRCTG;
+  EvalTable[LHI] = &Simulator::Evaluate_LHI;
+  EvalTable[LGHI] = &Simulator::Evaluate_LGHI;
+  EvalTable[AHI] = &Simulator::Evaluate_AHI;
+  EvalTable[AGHI] = &Simulator::Evaluate_AGHI;
+  EvalTable[MHI] = &Simulator::Evaluate_MHI;
+  EvalTable[MGHI] = &Simulator::Evaluate_MGHI;
+  EvalTable[CHI] = &Simulator::Evaluate_CHI;
+  EvalTable[CGHI] = &Simulator::Evaluate_CGHI;
+  EvalTable[LARL] = &Simulator::Evaluate_LARL;
+  EvalTable[LGFI] = &Simulator::Evaluate_LGFI;
+  EvalTable[BRCL] = &Simulator::Evaluate_BRCL;
+  EvalTable[BRASL] = &Simulator::Evaluate_BRASL;
+  EvalTable[XIHF] = &Simulator::Evaluate_XIHF;
+  EvalTable[XILF] = &Simulator::Evaluate_XILF;
+  EvalTable[IIHF] = &Simulator::Evaluate_IIHF;
+  EvalTable[IILF] = &Simulator::Evaluate_IILF;
+  EvalTable[NIHF] = &Simulator::Evaluate_NIHF;
+  EvalTable[NILF] = &Simulator::Evaluate_NILF;
+  EvalTable[OIHF] = &Simulator::Evaluate_OIHF;
+  EvalTable[OILF] = &Simulator::Evaluate_OILF;
+  EvalTable[LLIHF] = &Simulator::Evaluate_LLIHF;
+  EvalTable[LLILF] = &Simulator::Evaluate_LLILF;
+  EvalTable[MSGFI] = &Simulator::Evaluate_MSGFI;
+  EvalTable[MSFI] = &Simulator::Evaluate_MSFI;
+  EvalTable[SLGFI] = &Simulator::Evaluate_SLGFI;
+  EvalTable[SLFI] = &Simulator::Evaluate_SLFI;
+  EvalTable[AGFI] = &Simulator::Evaluate_AGFI;
+  EvalTable[AFI] = &Simulator::Evaluate_AFI;
+  EvalTable[ALGFI] = &Simulator::Evaluate_ALGFI;
+  EvalTable[ALFI] = &Simulator::Evaluate_ALFI;
+  EvalTable[CGFI] = &Simulator::Evaluate_CGFI;
+  EvalTable[CFI] = &Simulator::Evaluate_CFI;
+  EvalTable[CLGFI] = &Simulator::Evaluate_CLGFI;
+  EvalTable[CLFI] = &Simulator::Evaluate_CLFI;
+  EvalTable[LLHRL] = &Simulator::Evaluate_LLHRL;
+  EvalTable[LGHRL] = &Simulator::Evaluate_LGHRL;
+  EvalTable[LHRL] = &Simulator::Evaluate_LHRL;
+  EvalTable[LLGHRL] = &Simulator::Evaluate_LLGHRL;
+  EvalTable[STHRL] = &Simulator::Evaluate_STHRL;
+  EvalTable[LGRL] = &Simulator::Evaluate_LGRL;
+  EvalTable[STGRL] = &Simulator::Evaluate_STGRL;
+  EvalTable[LGFRL] = &Simulator::Evaluate_LGFRL;
+  EvalTable[LRL] = &Simulator::Evaluate_LRL;
+  EvalTable[LLGFRL] = &Simulator::Evaluate_LLGFRL;
+  EvalTable[STRL] = &Simulator::Evaluate_STRL;
+  EvalTable[EXRL] = &Simulator::Evaluate_EXRL;
+  EvalTable[PFDRL] = &Simulator::Evaluate_PFDRL;
+  EvalTable[CGHRL] = &Simulator::Evaluate_CGHRL;
+  EvalTable[CHRL] = &Simulator::Evaluate_CHRL;
+  EvalTable[CGRL] = &Simulator::Evaluate_CGRL;
+  EvalTable[CGFRL] = &Simulator::Evaluate_CGFRL;
+  EvalTable[ECTG] = &Simulator::Evaluate_ECTG;
+  EvalTable[CSST] = &Simulator::Evaluate_CSST;
+  EvalTable[LPD] = &Simulator::Evaluate_LPD;
+  EvalTable[LPDG] = &Simulator::Evaluate_LPDG;
+  EvalTable[BRCTH] = &Simulator::Evaluate_BRCTH;
+  EvalTable[AIH] = &Simulator::Evaluate_AIH;
+  EvalTable[ALSIH] = &Simulator::Evaluate_ALSIH;
+  EvalTable[ALSIHN] = &Simulator::Evaluate_ALSIHN;
+  EvalTable[CIH] = &Simulator::Evaluate_CIH;
+  EvalTable[STCK] = &Simulator::Evaluate_STCK;
+  EvalTable[CFC] = &Simulator::Evaluate_CFC;
+  EvalTable[IPM] = &Simulator::Evaluate_IPM;
+  EvalTable[HSCH] = &Simulator::Evaluate_HSCH;
+  EvalTable[MSCH] = &Simulator::Evaluate_MSCH;
+  EvalTable[SSCH] = &Simulator::Evaluate_SSCH;
+  EvalTable[STSCH] = &Simulator::Evaluate_STSCH;
+  EvalTable[TSCH] = &Simulator::Evaluate_TSCH;
+  EvalTable[TPI] = &Simulator::Evaluate_TPI;
+  EvalTable[SAL] = &Simulator::Evaluate_SAL;
+  EvalTable[RSCH] = &Simulator::Evaluate_RSCH;
+  EvalTable[STCRW] = &Simulator::Evaluate_STCRW;
+  EvalTable[STCPS] = &Simulator::Evaluate_STCPS;
+  EvalTable[RCHP] = &Simulator::Evaluate_RCHP;
+  EvalTable[SCHM] = &Simulator::Evaluate_SCHM;
+  EvalTable[CKSM] = &Simulator::Evaluate_CKSM;
+  EvalTable[SAR] = &Simulator::Evaluate_SAR;
+  EvalTable[EAR] = &Simulator::Evaluate_EAR;
+  EvalTable[MSR] = &Simulator::Evaluate_MSR;
+  EvalTable[MVST] = &Simulator::Evaluate_MVST;
+  EvalTable[CUSE] = &Simulator::Evaluate_CUSE;
+  EvalTable[SRST] = &Simulator::Evaluate_SRST;
+  EvalTable[XSCH] = &Simulator::Evaluate_XSCH;
+  EvalTable[STCKE] = &Simulator::Evaluate_STCKE;
+  EvalTable[STCKF] = &Simulator::Evaluate_STCKF;
+  EvalTable[SRNM] = &Simulator::Evaluate_SRNM;
+  EvalTable[STFPC] = &Simulator::Evaluate_STFPC;
+  EvalTable[LFPC] = &Simulator::Evaluate_LFPC;
+  EvalTable[TRE] = &Simulator::Evaluate_TRE;
+  EvalTable[CUUTF] = &Simulator::Evaluate_CUUTF;
+  EvalTable[CUTFU] = &Simulator::Evaluate_CUTFU;
+  EvalTable[STFLE] = &Simulator::Evaluate_STFLE;
+  EvalTable[SRNMB] = &Simulator::Evaluate_SRNMB;
+  EvalTable[SRNMT] = &Simulator::Evaluate_SRNMT;
+  EvalTable[LFAS] = &Simulator::Evaluate_LFAS;
+  EvalTable[PPA] = &Simulator::Evaluate_PPA;
+  EvalTable[ETND] = &Simulator::Evaluate_ETND;
+  EvalTable[TEND] = &Simulator::Evaluate_TEND;
+  EvalTable[NIAI] = &Simulator::Evaluate_NIAI;
+  EvalTable[TABORT] = &Simulator::Evaluate_TABORT;
+  EvalTable[TRAP4] = &Simulator::Evaluate_TRAP4;
+  EvalTable[LPEBR] = &Simulator::Evaluate_LPEBR;
+  EvalTable[LNEBR] = &Simulator::Evaluate_LNEBR;
+  EvalTable[LTEBR] = &Simulator::Evaluate_LTEBR;
+  EvalTable[LCEBR] = &Simulator::Evaluate_LCEBR;
+  EvalTable[LDEBR] = &Simulator::Evaluate_LDEBR;
+  EvalTable[LXDBR] = &Simulator::Evaluate_LXDBR;
+  EvalTable[LXEBR] = &Simulator::Evaluate_LXEBR;
+  EvalTable[MXDBR] = &Simulator::Evaluate_MXDBR;
+  EvalTable[KEBR] = &Simulator::Evaluate_KEBR;
+  EvalTable[CEBR] = &Simulator::Evaluate_CEBR;
+  EvalTable[AEBR] = &Simulator::Evaluate_AEBR;
+  EvalTable[SEBR] = &Simulator::Evaluate_SEBR;
+  EvalTable[MDEBR] = &Simulator::Evaluate_MDEBR;
+  EvalTable[DEBR] = &Simulator::Evaluate_DEBR;
+  EvalTable[MAEBR] = &Simulator::Evaluate_MAEBR;
+  EvalTable[MSEBR] = &Simulator::Evaluate_MSEBR;
+  EvalTable[LPDBR] = &Simulator::Evaluate_LPDBR;
+  EvalTable[LNDBR] = &Simulator::Evaluate_LNDBR;
+  EvalTable[LTDBR] = &Simulator::Evaluate_LTDBR;
+  EvalTable[LCDBR] = &Simulator::Evaluate_LCDBR;
+  EvalTable[SQEBR] = &Simulator::Evaluate_SQEBR;
+  EvalTable[SQDBR] = &Simulator::Evaluate_SQDBR;
+  EvalTable[SQXBR] = &Simulator::Evaluate_SQXBR;
+  EvalTable[MEEBR] = &Simulator::Evaluate_MEEBR;
+  EvalTable[KDBR] = &Simulator::Evaluate_KDBR;
+  EvalTable[CDBR] = &Simulator::Evaluate_CDBR;
+  EvalTable[ADBR] = &Simulator::Evaluate_ADBR;
+  EvalTable[SDBR] = &Simulator::Evaluate_SDBR;
+  EvalTable[MDBR] = &Simulator::Evaluate_MDBR;
+  EvalTable[DDBR] = &Simulator::Evaluate_DDBR;
+  EvalTable[MADBR] = &Simulator::Evaluate_MADBR;
+  EvalTable[MSDBR] = &Simulator::Evaluate_MSDBR;
+  EvalTable[LPXBR] = &Simulator::Evaluate_LPXBR;
+  EvalTable[LNXBR] = &Simulator::Evaluate_LNXBR;
+  EvalTable[LTXBR] = &Simulator::Evaluate_LTXBR;
+  EvalTable[LCXBR] = &Simulator::Evaluate_LCXBR;
+  EvalTable[LEDBRA] = &Simulator::Evaluate_LEDBRA;
+  EvalTable[LDXBRA] = &Simulator::Evaluate_LDXBRA;
+  EvalTable[LEXBRA] = &Simulator::Evaluate_LEXBRA;
+  EvalTable[FIXBRA] = &Simulator::Evaluate_FIXBRA;
+  EvalTable[KXBR] = &Simulator::Evaluate_KXBR;
+  EvalTable[CXBR] = &Simulator::Evaluate_CXBR;
+  EvalTable[AXBR] = &Simulator::Evaluate_AXBR;
+  EvalTable[SXBR] = &Simulator::Evaluate_SXBR;
+  EvalTable[MXBR] = &Simulator::Evaluate_MXBR;
+  EvalTable[DXBR] = &Simulator::Evaluate_DXBR;
+  EvalTable[TBEDR] = &Simulator::Evaluate_TBEDR;
+  EvalTable[TBDR] = &Simulator::Evaluate_TBDR;
+  EvalTable[DIEBR] = &Simulator::Evaluate_DIEBR;
+  EvalTable[FIEBRA] = &Simulator::Evaluate_FIEBRA;
+  EvalTable[THDER] = &Simulator::Evaluate_THDER;
+  EvalTable[THDR] = &Simulator::Evaluate_THDR;
+  EvalTable[DIDBR] = &Simulator::Evaluate_DIDBR;
+  EvalTable[FIDBRA] = &Simulator::Evaluate_FIDBRA;
+  EvalTable[LXR] = &Simulator::Evaluate_LXR;
+  EvalTable[LPDFR] = &Simulator::Evaluate_LPDFR;
+  EvalTable[LNDFR] = &Simulator::Evaluate_LNDFR;
+  EvalTable[LCDFR] = &Simulator::Evaluate_LCDFR;
+  EvalTable[LZER] = &Simulator::Evaluate_LZER;
+  EvalTable[LZDR] = &Simulator::Evaluate_LZDR;
+  EvalTable[LZXR] = &Simulator::Evaluate_LZXR;
+  EvalTable[SFPC] = &Simulator::Evaluate_SFPC;
+  EvalTable[SFASR] = &Simulator::Evaluate_SFASR;
+  EvalTable[EFPC] = &Simulator::Evaluate_EFPC;
+  EvalTable[CELFBR] = &Simulator::Evaluate_CELFBR;
+  EvalTable[CDLFBR] = &Simulator::Evaluate_CDLFBR;
+  EvalTable[CXLFBR] = &Simulator::Evaluate_CXLFBR;
+  EvalTable[CEFBRA] = &Simulator::Evaluate_CEFBRA;
+  EvalTable[CDFBRA] = &Simulator::Evaluate_CDFBRA;
+  EvalTable[CXFBRA] = &Simulator::Evaluate_CXFBRA;
+  EvalTable[CFEBRA] = &Simulator::Evaluate_CFEBRA;
+  EvalTable[CFDBRA] = &Simulator::Evaluate_CFDBRA;
+  EvalTable[CFXBRA] = &Simulator::Evaluate_CFXBRA;
+  EvalTable[CLFEBR] = &Simulator::Evaluate_CLFEBR;
+  EvalTable[CLFDBR] = &Simulator::Evaluate_CLFDBR;
+  EvalTable[CLFXBR] = &Simulator::Evaluate_CLFXBR;
+  EvalTable[CELGBR] = &Simulator::Evaluate_CELGBR;
+  EvalTable[CDLGBR] = &Simulator::Evaluate_CDLGBR;
+  EvalTable[CXLGBR] = &Simulator::Evaluate_CXLGBR;
+  EvalTable[CEGBRA] = &Simulator::Evaluate_CEGBRA;
+  EvalTable[CDGBRA] = &Simulator::Evaluate_CDGBRA;
+  EvalTable[CXGBRA] = &Simulator::Evaluate_CXGBRA;
+  EvalTable[CGEBRA] = &Simulator::Evaluate_CGEBRA;
+  EvalTable[CGDBRA] = &Simulator::Evaluate_CGDBRA;
+  EvalTable[CGXBRA] = &Simulator::Evaluate_CGXBRA;
+  EvalTable[CLGEBR] = &Simulator::Evaluate_CLGEBR;
+  EvalTable[CLGDBR] = &Simulator::Evaluate_CLGDBR;
+  EvalTable[CFER] = &Simulator::Evaluate_CFER;
+  EvalTable[CFDR] = &Simulator::Evaluate_CFDR;
+  EvalTable[CFXR] = &Simulator::Evaluate_CFXR;
+  EvalTable[LDGR] = &Simulator::Evaluate_LDGR;
+  EvalTable[CGER] = &Simulator::Evaluate_CGER;
+  EvalTable[CGDR] = &Simulator::Evaluate_CGDR;
+  EvalTable[CGXR] = &Simulator::Evaluate_CGXR;
+  EvalTable[LGDR] = &Simulator::Evaluate_LGDR;
+  EvalTable[MDTR] = &Simulator::Evaluate_MDTR;
+  EvalTable[MDTRA] = &Simulator::Evaluate_MDTRA;
+  EvalTable[DDTRA] = &Simulator::Evaluate_DDTRA;
+  EvalTable[ADTRA] = &Simulator::Evaluate_ADTRA;
+  EvalTable[SDTRA] = &Simulator::Evaluate_SDTRA;
+  EvalTable[LDETR] = &Simulator::Evaluate_LDETR;
+  EvalTable[LEDTR] = &Simulator::Evaluate_LEDTR;
+  EvalTable[LTDTR] = &Simulator::Evaluate_LTDTR;
+  EvalTable[FIDTR] = &Simulator::Evaluate_FIDTR;
+  EvalTable[MXTRA] = &Simulator::Evaluate_MXTRA;
+  EvalTable[DXTRA] = &Simulator::Evaluate_DXTRA;
+  EvalTable[AXTRA] = &Simulator::Evaluate_AXTRA;
+  EvalTable[SXTRA] = &Simulator::Evaluate_SXTRA;
+  EvalTable[LXDTR] = &Simulator::Evaluate_LXDTR;
+  EvalTable[LDXTR] = &Simulator::Evaluate_LDXTR;
+  EvalTable[LTXTR] = &Simulator::Evaluate_LTXTR;
+  EvalTable[FIXTR] = &Simulator::Evaluate_FIXTR;
+  EvalTable[KDTR] = &Simulator::Evaluate_KDTR;
+  EvalTable[CGDTRA] = &Simulator::Evaluate_CGDTRA;
+  EvalTable[CUDTR] = &Simulator::Evaluate_CUDTR;
+  EvalTable[CDTR] = &Simulator::Evaluate_CDTR;
+  EvalTable[EEDTR] = &Simulator::Evaluate_EEDTR;
+  EvalTable[ESDTR] = &Simulator::Evaluate_ESDTR;
+  EvalTable[KXTR] = &Simulator::Evaluate_KXTR;
+  EvalTable[CGXTRA] = &Simulator::Evaluate_CGXTRA;
+  EvalTable[CUXTR] = &Simulator::Evaluate_CUXTR;
+  EvalTable[CSXTR] = &Simulator::Evaluate_CSXTR;
+  EvalTable[CXTR] = &Simulator::Evaluate_CXTR;
+  EvalTable[EEXTR] = &Simulator::Evaluate_EEXTR;
+  EvalTable[ESXTR] = &Simulator::Evaluate_ESXTR;
+  EvalTable[CDGTRA] = &Simulator::Evaluate_CDGTRA;
+  EvalTable[CDUTR] = &Simulator::Evaluate_CDUTR;
+  EvalTable[CDSTR] = &Simulator::Evaluate_CDSTR;
+  EvalTable[CEDTR] = &Simulator::Evaluate_CEDTR;
+  EvalTable[QADTR] = &Simulator::Evaluate_QADTR;
+  EvalTable[IEDTR] = &Simulator::Evaluate_IEDTR;
+  EvalTable[RRDTR] = &Simulator::Evaluate_RRDTR;
+  EvalTable[CXGTRA] = &Simulator::Evaluate_CXGTRA;
+  EvalTable[CXUTR] = &Simulator::Evaluate_CXUTR;
+  EvalTable[CXSTR] = &Simulator::Evaluate_CXSTR;
+  EvalTable[CEXTR] = &Simulator::Evaluate_CEXTR;
+  EvalTable[QAXTR] = &Simulator::Evaluate_QAXTR;
+  EvalTable[IEXTR] = &Simulator::Evaluate_IEXTR;
+  EvalTable[RRXTR] = &Simulator::Evaluate_RRXTR;
+  EvalTable[LPGR] = &Simulator::Evaluate_LPGR;
+  EvalTable[LNGR] = &Simulator::Evaluate_LNGR;
+  EvalTable[LTGR] = &Simulator::Evaluate_LTGR;
+  EvalTable[LCGR] = &Simulator::Evaluate_LCGR;
+  EvalTable[LGR] = &Simulator::Evaluate_LGR;
+  EvalTable[LGBR] = &Simulator::Evaluate_LGBR;
+  EvalTable[LGHR] = &Simulator::Evaluate_LGHR;
+  EvalTable[AGR] = &Simulator::Evaluate_AGR;
+  EvalTable[SGR] = &Simulator::Evaluate_SGR;
+  EvalTable[ALGR] = &Simulator::Evaluate_ALGR;
+  EvalTable[SLGR] = &Simulator::Evaluate_SLGR;
+  EvalTable[MSGR] = &Simulator::Evaluate_MSGR;
+  EvalTable[DSGR] = &Simulator::Evaluate_DSGR;
+  EvalTable[LRVGR] = &Simulator::Evaluate_LRVGR;
+  EvalTable[LPGFR] = &Simulator::Evaluate_LPGFR;
+  EvalTable[LNGFR] = &Simulator::Evaluate_LNGFR;
+  EvalTable[LTGFR] = &Simulator::Evaluate_LTGFR;
+  EvalTable[LCGFR] = &Simulator::Evaluate_LCGFR;
+  EvalTable[LGFR] = &Simulator::Evaluate_LGFR;
+  EvalTable[LLGFR] = &Simulator::Evaluate_LLGFR;
+  EvalTable[LLGTR] = &Simulator::Evaluate_LLGTR;
+  EvalTable[AGFR] = &Simulator::Evaluate_AGFR;
+  EvalTable[SGFR] = &Simulator::Evaluate_SGFR;
+  EvalTable[ALGFR] = &Simulator::Evaluate_ALGFR;
+  EvalTable[SLGFR] = &Simulator::Evaluate_SLGFR;
+  EvalTable[MSGFR] = &Simulator::Evaluate_MSGFR;
+  EvalTable[DSGFR] = &Simulator::Evaluate_DSGFR;
+  EvalTable[KMAC] = &Simulator::Evaluate_KMAC;
+  EvalTable[LRVR] = &Simulator::Evaluate_LRVR;
+  EvalTable[CGR] = &Simulator::Evaluate_CGR;
+  EvalTable[CLGR] = &Simulator::Evaluate_CLGR;
+  EvalTable[LBR] = &Simulator::Evaluate_LBR;
+  EvalTable[LHR] = &Simulator::Evaluate_LHR;
+  EvalTable[KMF] = &Simulator::Evaluate_KMF;
+  EvalTable[KMO] = &Simulator::Evaluate_KMO;
+  EvalTable[PCC] = &Simulator::Evaluate_PCC;
+  EvalTable[KMCTR] = &Simulator::Evaluate_KMCTR;
+  EvalTable[KM] = &Simulator::Evaluate_KM;
+  EvalTable[KMC] = &Simulator::Evaluate_KMC;
+  EvalTable[CGFR] = &Simulator::Evaluate_CGFR;
+  EvalTable[KIMD] = &Simulator::Evaluate_KIMD;
+  EvalTable[KLMD] = &Simulator::Evaluate_KLMD;
+  EvalTable[CFDTR] = &Simulator::Evaluate_CFDTR;
+  EvalTable[CLGDTR] = &Simulator::Evaluate_CLGDTR;
+  EvalTable[CLFDTR] = &Simulator::Evaluate_CLFDTR;
+  EvalTable[BCTGR] = &Simulator::Evaluate_BCTGR;
+  EvalTable[CFXTR] = &Simulator::Evaluate_CFXTR;
+  EvalTable[CLFXTR] = &Simulator::Evaluate_CLFXTR;
+  EvalTable[CDFTR] = &Simulator::Evaluate_CDFTR;
+  EvalTable[CDLGTR] = &Simulator::Evaluate_CDLGTR;
+  EvalTable[CDLFTR] = &Simulator::Evaluate_CDLFTR;
+  EvalTable[CXFTR] = &Simulator::Evaluate_CXFTR;
+  EvalTable[CXLGTR] = &Simulator::Evaluate_CXLGTR;
+  EvalTable[CXLFTR] = &Simulator::Evaluate_CXLFTR;
+  EvalTable[CGRT] = &Simulator::Evaluate_CGRT;
+  EvalTable[NGR] = &Simulator::Evaluate_NGR;
+  EvalTable[OGR] = &Simulator::Evaluate_OGR;
+  EvalTable[XGR] = &Simulator::Evaluate_XGR;
+  EvalTable[FLOGR] = &Simulator::Evaluate_FLOGR;
+  EvalTable[LLGCR] = &Simulator::Evaluate_LLGCR;
+  EvalTable[LLGHR] = &Simulator::Evaluate_LLGHR;
+  EvalTable[MLGR] = &Simulator::Evaluate_MLGR;
+  EvalTable[DLGR] = &Simulator::Evaluate_DLGR;
+  EvalTable[ALCGR] = &Simulator::Evaluate_ALCGR;
+  EvalTable[SLBGR] = &Simulator::Evaluate_SLBGR;
+  EvalTable[EPSW] = &Simulator::Evaluate_EPSW;
+  EvalTable[TRTT] = &Simulator::Evaluate_TRTT;
+  EvalTable[TRTO] = &Simulator::Evaluate_TRTO;
+  EvalTable[TROT] = &Simulator::Evaluate_TROT;
+  EvalTable[TROO] = &Simulator::Evaluate_TROO;
+  EvalTable[LLCR] = &Simulator::Evaluate_LLCR;
+  EvalTable[LLHR] = &Simulator::Evaluate_LLHR;
+  EvalTable[MLR] = &Simulator::Evaluate_MLR;
+  EvalTable[DLR] = &Simulator::Evaluate_DLR;
+  EvalTable[ALCR] = &Simulator::Evaluate_ALCR;
+  EvalTable[SLBR] = &Simulator::Evaluate_SLBR;
+  EvalTable[CU14] = &Simulator::Evaluate_CU14;
+  EvalTable[CU24] = &Simulator::Evaluate_CU24;
+  EvalTable[CU41] = &Simulator::Evaluate_CU41;
+  EvalTable[CU42] = &Simulator::Evaluate_CU42;
+  EvalTable[TRTRE] = &Simulator::Evaluate_TRTRE;
+  EvalTable[SRSTU] = &Simulator::Evaluate_SRSTU;
+  EvalTable[TRTE] = &Simulator::Evaluate_TRTE;
+  EvalTable[AHHHR] = &Simulator::Evaluate_AHHHR;
+  EvalTable[SHHHR] = &Simulator::Evaluate_SHHHR;
+  EvalTable[ALHHHR] = &Simulator::Evaluate_ALHHHR;
+  EvalTable[SLHHHR] = &Simulator::Evaluate_SLHHHR;
+  EvalTable[CHHR] = &Simulator::Evaluate_CHHR;
+  EvalTable[AHHLR] = &Simulator::Evaluate_AHHLR;
+  EvalTable[SHHLR] = &Simulator::Evaluate_SHHLR;
+  EvalTable[ALHHLR] = &Simulator::Evaluate_ALHHLR;
+  EvalTable[SLHHLR] = &Simulator::Evaluate_SLHHLR;
+  EvalTable[CHLR] = &Simulator::Evaluate_CHLR;
+  EvalTable[POPCNT_Z] = &Simulator::Evaluate_POPCNT_Z;
+  EvalTable[LOCGR] = &Simulator::Evaluate_LOCGR;
+  EvalTable[NGRK] = &Simulator::Evaluate_NGRK;
+  EvalTable[OGRK] = &Simulator::Evaluate_OGRK;
+  EvalTable[XGRK] = &Simulator::Evaluate_XGRK;
+  EvalTable[AGRK] = &Simulator::Evaluate_AGRK;
+  EvalTable[SGRK] = &Simulator::Evaluate_SGRK;
+  EvalTable[ALGRK] = &Simulator::Evaluate_ALGRK;
+  EvalTable[SLGRK] = &Simulator::Evaluate_SLGRK;
+  EvalTable[LOCR] = &Simulator::Evaluate_LOCR;
+  EvalTable[NRK] = &Simulator::Evaluate_NRK;
+  EvalTable[ORK] = &Simulator::Evaluate_ORK;
+  EvalTable[XRK] = &Simulator::Evaluate_XRK;
+  EvalTable[ARK] = &Simulator::Evaluate_ARK;
+  EvalTable[SRK] = &Simulator::Evaluate_SRK;
+  EvalTable[ALRK] = &Simulator::Evaluate_ALRK;
+  EvalTable[SLRK] = &Simulator::Evaluate_SLRK;
+  EvalTable[LTG] = &Simulator::Evaluate_LTG;
+  EvalTable[LG] = &Simulator::Evaluate_LG;
+  EvalTable[CVBY] = &Simulator::Evaluate_CVBY;
+  EvalTable[AG] = &Simulator::Evaluate_AG;
+  EvalTable[SG] = &Simulator::Evaluate_SG;
+  EvalTable[ALG] = &Simulator::Evaluate_ALG;
+  EvalTable[SLG] = &Simulator::Evaluate_SLG;
+  EvalTable[MSG] = &Simulator::Evaluate_MSG;
+  EvalTable[DSG] = &Simulator::Evaluate_DSG;
+  EvalTable[CVBG] = &Simulator::Evaluate_CVBG;
+  EvalTable[LRVG] = &Simulator::Evaluate_LRVG;
+  EvalTable[LT] = &Simulator::Evaluate_LT;
+  EvalTable[LGF] = &Simulator::Evaluate_LGF;
+  EvalTable[LGH] = &Simulator::Evaluate_LGH;
+  EvalTable[LLGF] = &Simulator::Evaluate_LLGF;
+  EvalTable[LLGT] = &Simulator::Evaluate_LLGT;
+  EvalTable[AGF] = &Simulator::Evaluate_AGF;
+  EvalTable[SGF] = &Simulator::Evaluate_SGF;
+  EvalTable[ALGF] = &Simulator::Evaluate_ALGF;
+  EvalTable[SLGF] = &Simulator::Evaluate_SLGF;
+  EvalTable[MSGF] = &Simulator::Evaluate_MSGF;
+  EvalTable[DSGF] = &Simulator::Evaluate_DSGF;
+  EvalTable[LRV] = &Simulator::Evaluate_LRV;
+  EvalTable[LRVH] = &Simulator::Evaluate_LRVH;
+  EvalTable[CG] = &Simulator::Evaluate_CG;
+  EvalTable[CLG] = &Simulator::Evaluate_CLG;
+  EvalTable[STG] = &Simulator::Evaluate_STG;
+  EvalTable[NTSTG] = &Simulator::Evaluate_NTSTG;
+  EvalTable[CVDY] = &Simulator::Evaluate_CVDY;
+  EvalTable[CVDG] = &Simulator::Evaluate_CVDG;
+  EvalTable[STRVG] = &Simulator::Evaluate_STRVG;
+  EvalTable[CGF] = &Simulator::Evaluate_CGF;
+  EvalTable[CLGF] = &Simulator::Evaluate_CLGF;
+  EvalTable[LTGF] = &Simulator::Evaluate_LTGF;
+  EvalTable[CGH] = &Simulator::Evaluate_CGH;
+  EvalTable[PFD] = &Simulator::Evaluate_PFD;
+  EvalTable[STRV] = &Simulator::Evaluate_STRV;
+  EvalTable[STRVH] = &Simulator::Evaluate_STRVH;
+  EvalTable[BCTG] = &Simulator::Evaluate_BCTG;
+  EvalTable[STY] = &Simulator::Evaluate_STY;
+  EvalTable[MSY] = &Simulator::Evaluate_MSY;
+  EvalTable[NY] = &Simulator::Evaluate_NY;
+  EvalTable[CLY] = &Simulator::Evaluate_CLY;
+  EvalTable[OY] = &Simulator::Evaluate_OY;
+  EvalTable[XY] = &Simulator::Evaluate_XY;
+  EvalTable[LY] = &Simulator::Evaluate_LY;
+  EvalTable[CY] = &Simulator::Evaluate_CY;
+  EvalTable[AY] = &Simulator::Evaluate_AY;
+  EvalTable[SY] = &Simulator::Evaluate_SY;
+  EvalTable[MFY] = &Simulator::Evaluate_MFY;
+  EvalTable[ALY] = &Simulator::Evaluate_ALY;
+  EvalTable[SLY] = &Simulator::Evaluate_SLY;
+  EvalTable[STHY] = &Simulator::Evaluate_STHY;
+  EvalTable[LAY] = &Simulator::Evaluate_LAY;
+  EvalTable[STCY] = &Simulator::Evaluate_STCY;
+  EvalTable[ICY] = &Simulator::Evaluate_ICY;
+  EvalTable[LAEY] = &Simulator::Evaluate_LAEY;
+  EvalTable[LB] = &Simulator::Evaluate_LB;
+  EvalTable[LGB] = &Simulator::Evaluate_LGB;
+  EvalTable[LHY] = &Simulator::Evaluate_LHY;
+  EvalTable[CHY] = &Simulator::Evaluate_CHY;
+  EvalTable[AHY] = &Simulator::Evaluate_AHY;
+  EvalTable[SHY] = &Simulator::Evaluate_SHY;
+  EvalTable[MHY] = &Simulator::Evaluate_MHY;
+  EvalTable[NG] = &Simulator::Evaluate_NG;
+  EvalTable[OG] = &Simulator::Evaluate_OG;
+  EvalTable[XG] = &Simulator::Evaluate_XG;
+  EvalTable[LGAT] = &Simulator::Evaluate_LGAT;
+  EvalTable[MLG] = &Simulator::Evaluate_MLG;
+  EvalTable[DLG] = &Simulator::Evaluate_DLG;
+  EvalTable[ALCG] = &Simulator::Evaluate_ALCG;
+  EvalTable[SLBG] = &Simulator::Evaluate_SLBG;
+  EvalTable[STPQ] = &Simulator::Evaluate_STPQ;
+  EvalTable[LPQ] = &Simulator::Evaluate_LPQ;
+  EvalTable[LLGC] = &Simulator::Evaluate_LLGC;
+  EvalTable[LLGH] = &Simulator::Evaluate_LLGH;
+  EvalTable[LLC] = &Simulator::Evaluate_LLC;
+  EvalTable[LLH] = &Simulator::Evaluate_LLH;
+  EvalTable[ML] = &Simulator::Evaluate_ML;
+  EvalTable[DL] = &Simulator::Evaluate_DL;
+  EvalTable[ALC] = &Simulator::Evaluate_ALC;
+  EvalTable[SLB] = &Simulator::Evaluate_SLB;
+  EvalTable[LLGTAT] = &Simulator::Evaluate_LLGTAT;
+  EvalTable[LLGFAT] = &Simulator::Evaluate_LLGFAT;
+  EvalTable[LAT] = &Simulator::Evaluate_LAT;
+  EvalTable[LBH] = &Simulator::Evaluate_LBH;
+  EvalTable[LLCH] = &Simulator::Evaluate_LLCH;
+  EvalTable[STCH] = &Simulator::Evaluate_STCH;
+  EvalTable[LHH] = &Simulator::Evaluate_LHH;
+  EvalTable[LLHH] = &Simulator::Evaluate_LLHH;
+  EvalTable[STHH] = &Simulator::Evaluate_STHH;
+  EvalTable[LFHAT] = &Simulator::Evaluate_LFHAT;
+  EvalTable[LFH] = &Simulator::Evaluate_LFH;
+  EvalTable[STFH] = &Simulator::Evaluate_STFH;
+  EvalTable[CHF] = &Simulator::Evaluate_CHF;
+  EvalTable[MVCDK] = &Simulator::Evaluate_MVCDK;
+  EvalTable[MVHHI] = &Simulator::Evaluate_MVHHI;
+  EvalTable[MVGHI] = &Simulator::Evaluate_MVGHI;
+  EvalTable[MVHI] = &Simulator::Evaluate_MVHI;
+  EvalTable[CHHSI] = &Simulator::Evaluate_CHHSI;
+  EvalTable[CGHSI] = &Simulator::Evaluate_CGHSI;
+  EvalTable[CHSI] = &Simulator::Evaluate_CHSI;
+  EvalTable[CLFHSI] = &Simulator::Evaluate_CLFHSI;
+  EvalTable[TBEGIN] = &Simulator::Evaluate_TBEGIN;
+  EvalTable[TBEGINC] = &Simulator::Evaluate_TBEGINC;
+  EvalTable[LMG] = &Simulator::Evaluate_LMG;
+  EvalTable[SRAG] = &Simulator::Evaluate_SRAG;
+  EvalTable[SLAG] = &Simulator::Evaluate_SLAG;
+  EvalTable[SRLG] = &Simulator::Evaluate_SRLG;
+  EvalTable[SLLG] = &Simulator::Evaluate_SLLG;
+  EvalTable[CSY] = &Simulator::Evaluate_CSY;
+  EvalTable[RLLG] = &Simulator::Evaluate_RLLG;
+  EvalTable[RLL] = &Simulator::Evaluate_RLL;
+  EvalTable[STMG] = &Simulator::Evaluate_STMG;
+  EvalTable[STMH] = &Simulator::Evaluate_STMH;
+  EvalTable[STCMH] = &Simulator::Evaluate_STCMH;
+  EvalTable[STCMY] = &Simulator::Evaluate_STCMY;
+  EvalTable[CDSY] = &Simulator::Evaluate_CDSY;
+  EvalTable[CDSG] = &Simulator::Evaluate_CDSG;
+  EvalTable[BXHG] = &Simulator::Evaluate_BXHG;
+  EvalTable[BXLEG] = &Simulator::Evaluate_BXLEG;
+  EvalTable[ECAG] = &Simulator::Evaluate_ECAG;
+  EvalTable[TMY] = &Simulator::Evaluate_TMY;
+  EvalTable[MVIY] = &Simulator::Evaluate_MVIY;
+  EvalTable[NIY] = &Simulator::Evaluate_NIY;
+  EvalTable[CLIY] = &Simulator::Evaluate_CLIY;
+  EvalTable[OIY] = &Simulator::Evaluate_OIY;
+  EvalTable[XIY] = &Simulator::Evaluate_XIY;
+  EvalTable[ASI] = &Simulator::Evaluate_ASI;
+  EvalTable[ALSI] = &Simulator::Evaluate_ALSI;
+  EvalTable[AGSI] = &Simulator::Evaluate_AGSI;
+  EvalTable[ALGSI] = &Simulator::Evaluate_ALGSI;
+  EvalTable[ICMH] = &Simulator::Evaluate_ICMH;
+  EvalTable[ICMY] = &Simulator::Evaluate_ICMY;
+  EvalTable[MVCLU] = &Simulator::Evaluate_MVCLU;
+  EvalTable[CLCLU] = &Simulator::Evaluate_CLCLU;
+  EvalTable[STMY] = &Simulator::Evaluate_STMY;
+  EvalTable[LMH] = &Simulator::Evaluate_LMH;
+  EvalTable[LMY] = &Simulator::Evaluate_LMY;
+  EvalTable[TP] = &Simulator::Evaluate_TP;
+  EvalTable[SRAK] = &Simulator::Evaluate_SRAK;
+  EvalTable[SLAK] = &Simulator::Evaluate_SLAK;
+  EvalTable[SRLK] = &Simulator::Evaluate_SRLK;
+  EvalTable[SLLK] = &Simulator::Evaluate_SLLK;
+  EvalTable[LOCG] = &Simulator::Evaluate_LOCG;
+  EvalTable[STOCG] = &Simulator::Evaluate_STOCG;
+  EvalTable[LANG] = &Simulator::Evaluate_LANG;
+  EvalTable[LAOG] = &Simulator::Evaluate_LAOG;
+  EvalTable[LAXG] = &Simulator::Evaluate_LAXG;
+  EvalTable[LAAG] = &Simulator::Evaluate_LAAG;
+  EvalTable[LAALG] = &Simulator::Evaluate_LAALG;
+  EvalTable[LOC] = &Simulator::Evaluate_LOC;
+  EvalTable[STOC] = &Simulator::Evaluate_STOC;
+  EvalTable[LAN] = &Simulator::Evaluate_LAN;
+  EvalTable[LAO] = &Simulator::Evaluate_LAO;
+  EvalTable[LAX] = &Simulator::Evaluate_LAX;
+  EvalTable[LAA] = &Simulator::Evaluate_LAA;
+  EvalTable[LAAL] = &Simulator::Evaluate_LAAL;
+  EvalTable[BRXHG] = &Simulator::Evaluate_BRXHG;
+  EvalTable[BRXLG] = &Simulator::Evaluate_BRXLG;
+  EvalTable[RISBLG] = &Simulator::Evaluate_RISBLG;
+  EvalTable[RNSBG] = &Simulator::Evaluate_RNSBG;
+  EvalTable[RISBG] = &Simulator::Evaluate_RISBG;
+  EvalTable[ROSBG] = &Simulator::Evaluate_ROSBG;
+  EvalTable[RXSBG] = &Simulator::Evaluate_RXSBG;
+  EvalTable[RISBGN] = &Simulator::Evaluate_RISBGN;
+  EvalTable[RISBHG] = &Simulator::Evaluate_RISBHG;
+  EvalTable[CGRJ] = &Simulator::Evaluate_CGRJ;
+  EvalTable[CGIT] = &Simulator::Evaluate_CGIT;
+  EvalTable[CIT] = &Simulator::Evaluate_CIT;
+  EvalTable[CLFIT] = &Simulator::Evaluate_CLFIT;
+  EvalTable[CGIJ] = &Simulator::Evaluate_CGIJ;
+  EvalTable[CIJ] = &Simulator::Evaluate_CIJ;
+  EvalTable[AHIK] = &Simulator::Evaluate_AHIK;
+  EvalTable[AGHIK] = &Simulator::Evaluate_AGHIK;
+  EvalTable[ALHSIK] = &Simulator::Evaluate_ALHSIK;
+  EvalTable[ALGHSIK] = &Simulator::Evaluate_ALGHSIK;
+  EvalTable[CGRB] = &Simulator::Evaluate_CGRB;
+  EvalTable[CGIB] = &Simulator::Evaluate_CGIB;
+  EvalTable[CIB] = &Simulator::Evaluate_CIB;
+  EvalTable[LDEB] = &Simulator::Evaluate_LDEB;
+  EvalTable[LXDB] = &Simulator::Evaluate_LXDB;
+  EvalTable[LXEB] = &Simulator::Evaluate_LXEB;
+  EvalTable[MXDB] = &Simulator::Evaluate_MXDB;
+  EvalTable[KEB] = &Simulator::Evaluate_KEB;
+  EvalTable[CEB] = &Simulator::Evaluate_CEB;
+  EvalTable[AEB] = &Simulator::Evaluate_AEB;
+  EvalTable[SEB] = &Simulator::Evaluate_SEB;
+  EvalTable[MDEB] = &Simulator::Evaluate_MDEB;
+  EvalTable[DEB] = &Simulator::Evaluate_DEB;
+  EvalTable[MAEB] = &Simulator::Evaluate_MAEB;
+  EvalTable[MSEB] = &Simulator::Evaluate_MSEB;
+  EvalTable[TCEB] = &Simulator::Evaluate_TCEB;
+  EvalTable[TCDB] = &Simulator::Evaluate_TCDB;
+  EvalTable[TCXB] = &Simulator::Evaluate_TCXB;
+  EvalTable[SQEB] = &Simulator::Evaluate_SQEB;
+  EvalTable[SQDB] = &Simulator::Evaluate_SQDB;
+  EvalTable[MEEB] = &Simulator::Evaluate_MEEB;
+  EvalTable[KDB] = &Simulator::Evaluate_KDB;
+  EvalTable[CDB] = &Simulator::Evaluate_CDB;
+  EvalTable[ADB] = &Simulator::Evaluate_ADB;
+  EvalTable[SDB] = &Simulator::Evaluate_SDB;
+  EvalTable[MDB] = &Simulator::Evaluate_MDB;
+  EvalTable[DDB] = &Simulator::Evaluate_DDB;
+  EvalTable[MADB] = &Simulator::Evaluate_MADB;
+  EvalTable[MSDB] = &Simulator::Evaluate_MSDB;
+  EvalTable[SLDT] = &Simulator::Evaluate_SLDT;
+  EvalTable[SRDT] = &Simulator::Evaluate_SRDT;
+  EvalTable[SLXT] = &Simulator::Evaluate_SLXT;
+  EvalTable[SRXT] = &Simulator::Evaluate_SRXT;
+  EvalTable[TDCET] = &Simulator::Evaluate_TDCET;
+  EvalTable[TDGET] = &Simulator::Evaluate_TDGET;
+  EvalTable[TDCDT] = &Simulator::Evaluate_TDCDT;
+  EvalTable[TDGDT] = &Simulator::Evaluate_TDGDT;
+  EvalTable[TDCXT] = &Simulator::Evaluate_TDCXT;
+  EvalTable[TDGXT] = &Simulator::Evaluate_TDGXT;
+  EvalTable[LEY] = &Simulator::Evaluate_LEY;
+  EvalTable[LDY] = &Simulator::Evaluate_LDY;
+  EvalTable[STEY] = &Simulator::Evaluate_STEY;
+  EvalTable[STDY] = &Simulator::Evaluate_STDY;
+  EvalTable[CZDT] = &Simulator::Evaluate_CZDT;
+  EvalTable[CZXT] = &Simulator::Evaluate_CZXT;
+  EvalTable[CDZT] = &Simulator::Evaluate_CDZT;
+  EvalTable[CXZT] = &Simulator::Evaluate_CXZT;
+}  // NOLINT
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
@@ -2587,6 +3347,7 @@ bool Simulator::DecodeFourByteArithmetic64Bit(Instruction* instr) {
         SetS390OverflowCode(isOF);
         set_register(r1, r2_val - r3_val);
       }
+      break;
     }
     case AGHI:
     case MGHI: {
@@ -2987,17 +3748,19 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       RREInstruction* rrinst = reinterpret_cast<RREInstruction*>(instr);
       int r1 = rrinst->R1Value();
       int r2 = rrinst->R2Value();
-#ifdef V8_TARGET_ARCH_S390X
+      if (op == LGBR) {
       int64_t r2_val = get_low_register<int64_t>(r2);
       r2_val <<= 56;
       r2_val >>= 56;
       set_register(r1, r2_val);
-#else
+      } else if (op == LBR) {
       int32_t r2_val = get_low_register<int32_t>(r2);
       r2_val <<= 24;
       r2_val >>= 24;
       set_low_register(r1, r2_val);
-#endif
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case LGHR:
@@ -3005,17 +3768,19 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       RREInstruction* rrinst = reinterpret_cast<RREInstruction*>(instr);
       int r1 = rrinst->R1Value();
       int r2 = rrinst->R2Value();
-#ifdef V8_TARGET_ARCH_S390X
+      if (op == LGHR) {
       int64_t r2_val = get_low_register<int64_t>(r2);
       r2_val <<= 48;
       r2_val >>= 48;
       set_register(r1, r2_val);
-#else
+      } else if (op == LHR) {
       int32_t r2_val = get_low_register<int32_t>(r2);
       r2_val <<= 16;
       r2_val >>= 16;
       set_low_register(r1, r2_val);
-#endif
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case ALCR: {
@@ -4802,47 +5567,56 @@ int32_t Simulator::ByteReverse(int32_t word) {
   return result;
 }
 
-// Executes the current instruction.
-void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
-  if (v8::internal::FLAG_check_icache) {
-    CheckICache(isolate_->simulator_i_cache(), instr);
-  }
-  pc_modified_ = false;
-  if (::v8::internal::FLAG_trace_sim) {
-    disasm::NameConverter converter;
-    disasm::Disassembler dasm(converter);
-    // use a reasonably large buffer
-    v8::internal::EmbeddedVector<char, 256> buffer;
-    dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
-#ifdef V8_TARGET_ARCH_S390X
-    PrintF("%05ld  %08" V8PRIxPTR "  %s\n", icount_,
-           reinterpret_cast<intptr_t>(instr), buffer.start());
-#else
-    PrintF("%05lld  %08" V8PRIxPTR "  %s\n", icount_,
-           reinterpret_cast<intptr_t>(instr), buffer.start());
-#endif
-    // Flush stdout to prevent incomplete file output during abnormal exits
-    // This is caused by the output being buffered before being written to file
-    fflush(stdout);
-  }
-
-  // Try to simulate as S390 Instruction first.
-  bool processed = true;
-
+int Simulator::DecodeInstructionOriginal(Instruction* instr) {
   int instrLength = instr->InstructionLength();
+  bool processed = true;
   if (instrLength == 2)
     processed = DecodeTwoByte(instr);
   else if (instrLength == 4)
     processed = DecodeFourByte(instr);
   else if (instrLength == 6)
     processed = DecodeSixByte(instr);
+  return instrLength;
+}
 
-  if (processed) {
-    if (!pc_modified_ && auto_incr_pc) {
-      set_pc(reinterpret_cast<intptr_t>(instr) + instrLength);
-    }
-    return;
+int Simulator::DecodeInstruction(Instruction* instr) {
+  Opcode op = instr->S390OpcodeValue();
+  DCHECK(EvalTable[op] != NULL);
+  return (this->*EvalTable[op])(instr);
+}
+
+// Executes the current instruction.
+void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
+  icount_++;
+
+  if (v8::internal::FLAG_check_icache) {
+    CheckICache(isolate_->simulator_i_cache(), instr);
   }
+
+  pc_modified_ = false;
+
+  if (::v8::internal::FLAG_trace_sim) {
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
+    // use a reasonably large buffer
+    v8::internal::EmbeddedVector<char, 256> buffer;
+    dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
+    PrintF("%05" PRId64 "  %08" V8PRIxPTR "  %s\n", icount_,
+           reinterpret_cast<intptr_t>(instr), buffer.start());
+
+    // Flush stdout to prevent incomplete file output during abnormal exits
+    // This is caused by the output being buffered before being written to file
+    fflush(stdout);
+  }
+
+  // Try to simulate as S390 Instruction first.
+  int length = DecodeInstruction(instr);
+
+  if (!pc_modified_ && auto_incr_pc) {
+    DCHECK(length == instr->InstructionLength());
+    set_pc(reinterpret_cast<intptr_t>(instr) + length);
+  }
+  return;
 }
 
 void Simulator::DebugStart() {
@@ -4860,7 +5634,6 @@ void Simulator::Execute() {
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
       ExecuteInstruction(instr);
       program_counter = get_pc();
     }
@@ -4869,7 +5642,6 @@ void Simulator::Execute() {
     // we reach the particular instuction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
       if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
         S390Debugger dbg(this);
         dbg.Debug();
@@ -5120,6 +5892,2946 @@ uintptr_t Simulator::PopAddress() {
   set_register(sp, current_sp + sizeof(uintptr_t));
   return address;
 }
+
+#define EVALUATE(name) \
+  int Simulator::Evaluate_##name(Instruction* instr)
+
+#define DCHECK_OPCODE(op) DCHECK(instr->S390OpcodeValue() == op)
+
+#define AS(type) reinterpret_cast<type*>(instr)
+
+#define DECODE_RIL_A_INSTRUCTION(r1, i2)               \
+  int r1 = AS(RILInstruction)->R1Value();              \
+  uint32_t i2 = AS(RILInstruction)->I2UnsignedValue(); \
+  int length = 6;
+
+#define DECODE_RIL_B_INSTRUCTION(r1, i2)      \
+  int r1 = AS(RILInstruction)->R1Value();     \
+  int32_t i2 = AS(RILInstruction)->I2Value(); \
+  int length = 6;
+
+#define DECODE_RIL_C_INSTRUCTION(m1, ri2)                               \
+  Condition m1 = static_cast<Condition>(AS(RILInstruction)->R1Value()); \
+  uint64_t ri2 = AS(RILInstruction)->I2Value();                         \
+  int length = 6;
+
+#define DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2) \
+  int r1 = AS(RXYInstruction)->R1Value();        \
+  int x2 = AS(RXYInstruction)->X2Value();        \
+  int b2 = AS(RXYInstruction)->B2Value();        \
+  int d2 = AS(RXYInstruction)->D2Value();        \
+  int length = 6;
+
+#define DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val) \
+  int x2 = AS(RXInstruction)->X2Value();            \
+  int b2 = AS(RXInstruction)->B2Value();            \
+  int r1 = AS(RXInstruction)->R1Value();            \
+  intptr_t d2_val = AS(RXInstruction)->D2Value();   \
+  int length = 4;
+
+#define DECODE_RS_A_INSTRUCTION(r1, r3, b2, d2) \
+  int r3 = AS(RSInstruction)->R3Value();        \
+  int b2 = AS(RSInstruction)->B2Value();        \
+  int r1 = AS(RSInstruction)->R1Value();        \
+  intptr_t d2 = AS(RSInstruction)->D2Value();   \
+  int length = 4;
+
+#define DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2) \
+  int b2 = AS(RSInstruction)->B2Value();          \
+  int r1 = AS(RSInstruction)->R1Value();          \
+  int d2 = AS(RSInstruction)->D2Value();          \
+  int length = 4;
+
+#define DECODE_SI_INSTRUCTION_I_UINT8(b1, d1_val, imm_val) \
+  int b1 = AS(SIInstruction)->B1Value();                   \
+  intptr_t d1_val = AS(SIInstruction)->D1Value();          \
+  uint8_t imm_val = AS(SIInstruction)->I2Value();          \
+  int length = 4;
+
+#define DECODE_RRE_INSTRUCTION(r1, r2)    \
+  int r1 = AS(RREInstruction)->R1Value(); \
+  int r2 = AS(RREInstruction)->R2Value(); \
+  int length = 4;
+
+#define DECODE_RR_INSTRUCTION(r1, r2)    \
+  int r1 = AS(RRInstruction)->R1Value(); \
+  int r2 = AS(RRInstruction)->R2Value(); \
+  int length = 2;
+
+#define DECODE_RIE_D_INSTRUCTION(r1, r2, i2)  \
+  int r1 = AS(RIEInstruction)->R1Value();     \
+  int r2 = AS(RIEInstruction)->R2Value();     \
+  int32_t i2 = AS(RIEInstruction)->I6Value(); \
+  int length = 6;
+
+#define DECODE_RIE_F_INSTRUCTION(r1, r2, i3, i4, i5) \
+  int r1 = AS(RIEInstruction)->R1Value();            \
+  int r2 = AS(RIEInstruction)->R2Value();            \
+  uint32_t i3 = AS(RIEInstruction)->I3Value();       \
+  uint32_t i4 = AS(RIEInstruction)->I4Value();       \
+  uint32_t i5 = AS(RIEInstruction)->I5Value();       \
+  int length = 6;
+
+#define DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2) \
+  int r1 = AS(RSYInstruction)->R1Value();        \
+  int r3 = AS(RSYInstruction)->R3Value();        \
+  int b2 = AS(RSYInstruction)->B2Value();        \
+  intptr_t d2 = AS(RSYInstruction)->D2Value();   \
+  int length = 6;
+
+#define DECODE_RI_A_INSTRUCTION(instr, r1, i2) \
+  int32_t r1 = AS(RIInstruction)->R1Value();   \
+  int16_t i2 = AS(RIInstruction)->I2Value();   \
+  int length = 4;
+
+#define DECODE_RI_B_INSTRUCTION(instr, r1, i2) \
+  int32_t r1 = AS(RILInstruction)->R1Value();  \
+  int16_t i2 = AS(RILInstruction)->I2Value();  \
+  int length = 4;
+
+#define DECODE_RI_C_INSTRUCTION(instr, m1, i2)                         \
+  Condition m1 = static_cast<Condition>(AS(RIInstruction)->R1Value()); \
+  int16_t i2 = AS(RIInstruction)->I2Value();                           \
+  int length = 4;
+
+#define GET_ADDRESS(index_reg, base_reg, offset)       \
+  (((index_reg) == 0) ? 0 : get_register(index_reg)) + \
+      (((base_reg) == 0) ? 0 : get_register(base_reg)) + offset
+
+int Simulator::Evaluate_Unknown(Instruction* instr) {
+  UNREACHABLE();
+  return 0;
+}
+
+EVALUATE(CLR) {
+  DCHECK_OPCODE(CLR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t r2_val = get_low_register<uint32_t>(r2);
+  SetS390ConditionCode<uint32_t>(r1_val, r2_val);
+  return length;
+}
+
+EVALUATE(LR) {
+  DCHECK_OPCODE(LR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  set_low_register(r1, get_low_register<int32_t>(r2));
+  return length;
+}
+
+EVALUATE(AR) {
+  DCHECK_OPCODE(AR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  bool isOF = CheckOverflowForIntAdd(r1_val, r2_val, int32_t);
+  r1_val += r2_val;
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(L) {
+  DCHECK_OPCODE(L);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = ReadW(addr, instr);
+  set_low_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(BRC) {
+  DCHECK_OPCODE(BRC);
+  DECODE_RI_C_INSTRUCTION(instr, m1, i2);
+
+  if (TestConditionCode(m1)) {
+    intptr_t offset = 2 * i2;
+    set_pc(get_pc() + offset);
+  }
+  return length;
+}
+
+EVALUATE(AHI) {
+  DCHECK_OPCODE(AHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  bool isOF = CheckOverflowForIntAdd(r1_val, i2, int32_t);
+  r1_val += i2;
+  set_low_register(r1, r1_val);
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(AGHI) {
+  DCHECK_OPCODE(AGHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t r1_val = get_register(r1);
+  bool isOF = false;
+  isOF = CheckOverflowForIntAdd(r1_val, i2, int64_t);
+  r1_val += i2;
+  set_register(r1, r1_val);
+  SetS390ConditionCode<int64_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(BRCL) {
+  DCHECK_OPCODE(BRCL);
+  DECODE_RIL_C_INSTRUCTION(m1, ri2);
+
+  if (TestConditionCode(m1)) {
+    intptr_t offset = 2 * ri2;
+    set_pc(get_pc() + offset);
+  }
+  return length;
+}
+
+EVALUATE(IIHF) {
+  DCHECK_OPCODE(IIHF);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  set_high_register(r1, imm);
+  return length;
+}
+
+EVALUATE(IILF) {
+  DCHECK_OPCODE(IILF);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  set_low_register(r1, imm);
+  return length;
+}
+
+EVALUATE(LGR) {
+  DCHECK_OPCODE(LGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  set_register(r1, get_register(r2));
+  return length;
+}
+
+EVALUATE(LG) {
+  DCHECK_OPCODE(LG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int64_t mem_val = ReadDW(addr);
+  set_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(AGR) {
+  DCHECK_OPCODE(AGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r1_val = get_register(r1);
+  int64_t r2_val = get_register(r2);
+  bool isOF = CheckOverflowForIntAdd(r1_val, r2_val, int64_t);
+  r1_val += r2_val;
+  set_register(r1, r1_val);
+  SetS390ConditionCode<int64_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(LGFR) {
+  DCHECK_OPCODE(LGFR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  int64_t result = static_cast<int64_t>(r2_val);
+  set_register(r1, result);
+
+  return length;
+}
+
+EVALUATE(LBR) {
+  DCHECK_OPCODE(LBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r2_val <<= 24;
+  r2_val >>= 24;
+  set_low_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LGBR) {
+  DCHECK_OPCODE(LGBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_low_register<int64_t>(r2);
+  r2_val <<= 56;
+  r2_val >>= 56;
+  set_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LHR) {
+  DCHECK_OPCODE(LHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r2_val <<= 16;
+  r2_val >>= 16;
+  set_low_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LGHR) {
+  DCHECK_OPCODE(LGHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_low_register<int64_t>(r2);
+  r2_val <<= 48;
+  r2_val >>= 48;
+  set_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LGF) {
+  DCHECK_OPCODE(LGF);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int64_t mem_val = static_cast<int64_t>(ReadW(addr, instr));
+  set_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(ST) {
+  DCHECK_OPCODE(ST);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  WriteW(addr, r1_val, instr);
+  return length;
+}
+
+EVALUATE(STG) {
+  DCHECK_OPCODE(STG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint64_t value = get_register(r1);
+  WriteDW(addr, value);
+  return length;
+}
+
+EVALUATE(STY) {
+  DCHECK_OPCODE(STY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint32_t value = get_low_register<uint32_t>(r1);
+  WriteW(addr, value, instr);
+  return length;
+}
+
+EVALUATE(LY) {
+  DCHECK_OPCODE(LY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint32_t mem_val = ReadWU(addr, instr);
+  set_low_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(LLGC) {
+  DCHECK_OPCODE(LLGC);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  uint8_t mem_val = ReadBU(GET_ADDRESS(x2, b2, d2));
+  set_register(r1, static_cast<uint64_t>(mem_val));
+  return length;
+}
+
+EVALUATE(LLC) {
+  DCHECK_OPCODE(LLC);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  uint8_t mem_val = ReadBU(GET_ADDRESS(x2, b2, d2));
+  set_low_register(r1, static_cast<uint32_t>(mem_val));
+  return length;
+}
+
+EVALUATE(RLL) {
+  DCHECK_OPCODE(RLL);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int shiftBits = GET_ADDRESS(0, b2, d2) & 0x3F;
+  // unsigned
+  uint32_t r3_val = get_low_register<uint32_t>(r3);
+  uint32_t alu_out = 0;
+  uint32_t rotateBits = r3_val >> (32 - shiftBits);
+  alu_out = (r3_val << shiftBits) | (rotateBits);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(RISBG) {
+  DCHECK_OPCODE(RISBG);
+  DECODE_RIE_F_INSTRUCTION(r1, r2, i3, i4, i5);
+  // Starting Bit Position is Bits 2-7 of I3 field
+  uint32_t start_bit = i3 & 0x3F;
+  // Ending Bit Position is Bits 2-7 of I4 field
+  uint32_t end_bit = i4 & 0x3F;
+  // Shift Amount is Bits 2-7 of I5 field
+  uint32_t shift_amount = i5 & 0x3F;
+  // Zero out Remaining (unslected) bits if Bit 0 of I4 is 1.
+  bool zero_remaining = (0 != (i4 & 0x80));
+
+  uint64_t src_val = get_register(r2);
+
+  // Rotate Left by Shift Amount first
+  uint64_t rotated_val =
+      (src_val << shift_amount) | (src_val >> (64 - shift_amount));
+  int32_t width = end_bit - start_bit + 1;
+
+  uint64_t selection_mask = 0;
+  if (width < 64) {
+    selection_mask = (static_cast<uint64_t>(1) << width) - 1;
+  } else {
+    selection_mask = static_cast<uint64_t>(static_cast<int64_t>(-1));
+  }
+  selection_mask = selection_mask << (63 - end_bit);
+
+  uint64_t selected_val = rotated_val & selection_mask;
+
+  if (!zero_remaining) {
+    // Merged the unselected bits from the original value
+    selected_val = (src_val & ~selection_mask) | selected_val;
+  }
+
+  // Condition code is set by treating result as 64-bit signed int
+  SetS390ConditionCode<int64_t>(selected_val, 0);
+  set_register(r1, selected_val);
+  return length;
+}
+
+EVALUATE(AHIK) {
+  DCHECK_OPCODE(AHIK);
+  DECODE_RIE_D_INSTRUCTION(r1, r2, i2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  int32_t imm = static_cast<int32_t>(i2);
+  bool isOF = CheckOverflowForIntAdd(r2_val, imm, int32_t);
+  set_low_register(r1, r2_val + imm);
+  SetS390ConditionCode<int32_t>(r2_val + imm, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(AGHIK) {
+  // 64-bit Add
+  DCHECK_OPCODE(AGHIK);
+  DECODE_RIE_D_INSTRUCTION(r1, r2, i2);
+  int64_t r2_val = get_register(r2);
+  int64_t imm = static_cast<int64_t>(i2);
+  bool isOF = CheckOverflowForIntAdd(r2_val, imm, int64_t);
+  set_register(r1, r2_val + imm);
+  SetS390ConditionCode<int64_t>(r2_val + imm, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(BKPT) {
+  DCHECK_OPCODE(BKPT);
+  set_pc(get_pc() + 2);
+  S390Debugger dbg(this);
+  dbg.Debug();
+  int length = 2;
+  return length;
+}
+
+EVALUATE(SPM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BALR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCR) {
+  DCHECK_OPCODE(BCR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  if (TestConditionCode(Condition(r1))) {
+    intptr_t r2_val = get_register(r2);
+#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
+    // On 31-bit, the top most bit may be 0 or 1, but is ignored by the
+    // hardware.  Cleanse the top bit before jumping to it, unless it's one
+    // of the special PCs
+    if (r2_val != bad_lr && r2_val != end_sim_pc) r2_val &= 0x7FFFFFFF;
+#endif
+    set_pc(r2_val);
+  }
+
+  return length;
+}
+
+EVALUATE(SVC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BSM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BASSM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BASR) {
+  DCHECK_OPCODE(BASR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  intptr_t link_addr = get_pc() + 2;
+  // If R2 is zero, the BASR does not branch.
+  int64_t r2_val = (r2 == 0) ? link_addr : get_register(r2);
+#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
+  // On 31-bit, the top most bit may be 0 or 1, which can cause issues
+  // for stackwalker.  The top bit should either be cleanse before being
+  // pushed onto the stack, or during stack walking when dereferenced.
+  // For simulator, we'll take the worst case scenario and always tag
+  // the high bit, to flush out more problems.
+  link_addr |= 0x80000000;
+#endif
+  set_register(r1, link_addr);
+  set_pc(r2_val);
+  return length;
+}
+
+EVALUATE(MVCL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLCL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNR) {
+  DCHECK_OPCODE(LNR);
+  // Load Negative (32)
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r2_val = (r2_val >= 0) ? -r2_val : r2_val;  // If pos, then negate it.
+  set_low_register(r1, r2_val);
+  condition_reg_ = (r2_val == 0) ? CC_EQ : CC_LT;  // CC0 - result is zero
+  // CC1 - result is negative
+  return length;
+}
+
+EVALUATE(LTR) {
+  DCHECK_OPCODE(LTR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  SetS390ConditionCode<int32_t>(r2_val, 0);
+  set_low_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LCR) {
+  DCHECK_OPCODE(LCR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  int32_t original_r2_val = r2_val;
+  r2_val = ~r2_val;
+  r2_val = r2_val + 1;
+  set_low_register(r1, r2_val);
+  SetS390ConditionCode<int32_t>(r2_val, 0);
+  // Checks for overflow where r2_val = -2147483648.
+  // Cannot do int comparison due to GCC 4.8 bug on x86.
+  // Detect INT_MIN alternatively, as it is the only value where both
+  // original and result are negative due to overflow.
+  if (r2_val < 0 && original_r2_val < 0) {
+    SetS390OverflowCode(true);
+  }
+  return length;
+}
+
+EVALUATE(NR) {
+  DCHECK_OPCODE(NR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r1_val &= r2_val;
+  SetS390BitWiseConditionCode<uint32_t>(r1_val);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(OR) {
+  DCHECK_OPCODE(OR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r1_val |= r2_val;
+  SetS390BitWiseConditionCode<uint32_t>(r1_val);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(XR) {
+  DCHECK_OPCODE(XR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r1_val ^= r2_val;
+  SetS390BitWiseConditionCode<uint32_t>(r1_val);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CR) {
+  DCHECK_OPCODE(CR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  SetS390ConditionCode<int32_t>(r1_val, r2_val);
+  return length;
+}
+
+EVALUATE(SR) {
+  DCHECK_OPCODE(SR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  bool isOF = false;
+  isOF = CheckOverflowForIntSub(r1_val, r2_val, int32_t);
+  r1_val -= r2_val;
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(MR) {
+  DCHECK_OPCODE(MR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  DCHECK(r1 % 2 == 0);
+  r1_val = get_low_register<int32_t>(r1 + 1);
+  int64_t product = static_cast<int64_t>(r1_val) * static_cast<int64_t>(r2_val);
+  int32_t high_bits = product >> 32;
+  r1_val = high_bits;
+  int32_t low_bits = product & 0x00000000FFFFFFFF;
+  set_low_register(r1, high_bits);
+  set_low_register(r1 + 1, low_bits);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(DR) {
+  DCHECK_OPCODE(DR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  // reg-reg pair should be even-odd pair, assert r1 is an even register
+  DCHECK(r1 % 2 == 0);
+  // leftmost 32 bits of the dividend are in r1
+  // rightmost 32 bits of the dividend are in r1+1
+  // get the signed value from r1
+  int64_t dividend = static_cast<int64_t>(r1_val) << 32;
+  // get unsigned value from r1+1
+  // avoid addition with sign-extended r1+1 value
+  dividend += get_low_register<uint32_t>(r1 + 1);
+  int32_t remainder = dividend % r2_val;
+  int32_t quotient = dividend / r2_val;
+  r1_val = remainder;
+  set_low_register(r1, remainder);
+  set_low_register(r1 + 1, quotient);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(ALR) {
+  DCHECK_OPCODE(ALR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t r2_val = get_low_register<uint32_t>(r2);
+  uint32_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r1_val + r2_val;
+  isOF = CheckOverflowForUIntAdd(r1_val, r2_val);
+  set_low_register(r1, alu_out);
+  SetS390ConditionCodeCarry<uint32_t>(alu_out, isOF);
+  return length;
+}
+
+EVALUATE(SLR) {
+  DCHECK_OPCODE(SLR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t r2_val = get_low_register<uint32_t>(r2);
+  uint32_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r1_val - r2_val;
+  isOF = CheckOverflowForUIntSub(r1_val, r2_val);
+  set_low_register(r1, alu_out);
+  SetS390ConditionCodeCarry<uint32_t>(alu_out, isOF);
+  return length;
+}
+
+EVALUATE(LDR) {
+  DCHECK_OPCODE(LDR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_d_register(r2);
+  set_d_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(CDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STH) {
+  DCHECK_OPCODE(STH);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int16_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t mem_addr = b2_val + x2_val + d2_val;
+  WriteH(mem_addr, r1_val, instr);
+
+  return length;
+}
+
+EVALUATE(LA) {
+  DCHECK_OPCODE(LA);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  set_register(r1, addr);
+  return length;
+}
+
+EVALUATE(STC) {
+  DCHECK_OPCODE(STC);
+  // Store Character/Byte
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  uint8_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t mem_addr = b2_val + x2_val + d2_val;
+  WriteB(mem_addr, r1_val);
+  return length;
+}
+
+EVALUATE(IC_z) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EX) {
+  DCHECK_OPCODE(EX);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+
+  SixByteInstr the_instr = Instruction::InstructionBits(
+      reinterpret_cast<const byte*>(b2_val + x2_val + d2_val));
+  int inst_length = Instruction::InstructionLength(
+      reinterpret_cast<const byte*>(b2_val + x2_val + d2_val));
+
+  char new_instr_buf[8];
+  char* addr = reinterpret_cast<char*>(&new_instr_buf[0]);
+  the_instr |= static_cast<SixByteInstr>(r1_val & 0xff)
+               << (8 * inst_length - 16);
+  Instruction::SetInstructionBits<SixByteInstr>(
+      reinterpret_cast<byte*>(addr), static_cast<SixByteInstr>(the_instr));
+  ExecuteInstruction(reinterpret_cast<Instruction*>(addr), false);
+  return length;
+}
+
+EVALUATE(BAL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LH) {
+  DCHECK_OPCODE(LH);
+  // Load Halfword
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t mem_addr = x2_val + b2_val + d2_val;
+
+  int32_t result = static_cast<int32_t>(ReadH(mem_addr, instr));
+  set_low_register(r1, result);
+  return length;
+}
+
+EVALUATE(CH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AH) {
+  DCHECK_OPCODE(AH);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
+  alu_out = r1_val + mem_val;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+
+  return length;
+}
+
+EVALUATE(SH) {
+  DCHECK_OPCODE(SH);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForIntSub(r1_val, mem_val, int32_t);
+  alu_out = r1_val - mem_val;
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+
+  return length;
+}
+
+EVALUATE(MH) {
+  DCHECK_OPCODE(MH);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t alu_out = 0;
+  alu_out = r1_val * mem_val;
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(BAS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(N) {
+  DCHECK_OPCODE(N);
+  // 32-bit Reg-Mem instructions
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t alu_out = 0;
+  alu_out = r1_val & mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(CL) {
+  DCHECK_OPCODE(CL);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = ReadW(addr, instr);
+  SetS390ConditionCode<uint32_t>(r1_val, mem_val);
+  return length;
+}
+
+EVALUATE(O) {
+  DCHECK_OPCODE(O);
+  // 32-bit Reg-Mem instructions
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t alu_out = 0;
+  alu_out = r1_val | mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(X) {
+  DCHECK_OPCODE(X);
+  // 32-bit Reg-Mem instructions
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t alu_out = 0;
+  alu_out = r1_val ^ mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(C) {
+  DCHECK_OPCODE(C);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = ReadW(addr, instr);
+  SetS390ConditionCode<int32_t>(r1_val, mem_val);
+  return length;
+}
+
+EVALUATE(A) {
+  DCHECK_OPCODE(A);
+  // 32-bit Reg-Mem instructions
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
+  alu_out = r1_val + mem_val;
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(S) {
+  DCHECK_OPCODE(S);
+  // 32-bit Reg-Mem instructions
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForIntSub(r1_val, mem_val, int32_t);
+  alu_out = r1_val - mem_val;
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(M) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(D) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STD) {
+  DCHECK_OPCODE(STD);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int64_t frs_val = get_d_register(r1);
+  WriteDW(addr, frs_val);
+  return length;
+}
+
+EVALUATE(LD) {
+  DCHECK_OPCODE(LD);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int64_t dbl_val = *reinterpret_cast<int64_t*>(addr);
+  set_d_register(r1, dbl_val);
+  return length;
+}
+
+EVALUATE(CD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STE) {
+  DCHECK_OPCODE(STE);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int64_t frs_val = get_d_register(r1) >> 32;
+  WriteW(addr, static_cast<int32_t>(frs_val), instr);
+  return length;
+}
+
+EVALUATE(MS) {
+  DCHECK_OPCODE(MS);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  set_low_register(r1, r1_val * mem_val);
+  return length;
+}
+
+EVALUATE(LE) {
+  DCHECK_OPCODE(LE);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  float float_val = *reinterpret_cast<float*>(addr);
+  set_d_register_from_float32(r1, float_val);
+  return length;
+}
+
+EVALUATE(BRXH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXH) {
+  DCHECK_OPCODE(BXH);
+  DECODE_RS_A_INSTRUCTION(r1, r3, b2, d2);
+
+  // r1_val is the first operand, r3_val is the increment
+  int32_t r1_val = r1 == 0 ? 0 : get_register(r1);
+  int32_t r3_val = r2 == 0 ? 0 : get_register(r3);
+  intptr_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  intptr_t branch_address = b2_val + d2;
+  // increment r1_val
+  r1_val += r3_val;
+
+  // if the increment is even, then it designates a pair of registers
+  // and the contents of the even and odd registers of the pair are used as
+  // the increment and compare value respectively. If the increment is odd,
+  // the increment itself is used as both the increment and compare value
+  int32_t compare_val = r3 % 2 == 0 ? get_register(r3 + 1) : r3_val;
+  if (r1_val > compare_val) {
+    // branch to address if r1_val is greater than compare value
+    set_pc(branch_address);
+  }
+
+  // update contents of register in r1 with the new incremented value
+  set_register(r1, r1_val);
+
+  return length;
+}
+
+EVALUATE(BXLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRL) {
+  DCHECK_OPCODE(SRL);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t alu_out = 0;
+  alu_out = r1_val >> shiftBits;
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(SLL) {
+  DCHECK_OPCODE(SLL);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2)
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t alu_out = 0;
+  alu_out = r1_val << shiftBits;
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(SRA) {
+  DCHECK_OPCODE(SRA);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r1_val >> shiftBits;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(SLA) {
+  DCHECK_OPCODE(SLA);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForShiftLeft(r1_val, shiftBits);
+  alu_out = r1_val << shiftBits;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(SRDL) {
+  DCHECK_OPCODE(SRDL);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
+  DCHECK(r1 % 2 == 0);  // must be a reg pair
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  uint64_t opnd1 = static_cast<uint64_t>(get_low_register<uint32_t>(r1)) << 32;
+  uint64_t opnd2 = static_cast<uint64_t>(get_low_register<uint32_t>(r1 + 1));
+  uint64_t r1_val = opnd1 | opnd2;
+  uint64_t alu_out = r1_val >> shiftBits;
+  set_low_register(r1, alu_out >> 32);
+  set_low_register(r1 + 1, alu_out & 0x00000000FFFFFFFF);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  return length;
+}
+
+EVALUATE(SLDL) {
+  DCHECK_OPCODE(SLDL);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+
+  DCHECK(r1 % 2 == 0);
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t r1_next_val = get_low_register<uint32_t>(r1 + 1);
+  uint64_t alu_out = (static_cast<uint64_t>(r1_val) << 32) |
+                     (static_cast<uint64_t>(r1_next_val));
+  alu_out <<= shiftBits;
+  set_low_register(r1 + 1, static_cast<uint32_t>(alu_out));
+  set_low_register(r1, static_cast<uint32_t>(alu_out >> 32));
+  return length;
+}
+
+EVALUATE(SRDA) {
+  DCHECK_OPCODE(SRDA);
+  DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
+  DCHECK(r1 % 2 == 0);  // must be a reg pair
+  // only takes rightmost 6bits
+  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int64_t opnd1 = static_cast<int64_t>(get_low_register<int32_t>(r1)) << 32;
+  int64_t opnd2 = static_cast<uint64_t>(get_low_register<uint32_t>(r1 + 1));
+  int64_t r1_val = opnd1 + opnd2;
+  int64_t alu_out = r1_val >> shiftBits;
+  set_low_register(r1, alu_out >> 32);
+  set_low_register(r1 + 1, alu_out & 0x00000000FFFFFFFF);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  return length;
+}
+
+EVALUATE(SLDA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STM) {
+  DCHECK_OPCODE(STM);
+  DECODE_RS_A_INSTRUCTION(r1, r3, rb, d2);
+  // Store Multiple 32-bits.
+  int offset = d2;
+  // Regs roll around if r3 is less than r1.
+  // Artifically increase r3 by 16 so we can calculate
+  // the number of regs stored properly.
+  if (r3 < r1) r3 += 16;
+
+  int32_t rb_val = (rb == 0) ? 0 : get_low_register<int32_t>(rb);
+
+  // Store each register in ascending order.
+  for (int i = 0; i <= r3 - r1; i++) {
+    int32_t value = get_low_register<int32_t>((r1 + i) % 16);
+    WriteW(rb_val + offset + 4 * i, value, instr);
+  }
+  return length;
+}
+
+EVALUATE(TM) {
+  DCHECK_OPCODE(TM);
+  // Test Under Mask (Mem - Imm) (8)
+  DECODE_SI_INSTRUCTION_I_UINT8(b1, d1_val, imm_val)
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  intptr_t addr = b1_val + d1_val;
+  uint8_t mem_val = ReadB(addr);
+  uint8_t selected_bits = mem_val & imm_val;
+  // CC0: Selected bits are zero
+  // CC1: Selected bits mixed zeros and ones
+  // CC3: Selected bits all ones
+  if (0 == selected_bits) {
+    condition_reg_ = CC_EQ;  // CC0
+  } else if (selected_bits == imm_val) {
+    condition_reg_ = 0x1;  // CC3
+  } else {
+    condition_reg_ = 0x4;  // CC1
+  }
+  return length;
+}
+
+EVALUATE(MVI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLI) {
+  DCHECK_OPCODE(CLI);
+  // Compare Immediate (Mem - Imm) (8)
+  DECODE_SI_INSTRUCTION_I_UINT8(b1, d1_val, imm_val)
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  intptr_t addr = b1_val + d1_val;
+  uint8_t mem_val = ReadB(addr);
+  SetS390ConditionCode<uint8_t>(mem_val, imm_val);
+  return length;
+}
+
+EVALUATE(OI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LM) {
+  DCHECK_OPCODE(LM);
+  DECODE_RS_A_INSTRUCTION(r1, r3, rb, d2);
+  // Store Multiple 32-bits.
+  int offset = d2;
+  // Regs roll around if r3 is less than r1.
+  // Artifically increase r3 by 16 so we can calculate
+  // the number of regs stored properly.
+  if (r3 < r1) r3 += 16;
+
+  int32_t rb_val = (rb == 0) ? 0 : get_low_register<int32_t>(rb);
+
+  // Store each register in ascending order.
+  for (int i = 0; i <= r3 - r1; i++) {
+    int32_t value = ReadW(rb_val + offset + 4 * i, instr);
+    set_low_register((r1 + i) % 16, value);
+  }
+  return length;
+}
+
+EVALUATE(MVCLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLCLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BPRP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BPP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVC) {
+  DCHECK_OPCODE(MVC);
+  // Move Character
+  SSInstruction* ssInstr = reinterpret_cast<SSInstruction*>(instr);
+  int b1 = ssInstr->B1Value();
+  intptr_t d1 = ssInstr->D1Value();
+  int b2 = ssInstr->B2Value();
+  intptr_t d2 = ssInstr->D2Value();
+  int length = ssInstr->Length();
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t src_addr = b2_val + d2;
+  intptr_t dst_addr = b1_val + d1;
+  // remember that the length is the actual length - 1
+  for (int i = 0; i < length + 1; ++i) {
+    WriteB(dst_addr++, ReadB(src_addr++));
+  }
+  length = 6;
+  return length;
+}
+
+EVALUATE(MVZ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ED) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EDMK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PKU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UNPKU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCIN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PKA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UNPKA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PLO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PACK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UNPK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ZAP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UPT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PFPO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IILH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IILL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NILH) {
+  DCHECK_OPCODE(NILH);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  // CC is set based on the 16 bits that are AND'd
+  SetS390BitWiseConditionCode<uint16_t>((r1_val >> 16) & i);
+  i = (i << 16) | 0x0000FFFF;
+  set_low_register(r1, r1_val & i);
+  return length;
+}
+
+EVALUATE(NILL) {
+  DCHECK_OPCODE(NILL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  // CC is set based on the 16 bits that are AND'd
+  SetS390BitWiseConditionCode<uint16_t>(r1_val & i);
+  i |= 0xFFFF0000;
+  set_low_register(r1, r1_val & i);
+  return length;
+}
+
+EVALUATE(OIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OILH) {
+  DCHECK_OPCODE(OILH);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  // CC is set based on the 16 bits that are AND'd
+  SetS390BitWiseConditionCode<uint16_t>((r1_val >> 16) | i);
+  i = i << 16;
+  set_low_register(r1, r1_val | i);
+  return length;
+}
+
+EVALUATE(OILL) {
+  DCHECK_OPCODE(OILL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  // CC is set based on the 16 bits that are AND'd
+  SetS390BitWiseConditionCode<uint16_t>(r1_val | i);
+  set_low_register(r1, r1_val | i);
+  return length;
+}
+
+EVALUATE(LLIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLILH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLILL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMLH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMLL) {
+  DCHECK_OPCODE(TMLL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int mask = i2 & 0x0000FFFF;
+  if (mask == 0) {
+    condition_reg_ = 0x0;
+    return length;
+  }
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  r1_val = r1_val & 0x0000FFFF;  // uses only the last 16bits
+
+  // Test if all selected bits are Zero
+  bool allSelectedBitsAreZeros = true;
+  for (int i = 0; i < 15; i++) {
+    if (mask & (1 << i)) {
+      if (r1_val & (1 << i)) {
+        allSelectedBitsAreZeros = false;
+        break;
+      }
+    }
+  }
+  if (allSelectedBitsAreZeros) {
+    condition_reg_ = 0x8;
+    return length;  // Done!
+  }
+
+  // Test if all selected bits are one
+  bool allSelectedBitsAreOnes = true;
+  for (int i = 0; i < 15; i++) {
+    if (mask & (1 << i)) {
+      if (!(r1_val & (1 << i))) {
+        allSelectedBitsAreOnes = false;
+        break;
+      }
+    }
+  }
+  if (allSelectedBitsAreOnes) {
+    condition_reg_ = 0x1;
+    return length;  // Done!
+  }
+
+  // Now we know selected bits mixed zeros and ones
+  // Test if the leftmost bit is zero or one
+  for (int i = 14; i >= 0; i--) {
+    if (mask & (1 << i)) {
+      if (r1_val & (1 << i)) {
+        // leftmost bit is one
+        condition_reg_ = 0x2;
+      } else {
+        // leftmost bit is zero
+        condition_reg_ = 0x4;
+      }
+      return length;  // Done!
+    }
+  }
+  return length;
+}
+
+EVALUATE(TMHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRAS) {
+  DCHECK_OPCODE(BRAS);
+  // Branch Relative and Save
+  DECODE_RI_B_INSTRUCTION(instr, r1, d2)
+  intptr_t pc = get_pc();
+  // Set PC of next instruction to register
+  set_register(r1, pc + sizeof(FourByteInstr));
+  // Update PC to branch target
+  set_pc(pc + d2 * 2);
+  return length;
+}
+
+EVALUATE(BRCT) {
+  DCHECK_OPCODE(BRCT);
+  // Branch On Count (32/64).
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t value = get_low_register<int32_t>(r1);
+  set_low_register(r1, --value);
+  // Branch if value != 0
+  if (value != 0) {
+    intptr_t offset = i2 * 2;
+    set_pc(get_pc() + offset);
+  }
+  return length;
+}
+
+EVALUATE(BRCTG) {
+  DCHECK_OPCODE(BRCTG);
+  // Branch On Count (32/64).
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t value = get_register(r1);
+  set_register(r1, --value);
+  // Branch if value != 0
+  if (value != 0) {
+    intptr_t offset = i2 * 2;
+    set_pc(get_pc() + offset);
+  }
+  return length;
+}
+
+EVALUATE(LHI) {
+  DCHECK_OPCODE(LHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  set_low_register(r1, i);
+  return length;
+}
+
+EVALUATE(LGHI) {
+  DCHECK_OPCODE(LGHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t i = static_cast<int64_t>(i2);
+  set_register(r1, i);
+  return length;
+}
+
+EVALUATE(MHI) {
+  DCHECK_OPCODE(MHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  bool isOF = false;
+  isOF = CheckOverflowForMul(r1_val, i);
+  r1_val *= i;
+  set_low_register(r1, r1_val);
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(MGHI) {
+  DCHECK_OPCODE(MGHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t i = static_cast<int64_t>(i2);
+  int64_t r1_val = get_register(r1);
+  bool isOF = false;
+  isOF = CheckOverflowForMul(r1_val, i);
+  r1_val *= i;
+  set_register(r1, r1_val);
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(CHI) {
+  DCHECK_OPCODE(CHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  SetS390ConditionCode<int32_t>(r1_val, i);
+  return length;
+}
+
+EVALUATE(CGHI) {
+  DCHECK_OPCODE(CGHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t i = static_cast<int64_t>(i2);
+  int64_t r1_val = get_register(r1);
+  SetS390ConditionCode<int64_t>(r1_val, i);
+  return length;
+}
+
+EVALUATE(LARL) {
+  DCHECK_OPCODE(LARL);
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  intptr_t offset = i2 * 2;
+  set_register(r1, get_pc() + offset);
+  return length;
+}
+
+EVALUATE(LGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRASL) {
+  DCHECK_OPCODE(BRASL);
+  // Branch and Save Relative Long
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  intptr_t d2 = i2;
+  intptr_t pc = get_pc();
+  set_register(r1, pc + 6);  // save next instruction to register
+  set_pc(pc + d2 * 2);       // update register
+  return length;
+}
+
+EVALUATE(XIHF) {
+  DCHECK_OPCODE(XIHF);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  uint32_t alu_out = 0;
+  alu_out = get_high_register<uint32_t>(r1);
+  alu_out = alu_out ^ imm;
+  set_high_register(r1, alu_out);
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  return length;
+}
+
+EVALUATE(XILF) {
+  DCHECK_OPCODE(XILF);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  uint32_t alu_out = 0;
+  alu_out = get_low_register<uint32_t>(r1);
+  alu_out = alu_out ^ imm;
+  set_low_register(r1, alu_out);
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  return length;
+}
+
+EVALUATE(NIHF) {
+  DCHECK_OPCODE(NIHF);
+  // Bitwise Op on upper 32-bits
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  uint32_t alu_out = get_high_register<uint32_t>(r1);
+  alu_out &= imm;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_high_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(NILF) {
+  DCHECK_OPCODE(NILF);
+  // Bitwise Op on lower 32-bits
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  alu_out &= imm;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(OIHF) {
+  DCHECK_OPCODE(OIHF);
+  // Bitwise Op on upper 32-bits
+  DECODE_RIL_B_INSTRUCTION(r1, imm);
+  uint32_t alu_out = get_high_register<uint32_t>(r1);
+  alu_out |= imm;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_high_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(OILF) {
+  DCHECK_OPCODE(OILF);
+  // Bitwise Op on lower 32-bits
+  DECODE_RIL_B_INSTRUCTION(r1, imm);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  alu_out |= imm;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(LLIHF) {
+  DCHECK_OPCODE(LLIHF);
+  // Load Logical Immediate into high word
+  DECODE_RIL_A_INSTRUCTION(r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2);
+  set_register(r1, imm << 32);
+  return length;
+}
+
+EVALUATE(LLILF) {
+  DCHECK_OPCODE(LLILF);
+  // Load Logical into lower 32-bits (zero extend upper 32-bits)
+  DECODE_RIL_A_INSTRUCTION(r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2);
+  set_register(r1, imm);
+  return length;
+}
+
+EVALUATE(MSGFI) {
+  DCHECK_OPCODE(MSGFI);
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  int64_t alu_out = get_register(r1);
+  alu_out = alu_out * i2;
+  set_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(MSFI) {
+  DCHECK_OPCODE(MSFI);
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  alu_out = alu_out * i2;
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(SLGFI) {
+  DCHECK_OPCODE(SLGFI);
+#ifndef V8_TARGET_ARCH_S390X
+  // should only be called on 64bit
+  DCHECK(false);
+#endif
+  DECODE_RIL_A_INSTRUCTION(r1, i2);
+  uint64_t r1_val = (uint64_t)(get_register(r1));
+  uint64_t alu_out;
+  alu_out = r1_val - i2;
+  set_register(r1, (intptr_t)alu_out);
+  SetS390ConditionCode<uint64_t>(alu_out, 0);
+  return length;
+}
+
+EVALUATE(SLFI) {
+  DCHECK_OPCODE(SLFI);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  alu_out -= imm;
+  SetS390ConditionCode<uint32_t>(alu_out, 0);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(AGFI) {
+  DCHECK_OPCODE(AGFI);
+  // Clobbering Add Word Immediate
+  DECODE_RIL_B_INSTRUCTION(r1, i2_val);
+  bool isOF = false;
+  // 64-bit Add (Register + 32-bit Imm)
+  int64_t r1_val = get_register(r1);
+  int64_t i2 = static_cast<int64_t>(i2_val);
+  isOF = CheckOverflowForIntAdd(r1_val, i2, int64_t);
+  int64_t alu_out = r1_val + i2;
+  set_register(r1, alu_out);
+  SetS390ConditionCode<int64_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(AFI) {
+  DCHECK_OPCODE(AFI);
+  // Clobbering Add Word Immediate
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  bool isOF = false;
+  // 32-bit Add (Register + 32-bit Immediate)
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  isOF = CheckOverflowForIntAdd(r1_val, i2, int32_t);
+  int32_t alu_out = r1_val + i2;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(ALGFI) {
+  DCHECK_OPCODE(ALGFI);
+#ifndef V8_TARGET_ARCH_S390X
+  // should only be called on 64bit
+  DCHECK(false);
+#endif
+  DECODE_RIL_A_INSTRUCTION(r1, i2);
+  uint64_t r1_val = (uint64_t)(get_register(r1));
+  uint64_t alu_out;
+  alu_out = r1_val + i2;
+  set_register(r1, (intptr_t)alu_out);
+  SetS390ConditionCode<uint64_t>(alu_out, 0);
+
+  return length;
+}
+
+EVALUATE(ALFI) {
+  DCHECK_OPCODE(ALFI);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  alu_out += imm;
+  SetS390ConditionCode<uint32_t>(alu_out, 0);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(CGFI) {
+  DCHECK_OPCODE(CGFI);
+  // Compare with Immediate (64)
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  int64_t imm = static_cast<int64_t>(i2);
+  SetS390ConditionCode<int64_t>(get_register(r1), imm);
+  return length;
+}
+
+EVALUATE(CFI) {
+  DCHECK_OPCODE(CFI);
+  // Compare with Immediate (32)
+  DECODE_RIL_B_INSTRUCTION(r1, imm);
+  SetS390ConditionCode<int32_t>(get_low_register<int32_t>(r1), imm);
+  return length;
+}
+
+EVALUATE(CLGFI) {
+  DCHECK_OPCODE(CLGFI);
+  // Compare Logical with Immediate (64)
+  DECODE_RIL_A_INSTRUCTION(r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2);
+  SetS390ConditionCode<uint64_t>(get_register(r1), imm);
+  return length;
+}
+
+EVALUATE(CLFI) {
+  DCHECK_OPCODE(CLFI);
+  // Compare Logical with Immediate (32)
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  SetS390ConditionCode<uint32_t>(get_low_register<uint32_t>(r1), imm);
+  return length;
+}
+
+EVALUATE(LLHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STGRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGFRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGFRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EXRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PFDRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGFRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ECTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CSST) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPDG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRCTH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AIH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALSIH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALSIHN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IPM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(HSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TPI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SAL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCRW) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCPS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RCHP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SCHM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CKSM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SAR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EAR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSR) {
+  DCHECK_OPCODE(MSR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  set_low_register(r1, r1_val * r2_val);
+  return length;
+}
+
+EVALUATE(MVST) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUSE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRST) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCKE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCKF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRNM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUUTF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUTFU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STFLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRNMB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRNMT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFAS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PPA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ETND) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TEND) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIAI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TABORT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRAP4) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPEBR) {
+  DCHECK_OPCODE(LPEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fr1_val = get_float32_from_d_register(r1);
+  float fr2_val = get_float32_from_d_register(r2);
+  fr1_val = std::fabs(fr2_val);
+  set_d_register_from_float32(r1, fr1_val);
+  if (fr2_val != fr2_val) {  // input is NaN
+    condition_reg_ = CC_OF;
+  } else if (fr2_val == 0) {
+    condition_reg_ = CC_EQ;
+  } else {
+    condition_reg_ = CC_GT;
+  }
+
+  return length;
+}
+
+EVALUATE(LNEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTEBR) {
+  DCHECK_OPCODE(LTEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_d_register(r2);
+  float fr2_val = get_float32_from_d_register(r2);
+  SetS390ConditionCode<float>(fr2_val, 0.0);
+  set_d_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LCEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDEBR) {
+  DCHECK_OPCODE(LDEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fp_val = get_float32_from_d_register(r2);
+  double db_val = static_cast<double>(fp_val);
+  set_d_register_from_double(r1, db_val);
+  return length;
+}
+
+EVALUATE(LXDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEBR) {
+  DCHECK_OPCODE(CEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fr1_val = get_float32_from_d_register(r1);
+  float fr2_val = get_float32_from_d_register(r2);
+  if (isNaN(fr1_val) || isNaN(fr2_val)) {
+    condition_reg_ = CC_OF;
+  } else {
+    SetS390ConditionCode<float>(fr1_val, fr2_val);
+  }
+
+  return length;
+}
+
+EVALUATE(AEBR) {
+  DCHECK_OPCODE(AEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fr1_val = get_float32_from_d_register(r1);
+  float fr2_val = get_float32_from_d_register(r2);
+  fr1_val += fr2_val;
+  set_d_register_from_float32(r1, fr1_val);
+  SetS390ConditionCode<float>(fr1_val, 0);
+
+  return length;
+}
+
+EVALUATE(SEBR) {
+  DCHECK_OPCODE(SEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fr1_val = get_float32_from_d_register(r1);
+  float fr2_val = get_float32_from_d_register(r2);
+  fr1_val -= fr2_val;
+  set_d_register_from_float32(r1, fr1_val);
+  SetS390ConditionCode<float>(fr1_val, 0);
+
+  return length;
+}
+
+EVALUATE(MDEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DEBR) {
+  DCHECK_OPCODE(DEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fr1_val = get_float32_from_d_register(r1);
+  float fr2_val = get_float32_from_d_register(r2);
+  fr1_val /= fr2_val;
+  set_d_register_from_float32(r1, fr1_val);
+  SetS390ConditionCode<float>(fr1_val, 0);
+
+  return length;
+}
+
+EVALUATE(MAEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPDBR) {
+  DCHECK_OPCODE(LPDBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  double r1_val = get_double_from_d_register(r1);
+  double r2_val = get_double_from_d_register(r2);
+  r1_val = std::fabs(r2_val);
+  set_d_register_from_double(r1, r1_val);
+  if (r2_val != r2_val) {  // input is NaN
+    condition_reg_ = CC_OF;
+  } else if (r2_val == 0) {
+    condition_reg_ = CC_EQ;
+  } else {
+    condition_reg_ = CC_GT;
+  }
+  return length;
+}
+
+EVALUATE(LNDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTDBR) {
+  DCHECK_OPCODE(LTDBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_d_register(r2);
+  SetS390ConditionCode<double>(bit_cast<double, int64_t>(r2_val), 0.0);
+  set_d_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LCDBR) {
+  DCHECK_OPCODE(LCDBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  double r1_val = get_double_from_d_register(r1);
+  double r2_val = get_double_from_d_register(r2);
+  r1_val = -r2_val;
+  set_d_register_from_double(r1, r1_val);
+  if (r2_val != r2_val) {  // input is NaN
+    condition_reg_ = CC_OF;
+  } else if (r2_val == 0) {
+    condition_reg_ = CC_EQ;
+  } else if (r2_val < 0) {
+    condition_reg_ = CC_LT;
+  } else if (r2_val > 0) {
+    condition_reg_ = CC_GT;
+  }
+  return length;
+}
+
+EVALUATE(SQEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MEEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ADBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MADBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBEDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DIEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIEBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(THDER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(THDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DIDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPDFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNDFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCDFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LZER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LZDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LZXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SFASR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CELFBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLFBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLFBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEFBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDFBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXFBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFEBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CELGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEGBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDGBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXGBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGEBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ADTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDETR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ESDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CSXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EEXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ESXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDGTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDUTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDSTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(QADTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RRDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXGTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXUTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXSTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(QAXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IEXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RRXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMAC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PCC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMCTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KIMD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KLMD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCTGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLGTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLGTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FLOGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALCGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLBGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EPSW) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TROT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TROO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU14) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU24) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU41) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU42) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTRE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRSTU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(POPCNT_Z) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOCGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ORK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ARK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVBY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRV) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NTSTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVDY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVDG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRVG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PFD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRV) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRVH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MFY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAEY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALCG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STPQ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPQ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ML) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGTAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGFAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LBH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFHAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STFH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCDK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVHHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVGHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBEGIN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBEGINC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CSY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RLLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STMG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDSY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDSG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXHG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXLEG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ECAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ASI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCLU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLCLU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRAK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLAK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRLK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLLK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOCG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STOCG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LANG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAOG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAXG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAALG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STOC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAX) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAAL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXHG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RISBLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RNSBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ROSBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RXSBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RISBGN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RISBHG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRJ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGIT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFIT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGIJ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIJ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALHSIK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGHSIK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGIB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MAEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TCEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TCDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TCXB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MEEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ADB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MADB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDCET) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDGET) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDCDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDGDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDCXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDGXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STEY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STDY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CZDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CZXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDZT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXZT) { return DecodeInstructionOriginal(instr); }
+
+#undef EVALUATE
 
 }  // namespace internal
 }  // namespace v8

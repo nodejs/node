@@ -87,7 +87,6 @@ void InstructionSelector::SelectInstructions() {
 #endif
 }
 
-
 void InstructionSelector::StartBlock(RpoNumber rpo) {
   if (FLAG_turbo_instruction_scheduling &&
       InstructionScheduler::SchedulerSupported()) {
@@ -865,8 +864,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsReference(node), VisitIfException(node);
     case IrOpcode::kFinishRegion:
       return MarkAsReference(node), VisitFinishRegion(node);
-    case IrOpcode::kGuard:
-      return MarkAsReference(node), VisitGuard(node);
     case IrOpcode::kParameter: {
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
@@ -885,6 +882,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
     case IrOpcode::kExternalConstant:
+    case IrOpcode::kRelocatableInt32Constant:
+    case IrOpcode::kRelocatableInt64Constant:
       return VisitConstant(node);
     case IrOpcode::kFloat32Constant:
       return MarkAsFloat32(node), VisitConstant(node);
@@ -1018,6 +1017,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitUint64LessThanOrEqual(node);
     case IrOpcode::kUint64Mod:
       return MarkAsWord64(node), VisitUint64Mod(node);
+    case IrOpcode::kBitcastWordToTagged:
+      return MarkAsReference(node), VisitBitcastWordToTagged(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -1048,10 +1049,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
     case IrOpcode::kTruncateFloat64ToFloat32:
       return MarkAsFloat32(node), VisitTruncateFloat64ToFloat32(node);
-    case IrOpcode::kTruncateFloat64ToInt32:
-      return MarkAsWord32(node), VisitTruncateFloat64ToInt32(node);
+    case IrOpcode::kTruncateFloat64ToWord32:
+      return MarkAsWord32(node), VisitTruncateFloat64ToWord32(node);
     case IrOpcode::kTruncateInt64ToInt32:
       return MarkAsWord32(node), VisitTruncateInt64ToInt32(node);
+    case IrOpcode::kRoundFloat64ToInt32:
+      return MarkAsWord32(node), VisitRoundFloat64ToInt32(node);
     case IrOpcode::kRoundInt64ToFloat32:
       return MarkAsFloat32(node), VisitRoundInt64ToFloat32(node);
     case IrOpcode::kRoundInt32ToFloat32:
@@ -1076,6 +1079,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat32(node), VisitFloat32Add(node);
     case IrOpcode::kFloat32Sub:
       return MarkAsFloat32(node), VisitFloat32Sub(node);
+    case IrOpcode::kFloat32SubPreserveNan:
+      return MarkAsFloat32(node), VisitFloat32SubPreserveNan(node);
     case IrOpcode::kFloat32Mul:
       return MarkAsFloat32(node), VisitFloat32Mul(node);
     case IrOpcode::kFloat32Div:
@@ -1098,6 +1103,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
       return MarkAsFloat64(node), VisitFloat64Sub(node);
+    case IrOpcode::kFloat64SubPreserveNan:
+      return MarkAsFloat64(node), VisitFloat64SubPreserveNan(node);
     case IrOpcode::kFloat64Mul:
       return MarkAsFloat64(node), VisitFloat64Mul(node);
     case IrOpcode::kFloat64Div:
@@ -1184,6 +1191,13 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsWord32(NodeProperties::FindProjection(node, 0));
       MarkAsWord32(NodeProperties::FindProjection(node, 1));
       return VisitWord32PairSar(node);
+    case IrOpcode::kAtomicLoad: {
+      LoadRepresentation type = LoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
+      return VisitAtomicLoad(node);
+    }
+    case IrOpcode::kAtomicStore:
+      return VisitAtomicStore(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1250,6 +1264,12 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
+
+void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
 }
 
 // 32 bit targets do not implement the following instructions.
@@ -1428,13 +1448,6 @@ void InstructionSelector::VisitFinishRegion(Node* node) {
 }
 
 
-void InstructionSelector::VisitGuard(Node* node) {
-  OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-}
-
-
 void InstructionSelector::VisitParameter(Node* node) {
   OperandGenerator g(this);
   int index = ParameterIndexOf(node->op());
@@ -1455,7 +1468,7 @@ void InstructionSelector::VisitIfException(Node* node) {
   OperandGenerator g(this);
   Node* call = node->InputAt(1);
   DCHECK_EQ(IrOpcode::kCall, call->opcode());
-  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(call);
+  const CallDescriptor* descriptor = CallDescriptorOf(call->op());
   Emit(kArchNop,
        g.DefineAsLocation(node, descriptor->GetReturnLocation(0),
                           descriptor->GetReturnType(0).representation()));
@@ -1527,7 +1540,7 @@ void InstructionSelector::VisitConstant(Node* node) {
 
 void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
-  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
+  const CallDescriptor* descriptor = CallDescriptorOf(node->op());
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
   if (descriptor->NeedsFrameState()) {
@@ -1595,10 +1608,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
 void InstructionSelector::VisitTailCall(Node* node) {
   OperandGenerator g(this);
-  CallDescriptor const* descriptor = OpParameter<CallDescriptor const*>(node);
+  CallDescriptor const* descriptor = CallDescriptorOf(node->op());
   DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
-  DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kPatchableCallSite);
-  DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
 
   // TODO(turbofan): Relax restriction for stack parameters.
 
@@ -1640,6 +1651,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
           break;
         case CallDescriptor::kCallJSFunction:
           opcode = kArchTailCallJSFunction;
+          break;
+        case CallDescriptor::kCallAddress:
+          opcode = kArchTailCallAddress;
           break;
         default:
           UNREACHABLE();

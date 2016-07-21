@@ -270,8 +270,6 @@ class Factory final {
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
 
-  Handle<CodeCache> NewCodeCache();
-
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
 
@@ -560,6 +558,11 @@ class Factory final {
 
   Handle<Object> NewInvalidStringLengthError() {
     return NewRangeError(MessageTemplate::kInvalidStringLength);
+  }
+
+  Handle<Object> NewURIError() {
+    return NewError(isolate()->uri_error_function(),
+                    MessageTemplate::kURIMalformed);
   }
 
   Handle<Object> NewError(Handle<JSFunction> constructor,

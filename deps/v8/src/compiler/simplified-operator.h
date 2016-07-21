@@ -25,8 +25,9 @@ namespace compiler {
 class Operator;
 struct SimplifiedOperatorGlobalCache;
 
+enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
-enum BaseTaggedness { kUntaggedBase, kTaggedBase };
+size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
@@ -63,6 +64,7 @@ struct FieldAccess {
   MaybeHandle<Name> name;         // debugging only.
   Type* type;                     // type of the field.
   MachineType machine_type;       // machine type of the field.
+  WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -86,6 +88,7 @@ struct ElementAccess {
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.
   MachineType machine_type;       // machine type of the element.
+  WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -99,6 +102,7 @@ std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
+Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
@@ -153,8 +157,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberToUint32();
   const Operator* NumberIsHoleNaN();
 
-  const Operator* PlainPrimitiveToNumber();
-
   const Operator* ReferenceEqual(Type* type);
 
   const Operator* StringEqual();
@@ -162,19 +164,26 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringLessThanOrEqual();
   const Operator* StringToNumber();
 
+  const Operator* ChangeTaggedSignedToInt32();
   const Operator* ChangeTaggedToInt32();
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
+  const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
   const Operator* ChangeUint32ToTagged();
   const Operator* ChangeFloat64ToTagged();
-  const Operator* ChangeBoolToBit();
-  const Operator* ChangeBitToBool();
+  const Operator* ChangeTaggedToBit();
+  const Operator* ChangeBitToTagged();
+  const Operator* TruncateTaggedToWord32();
 
+  const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();
   const Operator* ObjectIsReceiver();
   const Operator* ObjectIsSmi();
+  const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
+
+  const Operator* TypeGuard(Type* type);
 
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 

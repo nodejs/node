@@ -13,7 +13,7 @@ var module = (function Build() {
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1, 1, true);
-  builder.addFunction("main", [kAstI32])
+  builder.addFunction("main", kSig_i)
     .addBody([kExprI8Const, kReturnValue])
     .exportFunc();
 

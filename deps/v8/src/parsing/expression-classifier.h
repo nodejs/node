@@ -39,17 +39,23 @@ class ExpressionClassifier {
     ArrowFormalParametersProduction = 1 << 6,
     LetPatternProduction = 1 << 7,
     CoverInitializedNameProduction = 1 << 8,
+    TailCallExpressionProduction = 1 << 9,
+    AsyncArrowFormalParametersProduction = 1 << 10,
+    AsyncBindingPatternProduction = 1 << 11,
 
     ExpressionProductions =
-        (ExpressionProduction | FormalParameterInitializerProduction),
-    PatternProductions = (BindingPatternProduction |
-                          AssignmentPatternProduction | LetPatternProduction),
+        (ExpressionProduction | FormalParameterInitializerProduction |
+         TailCallExpressionProduction),
+    PatternProductions =
+        (BindingPatternProduction | AssignmentPatternProduction |
+         LetPatternProduction | AsyncBindingPatternProduction),
     FormalParametersProductions = (DistinctFormalParametersProduction |
                                    StrictModeFormalParametersProduction),
     StandardProductions = ExpressionProductions | PatternProductions,
     AllProductions =
         (StandardProductions | FormalParametersProductions |
-         ArrowFormalParametersProduction | CoverInitializedNameProduction)
+         ArrowFormalParametersProduction | CoverInitializedNameProduction |
+         AsyncArrowFormalParametersProduction | AsyncBindingPatternProduction)
   };
 
   enum FunctionProperties { NonSimpleParameter = 1 << 0 };
@@ -110,6 +116,14 @@ class ExpressionClassifier {
 
   bool is_valid_let_pattern() const { return is_valid(LetPatternProduction); }
 
+  bool is_valid_async_arrow_formal_parameters() const {
+    return is_valid(AsyncArrowFormalParametersProduction);
+  }
+
+  bool is_valid_async_binding_pattern() const {
+    return is_valid(AsyncBindingPatternProduction);
+  }
+
   const Error& expression_error() const { return expression_error_; }
 
   const Error& formal_parameter_initializer_error() const {
@@ -141,6 +155,20 @@ class ExpressionClassifier {
   }
   const Error& cover_initialized_name_error() const {
     return cover_initialized_name_error_;
+  }
+
+  bool has_tail_call_expression() const {
+    return !is_valid(TailCallExpressionProduction);
+  }
+  const Error& tail_call_expression_error() const {
+    return tail_call_expression_error_;
+  }
+  const Error& async_arrow_formal_parameters_error() const {
+    return async_arrow_formal_parameters_error_;
+  }
+
+  const Error& async_binding_pattern_error() const {
+    return async_binding_pattern_error_;
   }
 
   bool is_simple_parameter_list() const {
@@ -219,6 +247,26 @@ class ExpressionClassifier {
     arrow_formal_parameters_error_.arg = arg;
   }
 
+  void RecordAsyncArrowFormalParametersError(const Scanner::Location& loc,
+                                             MessageTemplate::Template message,
+                                             const char* arg = nullptr) {
+    if (!is_valid_async_arrow_formal_parameters()) return;
+    invalid_productions_ |= AsyncArrowFormalParametersProduction;
+    async_arrow_formal_parameters_error_.location = loc;
+    async_arrow_formal_parameters_error_.message = message;
+    async_arrow_formal_parameters_error_.arg = arg;
+  }
+
+  void RecordAsyncBindingPatternError(const Scanner::Location& loc,
+                                      MessageTemplate::Template message,
+                                      const char* arg = nullptr) {
+    if (!is_valid_async_binding_pattern()) return;
+    invalid_productions_ |= AsyncBindingPatternProduction;
+    async_binding_pattern_error_.location = loc;
+    async_binding_pattern_error_.message = message;
+    async_binding_pattern_error_.arg = arg;
+  }
+
   void RecordDuplicateFormalParameterError(const Scanner::Location& loc) {
     if (!is_valid_formal_parameter_list_without_duplicates()) return;
     invalid_productions_ |= DistinctFormalParametersProduction;
@@ -258,6 +306,16 @@ class ExpressionClassifier {
     cover_initialized_name_error_.location = loc;
     cover_initialized_name_error_.message = message;
     cover_initialized_name_error_.arg = arg;
+  }
+
+  void RecordTailCallExpressionError(const Scanner::Location& loc,
+                                     MessageTemplate::Template message,
+                                     const char* arg = nullptr) {
+    if (has_tail_call_expression()) return;
+    invalid_productions_ |= TailCallExpressionProduction;
+    tail_call_expression_error_.location = loc;
+    tail_call_expression_error_.message = message;
+    tail_call_expression_error_.arg = arg;
   }
 
   void ForgiveCoverInitializedNameError() {
@@ -305,6 +363,13 @@ class ExpressionClassifier {
         let_pattern_error_ = inner->let_pattern_error_;
       if (errors & CoverInitializedNameProduction)
         cover_initialized_name_error_ = inner->cover_initialized_name_error_;
+      if (errors & TailCallExpressionProduction)
+        tail_call_expression_error_ = inner->tail_call_expression_error_;
+      if (errors & AsyncArrowFormalParametersProduction)
+        async_arrow_formal_parameters_error_ =
+            inner->async_arrow_formal_parameters_error_;
+      if (errors & AsyncBindingPatternProduction)
+        async_binding_pattern_error_ = inner->async_binding_pattern_error_;
     }
 
     // As an exception to the above, the result continues to be a valid arrow
@@ -340,6 +405,8 @@ class ExpressionClassifier {
   int non_pattern_begin_;
   unsigned invalid_productions_;
   unsigned function_properties_;
+  // TODO(ishell): consider using Zone[Hash]Map<TargetProduction, Error>
+  // here to consume less stack space during parsing.
   Error expression_error_;
   Error formal_parameter_initializer_error_;
   Error binding_pattern_error_;
@@ -349,6 +416,9 @@ class ExpressionClassifier {
   Error strict_mode_formal_parameter_error_;
   Error let_pattern_error_;
   Error cover_initialized_name_error_;
+  Error tail_call_expression_error_;
+  Error async_arrow_formal_parameters_error_;
+  Error async_binding_pattern_error_;
   DuplicateFinder* duplicate_finder_;
 };
 

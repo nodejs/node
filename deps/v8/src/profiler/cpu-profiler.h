@@ -6,13 +6,14 @@
 #define V8_PROFILER_CPU_PROFILER_H_
 
 #include "src/allocation.h"
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/sampler.h"
+#include "src/profiler/tick-sample.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +21,6 @@ namespace internal {
 // Forward declarations.
 class CodeEntry;
 class CodeMap;
-class CompilationInfo;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
@@ -81,7 +81,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   Address start;
   const char* deopt_reason;
   SourcePosition position;
-  size_t pc_offset;
+  int deopt_id;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -176,7 +176,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
   LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  AtomicNumber<unsigned> last_code_event_id_;
+  base::AtomicNumber<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
 };
 
@@ -226,11 +226,10 @@ class CpuProfiler : public CodeEventListener {
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        Name* name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* script_name) override;
+                       SharedFunctionInfo* shared, Name* script_name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* script_name, int line, int column) override;
+                       SharedFunctionInfo* shared, Name* script_name, int line,
+                       int column) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        int args_count) override;
   void CodeMovingGCEvent() override {}
@@ -259,6 +258,7 @@ class CpuProfiler : public CodeEventListener {
   void ResetProfiles();
   void LogBuiltins();
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
+  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
   Isolate* isolate_;

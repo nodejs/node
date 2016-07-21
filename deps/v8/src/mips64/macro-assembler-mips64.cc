@@ -1325,33 +1325,175 @@ void MacroAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
 // ------------Pseudo-instructions-------------
 
 void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
-  lwr(rd, rs);
-  lwl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    lw(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsLwrOffset) &&
+        is_int16(rs.offset() + kMipsLwlOffset)) {
+      if (!rd.is(rs.rm())) {
+        lwr(rd, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
+        lwl(rd, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
+      } else {
+        lwr(at, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
+        lwl(at, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
+        mov(rd, at);
+      }
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+      lwr(rd, MemOperand(at, kMipsLwrOffset));
+      lwl(rd, MemOperand(at, kMipsLwlOffset));
+    }
+  }
+}
+
+void MacroAssembler::Ulwu(Register rd, const MemOperand& rs) {
+  if (kArchVariant == kMips64r6) {
+    lwu(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    Ulw(rd, rs);
+    Dext(rd, rd, 0, 32);
+  }
 }
 
 
 void MacroAssembler::Usw(Register rd, const MemOperand& rs) {
-  swr(rd, rs);
-  swl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    sw(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsSwrOffset) &&
+        is_int16(rs.offset() + kMipsSwlOffset)) {
+      swr(rd, MemOperand(rs.rm(), rs.offset() + kMipsSwrOffset));
+      swl(rd, MemOperand(rs.rm(), rs.offset() + kMipsSwlOffset));
+    } else {
+      LoadRegPlusOffsetToAt(rs);
+      swr(rd, MemOperand(at, kMipsSwrOffset));
+      swl(rd, MemOperand(at, kMipsSwlOffset));
+    }
+  }
 }
 
-
-// Do 64-bit load from unaligned address. Note this only handles
-// the specific case of 32-bit aligned, but not 64-bit aligned.
-void MacroAssembler::Uld(Register rd, const MemOperand& rs, Register scratch) {
-  // Assert fail if the offset from start of object IS actually aligned.
-  // ONLY use with known misalignment, since there is performance cost.
-  DCHECK((rs.offset() + kHeapObjectTag) & (kPointerSize - 1));
-  if (kArchEndian == kLittle) {
-    lwu(rd, rs);
-    lw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-    dsll32(scratch, scratch, 0);
+void MacroAssembler::Ulh(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    lh(rd, rs);
   } else {
-    lw(rd, rs);
-    lwu(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-    dsll32(rd, rd, 0);
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset()) && is_int16(rs.offset() + 1)) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lbu(at, rs);
+      lb(rd, MemOperand(rs.rm(), rs.offset() + 1));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lbu(at, MemOperand(rs.rm(), rs.offset() + 1));
+      lb(rd, rs);
+#endif
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lb(rd, MemOperand(at, 1));
+      lbu(at, MemOperand(at, 0));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lb(rd, MemOperand(at, 0));
+      lbu(at, MemOperand(at, 1));
+#endif
+    }
+    dsll(rd, rd, 8);
+    or_(rd, rd, at);
   }
-  Daddu(rd, rd, scratch);
+}
+
+void MacroAssembler::Ulhu(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    lhu(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset()) && is_int16(rs.offset() + 1)) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lbu(at, rs);
+      lbu(rd, MemOperand(rs.rm(), rs.offset() + 1));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lbu(at, MemOperand(rs.rm(), rs.offset() + 1));
+      lbu(rd, rs);
+#endif
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lbu(rd, MemOperand(at, 1));
+      lbu(at, MemOperand(at, 0));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lbu(rd, MemOperand(at, 0));
+      lbu(at, MemOperand(at, 1));
+#endif
+    }
+    dsll(rd, rd, 8);
+    or_(rd, rd, at);
+  }
+}
+
+void MacroAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  DCHECK(!rs.rm().is(scratch));
+  DCHECK(!scratch.is(at));
+  if (kArchVariant == kMips64r6) {
+    sh(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    MemOperand source = rs;
+    // If offset > 16 bits, load address to at with offset 0.
+    if (!is_int16(rs.offset()) || !is_int16(rs.offset() + 1)) {
+      LoadRegPlusOffsetToAt(rs);
+      source = MemOperand(at, 0);
+    }
+
+    if (!scratch.is(rd)) {
+      mov(scratch, rd);
+    }
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+    sb(scratch, source);
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(source.rm(), source.offset() + 1));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+    sb(scratch, MemOperand(source.rm(), source.offset() + 1));
+    srl(scratch, scratch, 8);
+    sb(scratch, source);
+#endif
+  }
+}
+
+void MacroAssembler::Uld(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    ld(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsLdrOffset) &&
+        is_int16(rs.offset() + kMipsLdlOffset)) {
+      if (!rd.is(rs.rm())) {
+        ldr(rd, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
+        ldl(rd, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
+      } else {
+        ldr(at, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
+        ldl(at, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
+        mov(rd, at);
+      }
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+      ldr(rd, MemOperand(at, kMipsLdrOffset));
+      ldl(rd, MemOperand(at, kMipsLdlOffset));
+    }
+  }
 }
 
 
@@ -1366,21 +1508,22 @@ void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs,
   Daddu(rd, rd, scratch);
 }
 
-
-// Do 64-bit store to unaligned address. Note this only handles
-// the specific case of 32-bit aligned, but not 64-bit aligned.
-void MacroAssembler::Usd(Register rd, const MemOperand& rs, Register scratch) {
-  // Assert fail if the offset from start of object IS actually aligned.
-  // ONLY use with known misalignment, since there is performance cost.
-  DCHECK((rs.offset() + kHeapObjectTag) & (kPointerSize - 1));
-  if (kArchEndian == kLittle) {
-    sw(rd, rs);
-    dsrl32(scratch, rd, 0);
-    sw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
+void MacroAssembler::Usd(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    sd(rd, rs);
   } else {
-    sw(rd, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-    dsrl32(scratch, rd, 0);
-    sw(scratch, rs);
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsSdrOffset) &&
+        is_int16(rs.offset() + kMipsSdlOffset)) {
+      sdr(rd, MemOperand(rs.rm(), rs.offset() + kMipsSdrOffset));
+      sdl(rd, MemOperand(rs.rm(), rs.offset() + kMipsSdlOffset));
+    } else {
+      LoadRegPlusOffsetToAt(rs);
+      sdr(rd, MemOperand(at, kMipsSdrOffset));
+      sdl(rd, MemOperand(at, kMipsSdlOffset));
+    }
   }
 }
 
@@ -1393,6 +1536,51 @@ void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs,
   sw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
 }
 
+void MacroAssembler::Ulwc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  if (kArchVariant == kMips64r6) {
+    lwc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    Ulw(scratch, rs);
+    mtc1(scratch, fd);
+  }
+}
+
+void MacroAssembler::Uswc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  if (kArchVariant == kMips64r6) {
+    swc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    mfc1(scratch, fd);
+    Usw(scratch, rs);
+  }
+}
+
+void MacroAssembler::Uldc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  DCHECK(!scratch.is(at));
+  if (kArchVariant == kMips64r6) {
+    ldc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    Uld(scratch, rs);
+    dmtc1(scratch, fd);
+  }
+}
+
+void MacroAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  DCHECK(!scratch.is(at));
+  if (kArchVariant == kMips64r6) {
+    sdc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    dmfc1(scratch, fd);
+    Usd(scratch, rs);
+  }
+}
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   AllowDeferredHandleDereference smi_check;
@@ -4142,12 +4330,14 @@ void MacroAssembler::Allocate(int object_size,
   // to calculate the new top.
   Daddu(result_end, result, Operand(object_size));
   Branch(gc_required, Ugreater, result_end, Operand(alloc_limit));
-  sd(result_end, MemOperand(top_address));
 
-  // Tag object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    Daddu(result, result, Operand(kHeapObjectTag));
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    sd(result_end, MemOperand(top_address));
   }
+
+  // Tag object.
+  Daddu(result, result, Operand(kHeapObjectTag));
 }
 
 
@@ -4217,6 +4407,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   } else {
     Daddu(result_end, result, Operand(object_size));
   }
+
   Branch(gc_required, Ugreater, result_end, Operand(alloc_limit));
 
   // Update allocation top. result temporarily holds the new top.
@@ -4224,14 +4415,91 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     And(at, result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
   }
-  sd(result_end, MemOperand(top_address));
 
-  // Tag object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    Daddu(result, result, Operand(kHeapObjectTag));
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    sd(result_end, MemOperand(top_address));
   }
+
+  // Tag object if.
+  Daddu(result, result, Operand(kHeapObjectTag));
 }
 
+void MacroAssembler::FastAllocate(int object_size, Register result,
+                                  Register scratch1, Register scratch2,
+                                  AllocationFlags flags) {
+  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(!AreAliased(result, scratch1, scratch2, at));
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  DCHECK(0 == (object_size & kObjectAlignmentMask));
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  Register top_address = scratch1;
+  Register result_end = scratch2;
+  li(top_address, Operand(allocation_top));
+  ld(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on MIPS64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  if (emit_debug_code()) {
+    And(at, result, Operand(kDoubleAlignmentMask));
+    Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
+  }
+
+  // Calculate new top and write it back.
+  Daddu(result_end, result, Operand(object_size));
+  sd(result_end, MemOperand(top_address));
+
+  Daddu(result, result, Operand(kHeapObjectTag));
+}
+
+void MacroAssembler::FastAllocate(Register object_size, Register result,
+                                  Register result_end, Register scratch,
+                                  AllocationFlags flags) {
+  // |object_size| and |result_end| may overlap, other registers must not.
+  DCHECK(!AreAliased(object_size, result, scratch, at));
+  DCHECK(!AreAliased(result_end, result, scratch, at));
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address and object size registers.
+  Register top_address = scratch;
+  li(top_address, Operand(allocation_top));
+  ld(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on MIPS64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  if (emit_debug_code()) {
+    And(at, result, Operand(kDoubleAlignmentMask));
+    Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
+  }
+
+  // Calculate new top and write it back
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    Dlsa(result_end, result, object_size, kPointerSizeLog2);
+  } else {
+    Daddu(result_end, result, Operand(object_size));
+  }
+
+  // Update allocation top. result temporarily holds the new top.
+  if (emit_debug_code()) {
+    And(at, result_end, Operand(kObjectAlignmentMask));
+    Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
+  }
+
+  Daddu(result, result, Operand(kHeapObjectTag));
+}
 
 void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register length,
@@ -4248,12 +4516,8 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   And(scratch1, scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate two-byte string in new space.
-  Allocate(scratch1,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result,
@@ -4277,12 +4541,8 @@ void MacroAssembler::AllocateOneByteString(Register result, Register length,
   And(scratch1, scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate one-byte string in new space.
-  Allocate(scratch1,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
@@ -4296,7 +4556,7 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
   InitializeNewString(result,
                       length,
                       Heap::kConsStringMapRootIndex,
@@ -4309,12 +4569,8 @@ void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
                                                Register scratch1,
                                                Register scratch2,
                                                Label* gc_required) {
-  Allocate(ConsString::kSize,
-           result,
-           scratch1,
-           scratch2,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -4327,7 +4583,7 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                                  Register scratch2,
                                                  Label* gc_required) {
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result,
                       length,
@@ -4343,7 +4599,7 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
                                                  Register scratch2,
                                                  Label* gc_required) {
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -4369,12 +4625,11 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch2,
                                         Register heap_number_map,
                                         Label* need_gc,
-                                        TaggingMode tagging_mode,
                                         MutableMode mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, need_gc,
-           tagging_mode == TAG_RESULT ? TAG_OBJECT : NO_ALLOCATION_FLAGS);
+           NO_ALLOCATION_FLAGS);
 
   Heap::RootListIndex map_index = mode == MUTABLE
       ? Heap::kMutableHeapNumberMapRootIndex
@@ -4382,11 +4637,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   AssertIsRoot(heap_number_map, map_index);
 
   // Store heap number map in the allocated object.
-  if (tagging_mode == TAG_RESULT) {
-    sd(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
-  } else {
-    sd(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
-  }
+  sd(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
 
 
@@ -4410,7 +4661,8 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   DCHECK(!result.is(value));
 
   // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required, TAG_OBJECT);
+  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Initialize the JSValue.
   LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
@@ -6225,6 +6477,16 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    SmiTst(object, t8);
+    Check(ne, kOperandIsASmiAndNotAGeneratorObject, t8, Operand(zero_reg));
+    GetObjectType(object, t8, t8);
+    Check(eq, kOperandIsNotAGeneratorObject, t8,
+          Operand(JS_GENERATOR_OBJECT_TYPE));
+  }
+}
 
 void MacroAssembler::AssertReceiver(Register object) {
   if (emit_debug_code()) {
@@ -6696,7 +6958,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
                                                      Label* no_memento_found) {
   Label map_check;
   Label top_check;
-  ExternalReference new_space_allocation_top =
+  ExternalReference new_space_allocation_top_adr =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
   const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
@@ -6705,14 +6967,16 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
   JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
-  Addu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
-  Xor(scratch_reg, scratch_reg, Operand(new_space_allocation_top));
+  Daddu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  li(at, Operand(new_space_allocation_top_adr));
+  ld(at, MemOperand(at));
+  Xor(scratch_reg, scratch_reg, Operand(at));
   And(scratch_reg, scratch_reg, Operand(~Page::kPageAlignmentMask));
   Branch(&top_check, eq, scratch_reg, Operand(zero_reg));
   // The object is on a different page than allocation top. Bail out if the
   // object sits on the page boundary as no memento can follow and we cannot
   // touch the memory following it.
-  Addu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  Daddu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
   Xor(scratch_reg, scratch_reg, Operand(receiver_reg));
   And(scratch_reg, scratch_reg, Operand(~Page::kPageAlignmentMask));
   Branch(no_memento_found, ne, scratch_reg, Operand(zero_reg));
@@ -6721,13 +6985,13 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   bind(&top_check);
-  Addu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
-  li(at, Operand(new_space_allocation_top));
-  lw(at, MemOperand(at));
+  Daddu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  li(at, Operand(new_space_allocation_top_adr));
+  ld(at, MemOperand(at));
   Branch(no_memento_found, gt, scratch_reg, Operand(at));
   // Memento map check.
   bind(&map_check);
-  lw(scratch_reg, MemOperand(receiver_reg, kMementoMapOffset));
+  ld(scratch_reg, MemOperand(receiver_reg, kMementoMapOffset));
   Branch(no_memento_found, ne, scratch_reg,
          Operand(isolate()->factory()->allocation_memento_map()));
 }

@@ -27,9 +27,21 @@
 
 // Flags: --stack-size=100
 
+function overflow() {
+  var a, b, c, d, e;  // Allocates some locals on the function's stack frame.
+  overflow();
+}
 function rec1(a) { rec1(a+1); }
 function rec2(a) { rec3(a+1); }
 function rec3(a) { rec2(a+1); }
+
+// Test stack trace has correct function location at top of the stack.
+try {
+  overflow();
+} catch (e) {
+  var first_frame = e.stack.split("\n")[1]
+  assertTrue(first_frame.indexOf("stack-traces-overflow.js:30:18") > 0);
+}
 
 // Test stack trace getter and setter.
 try {

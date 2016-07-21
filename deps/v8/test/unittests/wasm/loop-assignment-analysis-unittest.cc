@@ -32,13 +32,11 @@ class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
   }
 };
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty0) {
   byte code[] = { 0 };
   BitVector* assigned = Analyze(code, code);
   CHECK_NULL(assigned);
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
   byte code[] = {kExprLoop, 0};
@@ -51,7 +49,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, One) {
   num_locals = 5;
   for (int i = 0; i < 5; i++) {
@@ -63,7 +60,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, One) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, OneBeyond) {
   num_locals = 5;
   for (int i = 0; i < 5; i++) {
@@ -74,7 +70,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, OneBeyond) {
     }
   }
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Two) {
   num_locals = 5;
@@ -90,7 +85,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Two) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, NestedIf) {
   num_locals = 5;
   for (int i = 0; i < 5; i++) {
@@ -104,13 +98,11 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, NestedIf) {
   }
 }
 
-
 static byte LEBByte(uint32_t val, byte which) {
   byte b = (val >> (which * 7)) & 0x7F;
   if (val >> ((which + 1) * 7)) b |= 0x80;
   return b;
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
   num_locals = 65000;
@@ -133,7 +125,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, Break) {
   num_locals = 3;
   byte code[] = {
@@ -146,7 +137,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Break) {
     CHECK_EQ(expected, assigned->Contains(j));
   }
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
   num_locals = 5;
@@ -163,7 +153,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
     CHECK_EQ(expected, assigned->Contains(j));
   }
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
   num_locals = 6;
@@ -184,13 +173,12 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
       WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO, WASM_GET_LOCAL(kSum)),
       WASM_GET_LOCAL(kIter))};
 
-  BitVector* assigned = Analyze(code + 2, code + arraysize(code));
+  BitVector* assigned = Analyze(code + 1, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == kIter || j == kSum;
     CHECK_EQ(expected, assigned->Contains(j));
   }
 }
-
 
 }  // namespace wasm
 }  // namespace internal

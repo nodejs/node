@@ -37,19 +37,19 @@ function assertVerifies(sig, body) {
   return module;
 }
 
-assertVerifies([kAstStmt], [kExprNop]);
-assertVerifies([kAstI32], [kExprI8Const, 0]);
+assertVerifies(kSig_v_v, [kExprNop]);
+assertVerifies(kSig_i, [kExprI8Const, 0]);
 
 // Arguments aren't allow to start functions.
-assertFails([kAstI32, kAstI32], [kExprGetLocal, 0]);
-assertFails([kAstI32, kAstI32, kAstF32], [kExprGetLocal, 0]);
-assertFails([kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
+assertFails(kSig_i_i, [kExprGetLocal, 0]);
+assertFails(kSig_i_ii, [kExprGetLocal, 0]);
+assertFails(kSig_i_dd, [kExprGetLocal, 0]);
 
 (function testInvalidIndex() {
   print("testInvalidIndex");
   var builder = new WasmModuleBuilder();
 
-  var func = builder.addFunction("", [kAstStmt])
+  var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprNop]);
 
   builder.addStart(func.index + 1);
@@ -62,7 +62,7 @@ assertFails([kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
   print("testTwoStartFuncs");
   var builder = new WasmModuleBuilder();
 
-  var func = builder.addFunction("", [kAstStmt])
+  var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprNop]);
 
   builder.addExplicitSection([kDeclStartFunction, 0]);
@@ -78,8 +78,8 @@ assertFails([kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
 
   builder.addMemory(12, 12, true);
 
-  var func = builder.addFunction("", [kAstStmt])
-    .addBody([kExprI32StoreMem, 0, 0, kExprI8Const, 0, kExprI8Const, 77]);
+  var func = builder.addFunction("", kSig_v_v)
+    .addBody([kExprI8Const, 0, kExprI8Const, 77, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 
@@ -98,11 +98,11 @@ assertFails([kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
   }};
 
   var builder = new WasmModuleBuilder();
-  var sig_index = builder.addSignature([kAstStmt]);
+  var sig_index = builder.addSignature(kSig_v_v);
 
   builder.addImport("foo", sig_index);
   var func = builder.addFunction("", sig_index)
-    .addBody([kExprCallImport, 0]);
+    .addBody([kExprCallImport, kArity0, 0]);
 
   builder.addStart(func.index);
 

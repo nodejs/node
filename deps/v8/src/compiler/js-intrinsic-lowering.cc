@@ -86,8 +86,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceNewObject(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
-    case Runtime::kInlineGetOrdinaryHasInstance:
-      return ReduceGetOrdinaryHasInstance(node);
     default:
       break;
   }
@@ -139,7 +137,7 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
   // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+  Node* renamed = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                    node->InputAt(0), graph()->start());
   node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractHighWord32());
@@ -148,7 +146,7 @@ Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
   // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+  Node* renamed = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                    node->InputAt(0), graph()->start());
   node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractLowWord32());
@@ -397,15 +395,7 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceNewObject(Node* node) {
-  Node* constructor = NodeProperties::GetValueInput(node, 0);
-  Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* value = graph()->NewNode(javascript()->Create(), constructor,
-                                 new_target, context, frame_state, effect);
-  ReplaceWithValue(node, value, value);
-  return Replace(value);
+  return Change(node, CodeFactory::FastNewObject(isolate()), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
@@ -417,17 +407,6 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                        active_function, effect, control);
   return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
                 active_function_map, effect, control);
-}
-
-Reduction JSIntrinsicLowering::ReduceGetOrdinaryHasInstance(Node* node) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* native_context = effect = graph()->NewNode(
-      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-      context, context, effect);
-  return Change(node, javascript()->LoadContext(
-                          0, Context::ORDINARY_HAS_INSTANCE_INDEX, true),
-                native_context, context, effect);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
@@ -462,12 +441,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   node->ReplaceInput(3, d);
   node->TrimInputCount(4);
   NodeProperties::ChangeOp(node, op);
-  return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
-  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect);
   return Changed(node);
 }
 

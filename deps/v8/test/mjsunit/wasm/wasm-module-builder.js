@@ -53,7 +53,7 @@ WasmModuleBuilder.prototype.addExplicitSection = function(bytes) {
   return this;
 }
 
-// Add a signature; format is [rettype, param0, param1, ...]
+// Add a signature; format is [param_count, param0, param1, ..., retcount, ret0]
 WasmModuleBuilder.prototype.addSignature = function(sig) {
     // TODO: canonicalize signatures?
     this.signatures.push(sig);
@@ -75,9 +75,7 @@ WasmModuleBuilder.prototype.addImportWithModule = function(module, name, sig) {
 }
 
 WasmModuleBuilder.prototype.addImport = function(name, sig) {
-  var sig_index = (typeof sig) == "number" ? sig : this.addSignature(sig);
-  this.imports.push({module: name, name: undefined, sig_index: sig_index});
-  return this.imports.length - 1;
+  this.addImportWithModule(name, undefined, sig);
 }
 
 WasmModuleBuilder.prototype.addDataSegment = function(addr, data, init) {
@@ -107,9 +105,19 @@ function emit_u32(bytes, val) {
 }
 
 function emit_string(bytes, string) {
-    emit_varint(bytes, string.length);
-    for (var i = 0; i < string.length; i++) {
-      emit_u8(bytes, string.charCodeAt(i));
+    // When testing illegal names, we pass a byte array directly.
+    if (string instanceof Array) {
+      emit_varint(bytes, string.length);
+      emit_bytes(bytes, string);
+      return;
+    }
+
+    // This is the hacky way to convert a JavaScript scring to a UTF8 encoded
+    // string only containing single-byte characters.
+    var string_utf8 = unescape(encodeURIComponent(string));
+    emit_varint(bytes, string_utf8.length);
+    for (var i = 0; i < string_utf8.length; i++) {
+      emit_u8(bytes, string_utf8.charCodeAt(i));
     }
 }
 
@@ -132,12 +140,14 @@ function emit_bytes(bytes, data) {
 }
 
 function emit_section(bytes, section_code, content_generator) {
-    // Start the section in a temporary buffer: its full length isn't know yet.
+    // Emit section name.
+    emit_string(bytes, section_names[section_code]);
+    // Emit the section to a temporary buffer: its full length isn't know yet.
     var tmp_bytes = [];
-    emit_string(tmp_bytes, section_names[section_code]);
     content_generator(tmp_bytes);
-    // Now that we know the section length, emit it and copy the section.
+    // Emit section length.
     emit_varint(bytes, tmp_bytes.length);
+    // Copy the temporary buffer.
     Array.prototype.push.apply(bytes, tmp_bytes);
 }
 
@@ -149,24 +159,13 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
 
     var wasm = this;
 
-    // Add memory section
-    if (wasm.memory != undefined) {
-        if (debug) print("emitting memory @ " + bytes.length);
-        emit_section(bytes, kDeclMemory, function(bytes) {
-            emit_varint(bytes, wasm.memory.min);
-            emit_varint(bytes, wasm.memory.max);
-            emit_u8(bytes, wasm.memory.exp ? 1 : 0);
-        });
-    }
-
     // Add signatures section
     if (wasm.signatures.length > 0) {
         if (debug) print("emitting signatures @ " + bytes.length);
         emit_section(bytes, kDeclSignatures, function(bytes) {
             emit_varint(bytes, wasm.signatures.length);
             for (sig of wasm.signatures) {
-                var params = sig.length - 1;
-                emit_varint(bytes, params);
+                emit_u8(bytes, kWasmFunctionTypeForm);
                 for (var j = 0; j < sig.length; j++) {
                     emit_u8(bytes, sig[j]);
                 }
@@ -187,7 +186,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         });
     }
 
-    // Add functions section
+    // Add functions declarations
     var names = false;
     var exports = 0;
     if (wasm.functions.length > 0) {
@@ -206,6 +205,54 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
             }
         });
 
+    }
+
+    // Add function table.
+    if (wasm.function_table.length > 0) {
+        if (debug) print("emitting function table @ " + bytes.length);
+        emit_section(bytes, kDeclFunctionTable, function(bytes) {
+            emit_varint(bytes, wasm.function_table.length);
+            for (index of wasm.function_table) {
+                emit_varint(bytes, index);
+            }
+        });
+    }
+
+    // Add memory section
+    if (wasm.memory != undefined) {
+        if (debug) print("emitting memory @ " + bytes.length);
+        emit_section(bytes, kDeclMemory, function(bytes) {
+            emit_varint(bytes, wasm.memory.min);
+            emit_varint(bytes, wasm.memory.max);
+            emit_u8(bytes, wasm.memory.exp ? 1 : 0);
+        });
+    }
+
+
+    // Add export table.
+    if (exports > 0) {
+        if (debug) print("emitting exports @ " + bytes.length);
+        emit_section(bytes, kDeclExportTable, function(bytes) {
+            emit_varint(bytes, exports);
+            for (func of wasm.functions) {
+                for (exp of func.exports) {
+                    emit_varint(bytes, func.index);
+                    emit_string(bytes, exp);
+                }
+            }
+        });
+    }
+
+    // Add start function section.
+    if (wasm.start_index != undefined) {
+        if (debug) print("emitting start function @ " + bytes.length);
+        emit_section(bytes, kDeclStartFunction, function(bytes) {
+            emit_varint(bytes, wasm.start_index);
+        });
+    }
+
+    // Add function bodies.
+    if (wasm.functions.length > 0) {
         // emit function bodies
         if (debug) print("emitting function bodies @ " + bytes.length);
         emit_section(bytes, kDeclFunctionBodies, function(bytes) {
@@ -244,50 +291,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         });
     }
 
-    // emit function names
-    if (has_names) {
-        if (debug) print("emitting names @ " + bytes.length);
-        emit_section(bytes, kDeclNames, function(bytes) {
-            emit_varint(bytes, wasm.functions.length);
-            for (func of wasm.functions) {
-                var name = func.name == undefined ? "" : func.name;
-               emit_string(bytes, name);
-               emit_u8(bytes, 0);  // local names count == 0
-            }
-        });
-    }
-
-    // Add start function section.
-    if (wasm.start_index != undefined) {
-        if (debug) print("emitting start function @ " + bytes.length);
-        emit_section(bytes, kDeclStartFunction, function(bytes) {
-            emit_varint(bytes, wasm.start_index);
-        });
-    }
-
-    if (wasm.function_table.length > 0) {
-        if (debug) print("emitting function table @ " + bytes.length);
-        emit_section(bytes, kDeclFunctionTable, function(bytes) {
-            emit_varint(bytes, wasm.function_table.length);
-            for (index of wasm.function_table) {
-                emit_varint(bytes, index);
-            }
-        });
-    }
-
-    if (exports > 0) {
-        if (debug) print("emitting exports @ " + bytes.length);
-        emit_section(bytes, kDeclExportTable, function(bytes) {
-            emit_varint(bytes, exports);
-            for (func of wasm.functions) {
-                for (exp of func.exports) {
-                    emit_varint(bytes, func.index);
-                    emit_string(bytes, exp);
-                }
-            }
-        });
-    }
-
+    // Add data segments.
     if (wasm.data_segments.length > 0) {
         if (debug) print("emitting data segments @ " + bytes.length);
         emit_section(bytes, kDeclDataSegments, function(bytes) {
@@ -300,10 +304,23 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         });
     }
 
-    // Emit any explicitly added sections
+    // Add any explicitly added sections
     for (exp of wasm.explicit) {
         if (debug) print("emitting explicit @ " + bytes.length);
         emit_bytes(bytes, exp);
+    }
+
+    // Add function names.
+    if (has_names) {
+        if (debug) print("emitting names @ " + bytes.length);
+        emit_section(bytes, kDeclNames, function(bytes) {
+            emit_varint(bytes, wasm.functions.length);
+            for (func of wasm.functions) {
+                var name = func.name == undefined ? "" : func.name;
+                emit_string(bytes, name);
+                emit_u8(bytes, 0);  // local names count == 0
+            }
+        });
     }
 
     // End the module.

@@ -84,14 +84,14 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   return result;
 }
 
-
-bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
-                                             int stack_depth) {
+bool HeapProfiler::StartSamplingHeapProfiler(
+    uint64_t sample_interval, int stack_depth,
+    v8::HeapProfiler::SamplingFlags flags) {
   if (sampling_heap_profiler_.get()) {
     return false;
   }
   sampling_heap_profiler_.Reset(new SamplingHeapProfiler(
-      heap(), names_.get(), sample_interval, stack_depth));
+      heap(), names_.get(), sample_interval, stack_depth, flags));
   return true;
 }
 

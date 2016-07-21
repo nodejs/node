@@ -265,8 +265,9 @@ void ALAA::VisitForInStatement(ForInStatement* loop) {
 void ALAA::VisitForOfStatement(ForOfStatement* loop) {
   Visit(loop->assign_iterator());
   Enter(loop);
+  Visit(loop->next_result());
+  Visit(loop->result_done());
   Visit(loop->assign_each());
-  Visit(loop->subject());
   Visit(loop->body());
   Exit(loop);
 }

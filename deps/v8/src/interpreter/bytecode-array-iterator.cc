@@ -128,26 +128,15 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
 }
 
 int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
-  interpreter::OperandType operand_type =
-      Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
-  switch (operand_type) {
-    case OperandType::kRegPair:
-    case OperandType::kRegOutPair:
-      return 2;
-    case OperandType::kRegOutTriple:
-      return 3;
-    default: {
-      if (operand_index + 1 !=
-          Bytecodes::NumberOfOperands(current_bytecode())) {
-        OperandType next_operand_type =
-            Bytecodes::GetOperandType(current_bytecode(), operand_index + 1);
-        if (OperandType::kRegCount == next_operand_type) {
-          return GetRegisterCountOperand(operand_index + 1);
-        }
-      }
-      return 1;
-    }
+  DCHECK_LE(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
+  const OperandType* operand_types =
+      Bytecodes::GetOperandTypes(current_bytecode());
+  DCHECK(Bytecodes::IsRegisterOperandType(operand_types[operand_index]));
+  if (operand_types[operand_index + 1] == OperandType::kRegCount) {
+    return GetRegisterCountOperand(operand_index + 1);
+  } else {
+    OperandType operand_type = operand_types[operand_index];
+    return Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
   }
 }
 

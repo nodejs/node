@@ -480,8 +480,8 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   // Save caller-saved registers.  js_function and code_entry are in the
   // caller-saved register list.
   DCHECK(kJSCallerSaved & js_function.bit());
-  DCHECK(kJSCallerSaved & code_entry.bit());
-  MultiPush(kJSCallerSaved | r14.bit());
+  // DCHECK(kJSCallerSaved & code_entry.bit());
+  MultiPush(kJSCallerSaved | code_entry.bit() | r14.bit());
 
   int argument_count = 3;
   PrepareCallCFunction(argument_count, code_entry);
@@ -499,7 +499,7 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   }
 
   // Restore caller-saved registers (including js_function and code_entry).
-  MultiPop(kJSCallerSaved | r14.bit());
+  MultiPop(kJSCallerSaved | code_entry.bit() | r14.bit());
 
   bind(&done);
 }
@@ -1706,6 +1706,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
                               Register scratch1, Register scratch2,
                               Label* gc_required, AllocationFlags flags) {
   DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1767,7 +1768,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
     STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     AndP(result_end, result, Operand(kDoubleAlignmentMask));
     Label aligned;
-    beq(&aligned);
+    beq(&aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       CmpLogicalP(result, alloc_limit);
       bge(gc_required);
@@ -1792,17 +1793,20 @@ void MacroAssembler::Allocate(int object_size, Register result,
     blt(gc_required);
     AddP(result_end, result, result_end);
   }
-  StoreP(result_end, MemOperand(top_address));
 
-  // Tag object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    AddP(result, result, Operand(kHeapObjectTag));
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    StoreP(result_end, MemOperand(top_address));
   }
+
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::Allocate(Register object_size, Register result,
                               Register result_end, Register scratch,
                               Label* gc_required, AllocationFlags flags) {
+  DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1860,7 +1864,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     AndP(result_end, result, Operand(kDoubleAlignmentMask));
     Label aligned;
-    beq(&aligned);
+    beq(&aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       CmpLogicalP(result, alloc_limit);
       bge(gc_required);
@@ -1892,12 +1896,114 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     AndP(r0, result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace, cr0);
   }
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    StoreP(result_end, MemOperand(top_address));
+  }
+
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
+}
+
+void MacroAssembler::FastAllocate(Register object_size, Register result,
+                                  Register result_end, Register scratch,
+                                  AllocationFlags flags) {
+  // |object_size| and |result_end| may overlap if the DOUBLE_ALIGNMENT flag
+  // is not specified. Other registers must not overlap.
+  DCHECK(!AreAliased(object_size, result, scratch, ip));
+  DCHECK(!AreAliased(result_end, result, scratch, ip));
+  DCHECK((flags & DOUBLE_ALIGNMENT) == 0 || !object_size.is(result_end));
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  Register top_address = scratch;
+  mov(top_address, Operand(allocation_top));
+  LoadP(result, MemOperand(top_address));
+
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+// Align the next allocation. Storing the filler map without checking top is
+// safe in new-space because the limit of the heap is aligned there.
+#if V8_TARGET_ARCH_S390X
+    STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+#else
+    DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
+    AndP(result_end, result, Operand(kDoubleAlignmentMask));
+    Label aligned;
+    beq(&aligned, Label::kNear);
+    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
+    StoreW(result_end, MemOperand(result));
+    AddP(result, result, Operand(kDoubleSize / 2));
+    bind(&aligned);
+#endif
+  }
+
+  // Calculate new top using result. Object size may be in words so a shift is
+  // required to get the number of bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    ShiftLeftP(result_end, object_size, Operand(kPointerSizeLog2));
+    AddP(result_end, result, result_end);
+  } else {
+    AddP(result_end, result, object_size);
+  }
+
+  // Update allocation top. result temporarily holds the new top.
+  if (emit_debug_code()) {
+    AndP(r0, result_end, Operand(kObjectAlignmentMask));
+    Check(eq, kUnalignedAllocationInNewSpace, cr0);
+  }
   StoreP(result_end, MemOperand(top_address));
 
-  // Tag object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    AddP(result, result, Operand(kHeapObjectTag));
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
+}
+
+void MacroAssembler::FastAllocate(int object_size, Register result,
+                                  Register scratch1, Register scratch2,
+                                  AllocationFlags flags) {
+  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(!AreAliased(result, scratch1, scratch2, ip));
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
   }
+  DCHECK_EQ(0, object_size & kObjectAlignmentMask);
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address register.
+  Register top_address = scratch1;
+  Register result_end = scratch2;
+  mov(top_address, Operand(allocation_top));
+  LoadP(result, MemOperand(top_address));
+
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+// Align the next allocation. Storing the filler map without checking top is
+// safe in new-space because the limit of the heap is aligned there.
+#if V8_TARGET_ARCH_S390X
+    STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+#else
+    DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
+    AndP(result_end, result, Operand(kDoubleAlignmentMask));
+    Label aligned;
+    beq(&aligned, Label::kNear);
+    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
+    StoreW(result_end, MemOperand(result));
+    AddP(result, result, Operand(kDoubleSize / 2));
+    bind(&aligned);
+#endif
+  }
+
+  // Calculate new top using result.
+  AddP(result_end, result, Operand(object_size));
+
+  // The top pointer is not updated for allocation folding dominators.
+  StoreP(result_end, MemOperand(top_address));
+
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::AllocateTwoByteString(Register result, Register length,
@@ -1914,7 +2020,8 @@ void MacroAssembler::AllocateTwoByteString(Register result, Register length,
   AndP(scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate two-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required, TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kStringMapRootIndex, scratch1,
@@ -1934,7 +2041,8 @@ void MacroAssembler::AllocateOneByteString(Register result, Register length,
   AndP(scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate one-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required, TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
@@ -1946,7 +2054,7 @@ void MacroAssembler::AllocateTwoByteConsString(Register result, Register length,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsStringMapRootIndex, scratch1,
                       scratch2);
@@ -1957,7 +2065,7 @@ void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -1969,7 +2077,7 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                                  Register scratch2,
                                                  Label* gc_required) {
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedStringMapRootIndex, scratch1,
                       scratch2);
@@ -1981,7 +2089,7 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
                                                  Register scratch2,
                                                  Label* gc_required) {
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -2847,6 +2955,18 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object);
+    Check(ne, kOperandIsASmiAndNotAGeneratorObject, cr0);
+    push(object);
+    CompareObjectType(object, object, object, JS_GENERATOR_OBJECT_TYPE);
+    pop(object);
+    Check(eq, kOperandIsNotAGeneratorObject);
+  }
+}
+
 void MacroAssembler::AssertReceiver(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
@@ -2935,12 +3055,11 @@ void MacroAssembler::AllocateHeapNumber(Register result, Register scratch1,
                                         Register scratch2,
                                         Register heap_number_map,
                                         Label* gc_required,
-                                        TaggingMode tagging_mode,
                                         MutableMode mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
-           tagging_mode == TAG_RESULT ? TAG_OBJECT : NO_ALLOCATION_FLAGS);
+           NO_ALLOCATION_FLAGS);
 
   Heap::RootListIndex map_index = mode == MUTABLE
                                       ? Heap::kMutableHeapNumberMapRootIndex
@@ -2948,11 +3067,7 @@ void MacroAssembler::AllocateHeapNumber(Register result, Register scratch1,
   AssertIsRoot(heap_number_map, map_index);
 
   // Store heap number map in the allocated object.
-  if (tagging_mode == TAG_RESULT) {
     StoreP(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
-  } else {
-    StoreP(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
-  }
 }
 
 void MacroAssembler::AllocateHeapNumberWithValue(
@@ -2971,7 +3086,8 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   DCHECK(!result.is(value));
 
   // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required, TAG_OBJECT);
+  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Initialize the JSValue.
   LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
@@ -3539,7 +3655,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
                                                      Label* no_memento_found) {
   Label map_check;
   Label top_check;
-  ExternalReference new_space_allocation_top =
+  ExternalReference new_space_allocation_top_adr =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
   const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
@@ -3550,11 +3666,13 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
   JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
 
   DCHECK((~Page::kPageAlignmentMask & 0xffff) == 0);
-  AddP(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
 
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
-  XorP(r0, scratch_reg, Operand(new_space_allocation_top));
+  AddP(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  mov(ip, Operand(new_space_allocation_top_adr));
+  LoadP(ip, MemOperand(ip));
+  XorP(r0, scratch_reg, ip);
   AndP(r0, r0, Operand(~Page::kPageAlignmentMask));
   beq(&top_check, Label::kNear);
   // The object is on a different page than allocation top. Bail out if the
@@ -3568,7 +3686,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   bind(&top_check);
-  CmpP(scratch_reg, Operand(new_space_allocation_top));
+  CmpP(scratch_reg, ip);
   bgt(no_memento_found);
   // Memento map check.
   bind(&map_check);
@@ -4961,6 +5079,14 @@ void MacroAssembler::LoadB(Register dst, const MemOperand& mem) {
 #endif
 }
 
+void MacroAssembler::LoadB(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  lgbr(dst, src);
+#else
+  lbr(dst, src);
+#endif
+}
+
 void MacroAssembler::LoadlB(Register dst, const MemOperand& mem) {
 #if V8_TARGET_ARCH_S390X
   llgc(dst, mem);
@@ -5300,7 +5426,7 @@ void MacroAssembler::Popcnt32(Register dst, Register src) {
   ar(dst, r0);
   ShiftRight(r0, dst, Operand(8));
   ar(dst, r0);
-  lbr(dst, dst);
+  LoadB(dst, dst);
 }
 
 #ifdef V8_TARGET_ARCH_S390X
@@ -5315,7 +5441,7 @@ void MacroAssembler::Popcnt64(Register dst, Register src) {
   AddP(dst, r0);
   ShiftRightP(r0, dst, Operand(8));
   AddP(dst, r0);
-  lbr(dst, dst);
+  LoadB(dst, dst);
 }
 #endif
 

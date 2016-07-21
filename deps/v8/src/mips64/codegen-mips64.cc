@@ -732,6 +732,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiScale(scratch, length, kDoubleSizeLog2);
   __ Daddu(scratch, scratch, FixedDoubleArray::kHeaderSize);
   __ Allocate(scratch, array, t3, scratch2, &gc_required, DOUBLE_ALIGNMENT);
+  __ Dsubu(array, array, kHeapObjectTag);
   // array: destination FixedDoubleArray, not tagged as heap object
 
   // Set destination FixedDoubleArray's length and map.
@@ -882,6 +883,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Daddu(array_size, array_size, FixedDoubleArray::kHeaderSize);
   __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
               NO_ALLOCATION_FLAGS);
+  __ Dsubu(array, array, kHeapObjectTag);
   // array: destination FixedArray, not tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);

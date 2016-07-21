@@ -87,3 +87,29 @@ function TestGeneratorObjectMethods() {
   TestNonGenerator(g.prototype);
 }
 TestGeneratorObjectMethods();
+
+
+function TestPrototype() {
+  function* g() { }
+
+  let g_prototype = g.prototype;
+  assertEquals([], Reflect.ownKeys(g_prototype));
+
+  let generator_prototype = Object.getPrototypeOf(g_prototype);
+  assertSame(generator_prototype, Object.getPrototypeOf(g).prototype);
+
+  // Unchanged .prototype
+  assertSame(g_prototype, Object.getPrototypeOf(g()));
+
+  // Custom object as .prototype
+  {
+    let proto = {};
+    g.prototype = proto;
+    assertSame(proto, Object.getPrototypeOf(g()));
+  }
+
+  // Custom non-object as .prototype
+  g.prototype = null;
+  assertSame(generator_prototype, Object.getPrototypeOf(g()));
+}
+TestPrototype();

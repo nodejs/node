@@ -23,8 +23,7 @@ using namespace v8::internal::compiler;
 
 static int32_t DummyStaticFunction(Object* result) { return 1; }
 
-TEST(WasmRelocationIa32) {
-  CcTest::InitializeVM();
+TEST(WasmRelocationX87MemoryReference) {
   Isolate* isolate = CcTest::i_isolate();
   Zone zone(isolate->allocator());
   HandleScope scope(isolate);
@@ -78,7 +77,6 @@ TEST(WasmRelocationIa32) {
   CHECK_EQ(ret_value, imm + offset);
 
 #ifdef OBJECT_PRINT
-  // OFStream os(stdout);
   code->Print(os);
   begin = code->instruction_start();
   end = begin + code->instruction_size();
@@ -86,4 +84,67 @@ TEST(WasmRelocationIa32) {
 #endif
 }
 
+TEST(WasmRelocationX87MemorySizeReference) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Zone zone(isolate->allocator());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[4096];
+  Assembler assm(isolate, buffer, sizeof buffer);
+  DummyStaticFunction(NULL);
+  int32_t size = 80;
+  Label fail;
+
+  __ mov(eax, Immediate(reinterpret_cast<Address>(size),
+                        RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  __ cmp(eax, Immediate(reinterpret_cast<Address>(size),
+                        RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  __ j(not_equal, &fail);
+  __ ret(0);
+  __ bind(&fail);
+  __ mov(eax, 0xdeadbeef);
+  __ ret(0);
+
+  CSignature0<int32_t> csig;
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  USE(code);
+
+  CodeRunner<int32_t> runnable(isolate, code, &csig);
+  int32_t ret_value = runnable.Call();
+  CHECK_NE(ret_value, 0xdeadbeef);
+
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+  byte* begin = code->instruction_start();
+  byte* end = begin + code->instruction_size();
+  disasm::Disassembler::Disassemble(stdout, begin, end);
+#endif
+
+  size_t offset = 10;
+
+  int mode_mask = (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (RelocInfo::IsWasmMemorySizeReference(mode)) {
+      it.rinfo()->update_wasm_memory_reference(
+          reinterpret_cast<Address>(1234), reinterpret_cast<Address>(1234),
+          it.rinfo()->wasm_memory_size_reference(),
+          it.rinfo()->wasm_memory_size_reference() + offset, SKIP_ICACHE_FLUSH);
+    }
+  }
+
+  ret_value = runnable.Call();
+  CHECK_NE(ret_value, 0xdeadbeef);
+
+#ifdef OBJECT_PRINT
+  code->Print(os);
+  begin = code->instruction_start();
+  end = begin + code->instruction_size();
+  disasm::Disassembler::Disassemble(stdout, begin, end);
+#endif
+}
 #undef __

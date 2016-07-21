@@ -47,6 +47,13 @@ class CodeEntry {
                    Address instruction_start = NULL);
   ~CodeEntry();
 
+  // Container describing inlined frames at eager deopt points. Is eventually
+  // being translated into v8::CpuProfileDeoptFrame by the profiler.
+  struct DeoptInlinedFrame {
+    int position;
+    int script_id;
+  };
+
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
@@ -64,11 +71,11 @@ class CodeEntry {
   const char* bailout_reason() const { return bailout_reason_; }
 
   void set_deopt_info(const char* deopt_reason, SourcePosition position,
-                      size_t pc_offset) {
+                      int deopt_id) {
     DCHECK(deopt_position_.IsUnknown());
     deopt_reason_ = deopt_reason;
     deopt_position_ = position;
-    pc_offset_ = pc_offset;
+    deopt_id_ = deopt_id;
   }
   CpuProfileDeoptInfo GetDeoptInfo();
   const char* deopt_reason() const { return deopt_reason_; }
@@ -80,14 +87,6 @@ class CodeEntry {
   }
 
   void FillFunctionInfo(SharedFunctionInfo* shared);
-
-  void set_inlined_function_infos(
-      const std::vector<InlinedFunctionInfo>& infos) {
-    inlined_function_infos_ = infos;
-  }
-  const std::vector<InlinedFunctionInfo> inlined_function_infos() {
-    return inlined_function_infos_;
-  }
 
   void SetBuiltinId(Builtins::Name id);
   Builtins::Name builtin_id() const {
@@ -101,6 +100,9 @@ class CodeEntry {
 
   void AddInlineStack(int pc_offset, std::vector<CodeEntry*>& inline_stack);
   const std::vector<CodeEntry*>* GetInlineStack(int pc_offset) const;
+
+  void AddDeoptInlinedFrames(int deopt_id, std::vector<DeoptInlinedFrame>&);
+  bool HasDeoptInlinedFramesFor(int deopt_id) const;
 
   Address instruction_start() const { return instruction_start_; }
   Logger::LogEventsAndTags tag() const { return TagField::decode(bit_field_); }
@@ -125,13 +127,12 @@ class CodeEntry {
   const char* bailout_reason_;
   const char* deopt_reason_;
   SourcePosition deopt_position_;
-  size_t pc_offset_;
+  int deopt_id_;
   JITLineInfoTable* line_info_;
   Address instruction_start_;
   // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
   std::map<int, std::vector<CodeEntry*>> inline_locations_;
-
-  std::vector<InlinedFunctionInfo> inlined_function_infos_;
+  std::map<int, std::vector<DeoptInlinedFrame>> deopt_inlined_frames_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };

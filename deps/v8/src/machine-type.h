@@ -177,7 +177,8 @@ std::ostream& operator<<(std::ostream& os, MachineType type);
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep == MachineRepresentation::kFloat32 ||
-         rep == MachineRepresentation::kFloat64;
+         rep == MachineRepresentation::kFloat64 ||
+         rep == MachineRepresentation::kSimd128;
 }
 
 // Gets the log2 of the element size in bytes of the machine type.

@@ -71,14 +71,12 @@ void IncrementalMarkingJob::ScheduleDelayedTask(Heap* heap) {
 IncrementalMarkingJob::IdleTask::Progress IncrementalMarkingJob::IdleTask::Step(
     Heap* heap, double deadline_in_ms) {
   IncrementalMarking* incremental_marking = heap->incremental_marking();
-  MarkCompactCollector* mark_compact_collector = heap->mark_compact_collector();
   if (incremental_marking->IsStopped()) {
     return kDone;
   }
-  if (mark_compact_collector->sweeping_in_progress()) {
-    if (mark_compact_collector->IsSweepingCompleted()) {
-      mark_compact_collector->EnsureSweepingCompleted();
-    }
+  if (incremental_marking->IsSweeping()) {
+    incremental_marking->FinalizeSweeping();
+    // TODO(hpayer): We can continue here if enough idle time is left.
     return kMoreWork;
   }
   const double remaining_idle_time_in_ms =

@@ -212,9 +212,8 @@ TEST_F(JSTypedLoweringTest, ParameterWithUndefined) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
   Node* input = Parameter(Type::Boolean(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(input, r.replacement());
 }
@@ -242,9 +241,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithFalsish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
@@ -258,9 +256,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -269,9 +266,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
   Node* input = Parameter(Type::Range(1, V8_INFINITY, zone()), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -280,9 +276,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
   Node* input = Parameter(Type::OrderedNumber(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
@@ -292,9 +287,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   Node* input = Parameter(Type::String(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
@@ -307,9 +301,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                              input, context, graph()->start()));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
   ASSERT_FALSE(r.Changed());
 }
 
@@ -391,9 +384,8 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const context = UndefinedConstant();
   TRACED_FOREACH(Type*, type, kJSTypes) {
     Node* const lhs = Parameter(type);
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, the_hole,
-                                context, graph()->start(), graph()->start()));
+    Reduction r = Reduce(
+        graph()->NewNode(javascript()->StrictEqual(), lhs, the_hole, context));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsFalseConstant());
   }
@@ -405,8 +397,7 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
   Node* const rhs = Parameter(Type::Unique(), 1);
   Node* const context = Parameter(Type::Any(), 2);
   Reduction r =
-      Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, rhs, context,
-                              graph()->start(), graph()->start()));
+      Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, rhs, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsReferenceEqual(Type::Unique(), lhs, rhs));
 }
@@ -820,24 +811,6 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
                                            receiver, effect, control));
-}
-
-
-TEST_F(JSTypedLoweringTest, JSLoadNamedFunctionPrototype) {
-  VectorSlotPair feedback;
-  Handle<Name> name = factory()->prototype_string();
-  Handle<JSFunction> function = isolate()->object_function();
-  Handle<JSObject> function_prototype(JSObject::cast(function->prototype()));
-  Node* const receiver = Parameter(Type::Constant(function, zone()), 0);
-  Node* const vector = Parameter(Type::Internal(), 1);
-  Node* const context = Parameter(Type::Internal(), 2);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->LoadNamed(name, feedback), receiver, vector, context,
-      EmptyFrameState(), EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsHeapConstant(function_prototype));
 }
 
 

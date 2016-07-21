@@ -27,7 +27,7 @@
 
 #include "test/cctest/trace-extension.h"
 
-#include "src/profiler/sampler.h"
+#include "src/profiler/tick-sample.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 

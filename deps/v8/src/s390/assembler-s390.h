@@ -90,6 +90,8 @@ namespace internal {
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15) V(d0)
@@ -221,7 +223,10 @@ struct DoubleRegister {
   int reg_code;
 };
 
-typedef DoubleRegister DoubleRegister;
+typedef DoubleRegister FloatRegister;
+
+// TODO(john.yan) Define SIMD registers.
+typedef DoubleRegister Simd128Register;
 
 #define DECLARE_REGISTER(R) \
   const DoubleRegister R = {DoubleRegister::kCode_##R};
@@ -264,9 +269,6 @@ const CRegister cr4 = {4};
 const CRegister cr5 = {5};
 const CRegister cr6 = {6};
 const CRegister cr7 = {7};
-
-// TODO(john.yan) Define SIMD registers.
-typedef DoubleRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
@@ -1241,7 +1243,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, int raw_position);
+  void RecordDeoptReason(const int reason, int raw_position, int id);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.

@@ -23,7 +23,7 @@ void StubCache::Initialize() {
 
 static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
                                          Code::Flags flags) {
-  flags = Code::RemoveTypeAndHolderFromFlags(flags);
+  flags = Code::RemoveHolderFromFlags(flags);
 
   // Validate that the name does not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
@@ -36,8 +36,7 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
   DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
   STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
 
-  // Make sure that the code type and cache holder are not included in the hash.
-  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
+  // Make sure that the cache holder are not included in the hash.
   DCHECK(Code::ExtractCacheHolderFromFlags(flags) == 0);
 
   return flags;
@@ -56,8 +55,7 @@ Code* StubCache::Set(Name* name, Map* map, Code* code) {
   // secondary cache before overwriting it.
   if (old_code != isolate_->builtins()->builtin(Builtins::kIllegal)) {
     Map* old_map = primary->map;
-    Code::Flags old_flags =
-        Code::RemoveTypeAndHolderFromFlags(old_code->flags());
+    Code::Flags old_flags = Code::RemoveHolderFromFlags(old_code->flags());
     int seed = PrimaryOffset(primary->key, old_flags, old_map);
     int secondary_offset = SecondaryOffset(primary->key, old_flags, seed);
     Entry* secondary = entry(secondary_, secondary_offset);

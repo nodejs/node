@@ -184,29 +184,24 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
   switch (mode) {
     case VAR:
       *attributes = NONE;
-      *binding_flags = MUTABLE_IS_INITIALIZED;
+      *binding_flags = BINDING_IS_INITIALIZED;
       break;
     case LET:
       *attributes = NONE;
       *binding_flags = (init_flag == kNeedsInitialization)
-                           ? MUTABLE_CHECK_INITIALIZED
-                           : MUTABLE_IS_INITIALIZED;
+                           ? BINDING_CHECK_INITIALIZED
+                           : BINDING_IS_INITIALIZED;
       break;
     case CONST_LEGACY:
+      DCHECK_EQ(kCreatedInitialized, init_flag);
       *attributes = READ_ONLY;
-      *binding_flags = (init_flag == kNeedsInitialization)
-                           ? IMMUTABLE_CHECK_INITIALIZED
-                           : IMMUTABLE_IS_INITIALIZED;
+      *binding_flags = BINDING_IS_INITIALIZED;
       break;
     case CONST:
       *attributes = READ_ONLY;
       *binding_flags = (init_flag == kNeedsInitialization)
-                           ? IMMUTABLE_CHECK_INITIALIZED_HARMONY
-                           : IMMUTABLE_IS_INITIALIZED_HARMONY;
-      break;
-    case IMPORT:
-      // TODO(ES6)
-      UNREACHABLE();
+                           ? BINDING_CHECK_INITIALIZED
+                           : BINDING_IS_INITIALIZED;
       break;
     case DYNAMIC:
     case DYNAMIC_GLOBAL:
@@ -362,8 +357,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           *index = function_index;
           *attributes = READ_ONLY;
           DCHECK(mode == CONST_LEGACY || mode == CONST);
-          *binding_flags = (mode == CONST_LEGACY)
-              ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
+          *binding_flags = BINDING_IS_INITIALIZED;
           return context;
         }
       }
@@ -376,7 +370,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         }
         *index = Context::THROWN_OBJECT_INDEX;
         *attributes = NONE;
-        *binding_flags = MUTABLE_IS_INITIALIZED;
+        *binding_flags = BINDING_IS_INITIALIZED;
         return context;
       }
     } else if (context->IsDebugEvaluateContext()) {
@@ -466,7 +460,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
       found = true;
       break;
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
   CHECK(found);
 #endif

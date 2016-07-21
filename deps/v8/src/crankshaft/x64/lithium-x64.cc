@@ -907,7 +907,7 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {
   LInstruction* result = new (zone()) LPrologue();
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     result = MarkAsCall(result, instr);
   }
   return result;
@@ -954,17 +954,6 @@ LInstruction* LChunkBuilder::DoArgumentsLength(HArgumentsLength* length) {
 LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
   info()->MarkAsRequiresFrame();
   return DefineAsRegister(new(zone()) LArgumentsElements);
-}
-
-
-LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  LOperand* left =
-      UseFixed(instr->left(), InstanceOfDescriptor::LeftRegister());
-  LOperand* right =
-      UseFixed(instr->right(), InstanceOfDescriptor::RightRegister());
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LInstanceOf* result = new (zone()) LInstanceOf(context, left, right);
-  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -2408,14 +2397,19 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
-  info()->MarkAsDeferredCalling();
-  LOperand* context = UseAny(instr->context());
-  LOperand* size = instr->size()->IsConstant()
-      ? UseConstant(instr->size())
-      : UseTempRegister(instr->size());
-  LOperand* temp = TempRegister();
-  LAllocate* result = new(zone()) LAllocate(context, size, temp);
-  return AssignPointerMap(DefineAsRegister(result));
+  LOperand* size = instr->size()->IsConstant() ? UseConstant(instr->size())
+                                               : UseRegister(instr->size());
+  if (instr->IsAllocationFolded()) {
+    LOperand* temp = TempRegister();
+    LFastAllocate* result = new (zone()) LFastAllocate(size, temp);
+    return DefineAsRegister(result);
+  } else {
+    info()->MarkAsDeferredCalling();
+    LOperand* context = UseAny(instr->context());
+    LOperand* temp = TempRegister();
+    LAllocate* result = new (zone()) LAllocate(context, size, temp);
+    return AssignPointerMap(DefineAsRegister(result));
+  }
 }
 
 

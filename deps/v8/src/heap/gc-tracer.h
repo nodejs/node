@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_GC_TRACER_H_
 #define V8_HEAP_GC_TRACER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
 #include "src/counters.h"
 #include "src/globals.h"
@@ -76,7 +77,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_EVACUATE_CLEAN_UP)                          \
   F(MC_EVACUATE_COPY)                              \
   F(MC_EVACUATE_UPDATE_POINTERS)                   \
-  F(MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED) \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED)      \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)            \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)              \
@@ -112,7 +112,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 #define TRACE_GC(tracer, scope_id)                             \
   GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
   GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"),                \
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),             \
                GCTracer::Scope::Name(gc_tracer_scope_id))
 
 // GCTracer collects and prints ONE line after each garbage collector
@@ -383,7 +383,7 @@ class GCTracer {
 
   // Prints a line and also adds it to the heap's ring buffer so that
   // it can be included in later crash dumps.
-  void Output(const char* format, ...) const;
+  void PRINTF_FORMAT(2, 3) Output(const char* format, ...) const;
 
   void ClearMarkCompactStatistics() {
     cumulative_incremental_marking_steps_ = 0;

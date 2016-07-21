@@ -96,6 +96,59 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   return isolate->StackOverflow();
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
+  Handle<Object> error_obj = isolate->factory()->NewError(
+      static_cast<MessageTemplate::Template>(message_id));
+
+  // For wasm traps, the byte offset (a.k.a source position) can not be
+  // determined from relocation info, since the explicit checks for traps
+  // converge in one singe block which calls this runtime function.
+  // We hence pass the byte offset explicitely, and patch it into the top-most
+  // frame (a wasm frame) on the collected stack trace.
+  // TODO(wasm): This implementation is temporary, see bug #5007:
+  // https://bugs.chromium.org/p/v8/issues/detail?id=5007
+  Handle<JSObject> error = Handle<JSObject>::cast(error_obj);
+  Handle<Object> stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->stack_trace_symbol());
+  // Patch the stack trace (array of <receiver, function, code, position>).
+  if (stack_trace_obj->IsJSArray()) {
+    Handle<FixedArray> stack_elements(
+        FixedArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
+    DCHECK_EQ(1, stack_elements->length() % 4);
+    DCHECK(Code::cast(stack_elements->get(3))->kind() == Code::WASM_FUNCTION);
+    DCHECK(stack_elements->get(4)->IsSmi() &&
+           Smi::cast(stack_elements->get(4))->value() >= 0);
+    stack_elements->set(4, Smi::FromInt(-1 - byte_offset));
+  }
+  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->detailed_stack_trace_symbol());
+  // Patch the detailed stack trace (array of JSObjects with various
+  // properties).
+  if (detailed_stack_trace_obj->IsJSArray()) {
+    Handle<FixedArray> stack_elements(
+        FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
+    DCHECK_GE(stack_elements->length(), 1);
+    Handle<JSObject> top_frame(JSObject::cast(stack_elements->get(0)));
+    Handle<String> wasm_offset_key =
+        isolate->factory()->InternalizeOneByteString(
+            STATIC_CHAR_VECTOR("column"));
+    LookupIterator it(top_frame, wasm_offset_key, top_frame,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+    if (it.IsFound()) {
+      DCHECK(JSReceiver::GetDataProperty(&it)->IsSmi());
+      Maybe<bool> data_set = JSReceiver::SetDataProperty(
+          &it, handle(Smi::FromInt(byte_offset), isolate));
+      DCHECK(data_set.IsJust() && data_set.FromJust() == true);
+      USE(data_set);
+    }
+  }
+
+  return isolate->Throw(*error_obj);
+}
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
@@ -160,6 +213,15 @@ RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
       isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg1, 1);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
@@ -170,6 +232,12 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowGeneratorRunning) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kGeneratorRunning));
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
   HandleScope scope(isolate);
@@ -309,15 +377,15 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   return *result;
 }
 
-#define CALLSITE_GET(NAME, RETURN)                          \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
-    HandleScope scope(isolate);                             \
-    DCHECK(args.length() == 1);                             \
-    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
-    Handle<String> result;                                  \
-    CallSite call_site(isolate, call_site_obj);             \
-    RUNTIME_ASSERT(call_site.IsValid());                    \
-    return RETURN(call_site.NAME(), isolate);               \
+#define CALLSITE_GET(NAME, RETURN)                                  \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {                    \
+    HandleScope scope(isolate);                                     \
+    DCHECK(args.length() == 1);                                     \
+    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0);         \
+    Handle<String> result;                                          \
+    CallSite call_site(isolate, call_site_obj);                     \
+    RUNTIME_ASSERT(call_site.IsJavaScript() || call_site.IsWasm()); \
+    return RETURN(call_site.NAME(), isolate);                       \
   }
 
 static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
@@ -416,6 +484,13 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
       isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callsite));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowCalledOnNullOrUndefined) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined, name));
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   HandleScope scope(isolate);
@@ -456,21 +531,75 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_GetOrdinaryHasInstance) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-
-  return isolate->native_context()->ordinary_has_instance();
-}
-
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  std::stringstream stats_stream;
-  isolate->counters()->runtime_call_stats()->Print(stats_stream);
-  Handle<String> result =
-      isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
-  isolate->counters()->runtime_call_stats()->Reset();
+  if (args.length() == 0) {
+    // Without arguments, the result is returned as a string.
+    DCHECK_EQ(0, args.length());
+    std::stringstream stats_stream;
+    isolate->counters()->runtime_call_stats()->Print(stats_stream);
+    Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(
+        stats_stream.str().c_str());
+    isolate->counters()->runtime_call_stats()->Reset();
+    return *result;
+  } else {
+    DCHECK_LE(args.length(), 2);
+    std::FILE* f;
+    if (args[0]->IsString()) {
+      // With a string argument, the results are appended to that file.
+      CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
+      String::FlatContent flat = arg0->GetFlatContent();
+      const char* filename =
+          reinterpret_cast<const char*>(&(flat.ToOneByteVector()[0]));
+      f = std::fopen(filename, "a");
+      DCHECK_NOT_NULL(f);
+    } else {
+      // With an integer argument, the results are written to stdout/stderr.
+      CONVERT_SMI_ARG_CHECKED(fd, 0);
+      DCHECK(fd == 1 || fd == 2);
+      f = fd == 1 ? stdout : stderr;
+    }
+    // The second argument (if any) is a message header to be printed.
+    if (args.length() >= 2) {
+      CONVERT_ARG_HANDLE_CHECKED(String, arg1, 1);
+      arg1->PrintOn(f);
+      std::fputc('\n', f);
+      std::fflush(f);
+    }
+    OFStream stats_stream(f);
+    isolate->counters()->runtime_call_stats()->Print(stats_stream);
+    isolate->counters()->runtime_call_stats()->Reset();
+    if (args[0]->IsString())
+      std::fclose(f);
+    else
+      std::fflush(f);
+    return isolate->heap()->undefined_value();
+  }
+}
+
+RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, microtask, 0);
+  isolate->EnqueueMicrotask(microtask);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  isolate->RunMicrotasks();
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, callable, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Object::OrdinaryHasInstance(isolate, callable, object));
   return *result;
 }
 

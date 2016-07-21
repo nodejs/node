@@ -54,7 +54,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
-  Frame* frame() const { return frame_access_state_->frame(); }
+  const Frame* frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
@@ -66,6 +66,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   Zone* zone() const { return code()->zone(); }
   CompilationInfo* info() const { return info_; }
+
+  // Create the FrameAccessState object. The Frame is immutable from here on.
+  void CreateFrameAccessState(Frame* frame);
+
+  // Architecture - specific frame finalization.
+  void FinishFrame(Frame* frame);
 
   // Checks if {block} will appear directly after {current_block_} when
   // assembling code, in which case, a fall-through can be used.
@@ -84,11 +90,14 @@ class CodeGenerator final : public GapResolver::Assembler {
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
                                 Heap::RootListIndex* index_return);
 
+  enum CodeGenResult { kSuccess, kTooManyDeoptimizationBailouts };
+
   // Assemble instructions for the specified block.
-  void AssembleBlock(const InstructionBlock* block);
+  CodeGenResult AssembleBlock(const InstructionBlock* block);
 
   // Assemble code for the specified instruction.
-  void AssembleInstruction(Instruction* instr, const InstructionBlock* block);
+  CodeGenResult AssembleInstruction(Instruction* instr,
+                                    const InstructionBlock* block);
   void AssembleSourcePosition(Instruction* instr);
   void AssembleGaps(Instruction* instr);
 
@@ -96,21 +105,19 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
 
-  void AssembleArchInstruction(Instruction* instr);
+  CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
-  void AssembleDeoptimizerCall(int deoptimization_id,
-                               Deoptimizer::BailoutType bailout_type);
+  CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
+                                        Deoptimizer::BailoutType bailout_type);
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
-  void AssemblePrologue();
-
-  void AssembleSetupStackPointer();
+  void AssembleConstructFrame();
 
   // Generates an architecture-specific, descriptor-specific return sequence
   // to tear down a stack frame.
@@ -174,7 +181,6 @@ class CodeGenerator final : public GapResolver::Assembler {
                                              Translation* translation);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op, MachineType type);
-  void AddNopForSmiCodeInlining();
   void EnsureSpaceForLazyDeopt();
   void MarkLazyDeoptSite();
 

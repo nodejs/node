@@ -187,14 +187,9 @@ void ObjectStatsVisitor::Visit<ObjectStatsVisitor::kVisitMap>(Map* map,
                                                       fixed_array_size);
   }
   if (map_obj->has_code_cache()) {
-    CodeCache* cache = CodeCache::cast(map_obj->code_cache());
-    heap->object_stats_->RecordFixedArraySubTypeStats(
-        MAP_CODE_CACHE_SUB_TYPE, cache->default_cache()->Size());
-    if (!cache->normal_type_cache()->IsUndefined()) {
-      heap->object_stats_->RecordFixedArraySubTypeStats(
-          MAP_CODE_CACHE_SUB_TYPE,
-          FixedArray::cast(cache->normal_type_cache())->Size());
-    }
+    FixedArray* cache = FixedArray::cast(map_obj->code_cache());
+    heap->object_stats_->RecordFixedArraySubTypeStats(MAP_CODE_CACHE_SUB_TYPE,
+                                                      cache->Size());
   }
   VisitBase(kVisitMap, map, obj);
 }

@@ -78,6 +78,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
                                    kVisitJSObject, kVisitJSObjectGeneric>();
 
+    table_
+        .RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
+                                 kVisitJSApiObject, kVisitJSApiObjectGeneric>();
+
     table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
                                    kVisitStruct, kVisitStructGeneric>();
   }
@@ -462,6 +466,7 @@ void ScavengeVisitor::VisitPointers(Object** start, Object** end) {
 void ScavengeVisitor::ScavengePointer(Object** p) {
   Object* object = *p;
   if (!heap_->InNewSpace(object)) return;
+
   Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),
                             reinterpret_cast<HeapObject*>(object));
 }

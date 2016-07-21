@@ -180,7 +180,9 @@ class InstructionScheduler final : public ZoneObject {
     return (instr->arch_opcode() == kArchNop) &&
       (instr->OutputCount() == 1) &&
       (instr->OutputAt(0)->IsUnallocated()) &&
-      UnallocatedOperand::cast(instr->OutputAt(0))->HasFixedRegisterPolicy();
+      (UnallocatedOperand::cast(instr->OutputAt(0))->HasFixedRegisterPolicy() ||
+       UnallocatedOperand::cast(
+           instr->OutputAt(0))->HasFixedDoubleRegisterPolicy());
   }
 
   void ComputeTotalLatencies();
@@ -209,6 +211,9 @@ class InstructionScheduler final : public ZoneObject {
   // All these nops are chained together and added as a predecessor of every
   // other instructions in the basic block.
   ScheduleGraphNode* last_live_in_reg_marker_;
+
+  // Last deoptimization instruction encountered while building the graph.
+  ScheduleGraphNode* last_deopt_;
 };
 
 }  // namespace compiler

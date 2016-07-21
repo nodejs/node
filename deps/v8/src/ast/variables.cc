@@ -19,7 +19,6 @@ const char* Variable::Mode2String(VariableMode mode) {
     case CONST_LEGACY: return "CONST_LEGACY";
     case LET: return "LET";
     case CONST: return "CONST";
-    case IMPORT: return "IMPORT";
     case DYNAMIC: return "DYNAMIC";
     case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
     case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";

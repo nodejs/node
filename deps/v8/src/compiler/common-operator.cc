@@ -98,6 +98,11 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
   return OpParameter<SelectParameters>(op);
 }
 
+CallDescriptor const* CallDescriptorOf(const Operator* const op) {
+  DCHECK(op->opcode() == IrOpcode::kCall ||
+         op->opcode() == IrOpcode::kTailCall);
+  return OpParameter<CallDescriptor const*>(op);
+}
 
 size_t ProjectionIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kProjection, op->opcode());
@@ -142,6 +147,26 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   return os;
 }
 
+bool operator==(RelocatablePtrConstantInfo const& lhs,
+                RelocatablePtrConstantInfo const& rhs) {
+  return lhs.rmode() == rhs.rmode() && lhs.value() == rhs.value() &&
+         lhs.type() == rhs.type();
+}
+
+bool operator!=(RelocatablePtrConstantInfo const& lhs,
+                RelocatablePtrConstantInfo const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(RelocatablePtrConstantInfo const& p) {
+  return base::hash_combine(p.value(), p.rmode(), p.type());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         RelocatablePtrConstantInfo const& p) {
+  return os << p.value() << "|" << p.rmode() << "|" << p.type();
+}
+
 #define CACHED_OP_LIST(V)                                    \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)             \
   V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 0, 1)     \
@@ -154,6 +179,7 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
+  V(CheckPoint, Operator::kKontrol, 1, 1, 1, 0, 1, 0)        \
   V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
   V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
 
@@ -668,6 +694,23 @@ const Operator* CommonOperatorBuilder::HeapConstant(
       value);                                         // parameter
 }
 
+const Operator* CommonOperatorBuilder::RelocatableInt32Constant(
+    int32_t value, RelocInfo::Mode rmode) {
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --
+      IrOpcode::kRelocatableInt32Constant, Operator::kPure,   // opcode
+      "RelocatableInt32Constant",                             // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      RelocatablePtrConstantInfo(value, rmode));              // parameter
+}
+
+const Operator* CommonOperatorBuilder::RelocatableInt64Constant(
+    int64_t value, RelocInfo::Mode rmode) {
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --
+      IrOpcode::kRelocatableInt64Constant, Operator::kPure,   // opcode
+      "RelocatableInt64Constant",                             // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      RelocatablePtrConstantInfo(value, rmode));              // parameter
+}
 
 const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
                                               BranchHint hint) {
@@ -714,24 +757,6 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
       IrOpcode::kEffectPhi, Operator::kPure,  // opcode
       "EffectPhi",                            // name
       0, effect_input_count, 1, 0, 1, 0);     // counts
-}
-
-
-const Operator* CommonOperatorBuilder::Guard(Type* type) {
-  return new (zone()) Operator1<Type*>(      // --
-      IrOpcode::kGuard, Operator::kKontrol,  // opcode
-      "Guard",                               // name
-      1, 0, 1, 1, 0, 0,                      // counts
-      type);                                 // parameter
-}
-
-
-const Operator* CommonOperatorBuilder::EffectSet(int arguments) {
-  DCHECK(arguments > 1);                      // Disallow empty/singleton sets.
-  return new (zone()) Operator(               // --
-      IrOpcode::kEffectSet, Operator::kPure,  // opcode
-      "EffectSet",                            // name
-      0, arguments, 0, 0, 1, 0);              // counts
 }
 
 

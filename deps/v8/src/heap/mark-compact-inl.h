@@ -12,17 +12,6 @@
 namespace v8 {
 namespace internal {
 
-inline std::vector<Page*>& MarkCompactCollector::sweeping_list(Space* space) {
-  if (space == heap()->old_space()) {
-    return sweeping_list_old_space_;
-  } else if (space == heap()->code_space()) {
-    return sweeping_list_code_space_;
-  }
-  DCHECK_EQ(space, heap()->map_space());
-  return sweeping_list_map_space_;
-}
-
-
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
   if (marking_deque_.Push(obj)) {

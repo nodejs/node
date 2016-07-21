@@ -1383,11 +1383,6 @@ TEST(InterpreterStrictNotEqual) {
 
 TEST(InterpreterInstanceOf) {
   HandleAndZoneScope handles;
-  // TODO(4447): The new ES6 'instanceof' operator is fully desugared in the
-  // parser and the Token::INSTANCEOF is not needed anymore. This test only
-  // makes sense with --no-harmony-instanceof and can be removed once we
-  // deprecate the ability to switch to old skool ES5 'instanceof' for good.
-  FLAG_harmony_instanceof = false;
   i::Factory* factory = handles.main_isolate()->factory();
   Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
   Handle<i::JSFunction> func = factory->NewFunction(name);
@@ -2259,6 +2254,8 @@ TEST(InterpreterCreateArguments) {
       std::make_pair("function f(a, b, c, d) {"
                      "  'use strict'; c = b; return arguments[2]; }",
                      2),
+      // Check arguments for duplicate parameters in sloppy mode.
+      std::make_pair("function f(a, a, b) { return arguments[1]; }", 1),
       // check rest parameters
       std::make_pair("function f(...restArray) { return restArray[0]; }", 0),
       std::make_pair("function f(a, ...restArray) { return restArray[0]; }", 1),
@@ -4138,6 +4135,37 @@ TEST(InterpreterIllegalConstDeclaration) {
             .FromJust());
   }
 }
+
+TEST(InterpreterGenerators) {
+  bool old_flag = FLAG_ignition_generators;
+  FLAG_ignition_generators = true;
+
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> tests[] = {
+      {"function* f() { }; return f().next().value",
+       factory->undefined_value()},
+      {"function* f() { yield 42 }; return f().next().value",
+       factory->NewNumberFromInt(42)},
+      {"function* f() { for (let x of [42]) yield x}; return f().next().value",
+       factory->NewNumberFromInt(42)},
+  };
+
+  for (size_t i = 0; i < arraysize(tests); i++) {
+    std::string source(
+        InterpreterTester::SourceForBody(tests[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*tests[i].second));
+  }
+
+  FLAG_ignition_generators = old_flag;
+}
+
 
 }  // namespace interpreter
 }  // namespace internal

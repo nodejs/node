@@ -49,12 +49,10 @@ const LocalType kAstEnd = MachineRepresentation::kTagged;
 typedef Signature<LocalType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 
-struct WasmName {
-  const char* name;
-  uint32_t length;
-};
+typedef Vector<const char> WasmName;
 
-// TODO(titzer): Renumber all the opcodes to fill in holes.
+typedef int WasmCodePosition;
+const WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V) \
@@ -62,29 +60,29 @@ struct WasmName {
   V(Block, 0x01, _)               \
   V(Loop, 0x02, _)                \
   V(If, 0x03, _)                  \
-  V(IfElse, 0x04, _)              \
+  V(Else, 0x04, _)                \
   V(Select, 0x05, _)              \
   V(Br, 0x06, _)                  \
   V(BrIf, 0x07, _)                \
   V(BrTable, 0x08, _)             \
-  V(Return, 0x14, _)              \
-  V(Unreachable, 0x15, _)
+  V(Return, 0x09, _)              \
+  V(Unreachable, 0x0a, _)         \
+  V(End, 0x0F, _)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V) \
-  V(I8Const, 0x09, _)          \
-  V(I32Const, 0x0a, _)         \
-  V(I64Const, 0x0b, _)         \
-  V(F64Const, 0x0c, _)         \
-  V(F32Const, 0x0d, _)         \
-  V(GetLocal, 0x0e, _)         \
-  V(SetLocal, 0x0f, _)         \
-  V(LoadGlobal, 0x10, _)       \
-  V(StoreGlobal, 0x11, _)      \
-  V(CallFunction, 0x12, _)     \
-  V(CallIndirect, 0x13, _)     \
-  V(CallImport, 0x1F, _)       \
-  V(DeclLocals, 0x1E, _)
+  V(I32Const, 0x10, _)         \
+  V(I64Const, 0x11, _)         \
+  V(F64Const, 0x12, _)         \
+  V(F32Const, 0x13, _)         \
+  V(GetLocal, 0x14, _)         \
+  V(SetLocal, 0x15, _)         \
+  V(CallFunction, 0x16, _)     \
+  V(CallIndirect, 0x17, _)     \
+  V(CallImport, 0x18, _)       \
+  V(I8Const, 0xcb, _)          \
+  V(LoadGlobal, 0xcc, _)       \
+  V(StoreGlobal, 0xcd, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -258,29 +256,27 @@ struct WasmName {
   V(F64Log, 0xc7, d_d)                 \
   V(F64Atan2, 0xc8, d_dd)              \
   V(F64Pow, 0xc9, d_dd)                \
-  V(F64Mod, 0xca, d_dd)
-
-// TODO(titzer): sketch of asm-js compatibility bytecodes
-/* V(I32AsmjsDivS, 0xd0, i_ii)          \ */
-/* V(I32AsmjsDivU, 0xd1, i_ii)          \ */
-/* V(I32AsmjsRemS, 0xd2, i_ii)          \ */
-/* V(I32AsmjsRemU, 0xd3, i_ii)          \ */
-/* V(I32AsmjsLoad8S, 0xd4, i_i)         \ */
-/* V(I32AsmjsLoad8U, 0xd5, i_i)         \ */
-/* V(I32AsmjsLoad16S, 0xd6, i_i)        \ */
-/* V(I32AsmjsLoad16U, 0xd7, i_i)        \ */
-/* V(I32AsmjsLoad, 0xd8, i_i)           \ */
-/* V(F32AsmjsLoad, 0xd9, f_i)           \ */
-/* V(F64AsmjsLoad, 0xda, d_i)           \ */
-/* V(I32AsmjsStore8, 0xdb, i_i)         \ */
-/* V(I32AsmjsStore16, 0xdc, i_i)        \ */
-/* V(I32AsmjsStore, 0xdd, i_ii)         \ */
-/* V(F32AsmjsStore, 0xde, i_if)         \ */
-/* V(F64AsmjsStore, 0xdf, i_id)         \ */
-/* V(I32SAsmjsConvertF32, 0xe0, i_f)    \ */
-/* V(I32UAsmjsConvertF32, 0xe1, i_f)    \ */
-/* V(I32SAsmjsConvertF64, 0xe2, i_d)    \ */
-/* V(I32SAsmjsConvertF64, 0xe3, i_d) */
+  V(F64Mod, 0xca, d_dd)                \
+  V(I32AsmjsDivS, 0xd0, i_ii)          \
+  V(I32AsmjsDivU, 0xd1, i_ii)          \
+  V(I32AsmjsRemS, 0xd2, i_ii)          \
+  V(I32AsmjsRemU, 0xd3, i_ii)          \
+  V(I32AsmjsLoadMem8S, 0xd4, i_i)      \
+  V(I32AsmjsLoadMem8U, 0xd5, i_i)      \
+  V(I32AsmjsLoadMem16S, 0xd6, i_i)     \
+  V(I32AsmjsLoadMem16U, 0xd7, i_i)     \
+  V(I32AsmjsLoadMem, 0xd8, i_i)        \
+  V(F32AsmjsLoadMem, 0xd9, f_i)        \
+  V(F64AsmjsLoadMem, 0xda, d_i)        \
+  V(I32AsmjsStoreMem8, 0xdb, i_ii)     \
+  V(I32AsmjsStoreMem16, 0xdc, i_ii)    \
+  V(I32AsmjsStoreMem, 0xdd, i_ii)      \
+  V(F32AsmjsStoreMem, 0xde, f_if)      \
+  V(F64AsmjsStoreMem, 0xdf, d_id)      \
+  V(I32AsmjsSConvertF32, 0xe0, i_f)    \
+  V(I32AsmjsUConvertF32, 0xe1, i_f)    \
+  V(I32AsmjsSConvertF64, 0xe2, i_d)    \
+  V(I32AsmjsUConvertF64, 0xe3, i_d)
 
 // All opcodes.
 #define FOREACH_OPCODE(V)     \
@@ -330,24 +326,32 @@ enum WasmOpcode {
 };
 
 // The reason for a trap.
+#define FOREACH_WASM_TRAPREASON(V) \
+  V(TrapUnreachable)          \
+  V(TrapMemOutOfBounds)       \
+  V(TrapDivByZero)            \
+  V(TrapDivUnrepresentable)   \
+  V(TrapRemByZero)            \
+  V(TrapFloatUnrepresentable) \
+  V(TrapFuncInvalid)          \
+  V(TrapFuncSigMismatch)
+
 enum TrapReason {
-  kTrapUnreachable,
-  kTrapMemOutOfBounds,
-  kTrapDivByZero,
-  kTrapDivUnrepresentable,
-  kTrapRemByZero,
-  kTrapFloatUnrepresentable,
-  kTrapFuncInvalid,
-  kTrapFuncSigMismatch,
+#define DECLARE_ENUM(name) k##name,
+  FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
   kTrapCount
+#undef DECLARE_ENUM
 };
 
 // A collection of opcode-related static methods.
 class WasmOpcodes {
  public:
-  static bool IsSupported(WasmOpcode opcode);
   static const char* OpcodeName(WasmOpcode opcode);
+  static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
+
+  static int TrapReasonToMessageId(TrapReason reason);
+  static const char* TrapReasonMessage(TrapReason reason);
 
   static byte MemSize(MachineType type) {
     return 1 << ElementSizeLog2Of(type.representation());
@@ -506,29 +510,6 @@ class WasmOpcodes {
         return "<end>";
       default:
         return "<unknown>";
-    }
-  }
-
-  static const char* TrapReasonName(TrapReason reason) {
-    switch (reason) {
-      case kTrapUnreachable:
-        return "unreachable";
-      case kTrapMemOutOfBounds:
-        return "memory access out of bounds";
-      case kTrapDivByZero:
-        return "divide by zero";
-      case kTrapDivUnrepresentable:
-        return "divide result unrepresentable";
-      case kTrapRemByZero:
-        return "remainder by zero";
-      case kTrapFloatUnrepresentable:
-        return "integer result unrepresentable";
-      case kTrapFuncInvalid:
-        return "invalid function";
-      case kTrapFuncSigMismatch:
-        return "function signature mismatch";
-      default:
-        return "<?>";
     }
   }
 };

@@ -10,7 +10,9 @@
 #include <unistd.h>
 #endif
 #if V8_OS_MACOSX
+#include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <pthread.h>
 #endif
 
 #include <cstring>
@@ -24,6 +26,51 @@
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+
+namespace {
+
+#if V8_OS_MACOSX
+int64_t ComputeThreadTicks() {
+  mach_msg_type_number_t thread_info_count = THREAD_BASIC_INFO_COUNT;
+  thread_basic_info_data_t thread_info_data;
+  kern_return_t kr = thread_info(
+      pthread_mach_thread_np(pthread_self()),
+      THREAD_BASIC_INFO,
+      reinterpret_cast<thread_info_t>(&thread_info_data),
+      &thread_info_count);
+  CHECK(kr == KERN_SUCCESS);
+
+  v8::base::CheckedNumeric<int64_t> absolute_micros(
+      thread_info_data.user_time.seconds);
+  absolute_micros *= v8::base::Time::kMicrosecondsPerSecond;
+  absolute_micros += thread_info_data.user_time.microseconds;
+  return absolute_micros.ValueOrDie();
+}
+#elif V8_OS_POSIX
+// Helper function to get results from clock_gettime() and convert to a
+// microsecond timebase. Minimum requirement is MONOTONIC_CLOCK to be supported
+// on the system. FreeBSD 6 has CLOCK_MONOTONIC but defines
+// _POSIX_MONOTONIC_CLOCK to -1.
+inline int64_t ClockNow(clockid_t clk_id) {
+#if (defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
+  defined(V8_OS_BSD) || defined(V8_OS_ANDROID)
+  struct timespec ts;
+  if (clock_gettime(clk_id, &ts) != 0) {
+    UNREACHABLE();
+    return 0;
+  }
+  v8::base::internal::CheckedNumeric<int64_t> result(ts.tv_sec);
+  result *= v8::base::Time::kMicrosecondsPerSecond;
+  result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
+  return result.ValueOrDie();
+#else  // Monotonic clock not supported.
+  return 0;
+#endif
+}
+#endif  // V8_OS_MACOSX
+
+
+}  // namespace
 
 namespace v8 {
 namespace base {
@@ -541,12 +588,7 @@ TimeTicks TimeTicks::HighResolutionNow() {
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_POSIX
-  struct timespec ts;
-  int result = clock_gettime(CLOCK_MONOTONIC, &ts);
-  DCHECK_EQ(0, result);
-  USE(result);
-  ticks = (ts.tv_sec * Time::kMicrosecondsPerSecond +
-           ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
+  ticks = ClockNow(CLOCK_MONOTONIC);
 #endif  // V8_OS_MACOSX
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);
@@ -559,6 +601,31 @@ bool TimeTicks::IsHighResolutionClockWorking() {
 }
 
 #endif  // V8_OS_WIN
+
+
+// TODO(lpy): For windows ThreadTicks implementation,
+// see http://crbug.com/v8/5000
+bool ThreadTicks::IsSupported() {
+#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+    defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID)
+    return true;
+#else
+    return false;
+#endif
+}
+
+
+ThreadTicks ThreadTicks::Now() {
+#if V8_OS_MACOSX
+  return ThreadTicks(ComputeThreadTicks());
+#elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+  defined(V8_OS_ANDROID)
+  return ThreadTicks(ClockNow(CLOCK_THREAD_CPUTIME_ID));
+#else
+  UNREACHABLE();
+  return ThreadTicks();
+#endif
+}
 
 }  // namespace base
 }  // namespace v8

@@ -5,6 +5,7 @@
   'variables': {
     'files': [
       'data.tar',
+      'detachArrayBuffer.js',
       'harness-adapt.js',
       'test262.status',
       'testcfg.py',

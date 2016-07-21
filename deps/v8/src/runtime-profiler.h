@@ -8,16 +8,10 @@
 #include "src/allocation.h"
 
 namespace v8 {
-
-namespace base {
-class Semaphore;
-}
-
 namespace internal {
 
 class Isolate;
 class JSFunction;
-class Object;
 
 class RuntimeProfiler {
  public:
@@ -32,8 +26,9 @@ class RuntimeProfiler {
  private:
   void MaybeOptimizeFullCodegen(JSFunction* function, int frame_count,
                                 bool frame_optimized);
-  void MaybeOptimizeIgnition(JSFunction* function, bool frame_optimized);
+  void MaybeOptimizeIgnition(JSFunction* function);
   void Optimize(JSFunction* function, const char* reason);
+  void Baseline(JSFunction* function, const char* reason);
 
   bool CodeSizeOKForOSR(Code* shared_code);
 

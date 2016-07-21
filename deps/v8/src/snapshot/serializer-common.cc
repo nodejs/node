@@ -20,7 +20,10 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
     Address addr = table->address(i);
     if (addr == ExternalReferenceTable::NotAvailable()) continue;
     // We expect no duplicate external references entries in the table.
-    DCHECK_NULL(map_->Lookup(addr, Hash(addr)));
+    // AccessorRefTable getter may have duplicates, indicated by an empty string
+    // as name.
+    DCHECK(table->name(i)[0] == '\0' ||
+           map_->Lookup(addr, Hash(addr)) == nullptr);
     map_->LookupOrInsert(addr, Hash(addr))->value = reinterpret_cast<void*>(i);
   }
   isolate->set_external_reference_map(map_);

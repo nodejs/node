@@ -158,8 +158,10 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
 
   void PushBack(uc32 character) override {
     DCHECK(buffer_cursor_ > raw_data_);
-    buffer_cursor_--;
     pos_--;
+    if (character != kEndOfInput) {
+      buffer_cursor_--;
+    }
   }
 
   bool SetBookmark() override;

@@ -8,6 +8,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/base/compiler-specific.h"
 #include "src/disasm.h"
 
 namespace disasm {
@@ -29,18 +30,19 @@ struct ByteMnemonic {
 };
 
 static const ByteMnemonic two_operands_instr[] = {
-    {0x01, "add", OPER_REG_OP_ORDER},   {0x03, "add", REG_OPER_OP_ORDER},
-    {0x09, "or", OPER_REG_OP_ORDER},    {0x0B, "or", REG_OPER_OP_ORDER},
-    {0x13, "adc", REG_OPER_OP_ORDER},   {0x1B, "sbb", REG_OPER_OP_ORDER},
-    {0x21, "and", OPER_REG_OP_ORDER},   {0x23, "and", REG_OPER_OP_ORDER},
-    {0x29, "sub", OPER_REG_OP_ORDER},   {0x2A, "subb", REG_OPER_OP_ORDER},
-    {0x2B, "sub", REG_OPER_OP_ORDER},   {0x31, "xor", OPER_REG_OP_ORDER},
-    {0x33, "xor", REG_OPER_OP_ORDER},   {0x38, "cmpb", OPER_REG_OP_ORDER},
-    {0x39, "cmp", OPER_REG_OP_ORDER},   {0x3A, "cmpb", REG_OPER_OP_ORDER},
-    {0x3B, "cmp", REG_OPER_OP_ORDER},   {0x84, "test_b", REG_OPER_OP_ORDER},
-    {0x85, "test", REG_OPER_OP_ORDER},  {0x87, "xchg", REG_OPER_OP_ORDER},
-    {0x8A, "mov_b", REG_OPER_OP_ORDER}, {0x8B, "mov", REG_OPER_OP_ORDER},
-    {0x8D, "lea", REG_OPER_OP_ORDER},   {-1, "", UNSET_OP_ORDER}};
+    {0x01, "add", OPER_REG_OP_ORDER},  {0x03, "add", REG_OPER_OP_ORDER},
+    {0x09, "or", OPER_REG_OP_ORDER},   {0x0B, "or", REG_OPER_OP_ORDER},
+    {0x13, "adc", REG_OPER_OP_ORDER},  {0x1B, "sbb", REG_OPER_OP_ORDER},
+    {0x21, "and", OPER_REG_OP_ORDER},  {0x23, "and", REG_OPER_OP_ORDER},
+    {0x29, "sub", OPER_REG_OP_ORDER},  {0x2A, "subb", REG_OPER_OP_ORDER},
+    {0x2B, "sub", REG_OPER_OP_ORDER},  {0x31, "xor", OPER_REG_OP_ORDER},
+    {0x33, "xor", REG_OPER_OP_ORDER},  {0x38, "cmpb", OPER_REG_OP_ORDER},
+    {0x39, "cmp", OPER_REG_OP_ORDER},  {0x3A, "cmpb", REG_OPER_OP_ORDER},
+    {0x3B, "cmp", REG_OPER_OP_ORDER},  {0x84, "test_b", REG_OPER_OP_ORDER},
+    {0x85, "test", REG_OPER_OP_ORDER}, {0x86, "xchg_b", REG_OPER_OP_ORDER},
+    {0x87, "xchg", REG_OPER_OP_ORDER}, {0x8A, "mov_b", REG_OPER_OP_ORDER},
+    {0x8B, "mov", REG_OPER_OP_ORDER},  {0x8D, "lea", REG_OPER_OP_ORDER},
+    {-1, "", UNSET_OP_ORDER}};
 
 static const ByteMnemonic zero_operands_instr[] = {
   {0xC3, "ret", UNSET_OP_ORDER},
@@ -281,7 +283,7 @@ class DisassemblerIA32 {
   bool vex_128() {
     DCHECK(vex_byte0_ == 0xc4 || vex_byte0_ == 0xc5);
     byte checked = vex_byte0_ == 0xc4 ? vex_byte2_ : vex_byte1_;
-    return (checked & 4) != 1;
+    return (checked & 4) == 0;
   }
 
   bool vex_none() {
@@ -389,8 +391,7 @@ class DisassemblerIA32 {
   int MemoryFPUInstruction(int escape_opcode, int regop, byte* modrm_start);
   int RegisterFPUInstruction(int escape_opcode, byte modrm_byte);
   int AVXInstruction(byte* data);
-  void AppendToBuffer(const char* format, ...);
-
+  PRINTF_FORMAT(2, 3) void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
@@ -1274,7 +1275,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
     const InstructionDesc& idesc = instruction_table_->Get(*data);
     switch (idesc.type) {
       case ZERO_OPERANDS_INSTR:
-        AppendToBuffer(idesc.mnem);
+        AppendToBuffer("%s", idesc.mnem);
         data++;
         break;
 
@@ -1602,11 +1603,26 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         while (*data == 0x66) data++;
         if (*data == 0xf && data[1] == 0x1f) {
           AppendToBuffer("nop");  // 0x66 prefix
-        } else if (*data == 0x90) {
-          AppendToBuffer("nop");  // 0x66 prefix
-        } else if (*data == 0x8B) {
+        } else if (*data == 0x39) {
           data++;
-          data += PrintOperands("mov_w", REG_OPER_OP_ORDER, data);
+          data += PrintOperands("cmpw", OPER_REG_OP_ORDER, data);
+        } else if (*data == 0x3B) {
+          data++;
+          data += PrintOperands("cmpw", REG_OPER_OP_ORDER, data);
+        } else if (*data == 0x81) {
+          data++;
+          AppendToBuffer("cmpw ");
+          data += PrintRightOperand(data);
+          int imm = *reinterpret_cast<int16_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 2;
+        } else if (*data == 0x87) {
+          data++;
+          int mod, regop, rm;
+          get_modrm(*data, &mod, &regop, &rm);
+          AppendToBuffer("xchg_w ");
+          data += PrintRightOperand(data);
+          AppendToBuffer(",%s", NameOfCPURegister(regop));
         } else if (*data == 0x89) {
           data++;
           int mod, regop, rm;
@@ -1614,6 +1630,11 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer("mov_w ");
           data += PrintRightOperand(data);
           AppendToBuffer(",%s", NameOfCPURegister(regop));
+        } else if (*data == 0x8B) {
+          data++;
+          data += PrintOperands("mov_w", REG_OPER_OP_ORDER, data);
+        } else if (*data == 0x90) {
+          AppendToBuffer("nop");  // 0x66 prefix
         } else if (*data == 0xC7) {
           data++;
           AppendToBuffer("%s ", "mov_w");

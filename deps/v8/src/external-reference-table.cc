@@ -59,6 +59,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
+  Add(ExternalReference::interpreter_dispatch_counters(isolate).address(),
+      "Interpreter::interpreter_dispatch_counters");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
@@ -134,6 +136,14 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "wasm::uint64_div");
   Add(ExternalReference::wasm_uint64_mod(isolate).address(),
       "wasm::uint64_mod");
+  Add(ExternalReference::wasm_word32_ctz(isolate).address(),
+      "wasm::word32_ctz");
+  Add(ExternalReference::wasm_word64_ctz(isolate).address(),
+      "wasm::word64_ctz");
+  Add(ExternalReference::wasm_word32_popcnt(isolate).address(),
+      "wasm::word32_popcnt");
+  Add(ExternalReference::wasm_word64_popcnt(isolate).address(),
+      "wasm::word64_popcnt");
   Add(ExternalReference::f64_acos_wrapper_function(isolate).address(),
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),
@@ -295,19 +305,27 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
     const char* name;
   };
 
-  static const AccessorRefTable accessors[] = {
+  static const AccessorRefTable getters[] = {
 #define ACCESSOR_INFO_DECLARATION(name) \
   {FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter"},
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
+  };
+  static const AccessorRefTable setters[] = {
 #define ACCESSOR_SETTER_DECLARATION(name) \
   {FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
-          ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+      ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
 
-  for (unsigned i = 0; i < arraysize(accessors); ++i) {
-    Add(accessors[i].address, accessors[i].name);
+  for (unsigned i = 0; i < arraysize(getters); ++i) {
+    Add(getters[i].address, getters[i].name);
+    Add(AccessorInfo::redirect(isolate, getters[i].address, ACCESSOR_GETTER),
+        "");
+  }
+
+  for (unsigned i = 0; i < arraysize(setters); ++i) {
+    Add(setters[i].address, setters[i].name);
   }
 
   StubCache* stub_cache = isolate->stub_cache();

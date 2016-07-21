@@ -64,14 +64,11 @@ void PrintRegisters(std::ostream& os, bool is_input,
     os << " ]" << std::endl;
   }
 
-  // Find the location of the register file.
+  // Print the registers.
   JavaScriptFrameIterator frame_iterator(
       bytecode_iterator.bytecode_array()->GetIsolate());
-  JavaScriptFrame* frame = frame_iterator.frame();
-  Address register_file =
-      frame->fp() + InterpreterFrameConstants::kRegisterFilePointerFromFp;
-
-  // Print the registers.
+  InterpretedFrame* frame =
+      reinterpret_cast<InterpretedFrame*>(frame_iterator.frame());
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
   for (int operand_index = 0; operand_index < operand_count; operand_index++) {
     interpreter::OperandType operand_type =
@@ -86,8 +83,7 @@ void PrintRegisters(std::ostream& os, bool is_input,
       int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
       for (int reg_index = first_reg.index();
            reg_index < first_reg.index() + range; reg_index++) {
-        Address reg_location = register_file - reg_index * kPointerSize;
-        Object* reg_object = Memory::Object_at(reg_location);
+        Object* reg_object = frame->ReadInterpreterRegister(reg_index);
         os << "      [ " << std::setw(kRegFieldWidth)
            << interpreter::Register(reg_index).ToString(
                   bytecode_iterator.bytecode_array()->parameter_count())
@@ -117,10 +113,10 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   AdvanceToOffsetForTracing(bytecode_iterator, offset);
   if (offset == bytecode_iterator.current_offset()) {
     // Print bytecode.
-    const uint8_t* bytecode_address =
-        reinterpret_cast<const uint8_t*>(*bytecode_array) + bytecode_offset;
-    os << " -> " << static_cast<const void*>(bytecode_address)
-       << " (" << bytecode_offset << ") : ";
+    const uint8_t* base_address = bytecode_array->GetFirstBytecodeAddress();
+    const uint8_t* bytecode_address = base_address + offset;
+    os << " -> " << static_cast<const void*>(bytecode_address) << " @ "
+       << std::setw(4) << offset << " : ";
     interpreter::Bytecodes::Decode(os, bytecode_address,
                                    bytecode_array->parameter_count());
     os << std::endl;

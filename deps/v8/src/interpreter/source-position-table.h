@@ -34,7 +34,7 @@ struct PositionTableEntry {
   bool is_statement;
 };
 
-class SourcePositionTableBuilder : public PositionsRecorder {
+class SourcePositionTableBuilder final : public PositionsRecorder {
  public:
   SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
@@ -42,16 +42,14 @@ class SourcePositionTableBuilder : public PositionsRecorder {
 #ifdef ENABLE_SLOW_DCHECKS
         raw_entries_(zone),
 #endif
-        candidate_(kUninitializedCandidateOffset, 0, false) {
+        previous_() {
   }
 
-  void AddStatementPosition(size_t bytecode_offset, int source_position);
-  void AddExpressionPosition(size_t bytecode_offset, int source_position);
+  void AddPosition(size_t bytecode_offset, int source_position,
+                   bool is_statement);
   Handle<ByteArray> ToSourcePositionTable();
 
  private:
-  static const int kUninitializedCandidateOffset = -1;
-
   void AddEntry(const PositionTableEntry& entry);
   void CommitEntry();
 
@@ -60,7 +58,6 @@ class SourcePositionTableBuilder : public PositionsRecorder {
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
-  PositionTableEntry candidate_;  // Next entry to be written, if initialized.
   PositionTableEntry previous_;   // Previously written entry, to compute delta.
 };
 

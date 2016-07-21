@@ -7834,8 +7834,8 @@ TEST(DebugPromiseInterceptedByTryCatch) {
   CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
   CompileRun(
       "var r;"
-      "p.chain(function() { r = 'resolved'; },"
-      "        function() { r = 'rejected'; });");
+      "p.then(function() { r = 'resolved'; },"
+      "       function() { r = 'rejected'; });");
   CHECK(CompileRun("r")->Equals(context, v8_str("resolved")).FromJust());
 }
 
@@ -7874,41 +7874,10 @@ TEST(DebugPromiseRejectedByCallback) {
   CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
   CompileRun(
       "var r;"
-      "p.chain(function() { r = 'resolved'; },"
-      "        function(e) { r = 'rejected' + e; });");
+      "p.then(function() { r = 'resolved'; },"
+      "       function(e) { r = 'rejected' + e; });");
   CHECK(
       CompileRun("r")->Equals(context, v8_str("rejectedrejection")).FromJust());
-  CHECK_EQ(1, exception_event_counter);
-}
-
-
-TEST(DebugBreakOnExceptionInObserveCallback) {
-  i::FLAG_harmony_object_observe = true;
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Debug::SetDebugEventListener(isolate, &DebugEventCountException);
-  v8::Local<v8::Context> context = env.context();
-  // Break on uncaught exception
-  ChangeBreakOnException(false, true);
-  exception_event_counter = 0;
-
-  v8::Local<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(isolate, ThrowCallback);
-  CHECK(env->Global()
-            ->Set(context, v8_str("fun"),
-                  fun->GetFunction(context).ToLocalChecked())
-            .FromJust());
-
-  CompileRun(
-      "var obj = {};"
-      "var callbackRan = false;"
-      "Object.observe(obj, function() {"
-      "   callbackRan = true;"
-      "   throw Error('foo');"
-      "});"
-      "obj.prop = 1");
-  CHECK(CompileRun("callbackRan")->BooleanValue(context).FromJust());
   CHECK_EQ(1, exception_event_counter);
 }
 
@@ -8184,4 +8153,37 @@ TEST(DebugStepNextTailCallEliminiation) {
   ExpectNull("exception");
   ExpectString("JSON.stringify(log)",
                "[\"a4\",\"b2\",\"c4\",\"e0\",\"e0\",\"e0\",\"e0\",\"f0\"]");
+}
+
+size_t current_action = 0;
+StepAction actions[] = {StepNext, StepNext};
+static void DebugStepOverFunctionWithCaughtExceptionListener(
+    const v8::Debug::EventDetails& event_details) {
+  v8::DebugEvent event = event_details.GetEvent();
+  if (event != v8::Break) return;
+  ++break_point_hit_count;
+  if (current_action >= 2) return;
+  PrepareStep(actions[current_action]);
+}
+
+TEST(DebugStepOverFunctionWithCaughtException) {
+  i::FLAG_allow_natives_syntax = true;
+
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Debug::SetDebugEventListener(
+      isolate, DebugStepOverFunctionWithCaughtExceptionListener);
+
+  break_point_hit_count = 0;
+  CompileRun(
+      "function foo() {\n"
+      "  try { throw new Error(); } catch (e) {}\n"
+      "}\n"
+      "debugger;\n"
+      "foo();\n"
+      "foo();\n");
+
+  v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
+  CHECK_EQ(break_point_hit_count, 4);
 }

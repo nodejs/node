@@ -28,6 +28,39 @@ TEST(RunInt32Add) {
   CHECK_EQ(1, m.Call());
 }
 
+static int RunInt32AddShift(bool is_left, int32_t add_left, int32_t add_right,
+                            int32_t shift_left, int32_t shit_right) {
+  RawMachineAssemblerTester<int32_t> m;
+  Node* shift =
+      m.Word32Shl(m.Int32Constant(shift_left), m.Int32Constant(shit_right));
+  Node* add = m.Int32Add(m.Int32Constant(add_left), m.Int32Constant(add_right));
+  Node* lsa = is_left ? m.Int32Add(shift, add) : m.Int32Add(add, shift);
+  m.Return(lsa);
+  return m.Call();
+}
+
+TEST(RunInt32AddShift) {
+  struct Test_case {
+    int32_t add_left, add_right, shift_left, shit_right, expected;
+  };
+
+  Test_case tc[] = {
+      {20, 22, 4, 2, 58},
+      {20, 22, 4, 1, 50},
+      {20, 22, 1, 6, 106},
+      {INT_MAX - 2, 1, 1, 1, INT_MIN},  // INT_MAX - 2 + 1 + (1 << 1), overflow.
+  };
+  const size_t tc_size = sizeof(tc) / sizeof(Test_case);
+
+  for (size_t i = 0; i < tc_size; ++i) {
+    CHECK_EQ(tc[i].expected,
+             RunInt32AddShift(false, tc[i].add_left, tc[i].add_right,
+                              tc[i].shift_left, tc[i].shit_right));
+    CHECK_EQ(tc[i].expected,
+             RunInt32AddShift(true, tc[i].add_left, tc[i].add_right,
+                              tc[i].shift_left, tc[i].shit_right));
+  }
+}
 
 TEST(RunWord32ReverseBits) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
@@ -636,6 +669,38 @@ TEST(RunInt64SubWithOverflowInBranchP) {
   }
 }
 
+static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
+                                int64_t add_right, int64_t shift_left,
+                                int64_t shit_right) {
+  RawMachineAssemblerTester<int64_t> m;
+  Node* shift = m.Word64Shl(m.Int64Constant(4), m.Int64Constant(2));
+  Node* add = m.Int64Add(m.Int64Constant(20), m.Int64Constant(22));
+  Node* dlsa = is_left ? m.Int64Add(shift, add) : m.Int64Add(add, shift);
+  m.Return(dlsa);
+  return m.Call();
+}
+
+TEST(RunInt64AddShift) {
+  struct Test_case {
+    int64_t add_left, add_right, shift_left, shit_right, expected;
+  };
+
+  Test_case tc[] = {
+      {20, 22, 4, 2, 58},
+      {20, 22, 4, 1, 50},
+      {20, 22, 1, 6, 106},
+      {INT64_MAX - 2, 1, 1, 1,
+       INT64_MIN},  // INT64_MAX - 2 + 1 + (1 << 1), overflow.
+  };
+  const size_t tc_size = sizeof(tc) / sizeof(Test_case);
+
+  for (size_t i = 0; i < tc_size; ++i) {
+    CHECK_EQ(58, RunInt64AddShift(false, tc[i].add_left, tc[i].add_right,
+                                  tc[i].shift_left, tc[i].shit_right));
+    CHECK_EQ(58, RunInt64AddShift(true, tc[i].add_left, tc[i].add_right,
+                                  tc[i].shift_left, tc[i].shit_right));
+  }
+}
 
 // TODO(titzer): add tests that run 64-bit integer operations.
 #endif  // V8_TARGET_ARCH_64_BIT
@@ -1142,94 +1207,6 @@ TEST(RunSwitch4) {
 }
 
 
-TEST(RunLoadInt32) {
-  RawMachineAssemblerTester<int32_t> m;
-
-  int32_t p1 = 0;  // loads directly from this location.
-  m.Return(m.LoadFromPointer(&p1, MachineType::Int32()));
-
-  FOR_INT32_INPUTS(i) {
-    p1 = *i;
-    CHECK_EQ(p1, m.Call());
-  }
-}
-
-
-TEST(RunLoadInt32Offset) {
-  int32_t p1 = 0;  // loads directly from this location.
-
-  int32_t offsets[] = {-2000000, -100, -101, 1,          3,
-                       7,        120,  2000, 2000000000, 0xff};
-
-  for (size_t i = 0; i < arraysize(offsets); i++) {
-    RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = offsets[i];
-    byte* pointer = reinterpret_cast<byte*>(&p1) - offset;
-    // generate load [#base + #index]
-    m.Return(m.LoadFromPointer(pointer, MachineType::Int32(), offset));
-
-    FOR_INT32_INPUTS(j) {
-      p1 = *j;
-      CHECK_EQ(p1, m.Call());
-    }
-  }
-}
-
-
-TEST(RunLoadStoreFloat32Offset) {
-  float p1 = 0.0f;  // loads directly from this location.
-  float p2 = 0.0f;  // and stores directly into this location.
-
-  FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342aabb + *i * 3;
-    RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = *i;
-    byte* from = reinterpret_cast<byte*>(&p1) - offset;
-    byte* to = reinterpret_cast<byte*>(&p2) - offset;
-    // generate load [#base + #index]
-    Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
-                        m.IntPtrConstant(offset));
-    m.Store(MachineRepresentation::kFloat32, m.PointerConstant(to),
-            m.IntPtrConstant(offset), load, kNoWriteBarrier);
-    m.Return(m.Int32Constant(magic));
-
-    FOR_FLOAT32_INPUTS(j) {
-      p1 = *j;
-      p2 = *j - 5;
-      CHECK_EQ(magic, m.Call());
-      CHECK_DOUBLE_EQ(p1, p2);
-    }
-  }
-}
-
-
-TEST(RunLoadStoreFloat64Offset) {
-  double p1 = 0;  // loads directly from this location.
-  double p2 = 0;  // and stores directly into this location.
-
-  FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342aabb + *i * 3;
-    RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = *i;
-    byte* from = reinterpret_cast<byte*>(&p1) - offset;
-    byte* to = reinterpret_cast<byte*>(&p2) - offset;
-    // generate load [#base + #index]
-    Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
-                        m.IntPtrConstant(offset));
-    m.Store(MachineRepresentation::kFloat64, m.PointerConstant(to),
-            m.IntPtrConstant(offset), load, kNoWriteBarrier);
-    m.Return(m.Int32Constant(magic));
-
-    FOR_FLOAT64_INPUTS(j) {
-      p1 = *j;
-      p2 = *j - 5;
-      CHECK_EQ(magic, m.Call());
-      CHECK_DOUBLE_EQ(p1, p2);
-    }
-  }
-}
-
-
 TEST(RunInt32AddP) {
   RawMachineAssemblerTester<int32_t> m;
   Int32BinopTester bt(&m);
@@ -1709,7 +1686,6 @@ TEST(RunInt32SubP) {
   }
 }
 
-
 TEST(RunInt32SubImm) {
   {
     FOR_UINT32_INPUTS(i) {
@@ -1733,6 +1709,11 @@ TEST(RunInt32SubImm) {
   }
 }
 
+TEST(RunInt32SubImm2) {
+  BufferedRawMachineAssemblerTester<int32_t> r;
+  r.Return(r.Int32Sub(r.Int32Constant(-1), r.Int32Constant(0)));
+  CHECK_EQ(-1, r.Call());
+}
 
 TEST(RunInt32SubAndWord32SarP) {
   {
@@ -3566,92 +3547,6 @@ TEST(RunDeadInt32Binops) {
 }
 
 
-template <typename Type>
-static void RunLoadImmIndex(MachineType rep) {
-  const int kNumElems = 3;
-  Type buffer[kNumElems];
-
-  // initialize the buffer with some raw data.
-  byte* raw = reinterpret_cast<byte*>(buffer);
-  for (size_t i = 0; i < sizeof(buffer); i++) {
-    raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
-  }
-
-  // Test with various large and small offsets.
-  for (int offset = -1; offset <= 200000; offset *= -5) {
-    for (int i = 0; i < kNumElems; i++) {
-      BufferedRawMachineAssemblerTester<Type> m;
-      Node* base = m.PointerConstant(buffer - offset);
-      Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
-      m.Return(m.Load(rep, base, index));
-
-      volatile Type expected = buffer[i];
-      volatile Type actual = m.Call();
-      CHECK_EQ(expected, actual);
-    }
-  }
-}
-
-
-TEST(RunLoadImmIndex) {
-  RunLoadImmIndex<int8_t>(MachineType::Int8());
-  RunLoadImmIndex<uint8_t>(MachineType::Uint8());
-  RunLoadImmIndex<int16_t>(MachineType::Int16());
-  RunLoadImmIndex<uint16_t>(MachineType::Uint16());
-  RunLoadImmIndex<int32_t>(MachineType::Int32());
-  RunLoadImmIndex<uint32_t>(MachineType::Uint32());
-  RunLoadImmIndex<int32_t*>(MachineType::AnyTagged());
-  RunLoadImmIndex<float>(MachineType::Float32());
-  RunLoadImmIndex<double>(MachineType::Float64());
-  if (kPointerSize == 8) {
-    RunLoadImmIndex<int64_t>(MachineType::Int64());
-  }
-  // TODO(titzer): test various indexing modes.
-}
-
-
-template <typename CType>
-static void RunLoadStore(MachineType rep) {
-  const int kNumElems = 4;
-  CType buffer[kNumElems];
-
-  for (int32_t x = 0; x < kNumElems; x++) {
-    int32_t y = kNumElems - x - 1;
-    // initialize the buffer with raw data.
-    byte* raw = reinterpret_cast<byte*>(buffer);
-    for (size_t i = 0; i < sizeof(buffer); i++) {
-      raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
-    }
-
-    RawMachineAssemblerTester<int32_t> m;
-    int32_t OK = 0x29000 + x;
-    Node* base = m.PointerConstant(buffer);
-    Node* index0 = m.IntPtrConstant(x * sizeof(buffer[0]));
-    Node* load = m.Load(rep, base, index0);
-    Node* index1 = m.IntPtrConstant(y * sizeof(buffer[0]));
-    m.Store(rep.representation(), base, index1, load, kNoWriteBarrier);
-    m.Return(m.Int32Constant(OK));
-
-    CHECK(buffer[x] != buffer[y]);
-    CHECK_EQ(OK, m.Call());
-    CHECK(buffer[x] == buffer[y]);
-  }
-}
-
-
-TEST(RunLoadStore) {
-  RunLoadStore<int8_t>(MachineType::Int8());
-  RunLoadStore<uint8_t>(MachineType::Uint8());
-  RunLoadStore<int16_t>(MachineType::Int16());
-  RunLoadStore<uint16_t>(MachineType::Uint16());
-  RunLoadStore<int32_t>(MachineType::Int32());
-  RunLoadStore<uint32_t>(MachineType::Uint32());
-  RunLoadStore<void*>(MachineType::AnyTagged());
-  RunLoadStore<float>(MachineType::Float32());
-  RunLoadStore<double>(MachineType::Float64());
-}
-
-
 TEST(RunFloat32Add) {
   BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
                                              MachineType::Float32());
@@ -4124,7 +4019,7 @@ TEST(RunTruncateFloat32ToUint32) {
   m.Return(m.TruncateFloat32ToUint32(m.Parameter(0)));
   {
     FOR_UINT32_INPUTS(i) {
-      float input = static_cast<float>(*i);
+      volatile float input = static_cast<float>(*i);
       // This condition on 'input' is required because
       // static_cast<float>(std::numeric_limits<uint32_t>::max()) results in a
       // value outside uint32 range.
@@ -4201,7 +4096,7 @@ uint64_t ToInt64(uint32_t low, uint32_t high) {
   return (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
 }
 
-#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X87
 TEST(RunInt32PairAdd) {
   BufferedRawMachineAssemblerTester<int32_t> m(
       MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
@@ -4447,6 +4342,56 @@ TEST(RunWord32PairShlWithSharedInput) {
   TestWord32PairShlWithSharedInput(0, 1);
   TestWord32PairShlWithSharedInput(1, 0);
   TestWord32PairShlWithSharedInput(1, 1);
+}
+
+TEST(RunWord32PairShr) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  uint32_t high;
+  uint32_t low;
+
+  Node* PairAdd =
+      m.Word32PairShr(m.Parameter(0), m.Parameter(1), m.Parameter(2));
+
+  m.StoreToPointer(&low, MachineRepresentation::kWord32,
+                   m.Projection(0, PairAdd));
+  m.StoreToPointer(&high, MachineRepresentation::kWord32,
+                   m.Projection(1, PairAdd));
+  m.Return(m.Int32Constant(74));
+
+  FOR_UINT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+             static_cast<uint32_t>(*i >> 32), j);
+      CHECK_EQ(*i >> j, ToInt64(low, high));
+    }
+  }
+}
+
+TEST(RunWord32PairSar) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  uint32_t high;
+  uint32_t low;
+
+  Node* PairAdd =
+      m.Word32PairSar(m.Parameter(0), m.Parameter(1), m.Parameter(2));
+
+  m.StoreToPointer(&low, MachineRepresentation::kWord32,
+                   m.Projection(0, PairAdd));
+  m.StoreToPointer(&high, MachineRepresentation::kWord32,
+                   m.Projection(1, PairAdd));
+  m.Return(m.Int32Constant(74));
+
+  FOR_INT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+             static_cast<uint32_t>(*i >> 32), j);
+      CHECK_EQ(*i >> j, ToInt64(low, high));
+    }
+  }
 }
 
 #endif
@@ -4968,45 +4913,6 @@ TEST(RunFloat64LessThan) {
 }
 
 
-template <typename IntType>
-static void LoadStoreTruncation(MachineType kRepresentation) {
-  IntType input;
-
-  RawMachineAssemblerTester<int32_t> m;
-  Node* a = m.LoadFromPointer(&input, kRepresentation);
-  Node* ap1 = m.Int32Add(a, m.Int32Constant(1));
-  m.StoreToPointer(&input, kRepresentation.representation(), ap1);
-  m.Return(ap1);
-
-  const IntType max = std::numeric_limits<IntType>::max();
-  const IntType min = std::numeric_limits<IntType>::min();
-
-  // Test upper bound.
-  input = max;
-  CHECK_EQ(max + 1, m.Call());
-  CHECK_EQ(min, input);
-
-  // Test lower bound.
-  input = min;
-  CHECK_EQ(static_cast<IntType>(max + 2), m.Call());
-  CHECK_EQ(min + 1, input);
-
-  // Test all one byte values that are not one byte bounds.
-  for (int i = -127; i < 127; i++) {
-    input = i;
-    int expected = i >= 0 ? i + 1 : max + (i - min) + 2;
-    CHECK_EQ(static_cast<IntType>(expected), m.Call());
-    CHECK_EQ(static_cast<IntType>(i + 1), input);
-  }
-}
-
-
-TEST(RunLoadStoreTruncation) {
-  LoadStoreTruncation<int8_t>(MachineType::Int8());
-  LoadStoreTruncation<int16_t>(MachineType::Int16());
-}
-
-
 static void IntPtrCompare(intptr_t left, intptr_t right) {
   for (int test = 0; test < 7; test++) {
     RawMachineAssemblerTester<bool> m(MachineType::Pointer(),
@@ -5417,8 +5323,7 @@ TEST(RunTruncateInt64ToInt32P) {
   }
 }
 
-
-TEST(RunTruncateFloat64ToInt32P) {
+TEST(RunTruncateFloat64ToWord32P) {
   struct {
     double from;
     double raw;
@@ -5479,8 +5384,7 @@ TEST(RunTruncateFloat64ToInt32P) {
                  {-1.7976931348623157e+308, 0}};
   double input = -1.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.TruncateFloat64ToInt32(
-      TruncationMode::kJavaScript,
+  m.Return(m.TruncateFloat64ToWord32(
       m.LoadFromPointer(&input, MachineType::Float64())));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i].from;
@@ -5489,6 +5393,12 @@ TEST(RunTruncateFloat64ToInt32P) {
   }
 }
 
+TEST(RunTruncateFloat64ToWord32SignExtension) {
+  BufferedRawMachineAssemblerTester<int32_t> r;
+  r.Return(r.Int32Sub(r.TruncateFloat64ToWord32(r.Float64Constant(-1.0)),
+                      r.Int32Constant(0)));
+  CHECK_EQ(-1, r.Call());
+}
 
 TEST(RunChangeFloat32ToFloat64) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float32());
@@ -5854,50 +5764,6 @@ TEST(RunCallCFunction8) {
 
 #if V8_TARGET_ARCH_64_BIT
 // TODO(titzer): run int64 tests on all platforms when supported.
-TEST(RunCheckedLoadInt64) {
-  int64_t buffer[] = {0x66bbccddeeff0011LL, 0x1122334455667788LL};
-  RawMachineAssemblerTester<int64_t> m(MachineType::Int32());
-  Node* base = m.PointerConstant(buffer);
-  Node* index = m.Parameter(0);
-  Node* length = m.Int32Constant(16);
-  Node* load = m.AddNode(m.machine()->CheckedLoad(MachineType::Int64()), base,
-                         index, length);
-  m.Return(load);
-
-  CHECK_EQ(buffer[0], m.Call(0));
-  CHECK_EQ(buffer[1], m.Call(8));
-  CHECK_EQ(0, m.Call(16));
-}
-
-
-TEST(RunCheckedStoreInt64) {
-  const int64_t write = 0x5566778899aabbLL;
-  const int64_t before = 0x33bbccddeeff0011LL;
-  int64_t buffer[] = {before, before};
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
-  Node* base = m.PointerConstant(buffer);
-  Node* index = m.Parameter(0);
-  Node* length = m.Int32Constant(16);
-  Node* value = m.Int64Constant(write);
-  Node* store =
-      m.AddNode(m.machine()->CheckedStore(MachineRepresentation::kWord64), base,
-                index, length, value);
-  USE(store);
-  m.Return(m.Int32Constant(11));
-
-  CHECK_EQ(11, m.Call(16));
-  CHECK_EQ(before, buffer[0]);
-  CHECK_EQ(before, buffer[1]);
-
-  CHECK_EQ(11, m.Call(0));
-  CHECK_EQ(write, buffer[0]);
-  CHECK_EQ(before, buffer[1]);
-
-  CHECK_EQ(11, m.Call(8));
-  CHECK_EQ(write, buffer[0]);
-  CHECK_EQ(write, buffer[1]);
-}
-
 
 TEST(RunBitcastInt64ToFloat64) {
   int64_t input = 1;

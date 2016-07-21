@@ -44,6 +44,7 @@ using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
 using i::HashMap;
+using i::ArrayVector;
 using i::Vector;
 
 namespace {
@@ -2513,8 +2514,7 @@ TEST(ArrayGrowLeftTrim) {
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
-  AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, arraysize(names)));
+  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
   CHECK(node);
   CHECK_GE(node->allocation_count(), 2u);
   CHECK_GE(node->allocation_size(), 4u * 5u);
@@ -2540,8 +2540,7 @@ TEST(TrackHeapAllocations) {
   tracker->trace_tree()->Print(tracker);
 
   const char* names[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
-  AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, arraysize(names)));
+  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
   CHECK(node);
   CHECK_GE(node->allocation_count(), 100u);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2590,8 +2589,7 @@ TEST(TrackBumpPointerAllocations) {
     // Print for better diagnostics in case of failure.
     tracker->trace_tree()->Print(tracker);
 
-    AllocationTraceNode* node =
-        FindNode(tracker, Vector<const char*>(names, arraysize(names)));
+    AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
     CHECK(node);
     CHECK_GE(node->allocation_count(), 100u);
     CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2616,8 +2614,7 @@ TEST(TrackBumpPointerAllocations) {
     // Print for better diagnostics in case of failure.
     tracker->trace_tree()->Print(tracker);
 
-    AllocationTraceNode* node =
-        FindNode(tracker, Vector<const char*>(names, arraysize(names)));
+    AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
     CHECK(node);
     CHECK_LT(node->allocation_count(), 100u);
 
@@ -2646,8 +2643,7 @@ TEST(TrackV8ApiAllocation) {
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
-  AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, arraysize(names)));
+  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
   CHECK(node);
   CHECK_GE(node->allocation_count(), 2u);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2875,6 +2871,15 @@ static const v8::AllocationProfile::Node* FindAllocationProfileNode(
   return node;
 }
 
+static void CheckNoZeroCountNodes(v8::AllocationProfile::Node* node) {
+  for (auto alloc : node->allocations) {
+    CHECK_GT(alloc.count, 0u);
+  }
+  for (auto child : node->children) {
+    CheckNoZeroCountNodes(child);
+  }
+}
+
 TEST(SamplingHeapProfiler) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   LocalContext env;
@@ -2913,8 +2918,7 @@ TEST(SamplingHeapProfiler) {
     CHECK(!profile.is_empty());
 
     const char* names[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(
-        *profile, Vector<const char*>(names, arraysize(names)));
+    auto node_bar = FindAllocationProfileNode(*profile, ArrayVector(names));
     CHECK(node_bar);
 
     // Count the number of allocations we sampled from bar.
@@ -2941,8 +2945,7 @@ TEST(SamplingHeapProfiler) {
     CHECK(!profile.is_empty());
 
     const char* names[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(
-        *profile, Vector<const char*>(names, arraysize(names)));
+    auto node_bar = FindAllocationProfileNode(*profile, ArrayVector(names));
     CHECK(node_bar);
 
     // Count the number of allocations we sampled from bar.
@@ -2976,13 +2979,11 @@ TEST(SamplingHeapProfiler) {
     CHECK(!profile.is_empty());
 
     const char* names1[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
-    auto node1 = FindAllocationProfileNode(
-        *profile, Vector<const char*>(names1, arraysize(names1)));
+    auto node1 = FindAllocationProfileNode(*profile, ArrayVector(names1));
     CHECK(node1);
 
     const char* names2[] = {"", "generateFunctions"};
-    auto node2 = FindAllocationProfileNode(
-        *profile, Vector<const char*>(names2, arraysize(names2)));
+    auto node2 = FindAllocationProfileNode(*profile, ArrayVector(names2));
     CHECK(node2);
 
     heap_profiler->StopSamplingHeapProfiler();
@@ -3001,6 +3002,8 @@ TEST(SamplingHeapProfiler) {
     v8::base::SmartPointer<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
     CHECK(!profile.is_empty());
+
+    CheckNoZeroCountNodes(profile->GetRootNode());
 
     heap_profiler->StopSamplingHeapProfiler();
   }
@@ -3023,8 +3026,7 @@ TEST(SamplingHeapProfilerApiAllocation) {
       heap_profiler->GetAllocationProfile());
   CHECK(!profile.is_empty());
   const char* names[] = {"(V8 API)"};
-  auto node = FindAllocationProfileNode(
-      *profile, Vector<const char*>(names, arraysize(names)));
+  auto node = FindAllocationProfileNode(*profile, ArrayVector(names));
   CHECK(node);
 
   heap_profiler->StopSamplingHeapProfiler();

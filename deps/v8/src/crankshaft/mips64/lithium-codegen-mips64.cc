@@ -315,8 +315,6 @@ bool LCodeGen::GenerateJumpTable() {
           __ BranchAndLink(&call_deopt_entry);
         }
       }
-      info()->LogDeoptCallPosition(masm()->pc_offset(),
-                                   table_entry->deopt_info.inlining_id);
     }
     if (needs_frame.is_linked()) {
       __ bind(&needs_frame);
@@ -776,7 +774,7 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     __ bind(&skip);
   }
 
-  Deoptimizer::DeoptInfo deopt_info = MakeDeoptInfo(instr, deopt_reason);
+  Deoptimizer::DeoptInfo deopt_info = MakeDeoptInfo(instr, deopt_reason, id);
 
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or
@@ -785,7 +783,6 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
       !info()->saves_caller_doubles()) {
     DeoptComment(deopt_info);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
-    info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
     Deoptimizer::JumpTableEntry* table_entry =
         new (zone()) Deoptimizer::JumpTableEntry(
@@ -1846,13 +1843,13 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   HMathMinMax::Operation operation = instr->hydrogen()->operation();
-  Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
+  Register scratch = scratch1();
   if (instr->hydrogen()->representation().IsSmiOrInteger32()) {
+    Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
     Register left_reg = ToRegister(left);
     Register right_reg = EmitLoadRegister(right, scratch0());
     Register result_reg = ToRegister(instr->result());
     Label return_right, done;
-    Register scratch = scratch1();
     __ Slt(scratch, left_reg, Operand(right_reg));
     if (condition == ge) {
      __  Movz(result_reg, left_reg, scratch);
@@ -1867,43 +1864,19 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     FPURegister left_reg = ToDoubleRegister(left);
     FPURegister right_reg = ToDoubleRegister(right);
     FPURegister result_reg = ToDoubleRegister(instr->result());
-    Label check_nan_left, check_zero, return_left, return_right, done;
-    __ BranchF(&check_zero, &check_nan_left, eq, left_reg, right_reg);
-    __ BranchF(&return_left, NULL, condition, left_reg, right_reg);
-    __ Branch(&return_right);
-
-    __ bind(&check_zero);
-    // left == right != 0.
-    __ BranchF(&return_left, NULL, ne, left_reg, kDoubleRegZero);
-    // At this point, both left and right are either 0 or -0.
-    if (operation == HMathMinMax::kMathMin) {
-      // The algorithm is: -((-L) + (-R)), which in case of L and R being
-      // different registers is most efficiently expressed as -((-L) - R).
-      __ neg_d(left_reg, left_reg);
-      if (left_reg.is(right_reg)) {
-        __ add_d(result_reg, left_reg, right_reg);
-      } else {
-        __ sub_d(result_reg, left_reg, right_reg);
-      }
-      __ neg_d(result_reg, result_reg);
+    Label nan, done;
+    if (operation == HMathMinMax::kMathMax) {
+      __ MaxNaNCheck_d(result_reg, left_reg, right_reg, &nan);
     } else {
-      __ add_d(result_reg, left_reg, right_reg);
+      DCHECK(operation == HMathMinMax::kMathMin);
+      __ MinNaNCheck_d(result_reg, left_reg, right_reg, &nan);
     }
     __ Branch(&done);
 
-    __ bind(&check_nan_left);
-    // left == NaN.
-    __ BranchF(NULL, &return_left, eq, left_reg, left_reg);
-    __ bind(&return_right);
-    if (!right_reg.is(result_reg)) {
-      __ mov_d(result_reg, right_reg);
-    }
-    __ Branch(&done);
+    __ bind(&nan);
+    __ LoadRoot(scratch, Heap::kNanValueRootIndex);
+    __ ldc1(result_reg, FieldMemOperand(scratch, HeapNumber::kValueOffset));
 
-    __ bind(&return_left);
-    if (!left_reg.is(result_reg)) {
-      __ mov_d(result_reg, left_reg);
-    }
     __ bind(&done);
   }
 }
@@ -2526,18 +2499,6 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
   __ ld(temp, FieldMemOperand(reg, HeapObject::kMapOffset));
   EmitBranch(instr, eq, temp, Operand(instr->map()));
-}
-
-
-void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  Label true_label, done;
-  DCHECK(ToRegister(instr->left()).is(InstanceOfDescriptor::LeftRegister()));
-  DCHECK(ToRegister(instr->right()).is(InstanceOfDescriptor::RightRegister()));
-  DCHECK(ToRegister(instr->result()).is(v0));
-
-  InstanceOfStub stub(isolate());
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -4391,7 +4352,15 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 
     LOperand* key = instr->key();
     if (key->IsConstantOperand()) {
-      __ li(a3, Operand(ToSmi(LConstantOperand::cast(key))));
+      LConstantOperand* constant_key = LConstantOperand::cast(key);
+      int32_t int_key = ToInteger32(constant_key);
+      if (Smi::IsValid(int_key)) {
+        __ li(a3, Operand(Smi::FromInt(int_key)));
+      } else {
+        // We should never get here at runtime because there is a smi check on
+        // the key before this point.
+        __ stop("expected smi");
+      }
     } else {
       __ mov(a3, ToRegister(key));
       __ SmiTag(a3);
@@ -4662,7 +4631,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ LoadRoot(tmp3, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(dst, tmp1, tmp2, tmp3, &slow, TAG_RESULT);
+    __ AllocateHeapNumber(dst, tmp1, tmp2, tmp3, &slow);
     __ Branch(&done);
   }
 
@@ -4717,15 +4686,12 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
     // We want the untagged address first for performance
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry(),
-                          DONT_TAG_RESULT);
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
   } else {
     __ Branch(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ sdc1(input_reg, MemOperand(reg, HeapNumber::kValueOffset));
-  // Now that we have finished with the object's real address tag it
-  __ Daddu(reg, reg, kHeapObjectTag);
+  __ sdc1(input_reg, FieldMemOperand(reg, HeapNumber::kValueOffset));
 }
 
 
@@ -4746,7 +4712,6 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-  __ Dsubu(v0, v0, kHeapObjectTag);
   __ StoreToSafepointRegisterSlot(v0, reg);
 }
 
@@ -5293,7 +5258,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   Register scratch2 = ToRegister(instr->temp2());
 
   // Allocate memory for the object.
-  AllocationFlags flags = TAG_OBJECT;
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5301,6 +5266,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE);
   }
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDING_DOMINATOR);
+  }
+  DCHECK(!instr->hydrogen()->IsAllocationFolded());
+
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     CHECK(size <= Page::kMaxRegularHeapObjectSize);
@@ -5371,6 +5342,49 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   CallRuntimeFromDeferred(
       Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(v0, result);
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    AllocationFlags allocation_flags = NO_ALLOCATION_FLAGS;
+    if (instr->hydrogen()->IsOldSpaceAllocation()) {
+      DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+      allocation_flags = static_cast<AllocationFlags>(flags | PRETENURE);
+    }
+    // If the allocation folding dominator allocate triggered a GC, allocation
+    // happend in the runtime. We have to reset the top pointer to virtually
+    // undo the allocation.
+    ExternalReference allocation_top =
+        AllocationUtils::GetAllocationTopReference(isolate(), allocation_flags);
+    Register top_address = scratch0();
+    __ Dsubu(v0, v0, Operand(kHeapObjectTag));
+    __ li(top_address, Operand(allocation_top));
+    __ sd(v0, MemOperand(top_address));
+    __ Daddu(v0, v0, Operand(kHeapObjectTag));
+  }
+}
+
+void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
+  DCHECK(instr->hydrogen()->IsAllocationFolded());
+  DCHECK(!instr->hydrogen()->IsAllocationFoldingDominator());
+  Register result = ToRegister(instr->result());
+  Register scratch1 = ToRegister(instr->temp1());
+  Register scratch2 = ToRegister(instr->temp2());
+
+  AllocationFlags flags = ALLOCATION_FOLDED;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
+    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+    flags = static_cast<AllocationFlags>(flags | PRETENURE);
+  }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    CHECK(size <= Page::kMaxRegularHeapObjectSize);
+    __ FastAllocate(size, result, scratch1, scratch2, flags);
+  } else {
+    Register size = ToRegister(instr->size());
+    __ FastAllocate(size, result, scratch1, scratch2, flags);
+  }
 }
 
 

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/objects.h"
@@ -56,7 +57,6 @@ namespace internal {
 
 // Forward declarations.
 class CodeEventListener;
-class CompilationInfo;
 class CpuProfiler;
 class Isolate;
 class Log;
@@ -99,12 +99,9 @@ struct TickSample;
   V(CALL_MEGAMORPHIC_TAG, "CallMegamorphic")                             \
   V(CALL_MISS_TAG, "CallMiss")                                           \
   V(CALL_NORMAL_TAG, "CallNormal")                                       \
-  V(CALL_PRE_MONOMORPHIC_TAG, "CallPreMonomorphic")                      \
   V(LOAD_INITIALIZE_TAG, "LoadInitialize")                               \
-  V(LOAD_PREMONOMORPHIC_TAG, "LoadPreMonomorphic")                       \
   V(LOAD_MEGAMORPHIC_TAG, "LoadMegamorphic")                             \
   V(STORE_INITIALIZE_TAG, "StoreInitialize")                             \
-  V(STORE_PREMONOMORPHIC_TAG, "StorePreMonomorphic")                     \
   V(STORE_GENERIC_TAG, "StoreGeneric")                                   \
   V(STORE_MEGAMORPHIC_TAG, "StoreMegamorphic")                           \
   V(KEYED_CALL_DEBUG_BREAK_TAG, "KeyedCallDebugBreak")                   \
@@ -113,7 +110,6 @@ struct TickSample;
   V(KEYED_CALL_MEGAMORPHIC_TAG, "KeyedCallMegamorphic")                  \
   V(KEYED_CALL_MISS_TAG, "KeyedCallMiss")                                \
   V(KEYED_CALL_NORMAL_TAG, "KeyedCallNormal")                            \
-  V(KEYED_CALL_PRE_MONOMORPHIC_TAG, "KeyedCallPreMonomorphic")           \
   V(CALLBACK_TAG, "Callback")                                            \
   V(EVAL_TAG, "Eval")                                                    \
   V(FUNCTION_TAG, "Function")                                            \
@@ -227,11 +223,10 @@ class Logger {
                        const char* source);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code, Name* name);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* name);
+                       SharedFunctionInfo* shared, Name* name);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* source, int line, int column);
+                       SharedFunctionInfo* shared, Name* source, int line,
+                       int column);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        int args_count);
   // Emits a code deoptimization event.
@@ -274,9 +269,8 @@ class Logger {
   void HeapSampleStats(const char* space, const char* kind,
                        intptr_t capacity, intptr_t used);
 
-  void SharedLibraryEvent(const std::string& library_path,
-                          uintptr_t start,
-                          uintptr_t end);
+  void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
+                          uintptr_t end, intptr_t aslr_slide);
 
   void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
   void CurrentTimeEvent();
@@ -358,7 +352,7 @@ class Logger {
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
 
-  void ApiEvent(const char* name, ...);
+  PRINTF_FORMAT(2, 3) void ApiEvent(const char* format, ...);
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
@@ -473,12 +467,10 @@ class CodeEventListener {
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                Name* name) = 0;
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info, Name* name) = 0;
+                               SharedFunctionInfo* shared, Name* name) = 0;
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info, Name* source, int line,
-                               int column) = 0;
+                               SharedFunctionInfo* shared, Name* source,
+                               int line, int column) = 0;
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                int args_count) = 0;
   virtual void CallbackEvent(Name* name, Address entry_point) = 0;
@@ -505,11 +497,10 @@ class CodeEventLogger : public CodeEventListener {
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        int args_count) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* name) override;
+                       SharedFunctionInfo* shared, Name* name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* source, int line, int column) override;
+                       SharedFunctionInfo* shared, Name* source, int line,
+                       int column) override;
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
 
   void CallbackEvent(Name* name, Address entry_point) override {}

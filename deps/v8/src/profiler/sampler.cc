@@ -42,14 +42,12 @@
 
 #endif
 
+#include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
-#include "src/flags.h"
-#include "src/frames-inl.h"
-#include "src/log.h"
 #include "src/profiler/cpu-profiler-inl.h"
+#include "src/profiler/tick-sample.h"
 #include "src/simulator.h"
 #include "src/v8threads.h"
-#include "src/vm-state-inl.h"
 
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
@@ -174,67 +172,51 @@ class PlatformDataCommon : public Malloced {
 };
 
 
-bool IsSamePage(byte* ptr1, byte* ptr2) {
-  const uint32_t kPageSize = 4096;
-  uintptr_t mask = ~static_cast<uintptr_t>(kPageSize - 1);
-  return (reinterpret_cast<uintptr_t>(ptr1) & mask) ==
-         (reinterpret_cast<uintptr_t>(ptr2) & mask);
-}
+typedef List<Sampler*> SamplerList;
 
-
-// Check if the code at specified address could potentially be a
-// frame setup code.
-bool IsNoFrameRegion(Address address) {
-  struct Pattern {
-    int bytes_count;
-    byte bytes[8];
-    int offsets[4];
-  };
-  byte* pc = reinterpret_cast<byte*>(address);
-  static Pattern patterns[] = {
-#if V8_HOST_ARCH_IA32
-    // push %ebp
-    // mov %esp,%ebp
-    {3, {0x55, 0x89, 0xe5}, {0, 1, -1}},
-    // pop %ebp
-    // ret N
-    {2, {0x5d, 0xc2}, {0, 1, -1}},
-    // pop %ebp
-    // ret
-    {2, {0x5d, 0xc3}, {0, 1, -1}},
-#elif V8_HOST_ARCH_X64
-    // pushq %rbp
-    // movq %rsp,%rbp
-    {4, {0x55, 0x48, 0x89, 0xe5}, {0, 1, -1}},
-    // popq %rbp
-    // ret N
-    {2, {0x5d, 0xc2}, {0, 1, -1}},
-    // popq %rbp
-    // ret
-    {2, {0x5d, 0xc3}, {0, 1, -1}},
-#endif
-    {0, {}, {}}
-  };
-  for (Pattern* pattern = patterns; pattern->bytes_count; ++pattern) {
-    for (int* offset_ptr = pattern->offsets; *offset_ptr != -1; ++offset_ptr) {
-      int offset = *offset_ptr;
-      if (!offset || IsSamePage(pc, pc - offset)) {
-        MSAN_MEMORY_IS_INITIALIZED(pc - offset, pattern->bytes_count);
-        if (!memcmp(pc - offset, pattern->bytes, pattern->bytes_count))
-          return true;
-      } else {
-        // It is not safe to examine bytes on another page as it might not be
-        // allocated thus causing a SEGFAULT.
-        // Check the pattern part that's on the same page and
-        // pessimistically assume it could be the entire pattern match.
-        MSAN_MEMORY_IS_INITIALIZED(pc, pattern->bytes_count - offset);
-        if (!memcmp(pc, pattern->bytes + offset, pattern->bytes_count - offset))
-          return true;
-      }
-    }
+#if defined(USE_SIGNALS)
+class AtomicGuard {
+ public:
+  explicit AtomicGuard(base::AtomicValue<int>* atomic, bool is_block = true)
+      : atomic_(atomic),
+        is_success_(false) {
+    do {
+      // Use Acquire_Load to gain mutual exclusion.
+      USE(atomic_->Value());
+      is_success_ = atomic_->TrySetValue(0, 1);
+    } while (is_block && !is_success_);
   }
-  return false;
+
+  bool is_success() { return is_success_; }
+
+  ~AtomicGuard() {
+    if (is_success_) {
+      atomic_->SetValue(0);
+    }
+    atomic_ = NULL;
+  }
+
+ private:
+  base::AtomicValue<int>* atomic_;
+  bool is_success_;
+};
+
+
+// Returns key for hash map.
+void* ThreadKey(pthread_t thread_id) {
+  return reinterpret_cast<void*>(thread_id);
 }
+
+
+// Returns hash value for hash map.
+uint32_t ThreadHash(pthread_t thread_id) {
+#if V8_OS_MACOSX
+  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(thread_id));
+#else
+  return static_cast<uint32_t>(thread_id);
+#endif
+}
+#endif  // USE_SIGNALS
 
 }  // namespace
 
@@ -284,75 +266,6 @@ class Sampler::PlatformData : public PlatformDataCommon {
 #endif
 
 
-#if defined(USE_SIMULATOR)
-class SimulatorHelper {
- public:
-  inline bool Init(Isolate* isolate) {
-    simulator_ = isolate->thread_local_top()->simulator_;
-    // Check if there is active simulator.
-    return simulator_ != NULL;
-  }
-
-  inline void FillRegisters(v8::RegisterState* state) {
-#if V8_TARGET_ARCH_ARM
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::sp));
-    state->fp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::r11));
-#elif V8_TARGET_ARCH_ARM64
-    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
-      // It's possible that the simulator is interrupted while it is updating
-      // the sp or fp register. ARM64 simulator does this in two steps:
-      // first setting it to zero and then setting it to a new value.
-      // Bailout if sp/fp doesn't contain the new value.
-      //
-      // FIXME: The above doesn't really solve the issue.
-      // If a 64-bit target is executed on a 32-bit host even the final
-      // write is non-atomic, so it might obtain a half of the result.
-      // Moreover as long as the register set code uses memcpy (as of now),
-      // it is not guaranteed to be atomic even when both host and target
-      // are of same bitness.
-      return;
-    }
-    state->pc = reinterpret_cast<Address>(simulator_->pc());
-    state->sp = reinterpret_cast<Address>(simulator_->sp());
-    state->fp = reinterpret_cast<Address>(simulator_->fp());
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::sp));
-    state->fp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::fp));
-#elif V8_TARGET_ARCH_PPC
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
-    state->fp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
-#elif V8_TARGET_ARCH_S390
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
-    state->fp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
-#endif
-  }
-
- private:
-  Simulator* simulator_;
-};
-#endif  // USE_SIMULATOR
-
-
 #if defined(USE_SIGNALS)
 
 class SignalHandler : public AllStatic {
@@ -373,6 +286,10 @@ class SignalHandler : public AllStatic {
   static bool Installed() {
     return signal_handler_installed_;
   }
+
+#if !V8_OS_NACL
+  static void CollectSample(void* context, Sampler* sampler);
+#endif
 
  private:
   static void Install() {
@@ -418,34 +335,25 @@ bool SignalHandler::signal_handler_installed_ = false;
 
 // As Native Client does not support signal handling, profiling is disabled.
 #if !V8_OS_NACL
-void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
-                                         void* context) {
-  USE(info);
-  if (signal != SIGPROF) return;
-  Isolate* isolate = Isolate::UnsafeCurrent();
-  if (isolate == NULL || !isolate->IsInUse()) {
-    // We require a fully initialized and entered isolate.
+void SignalHandler::CollectSample(void* context, Sampler* sampler) {
+  if (sampler == NULL || (!sampler->IsProfiling() &&
+                          !sampler->IsRegistered())) {
     return;
   }
+  Isolate* isolate = sampler->isolate();
+
+  // We require a fully initialized and entered isolate.
+  if (isolate == NULL || !isolate->IsInUse()) return;
+
   if (v8::Locker::IsActive() &&
       !isolate->thread_manager()->IsLockedByCurrentThread()) {
     return;
   }
 
-  Sampler* sampler = isolate->logger()->sampler();
-  if (sampler == NULL) return;
-
   v8::RegisterState state;
 
 #if defined(USE_SIMULATOR)
-  SimulatorHelper helper;
-  if (!helper.Init(isolate)) return;
-  helper.FillRegisters(&state);
-  // It possible that the simulator is interrupted while it is updating
-  // the sp or fp register. ARM64 simulator does this in two steps:
-  // first setting it to zero and then setting it to the new value.
-  // Bailout if sp/fp doesn't contain the new value.
-  if (state.sp == 0 || state.fp == 0) return;
+  if (!SimulatorHelper::FillRegisters(isolate, &state)) return;
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -582,7 +490,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 }
 #endif  // V8_OS_NACL
 
-#endif
+#endif  // USE_SIGNALS
 
 
 class SamplerThread : public base::Thread {
@@ -607,19 +515,46 @@ class SamplerThread : public base::Thread {
     }
 
     DCHECK(sampler->IsActive());
-    DCHECK(!instance_->active_samplers_.Contains(sampler));
     DCHECK(instance_->interval_ == sampler->interval());
+
+#if defined(USE_SIGNALS)
+    AddSampler(sampler);
+#else
+    DCHECK(!instance_->active_samplers_.Contains(sampler));
     instance_->active_samplers_.Add(sampler);
+#endif  // USE_SIGNALS
 
     if (need_to_start) instance_->StartSynchronously();
   }
 
-  static void RemoveActiveSampler(Sampler* sampler) {
+  static void RemoveSampler(Sampler* sampler) {
     SamplerThread* instance_to_remove = NULL;
     {
       base::LockGuard<base::Mutex> lock_guard(mutex_);
 
-      DCHECK(sampler->IsActive());
+      DCHECK(sampler->IsActive() || sampler->IsRegistered());
+#if defined(USE_SIGNALS)
+      {
+        AtomicGuard atomic_guard(&sampler_list_access_counter_);
+        // Remove sampler from map.
+        pthread_t thread_id = sampler->platform_data()->vm_tid();
+        void* thread_key = ThreadKey(thread_id);
+        uint32_t thread_hash = ThreadHash(thread_id);
+        HashMap::Entry* entry =
+            thread_id_to_samplers_.Get().Lookup(thread_key, thread_hash);
+        DCHECK(entry != NULL);
+        SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
+        samplers->RemoveElement(sampler);
+        if (samplers->is_empty()) {
+          thread_id_to_samplers_.Pointer()->Remove(thread_key, thread_hash);
+          delete samplers;
+        }
+        if (thread_id_to_samplers_.Get().occupancy() == 0) {
+          instance_to_remove = instance_;
+          instance_ = NULL;
+        }
+      }
+#else
       bool removed = instance_->active_samplers_.RemoveElement(sampler);
       DCHECK(removed);
       USE(removed);
@@ -630,6 +565,7 @@ class SamplerThread : public base::Thread {
         instance_to_remove = instance_;
         instance_ = NULL;
       }
+#endif  // USE_SIGNALS
     }
 
     if (!instance_to_remove) return;
@@ -637,11 +573,36 @@ class SamplerThread : public base::Thread {
     delete instance_to_remove;
   }
 
+  // Unlike AddActiveSampler, this method only adds a sampler,
+  // but won't start the sampler thread.
+  static void RegisterSampler(Sampler* sampler) {
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
+#if defined(USE_SIGNALS)
+    AddSampler(sampler);
+#endif  // USE_SIGNALS
+  }
+
   // Implement Thread::Run().
   virtual void Run() {
     while (true) {
       {
         base::LockGuard<base::Mutex> lock_guard(mutex_);
+#if defined(USE_SIGNALS)
+        if (thread_id_to_samplers_.Get().occupancy() == 0) break;
+        if (SignalHandler::Installed()) {
+          for (HashMap::Entry *p = thread_id_to_samplers_.Get().Start();
+               p != NULL; p = thread_id_to_samplers_.Get().Next(p)) {
+#if V8_OS_AIX && V8_TARGET_ARCH_PPC64
+            // on AIX64, cannot cast (void *) to pthread_t which is
+            // of type unsigned int (4bytes)
+            pthread_t thread_id = reinterpret_cast<intptr_t>(p->key);
+#else
+            pthread_t thread_id = reinterpret_cast<pthread_t>(p->key);
+#endif
+            pthread_kill(thread_id, SIGPROF);
+          }
+        }
+#else
         if (active_samplers_.is_empty()) break;
         // When CPU profiling is enabled both JavaScript and C++ code is
         // profiled. We must not suspend.
@@ -650,6 +611,7 @@ class SamplerThread : public base::Thread {
           if (!sampler->IsProfiling()) continue;
           sampler->DoSample();
         }
+#endif  // USE_SIGNALS
       }
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(interval_));
     }
@@ -661,7 +623,38 @@ class SamplerThread : public base::Thread {
   static SamplerThread* instance_;
 
   const int interval_;
-  List<Sampler*> active_samplers_;
+
+#if defined(USE_SIGNALS)
+  struct HashMapCreateTrait {
+    static void Construct(HashMap* allocated_ptr) {
+      new (allocated_ptr) HashMap(HashMap::PointersMatch);
+    }
+  };
+  friend class SignalHandler;
+  static base::LazyInstance<HashMap, HashMapCreateTrait>::type
+      thread_id_to_samplers_;
+  static base::AtomicValue<int> sampler_list_access_counter_;
+  static void AddSampler(Sampler* sampler) {
+    AtomicGuard atomic_guard(&sampler_list_access_counter_);
+    // Add sampler into map if needed.
+    pthread_t thread_id = sampler->platform_data()->vm_tid();
+    HashMap::Entry *entry =
+        thread_id_to_samplers_.Pointer()->LookupOrInsert(ThreadKey(thread_id),
+                                                         ThreadHash(thread_id));
+    if (entry->value == NULL) {
+      SamplerList* samplers = new SamplerList();
+      samplers->Add(sampler);
+      entry->value = samplers;
+    } else {
+      SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
+      if (!samplers->Contains(sampler)) {
+        samplers->Add(sampler);
+      }
+    }
+  }
+#else
+  SamplerList active_samplers_;
+#endif  // USE_SIGNALS
 
   DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
@@ -669,103 +662,33 @@ class SamplerThread : public base::Thread {
 
 base::Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
+#if defined(USE_SIGNALS)
+base::LazyInstance<HashMap, SamplerThread::HashMapCreateTrait>::type
+    SamplerThread::thread_id_to_samplers_ = LAZY_INSTANCE_INITIALIZER;
+base::AtomicValue<int> SamplerThread::sampler_list_access_counter_(0);
 
-
-//
-// StackTracer implementation
-//
-DISABLE_ASAN void TickSample::Init(Isolate* isolate,
-                                   const v8::RegisterState& regs,
-                                   RecordCEntryFrame record_c_entry_frame,
-                                   bool update_stats) {
-  timestamp = base::TimeTicks::HighResolutionNow();
-  pc = reinterpret_cast<Address>(regs.pc);
-  state = isolate->current_vm_state();
-  this->update_stats = update_stats;
-
-  // Avoid collecting traces while doing GC.
-  if (state == GC) return;
-
-  Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == 0) return;  // Not executing JS now.
-
-  if (pc && IsNoFrameRegion(pc)) {
-    // Can't collect stack. Mark the sample as spoiled.
-    timestamp = base::TimeTicks();
-    pc = 0;
+// As Native Client does not support signal handling, profiling is disabled.
+#if !V8_OS_NACL
+void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
+                                         void* context) {
+  USE(info);
+  if (signal != SIGPROF) return;
+  AtomicGuard atomic_guard(&SamplerThread::sampler_list_access_counter_, false);
+  if (!atomic_guard.is_success()) return;
+  pthread_t thread_id = pthread_self();
+  HashMap::Entry* entry =
+      SamplerThread::thread_id_to_samplers_.Pointer()->Lookup(
+          ThreadKey(thread_id), ThreadHash(thread_id));
+  if (entry == NULL)
     return;
-  }
-
-  ExternalCallbackScope* scope = isolate->external_callback_scope();
-  Address handler = Isolate::handler(isolate->thread_local_top());
-  // If there is a handler on top of the external callback scope then
-  // we have already entrered JavaScript again and the external callback
-  // is not the top function.
-  if (scope && scope->scope_address() < handler) {
-    external_callback_entry = *scope->callback_entrypoint_address();
-    has_external_callback = true;
-  } else {
-    // sp register may point at an arbitrary place in memory, make
-    // sure MSAN doesn't complain about it.
-    MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(Address));
-    // Sample potential return address value for frameless invocation of
-    // stubs (we'll figure out later, if this value makes sense).
-    tos = Memory::Address_at(reinterpret_cast<Address>(regs.sp));
-    has_external_callback = false;
-  }
-
-  SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
-                            reinterpret_cast<Address>(regs.sp), js_entry_sp);
-  top_frame_type = it.top_frame_type();
-
-  SampleInfo info;
-  GetStackSample(isolate, regs, record_c_entry_frame,
-                 reinterpret_cast<void**>(&stack[0]), kMaxFramesCount, &info);
-  frames_count = static_cast<unsigned>(info.frames_count);
-  if (!frames_count) {
-    // It is executing JS but failed to collect a stack trace.
-    // Mark the sample as spoiled.
-    timestamp = base::TimeTicks();
-    pc = 0;
+  SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
+  for (int i = 0; i < samplers->length(); ++i) {
+    Sampler* sampler = samplers->at(i);
+    CollectSample(context, sampler);
   }
 }
-
-
-void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
-                                RecordCEntryFrame record_c_entry_frame,
-                                void** frames, size_t frames_limit,
-                                v8::SampleInfo* sample_info) {
-  sample_info->frames_count = 0;
-  sample_info->vm_state = isolate->current_vm_state();
-  if (sample_info->vm_state == GC) return;
-
-  Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == 0) return;  // Not executing JS now.
-
-  SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
-                            reinterpret_cast<Address>(regs.sp), js_entry_sp);
-  size_t i = 0;
-  if (record_c_entry_frame == kIncludeCEntryFrame && !it.done() &&
-      it.top_frame_type() == StackFrame::EXIT) {
-    frames[i++] = isolate->c_function();
-  }
-  while (!it.done() && i < frames_limit) {
-    if (it.frame()->is_interpreted()) {
-      // For interpreted frames use the bytecode array pointer as the pc.
-      InterpretedFrame* frame = static_cast<InterpretedFrame*>(it.frame());
-      // Since the sampler can interrupt execution at any point the
-      // bytecode_array might be garbage, so don't dereference it.
-      Address bytecode_array =
-          reinterpret_cast<Address>(frame->GetBytecodeArray()) - kHeapObjectTag;
-      frames[i++] = bytecode_array + BytecodeArray::kHeaderSize +
-                    frame->GetBytecodeOffset();
-    } else {
-      frames[i++] = it.frame()->pc();
-    }
-    it.Advance();
-  }
-  sample_info->frames_count = i;
-}
+#endif  // !V8_OS_NACL
+#endif  // USE_SIGNALs
 
 
 void Sampler::SetUp() {
@@ -789,6 +712,7 @@ Sampler::Sampler(Isolate* isolate, int interval)
       profiling_(false),
       has_processing_thread_(false),
       active_(false),
+      registered_(false),
       is_counting_samples_(false),
       js_sample_count_(0),
       external_sample_count_(0) {
@@ -797,6 +721,9 @@ Sampler::Sampler(Isolate* isolate, int interval)
 
 Sampler::~Sampler() {
   DCHECK(!IsActive());
+  if (IsRegistered()) {
+    SamplerThread::RemoveSampler(this);
+  }
   delete data_;
 }
 
@@ -809,8 +736,9 @@ void Sampler::Start() {
 
 void Sampler::Stop() {
   DCHECK(IsActive());
-  SamplerThread::RemoveActiveSampler(this);
+  SamplerThread::RemoveSampler(this);
   SetActive(false);
+  SetRegistered(false);
 }
 
 
@@ -850,6 +778,10 @@ void Sampler::SampleStack(const v8::RegisterState& state) {
 
 void Sampler::DoSample() {
   if (!SignalHandler::Installed()) return;
+  if (!IsActive() && !IsRegistered()) {
+    SamplerThread::RegisterSampler(this);
+    SetRegistered(true);
+  }
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
 }
 
@@ -858,11 +790,6 @@ void Sampler::DoSample() {
 void Sampler::DoSample() {
   HANDLE profiled_thread = platform_data()->profiled_thread();
   if (profiled_thread == NULL) return;
-
-#if defined(USE_SIMULATOR)
-  SimulatorHelper helper;
-  if (!helper.Init(isolate())) return;
-#endif
 
   const DWORD kSuspendFailed = static_cast<DWORD>(-1);
   if (SuspendThread(profiled_thread) == kSuspendFailed) return;
@@ -874,7 +801,10 @@ void Sampler::DoSample() {
   if (GetThreadContext(profiled_thread, &context) != 0) {
     v8::RegisterState state;
 #if defined(USE_SIMULATOR)
-    helper.FillRegisters(&state);
+    if (!SimulatorHelper::FillRegisters(isolate(), &state)) {
+      ResumeThread(profiled_thread);
+      return;
+    }
 #else
 #if V8_HOST_ARCH_X64
     state.pc = reinterpret_cast<Address>(context.Rip);

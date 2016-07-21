@@ -228,6 +228,7 @@
   func([]);
   func(['a'], 'a');
   func(['a', 1], 'a', 1);
+  func(['a', 1, 2, 3, 4, 5], 'a', 1, 2, 3, 4, 5);
   func(['a', 1, undefined], 'a', 1, undefined);
   func(['a', 1, undefined, void(0)], 'a', 1, undefined, void(0));
 })();

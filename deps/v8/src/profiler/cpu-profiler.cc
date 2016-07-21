@@ -242,7 +242,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   AbstractCode* code,
                                   SharedFunctionInfo* shared,
-                                  CompilationInfo* info, Name* script_name) {
+                                  Name* script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
@@ -253,9 +253,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       NULL, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
-  if (info) {
-    rec->entry->set_inlined_function_infos(info->inlined_function_infos());
-  }
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);
@@ -263,8 +260,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   AbstractCode* abstract_code,
-                                  SharedFunctionInfo* shared,
-                                  CompilationInfo* info, Name* script_name,
+                                  SharedFunctionInfo* shared, Name* script_name,
                                   int line, int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -310,9 +306,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       profiles_->GetName(InferScriptName(script_name, shared)), line, column,
       line_table, abstract_code->instruction_start());
   RecordInliningInfo(rec->entry, abstract_code);
-  if (info) {
-    rec->entry->set_inlined_function_infos(info->inlined_function_infos());
-  }
+  RecordDeoptInlinedFrames(rec->entry, abstract_code);
   rec->entry->FillFunctionInfo(shared);
   rec->size = abstract_code->ExecutableSize();
   processor_->Enqueue(evt_rec);
@@ -356,7 +350,7 @@ void CpuProfiler::CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
   rec->start = code->address();
   rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
   rec->position = info.position;
-  rec->pc_offset = pc - code->instruction_start();
+  rec->deopt_id = info.deopt_id;
   processor_->Enqueue(evt_rec);
   processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
 }
@@ -449,6 +443,54 @@ void CpuProfiler::RecordInliningInfo(CodeEntry* entry,
     if (!inline_stack.empty()) {
       entry->AddInlineStack(pc_offset, inline_stack);
       DCHECK(inline_stack.empty());
+    }
+  }
+}
+
+void CpuProfiler::RecordDeoptInlinedFrames(CodeEntry* entry,
+                                           AbstractCode* abstract_code) {
+  if (abstract_code->kind() != AbstractCode::OPTIMIZED_FUNCTION) return;
+  Code* code = abstract_code->GetCode();
+  DeoptimizationInputData* deopt_input_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int const mask = RelocInfo::ModeMask(RelocInfo::DEOPT_ID);
+  for (RelocIterator rit(code, mask); !rit.done(); rit.next()) {
+    RelocInfo* reloc_info = rit.rinfo();
+    DCHECK(RelocInfo::IsDeoptId(reloc_info->rmode()));
+    int deopt_id = static_cast<int>(reloc_info->data());
+    int translation_index =
+        deopt_input_data->TranslationIndex(deopt_id)->value();
+    TranslationIterator it(deopt_input_data->TranslationByteArray(),
+                           translation_index);
+    Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+    DCHECK_EQ(Translation::BEGIN, opcode);
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
+    std::vector<CodeEntry::DeoptInlinedFrame> inlined_frames;
+    while (it.HasNext() &&
+           Translation::BEGIN !=
+               (opcode = static_cast<Translation::Opcode>(it.Next()))) {
+      if (opcode != Translation::JS_FRAME &&
+          opcode != Translation::INTERPRETED_FRAME) {
+        it.Skip(Translation::NumberOfOperandsFor(opcode));
+        continue;
+      }
+      BailoutId ast_id = BailoutId(it.Next());
+      int shared_info_id = it.Next();
+      it.Next();  // Skip height
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(
+          deopt_input_data->LiteralArray()->get(shared_info_id));
+      int source_position = Deoptimizer::ComputeSourcePosition(shared, ast_id);
+      int script_id = v8::UnboundScript::kNoScriptId;
+      if (shared->script()->IsScript()) {
+        Script* script = Script::cast(shared->script());
+        script_id = script->id();
+      }
+      CodeEntry::DeoptInlinedFrame frame = {source_position, script_id};
+      inlined_frames.push_back(frame);
+    }
+    if (!inlined_frames.empty() && !entry->HasDeoptInlinedFramesFor(deopt_id)) {
+      entry->AddDeoptInlinedFrames(deopt_id, inlined_frames);
+      DCHECK(inlined_frames.empty());
     }
   }
 }

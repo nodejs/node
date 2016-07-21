@@ -14,6 +14,7 @@
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
+#include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
 
@@ -28,11 +29,6 @@ class JumpPatchSite;
 
 class FullCodeGenerator: public AstVisitor {
  public:
-  enum State {
-    NO_REGISTERS,
-    TOS_REG
-  };
-
   FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
         info_(info),
@@ -60,19 +56,10 @@ class FullCodeGenerator: public AstVisitor {
 
   static bool MakeCode(CompilationInfo* info);
 
-  // Encode state and pc-offset as a BitField<type, start, size>.
+  // Encode bailout state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
-  class StateField : public BitField<State, 0, 1> { };
-  class PcField    : public BitField<unsigned, 1, 30-1> { };
-
-  static const char* State2String(State state) {
-    switch (state) {
-      case NO_REGISTERS: return "NO_REGISTERS";
-      case TOS_REG: return "TOS_REG";
-    }
-    UNREACHABLE();
-    return NULL;
-  }
+  class BailoutStateField : public BitField<Deoptimizer::BailoutState, 0, 1> {};
+  class PcField : public BitField<unsigned, 1, 30 - 1> {};
 
   static const int kMaxBackEdgeWeight = 127;
 
@@ -106,6 +93,8 @@ class FullCodeGenerator: public AstVisitor {
   static Register result_register();
 
  private:
+  typedef Deoptimizer::BailoutState BailoutState;
+
   class Breakable;
   class Iteration;
   class TryFinally;
@@ -366,21 +355,21 @@ class FullCodeGenerator: public AstVisitor {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     EffectContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, NO_REGISTERS);
+    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     AccumulatorValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, TOS_REG);
+    PrepareForBailout(expr, BailoutState::TOS_REGISTER);
   }
 
   void VisitForStackValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     StackValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, NO_REGISTERS);
+    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
@@ -452,8 +441,8 @@ class FullCodeGenerator: public AstVisitor {
                              NilValue nil);
 
   // Bailout support.
-  void PrepareForBailout(Expression* node, State state);
-  void PrepareForBailoutForId(BailoutId id, State state);
+  void PrepareForBailout(Expression* node, Deoptimizer::BailoutState state);
+  void PrepareForBailoutForId(BailoutId id, Deoptimizer::BailoutState state);
 
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
@@ -531,9 +520,6 @@ class FullCodeGenerator: public AstVisitor {
   F(HasCachedArrayIndex)                \
   F(GetCachedArrayIndex)                \
   F(GetSuperConstructor)                \
-  F(GeneratorNext)                      \
-  F(GeneratorReturn)                    \
-  F(GeneratorThrow)                     \
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
@@ -548,7 +534,6 @@ class FullCodeGenerator: public AstVisitor {
   F(ToName)                             \
   F(ToObject)                           \
   F(DebugIsActive)                      \
-  F(GetOrdinaryHasInstance)             \
   F(CreateIterResultObject)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
@@ -557,10 +542,11 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitIntrinsicAsStubCall(CallRuntime* expr, const Callable& callable);
 
-  // Platform-specific code for resuming generators.
-  void EmitGeneratorResume(Expression *generator,
-                           Expression *value,
-                           JSGeneratorObject::ResumeMode resume_mode);
+  // Emits call to respective code stub.
+  void EmitHasProperty();
+
+  // Platform-specific code for restoring context from current JS frame.
+  void RestoreContext();
 
   // Platform-specific code for loading variables.
   void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
@@ -577,7 +563,7 @@ class FullCodeGenerator: public AstVisitor {
   bool NeedsHoleCheckForLoad(VariableProxy* proxy);
 
   // Expects the arguments and the function already pushed.
-  void EmitResolvePossiblyDirectEval(int arg_count);
+  void EmitResolvePossiblyDirectEval(Call* expr);
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
@@ -687,8 +673,7 @@ class FullCodeGenerator: public AstVisitor {
   // otherwise.
   void SetStatementPosition(Statement* stmt,
                             InsertBreak insert_break = INSERT_BREAK);
-  void SetExpressionPosition(Expression* expr,
-                             InsertBreak insert_break = SKIP_BREAK);
+  void SetExpressionPosition(Expression* expr);
 
   // Consider an expression a statement. As such, we also insert a break.
   // This is used in loop headers where we want to break for each iteration.
@@ -729,8 +714,6 @@ class FullCodeGenerator: public AstVisitor {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   Handle<Script> script() { return info_->script(); }
-  bool is_eval() { return info_->is_eval(); }
-  bool is_native() { return info_->is_native(); }
   LanguageMode language_mode() { return scope()->language_mode(); }
   bool has_simple_parameters() { return info_->has_simple_parameters(); }
   FunctionLiteral* literal() const { return info_->literal(); }

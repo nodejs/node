@@ -10,3 +10,4 @@ assertEquals("function", typeof Wasm.verifyModule);
 assertEquals("function", typeof Wasm.verifyFunction);
 assertEquals("function", typeof Wasm.instantiateModule);
 assertEquals("function", typeof Wasm.instantiateModuleFromAsm);
+assertFalse(undefined == Wasm.experimentalVersion);

@@ -15,9 +15,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(LdaConstant), U8(0),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaConstant), U8(0),
+  /*   61 S> */ B(Return),
 ]
 constant pool: [
   "This is a string",
@@ -33,11 +33,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 8
 bytecodes: [
-  B(StackCheck),
-  B(LdaConstant), U8(0),
-  B(Star), R(0),
-  B(LdaConstant), U8(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaConstant), U8(0),
+  /*   42 E> */ B(Star), R(0),
+  /*   58 S> */ B(LdaConstant), U8(1),
+  /*   82 S> */ B(Return),
 ]
 constant pool: [
   "First string",
@@ -54,11 +54,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 8
 bytecodes: [
-  B(StackCheck),
-  B(LdaConstant), U8(0),
-  B(Star), R(0),
-  B(LdaConstant), U8(0),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaConstant), U8(0),
+  /*   42 E> */ B(Star), R(0),
+  /*   57 S> */ B(LdaConstant), U8(0),
+  /*   79 S> */ B(Return),
 ]
 constant pool: [
   "Same string",

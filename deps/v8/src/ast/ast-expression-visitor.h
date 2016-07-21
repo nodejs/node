@@ -27,10 +27,10 @@ class AstExpressionVisitor : public AstVisitor {
   virtual void VisitExpression(Expression* expression) = 0;
   int depth() { return depth_; }
 
- private:
   void VisitDeclarations(ZoneList<Declaration*>* d) override;
   void VisitStatements(ZoneList<Statement*>* s) override;
 
+ private:
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
 #define DECLARE_VISIT(type) void Visit##type(type* node) override;

@@ -81,7 +81,7 @@ class InterpreterState {
     if (!is_constant) {
       if (op.IsRegister()) {
         index = LocationOperand::cast(op).GetRegister().code();
-      } else if (op.IsDoubleRegister()) {
+      } else if (op.IsFPRegister()) {
         index = LocationOperand::cast(op).GetDoubleRegister().code();
       } else {
         index = LocationOperand::cast(op).index();

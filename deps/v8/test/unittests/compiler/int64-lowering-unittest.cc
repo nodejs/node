@@ -301,9 +301,6 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
       wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
 }
 
-// todo(ahaas): I added a list of missing instructions here to make merging
-// easier when I do them one by one.
-// kExprI64Add:
 TEST_F(Int64LoweringTest, Int64Add) {
   LowerGraph(graph()->NewNode(machine()->Int64Add(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -319,7 +316,7 @@ TEST_F(Int64LoweringTest, Int64Add) {
                         IsProjection(1, AllOf(CaptureEq(&add), add_matcher)),
                         start(), start()));
 }
-// kExprI64Sub:
+
 TEST_F(Int64LoweringTest, Int64Sub) {
   LowerGraph(graph()->NewNode(machine()->Int64Sub(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -336,7 +333,6 @@ TEST_F(Int64LoweringTest, Int64Sub) {
                         start(), start()));
 }
 
-// kExprI64Mul:
 TEST_F(Int64LoweringTest, Int64Mul) {
   LowerGraph(graph()->NewNode(machine()->Int64Mul(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -354,11 +350,6 @@ TEST_F(Int64LoweringTest, Int64Mul) {
                 start(), start()));
 }
 
-// kExprI64DivS:
-// kExprI64DivU:
-// kExprI64RemS:
-// kExprI64RemU:
-// kExprI64Ior:
 TEST_F(Int64LoweringTest, Int64Ior) {
   LowerGraph(graph()->NewNode(machine()->Word64Or(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -371,7 +362,6 @@ TEST_F(Int64LoweringTest, Int64Ior) {
                         start(), start()));
 }
 
-// kExprI64Xor:
 TEST_F(Int64LoweringTest, Int64Xor) {
   LowerGraph(graph()->NewNode(machine()->Word64Xor(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -383,7 +373,7 @@ TEST_F(Int64LoweringTest, Int64Xor) {
                                     IsInt32Constant(high_word_value(1))),
                         start(), start()));
 }
-// kExprI64Shl:
+
 TEST_F(Int64LoweringTest, Int64Shl) {
   LowerGraph(graph()->NewNode(machine()->Word64Shl(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -399,7 +389,7 @@ TEST_F(Int64LoweringTest, Int64Shl) {
                         IsProjection(1, AllOf(CaptureEq(&shl), shl_matcher)),
                         start(), start()));
 }
-// kExprI64ShrU:
+
 TEST_F(Int64LoweringTest, Int64ShrU) {
   LowerGraph(graph()->NewNode(machine()->Word64Shr(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -415,7 +405,7 @@ TEST_F(Int64LoweringTest, Int64ShrU) {
                         IsProjection(1, AllOf(CaptureEq(&shr), shr_matcher)),
                         start(), start()));
 }
-// kExprI64ShrS:
+
 TEST_F(Int64LoweringTest, Int64ShrS) {
   LowerGraph(graph()->NewNode(machine()->Word64Sar(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -431,7 +421,7 @@ TEST_F(Int64LoweringTest, Int64ShrS) {
                         IsProjection(1, AllOf(CaptureEq(&sar), sar_matcher)),
                         start(), start()));
 }
-// kExprI64Eq:
+
 TEST_F(Int64LoweringTest, Int64Eq) {
   LowerGraph(graph()->NewNode(machine()->Word64Equal(), Int64Constant(value(0)),
                               Int64Constant(value(1))),
@@ -447,27 +437,25 @@ TEST_F(Int64LoweringTest, Int64Eq) {
                start(), start()));
 }
 
-// kExprI64LtS:
 TEST_F(Int64LoweringTest, Int64LtS) {
   TestComparison(machine()->Int64LessThan(), IsInt32LessThan, IsUint32LessThan);
 }
-// kExprI64LeS:
+
 TEST_F(Int64LoweringTest, Int64LeS) {
   TestComparison(machine()->Int64LessThanOrEqual(), IsInt32LessThan,
                  IsUint32LessThanOrEqual);
 }
-// kExprI64LtU:
+
 TEST_F(Int64LoweringTest, Int64LtU) {
   TestComparison(machine()->Uint64LessThan(), IsUint32LessThan,
                  IsUint32LessThan);
 }
-// kExprI64LeU:
+
 TEST_F(Int64LoweringTest, Int64LeU) {
   TestComparison(machine()->Uint64LessThanOrEqual(), IsUint32LessThan,
                  IsUint32LessThanOrEqual);
 }
 
-// kExprI32ConvertI64:
 TEST_F(Int64LoweringTest, I32ConvertI64) {
   LowerGraph(graph()->NewNode(machine()->TruncateInt64ToInt32(),
                               Int64Constant(value(0))),
@@ -475,7 +463,7 @@ TEST_F(Int64LoweringTest, I32ConvertI64) {
   EXPECT_THAT(graph()->end()->InputAt(1),
               IsReturn(IsInt32Constant(low_word_value(0)), start(), start()));
 }
-// kExprI64SConvertI32:
+
 TEST_F(Int64LoweringTest, I64SConvertI32) {
   LowerGraph(graph()->NewNode(machine()->ChangeInt32ToInt64(),
                               Int32Constant(low_word_value(0))),
@@ -501,7 +489,7 @@ TEST_F(Int64LoweringTest, I64SConvertI32_2) {
                                     IsInt32Constant(31)),
                         start(), start()));
 }
-// kExprI64UConvertI32:
+
 TEST_F(Int64LoweringTest, I64UConvertI32) {
   LowerGraph(graph()->NewNode(machine()->ChangeUint32ToUint64(),
                               Int32Constant(low_word_value(0))),
@@ -523,7 +511,7 @@ TEST_F(Int64LoweringTest, I64UConvertI32_2) {
               IsReturn2(IsInt32Constant(low_word_value(0)), IsInt32Constant(0),
                         start(), start()));
 }
-// kExprF64ReinterpretI64:
+
 TEST_F(Int64LoweringTest, F64ReinterpretI64) {
   LowerGraph(graph()->NewNode(machine()->BitcastInt64ToFloat64(),
                               Int64Constant(value(0))),
@@ -554,7 +542,7 @@ TEST_F(Int64LoweringTest, F64ReinterpretI64) {
                       AllOf(CaptureEq(&store_capture), store_matcher), start()),
                start(), start()));
 }
-// kExprI64ReinterpretF64:
+
 TEST_F(Int64LoweringTest, I64ReinterpretF64) {
   LowerGraph(graph()->NewNode(machine()->BitcastFloat64ToInt64(),
                               Float64Constant(bit_cast<double>(value(0)))),
@@ -583,7 +571,7 @@ TEST_F(Int64LoweringTest, I64ReinterpretF64) {
                        AllOf(CaptureEq(&store), store_matcher), start()),
                 start(), start()));
 }
-// kExprI64Clz:
+
 TEST_F(Int64LoweringTest, I64Clz) {
   LowerGraph(graph()->NewNode(machine()->Word64Clz(), Int64Constant(value(0))),
              MachineRepresentation::kWord64);
@@ -606,7 +594,7 @@ TEST_F(Int64LoweringTest, I64Clz) {
                         AllOf(CaptureEq(&branch_capture), branch_matcher)))),
           IsInt32Constant(0), start(), start()));
 }
-// kExprI64Ctz:
+
 TEST_F(Int64LoweringTest, I64Ctz) {
   LowerGraph(graph()->NewNode(machine()->Word64CtzPlaceholder(),
                               Int64Constant(value(0))),
@@ -628,7 +616,6 @@ TEST_F(Int64LoweringTest, I64Ctz) {
                         AllOf(CaptureEq(&branch_capture), branch_matcher)))),
           IsInt32Constant(0), start(), start()));
 }
-// kExprI64Popcnt:
 
 TEST_F(Int64LoweringTest, Dfs) {
   Node* common = Int64Constant(value(0));

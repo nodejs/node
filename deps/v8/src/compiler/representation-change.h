@@ -31,6 +31,9 @@ class Truncation final {
   bool TruncatesToWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
+  bool TruncatesToFloat64() const {
+    return LessGeneral(kind_, TruncationKind::kFloat64);
+  }
   bool TruncatesNaNToZero() {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
            LessGeneral(kind_, TruncationKind::kBool);
@@ -130,6 +133,9 @@ class RepresentationChanger final {
                   Type* output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
   Node* InsertChangeFloat32ToFloat64(Node* node);
+  Node* InsertChangeFloat64ToInt32(Node* node);
+  Node* InsertChangeFloat64ToUint32(Node* node);
+  Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }

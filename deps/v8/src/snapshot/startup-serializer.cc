@@ -73,8 +73,8 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // Make sure that the immortal immovable root has been included in the first
     // chunk of its reserved space , so that it is deserialized onto the first
     // page of its space and stays immortal immovable.
-    BackReference ref = back_reference_map_.Lookup(obj);
-    CHECK(ref.is_valid() && ref.chunk_index() == 0);
+    SerializerReference ref = reference_map_.Lookup(obj);
+    CHECK(ref.is_back_reference() && ref.chunk_index() == 0);
   }
 }
 
