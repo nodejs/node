@@ -7,8 +7,6 @@ const stream = require('stream');
 const repl = require('internal/repl');
 const assert = require('assert');
 
-common.globalCheck = false;
-
 // Array of [useGlobal, expectedResult] pairs
 const globalTestCases = [
   [false, 'undefined'],
@@ -19,6 +17,9 @@ const globalTestCases = [
 const globalTest = (useGlobal, cb, output) => (err, repl) => {
   if (err)
     return cb(err);
+
+  // The REPL registers 'module' and 'require' globals
+  common.allowGlobals(repl.context.module, repl.context.require);
 
   let str = '';
   output.on('data', (data) => (str += data));
