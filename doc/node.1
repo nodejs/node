@@ -1,10 +1,28 @@
 .TH NODE 1 2016 Node.js Node.js
 
-.\ This is a man page comment.
-.\ Man page syntax (actually troff syntax) is somewhat obscure, but the
-.\ important part is is that .<letter> specifies <letter>'s syntax for that
-.\ line, and \f<letter> specifies it for the characters that follow.
-.\ See http://liw.fi/manpages/ for more info.
+.\" This is a man page comment.
+
+.\" Man page syntax (actually roff syntax) is somewhat obscure, but the
+.\" important part is is that .<letter> specifies <letter>'s syntax for that
+.\" line, and \f<letter> specifies it for the characters that follow.
+
+.\" .B   Bold line
+.\" .I   Italic line (Rendered as underlined text in terminals)
+.\" .BI  Alternating bold/italics without spaces between arguments.
+.\"      Use `\ ` to include an "unpaddable" (literal) space in the output.
+.\" .RI  Alternating roman/italic
+
+.\" See http://liw.fi/manpages/ for an overview, or http://www.troff.org/54.pdf
+.\" for detailed language reference.
+
+.\" Macro to display an underlined URL in bold
+.de ur
+.nr CF \\n(.f
+.ft 4
+\\$1
+.ft \\n(CF
+..
+
 
 .SH NAME
 
@@ -14,15 +32,22 @@ node \- Server-side JavaScript runtime
 .SH SYNOPSIS
 
 .B node
-[\fIoptions\fR] [\fIv8 options\fR]
-[\fIscript.js\fR | \fB\-e \fR"\fIscript\fR"]
-[\fIarguments\fR]
+.RI [ options ]
+.RI [ v8\ options ]
+.RI [ script.js \ |
+.B -e
+.RI \&" script \&"]
+.RI [ arguments ]
 .br
 .B node debug
-[\fIscript.js\fR | \fB\-e \fR"\fIscript\fR" | \fI<host>:<port>\fR] \fI...
+.RI [ script.js " | "
+.B \-e
+.RI \&" script \&"\ |
+.IR <host>:<port> ]
+.I ...
 .br
 .B node
-[\fB\-\-v8-options\fR]
+.RB [ \-\-v8-options ]
 
 Execute without arguments to start the REPL.
 
@@ -172,14 +197,20 @@ value to an empty string ("" or " ") disables persistent REPL history.
 
 .SH RESOURCES AND DOCUMENTATION
 
-Website: \fBhttps://nodejs.org/\fR
+Website:
+.ur https://nodejs.org/
 
-Documentation: \fBhttps://nodejs.org/api/\fR
+Documentation:
+.ur https://nodejs.org/api/
 
-GitHub repository & Issue Tracker: \fBhttps://github.com/nodejs/node\fR
+GitHub repository & Issue Tracker:
+.ur https://github.com/nodejs/node
 
-Mailing list: \fBhttp://groups.google.com/group/nodejs\fR
+Mailing list:
+.ur http://groups.google.com/group/nodejs
 
-IRC (general questions): \fBchat.freenode.net #node.js\fR
+IRC (general questions):
+.ur "chat.freenode.net #node.js"
 
-IRC (node core development): \fBchat.freenode.net #node-dev\fR
+IRC (node core development):
+.ur "chat.freenode.net #node-dev"
