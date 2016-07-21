@@ -336,6 +336,11 @@ if (global.Symbol) {
   knownGlobals.push(Symbol);
 }
 
+function allowGlobals() {
+  knownGlobals = knownGlobals.concat(Array.from(arguments));
+}
+exports.allowGlobals = allowGlobals;
+
 function leakedGlobals() {
   var leaked = [];
 
