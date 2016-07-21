@@ -1,5 +1,6 @@
 /**
- * @fileoverview Require usage of specified node modules.
+ * @fileoverview Require usage of specified node modules before any other
+ * modules are loaded.
  * @author Rich Trott
  */
 'use strict';
@@ -63,11 +64,16 @@ module.exports = function(context) {
 
   return {
     'CallExpression': function(node) {
-      if (isRequireCall(node)) {
+      if (isRequireCall(node) && foundModules.length < requiredModules.length) {
         var requiredModuleName = getRequiredModuleName(node);
 
         if (requiredModuleName) {
           foundModules.push(requiredModuleName);
+        } else {
+          context.report(
+            node,
+            'Module loaded before all required modules loaded.'
+          );
         }
       }
     },
@@ -88,12 +94,4 @@ module.exports = function(context) {
       }
     }
   };
-};
-
-module.exports.schema = {
-  'type': 'array',
-  'additionalItems': {
-    'type': 'string'
-  },
-  'uniqueItems': true
 };
