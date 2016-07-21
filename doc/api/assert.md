@@ -8,9 +8,8 @@ used in application code via `require('assert')`. However, `assert` is not a
 testing framework, and is not intended to be used as a general purpose assertion
 library.
 
-The API for the `assert` module is [Locked][]. This means that there will be no
-additions or changes to any of the methods implemented and exposed by
-the module.
+The API for the `assert` module is [Locked]. This means that there will be no
+additions or changes to any of the methods implemented and exposed by this module.
 
 ## assert(value[, message])
 <!-- YAML
@@ -24,14 +23,21 @@ An alias of [`assert.ok()`].
 added: v0.1.21
 -->
 
-Tests for deep equality between the `actual` and `expected` parameters.
-Primitive values are compared with the equal comparison operator ( `==` ).
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are not equal. If not supplied, then a generated message containing `actual`
+  and `expected` is used.
+* Return: `undefined`
 
-Only enumerable "own" properties are considered. The `deepEqual()`
+Tests *deep* equality between `actual` and `expected` as determined by the `==`
+operator. If `actual` and `expected` are not equal, then an `AssertionError`
+exception is thrown.
+
+Only enumerable "own" properties are considered. The `assert.deepEqual()`
 implementation does not test object prototypes, attached symbols, or
 non-enumerable properties. This can lead to some potentially surprising
-results. For example, the following example does not throw an `AssertionError`
-because the properties on the [`Error`][] object are non-enumerable:
+results.
 
 Example: The following does not throw an `AssertionError` because the properties
 on the [`Error`] object are non-enumerable
@@ -44,7 +50,7 @@ assert.deepEqual(Error('a'), Error('b'));
 ```
 
 "Deep" equality means that the enumerable "own" properties of child objects
-are evaluated also:
+are evaluated as well.
 
 Examples:
 
@@ -83,18 +89,22 @@ assert.deepEqual(obj1, obj2);
 assert.deepEqual(obj1, obj4);
 ```
 
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
-
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 -->
 
-Generally identical to `assert.deepEqual()` with two exceptions. First,
-primitive values are compared using the strict equality operator ( `===` ).
-Second, object comparisons include a strict equality check of their prototypes.
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are not equal. If not supplied, then a generated message containing `actual`
+  and `expected` is used.
+
+Tests *deep* equality between `actual` and `expected` as determined by the `===`
+operator. If `actual` and `expected` are not equal, then an `AssertionError`
+exception is thrown.
+
+Object comparisons include a strict equal check of their prototypes.
 
 Example:
 
@@ -112,25 +122,24 @@ const obj2 = {
 assert.deepStrictEqual(obj1, obj2);
 ```
 
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
-
 ## assert.doesNotThrow(block[, error][, message])
 <!-- YAML
 added: v0.1.21
 -->
 
-Asserts that the function `block` does not throw an error. See
-[`assert.throws()`][] for more details.
+* `block` {Function} A function that is not expected to throw an exception
+* `error` {Function | RegExp} A constructor, regular expression, or validation
+  function to be used when matching an exception thrown by `block`
+* `message` {String} A message that is appended to the exception thrown when
+  `block` fails to throw an exception.
+* Return: `undefined`
 
-When `assert.doesNotThrow()` is called, it will immediately call the `block`
-function.
+Calls the function `block`, not expecting an exception to be thrown. If `block`
+throws an exception that matches `error`, an `AssertionError` exception is thrown.
+If the exception does *not* match `error` (or `error` is not supplied), then the
+original exception is re-thrown.
 
-If an error is thrown and it is the same type as that specified by the `error`
-parameter, then an `AssertionError` is thrown. If the error is of a different
-type, or if the `error` parameter is undefined, the error is propagated back
-to the caller.
+This function is the opposite of [`assert.throws()`].
 
 Examples:
 
@@ -168,8 +177,16 @@ assert.doesNotThrow(
 added: v0.1.21
 -->
 
-Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the equal comparison operator ( `==` ).
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are not equal. If not supplied, then a generated message containing `actual`
+  and `expected` is used.
+* Return: `undefined`
+
+Tests equality between `actual` and `expected` as determined by the (shallow
+and coercive) `==` operator. If `actual` and `expected` are not equal, then an
+`AssertionError` exception is thrown.
 
 Examples:
 
@@ -189,18 +206,21 @@ assert.equal(1, 2);
 assert.equal({a: {b: 1}}, {a: {b: 1}});
 ```
 
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
-
 ## assert.fail(actual, expected, message, operator)
 <!-- YAML
 added: v0.1.21
 -->
 
-Throws an `AssertionError`. If `message` is falsy, the error message is set as
-the values of `actual` and `expected` separated by the provided `operator`.
-Otherwise, the error message is the value of `message`.
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use. If not supplied, then a
+  generated message containing `actual` and `expected` is used.
+* `operator` {String} If `message` is not specified, this is a comparison operator
+  that is inserted between `actual` and `expected` in the generated exception
+  message.
+* Return: `undefined`
+
+Always throws an `AssertionError`.
 
 Examples:
 
@@ -219,8 +239,11 @@ assert.fail(1, 2, 'whoops', '>');
 added: v0.1.97
 -->
 
-Throws `value` if `value` is truthy. This is useful when testing the `error`
-argument in callbacks.
+* `value` {mixed}
+* Return: `undefined`
+
+Throws `value` if `value` evaluates to `true`. This is useful when testing the
+error argument in callbacks.
 
 Examples:
 
@@ -245,7 +268,22 @@ assert.ifError(new Error());
 added: v0.1.21
 -->
 
-Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are equal. If not supplied, then a generated message containing `actual` and
+  `expected` is used.
+
+Tests *deep* inequality between `actual` and `expected` as determined by the `!=`
+operator. If `actual` and `expected` are equal, then an `AssertionError`
+exception is thrown.
+
+Only enumerable "own" properties are considered. The `assert.notDeepEqual()`
+implementation does not test object prototypes, attached symbols, or
+non-enumerable properties. This can lead to some potentially surprising
+results.
+
+This function is the opposite of [`assert.deepEqual()`].
 
 Examples:
 
@@ -282,16 +320,24 @@ assert.notDeepEqual(obj1, obj1);
 assert.notDeepEqual(obj1, obj3);
 ```
 
-If the values are deeply equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
-
 ## assert.notDeepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 -->
 
-Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are equal. If not supplied, then a generated message containing `actual` and
+  `expected` is used.
+
+Tests *deep* inequality between `actual` and `expected` as determined by the `!==`
+operator. If `actual` and `expected` are equal, then an `AssertionError`
+exception is thrown.
+
+Object comparisons include a not strict equal check of their prototypes.
+
+This function is the opposite of [`assert.deepStrictEqual()`].
 
 Examples:
 
@@ -309,17 +355,20 @@ const obj2 = {
 assert.notDeepStrictEqual(obj1, obj2);
 ```
 
-If the values are deeply and strictly equal, an `AssertionError` is thrown
-with a `message` property set equal to the value of the `message` parameter. If
-the `message` parameter is undefined, a default error message is assigned.
-
 ## assert.notEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
 -->
 
-Tests shallow, coercive inequality with the not equal comparison operator
-( `!=` ).
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are equal. If not supplied, then a generated message containing `actual` and
+  `expected` is used.
+
+Tests inequality between `actual` and `expected` as determined by the (shallow
+and coercive) `!=` operator. If `actual` and `expected` are equal, then an
+`AssertionError` exception is thrown.
 
 Examples:
 
@@ -336,17 +385,20 @@ assert.notEqual(1, 1);
 assert.notEqual(1, '1');
 ```
 
-If the values are equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
-
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
 -->
 
-Tests strict inequality as determined by the strict not equal operator
-( `!==` ).
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are equal. If not supplied, then a generated message containing `actual` and
+  `expected` is used.
+
+Tests inequality between `actual` and `expected` as determined by the `!==`
+operator. If `actual` and `expected` are equal, then an `AssertionError` exception
+is thrown.
 
 Examples:
 
@@ -368,12 +420,15 @@ assert.notStrictEqual(1, 1);
 added: v0.1.21
 -->
 
-Tests if `value` is truthy. It is equivalent to
-`assert.equal(!!value, true, message)`.
+* `value` {mixed} A value to check
+* `message` {String} The exception message to use when `value` does not evaluate
+  to `true`. If not supplied, then a generated message containing `value` is used.
+* Return: `undefined`
 
-If `value` is not truthy, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is `undefined`, a default error message is assigned.
+Tests if `value` evaluates to `true`. If `value` does not evaluate to `true`,
+then an `AssertionError` exception is thrown.
+
+This function is equivalent to `assert.equal(!!value, true, message)`.
 
 Examples:
 
@@ -401,7 +456,15 @@ assert.ok(false, 'it is false');
 added: v0.1.21
 -->
 
-Tests strict equality as determined by the strict equality operator ( `===` ).
+* `actual` {mixed} A value to check
+* `expected` {mixed} The expected value of `actual`
+* `message` {String} The exception message to use when `actual` and `expected`
+  are not equal. If not supplied, then a generated message containing `actual`
+  and `expected` is used.
+
+Tests equality between `actual` and `expected` as determined by the `===`
+operator. If `actual` and `expected` are not equal, then an `AssertionError`
+exception is thrown.
 
 Examples:
 
@@ -418,22 +481,21 @@ assert.strictEqual(1, 2);
 assert.strictEqual(1, '1');
 ```
 
-If the values are not strictly equal, an `AssertionError` is thrown with a
-`message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned.
-
 ## assert.throws(block[, error][, message])
 <!-- YAML
 added: v0.1.21
 -->
 
-Expects the function `block` to throw an error.
+* `block` {Function} A function that is expected to throw an exception
+* `error` {Function | RegExp} A constructor, regular expression, or validation
+  function to be used when matching an exception thrown by `block`
+* `message` {String} The exception message to use when `block` fails to throw an
+  exception. If not supplied, then a generic, generated message is used.
+* Return: `undefined`
 
-If specified, `error` can be a constructor, [`RegExp`][], or validation
-function.
+Calls the function `block`, expecting an exception to be thrown. If `block`
+does not throw an exception, an `AssertionError` exception is thrown.
 
-If specified, `message` will be the message provided by the `AssertionError` if
-the block fails to throw.
 Example: Match a thrown exception by constructor
 
 ```js
