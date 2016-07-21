@@ -345,6 +345,11 @@ if (global.Symbol) {
   knownGlobals.push(Symbol);
 }
 
+function allowGlobals(...whitelist) {
+  knownGlobals = knownGlobals.concat(whitelist);
+}
+exports.allowGlobals = allowGlobals;
+
 function leakedGlobals() {
   var leaked = [];
 
