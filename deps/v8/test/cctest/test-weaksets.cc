@@ -123,8 +123,8 @@ TEST(WeakSet_Weakness) {
   heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
-  CHECK_EQ(
-      1, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+  CHECK_EQ(0,
+           ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
 }
 
 
