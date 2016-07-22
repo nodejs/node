@@ -626,6 +626,9 @@ values are `"rr"` and `"none"`.
     (Default=`process.argv.slice(2)`)
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
+  * `stdio` {Array} Configures the stdio of forked processes. Because the
+    cluster module relies on IPC to function, this configuration must contain an
+    `'ipc'` entry. When this option is provided, it overrides `silent`.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 
@@ -642,6 +645,8 @@ This object is not supposed to be changed or set manually, by you.
     (Default=`process.argv.slice(2)`)
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
+  * `stdio` {Array} Configures the stdio of forked processes. When this option
+    is provided, it overrides `silent`.
 
 `setupMaster` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.
