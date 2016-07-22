@@ -233,7 +233,7 @@ Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
 
   if (outputFormat == 'default')
-    console.log('%s: %s', heading, value.toFixed(5));
+    console.log('%s: %s ops/sec', heading, value.toFixed(5));
   else if (outputFormat == 'csv')
     console.log('%s,%s', heading, value.toFixed(5));
 };

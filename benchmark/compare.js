@@ -102,13 +102,12 @@ function run() {
         line = line.trim();
         if (!line)
           return;
-
-        var s = line.split(':');
-        var num = +s.pop();
+        var result = line.match(/: (\d*\.?\d*)/);
+        var num = +result[1];
         if (!num && num !== 0)
           return;
 
-        line = s.join(':');
+        line = line.substring(0, result.index);
         var res = results[line] = results[line] || {};
         res[node] = res[node] || [];
         res[node].push(num);
