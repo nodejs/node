@@ -893,10 +893,15 @@ added: v0.1.21
 
 Synchronous mkdir(2). Returns `undefined`.
 
-## fs.mkdtemp(prefix, callback)
+## fs.mkdtemp(prefix[, options], callback)
 <!-- YAML
 added: v5.10.0
 -->
+
+* `prefix` {String}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
+* `callback` {Function}
 
 Creates a unique temporary directory.
 
@@ -906,10 +911,14 @@ Generates six random characters to be appended behind a required
 The created folder path is passed as a string to the callback's second
 parameter.
 
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
+
 Example:
 
 ```js
 fs.mkdtemp('/tmp/foo-', (err, folder) => {
+  if (err) throw err;
   console.log(folder);
     // Prints: /tmp/foo-itXde2
 });
@@ -946,13 +955,20 @@ fs.mkdtemp(tmpDir + path.sep, (err, folder) => {
 });
 ```
 
-## fs.mkdtempSync(prefix)
+## fs.mkdtempSync(prefix[, options])
 <!-- YAML
 added: v5.10.0
 -->
 
+* `prefix` {String}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
+
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
 
 ## fs.open(path, flags[, mode], callback)
 <!-- YAML
