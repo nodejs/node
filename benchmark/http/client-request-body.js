@@ -15,6 +15,7 @@ function main(conf) {
   var dur = +conf.dur;
   var len = +conf.bytes;
 
+  var running = true;
   var encoding;
   var chunk;
   switch (conf.type) {
@@ -52,7 +53,9 @@ function main(conf) {
   function pummel() {
     var req = http.request(options, function(res) {
       nreqs++;
-      pummel();  // Line up next request.
+      if (running) {
+        pummel();  // Line up next request.
+      }
       res.resume();
     });
     if (conf.method === 'write') {
@@ -65,5 +68,7 @@ function main(conf) {
 
   function done() {
     bench.end(nreqs);
+    server.close();
+    running = false;
   }
 }
