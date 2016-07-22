@@ -347,6 +347,93 @@ fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
 });
 ```
 
+Using `fs.access()` to check for the accessibility of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+so introduces a race condition, since other processes may change the file's
+state between the two calls. Instead, user code should open/read/write the
+file directly and handle the error raised if the file is not accessible.
+
+For example:
+
+
+**write (NOT RECOMMENDED)**
+
+```js
+fs.access('myfile', (err) => {
+  if (!err) {
+    console.error('myfile already exists');
+    return;
+  }
+
+  fs.open('myfile', 'wx', (err, fd) => {
+    if (err) throw err;
+    writeMyData(fd);
+  });
+});
+```
+
+**write (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'wx', (err, fd) => {
+  if (err) {
+    if (err.code === "EEXIST") {
+      console.error('myfile already exists');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  writeMyData(fd);
+});
+```
+
+**read (NOT RECOMMENDED)**
+
+```js
+fs.access('myfile', (err) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  fs.open('myfile', 'r', (err, fd) => {
+    if (err) throw err;
+    readMyData(fd);
+  });
+});
+```
+
+**read (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'r', (err, fd) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  readMyData(fd);
+});
+```
+
+The "not recommended" examples above check for accessibility and then use the
+file; the "recommended" examples are better because they use the file directly
+and handle the error, if any.
+
+In general, check for the accessibility of a file only if the file won’t be
+used directly, for example when its accessibility is a signal from another
+process.
+
 ## fs.accessSync(path[, mode])
 <!-- YAML
 added: v0.11.15
@@ -606,11 +693,83 @@ fs.exists('/etc/passwd', (exists) => {
 });
 ```
 
-`fs.exists()` should not be used to check if a file exists before calling
-`fs.open()`. Doing so introduces a race condition since other processes may
-change the file's state between the two calls. Instead, user code should
-call `fs.open()` directly and handle the error raised if the file is
-non-existent.
+Using `fs.exists()` to check for the existence of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+so introduces a race condition, since other processes may change the file's
+state between the two calls. Instead, user code should open/read/write the
+file directly and handle the error raised if the file does not exist.
+
+For example:
+
+**write (NOT RECOMMENDED)**
+
+```js
+fs.exists('myfile', (exists) => {
+  if (exists) {
+    console.error('myfile already exists');
+  } else {
+    fs.open('myfile', 'wx', (err, fd) => {
+      if (err) throw err;
+      writeMyData(fd);
+    });
+  }
+});
+```
+
+**write (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'wx', (err, fd) => {
+  if (err) {
+    if (err.code === "EEXIST") {
+      console.error('myfile already exists');
+      return;
+    } else {
+      throw err;
+    }
+  }
+  writeMyData(fd);
+});
+```
+
+**read (NOT RECOMMENDED)**
+
+```js
+fs.exists('myfile', (exists) => {
+  if (exists) {
+    fs.open('myfile', 'r', (err, fd) => {
+      readMyData(fd);
+    });
+  } else {
+    console.error('myfile does not exist');
+  }
+});
+```
+
+**read (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'r', (err, fd) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  } else {
+    readMyData(fd);
+  }
+});
+```
+
+The "not recommended" examples above check for existence and then use the
+file; the "recommended" examples are better because they use the file directly
+and handle the error, if any.
+
+In general, check for the existence of a file only if the file won’t be
+used directly, for example when its existence is a signal from another
+process.
 
 ## fs.existsSync(path)
 <!-- YAML
