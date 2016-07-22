@@ -8195,7 +8195,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) Source code cleanups: use const where appropriate, eliminate casts,
      use void * instead of char * in lhash.
-     [Ulf Möller]
+     [Ulf Möller] 
 
   *) Bugfix: ssl3_send_server_key_exchange was not restartable
      (the state was not changed to SSL3_ST_SW_KEY_EXCH_B, and because of
