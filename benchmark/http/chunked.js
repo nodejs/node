@@ -20,7 +20,7 @@ function main(conf) {
   const http = require('http');
   var chunk = Buffer.alloc(conf.size, '8');
 
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
+  var args = ['-t', '10s', '-c', conf.c, '-k'];
 
   var server = http.createServer(function(req, res) {
     function send(left) {

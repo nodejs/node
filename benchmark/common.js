@@ -44,10 +44,10 @@ if (module === require.main) {
   runBenchmarks();
 }
 
-function hasWrk() {
-  var result = child_process.spawnSync('wrk', ['-h']);
+function hasApacheBench() {
+  var result = child_process.spawnSync('ab', ['-h']);
   if (result.error && result.error.code === 'ENOENT') {
-    console.error('Couldn\'t locate `wrk` which is needed for running ' +
+    console.error('Couldn\'t locate `ab` which is needed for running ' +
       'benchmarks. Check benchmark/README.md for further instructions.');
     process.exit(-1);
   }
@@ -99,15 +99,15 @@ function Benchmark(fn, options) {
 
 // benchmark an http server.
 Benchmark.prototype.http = function(p, args, cb) {
-  hasWrk();
+  hasApacheBench();
   var self = this;
-  var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
+  var regexp = /Requests per second:[ \t]+([0-9\.]+) \[#\/sec\] \(mean\)/;
   var url = 'http://127.0.0.1:' + exports.PORT + p;
 
   args = args.concat(url);
 
   var out = '';
-  var child = child_process.spawn('wrk', args);
+  var child = child_process.spawn('ab', args);
 
   child.stdout.setEncoding('utf8');
 
@@ -120,14 +120,14 @@ Benchmark.prototype.http = function(p, args, cb) {
       cb(code);
 
     if (code) {
-      console.error('wrk failed with ' + code);
+      console.error('ab failed with ' + code);
       process.exit(code);
     }
     var match = out.match(regexp);
     var qps = match && +match[1];
     if (!qps) {
       console.error('%j', out);
-      console.error('wrk produced strange output');
+      console.error('ab produced strange output');
       process.exit(1);
     }
     self.report(+qps);
