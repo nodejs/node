@@ -190,7 +190,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
     return;
   }
 
-  // Instanciate the client javascript object and handle.
+  // Instantiate the client javascript object and handle.
   Local<Object> client_obj = Instantiate(env, pipe_wrap);
 
   // Unwrap the client javascript object.
