@@ -5,15 +5,16 @@ Node.js APIs.
 
 ## Prerequisites
 
-Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] (ApacheBench) being installed.
-These may be available through your preferred package manager.
+Most of the http benchmarks require [`autocannon`][autocannon] npm module
+being installed. You can do this by running:
 
-If they are not available:
-- `wrk` may easily be built [from source][wrk] via `make`.
-- `ab` is sometimes bundled in a package called `apache2-utils`.
+`npm install -g autocannon`
 
-[wrk]: https://github.com/wg/wrk
-[ab]: http://httpd.apache.org/docs/2.2/programs/ab.html
+[autocannon]: https://github.com/mcollina/autocannon
+
+Autocannon is a Node script and will use Node executable that is in the path.
+If you want to compare two HTTP benchmark runs make sure that the Node version
+in the path is not altered.
 
 ## How to run tests
 

@@ -13,6 +13,10 @@ if (['default', 'csv', 'silent'].indexOf(outputFormat) == -1) {
   throw new Error('OUTPUT_FORMAT set to invalid value');
 }
 
+const autocannon_exe = process.platform === 'win32'
+                       ? 'autocannon.cmd'
+                       : 'autocannon';
+
 exports.PORT = process.env.PORT || 12346;
 
 // If this is the main module, then run the benchmarks
@@ -44,11 +48,12 @@ if (module === require.main) {
   runBenchmarks();
 }
 
-function hasWrk() {
-  var result = child_process.spawnSync('wrk', ['-h']);
+function hasAutocannon() {
+  var result = child_process.spawnSync(autocannon_exe, ['-h']);
   if (result.error && result.error.code === 'ENOENT') {
-    console.error('Couldn\'t locate `wrk` which is needed for running ' +
-      'benchmarks. Check benchmark/README.md for further instructions.');
+    console.error('Couldn\'t locate `autocannon` which is needed for ' +
+      'running benchmarks. Check benchmark/README.md for further ' +
+      'instructions.');
     process.exit(-1);
   }
 }
@@ -98,19 +103,17 @@ function Benchmark(fn, options) {
 }
 
 // benchmark an http server.
-Benchmark.prototype.http = function(p, args, cb) {
-  hasWrk();
+Benchmark.prototype.http = function(path, duration, connections, cb) {
+  hasAutocannon();
   var self = this;
-  var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
-  var url = 'http://127.0.0.1:' + exports.PORT + p;
 
-  args = args.concat(url);
-
-  var out = '';
-  var child = child_process.spawn('wrk', args);
+  const args = ['-d', duration, '-c', connections, '-j',
+                'http://127.0.0.1:' + exports.PORT + path ];
+  var child = child_process.spawn(autocannon_exe, args);
 
   child.stdout.setEncoding('utf8');
 
+  var out = '';
   child.stdout.on('data', function(chunk) {
     out += chunk;
   });
@@ -120,17 +123,23 @@ Benchmark.prototype.http = function(p, args, cb) {
       cb(code);
 
     if (code) {
-      console.error('wrk failed with ' + code);
+      console.error('autocannon failed with ' + code);
       process.exit(code);
     }
-    var match = out.match(regexp);
-    var qps = match && +match[1];
-    if (!qps) {
+
+    try {
+      var result = JSON.parse(out);
+    } catch (err) {
+      // do nothing, let next line handle this
+    }
+
+    if (!result || !result.requests || !result.requests.average) {
       console.error('%j', out);
-      console.error('wrk produced strange output');
+      console.error('autocannon produced strange output');
       process.exit(1);
     }
-    self.report(+qps);
+
+    self.report(result.requests.average);
   });
 };
 
