@@ -49,11 +49,6 @@ using v8::Value;
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
 
-static int SanitizeFD(Local<Value> fd) {
-  CHECK(fd->IsUint32() && "file descriptor must be a unsigned 32-bit integer");
-  return fd->Uint32Value();
-}
-
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   enum Ownership { COPY, MOVE };
@@ -411,8 +406,10 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 1)
     return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(close, args[1], UTF8, fd)
@@ -644,8 +641,10 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 1)
     return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(fstat, args[1], UTF8, fd)
@@ -773,10 +772,21 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 2)
     return TYPE_ERROR("fd and length are required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
 
+  // FIXME(bnoordhuis) It's questionable to reject non-ints here but still
+  // allow implicit coercion from null or undefined to zero.  Probably best
+  // handled in lib/fs.js.
   Local<Value> len_v(args[1]);
+  if (!len_v->IsUndefined() &&
+      !len_v->IsNull() &&
+      !IsInt64(len_v->NumberValue())) {
+    return env->ThrowTypeError("Not an integer");
+  }
+
   const int64_t len = len_v->IntegerValue();
 
   if (args[2]->IsObject()) {
@@ -791,8 +801,10 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 1)
     return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(fdatasync, args[1], UTF8, fd)
@@ -806,8 +818,10 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 1)
     return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(fsync, args[1], UTF8, fd)
@@ -1010,8 +1024,12 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (!args[0]->IsInt32())
+    return env->ThrowTypeError("First argument must be file descriptor");
+
   CHECK(Buffer::HasInstance(args[1]));
-  int fd = SanitizeFD(args[0]);
+
+  int fd = args[0]->Int32Value();
   Local<Object> obj = args[1].As<Object>();
   const char* buf = Buffer::Data(obj);
   size_t buffer_length = Buffer::Length(obj);
@@ -1053,8 +1071,10 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsArray());
-  int fd = SanitizeFD(args[0]);
+
+  int fd = args[0]->Int32Value();
   Local<Array> chunks = args[1].As<Array>();
   int64_t pos = GET_OFFSET(args[2]);
   Local<Value> req = args[3];
@@ -1091,9 +1111,12 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (!args[0]->IsInt32())
+    return env->ThrowTypeError("First argument must be file descriptor");
+
   Local<Value> req;
   Local<Value> string = args[1];
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
   char* buf = nullptr;
   int64_t pos;
   size_t len;
@@ -1168,10 +1191,12 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 2)
     return TYPE_ERROR("fd and buffer are required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
   if (!Buffer::HasInstance(args[1]))
     return TYPE_ERROR("Second argument needs to be a buffer");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
 
   Local<Value> req;
 
@@ -1242,10 +1267,12 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 2)
     return TYPE_ERROR("fd and mode are required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
   if (!args[1]->IsInt32())
     return TYPE_ERROR("mode must be an integer");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
   int mode = static_cast<int>(args[1]->Int32Value());
 
   if (args[2]->IsObject()) {
@@ -1301,12 +1328,14 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("uid required");
   if (len < 3)
     return TYPE_ERROR("gid required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be an int");
   if (!args[1]->IsUint32())
     return TYPE_ERROR("uid must be an unsigned int");
   if (!args[2]->IsUint32())
     return TYPE_ERROR("gid must be an unsigned int");
 
-  int fd = SanitizeFD(args[0]);
+  int fd = args[0]->Int32Value();
   uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
   uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
 
@@ -1356,12 +1385,14 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("atime required");
   if (len < 3)
     return TYPE_ERROR("mtime required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be an int");
   if (!args[1]->IsNumber())
     return TYPE_ERROR("atime must be a number");
   if (!args[2]->IsNumber())
     return TYPE_ERROR("mtime must be a number");
 
-  const int fd = SanitizeFD(args[0]);
+  const int fd = args[0]->Int32Value();
   const double atime = static_cast<double>(args[1]->NumberValue());
   const double mtime = static_cast<double>(args[2]->NumberValue());
 
