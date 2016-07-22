@@ -1200,6 +1200,14 @@ var relativeTests = [
   ['http://example.com/b//c//d;p?q#blarg',
    'http://u:p@h.com/p/a/t/h?s#hash2',
    'http://u:p@h.com/p/a/t/h?s#hash2'],
+  ['http://user:pass@fakeurl2.com:80/path/resource.html?query#hash',
+   'http://fakeurl.com/path/resource.html?query#hash',
+   'http://fakeurl.com/path/resource.html?query#hash'
+  ],
+  ['mailto:user@example.org',
+   'example.com',
+   'mailto:user@example.com'
+  ],
   ['http://example.com/b//c//d;p?q#blarg',
    'http:/a/b/c/d',
    'http://example.com/a/b/c/d'],
