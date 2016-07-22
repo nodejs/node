@@ -13,6 +13,9 @@ function test(cb) {
 // Verify the case where a callback function is provided
 assert.doesNotThrow(test(function() {}));
 
+// Passing undefined calls rethrow() internally, which is fine
+assert.doesNotThrow(test(undefined));
+
 // Anything else should throw
 assert.throws(test(null));
 assert.throws(test(true));

@@ -101,7 +101,7 @@ fs.open(file2, 'a', function(err, fd) {
         assert.equal(mode_sync, fs.fstatSync(fd).mode & 0o777);
       }
       success_count++;
-      fs.closeSync(fd);
+      fs.close(fd);
     }
   });
 });
