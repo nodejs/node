@@ -6,9 +6,11 @@
 // Flags: --harmony-default-parameters --harmony-rest-parameters
 
 (function TestObjectLiteralPattern() {
-  var { x : x, y : y } = { x : 1, y : 2 };
+  var { x : x, y : y, get, set } = { x : 1, y : 2, get: 3, set: 4 };
   assertEquals(1, x);
   assertEquals(2, y);
+  assertEquals(3, get);
+  assertEquals(4, set);
 
   var {z} = { z : 3 };
   assertEquals(3, z);
