@@ -5879,6 +5879,7 @@ Vector<const int> CharacterRange::GetWordBounds() {
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
+  CharacterRange::Canonicalize(ranges);
   int range_count = ranges->length();
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
