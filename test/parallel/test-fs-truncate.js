@@ -24,55 +24,6 @@ fs.truncateSync(filename);
 stat = fs.statSync(filename);
 assert.equal(stat.size, 0);
 
-// path must be a string
-assert.throws(function() {
-  fs.truncateSync({});
-}, /path must be a string/);
-
-assert.throws(function() {
-  fs.truncateSync([]);
-}, /path must be a string/);
-
-// Even invalid file descriptors are not allowed
-assert.throws(function() {
-  fs.truncateSync(-1);
-}, /path must be a string/);
-
-assert.throws(function() {
-  fs.truncateSync(NaN);
-}, /path must be a string/);
-
-assert.throws(function() {
-  fs.truncateSync(Infinity);
-}, /path must be a string/);
-
-// Invalid lengths will also fail
-assert.throws(function() {
-  fs.truncateSync('', '');
-}, /length must be a positive integer/);
-
-assert.throws(function() {
-  fs.truncateSync('', -1);
-}, /length must be a positive integer/);
-
-assert.throws(function() {
-  fs.truncateSync('', NaN);
-}, /length must be a positive integer/);
-
-assert.throws(function() {
-  fs.truncateSync('', Infinity);
-}, /length must be a positive integer/);
-
-// null is a special case which will also be treated as zero length
-fs.writeFileSync(filename, data);
-
-stat = fs.statSync(filename);
-assert.equal(stat.size, 1024 * 16);
-
-fs.truncateSync(filename, null);
-stat = fs.statSync(filename);
-assert.equal(stat.size, 0);
-
 // ftruncateSync
 fs.writeFileSync(filename, data);
 var fd = fs.openSync(filename, 'r+');
@@ -85,51 +36,6 @@ stat = fs.statSync(filename);
 assert.equal(stat.size, 1024);
 
 fs.ftruncateSync(fd);
-stat = fs.statSync(filename);
-assert.equal(stat.size, 0);
-
-fs.closeSync(fd);
-
-// file descriptor must be a unsigned 32-bit integer
-assert.throws(function() {
-  fs.ftruncateSync({});
-}, /file descriptor must be a unsigned 32-bit integer/);
-
-// Even invalid file descriptors are not allowed
-assert.throws(function() {
-  fs.ftruncateSync(-1);
-}, /file descriptor must be a unsigned 32-bit integer/);
-
-assert.throws(function() {
-  fs.ftruncateSync(NaN);
-}, /file descriptor must be a unsigned 32-bit integer/);
-
-assert.throws(function() {
-  fs.ftruncateSync(Infinity);
-}, /file descriptor must be a unsigned 32-bit integer/);
-
-// Invalid lengths will also fail
-assert.throws(function() {
-  fs.ftruncateSync(1, '');
-}, /length must be a positive integer/);
-
-assert.throws(function() {
-  fs.ftruncateSync(1, -1);
-}, /length must be a positive integer/);
-
-assert.throws(function() {
-  fs.ftruncateSync(1, NaN);
-}, /length must be a positive integer/);
-
-assert.throws(function() {
-  fs.ftruncateSync(1, Infinity);
-}, /length must be a positive integer/);
-
-// null is a special case which will also be treated as zero length
-fs.writeFileSync(filename, data);
-fd = fs.openSync(filename, 'r+');
-
-fs.ftruncateSync(fd, null);
 stat = fs.statSync(filename);
 assert.equal(stat.size, 0);
 

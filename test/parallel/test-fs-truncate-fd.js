@@ -1,71 +1,21 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
+var common = require('../common');
+var assert = require('assert');
+var path = require('path');
+var fs = require('fs');
+var tmp = common.tmpDir;
 common.refreshTmpDir();
-const fds = [];
+var filename = path.resolve(tmp, 'truncate-file.txt');
 
-const filename = path.resolve(common.tmpDir, 'truncate-file.txt');
 fs.writeFileSync(filename, 'hello world', 'utf8');
-const fd = fs.openSync(filename, 'r+');
-fds.push(fd);
+var fd = fs.openSync(filename, 'r+');
 fs.truncate(fd, 5, common.mustCall(function(err) {
-  assert.ifError(err);
+  assert.ok(!err);
   assert.equal(fs.readFileSync(filename, 'utf8'), 'hello');
 }));
 
-{
-  // test partial truncation of a file
-  const fileName = path.resolve(common.tmpDir, 'truncate-file-1.txt');
-  console.log(fileName);
-  fs.writeFileSync(fileName, 'hello world', 'utf8');
-  const fd = fs.openSync(fileName, 'r+');
-  fds.push(fd);
-
-  fs.truncate(fd, 5, common.mustCall(function(err) {
-    assert.ifError(err);
-    assert.strictEqual(fs.readFileSync(fileName, 'utf8'), 'hello');
-  }));
-}
-
-{
-  // make sure numbers as strings are not treated as fds with sync version
-  const fileName = path.resolve(common.tmpDir, 'truncate-file-2.txt');
-  console.log(fileName);
-  fs.writeFileSync(fileName, 'One');
-  const fd = fs.openSync(fileName, 'r');
-  fds.push(fd);
-
-  const fdFileName = path.resolve(common.tmpDir, '' + fd);
-  fs.writeFileSync(fdFileName, 'Two');
-  assert.strictEqual(fs.readFileSync(fileName).toString(), 'One');
-  assert.strictEqual(fs.readFileSync(fdFileName).toString(), 'Two');
-
-  fs.truncateSync(fdFileName);
-  assert.strictEqual(fs.readFileSync(fileName).toString(), 'One');
-  assert.strictEqual(fs.readFileSync(fdFileName).toString(), '');
-}
-
-{
-  // make sure numbers as strings are not treated as fds with async version
-  const fileName = path.resolve(common.tmpDir, 'truncate-file-3.txt');
-  console.log(fileName);
-  fs.writeFileSync(fileName, 'One');
-  const fd = fs.openSync(fileName, 'r');
-  fds.push(fd);
-
-  const fdFileName = path.resolve(common.tmpDir, '' + fd);
-  fs.writeFileSync(fdFileName, 'Two');
-  assert.strictEqual(fs.readFileSync(fileName).toString(), 'One');
-  assert.strictEqual(fs.readFileSync(fdFileName).toString(), 'Two');
-
-  fs.truncate(fdFileName, common.mustCall(function(err) {
-    assert.ifError(err);
-    assert.strictEqual(fs.readFileSync(fileName).toString(), 'One');
-    assert.strictEqual(fs.readFileSync(fdFileName).toString(), '');
-  }));
-}
-
-process.on('exit', () => fds.forEach((fd) => fs.closeSync(fd)));
+process.on('exit', function() {
+  fs.closeSync(fd);
+  fs.unlinkSync(filename);
+  console.log('ok');
+});
