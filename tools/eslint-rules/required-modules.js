@@ -64,7 +64,7 @@ module.exports = function(context) {
 
   return {
     'CallExpression': function(node) {
-      if (isRequireCall(node) && foundModules.length < requiredModules.length) {
+      if (foundModules.length < requiredModules.length && isRequireCall(node)) {
         var requiredModuleName = getRequiredModuleName(node);
 
         if (requiredModuleName) {
