@@ -1812,13 +1812,13 @@ _Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and
 `fs.unwatchFile`. `fs.watch` should be used instead of `fs.watchFile` and
 `fs.unwatchFile` when possible._
 
-## fs.write(fd, buffer, offset, length[, position], callback)
+## fs.write(fd, buffer[, offset[, length[, position]]], callback)
 <!-- YAML
 added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {Buffer}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1843,19 +1843,19 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-## fs.write(fd, data[, position[, encoding]], callback)
+## fs.write(fd, string[, position[, encoding]], callback)
 <!-- YAML
 added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `string` {String}
 * `position` {Integer}
 * `encoding` {String}
 * `callback` {Function}
 
-Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
-then the value will be coerced to a string.
+Write `string` to the file specified by `fd`.  If `string` is not a string, then
+the value will be coerced to one.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
@@ -1936,24 +1936,24 @@ added: v0.1.29
 
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
-## fs.writeSync(fd, buffer, offset, length[, position])
+## fs.writeSync(fd, buffer[, offset[, length[, position]]])
 <!-- YAML
 added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {Buffer}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
 
-## fs.writeSync(fd, data[, position[, encoding]])
+## fs.writeSync(fd, string[, position[, encoding]])
 <!-- YAML
 added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `string` {String}
 * `position` {Integer}
 * `encoding` {String}
 

@@ -1,23 +1,56 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var fn = path.join(common.tmpDir, 'write.txt');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const filename = path.join(common.tmpDir, 'write.txt');
 
 common.refreshTmpDir();
 
-var foo = 'foo';
-var fd = fs.openSync(fn, 'w');
+// fs.writeSync with all parameters provided:
+{
+  const fd = fs.openSync(filename, 'w');
 
-var written = fs.writeSync(fd, '');
-assert.strictEqual(0, written);
+  let written = fs.writeSync(fd, '');
+  assert.strictEqual(0, written);
 
-fs.writeSync(fd, foo);
+  fs.writeSync(fd, 'foo');
 
-var bar = 'bár';
-written = fs.writeSync(fd, Buffer.from(bar), 0, Buffer.byteLength(bar));
-assert.ok(written > 3);
-fs.closeSync(fd);
+  written = fs.writeSync(fd, Buffer.from('bár'), 0, Buffer.byteLength('bár'));
+  assert.ok(written > 3);
+  fs.closeSync(fd);
 
-assert.equal(fs.readFileSync(fn), 'foobár');
+  assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
+}
+
+// fs.writeSync with a buffer, without the length parameter:
+{
+  const fd = fs.openSync(filename, 'w');
+
+  let written = fs.writeSync(fd, '');
+  assert.strictEqual(0, written);
+
+  fs.writeSync(fd, 'foo');
+
+  written = fs.writeSync(fd, Buffer.from('bár'), 0);
+  assert.ok(written > 3);
+  fs.closeSync(fd);
+
+  assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
+}
+
+// fs.writeSync with a buffer, without the offset and length parameters:
+{
+  const fd = fs.openSync(filename, 'w');
+
+  let written = fs.writeSync(fd, '');
+  assert.strictEqual(0, written);
+
+  fs.writeSync(fd, 'foo');
+
+  written = fs.writeSync(fd, Buffer.from('bár'));
+  assert.ok(written > 3);
+  fs.closeSync(fd);
+
+  assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
+}
