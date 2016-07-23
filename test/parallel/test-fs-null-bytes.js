@@ -137,3 +137,19 @@ fs.exists('foo\u0000bar', common.mustCall((exists) => {
   assert(!exists);
 }));
 assert(!fs.existsSync('foo\u0000bar'));
+
+function checkRequire(arg) {
+  assert.throws(function() {
+    console.error(`require(${JSON.stringify(arg)})`);
+    require(arg);
+  }, expectedError);
+}
+
+checkRequire('\u0000');
+checkRequire('foo\u0000bar');
+checkRequire('foo\u0000');
+checkRequire('foo/\u0000');
+checkRequire('foo/\u0000.js');
+checkRequire('\u0000/foo');
+checkRequire('./foo/\u0000');
+checkRequire('./\u0000/foo');
