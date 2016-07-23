@@ -17,18 +17,15 @@ var options = {
 };
 
 var server = tls.createServer(options, function(c) {
-  setTimeout(function() {
-    c.write('hello');
-    setTimeout(function() {
-      c.destroy();
-      server.close();
-    }, 150);
-  }, 150);
+  c.write('hello');
+  c.destroy();
+  server.close();
 });
 
+var socket;
 server.listen(0, function() {
-  var socket = net.connect(this.address().port, function() {
-    var s = socket.setTimeout(common.platformTimeout(240), function() {
+  socket = net.connect(this.address().port, function() {
+    var s = socket.setTimeout(Number.MAX_VALUE, function() {
       throw new Error('timeout');
     });
     assert.ok(s instanceof net.Socket);
@@ -39,4 +36,8 @@ server.listen(0, function() {
     });
     tsocket.resume();
   });
+});
+
+process.on('exit', () => {
+  assert.strictEqual(socket._idleTimeout, -1);
 });
