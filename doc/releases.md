@@ -216,10 +216,16 @@ Once you have produced builds that you're happy with, create a new tag. By waiti
 
 Tag summaries have a predictable format, look at a recent tag to see, `git tag -v v6.0.0`. The message should look something like `2016-04-26 Node.js v6.0.0 (Current) Release`.
 
+Install `git-secure-tag` npm module:
+
+```console
+$ npm install -g git-secure-tag
+```
+
 Create a tag using the following command:
 
 ```sh
-$ git tag <vx.y.z> <commit-sha> -sm 'YYYY-MM-DD Node.js vx.y.z (Release Type) Release'
+$ git secure-tag <vx.y.z> <commit-sha> -sm 'YYYY-MM-DD Node.js vx.y.z (Release Type) Release'
 ```
 
 The tag **must** be signed using the GPG key that's listed for you on the project README.
