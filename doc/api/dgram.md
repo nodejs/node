@@ -370,6 +370,23 @@ added: v0.6.9
 Sets or clears the `SO_BROADCAST` socket option.  When set to `true`, UDP
 packets may be sent to a local interface's broadcast address.
 
+### socket.setMulticastInterface(multicastInterface)
+<!-- YAML
+added: v7.0.0
+-->
+
+* `multicastInterface` {String}
+
+Sets the outgoing multicast interface using the provided IP. For IPv6, the addresses should use explicit scope to indicate the interface, as in the following example:
+ 
+```js
+const s = dgram.createSocket('udp6');
+s.bind(1234, () => {
+        s.setMulticastInterface('::%eth1');
+});
+
+```
+
 ### socket.setMulticastLoopback(flag)
 <!-- YAML
 added: v0.3.8
