@@ -393,8 +393,8 @@ added: v0.1.91
     * `repl.REPL_MODE_MAGIC` - attempt to evaluates expressions in default
       mode.  If expressions fail to parse, re-try in strict mode.
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
-      `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
-      with a custom `eval` function. Defaults to `false`.
+    `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
+    with a custom `eval` function. Defaults to `false`.
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
