@@ -97,6 +97,7 @@ void UDPWrap::Initialize(Local<Object> target,
                       GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
   env->SetProtoMethod(t, "addMembership", AddMembership);
   env->SetProtoMethod(t, "dropMembership", DropMembership);
+  env->SetProtoMethod(t, "setMulticastInterface", SetMulticastInterface);
   env->SetProtoMethod(t, "setMulticastTTL", SetMulticastTTL);
   env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
   env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
@@ -208,6 +209,22 @@ X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 
 #undef X
 
+void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value iface(args.GetIsolate(), args[0]);
+
+  const char* iface_cstr = *iface;
+
+  int err = uv_udp_set_multicast_interface(&wrap->handle_, iface_cstr);
+  args.GetReturnValue().Set(err);
+}
 
 void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
                             uv_membership membership) {

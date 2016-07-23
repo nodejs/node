@@ -8,6 +8,7 @@ const assert = require('assert');
 const dgram = require('dgram');
 const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '224.0.0.114';
+const LOCAL_HOST_IFADDR = '0.0.0.0';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
   Buffer.from('First message to send'),
@@ -136,6 +137,7 @@ if (process.argv[2] !== 'child') {
     sendSocket.setBroadcast(true);
     sendSocket.setMulticastTTL(1);
     sendSocket.setMulticastLoopback(true);
+    sendSocket.setMulticastInterface(LOCAL_HOST_IFADDR);
   });
 
   sendSocket.on('close', function() {
@@ -175,7 +177,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    listenSocket.addMembership(LOCAL_BROADCAST_HOST);
+    listenSocket.addMembership(LOCAL_BROADCAST_HOST, LOCAL_HOST_IFADDR);
 
     listenSocket.on('message', function(buf, rinfo) {
       console.error('[CHILD] %s received "%s" from %j', process.pid,
