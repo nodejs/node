@@ -9,6 +9,7 @@ common.globalCheck = false;
 var tests = [
   testSloppyMode,
   testStrictMode,
+  testAutoMode
 ];
 
 tests.forEach(function(test) {
@@ -44,6 +45,12 @@ function testStrictMode() {
     let y = 3
   `.trim() + '\n');
   assert.equal(cli.output.accumulator.join(''), 'undefined\n> ');
+}
+
+function testAutoMode() {
+  var cli = initRepl(repl.REPL_MODE_MAGIC);
+  assert.equal(cli.output.accumulator.join(''),
+    'magic mode is deprecated. Switched to sloppy mode\n> ');
 }
 
 function initRepl(mode) {
