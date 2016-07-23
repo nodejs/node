@@ -392,7 +392,7 @@ added: v0.1.91
       equivalent to prefacing every repl statement with `'use strict'`.
     * `repl.REPL_MODE_MAGIC` - attempt to evaluates expressions in default
       mode.  If expressions fail to parse, re-try in strict mode.
-    * `breakEvalOnSigint` - Stop evaluating the current piece of code when
+  * `breakEvalOnSigint` - Stop evaluating the current piece of code when
       `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
       with a custom `eval` function. Defaults to `false`.
 
