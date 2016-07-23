@@ -25,13 +25,13 @@ if (process.argv[2] === 'child') {
 }
 
 process.env.REPL_TEST_PPID = process.pid;
-const child = spawn(process.execPath, [ __filename, 'child' ], {
-  stdio: [null, 'pipe', 'inherit']
-});
-
 process.on('SIGUSR2', common.mustCall(() => {
   process.kill(child.pid, 'SIGINT');
 }));
+
+const child = spawn(process.execPath, [ __filename, 'child' ], {
+  stdio: [null, 'pipe', 'inherit']
+});
 
 child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
