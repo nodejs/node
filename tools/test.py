@@ -197,7 +197,7 @@ class SimpleProgressIndicator(ProgressIndicator):
         print failed.output.stdout.strip()
       print "Command: %s" % EscapeCommand(failed.command)
       if failed.HasCrashed():
-        print "--- CRASHED ---"
+        print "--- %s ---" % PrintCrashed(failed.output.exit_code)
       if failed.HasTimedOut():
         print "--- TIMEOUT ---"
     if len(self.failed) == 0:
@@ -286,6 +286,9 @@ class TapProgressIndicator(SimpleProgressIndicator):
       logger.info(status_line)
       self._printDiagnostic("\n".join(output.diagnostic))
 
+      if output.HasCrashed():
+        self._printDiagnostic(PrintCrashed(output.output.exit_code))
+
       if output.HasTimedOut():
         self._printDiagnostic('TIMEOUT')
 
@@ -346,7 +349,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print self.templates['stderr'] % stderr
       print "Command: %s" % EscapeCommand(output.command)
       if output.HasCrashed():
-        print "--- CRASHED ---"
+        print "--- %s ---" % PrintCrashed(output.output.exit_code)
       if output.HasTimedOut():
         print "--- TIMEOUT ---"
 
@@ -1489,6 +1492,13 @@ def GetSuites(test_root):
 def FormatTime(d):
   millis = round(d * 1000) % 1000
   return time.strftime("%M:%S.", time.gmtime(d)) + ("%03i" % millis)
+
+
+def PrintCrashed(code):
+  if utils.IsWindows():
+    return "CRASHED"
+  else:
+    return "CRASHED (Signal: %d)" % -code
 
 
 def Main():
