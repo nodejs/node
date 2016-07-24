@@ -18,13 +18,12 @@ class ReqWrap : public AsyncWrap {
                  AsyncWrap::ProviderType provider);
   inline ~ReqWrap() override;
   inline void Dispatched();  // Call this after the req has been dispatched.
+  T* req() { return &req_; }
 
  private:
   friend class Environment;
   ListNode<ReqWrap> req_wrap_queue_;
-
- public:
-  T req_;  // Must be last.  TODO(bnoordhuis) Make private.
+  T req_;
 };
 
 }  // namespace node

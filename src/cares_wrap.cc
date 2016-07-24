@@ -1146,7 +1146,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_flags = flags;
 
   int err = uv_getaddrinfo(env->event_loop(),
-                           &req_wrap->req_,
+                           req_wrap->req(),
                            AfterGetAddrInfo,
                            *hostname,
                            nullptr,
@@ -1176,7 +1176,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
 
   int err = uv_getnameinfo(env->event_loop(),
-                           &req_wrap->req_,
+                           req_wrap->req(),
                            AfterGetNameInfo,
                            (struct sockaddr*)&addr,
                            NI_NAMEREQD);
