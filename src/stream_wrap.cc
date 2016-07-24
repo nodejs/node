@@ -276,14 +276,15 @@ void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
 
 int StreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
   int err;
-  err = uv_shutdown(&req_wrap->req_, stream(), AfterShutdown);
+  err = uv_shutdown(req_wrap->req(), stream(), AfterShutdown);
   req_wrap->Dispatched();
   return err;
 }
 
 
 void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
-  ShutdownWrap* req_wrap = ContainerOf(&ShutdownWrap::req_, req);
+  ShutdownWrap* req_wrap = ShutdownWrap::from_req(req);
+  CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
@@ -336,9 +337,9 @@ int StreamWrap::DoWrite(WriteWrap* w,
                         uv_stream_t* send_handle) {
   int r;
   if (send_handle == nullptr) {
-    r = uv_write(&w->req_, stream(), bufs, count, AfterWrite);
+    r = uv_write(w->req(), stream(), bufs, count, AfterWrite);
   } else {
-    r = uv_write2(&w->req_, stream(), bufs, count, send_handle, AfterWrite);
+    r = uv_write2(w->req(), stream(), bufs, count, send_handle, AfterWrite);
   }
 
   if (!r) {
@@ -360,7 +361,8 @@ int StreamWrap::DoWrite(WriteWrap* w,
 
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
+  WriteWrap* req_wrap = WriteWrap::from_req(req);
+  CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
