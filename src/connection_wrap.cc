@@ -1,5 +1,6 @@
 #include "connection_wrap.h"
 
+#include "connect_wrap.h"
 #include "env-inl.h"
 #include "env.h"
 #include "pipe_wrap.h"
@@ -10,6 +11,7 @@
 
 namespace node {
 
+using v8::Boolean;
 using v8::Context;
 using v8::HandleScope;
 using v8::Integer;
@@ -71,6 +73,46 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
   wrap_data->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
+
+template <typename WrapType, typename UVType>
+void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
+                                                    int status) {
+  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
+  CHECK_NE(req_wrap, nullptr);
+  WrapType* wrap = static_cast<WrapType*>(req->handle->data);
+  CHECK_EQ(req_wrap->env(), wrap->env());
+  Environment* env = wrap->env();
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  // The wrap and request objects should still be there.
+  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
+  CHECK_EQ(wrap->persistent().IsEmpty(), false);
+
+  bool readable, writable;
+
+  if (status) {
+    readable = writable = 0;
+  } else {
+    readable = uv_is_readable(req->handle) != 0;
+    writable = uv_is_writable(req->handle) != 0;
+  }
+
+  Local<Object> req_wrap_obj = req_wrap->object();
+  Local<Value> argv[5] = {
+    Integer::New(env->isolate(), status),
+    wrap->object(),
+    req_wrap_obj,
+    Boolean::New(env->isolate(), readable),
+    Boolean::New(env->isolate(), writable)
+  };
+
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
+
+  delete req_wrap;
+}
+
 template ConnectionWrap<PipeWrap, uv_pipe_t>::ConnectionWrap(
     Environment* env,
     Local<Object> object,
@@ -88,6 +130,12 @@ template void ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection(
 
 template void ConnectionWrap<TCPWrap, uv_tcp_t>::OnConnection(
     uv_stream_t* handle, int status);
+
+template void ConnectionWrap<PipeWrap, uv_pipe_t>::AfterConnect(
+    uv_connect_t* handle, int status);
+
+template void ConnectionWrap<TCPWrap, uv_tcp_t>::AfterConnect(
+    uv_connect_t* handle, int status);
 
 
 }  // namespace node
