@@ -255,7 +255,7 @@ void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
   }
 
   int err = uv_udp_set_multicast_interface(&wrap->handle_,
-                                  iface_cstr);
+                                           iface_cstr);
   args.GetReturnValue().Set(err);
 }
 
