@@ -305,7 +305,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   }
 
   if (err == 0) {
-    err = uv_udp_send(&req_wrap->req_,
+    err = uv_udp_send(req_wrap->req(),
                       &wrap->handle_,
                       *bufs,
                       count,
