@@ -18,13 +18,19 @@ class ReqWrap : public AsyncWrap {
                  AsyncWrap::ProviderType provider);
   inline ~ReqWrap() override;
   inline void Dispatched();  // Call this after the req has been dispatched.
+  T* req() { return &req_; }
 
  private:
   friend class Environment;
   ListNode<ReqWrap> req_wrap_queue_;
 
- public:
-  T req_;  // Must be last.  TODO(bnoordhuis) Make private.
+ protected:
+  // req_wrap_queue_ needs to be at a fixed offset from the start of the class
+  // because it is used by ContainerOf to calculate the address of the embedding
+  // ReqWrap. ContainerOf compiles down to simple, fixed pointer arithmetic.
+  // sizeof(req_) depends on the type of T, so req_wrap_queue_ would
+  // no longer be at a fixed offset if it came after req_.
+  T req_;
 };
 
 }  // namespace node
