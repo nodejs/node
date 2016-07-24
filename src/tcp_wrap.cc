@@ -235,34 +235,6 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
-  TCPWrap* wrap = static_cast<TCPWrap*>(req->handle->data);
-  CHECK_EQ(req_wrap->env(), wrap->env());
-  Environment* env = wrap->env();
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  // The wrap and request objects should still be there.
-  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
-
-  Local<Object> req_wrap_obj = req_wrap->object();
-  Local<Value> argv[5] = {
-    Integer::New(env->isolate(), status),
-    wrap->object(),
-    req_wrap_obj,
-    v8::True(env->isolate()),
-    v8::True(env->isolate())
-  };
-
-  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-
-  delete req_wrap;
-}
-
-
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
