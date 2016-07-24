@@ -137,7 +137,7 @@ static inline bool IsInt64(double x) {
 
 static void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
-  CHECK_EQ(&req_wrap->req_, req);
+  CHECK_EQ(req_wrap->req(), req);
   req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
 
   Environment* env = req_wrap->env();
@@ -320,7 +320,7 @@ static void After(uv_fs_t *req) {
 
   req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
-  uv_fs_req_cleanup(&req_wrap->req_);
+  uv_fs_req_cleanup(req_wrap->req());
   req_wrap->Dispose();
 }
 
@@ -337,18 +337,18 @@ class fs_req_wrap {
 };
 
 
-#define ASYNC_DEST_CALL(func, req, dest, encoding, ...)                       \
+#define ASYNC_DEST_CALL(func, request, dest, encoding, ...)                   \
   Environment* env = Environment::GetCurrent(args);                           \
-  CHECK(req->IsObject());                                                     \
-  FSReqWrap* req_wrap = FSReqWrap::New(env, req.As<Object>(),                 \
+  CHECK(request->IsObject());                                                 \
+  FSReqWrap* req_wrap = FSReqWrap::New(env, request.As<Object>(),             \
                                        #func, dest, encoding);                \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
-                           &req_wrap->req_,                                   \
+                           req_wrap->req(),                                   \
                            __VA_ARGS__,                                       \
                            After);                                            \
   req_wrap->Dispatched();                                                     \
   if (err < 0) {                                                              \
-    uv_fs_t* uv_req = &req_wrap->req_;                                        \
+    uv_fs_t* uv_req = req_wrap->req();                                        \
     uv_req->result = err;                                                     \
     uv_req->path = nullptr;                                                   \
     After(uv_req);                                                            \
@@ -1164,7 +1164,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap* req_wrap =
       FSReqWrap::New(env, req.As<Object>(), "write", buf, UTF8, ownership);
   int err = uv_fs_write(env->event_loop(),
-                        &req_wrap->req_,
+                        req_wrap->req(),
                         fd,
                         &uvbuf,
                         1,
@@ -1172,7 +1172,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
                         After);
   req_wrap->Dispatched();
   if (err < 0) {
-    uv_fs_t* uv_req = &req_wrap->req_;
+    uv_fs_t* uv_req = req_wrap->req();
     uv_req->result = err;
     uv_req->path = nullptr;
     After(uv_req);

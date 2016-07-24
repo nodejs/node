@@ -257,7 +257,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   if (err == 0) {
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(&req_wrap->req_,
+    err = uv_tcp_connect(req_wrap->req(),
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
@@ -292,7 +292,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   if (err == 0) {
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(&req_wrap->req_,
+    err = uv_tcp_connect(req_wrap->req(),
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
