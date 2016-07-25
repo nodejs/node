@@ -5,8 +5,8 @@ Node.js
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
-efficient. The Node.js package ecosystem, npm, is the largest ecosystem of open
-source libraries in the world.
+efficient. The Node.js package ecosystem, [npm](https://www.npmjs.com), 
+is the largest ecosystem of open source libraries in the world.
 
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
@@ -19,8 +19,8 @@ If you need help using or installing Node.js, please use the
 
 ## Resources for Newcomers
 
-* [Website](https://nodejs.org/en/)
-* [Contributing to the project](./CONTRIBUTING.md)
+* [nodejs.org](https://nodejs.org/)
+* Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md)
 * IRC (general questions): [#node.js on chat.freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
 * IRC (node core development): [#node-dev on chat.freenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
 
