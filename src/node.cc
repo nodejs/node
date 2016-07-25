@@ -208,9 +208,11 @@ static struct {
     platform_ = nullptr;
   }
 
-  void StartInspector(Environment *env, int port, bool wait) {
+  bool StartInspector(Environment *env, int port, bool wait) {
 #if HAVE_INSPECTOR
-    env->inspector_agent()->Start(platform_, port, wait);
+    return env->inspector_agent()->Start(platform_, port, wait);
+#else
+    return true;
 #endif  // HAVE_INSPECTOR
   }
 
@@ -3836,8 +3838,7 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 static void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
   if (use_inspector) {
-    v8_platform.StartInspector(env, inspector_port, wait);
-    debugger_running = true;
+    debugger_running = v8_platform.StartInspector(env, inspector_port, wait);
   } else {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
@@ -4547,8 +4548,12 @@ static void StartNodeInstance(void* arg) {
         ShouldAbortOnUncaughtException);
 
     // Start debug agent when argv has --debug
-    if (instance_data->use_debug_agent())
+    if (instance_data->use_debug_agent()) {
       StartDebug(env, debug_wait_connect);
+      if (use_inspector && !debugger_running) {
+        exit(12);
+      }
+    }
 
     {
       Environment::AsyncCallbackScope callback_scope(env);
