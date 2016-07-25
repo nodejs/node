@@ -31,6 +31,9 @@
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
 
+    # Don't use ICU data file (icudtl.dat) from V8, we use our own.
+    'icu_use_data_file_flag%': 0,
+
     'conditions': [
       ['OS == "win"', {
         'os_posix': 0,
