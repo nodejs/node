@@ -1643,8 +1643,9 @@ cases:
   source code internal in Node.js's bootstrapping process threw an error
   when the bootstrapping function was called.  This is extremely rare,
   and generally can only happen during development of Node.js itself.
-* `12` **Invalid Debug Argument** - The `--debug` and/or `--debug-brk`
-  options were set, but an invalid port number was chosen.
+* `12` **Invalid Debug Argument** - The `--debug`, `--inspect` and/or
+  `--debug-brk` options were set, but the port number chosen was invalid
+  or unavailable.
 * `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
   value of the signal code.  This is a standard Unix practice, since
