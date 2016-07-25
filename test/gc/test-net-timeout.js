@@ -36,7 +36,12 @@ function getall() {
   if (count >= todo)
     return;
 
-  const req = net.connect(server.address().port, server.address().address);
+  if(server.address().family === 'IPv4') {
+    var req = net.connect(server.address().port, '127.0.0.1');
+  }
+  else {
+    var req = net.connect(server.address().port, '::1');
+  }
   req.resume();
   req.setTimeout(10, function() {
     req.destroy();
