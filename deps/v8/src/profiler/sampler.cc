@@ -210,7 +210,7 @@ void* ThreadKey(pthread_t thread_id) {
 
 // Returns hash value for hash map.
 uint32_t ThreadHash(pthread_t thread_id) {
-#if V8_OS_MACOSX
+#if V8_OS_MACOSX || V8_OS_FREEBSD
   return static_cast<uint32_t>(reinterpret_cast<intptr_t>(thread_id));
 #else
   return static_cast<uint32_t>(thread_id);
