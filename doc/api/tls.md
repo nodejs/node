@@ -910,8 +910,6 @@ socket.on('end', () => {
   server.close();
 });
 ```
-  - `clientCertEngine`: A string with the name of an OpenSSL engine which
-    can provide the client certificate.
 
 
 ## tls.createSecureContext(options)
