@@ -246,6 +246,8 @@ added: v0.5.0
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and 
+    instead use only spaces to separate provided arguments
   * `execPath` {String} Executable used to create the child process
   * `execArgv` {Array} List of string arguments passed to the executable
     (Default: `process.execArgv`)
