@@ -119,13 +119,8 @@ When an agenda item has appeared to reach a consensus, the moderator will ask
 "Does anyone object?" as a final call for dissent from the consensus.
 
 If an agenda item cannot reach a consensus, a CTC member can call for either a
-closing vote or a vote to table the issue to the next meeting. The call for a
-vote must be approved by a simple majority of the CTC or else the discussion
-will continue.
-
-A vote may be scheduled for a future date to allow time for CTC members to
-better educate themselves about relevant issues. A vote is not valid unless
-there is participation of a quorum of the CTC. A CTC quorum is more than half of
-the CTC. Absentee votes may be cast in advance by commenting on the weekly CTC
-agenda issue on GitHub. Explicit abstention from voting constitutes
-participation.
+closing vote or a vote to table the issue to the next meeting. All votes
+(including votes to close or table) pass if and only if more than 50% of the CTC
+members (excluding individuals who explicitly abstain) vote in favor. For
+example, if there are 20 CTC members, and 5 of those members indicate that they
+abstain, then 8 votes in favor are required for a resolution to pass.
