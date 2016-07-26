@@ -2535,27 +2535,6 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     Handle<Object> right) {
   BinaryOpICState state(isolate(), extra_ic_state());
 
-#ifdef V8_TARGET_ARCH_X64
-  // Crash instrumentation for crbug.com/621147.
-  uintptr_t left_raw = reinterpret_cast<uintptr_t>(*left);
-  uintptr_t hole_raw =
-      reinterpret_cast<uintptr_t>(isolate()->heap()->the_hole_value());
-  if ((hole_raw & ((1ull << 32) - 1)) == (left_raw & ((1ull << 32) - 1))) {
-    Code* c = GetCode();
-    Code::Kind kind = c->kind();
-    int instruction_size = c->instruction_size() + 2 * sizeof(Address);
-    byte* instructions = static_cast<byte*>(alloca(instruction_size));
-    Address* start = reinterpret_cast<Address*>(instructions);
-    start[0] = fp();
-    start[1] = pc();
-    for (int i = 2 * sizeof(Address); i < instruction_size; i++) {
-      instructions[i] = c->instruction_start()[i];
-    }
-    isolate()->PushStackTraceAndDie(0xBAAAAAAD, instructions, fp(),
-                                    static_cast<unsigned int>(kind));
-  }
-#endif  // V8_TARGET_ARCH_X64
-
   // Compute the actual result using the builtin for the binary operation.
   Handle<Object> result;
   switch (state.op()) {
