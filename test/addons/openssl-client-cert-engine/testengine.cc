@@ -40,7 +40,7 @@ static int EngineDestroy(ENGINE* engine) {
   return 1;
 }
 
-static std::string loadFile(const char* filename) {
+static std::string LoadFile(const char* filename) {
   std::string ret;
   FILE* fp = fopen(filename, "r");
   if (fp == NULL) {
@@ -75,7 +75,7 @@ static int EngineLoadSSLClientCert(ENGINE* engine,
   printf("EngineLoadSSLClientCert\n");
 
   if (ppcert) {
-    std::string cert = loadFile(AGENT_CERT);
+    std::string cert = LoadFile(AGENT_CERT);
     if (cert.size() == 0) {
       return 0;
     }
@@ -90,7 +90,7 @@ static int EngineLoadSSLClientCert(ENGINE* engine,
   }
 
   if (ppkey) {
-    std::string key = loadFile(AGENT_KEY);
+    std::string key = LoadFile(AGENT_KEY);
     if (key.empty()) {
       return 0;
     }

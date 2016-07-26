@@ -1070,7 +1070,7 @@ void SecureContext::SetClientCertEngine(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
-  CHECK_EQ(args[0]->IsString(), true);
+  CHECK(args[0]->IsString());
 
   SecureContext* sc = Unwrap<SecureContext>(args.This());
 
@@ -1082,12 +1082,11 @@ void SecureContext::SetClientCertEngine(
   // Instead of trying to fix up this problem we in turn also do not
   // support multiple calls to SetClientCertEngine. As this may surprise
   // a developer we throw him an exception.
-  if (sc->ctx_->client_cert_engine != NULL) {
+  if (sc->ctx_->client_cert_engine != nullptr) {
     return env->ThrowError(
-        "Multiple calls to SetClientCertEngine is not allowed");
+        "Multiple calls to SetClientCertEngine are not allowed");
   }
 
-  // Load engine.
   const node::Utf8Value engine_id(env->isolate(), args[0]);
   ENGINE* engine = LoadEngineById(env, *engine_id);
 
