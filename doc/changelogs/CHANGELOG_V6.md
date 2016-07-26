@@ -39,7 +39,7 @@ October 2016.
   * Improve performance of Buffer.from(str, 'hex') and Buffer#write(str, 'hex'). (Christopher Jeffrey) [#7602](https://github.com/nodejs/node/pull/7602)
   * Fix creating from zero-length ArrayBuffer. (Ingvar Stepanyan) [#7176](https://github.com/nodejs/node/pull/7176)
 * **deps**:
-  * Upgrade to V8 5.0.71.xx. (Ben Noordhuis) [#7531](https://github.com/nodejs/node/pull/7531)
+  * Upgrade to V8 5.0.71.57. (Ben Noordhuis) [#7531](https://github.com/nodejs/node/pull/7531)
   * Backport V8 instanceof bugfix (Franziska Hinkelmann) [#7638](https://github.com/nodejs/node/pull/7638)
 * **repl**: Fix issue with function redeclaration. (Prince J Wesley) [#7794](https://github.com/nodejs/node/pull/7794)
 * **util**: Fix inspecting of boxed symbols. (Anna Henningsen) [#7641](https://github.com/nodejs/node/pull/7641)
