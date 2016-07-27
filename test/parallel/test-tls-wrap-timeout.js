@@ -18,11 +18,11 @@ const options = {
 
 const server = tls.createServer(options, common.mustCall((c) => {
   setImmediate(() => {
-    c.write('hello');
-    setImmediate(() => {
-      c.destroy();
-      server.close();
-      assert(lastIdleStart < socket._idleStart);
+    c.write('hello', () => {
+      setImmediate(() => {
+        c.destroy();
+        server.close();
+      });
     });
   });
 }));
@@ -49,4 +49,5 @@ server.listen(0, () => {
 
 process.on('exit', () => {
   assert.strictEqual(socket._idleTimeout, -1);
+  assert(lastIdleStart < socket._idleStart);
 });
