@@ -121,6 +121,8 @@ added: v0.1.90
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and
+    instead use only spaces to separate provided arguments
   * `encoding` {String} (Default: `'utf8'`)
   * `shell` {String} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
@@ -198,6 +200,8 @@ added: v0.1.91
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and
+    instead use only spaces to separate provided arguments
   * `encoding` {String} (Default: `'utf8'`)
   * `timeout` {Number} (Default: `0`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
@@ -297,6 +301,8 @@ added: v0.1.90
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and
+    instead use only spaces to separate provided arguments
   * `stdio` {Array|String} Child's stdio configuration. (See
     [`options.stdio`][`stdio`])
   * `detached` {Boolean} Prepare child to run independently of its parent
@@ -561,6 +567,8 @@ added: v0.11.12
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and
+    instead use only spaces to separate provided arguments
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process
@@ -599,6 +607,8 @@ added: v0.11.12
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and
+    instead use only spaces to separate provided arguments
   * `shell` {String} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
      understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
@@ -641,6 +651,8 @@ added: v0.11.12
     - supplying this value will override `stdio[0]`
   * `stdio` {Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs
+  * `windowsVerbatimArguments` {Boolean} Disable unix-like argument formatting and
+    instead use only spaces to separate provided arguments
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process
