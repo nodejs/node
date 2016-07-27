@@ -220,7 +220,7 @@ values similar to `printf(3)` (the arguments are all passed to
 var count = 5;
 console.log('count: %d', count);
   // Prints: count: 5, to stdout
-console.log('count: ', count);
+console.log('count:', count);
   // Prints: count: 5, to stdout
 ```
 
