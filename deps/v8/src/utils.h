@@ -1208,8 +1208,7 @@ void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars) {
 template <typename sourcechar, typename sinkchar>
 void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, size_t chars) {
   sinkchar* limit = dest + chars;
-  if ((sizeof(*dest) == sizeof(*src)) &&
-      (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
+  if (sizeof(*dest) == sizeof(*src)) {
     MemCopy(dest, src, chars * sizeof(*dest));
   } else {
     while (dest < limit) *dest++ = static_cast<sinkchar>(*src++);
