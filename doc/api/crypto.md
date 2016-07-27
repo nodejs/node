@@ -601,7 +601,7 @@ called. Multiple calls will cause an error to be thrown.
 Updates the hash content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'binary'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
+encoding of `'binary'` is implied. If `data` is a [`Buffer`][] then
 `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
@@ -674,7 +674,7 @@ called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 Updates the `Hmac` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'binary'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
+encoding of `'binary'` is implied. If `data` is a [`Buffer`][] then
 `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
@@ -765,7 +765,7 @@ called. Multiple calls to `sign.sign()` will result in an error being thrown.
 Updates the `Sign` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'binary'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
+encoding of `'binary'` is implied. If `data` is a [`Buffer`][] then
 `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
@@ -817,7 +817,7 @@ console.log(verify.verify(public_key, signature));
 Updates the `Verify` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'binary'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
+encoding of `'binary'` is implied. If `data` is a [`Buffer`][] then
 `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
