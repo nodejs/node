@@ -2,7 +2,7 @@
 var common = require('../common');
 var net = require('net');
 var assert = require('assert');
-var N = 50;
+var N = 20;
 var client_error_count = 0;
 var disconnect_count = 0;
 
