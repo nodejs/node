@@ -155,7 +155,7 @@ const tests = [
     env: {},
     test: [UP, UP, ENTER],
     expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
-                prompt]
+               prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
@@ -208,7 +208,8 @@ function cleanupTmpFile() {
 
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
-  .pipe(fs.createWriteStream(historyPath)).on('unpipe', runTest);
+  .pipe(fs.createWriteStream(historyPath)).on('unpipe',
+  common.mustCall(runTest));
 
 function runTest(assertCleaned) {
   const opts = tests.shift();
@@ -261,7 +262,7 @@ function runTest(assertCleaned) {
       throw err;
     }
 
-    repl.once('exit', onExit);
+    repl.once('exit', common.mustCall(onExit));
 
     function onExit() {
       const cleaned = after ? after() : cleanupTmpFile();
