@@ -136,10 +136,7 @@ beginning of each meeting. The moderator and the CTC cannot veto or remove
 items.
 
 The CTC may invite persons or representatives from certain projects to
-participate in a non-voting capacity. Individuals, including former CTC members,
-may be given a standing invitation to the CTC meeting as a non-voting
-participant so that they may assist the CTC in areas where they have particular
-expertise.
+participate in a non-voting capacity. 
 
 The moderator is responsible for summarizing the discussion of each agenda item
 and sending it as a pull request after the meeting.
