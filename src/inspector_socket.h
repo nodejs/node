@@ -4,6 +4,9 @@
 #include "http_parser.h"
 #include "uv.h"
 
+#include <string>
+#include <vector>
+
 enum inspector_handshake_event {
   kInspectorHandshakeUpgrading,
   kInspectorHandshakeUpgraded,
@@ -19,17 +22,32 @@ typedef void (*inspector_cb)(struct inspector_socket_s*, int);
 // the connection. inspector_write can be used from the callback.
 typedef bool (*handshake_cb)(struct inspector_socket_s*,
                              enum inspector_handshake_event state,
-                             const char* path);
+                             const std::string& path);
 
-struct http_parsing_state_s;
-struct ws_state_s;
+struct http_parsing_state_s {
+  http_parser parser;
+  http_parser_settings parser_settings;
+  handshake_cb callback;
+  bool done;
+  bool parsing_value;
+  std::string ws_key;
+  std::string path;
+  std::string current_header;
+};
+
+struct ws_state_s {
+  uv_alloc_cb alloc_cb;
+  uv_read_cb read_cb;
+  inspector_cb close_cb;
+  bool close_sent;
+  bool received_close;
+};
 
 struct inspector_socket_s {
   void* data;
   struct http_parsing_state_s* http_parsing_state;
   struct ws_state_s* ws_state;
-  char* buffer;
-  size_t buffer_size;
+  std::vector<char> buffer;
   size_t data_len;
   size_t last_read_end;
   uv_tcp_t client;

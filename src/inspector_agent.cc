@@ -48,8 +48,8 @@ void PrintDebuggerReadyMessage(int port) {
       port, DEVTOOLS_HASH, port);
 }
 
-bool AcceptsConnection(inspector_socket_t* socket, const char* path) {
-  return strncmp(DEVTOOLS_PATH, path, sizeof(DEVTOOLS_PATH)) == 0;
+bool AcceptsConnection(inspector_socket_t* socket, const std::string& path) {
+  return 0 == path.compare(0, sizeof(DEVTOOLS_PATH) - 1, DEVTOOLS_PATH);
 }
 
 void DisposeInspector(inspector_socket_t* socket, int status) {
@@ -63,10 +63,7 @@ void DisconnectAndDisposeIO(inspector_socket_t* socket) {
 }
 
 void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
-  if (len > 0) {
-    buf->base = static_cast<char*>(malloc(len));
-    CHECK_NE(buf->base, nullptr);
-  }
+  buf->base = new char[len];
   buf->len = len;
 }
 
@@ -133,18 +130,19 @@ void SendTargentsListResponse(inspector_socket_t* socket, int port) {
   SendHttpResponse(socket, buffer, len);
 }
 
-bool RespondToGet(inspector_socket_t* socket, const char* path, int port) {
+bool RespondToGet(inspector_socket_t* socket, const std::string& path,
+                  int port) {
   const char PATH[] = "/json";
   const char PATH_LIST[] = "/json/list";
   const char PATH_VERSION[] = "/json/version";
   const char PATH_ACTIVATE[] = "/json/activate/";
-  if (!strncmp(PATH_VERSION, path, sizeof(PATH_VERSION))) {
+  if (0 == path.compare(0, sizeof(PATH_VERSION) - 1, PATH_VERSION)) {
     SendVersionResponse(socket);
-  } else if (!strncmp(PATH_LIST, path, sizeof(PATH_LIST)) ||
-             !strncmp(PATH, path, sizeof(PATH)))  {
+  } else if (0 == path.compare(0, sizeof(PATH_LIST) - 1, PATH_LIST) ||
+             0 == path.compare(0, sizeof(PATH) - 1, PATH)) {
     SendTargentsListResponse(socket, port);
-  } else if (!strncmp(path, PATH_ACTIVATE, sizeof(PATH_ACTIVATE) - 1) &&
-             atoi(path + (sizeof(PATH_ACTIVATE) - 1)) == getpid()) {
+  } else if (0 == path.compare(0, sizeof(PATH_ACTIVATE) - 1, PATH_ACTIVATE) &&
+             atoi(path.substr(sizeof(PATH_ACTIVATE) - 1).c_str()) == getpid()) {
     const char TARGET_ACTIVATED[] = "Target activated";
     SendHttpResponse(socket, TARGET_ACTIVATED, sizeof(TARGET_ACTIVATED) - 1);
   } else {
@@ -180,7 +178,7 @@ class AgentImpl {
   static void OnSocketConnectionIO(uv_stream_t* server, int status);
   static bool OnInspectorHandshakeIO(inspector_socket_t* socket,
                                      enum inspector_handshake_event state,
-                                     const char* path);
+                                     const std::string& path);
   static void WriteCbIO(uv_async_t* async);
 
   void WorkerRunIO();
@@ -387,7 +385,6 @@ void AgentImpl::ThreadCbIO(void* agent) {
 void AgentImpl::OnSocketConnectionIO(uv_stream_t* server, int status) {
   if (status == 0) {
     inspector_socket_t* socket = new inspector_socket_t();
-    memset(socket, 0, sizeof(*socket));
     socket->data = server->data;
     if (inspector_accept(server, socket,
                          AgentImpl::OnInspectorHandshakeIO) != 0) {
@@ -398,8 +395,8 @@ void AgentImpl::OnSocketConnectionIO(uv_stream_t* server, int status) {
 
 // static
 bool AgentImpl::OnInspectorHandshakeIO(inspector_socket_t* socket,
-                                   enum inspector_handshake_event state,
-                                   const char* path) {
+                                       enum inspector_handshake_event state,
+                                       const std::string& path) {
   AgentImpl* agent = static_cast<AgentImpl*>(socket->data);
   switch (state) {
   case kInspectorHandshakeHttpGet:
@@ -442,7 +439,7 @@ void AgentImpl::OnRemoteDataIO(inspector_socket_t* socket,
     DisconnectAndDisposeIO(socket);
   }
   if (buf) {
-    free(buf->base);
+    delete[] buf->base;
   }
   pause_cond_.Broadcast(scoped_lock);
 }
