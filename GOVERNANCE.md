@@ -58,11 +58,11 @@ A guide for Collaborators is maintained in
 
 Typical activities of a Collaborator include:
 
-* contributing code and documentation changes to improve the project
-* merging pull requests
+* helping users and novice contributors
+* contributing code and documentation changes that improve the project
 * reviewing and commenting on issues and pull requests
 * participation in working groups
-* helping users and novice contributors
+* merging pull requests
 
 While the above are typical things done by Collaborators, there are no required
 activities to retain Collaborator status. There is currently no process by which
