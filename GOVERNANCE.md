@@ -84,10 +84,13 @@ The CTC may add additional members to the CTC by a standard CTC motion.
 When a CTC member's participation in [CTC activities](#ctc-activites) has become
 minimal for a sustained period of time, the CTC will request that the member
 either indicate an intention to increase participation or voluntarily resign.
-Former CTC members may be given a standing invitation to the CTC meeting as a
-non-voting participant so that they may assist the CTC in areas where they have
-particular expertise. CTC members may only be removed by voluntary resignation
-or through a standard CTC motion.
+
+Individuals, including former CTC members, may be given a standing invitation to
+the CTC meeting as a non-voting participant so that they may assist the CTC in
+areas where they have particular expertise.
+
+CTC members may only be removed by voluntary resignation or through a standard
+CTC motion.
 
 Changes to CTC membership should be posted in the agenda, and may be
 suggested as any other agenda item (see "CTC Meetings" below).
