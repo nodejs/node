@@ -71,4 +71,9 @@ bool V8Inspector::canExecuteScripts()
     return true;
 }
 
+void V8Inspector::notifyContextDestroyed()
+{
+    m_debugger->contextDestroyed(m_context);
+}
+
 } // namespace blink

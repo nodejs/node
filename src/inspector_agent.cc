@@ -381,6 +381,7 @@ bool AgentImpl::IsStarted() {
 void AgentImpl::WaitForDisconnect() {
   shutting_down_ = true;
   fprintf(stderr, "Waiting for the debugger to disconnect...\n");
+  inspector_->notifyContextDestroyed();
   inspector_->runMessageLoopOnPause(0);
 }
 
