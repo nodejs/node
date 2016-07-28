@@ -94,6 +94,7 @@ function testMagicMode() {
           `);
 
   assertOutput(r.output, [
+    'magic mode is deprecated. Switched to sloppy mode',
     'undefined',
     '10',
     '10',
