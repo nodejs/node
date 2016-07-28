@@ -89,7 +89,7 @@ CTC members may only be removed by voluntary resignation or through a standard
 CTC motion.
 
 Changes to CTC membership should be posted in the agenda, and may be
-suggested as any other agenda item (see [CTC Meetings](ctc-meetings) below).
+suggested as any other agenda item (see [CTC Meetings](#ctc-meetings) below).
 
 No more than 1/3 of the CTC members may be affiliated with the same
 employer.  If removal or resignation of a CTC member, or a change of
