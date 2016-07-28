@@ -85,15 +85,11 @@ When a CTC member's participation in [CTC activities](#ctc-activites) has become
 minimal for a sustained period of time, the CTC will request that the member
 either indicate an intention to increase participation or voluntarily resign.
 
-Individuals, including former CTC members, may be given a standing invitation to
-the CTC meeting as a non-voting participant so that they may assist the CTC in
-areas where they have particular expertise.
-
 CTC members may only be removed by voluntary resignation or through a standard
 CTC motion.
 
 Changes to CTC membership should be posted in the agenda, and may be
-suggested as any other agenda item (see "CTC Meetings" below).
+suggested as any other agenda item (see [CTC Meetings](ctc-meetings) below).
 
 No more than 1/3 of the CTC members may be affiliated with the same
 employer.  If removal or resignation of a CTC member, or a change of
@@ -140,7 +136,10 @@ beginning of each meeting. The moderator and the CTC cannot veto or remove
 items.
 
 The CTC may invite persons or representatives from certain projects to
-participate in a non-voting capacity.
+participate in a non-voting capacity. Individuals, including former CTC members,
+may be given a standing invitation to the CTC meeting as a non-voting
+participant so that they may assist the CTC in areas where they have particular
+expertise.
 
 The moderator is responsible for summarizing the discussion of each agenda item
 and sending it as a pull request after the meeting.
