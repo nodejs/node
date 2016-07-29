@@ -7,47 +7,53 @@ separate module.
 
 ## Class: https.Agent
 <!-- YAML
-added: v0.4.5
+added: v0.4.4
 -->
 
-An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
-for more information.
+**Inherits:** [`http.Agent`]
+
+An Agent object for HTTPS.
 
 ## Class: https.Server
 <!-- YAML
 added: v0.3.4
 -->
 
-This class is a subclass of `tls.Server` and emits events same as
-[`http.Server`][]. See [`http.Server`][] for more information.
+**Inherits:** [`tls.Server`]
+**Implements:** [`http.Server`]
+
+`https.Server` includes the following events, methods, and properties:
 
 ### server.setTimeout(msecs, callback)
 <!-- YAML
 added: v0.11.2
 -->
 
-See [`http.Server#setTimeout()`][].
+See [`http.Server#setTimeout()`].
 
 ### server.timeout
 <!-- YAML
 added: v0.11.2
 -->
 
-See [`http.Server#timeout`][].
+See [`http.Server#timeout`].
 
-## https.createServer(options[, requestListener])
+## https.createServer(options[, callback])
 <!-- YAML
 added: v0.3.4
 -->
 
-Returns a new HTTPS web server object. The `options` is similar to
-[`tls.createServer()`][].  The `requestListener` is a function which is
-automatically added to the `'request'` event.
+* `options` {Object} This object is used to configure the underlying [`tls.Server`].
+  See [`tls.createServer()`] for valid properties.
+* `callback` {Function} If supplied, `callback` is automatically added as a
+  `request` event handler
+* Return: [`https.Server`] instance
 
-Example:
+Creates a new HTTPS server instance.
+
+Examples:
 
 ```js
-// curl -k https://localhost:8000/
 const https = require('https');
 const fs = require('fs');
 
@@ -60,46 +66,36 @@ https.createServer(options, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
 }).listen(8000);
-```
 
-Or
 
-```js
-const https = require('https');
-const fs = require('fs');
-
-const options = {
+// Or use a .pfx file which contains both the private key *and* certificate
+const optionsPfx = {
   pfx: fs.readFileSync('server.pfx')
 };
 
-https.createServer(options, (req, res) => {
+https.createServer(optionsPfx, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
-}).listen(8000);
+}).listen(8001);
 ```
 
-### server.close([callback])
-<!-- YAML
-added: v0.1.90
--->
-
-See [`http.close()`][] for details.
-
-### server.listen(handle[, callback])
-### server.listen(path[, callback])
-### server.listen(port[, host][, backlog][, callback])
-
-See [`http.listen()`][] for details.
-
-## https.get(options, callback)
+## https.get(options[, callback])
 <!-- YAML
 added: v0.3.6
 -->
 
-Like [`http.get()`][] but for HTTPS.
+* `options` {Object | String} Contains request and connection details. If `options`
+  is a string, it is automatically parsed with [`url.parse()`]. If `options` is
+  an object, valid properties include those for [`http.request()`], except
+  `protocol` defaults to `'https:'`. Additionally, options for [`tls.connect()`]
+  can be specified (however, the [`https.globalAgent`] silently ignores these).
+* `callback` {Function} If supplied, `callback` is automatically added as a
+  `response` event handler
+* Return: [`http.ClientRequest`] instance
 
-`options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [`url.parse()`][].
+This function is a convenience wrapper function around [`https.request()`] that
+presets `method: 'GET'` in `options` and automatically calls `request.end()` on
+the request object.
 
 Example:
 
@@ -113,7 +109,6 @@ https.get('https://encrypted.google.com/', (res) => {
   res.on('data', (d) => {
     process.stdout.write(d);
   });
-
 }).on('error', (e) => {
   console.error(e);
 });
@@ -124,150 +119,92 @@ https.get('https://encrypted.google.com/', (res) => {
 added: v0.5.9
 -->
 
-Global instance of [`https.Agent`][] for all HTTPS client requests.
+Global instance of [`https.Agent`] for all HTTPS client requests.
 
-## https.request(options, callback)
+## https.request(options[, callback])
 <!-- YAML
 added: v0.3.6
 -->
 
-Makes a request to a secure web server.
+* `options` {Object | String} Contains request and connection details. If `options`
+  is a string, it is automatically parsed with [`url.parse()`]. If `options` is
+  an object, valid properties include those for [`http.request()`], except
+  `protocol` defaults to `'https:'`. Additionally, options for [`tls.connect()`]
+  can be specified (however, the [`https.globalAgent`] silently ignores these).
+* `callback` {Function} If supplied, `callback` is automatically added as a
+  `response` event handler
+* Return: [`http.ClientRequest`] instance
 
-`options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [`url.parse()`][].
-
-All options from [`http.request()`][] are valid.
+Creates and initiates a request to an HTTPS server.
 
 Example:
 
 ```js
 const https = require('https');
 
-var options = {
-  hostname: 'encrypted.google.com',
+const options = {
+  host: 'encrypted.google.com',
   port: 443,
   path: '/',
   method: 'GET'
 };
 
-var req = https.request(options, (res) => {
+const req = https.request(options, (res) => {
   console.log('statusCode: ', res.statusCode);
   console.log('headers: ', res.headers);
 
   res.on('data', (d) => {
     process.stdout.write(d);
   });
-});
-req.end();
-
-req.on('error', (e) => {
+}).on('error', (e) => {
   console.error(e);
 });
+
+req.end();
 ```
 
-The options argument has the following options
-
-- `host`: A domain name or IP address of the server to issue the request to.
-  Defaults to `'localhost'`.
-- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
-  preferred over `host`.
-- `family`: IP address family to use when resolving `host` and `hostname`.
-  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
-  used.
-- `port`: Port of remote server. Defaults to 443.
-- `localAddress`: Local interface to bind for network connections.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
-- `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
-- `path`: Request path. Defaults to `'/'`. Should include query string if any.
-  E.G. `'/index.html?page=12'`. An exception is thrown when the request path
-  contains illegal characters. Currently, only spaces are rejected but that
-  may change in the future.
-- `headers`: An object containing request headers.
-- `auth`: Basic authentication i.e. `'user:password'` to compute an
-  Authorization header.
-- `agent`: Controls [`Agent`][] behavior. When an Agent is used request will
-  default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [`globalAgent`][] for this host and port.
- - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: opts out of connection pooling with an Agent, defaults request to
-   `Connection: close`.
-
-The following options from [`tls.connect()`][] can also be specified. However, a
-[`globalAgent`][] silently ignores these.
-
-- `pfx`: Certificate, Private key and CA certificates to use for SSL. Default `null`.
-- `key`: Private key to use for SSL. Default `null`.
-- `passphrase`: A string of passphrase for the private key or pfx. Default `null`.
-- `cert`: Public x509 certificate to use. Default `null`.
-- `ca`: A string, [`Buffer`][] or array of strings or [`Buffer`][]s of trusted
-  certificates in PEM format. If this is omitted several well known "root"
-  CAs will be used, like VeriSign. These are used to authorize connections.
-- `ciphers`: A string describing the ciphers to use or exclude. Consult
-  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT> for
-  details on the format.
-- `rejectUnauthorized`: If `true`, the server certificate is verified against
-  the list of supplied CAs. An `'error'` event is emitted if verification
-  fails. Verification happens at the connection level, *before* the HTTP
-  request is sent. Default `true`.
-- `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
-  SSL version 3. The possible values depend on your installation of
-  OpenSSL and are defined in the constant [`SSL_METHODS`][].
-- `servername`: Servername for SNI (Server Name Indication) TLS extension.
-
-In order to specify these options, use a custom [`Agent`][].
-
-Example:
+Example: Use a custom [`https.Agent`] to pass options to [`tls.connect()`]
 
 ```js
-var options = {
-  hostname: 'encrypted.google.com',
+const https = require('https');
+
+const options = {
+  host: 'encrypted.google.com',
   port: 443,
   path: '/',
   method: 'GET',
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
-};
-options.agent = new https.Agent(options);
 
-var req = https.request(options, (res) => {
-  ...
-});
-```
-
-Alternatively, opt out of connection pooling by not using an `Agent`.
-
-Example:
-
-```js
-var options = {
-  hostname: 'encrypted.google.com',
-  port: 443,
-  path: '/',
-  method: 'GET',
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
-  agent: false
+  agent: new https.Agent({
+    // `tls.connect()`-specific options
+    secureProtocol: 'TLSv1_2_method'
+  })
 };
 
-var req = https.request(options, (res) => {
-  ...
+const req = https.request(options, (res) => {
+  console.log('statusCode: ', res.statusCode);
+  console.log('headers: ', res.headers);
+
+  res.on('data', (d) => {
+    process.stdout.write(d);
+  });
+}).on('error', (e) => {
+  console.error(e);
 });
+
+req.end();
 ```
 
-[`Agent`]: #https_class_https_agent
-[`Buffer`]: buffer.html#buffer_buffer
-[`globalAgent`]: #https_https_globalagent
 [`http.Agent`]: http.html#http_class_http_agent
-[`http.close()`]: http.html#http_server_close_callback
-[`http.get()`]: http.html#http_http_get_options_callback
-[`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
+[`http.ClientRequest`]: http.html#http_class_http_clientrequest
 [`http.request()`]: http.html#http_http_request_options_callback
+[`http.Server`]: http.html#http_class_http_server
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
 [`http.Server#timeout`]: http.html#http_server_timeout
-[`http.Server`]: http.html#http_class_http_server
 [`https.Agent`]: #https_class_https_agent
+[`https.globalAgent`]: #https_https_globalagent
 [`https.request()`]: #https_https_request_options_callback
-[`SSL_METHODS`]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[`https.Server`]: #https_class_https_server
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[`tls.Server`]: tls.html#tls_class_tls_server
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
