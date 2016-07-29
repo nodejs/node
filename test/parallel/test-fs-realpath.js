@@ -197,7 +197,7 @@ function test_cyclic_link_protection(callback) {
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(function() { fs.realpathSync(entry); }, /ELOOP/);
+  assert.throws(function() { fs.realpathSync(entry); });
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     assert.ok(err && true);
     return true;
@@ -454,76 +454,6 @@ function test_abs_with_kids(cb) {
   });
 }
 
-function test_deep_symlink_eloop(callback) {
-  console.log('test_deep_symlink_eloop');
-  if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
-    return runNextTest();
-  }
-
-  const deepsymPath = path.join(targetsAbsDir, 'deep-symlink');
-  const aPath = path.join(deepsymPath, 'a');
-  const bSympath = path.join(aPath, 'b');
-  const cleanupPaths = [bSympath];
-  const pRepeat = 33;
-
-  function cleanup() {
-    while (cleanupPaths.length > 0) {
-      try {fs.unlinkSync(cleanupPaths.pop());} catch (e) {}
-    }
-  }
-
-  fs.mkdirSync(deepsymPath);
-  fs.mkdirSync(aPath);
-  fs.mkdirSync(path.join(targetsAbsDir, 'deep-symlink', 'c'));
-  try {fs.unlinkSync(bSympath);} catch (e) {}
-  fs.symlinkSync(deepsymPath, bSympath);
-
-  // First test sync calls.
-
-  const testPath = aPath + '/b/a'.repeat(pRepeat) + '/b/c';
-  const resolvedPath = fs.realpathSync(testPath);
-  assert.equal(path.relative(deepsymPath, resolvedPath), 'c');
-
-  var reallyBigSymPath = deepsymPath;
-  var prev = null;
-
-  // Make massively deep set of symlinks
-  for (var i = 97; i < 105; i++) {
-    for (var j = 97; j < 101; j++) {
-      const link = String.fromCharCode(i) + String.fromCharCode(j);
-      const link_path = path.join(deepsymPath, link);
-      cleanupPaths.push(link_path);
-      try {fs.unlinkSync(link_path);} catch (e) {}
-      if (prev)
-        fs.symlinkSync(link_path, prev);
-      reallyBigSymPath += '/' + link;
-      prev = link_path;
-    }
-  }
-  fs.symlinkSync(deepsymPath, prev);
-  reallyBigSymPath += '/' + path.basename(prev);
-
-  assert.throws(() => fs.realpathSync(reallyBigSymPath), /ELOOP/);
-
-  // Now test async calls.
-
-  fs.realpath(testPath, (err, resolvedPath) => {
-    if (err) throw err;
-    assert.equal(path.relative(deepsymPath, resolvedPath), 'c');
-    checkAsyncReallyBigSymPath();
-  });
-
-  function checkAsyncReallyBigSymPath() {
-    fs.realpath(reallyBigSymPath, (err, path) => {
-      assert.ok(err);
-      assert.ok(/ELOOP/.test(err.message));
-      cleanup();
-      runNextTest();
-    });
-  }
-}
-
 // ----------------------------------------------------------------------------
 
 var tests = [
@@ -539,8 +469,7 @@ var tests = [
   test_non_symlinks,
   test_escape_cwd,
   test_abs_with_kids,
-  test_up_multiple,
-  test_deep_symlink_eloop,
+  test_up_multiple
 ];
 var numtests = tests.length;
 var testsRun = 0;
