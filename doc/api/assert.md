@@ -258,7 +258,7 @@ const obj3 = {
   a : {
     b : 1
   }
-}
+};
 const obj4 = Object.create(obj1);
 
 assert.notDeepEqual(obj1, obj1);
