@@ -81,7 +81,7 @@ membership beyond these rules.
 
 The CTC may add additional members to the CTC by a standard CTC motion.
 
-When a CTC member's participation in [CTC activities](#ctc-activites) has become
+When a CTC member's participation in [CTC activities](#ctc-activities) has become
 minimal for a sustained period of time, the CTC will request that the member
 either indicate an intention to increase participation or voluntarily resign.
 
