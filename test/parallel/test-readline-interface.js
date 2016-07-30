@@ -346,14 +346,22 @@ function isWarned(emitter) {
   assert.equal(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
 
   // check if vt control chars are stripped
-  assert.equal(internalReadline
-               .stripVTControlCharacters('\u001b[31m> \u001b[39m'), '> ');
-  assert.equal(internalReadline
-               .stripVTControlCharacters('\u001b[31m> \u001b[39m> '), '> > ');
-  assert.equal(internalReadline
-               .stripVTControlCharacters('\u001b[31m\u001b[39m'), '');
-  assert.equal(internalReadline
-               .stripVTControlCharacters('> '), '> ');
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m'),
+    '> '
+  );
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m> '),
+    '> > '
+  );
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('\u001b[31m\u001b[39m'),
+    ''
+  );
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('> '),
+    '> '
+  );
   assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
   assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
   assert.equal(internalReadline.getStringWidth('\u001b[31m\u001b[39m'), 0);

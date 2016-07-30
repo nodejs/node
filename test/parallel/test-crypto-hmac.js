@@ -351,17 +351,21 @@ var rfc2202_sha1 = [
 
 if (!common.hasFipsCrypto) {
   for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
-    assert.equal(rfc2202_md5[i]['hmac'],
-                 crypto.createHmac('md5', rfc2202_md5[i]['key'])
-                     .update(rfc2202_md5[i]['data'])
-                     .digest('hex'),
-                 'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
+    assert.strictEqual(
+      rfc2202_md5[i]['hmac'],
+      crypto.createHmac('md5', rfc2202_md5[i]['key'])
+        .update(rfc2202_md5[i]['data'])
+        .digest('hex'),
+      'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202'
+    );
   }
 }
 for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
-  assert.equal(rfc2202_sha1[i]['hmac'],
-               crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
-                   .update(rfc2202_sha1[i]['data'])
-                   .digest('hex'),
-               'Test HMAC-SHA1 : Test case ' + (i + 1) + ' rfc 2202');
+  assert.strictEqual(
+    rfc2202_sha1[i]['hmac'],
+    crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
+      .update(rfc2202_sha1[i]['data'])
+      .digest('hex'),
+    'Test HMAC-SHA1 : Test case ' + (i + 1) + ' rfc 2202'
+  );
 }
