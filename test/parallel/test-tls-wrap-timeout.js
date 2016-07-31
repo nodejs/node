@@ -37,6 +37,7 @@ server.listen(0, () => {
     });
     assert.ok(s instanceof net.Socket);
 
+    assert.notStrictEqual(socket._idleTimeout, -1);
     lastIdleStart = socket._idleStart;
 
     const tsocket = tls.connect({
