@@ -17,18 +17,18 @@ var options = {
 };
 
 var server = tls.createServer(options, function(c) {
-  setTimeout(function() {
+  setImmediate(function() {
     c.write('hello');
-    setTimeout(function() {
+    setImmediate(function() {
       c.destroy();
       server.close();
-    }, 150);
-  }, 150);
+    });
+  });
 });
 
 server.listen(0, function() {
   var socket = net.connect(this.address().port, function() {
-    var s = socket.setTimeout(common.platformTimeout(240), function() {
+    var s = socket.setTimeout(common.platformTimeout(100), function() {
       throw new Error('timeout');
     });
     assert.ok(s instanceof net.Socket);
@@ -40,3 +40,6 @@ server.listen(0, function() {
     tsocket.resume();
   });
 });
+
+// hold event loop open long enough to make sure socket timeout does not fire
+setTimeout(function() {}, common.platformTimeout(300));
