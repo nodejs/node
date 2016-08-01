@@ -131,6 +131,7 @@ Ensure everyone is added to https://github.com/orgs/nodejs/teams/collaborators
   * be sure to wait before merging non-trivial changes
     * 48 hours for non-trivial changes, and 72 hours on weekends.
 
+  * usually avoid merging another collaborator's pull requests
 
   * **make sure to run the PR through CI before merging!** (Except for documentation PRs)
 
