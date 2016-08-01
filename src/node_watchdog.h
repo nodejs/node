@@ -63,6 +63,7 @@ class SigintWatchdogHelper {
   static SigintWatchdogHelper* GetInstance() { return &instance; }
   void Register(SigintWatchdog* watchdog);
   void Unregister(SigintWatchdog* watchdog);
+  bool HasPendingSignal();
 
   int Start();
   bool Stop();

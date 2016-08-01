@@ -258,6 +258,13 @@ bool SigintWatchdogHelper::Stop() {
 }
 
 
+bool SigintWatchdogHelper::HasPendingSignal() {
+  Mutex::ScopedLock lock(list_mutex_);
+
+  return has_pending_signal_;
+}
+
+
 void SigintWatchdogHelper::Register(SigintWatchdog* wd) {
   Mutex::ScopedLock lock(list_mutex_);
 
