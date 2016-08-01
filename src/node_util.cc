@@ -103,6 +103,13 @@ void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(had_pending_signals);
 }
 
+
+void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
+  bool ret = SigintWatchdogHelper::GetInstance()->HasPendingSignal();
+  args.GetReturnValue().Set(ret);
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -118,6 +125,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
+  env->SetMethod(target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
 }
 
 }  // namespace util
