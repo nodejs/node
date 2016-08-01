@@ -7,17 +7,18 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-tick-processor     : PASS,FLAKY
+test-tick-processor: PASS,FLAKY
 
 [$system==linux]
-test-tick-processor           : PASS,FLAKY
+test-tick-processor: PASS,FLAKY
 
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
-test-debug-signal-cluster         : PASS,FLAKY
+test-debug-signal-cluster: PASS,FLAKY
 
 [$system==freebsd]
+test-util-sigint-watchdog: PASS,FLAKY
 
 # fs-watch currently needs special configuration on AIX and we
 # want to improve under https://github.com/nodejs/node/issues/5085.
