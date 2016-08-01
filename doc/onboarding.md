@@ -165,11 +165,11 @@ Landing a PR
   * commits should follow `subsystem[,subsystem]: small description\n\nbig description\n\n<metadata>`
   * first line 50 columns, all others 72
   * add metadata:
+    * `PR-URL: <full-pr-url>` (this line should always be the first metadata line!)
     * `Fixes: <full-issue-url>`
     * `Reviewed-By: human <email>`
       * Easiest to use `git log` then do a search
       * (`/Name` + `enter` (+ `n` as much as you need to) in vim)
-    * `PR-URL: <full-pr-url>`
 * `git push upstream master`
     * close the original PR with "Landed in `<commit hash>`".
 
@@ -181,7 +181,7 @@ Landing a PR
   * Collaborators in alphabetical order by username
   * Label your pull request with the `doc` subsystem label
   * If you would like to run CI on your PR, feel free to
-  * Make sure to added the `PR-URL: <full-pr-url>`!
+  * Make sure to add the `PR-URL: <full-pr-url>`!
 
 
 ### final notes:
