@@ -118,7 +118,7 @@ function render(opts, cb) {
 
     template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
-    template = template.replace(/__SECTION__/g, section);
+    template = template.replace(/__SECTION__/g, section || 'Index');
     template = template.replace(/__VERSION__/g, nodeVersion);
     template = template.replace(/__TOC__/g, toc);
     template = template.replace(
