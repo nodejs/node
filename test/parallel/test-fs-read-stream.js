@@ -10,13 +10,18 @@ var rangeFile = path.join(common.fixturesDir, 'x.txt');
 var callbacks = { open: 0, end: 0, close: 0 };
 
 var paused = false;
+var bytesRead = 0;
 
 var file = fs.ReadStream(fn);
+var fileSize = fs.statSync(fn).size;
+
+assert.strictEqual(file.bytesRead, 0);
 
 file.on('open', function(fd) {
   file.length = 0;
   callbacks.open++;
   assert.equal('number', typeof fd);
+  assert.strictEqual(file.bytesRead, 0);
   assert.ok(file.readable);
 
   // GH-535
@@ -31,6 +36,9 @@ file.on('data', function(data) {
   assert.ok(!paused);
   file.length += data.length;
 
+  bytesRead += data.length;
+  assert.strictEqual(file.bytesRead, bytesRead);
+
   paused = true;
   file.pause();
 
@@ -42,11 +50,15 @@ file.on('data', function(data) {
 
 
 file.on('end', function(chunk) {
+  assert.strictEqual(bytesRead, fileSize);
+  assert.strictEqual(file.bytesRead, fileSize);
   callbacks.end++;
 });
 
 
 file.on('close', function() {
+  assert.strictEqual(bytesRead, fileSize);
+  assert.strictEqual(file.bytesRead, fileSize);
   callbacks.close++;
 
   //assert.equal(fs.readFileSync(fn), fileContent);
