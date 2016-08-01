@@ -1,6 +1,6 @@
 # punycode
 
-    Stability: 2 - Stable
+    Stability: 0 - Deprecated
 
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:

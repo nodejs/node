@@ -1,5 +1,5 @@
 lib/internal/v8_prof_polyfill.js
-lib/punycode.js
+lib/internal/punycode.js
 test/addons/??_*/
 test/fixtures
 test/disabled
