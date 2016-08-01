@@ -20,24 +20,24 @@ if (common.isWindows) {
   // Test with one call to the watchdog, one signal.
   binding.startSigintWatchdog();
   process.kill(process.pid, 'SIGINT');
-  setTimeout(common.mustCall(() => {
+  waitForPendingSignal(common.mustCall(() => {
     const hadPendingSignals = binding.stopSigintWatchdog();
     assert.strictEqual(hadPendingSignals, true);
     next();
-  }), common.platformTimeout(100));
+  }));
 },
 (next) => {
   // Nested calls are okay.
   binding.startSigintWatchdog();
   binding.startSigintWatchdog();
   process.kill(process.pid, 'SIGINT');
-  setTimeout(common.mustCall(() => {
+  waitForPendingSignal(common.mustCall(() => {
     const hadPendingSignals1 = binding.stopSigintWatchdog();
     const hadPendingSignals2 = binding.stopSigintWatchdog();
     assert.strictEqual(hadPendingSignals1, true);
     assert.strictEqual(hadPendingSignals2, false);
     next();
-  }), common.platformTimeout(100));
+  }));
 },
 () => {
   // Signal comes in after first call to stop.
@@ -45,9 +45,16 @@ if (common.isWindows) {
   binding.startSigintWatchdog();
   const hadPendingSignals1 = binding.stopSigintWatchdog();
   process.kill(process.pid, 'SIGINT');
-  setTimeout(common.mustCall(() => {
+  waitForPendingSignal(common.mustCall(() => {
     const hadPendingSignals2 = binding.stopSigintWatchdog();
     assert.strictEqual(hadPendingSignals1, false);
     assert.strictEqual(hadPendingSignals2, true);
-  }), common.platformTimeout(100));
+  }));
 }].reduceRight((a, b) => common.mustCall(b).bind(null, a))();
+
+function waitForPendingSignal(cb) {
+  if (binding.watchdogHasPendingSigint())
+    cb();
+  else
+    setTimeout(waitForPendingSignal, 10, cb);
+}
