@@ -31,7 +31,7 @@ function run(input, output, event) {
   stream.emit('data', input);
   replServer.write('', event);
   replServer.close();
-  assert(found === expected, `Expected: ${expected}, Found: ${found}`);
+  assert.strictEqual(found, expected);
 }
 
 const tests = [
