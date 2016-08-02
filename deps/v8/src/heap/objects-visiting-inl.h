@@ -90,6 +90,11 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.template RegisterSpecializations<JSObjectVisitor, kVisitJSObject,
                                           kVisitJSObjectGeneric>();
+
+  // Not using specialized Api object visitor for newspace.
+  table_.template RegisterSpecializations<JSObjectVisitor, kVisitJSApiObject,
+                                          kVisitJSApiObjectGeneric>();
+
   table_.template RegisterSpecializations<StructVisitor, kVisitStruct,
                                           kVisitStructGeneric>();
 }
@@ -200,6 +205,9 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.template RegisterSpecializations<JSObjectVisitor, kVisitJSObject,
                                           kVisitJSObjectGeneric>();
 
+  table_.template RegisterSpecializations<JSApiObjectVisitor, kVisitJSApiObject,
+                                          kVisitJSApiObjectGeneric>();
+
   table_.template RegisterSpecializations<StructObjectVisitor, kVisitStruct,
                                           kVisitStructGeneric>();
 }
@@ -265,8 +273,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub() &&
-      !target->is_call_stub() && (heap->isolate()->serializer_enabled() ||
-                                  target->ic_age() != heap->global_ic_age())) {
+      (heap->isolate()->serializer_enabled() ||
+       target->ic_age() != heap->global_ic_age())) {
     ICUtility::Clear(heap->isolate(), rinfo->pc(),
                      rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -625,8 +633,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   }
 
   // We never flush code for API functions.
-  Object* function_data = shared_info->function_data();
-  if (function_data->IsFunctionTemplateInfo()) {
+  if (shared_info->IsApiFunction()) {
     return false;
   }
 

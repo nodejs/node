@@ -53,7 +53,18 @@ STATIC_ASSERT(ONLY_ENUMERABLE == static_cast<PropertyFilter>(DONT_ENUM));
 STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(DONT_DELETE));
 STATIC_ASSERT(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
                ALL_ATTRIBUTES_MASK) == 0);
-
+STATIC_ASSERT(ALL_PROPERTIES ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ALL_PROPERTIES));
+STATIC_ASSERT(ONLY_WRITABLE ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ONLY_WRITABLE));
+STATIC_ASSERT(ONLY_ENUMERABLE ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ONLY_ENUMERABLE));
+STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(
+                                       v8::PropertyFilter::ONLY_CONFIGURABLE));
+STATIC_ASSERT(SKIP_STRINGS ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_STRINGS));
+STATIC_ASSERT(SKIP_SYMBOLS ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_SYMBOLS));
 
 class Smi;
 class Type;

@@ -1373,10 +1373,6 @@ void MacroAssembler::AssertFPCRState(Register fpcr) {
       Mrs(fpcr, FPCR);
     }
 
-    // Settings overridden by ConfiugreFPCR():
-    //   - Assert that default-NaN mode is set.
-    Tbz(fpcr, DN_offset, &unexpected_mode);
-
     // Settings left to their default values:
     //   - Assert that flush-to-zero is not set.
     Tbnz(fpcr, FZ_offset, &unexpected_mode);
@@ -1393,31 +1389,13 @@ void MacroAssembler::AssertFPCRState(Register fpcr) {
 }
 
 
-void MacroAssembler::ConfigureFPCR() {
-  UseScratchRegisterScope temps(this);
-  Register fpcr = temps.AcquireX();
-  Mrs(fpcr, FPCR);
-
-  // If necessary, enable default-NaN mode. The default values of the other FPCR
-  // options should be suitable, and AssertFPCRState will verify that.
-  Label no_write_required;
-  Tbnz(fpcr, DN_offset, &no_write_required);
-
-  Orr(fpcr, fpcr, DN_mask);
-  Msr(FPCR, fpcr);
-
-  Bind(&no_write_required);
-  AssertFPCRState(fpcr);
-}
-
-
 void MacroAssembler::CanonicalizeNaN(const FPRegister& dst,
                                      const FPRegister& src) {
   AssertFPCRState();
 
-  // With DN=1 and RMode=FPTieEven, subtracting 0.0 preserves all inputs except
-  // for NaNs, which become the default NaN. We use fsub rather than fadd
-  // because sub preserves -0.0 inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
+  // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
+  // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
+  // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
   Fsub(dst, src, fp_zero);
 }
 
@@ -1558,7 +1536,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
                                                      Label* no_memento_found) {
   Label map_check;
   Label top_check;
-  ExternalReference new_space_allocation_top =
+  ExternalReference new_space_allocation_top_adr =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
   const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
@@ -1568,7 +1546,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   Add(scratch1, receiver, kMementoEndOffset);
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
-  Eor(scratch2, scratch1, new_space_allocation_top);
+  Mov(scratch2, new_space_allocation_top_adr);
+  Ldr(scratch2, MemOperand(scratch2));
+  Eor(scratch2, scratch1, scratch2);
   Tst(scratch2, ~Page::kPageAlignmentMask);
   B(eq, &top_check);
   // The object is on a different page than allocation top. Bail out if the
@@ -1582,7 +1562,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   bind(&top_check);
-  Cmp(scratch1, new_space_allocation_top);
+  Mov(scratch2, new_space_allocation_top_adr);
+  Ldr(scratch2, MemOperand(scratch2));
+  Cmp(scratch1, scratch2);
   B(gt, no_memento_found);
   // Memento map check.
   bind(&map_check);
@@ -1659,6 +1641,17 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    AssertNotSmi(object, kOperandIsASmiAndNotAGeneratorObject);
+
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+
+    CompareObjectType(object, temp, temp, JS_GENERATOR_OBJECT_TYPE);
+    Check(eq, kOperandIsNotAGeneratorObject);
+  }
+}
 
 void MacroAssembler::AssertReceiver(Register object) {
   if (emit_debug_code()) {
@@ -3041,6 +3034,7 @@ void MacroAssembler::Allocate(int object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3101,14 +3095,16 @@ void MacroAssembler::Allocate(int object_size,
 
   // Calculate new top and bail out if new space is exhausted.
   Adds(result_end, result, object_size);
-  Ccmp(result_end, alloc_limit, CFlag, cc);
+  Ccmp(result_end, alloc_limit, NoFlag, cc);
   B(hi, gc_required);
-  Str(result_end, MemOperand(top_address));
 
-  // Tag the object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    ObjectTag(result, result);
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    Str(result_end, MemOperand(top_address));
   }
+
+  // Tag the object.
+  ObjectTag(result, result);
 }
 
 
@@ -3181,16 +3177,88 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     Check(eq, kUnalignedAllocationInNewSpace);
   }
 
-  Ccmp(result_end, alloc_limit, CFlag, cc);
+  Ccmp(result_end, alloc_limit, NoFlag, cc);
   B(hi, gc_required);
-  Str(result_end, MemOperand(top_address));
 
-  // Tag the object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    ObjectTag(result, result);
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    Str(result_end, MemOperand(top_address));
   }
+
+  // Tag the object.
+  ObjectTag(result, result);
 }
 
+void MacroAssembler::FastAllocate(int object_size, Register result,
+                                  Register scratch1, Register scratch2,
+                                  AllocationFlags flags) {
+  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+
+  DCHECK(!AreAliased(result, scratch1, scratch2));
+  DCHECK(result.Is64Bits() && scratch1.Is64Bits() && scratch2.Is64Bits());
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  DCHECK(0 == (object_size & kObjectAlignmentMask));
+
+  ExternalReference heap_allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address and allocation limit registers.
+  Register top_address = scratch1;
+  Register result_end = scratch2;
+  Mov(top_address, Operand(heap_allocation_top));
+  Ldr(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on ARM64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  // Calculate new top and write it back.
+  Adds(result_end, result, object_size);
+  Str(result_end, MemOperand(top_address));
+
+  ObjectTag(result, result);
+}
+
+void MacroAssembler::FastAllocate(Register object_size, Register result,
+                                  Register result_end, Register scratch,
+                                  AllocationFlags flags) {
+  // |object_size| and |result_end| may overlap, other registers must not.
+  DCHECK(!AreAliased(object_size, result, scratch));
+  DCHECK(!AreAliased(result_end, result, scratch));
+  DCHECK(object_size.Is64Bits() && result.Is64Bits() && scratch.Is64Bits() &&
+         result_end.Is64Bits());
+
+  ExternalReference heap_allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address and allocation limit registers.
+  Register top_address = scratch;
+  Mov(top_address, heap_allocation_top);
+  Ldr(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on ARM64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  // Calculate new top and write it back.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    Adds(result_end, result, Operand(object_size, LSL, kPointerSizeLog2));
+  } else {
+    Adds(result_end, result, object_size);
+  }
+  Str(result_end, MemOperand(top_address));
+
+  if (emit_debug_code()) {
+    Tst(result_end, kObjectAlignmentMask);
+    Check(eq, kUnalignedAllocationInNewSpace);
+  }
+
+  ObjectTag(result, result);
+}
 
 void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register length,
@@ -3207,12 +3275,8 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   Bic(scratch1, scratch1, kObjectAlignmentMask);
 
   // Allocate two-byte string in new space.
-  Allocate(scratch1,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result,
@@ -3236,12 +3300,8 @@ void MacroAssembler::AllocateOneByteString(Register result, Register length,
   Bic(scratch1, scratch1, kObjectAlignmentMask);
 
   // Allocate one-byte string in new space.
-  Allocate(scratch1,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
@@ -3255,7 +3315,7 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result,
                       length,
@@ -3269,12 +3329,8 @@ void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
                                                Register scratch1,
                                                Register scratch2,
                                                Label* gc_required) {
-  Allocate(ConsString::kSize,
-           result,
-           scratch1,
-           scratch2,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -3288,7 +3344,7 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                                  Label* gc_required) {
   DCHECK(!AreAliased(result, length, scratch1, scratch2));
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result,
                       length,
@@ -3305,7 +3361,7 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
                                                  Label* gc_required) {
   DCHECK(!AreAliased(result, length, scratch1, scratch2));
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -3359,14 +3415,14 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   if (value.IsSameSizeAndType(heap_number_map)) {
     STATIC_ASSERT(HeapObject::kMapOffset + kPointerSize ==
                   HeapNumber::kValueOffset);
-    Stp(heap_number_map, value, MemOperand(result, HeapObject::kMapOffset));
+    Stp(heap_number_map, value,
+        FieldMemOperand(result, HeapObject::kMapOffset));
   } else {
-    Str(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+    Str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
     if (value.IsValid()) {
-      Str(value, MemOperand(result, HeapNumber::kValueOffset));
+      Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
     }
   }
-  ObjectTag(result, result);
 }
 
 
@@ -3390,7 +3446,8 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   DCHECK(!result.is(value));
 
   // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required, TAG_OBJECT);
+  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Initialize the JSValue.
   LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);

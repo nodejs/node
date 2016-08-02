@@ -113,12 +113,12 @@ class RegExpMacroAssembler {
 
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input) = 0;
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   // Check whether a standard/default character class matches the current
   // character. Returns false if the type of special character class does
   // not have custom support.
   // May clobber the current loaded character.
-  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match) = 0;
+  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match);
   virtual void Fail() = 0;
   virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;

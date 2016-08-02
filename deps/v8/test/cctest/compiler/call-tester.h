@@ -106,12 +106,14 @@ struct ParameterTraits<int32_t> {
   static int64_t Cast(int32_t r) { return static_cast<int64_t>(r); }
 };
 
+#if !V8_TARGET_ARCH_PPC64
 template <>
 struct ParameterTraits<uint32_t> {
   static int64_t Cast(uint32_t r) {
     return static_cast<int64_t>(static_cast<int32_t>(r));
   }
 };
+#endif
 
 #endif  // !V8_TARGET_ARCH_64_BIT
 

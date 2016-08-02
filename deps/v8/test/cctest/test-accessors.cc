@@ -775,19 +775,18 @@ TEST(PrototypeGetterAccessCheck) {
   }
 }
 
-static void check_receiver(Local<String> name,
-                           const v8::PropertyCallbackInfo<v8::Value>& info) {
+static void CheckReceiver(Local<String> name,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(info.This()->IsObject());
 }
 
 TEST(Regress609134) {
-  v8::internal::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   auto fun_templ = v8::FunctionTemplate::New(isolate);
   fun_templ->InstanceTemplate()->SetNativeDataProperty(v8_str("foo"),
-                                                       check_receiver);
+                                                       CheckReceiver);
 
   CHECK(env->Global()
             ->Set(env.local(), v8_str("Fun"),
@@ -797,5 +796,6 @@ TEST(Regress609134) {
   CompileRun(
       "var f = new Fun();"
       "Number.prototype.__proto__ = f;"
-      "[42][0].foo");
+      "var a = 42;"
+      "for (var i = 0; i<3; i++) { a.foo; }");
 }

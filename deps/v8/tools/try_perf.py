@@ -44,6 +44,7 @@ PUBLIC_BENCHMARKS = [
   'octane-tf-pr',
   'simdjs',
   'sunspider',
+  'wasm',
 ]
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))

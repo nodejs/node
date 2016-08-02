@@ -1007,6 +1007,26 @@ function* g() { yield 42; return 88 };
   assertThrowsEquals(() => {
     (([x]) => x)(g());
   }, 666);
+
+  assertThrowsEquals(() => {
+    var [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    let [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    const [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    (([...x]) => x)(g());
+  }, 666);
 }
 
 
@@ -1051,6 +1071,26 @@ function* g() { yield 42; return 88 };
   assertThrowsEquals(() => {
     (([x]) => x)(g());
   }, 666);
+
+  assertThrowsEquals(() => {
+    var [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    let [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    const [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    (([...x]) => x)(g());
+  }, 666);
 }
 
 
@@ -1094,6 +1134,26 @@ function* g() { yield 42; return 88 };
 
   assertThrowsEquals(() => {
     (([x]) => x)(g());
+  }, 666);
+
+  assertThrowsEquals(() => {
+    var [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    let [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    const [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    [...x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    (([...x]) => x)(g());
   }, 666);
 }
 

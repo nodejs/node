@@ -199,11 +199,28 @@ void Schedule::AddGoto(BasicBlock* block, BasicBlock* succ) {
   AddSuccessor(block, succ);
 }
 
+#if DEBUG
+namespace {
+
+bool IsPotentiallyThrowingCall(IrOpcode::Value opcode) {
+  switch (opcode) {
+#define BUILD_BLOCK_JS_CASE(Name) case IrOpcode::k##Name:
+    JS_OP_LIST(BUILD_BLOCK_JS_CASE)
+#undef BUILD_BLOCK_JS_CASE
+    case IrOpcode::kCall:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+#endif  // DEBUG
 
 void Schedule::AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
                        BasicBlock* exception_block) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
-  DCHECK_EQ(IrOpcode::kCall, call->opcode());
+  DCHECK(IsPotentiallyThrowingCall(call->opcode()));
   block->set_control(BasicBlock::kCall);
   AddSuccessor(block, success_block);
   AddSuccessor(block, exception_block);
@@ -298,39 +315,85 @@ void Schedule::InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
   SetControlInput(block, sw);
 }
 
-void Schedule::EnsureSplitEdgeForm() {
+void Schedule::EnsureCFGWellFormedness() {
   // Make a copy of all the blocks for the iteration, since adding the split
   // edges will allocate new blocks.
   BasicBlockVector all_blocks_copy(all_blocks_);
 
   // Insert missing split edge blocks.
   for (auto block : all_blocks_copy) {
-    if (block->PredecessorCount() > 1 && block != end_) {
-      for (auto current_pred = block->predecessors().begin();
-           current_pred != block->predecessors().end(); ++current_pred) {
-        BasicBlock* pred = *current_pred;
-        if (pred->SuccessorCount() > 1) {
-          // Found a predecessor block with multiple successors.
-          BasicBlock* split_edge_block = NewBasicBlock();
-          split_edge_block->set_control(BasicBlock::kGoto);
-          split_edge_block->successors().push_back(block);
-          split_edge_block->predecessors().push_back(pred);
-          split_edge_block->set_deferred(pred->deferred());
-          *current_pred = split_edge_block;
-          // Find a corresponding successor in the previous block, replace it
-          // with the split edge block... but only do it once, since we only
-          // replace the previous blocks in the current block one at a time.
-          for (auto successor = pred->successors().begin();
-               successor != pred->successors().end(); ++successor) {
-            if (*successor == block) {
-              *successor = split_edge_block;
-              break;
-            }
-          }
+    if (block->PredecessorCount() > 1) {
+      if (block != end_) {
+        EnsureSplitEdgeForm(block);
+      }
+      if (block->deferred()) {
+        EnsureDeferredCodeSingleEntryPoint(block);
+      }
+    }
+  }
+}
+
+void Schedule::EnsureSplitEdgeForm(BasicBlock* block) {
+  DCHECK(block->PredecessorCount() > 1 && block != end_);
+  for (auto current_pred = block->predecessors().begin();
+       current_pred != block->predecessors().end(); ++current_pred) {
+    BasicBlock* pred = *current_pred;
+    if (pred->SuccessorCount() > 1) {
+      // Found a predecessor block with multiple successors.
+      BasicBlock* split_edge_block = NewBasicBlock();
+      split_edge_block->set_control(BasicBlock::kGoto);
+      split_edge_block->successors().push_back(block);
+      split_edge_block->predecessors().push_back(pred);
+      split_edge_block->set_deferred(pred->deferred());
+      *current_pred = split_edge_block;
+      // Find a corresponding successor in the previous block, replace it
+      // with the split edge block... but only do it once, since we only
+      // replace the previous blocks in the current block one at a time.
+      for (auto successor = pred->successors().begin();
+           successor != pred->successors().end(); ++successor) {
+        if (*successor == block) {
+          *successor = split_edge_block;
+          break;
         }
       }
     }
   }
+}
+
+void Schedule::EnsureDeferredCodeSingleEntryPoint(BasicBlock* block) {
+  // If a deferred block has multiple predecessors, they have to
+  // all be deferred. Otherwise, we can run into a situation where a range
+  // that spills only in deferred blocks inserts its spill in the block, but
+  // other ranges need moves inserted by ResolveControlFlow in the predecessors,
+  // which may clobber the register of this range.
+  // To ensure that, when a deferred block has multiple predecessors, and some
+  // are not deferred, we add a non-deferred block to collect all such edges.
+
+  DCHECK(block->deferred() && block->PredecessorCount() > 1);
+  bool all_deferred = true;
+  for (auto current_pred = block->predecessors().begin();
+       current_pred != block->predecessors().end(); ++current_pred) {
+    BasicBlock* pred = *current_pred;
+    if (!pred->deferred()) {
+      all_deferred = false;
+      break;
+    }
+  }
+
+  if (all_deferred) return;
+  BasicBlock* merger = NewBasicBlock();
+  merger->set_control(BasicBlock::kGoto);
+  merger->successors().push_back(block);
+  for (auto current_pred = block->predecessors().begin();
+       current_pred != block->predecessors().end(); ++current_pred) {
+    BasicBlock* pred = *current_pred;
+    merger->predecessors().push_back(pred);
+    pred->successors().clear();
+    pred->successors().push_back(merger);
+  }
+  merger->set_deferred(false);
+  block->predecessors().clear();
+  block->predecessors().push_back(merger);
 }
 
 void Schedule::PropagateDeferredMark() {

@@ -11,16 +11,16 @@
 var GlobalPromise = global.Promise;
 
 var PromiseChain = utils.ImportNow("PromiseChain");
-var PromiseDeferred = utils.ImportNow("PromiseDeferred");
-var PromiseResolved = utils.ImportNow("PromiseResolved");
+var PromiseDefer = utils.ImportNow("PromiseDefer");
+var PromiseAccept = utils.ImportNow("PromiseAccept");
 
 utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "chain", PromiseChain,
 ]);
 
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
-  "defer", PromiseDeferred,
-  "accept", PromiseResolved,
+  "defer", PromiseDefer,
+  "accept", PromiseAccept,
 ]);
 
 })

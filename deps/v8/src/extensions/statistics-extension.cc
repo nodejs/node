@@ -116,7 +116,7 @@ void StatisticsExtension::GetCounters(
   };
 
   const StatisticNumber numbers[] = {
-      {isolate->memory_allocator()->Size(), "total_committed_bytes"},
+      {heap->memory_allocator()->Size(), "total_committed_bytes"},
       {heap->new_space()->Size(), "new_space_live_bytes"},
       {heap->new_space()->Available(), "new_space_available_bytes"},
       {heap->new_space()->CommittedMemory(), "new_space_commited_bytes"},

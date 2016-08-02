@@ -153,9 +153,6 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // being 12.
   DCHECK(sizeof(Entry) == 12);
 
-  // Assert the flags do not name a specific type.
-  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
-
   // Assert that there are no register conflicts.
   DCHECK(!scratch.is(receiver));
   DCHECK(!scratch.is(name));

@@ -17,8 +17,7 @@
 namespace v8 {
 namespace internal {
 
-class HOptimizedGraphBuilder;
-class OptimizedCompileJob;
+class CompilationJob;
 class SharedFunctionInfo;
 
 class OptimizingCompileDispatcher {
@@ -32,7 +31,7 @@ class OptimizingCompileDispatcher {
         ref_count_(0),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
     base::NoBarrier_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
-    input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);
+    input_queue_ = NewArray<CompilationJob*>(input_queue_capacity_);
   }
 
   ~OptimizingCompileDispatcher();
@@ -40,7 +39,7 @@ class OptimizingCompileDispatcher {
   void Run();
   void Stop();
   void Flush();
-  void QueueForOptimization(OptimizedCompileJob* optimizing_compiler);
+  void QueueForOptimization(CompilationJob* job);
   void Unblock();
   void InstallOptimizedFunctions();
 
@@ -57,8 +56,8 @@ class OptimizingCompileDispatcher {
   enum ModeFlag { COMPILE, FLUSH };
 
   void FlushOutputQueue(bool restore_function_code);
-  void CompileNext(OptimizedCompileJob* job);
-  OptimizedCompileJob* NextInput(bool check_if_flushing = false);
+  void CompileNext(CompilationJob* job);
+  CompilationJob* NextInput(bool check_if_flushing = false);
 
   inline int InputQueueIndex(int i) {
     int result = (i + input_queue_shift_) % input_queue_capacity_;
@@ -70,14 +69,14 @@ class OptimizingCompileDispatcher {
   Isolate* isolate_;
 
   // Circular queue of incoming recompilation tasks (including OSR).
-  OptimizedCompileJob** input_queue_;
+  CompilationJob** input_queue_;
   int input_queue_capacity_;
   int input_queue_length_;
   int input_queue_shift_;
   base::Mutex input_queue_mutex_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::queue<OptimizedCompileJob*> output_queue_;
+  std::queue<CompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;

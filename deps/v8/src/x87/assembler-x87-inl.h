@@ -81,11 +81,6 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
-Address RelocInfo::wasm_memory_reference() {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  return Memory::Address_at(pc_);
-}
-
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
@@ -117,21 +112,6 @@ void RelocInfo::set_target_address(Address target,
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
-  }
-}
-
-void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, size_t old_size, size_t new_size,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  DCHECK(old_base <= wasm_memory_reference() &&
-         wasm_memory_reference() < old_base + old_size);
-  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
-  DCHECK(new_base <= updated_reference &&
-         updated_reference < new_base + new_size);
-  Memory::Address_at(pc_) = updated_reference;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
   }
 }
 
@@ -284,7 +264,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

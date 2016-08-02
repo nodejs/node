@@ -15,13 +15,13 @@ frame size: 1
 parameter count: 1
 bytecode array length: 10
 bytecodes: [
-  B(LdaTheHole),
-  B(Star), R(0),
-  B(StackCheck),
-  B(LdaSmi), U8(10),
-  B(Star), R(0),
-  B(LdaUndefined),
-  B(Return),
+                B(LdaTheHole),
+                B(Star), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(10),
+  /*   42 E> */ B(Star), R(0),
+                B(LdaUndefined),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -36,16 +36,16 @@ frame size: 2
 parameter count: 1
 bytecode array length: 20
 bytecodes: [
-  B(LdaTheHole),
-  B(Star), R(0),
-  B(StackCheck),
-  B(LdaSmi), U8(10),
-  B(Star), R(0),
-  B(JumpIfNotHole), U8(11),
-  B(LdaConstant), U8(0),
-  B(Star), R(1),
-  B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),
-  B(Return),
+                B(LdaTheHole),
+                B(Star), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(10),
+  /*   42 E> */ B(Star), R(0),
+  /*   46 S> */ B(JumpIfNotHole), U8(11),
+                B(LdaConstant), U8(0),
+                B(Star), R(1),
+                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
   "x",
@@ -61,20 +61,20 @@ frame size: 3
 parameter count: 1
 bytecode array length: 27
 bytecodes: [
-  B(LdaTheHole),
-  B(Star), R(0),
-  B(StackCheck),
-  B(LdaSmi), U8(20),
-  B(Star), R(1),
-  B(Ldar), R(0),
-  B(JumpIfNotHole), U8(11),
-  B(LdaConstant), U8(0),
-  B(Star), R(2),
-  B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
-  B(Ldar), R(1),
-  B(Star), R(0),
-  B(LdaUndefined),
-  B(Return),
+                B(LdaTheHole),
+                B(Star), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   45 S> */ B(LdaSmi), U8(20),
+  /*   45 E> */ B(Star), R(1),
+                B(Ldar), R(0),
+                B(JumpIfNotHole), U8(11),
+                B(LdaConstant), U8(0),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
+                B(Ldar), R(1),
+                B(Star), R(0),
+  /*   45 E> */ B(LdaUndefined),
+  /*   52 S> */ B(Return),
 ]
 constant pool: [
   "x",
@@ -90,22 +90,22 @@ frame size: 3
 parameter count: 1
 bytecode array length: 31
 bytecodes: [
-  B(LdaTheHole),
-  B(Star), R(0),
-  B(StackCheck),
-  B(LdaSmi), U8(10),
-  B(Star), R(0),
-  B(LdaSmi), U8(20),
-  B(Star), R(1),
-  B(Ldar), R(0),
-  B(JumpIfNotHole), U8(11),
-  B(LdaConstant), U8(0),
-  B(Star), R(2),
-  B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
-  B(Ldar), R(1),
-  B(Star), R(0),
-  B(LdaUndefined),
-  B(Return),
+                B(LdaTheHole),
+                B(Star), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(10),
+  /*   42 E> */ B(Star), R(0),
+  /*   46 S> */ B(LdaSmi), U8(20),
+  /*   48 E> */ B(Star), R(1),
+                B(Ldar), R(0),
+                B(JumpIfNotHole), U8(11),
+                B(LdaConstant), U8(0),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
+                B(Ldar), R(1),
+                B(Star), R(0),
+                B(LdaUndefined),
+  /*   54 S> */ B(Return),
 ]
 constant pool: [
   "x",

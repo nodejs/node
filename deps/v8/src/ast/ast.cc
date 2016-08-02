@@ -813,6 +813,291 @@ void AstVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Implementation of AstTraversalVisitor
+
+AstTraversalVisitor::AstTraversalVisitor(Isolate* isolate) {
+  InitializeAstVisitor(isolate);
+}
+
+void AstTraversalVisitor::VisitVariableDeclaration(VariableDeclaration* decl) {}
+
+void AstTraversalVisitor::VisitFunctionDeclaration(FunctionDeclaration* decl) {
+  Visit(decl->fun());
+}
+
+void AstTraversalVisitor::VisitImportDeclaration(ImportDeclaration* decl) {}
+
+void AstTraversalVisitor::VisitExportDeclaration(ExportDeclaration* decl) {}
+
+void AstTraversalVisitor::VisitStatements(ZoneList<Statement*>* stmts) {
+  for (int i = 0; i < stmts->length(); ++i) {
+    Statement* stmt = stmts->at(i);
+    Visit(stmt);
+    if (stmt->IsJump()) break;
+  }
+}
+
+void AstTraversalVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
+  for (int i = 0; i < expressions->length(); i++) {
+    Expression* expression = expressions->at(i);
+    if (expression != NULL) Visit(expression);
+  }
+}
+
+void AstTraversalVisitor::VisitBlock(Block* stmt) {
+  VisitStatements(stmt->statements());
+}
+
+void AstTraversalVisitor::VisitExpressionStatement(ExpressionStatement* stmt) {
+  Visit(stmt->expression());
+}
+
+void AstTraversalVisitor::VisitEmptyStatement(EmptyStatement* stmt) {}
+
+void AstTraversalVisitor::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+void AstTraversalVisitor::VisitIfStatement(IfStatement* stmt) {
+  Visit(stmt->condition());
+  Visit(stmt->then_statement());
+  Visit(stmt->else_statement());
+}
+
+void AstTraversalVisitor::VisitContinueStatement(ContinueStatement* stmt) {}
+
+void AstTraversalVisitor::VisitBreakStatement(BreakStatement* stmt) {}
+
+void AstTraversalVisitor::VisitReturnStatement(ReturnStatement* stmt) {
+  Visit(stmt->expression());
+}
+
+void AstTraversalVisitor::VisitWithStatement(WithStatement* stmt) {
+  stmt->expression();
+  stmt->statement();
+}
+
+void AstTraversalVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
+  Visit(stmt->tag());
+
+  ZoneList<CaseClause*>* clauses = stmt->cases();
+
+  for (int i = 0; i < clauses->length(); ++i) {
+    CaseClause* clause = clauses->at(i);
+    if (!clause->is_default()) {
+      Expression* label = clause->label();
+      Visit(label);
+    }
+    ZoneList<Statement*>* stmts = clause->statements();
+    VisitStatements(stmts);
+  }
+}
+
+void AstTraversalVisitor::VisitCaseClause(CaseClause* clause) { UNREACHABLE(); }
+
+void AstTraversalVisitor::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  Visit(stmt->body());
+  Visit(stmt->cond());
+}
+
+void AstTraversalVisitor::VisitWhileStatement(WhileStatement* stmt) {
+  Visit(stmt->cond());
+  Visit(stmt->body());
+}
+
+void AstTraversalVisitor::VisitForStatement(ForStatement* stmt) {
+  if (stmt->init() != NULL) {
+    Visit(stmt->init());
+  }
+  if (stmt->cond() != NULL) {
+    Visit(stmt->cond());
+  }
+  if (stmt->next() != NULL) {
+    Visit(stmt->next());
+  }
+  Visit(stmt->body());
+}
+
+void AstTraversalVisitor::VisitForInStatement(ForInStatement* stmt) {
+  Visit(stmt->enumerable());
+  Visit(stmt->body());
+}
+
+void AstTraversalVisitor::VisitForOfStatement(ForOfStatement* stmt) {
+  Visit(stmt->assign_iterator());
+  Visit(stmt->next_result());
+  Visit(stmt->result_done());
+  Visit(stmt->assign_each());
+  Visit(stmt->body());
+}
+
+void AstTraversalVisitor::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  Visit(stmt->try_block());
+  Visit(stmt->catch_block());
+}
+
+void AstTraversalVisitor::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+  Visit(stmt->try_block());
+  Visit(stmt->finally_block());
+}
+
+void AstTraversalVisitor::VisitDebuggerStatement(DebuggerStatement* stmt) {}
+
+void AstTraversalVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
+  Scope* scope = expr->scope();
+  VisitDeclarations(scope->declarations());
+  VisitStatements(expr->body());
+}
+
+void AstTraversalVisitor::VisitNativeFunctionLiteral(
+    NativeFunctionLiteral* expr) {}
+
+void AstTraversalVisitor::VisitDoExpression(DoExpression* expr) {
+  VisitBlock(expr->block());
+  VisitVariableProxy(expr->result());
+}
+
+void AstTraversalVisitor::VisitConditional(Conditional* expr) {
+  Visit(expr->condition());
+  Visit(expr->then_expression());
+  Visit(expr->else_expression());
+}
+
+void AstTraversalVisitor::VisitVariableProxy(VariableProxy* expr) {}
+
+void AstTraversalVisitor::VisitLiteral(Literal* expr) {}
+
+void AstTraversalVisitor::VisitRegExpLiteral(RegExpLiteral* expr) {}
+
+void AstTraversalVisitor::VisitObjectLiteral(ObjectLiteral* expr) {
+  ZoneList<ObjectLiteralProperty*>* props = expr->properties();
+  for (int i = 0; i < props->length(); ++i) {
+    ObjectLiteralProperty* prop = props->at(i);
+    if (!prop->key()->IsLiteral()) {
+      Visit(prop->key());
+    }
+    Visit(prop->value());
+  }
+}
+
+void AstTraversalVisitor::VisitArrayLiteral(ArrayLiteral* expr) {
+  ZoneList<Expression*>* values = expr->values();
+  for (int i = 0; i < values->length(); ++i) {
+    Expression* value = values->at(i);
+    Visit(value);
+  }
+}
+
+void AstTraversalVisitor::VisitAssignment(Assignment* expr) {
+  Visit(expr->target());
+  Visit(expr->value());
+}
+
+void AstTraversalVisitor::VisitYield(Yield* expr) {
+  Visit(expr->generator_object());
+  Visit(expr->expression());
+}
+
+void AstTraversalVisitor::VisitThrow(Throw* expr) { Visit(expr->exception()); }
+
+void AstTraversalVisitor::VisitProperty(Property* expr) {
+  Visit(expr->obj());
+  Visit(expr->key());
+}
+
+void AstTraversalVisitor::VisitCall(Call* expr) {
+  Visit(expr->expression());
+  ZoneList<Expression*>* args = expr->arguments();
+  for (int i = 0; i < args->length(); ++i) {
+    Expression* arg = args->at(i);
+    Visit(arg);
+  }
+}
+
+void AstTraversalVisitor::VisitCallNew(CallNew* expr) {
+  Visit(expr->expression());
+  ZoneList<Expression*>* args = expr->arguments();
+  for (int i = 0; i < args->length(); ++i) {
+    Expression* arg = args->at(i);
+    Visit(arg);
+  }
+}
+
+void AstTraversalVisitor::VisitCallRuntime(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  for (int i = 0; i < args->length(); ++i) {
+    Expression* arg = args->at(i);
+    Visit(arg);
+  }
+}
+
+void AstTraversalVisitor::VisitUnaryOperation(UnaryOperation* expr) {
+  Visit(expr->expression());
+}
+
+void AstTraversalVisitor::VisitCountOperation(CountOperation* expr) {
+  Visit(expr->expression());
+}
+
+void AstTraversalVisitor::VisitBinaryOperation(BinaryOperation* expr) {
+  Visit(expr->left());
+  Visit(expr->right());
+}
+
+void AstTraversalVisitor::VisitCompareOperation(CompareOperation* expr) {
+  Visit(expr->left());
+  Visit(expr->right());
+}
+
+void AstTraversalVisitor::VisitThisFunction(ThisFunction* expr) {}
+
+void AstTraversalVisitor::VisitDeclarations(ZoneList<Declaration*>* decls) {
+  for (int i = 0; i < decls->length(); ++i) {
+    Declaration* decl = decls->at(i);
+    Visit(decl);
+  }
+}
+
+void AstTraversalVisitor::VisitClassLiteral(ClassLiteral* expr) {
+  if (expr->extends() != nullptr) {
+    Visit(expr->extends());
+  }
+  Visit(expr->constructor());
+  ZoneList<ObjectLiteralProperty*>* props = expr->properties();
+  for (int i = 0; i < props->length(); ++i) {
+    ObjectLiteralProperty* prop = props->at(i);
+    if (!prop->key()->IsLiteral()) {
+      Visit(prop->key());
+    }
+    Visit(prop->value());
+  }
+}
+
+void AstTraversalVisitor::VisitSpread(Spread* expr) {
+  Visit(expr->expression());
+}
+
+void AstTraversalVisitor::VisitEmptyParentheses(EmptyParentheses* expr) {}
+
+void AstTraversalVisitor::VisitSuperPropertyReference(
+    SuperPropertyReference* expr) {
+  VisitVariableProxy(expr->this_var());
+  Visit(expr->home_object());
+}
+
+void AstTraversalVisitor::VisitSuperCallReference(SuperCallReference* expr) {
+  VisitVariableProxy(expr->this_var());
+  VisitVariableProxy(expr->new_target_var());
+  VisitVariableProxy(expr->this_function_var());
+}
+
+void AstTraversalVisitor::VisitRewritableExpression(
+    RewritableExpression* expr) {
+  Visit(expr->expression());
+}
+
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        ZoneList<Statement*>* statements, int pos)
     : Expression(zone, pos),

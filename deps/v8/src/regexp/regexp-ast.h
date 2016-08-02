@@ -296,7 +296,10 @@ class RegExpCharacterClass final : public RegExpTree {
   bool IsCharacterClass() override;
   bool IsTextElement() override { return true; }
   int min_match() override { return 1; }
-  int max_match() override { return 1; }
+  // The character class may match two code units for unicode regexps.
+  // TODO(yangguo): we should split this class for usage in TextElement, and
+  //                make max_match() dependent on the character class content.
+  int max_match() override { return 2; }
   void AppendToText(RegExpText* text, Zone* zone) override;
   CharacterSet character_set() { return set_; }
   // TODO(lrn): Remove need for complex version if is_standard that

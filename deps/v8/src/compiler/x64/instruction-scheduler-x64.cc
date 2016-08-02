@@ -168,6 +168,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Poke:
       return kHasSideEffect;
 
+    case kX64Xchgb:
+    case kX64Xchgw:
+    case kX64Xchgl:
+      return kIsLoadOperation | kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE

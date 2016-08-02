@@ -97,8 +97,6 @@ Matcher<Node*> IsPhi(const Matcher<MachineRepresentation>& type_matcher,
 Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& effect1_matcher,
                            const Matcher<Node*>& merge_matcher);
-Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
-                           const Matcher<Node*>& effect1_matcher);
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
 Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
@@ -315,6 +313,7 @@ Matcher<Node*> IsInt64Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsTruncateFloat64ToWord32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeInt32ToFloat64(const Matcher<Node*>& input_matcher);
@@ -322,7 +321,6 @@ Matcher<Node*> IsChangeInt32ToInt64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeUint32ToFloat64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeUint32ToUint64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToFloat32(const Matcher<Node*>& input_matcher);
-Matcher<Node*> IsTruncateFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat32Max(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
@@ -362,6 +360,7 @@ Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
 Matcher<Node*> IsLoadFramePointer();
+Matcher<Node*> IsLoadParentFramePointer();
 
 Matcher<Node*> IsInt32PairAdd(const Matcher<Node*>& a_matcher,
                               const Matcher<Node*>& b_matcher,
@@ -388,9 +387,9 @@ Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& rhs_matcher);
 
 Matcher<Node*> IsStackSlot();
-Matcher<Node*> IsGuard(const Matcher<Type*>& type_matcher,
-                       const Matcher<Node*>& value_matcher,
-                       const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
+                           const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

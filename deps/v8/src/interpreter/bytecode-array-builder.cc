@@ -3,94 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/bytecode-array-builder.h"
+
 #include "src/compiler.h"
+#include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
-
-class BytecodeArrayBuilder::PreviousBytecodeHelper BASE_EMBEDDED {
- public:
-  explicit PreviousBytecodeHelper(const BytecodeArrayBuilder& array_builder)
-      : array_builder_(array_builder),
-        previous_bytecode_start_(array_builder_.last_bytecode_start_) {
-    // This helper is expected to be instantiated only when the last bytecode is
-    // in the same basic block.
-    DCHECK(array_builder_.LastBytecodeInSameBlock());
-    bytecode_ = Bytecodes::FromByte(
-        array_builder_.bytecodes()->at(previous_bytecode_start_));
-    operand_scale_ = OperandScale::kSingle;
-    if (Bytecodes::IsPrefixScalingBytecode(bytecode_)) {
-      operand_scale_ = Bytecodes::PrefixBytecodeToOperandScale(bytecode_);
-      bytecode_ = Bytecodes::FromByte(
-          array_builder_.bytecodes()->at(previous_bytecode_start_ + 1));
-    }
-  }
-
-  // Returns the previous bytecode in the same basic block.
-  MUST_USE_RESULT Bytecode GetBytecode() const {
-    DCHECK_EQ(array_builder_.last_bytecode_start_, previous_bytecode_start_);
-    return bytecode_;
-  }
-
-  MUST_USE_RESULT Register GetRegisterOperand(int operand_index) const {
-    return Register::FromOperand(GetSignedOperand(operand_index));
-  }
-
-  MUST_USE_RESULT uint32_t GetIndexOperand(int operand_index) const {
-    return GetUnsignedOperand(operand_index);
-  }
-
-  Handle<Object> GetConstantForIndexOperand(int operand_index) const {
-    return array_builder_.constant_array_builder()->At(
-        GetIndexOperand(operand_index));
-  }
-
- private:
-  // Returns the signed operand at operand_index for the previous
-  // bytecode in the same basic block.
-  MUST_USE_RESULT int32_t GetSignedOperand(int operand_index) const {
-    DCHECK_EQ(array_builder_.last_bytecode_start_, previous_bytecode_start_);
-    OperandType operand_type =
-        Bytecodes::GetOperandType(bytecode_, operand_index);
-    DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
-    const uint8_t* operand_start = GetOperandStart(operand_index);
-    return Bytecodes::DecodeSignedOperand(operand_start, operand_type,
-                                          operand_scale_);
-  }
-
-  // Returns the unsigned operand at operand_index for the previous
-  // bytecode in the same basic block.
-  MUST_USE_RESULT uint32_t GetUnsignedOperand(int operand_index) const {
-    DCHECK_EQ(array_builder_.last_bytecode_start_, previous_bytecode_start_);
-    OperandType operand_type =
-        Bytecodes::GetOperandType(bytecode_, operand_index);
-    DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
-    const uint8_t* operand_start = GetOperandStart(operand_index);
-    return Bytecodes::DecodeUnsignedOperand(operand_start, operand_type,
-                                            operand_scale_);
-  }
-
-  const uint8_t* GetOperandStart(int operand_index) const {
-    size_t operand_offset =
-        previous_bytecode_start_ + prefix_offset() +
-        Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale_);
-    return &(*array_builder_.bytecodes())[0] + operand_offset;
-  }
-
-  int prefix_offset() const {
-    return Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale_) ? 1
-                                                                         : 0;
-  }
-
-  const BytecodeArrayBuilder& array_builder_;
-  OperandScale operand_scale_;
-  Bytecode bytecode_;
-  size_t previous_bytecode_start_;
-
-  DISALLOW_COPY_AND_ASSIGN(PreviousBytecodeHelper);
-};
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
                                            int parameter_count,
@@ -98,30 +19,33 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
                                            FunctionLiteral* literal)
     : isolate_(isolate),
       zone_(zone),
-      bytecodes_(zone),
       bytecode_generated_(false),
       constant_array_builder_(isolate, zone),
       handler_table_builder_(isolate, zone),
       source_position_table_builder_(isolate, zone),
-      last_block_end_(0),
-      last_bytecode_start_(~0),
       exit_seen_in_block_(false),
       unbound_jumps_(0),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
       context_register_count_(context_count),
-      temporary_allocator_(zone, fixed_register_count()) {
+      temporary_allocator_(zone, fixed_register_count()),
+      bytecode_array_writer_(zone, &source_position_table_builder_),
+      pipeline_(&bytecode_array_writer_) {
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
+
+  if (FLAG_ignition_peephole) {
+    pipeline_ = new (zone)
+        BytecodePeepholeOptimizer(&constant_array_builder_, pipeline_);
+  }
+
   return_position_ =
       literal ? std::max(literal->start_position(), literal->end_position() - 1)
               : RelocInfo::kNoPosition;
   LOG_CODE_EVENT(isolate_, CodeStartLinePosInfoRecordEvent(
                                source_position_table_builder()));
 }
-
-BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
 
 Register BytecodeArrayBuilder::first_context_register() const {
   DCHECK_GT(context_register_count_, 0);
@@ -147,18 +71,26 @@ bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
 
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
+  DCHECK_EQ(0, unbound_jumps_);
   DCHECK_EQ(bytecode_generated_, false);
   DCHECK(exit_seen_in_block_);
 
-  int bytecode_size = static_cast<int>(bytecodes_.size());
-  int register_count = fixed_and_temporary_register_count();
-  int frame_size = register_count * kPointerSize;
+  pipeline()->FlushBasicBlock();
+  const ZoneVector<uint8_t>* bytecodes = bytecode_array_writer()->bytecodes();
+
+  int bytecode_size = static_cast<int>(bytecodes->size());
+
+  // All locals need a frame slot for the debugger, but may not be
+  // present in generated code.
+  int frame_size_for_locals = fixed_register_count() * kPointerSize;
+  int frame_size_used = bytecode_array_writer()->GetMaximumFrameSizeUsed();
+  int frame_size = std::max(frame_size_for_locals, frame_size_used);
   Handle<FixedArray> constant_pool = constant_array_builder()->ToFixedArray();
   Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
   Handle<ByteArray> source_position_table =
       source_position_table_builder()->ToSourcePositionTable();
   Handle<BytecodeArray> bytecode_array = isolate_->factory()->NewBytecodeArray(
-      bytecode_size, &bytecodes_.front(), frame_size, parameter_count(),
+      bytecode_size, &bytecodes->front(), frame_size, parameter_count(),
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
   bytecode_array->set_source_position_table(*source_position_table);
@@ -171,50 +103,10 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   return bytecode_array;
 }
 
-template <size_t N>
-void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t (&operands)[N],
-                                  OperandScale operand_scale) {
-  // Don't output dead code.
-  if (exit_seen_in_block_) return;
-
-  int operand_count = static_cast<int>(N);
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count);
-
-  last_bytecode_start_ = bytecodes()->size();
-  // Emit prefix bytecode for scale if required.
-  if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale)) {
-    bytecodes()->push_back(Bytecodes::ToByte(
-        Bytecodes::OperandScaleToPrefixBytecode(operand_scale)));
-  }
-
-  // Emit bytecode.
-  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
-
-  // Emit operands.
-  for (int i = 0; i < operand_count; i++) {
-    DCHECK(OperandIsValid(bytecode, operand_scale, i, operands[i]));
-    switch (Bytecodes::GetOperandSize(bytecode, i, operand_scale)) {
-      case OperandSize::kNone:
-        UNREACHABLE();
-        break;
-      case OperandSize::kByte:
-        bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
-        break;
-      case OperandSize::kShort: {
-        uint8_t operand_bytes[2];
-        WriteUnalignedUInt16(operand_bytes, operands[i]);
-        bytecodes()->insert(bytecodes()->end(), operand_bytes,
-                            operand_bytes + 2);
-        break;
-      }
-      case OperandSize::kQuad: {
-        uint8_t operand_bytes[4];
-        WriteUnalignedUInt32(operand_bytes, operands[i]);
-        bytecodes()->insert(bytecodes()->end(), operand_bytes,
-                            operand_bytes + 4);
-        break;
-      }
-    }
+void BytecodeArrayBuilder::AttachSourceInfo(BytecodeNode* node) {
+  if (latest_source_info_.is_valid()) {
+    node->source_info().Update(latest_source_info_);
+    latest_source_info_.set_invalid();
   }
 }
 
@@ -222,44 +114,68 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode) {
   // Don't output dead code.
   if (exit_seen_in_block_) return;
 
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
-  last_bytecode_start_ = bytecodes()->size();
-  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
+  BytecodeNode node(bytecode);
+  AttachSourceInfo(&node);
+  pipeline()->Write(&node);
 }
 
 void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0, uint32_t operand1,
                                         uint32_t operand2, uint32_t operand3) {
-  uint32_t operands[] = {operand0, operand1, operand2, operand3};
-  Output(bytecode, operands, operand_scale);
+  // Don't output dead code.
+  if (exit_seen_in_block_) return;
+  DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
+  DCHECK(OperandIsValid(bytecode, operand_scale, 1, operand1));
+  DCHECK(OperandIsValid(bytecode, operand_scale, 2, operand2));
+  DCHECK(OperandIsValid(bytecode, operand_scale, 3, operand3));
+  BytecodeNode node(bytecode, operand0, operand1, operand2, operand3,
+                    operand_scale);
+  AttachSourceInfo(&node);
+  pipeline()->Write(&node);
 }
 
 void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0, uint32_t operand1,
                                         uint32_t operand2) {
-  uint32_t operands[] = {operand0, operand1, operand2};
-  Output(bytecode, operands, operand_scale);
+  // Don't output dead code.
+  if (exit_seen_in_block_) return;
+  DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
+  DCHECK(OperandIsValid(bytecode, operand_scale, 1, operand1));
+  DCHECK(OperandIsValid(bytecode, operand_scale, 2, operand2));
+  BytecodeNode node(bytecode, operand0, operand1, operand2, operand_scale);
+  AttachSourceInfo(&node);
+  pipeline()->Write(&node);
 }
 
 void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0, uint32_t operand1) {
-  uint32_t operands[] = {operand0, operand1};
-  Output(bytecode, operands, operand_scale);
+  // Don't output dead code.
+  if (exit_seen_in_block_) return;
+  DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
+  DCHECK(OperandIsValid(bytecode, operand_scale, 1, operand1));
+  BytecodeNode node(bytecode, operand0, operand1, operand_scale);
+  AttachSourceInfo(&node);
+  pipeline()->Write(&node);
 }
 
 void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0) {
-  uint32_t operands[] = {operand0};
-  Output(bytecode, operands, operand_scale);
+  // Don't output dead code.
+  if (exit_seen_in_block_) return;
+  DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
+  BytecodeNode node(bytecode, operand0, operand_scale);
+  AttachSourceInfo(&node);
+  pipeline()->Write(&node);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
                                                             Register reg) {
-  OperandScale operand_scale = OperandSizesToScale(SizeForRegisterOperand(reg));
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(reg.SizeOfOperand());
   OutputScaled(BytecodeForBinaryOperation(op), operand_scale,
                RegisterOperand(reg));
   return *this;
@@ -272,7 +188,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op) {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LogicalNot() {
-  Output(Bytecode::kLogicalNot);
+  Output(Bytecode::kToBooleanLogicalNot);
   return *this;
 }
 
@@ -284,7 +200,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
                                                              Register reg) {
-  OperandScale operand_scale = OperandSizesToScale(SizeForRegisterOperand(reg));
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(reg.SizeOfOperand());
   OutputScaled(BytecodeForCompareOperation(op), operand_scale,
                RegisterOperand(reg));
   return *this;
@@ -297,8 +214,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
   if (raw_smi == 0) {
     Output(Bytecode::kLdaZero);
   } else {
-    OperandSize operand_size = SizeForSignedOperand(raw_smi);
-    OperandScale operand_scale = OperandSizesToScale(operand_size);
+    OperandSize operand_size = Bytecodes::SizeForSignedOperand(raw_smi);
+    OperandScale operand_scale = Bytecodes::OperandSizesToScale(operand_size);
     OutputScaled(Bytecode::kLdaSmi, operand_scale,
                  SignedOperand(raw_smi, operand_size));
   }
@@ -309,7 +226,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Handle<Object> object) {
   size_t entry = GetConstantPoolEntry(object);
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(entry));
+      Bytecodes::OperandSizesToScale(Bytecodes::SizeForUnsignedOperand(entry));
   OutputScaled(Bytecode::kLdaConstant, operand_scale, UnsignedOperand(entry));
   return *this;
 }
@@ -346,22 +263,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
-  if (!IsRegisterInAccumulator(reg)) {
-    OperandScale operand_scale =
-        OperandSizesToScale(SizeForRegisterOperand(reg));
-    OutputScaled(Bytecode::kLdar, operand_scale, RegisterOperand(reg));
-  }
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(reg.SizeOfOperand());
+  OutputScaled(Bytecode::kLdar, operand_scale, RegisterOperand(reg));
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
-  if (!IsRegisterInAccumulator(reg)) {
-    OperandScale operand_scale =
-        OperandSizesToScale(SizeForRegisterOperand(reg));
-    OutputScaled(Bytecode::kStar, operand_scale, RegisterOperand(reg));
-  }
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(reg.SizeOfOperand());
+  OutputScaled(Bytecode::kStar, operand_scale, RegisterOperand(reg));
   return *this;
 }
 
@@ -369,8 +282,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
 BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
                                                          Register to) {
   DCHECK(from != to);
-  OperandScale operand_scale = OperandSizesToScale(SizeForRegisterOperand(from),
-                                                   SizeForRegisterOperand(to));
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(from.SizeOfOperand(), to.SizeOfOperand());
   OutputScaled(Bytecode::kMov, operand_scale, RegisterOperand(from),
                RegisterOperand(to));
   return *this;
@@ -382,9 +295,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
   // operand rather than having extra bytecodes.
   Bytecode bytecode = BytecodeForLoadGlobal(typeof_mode);
   size_t name_index = GetConstantPoolEntry(name);
-  OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(name_index),
-                          SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(name_index),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(bytecode, operand_scale, UnsignedOperand(name_index),
                UnsignedOperand(feedback_slot));
   return *this;
@@ -394,9 +307,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
     const Handle<String> name, int feedback_slot, LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreGlobal(language_mode);
   size_t name_index = GetConstantPoolEntry(name);
-  OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(name_index),
-                          SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(name_index),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(bytecode, operand_scale, UnsignedOperand(name_index),
                UnsignedOperand(feedback_slot));
   return *this;
@@ -405,8 +318,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
                                                             int slot_index) {
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(context), SizeForUnsignedOperand(slot_index));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      context.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(slot_index));
   OutputScaled(Bytecode::kLdaContextSlot, operand_scale,
                RegisterOperand(context), UnsignedOperand(slot_index));
   return *this;
@@ -415,8 +328,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
                                                              int slot_index) {
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(context), SizeForUnsignedOperand(slot_index));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      context.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(slot_index));
   OutputScaled(Bytecode::kStaContextSlot, operand_scale,
                RegisterOperand(context), UnsignedOperand(slot_index));
   return *this;
@@ -428,8 +341,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
                           ? Bytecode::kLdaLookupSlotInsideTypeof
                           : Bytecode::kLdaLookupSlot;
   size_t name_index = GetConstantPoolEntry(name);
-  OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(name_index));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(name_index));
   OutputScaled(bytecode, operand_scale, UnsignedOperand(name_index));
   return *this;
 }
@@ -438,8 +351,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
     const Handle<String> name, LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreLookupSlot(language_mode);
   size_t name_index = GetConstantPoolEntry(name);
-  OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(name_index));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(name_index));
   OutputScaled(bytecode, operand_scale, UnsignedOperand(name_index));
   return *this;
 }
@@ -447,9 +360,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, const Handle<Name> name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(object), SizeForUnsignedOperand(name_index),
-      SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      object.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(name_index),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(Bytecode::kLoadIC, operand_scale, RegisterOperand(object),
                UnsignedOperand(name_index), UnsignedOperand(feedback_slot));
   return *this;
@@ -457,8 +370,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
     Register object, int feedback_slot) {
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(object), SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      object.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(Bytecode::kKeyedLoadIC, operand_scale, RegisterOperand(object),
                UnsignedOperand(feedback_slot));
   return *this;
@@ -469,9 +382,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreIC(language_mode);
   size_t name_index = GetConstantPoolEntry(name);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(object), SizeForUnsignedOperand(name_index),
-      SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      object.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(name_index),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(bytecode, operand_scale, RegisterOperand(object),
                UnsignedOperand(name_index), UnsignedOperand(feedback_slot));
   return *this;
@@ -482,9 +395,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForKeyedStoreIC(language_mode);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(object), SizeForRegisterOperand(key),
-      SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      object.SizeOfOperand(), key.SizeOfOperand(),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(bytecode, operand_scale, RegisterOperand(object),
                RegisterOperand(key), UnsignedOperand(feedback_slot));
   return *this;
@@ -495,7 +408,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
     Handle<SharedFunctionInfo> shared_info, PretenureFlag tenured) {
   size_t entry = GetConstantPoolEntry(shared_info);
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(entry));
+      Bytecodes::OperandSizesToScale(Bytecodes::SizeForUnsignedOperand(entry));
   OutputScaled(Bytecode::kCreateClosure, operand_scale, UnsignedOperand(entry),
                UnsignedOperand(static_cast<size_t>(tenured)));
   return *this;
@@ -516,9 +429,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
     Handle<String> pattern, int literal_index, int flags) {
   size_t pattern_entry = GetConstantPoolEntry(pattern);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForUnsignedOperand(pattern_entry),
-      SizeForUnsignedOperand(literal_index), SizeForUnsignedOperand(flags));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(pattern_entry),
+      Bytecodes::SizeForUnsignedOperand(literal_index),
+      Bytecodes::SizeForUnsignedOperand(flags));
   OutputScaled(Bytecode::kCreateRegExpLiteral, operand_scale,
                UnsignedOperand(pattern_entry), UnsignedOperand(literal_index),
                UnsignedOperand(flags));
@@ -529,9 +443,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
     Handle<FixedArray> constant_elements, int literal_index, int flags) {
   size_t constant_elements_entry = GetConstantPoolEntry(constant_elements);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForUnsignedOperand(constant_elements_entry),
-      SizeForUnsignedOperand(literal_index), SizeForUnsignedOperand(flags));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(constant_elements_entry),
+      Bytecodes::SizeForUnsignedOperand(literal_index),
+      Bytecodes::SizeForUnsignedOperand(flags));
   OutputScaled(Bytecode::kCreateArrayLiteral, operand_scale,
                UnsignedOperand(constant_elements_entry),
                UnsignedOperand(literal_index), UnsignedOperand(flags));
@@ -542,9 +457,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
     Handle<FixedArray> constant_properties, int literal_index, int flags) {
   size_t constant_properties_entry = GetConstantPoolEntry(constant_properties);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForUnsignedOperand(constant_properties_entry),
-      SizeForUnsignedOperand(literal_index), SizeForUnsignedOperand(flags));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(constant_properties_entry),
+      Bytecodes::SizeForUnsignedOperand(literal_index),
+      Bytecodes::SizeForUnsignedOperand(flags));
   OutputScaled(Bytecode::kCreateObjectLiteral, operand_scale,
                UnsignedOperand(constant_properties_entry),
                UnsignedOperand(literal_index), UnsignedOperand(flags));
@@ -554,7 +470,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::PushContext(Register context) {
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForRegisterOperand(context));
+      Bytecodes::OperandSizesToScale(context.SizeOfOperand());
   OutputScaled(Bytecode::kPushContext, operand_scale, RegisterOperand(context));
   return *this;
 }
@@ -562,36 +478,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PushContext(Register context) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForRegisterOperand(context));
+      Bytecodes::OperandSizesToScale(context.SizeOfOperand());
   OutputScaled(Bytecode::kPopContext, operand_scale, RegisterOperand(context));
   return *this;
-}
-
-
-bool BytecodeArrayBuilder::NeedToBooleanCast() {
-  if (!LastBytecodeInSameBlock()) {
-    return true;
-  }
-  PreviousBytecodeHelper previous_bytecode(*this);
-  switch (previous_bytecode.GetBytecode()) {
-    // If the previous bytecode puts a boolean in the accumulator return true.
-    case Bytecode::kLdaTrue:
-    case Bytecode::kLdaFalse:
-    case Bytecode::kLogicalNot:
-    case Bytecode::kTestEqual:
-    case Bytecode::kTestNotEqual:
-    case Bytecode::kTestEqualStrict:
-    case Bytecode::kTestLessThan:
-    case Bytecode::kTestLessThanOrEqual:
-    case Bytecode::kTestGreaterThan:
-    case Bytecode::kTestGreaterThanOrEqual:
-    case Bytecode::kTestInstanceOf:
-    case Bytecode::kTestIn:
-    case Bytecode::kForInDone:
-      return false;
-    default:
-      return true;
-  }
 }
 
 
@@ -602,41 +491,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
-  if (LastBytecodeInSameBlock()) {
-    PreviousBytecodeHelper previous_bytecode(*this);
-    switch (previous_bytecode.GetBytecode()) {
-      case Bytecode::kToName:
-      case Bytecode::kTypeOf:
-        return *this;
-      case Bytecode::kLdaConstant: {
-        Handle<Object> object = previous_bytecode.GetConstantForIndexOperand(0);
-        if (object->IsName()) return *this;
-        break;
-      }
-      default:
-        break;
-    }
-  }
   Output(Bytecode::kToName);
   return *this;
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber() {
-  // TODO(rmcilroy): consider omitting if the preceeding bytecode always returns
-  // a number.
   Output(Bytecode::kToNumber);
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
+  size_t current_offset = pipeline()->FlushForOffset();
   if (label->is_forward_target()) {
     // An earlier jump instruction refers to this label. Update it's location.
-    PatchJump(bytecodes()->end(), bytecodes()->begin() + label->offset());
+    PatchJump(current_offset, label->offset());
     // Now treat as if the label will only be back referred to.
   }
-  label->bind_to(bytecodes()->size());
+  label->bind_to(current_offset);
   LeaveBasicBlock();
   return *this;
 }
@@ -646,10 +518,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   DCHECK(target.is_bound());
+  // There is no need to flush the pipeline here, it will have been
+  // flushed when |target| was bound.
   if (label->is_forward_target()) {
     // An earlier jump instruction refers to this label. Update it's location.
-    PatchJump(bytecodes()->begin() + target.offset(),
-              bytecodes()->begin() + label->offset());
+    PatchJump(target.offset(), label->offset());
     // Now treat as if the label will only be back referred to.
   }
   label->bind_to(target.offset());
@@ -684,90 +557,74 @@ Bytecode BytecodeArrayBuilder::GetJumpWithConstantOperand(
   }
 }
 
-// static
-Bytecode BytecodeArrayBuilder::GetJumpWithToBoolean(Bytecode jump_bytecode) {
-  switch (jump_bytecode) {
-    case Bytecode::kJump:
-    case Bytecode::kJumpIfNull:
-    case Bytecode::kJumpIfUndefined:
-    case Bytecode::kJumpIfNotHole:
-      return jump_bytecode;
-    case Bytecode::kJumpIfTrue:
-      return Bytecode::kJumpIfToBooleanTrue;
-    case Bytecode::kJumpIfFalse:
-      return Bytecode::kJumpIfToBooleanFalse;
-    default:
-      UNREACHABLE();
-  }
-  return Bytecode::kIllegal;
-}
-
-
-void BytecodeArrayBuilder::PatchIndirectJumpWith8BitOperand(
-    const ZoneVector<uint8_t>::iterator& jump_location, int delta) {
-  Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
+void BytecodeArrayBuilder::PatchJumpWith8BitOperand(
+    ZoneVector<uint8_t>* bytecodes, size_t jump_location, int delta) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes->at(jump_location));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
-  ZoneVector<uint8_t>::iterator operand_location = jump_location + 1;
-  DCHECK_EQ(*operand_location, 0);
-  if (SizeForSignedOperand(delta) == OperandSize::kByte) {
+  size_t operand_location = jump_location + 1;
+  DCHECK_EQ(bytecodes->at(operand_location), 0);
+  if (Bytecodes::SizeForSignedOperand(delta) == OperandSize::kByte) {
     // The jump fits within the range of an Imm operand, so cancel
     // the reservation and jump directly.
     constant_array_builder()->DiscardReservedEntry(OperandSize::kByte);
-    *operand_location = static_cast<uint8_t>(delta);
+    bytecodes->at(operand_location) = static_cast<uint8_t>(delta);
   } else {
     // The jump does not fit within the range of an Imm operand, so
     // commit reservation putting the offset into the constant pool,
     // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kByte, handle(Smi::FromInt(delta), isolate()));
-    DCHECK(SizeForUnsignedOperand(entry) == OperandSize::kByte);
+    DCHECK(Bytecodes::SizeForUnsignedOperand(entry) == OperandSize::kByte);
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
-    *jump_location = Bytecodes::ToByte(jump_bytecode);
-    *operand_location = static_cast<uint8_t>(entry);
+    bytecodes->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
+    bytecodes->at(operand_location) = static_cast<uint8_t>(entry);
   }
 }
 
-void BytecodeArrayBuilder::PatchIndirectJumpWith16BitOperand(
-    const ZoneVector<uint8_t>::iterator& jump_location, int delta) {
-  Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
+void BytecodeArrayBuilder::PatchJumpWith16BitOperand(
+    ZoneVector<uint8_t>* bytecodes, size_t jump_location, int delta) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes->at(jump_location));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
-  ZoneVector<uint8_t>::iterator operand_location = jump_location + 1;
+  size_t operand_location = jump_location + 1;
   uint8_t operand_bytes[2];
-  if (SizeForSignedOperand(delta) <= OperandSize::kShort) {
+  if (Bytecodes::SizeForSignedOperand(delta) <= OperandSize::kShort) {
     constant_array_builder()->DiscardReservedEntry(OperandSize::kShort);
     WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(delta));
   } else {
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
-    *jump_location = Bytecodes::ToByte(jump_bytecode);
+    bytecodes->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kShort, handle(Smi::FromInt(delta), isolate()));
     WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
   }
-  DCHECK(*operand_location == 0 && *(operand_location + 1) == 0);
-  *operand_location++ = operand_bytes[0];
-  *operand_location = operand_bytes[1];
+  DCHECK(bytecodes->at(operand_location) == 0 &&
+         bytecodes->at(operand_location + 1) == 0);
+  bytecodes->at(operand_location++) = operand_bytes[0];
+  bytecodes->at(operand_location) = operand_bytes[1];
 }
 
-void BytecodeArrayBuilder::PatchIndirectJumpWith32BitOperand(
-    const ZoneVector<uint8_t>::iterator& jump_location, int delta) {
-  DCHECK(Bytecodes::IsJumpImmediate(Bytecodes::FromByte(*jump_location)));
+void BytecodeArrayBuilder::PatchJumpWith32BitOperand(
+    ZoneVector<uint8_t>* bytecodes, size_t jump_location, int delta) {
+  DCHECK(Bytecodes::IsJumpImmediate(
+      Bytecodes::FromByte(bytecodes->at(jump_location))));
   constant_array_builder()->DiscardReservedEntry(OperandSize::kQuad);
-  ZoneVector<uint8_t>::iterator operand_location = jump_location + 1;
   uint8_t operand_bytes[4];
   WriteUnalignedUInt32(operand_bytes, static_cast<uint32_t>(delta));
-  DCHECK(*operand_location == 0 && *(operand_location + 1) == 0 &&
-         *(operand_location + 2) == 0 && *(operand_location + 3) == 0);
-  *operand_location++ = operand_bytes[0];
-  *operand_location++ = operand_bytes[1];
-  *operand_location++ = operand_bytes[2];
-  *operand_location = operand_bytes[3];
+  size_t operand_location = jump_location + 1;
+  DCHECK(bytecodes->at(operand_location) == 0 &&
+         bytecodes->at(operand_location + 1) == 0 &&
+         bytecodes->at(operand_location + 2) == 0 &&
+         bytecodes->at(operand_location + 3) == 0);
+  bytecodes->at(operand_location++) = operand_bytes[0];
+  bytecodes->at(operand_location++) = operand_bytes[1];
+  bytecodes->at(operand_location++) = operand_bytes[2];
+  bytecodes->at(operand_location) = operand_bytes[3];
 }
 
-void BytecodeArrayBuilder::PatchJump(
-    const ZoneVector<uint8_t>::iterator& jump_target,
-    const ZoneVector<uint8_t>::iterator& jump_location) {
+void BytecodeArrayBuilder::PatchJump(size_t jump_target, size_t jump_location) {
+  ZoneVector<uint8_t>* bytecodes = bytecode_array_writer()->bytecodes();
+  Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes->at(jump_location));
   int delta = static_cast<int>(jump_target - jump_location);
-  Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
   int prefix_offset = 0;
   OperandScale operand_scale = OperandScale::kSingle;
   if (Bytecodes::IsPrefixScalingBytecode(jump_bytecode)) {
@@ -776,19 +633,22 @@ void BytecodeArrayBuilder::PatchJump(
     delta -= 1;
     prefix_offset = 1;
     operand_scale = Bytecodes::PrefixBytecodeToOperandScale(jump_bytecode);
-    jump_bytecode = Bytecodes::FromByte(*(jump_location + prefix_offset));
+    jump_bytecode =
+        Bytecodes::FromByte(bytecodes->at(jump_location + prefix_offset));
   }
 
   DCHECK(Bytecodes::IsJump(jump_bytecode));
   switch (operand_scale) {
     case OperandScale::kSingle:
-      PatchIndirectJumpWith8BitOperand(jump_location, delta);
+      PatchJumpWith8BitOperand(bytecodes, jump_location, delta);
       break;
     case OperandScale::kDouble:
-      PatchIndirectJumpWith16BitOperand(jump_location + prefix_offset, delta);
+      PatchJumpWith16BitOperand(bytecodes, jump_location + prefix_offset,
+                                delta);
       break;
     case OperandScale::kQuadruple:
-      PatchIndirectJumpWith32BitOperand(jump_location + prefix_offset, delta);
+      PatchJumpWith32BitOperand(bytecodes, jump_location + prefix_offset,
+                                delta);
       break;
     default:
       UNREACHABLE();
@@ -802,25 +662,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
   // Don't emit dead code.
   if (exit_seen_in_block_) return *this;
 
-  // Check if the value in accumulator is boolean, if not choose an
-  // appropriate JumpIfToBoolean bytecode.
-  if (NeedToBooleanCast()) {
-    jump_bytecode = GetJumpWithToBoolean(jump_bytecode);
-  }
-
   if (label->is_bound()) {
     // Label has been bound already so this is a backwards jump.
-    CHECK_GE(bytecodes()->size(), label->offset());
-    CHECK_LE(bytecodes()->size(), static_cast<size_t>(kMaxInt));
-    size_t abs_delta = bytecodes()->size() - label->offset();
+    size_t current_offset = pipeline()->FlushForOffset();
+    CHECK_GE(current_offset, label->offset());
+    CHECK_LE(current_offset, static_cast<size_t>(kMaxInt));
+    size_t abs_delta = current_offset - label->offset();
     int delta = -static_cast<int>(abs_delta);
-    OperandSize operand_size = SizeForSignedOperand(delta);
+    OperandSize operand_size = Bytecodes::SizeForSignedOperand(delta);
     if (operand_size > OperandSize::kByte) {
       // Adjust for scaling byte prefix for wide jump offset.
       DCHECK_LE(delta, 0);
       delta -= 1;
     }
-    OutputScaled(jump_bytecode, OperandSizesToScale(operand_size),
+    OutputScaled(jump_bytecode, Bytecodes::OperandSizesToScale(operand_size),
                  SignedOperand(delta, operand_size));
   } else {
     // The label has not yet been bound so this is a forward reference
@@ -829,43 +684,58 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
     // when the label is bound. The reservation means the maximum size
     // of the operand for the constant is known and the jump can
     // be emitted into the bytecode stream with space for the operand.
-    label->set_referrer(bytecodes()->size());
     unbound_jumps_++;
     OperandSize reserved_operand_size =
         constant_array_builder()->CreateReservedEntry();
-    OutputScaled(jump_bytecode, OperandSizesToScale(reserved_operand_size), 0);
+    OutputScaled(jump_bytecode,
+                 Bytecodes::OperandSizesToScale(reserved_operand_size), 0);
+
+    // Calculate the label position by flushing for offset after emitting the
+    // jump bytecode.
+    size_t offset = pipeline()->FlushForOffset();
+    OperandScale operand_scale =
+        Bytecodes::OperandSizesToScale(reserved_operand_size);
+    offset -= Bytecodes::Size(jump_bytecode, operand_scale);
+    if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale)) {
+      offset -= 1;
+    }
+    label->set_referrer(offset);
   }
   LeaveBasicBlock();
   return *this;
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
   return OutputJump(Bytecode::kJump, label);
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfTrue(BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfTrue, label);
+  // The peephole optimizer attempts to simplify JumpIfToBooleanTrue
+  // to JumpIfTrue.
+  return OutputJump(Bytecode::kJumpIfToBooleanTrue, label);
 }
-
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfFalse, label);
+  // The peephole optimizer attempts to simplify JumpIfToBooleanFalse
+  // to JumpIfFalse.
+  return OutputJump(Bytecode::kJumpIfToBooleanFalse, label);
 }
-
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
   return OutputJump(Bytecode::kJumpIfNull, label);
 }
-
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
     BytecodeLabel* label) {
   return OutputJump(Bytecode::kJumpIfUndefined, label);
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck() {
+BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
+  if (position != RelocInfo::kNoPosition) {
+    // We need to attach a non-breakable source position to a stack check,
+    // so we simply add it as expression position.
+    latest_source_info_.Update({position, false});
+  }
   Output(Bytecode::kStackCheck);
   return *this;
 }
@@ -904,7 +774,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
     Register cache_info_triple) {
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForRegisterOperand(cache_info_triple));
+      Bytecodes::OperandSizesToScale(cache_info_triple.SizeOfOperand());
   OutputScaled(Bytecode::kForInPrepare, operand_scale,
                RegisterOperand(cache_info_triple));
   return *this;
@@ -912,8 +782,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
                                                       Register cache_length) {
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(index), SizeForRegisterOperand(cache_length));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      index.SizeOfOperand(), cache_length.SizeOfOperand());
   OutputScaled(Bytecode::kForInDone, operand_scale, RegisterOperand(index),
                RegisterOperand(cache_length));
   return *this;
@@ -922,10 +792,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
     Register receiver, Register index, Register cache_type_array_pair,
     int feedback_slot) {
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(receiver), SizeForRegisterOperand(index),
-      SizeForRegisterOperand(cache_type_array_pair),
-      SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      receiver.SizeOfOperand(), index.SizeOfOperand(),
+      cache_type_array_pair.SizeOfOperand(),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(Bytecode::kForInNext, operand_scale, RegisterOperand(receiver),
                RegisterOperand(index), RegisterOperand(cache_type_array_pair),
                UnsignedOperand(feedback_slot));
@@ -935,15 +805,36 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInStep(Register index) {
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForRegisterOperand(index));
+      Bytecodes::OperandSizesToScale(index.SizeOfOperand());
   OutputScaled(Bytecode::kForInStep, operand_scale, RegisterOperand(index));
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
+    Register generator) {
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(generator.SizeOfOperand());
+  OutputScaled(Bytecode::kSuspendGenerator, operand_scale,
+               RegisterOperand(generator));
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
+    Register generator) {
+  OperandScale operand_scale =
+      Bytecodes::OperandSizesToScale(generator.SizeOfOperand());
+  OutputScaled(Bytecode::kResumeGenerator, operand_scale,
+               RegisterOperand(generator));
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(int handler_id,
                                                         bool will_catch) {
-  handler_table_builder()->SetHandlerTarget(handler_id, bytecodes()->size());
+  size_t offset = pipeline()->FlushForOffset();
+  handler_table_builder()->SetHandlerTarget(handler_id, offset);
   handler_table_builder()->SetPrediction(handler_id, will_catch);
   return *this;
 }
@@ -951,21 +842,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(int handler_id,
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryBegin(int handler_id,
                                                          Register context) {
-  handler_table_builder()->SetTryRegionStart(handler_id, bytecodes()->size());
+  size_t offset = pipeline()->FlushForOffset();
+  handler_table_builder()->SetTryRegionStart(handler_id, offset);
   handler_table_builder()->SetContextRegister(handler_id, context);
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
-  handler_table_builder()->SetTryRegionEnd(handler_id, bytecodes()->size());
+  size_t offset = pipeline()->FlushForOffset();
+  handler_table_builder()->SetTryRegionEnd(handler_id, offset);
   return *this;
 }
 
 
 void BytecodeArrayBuilder::LeaveBasicBlock() {
-  last_block_end_ = bytecodes()->size();
   exit_seen_in_block_ = false;
+  pipeline()->FlushBasicBlock();
 }
 
 void BytecodeArrayBuilder::EnsureReturn() {
@@ -982,10 +875,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
                                                  int feedback_slot,
                                                  TailCallMode tail_call_mode) {
   Bytecode bytecode = BytecodeForCall(tail_call_mode);
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(callable), SizeForRegisterOperand(receiver_args),
-      SizeForUnsignedOperand(receiver_args_count),
-      SizeForUnsignedOperand(feedback_slot));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      callable.SizeOfOperand(), receiver_args.SizeOfOperand(),
+      Bytecodes::SizeForUnsignedOperand(receiver_args_count),
+      Bytecodes::SizeForUnsignedOperand(feedback_slot));
   OutputScaled(bytecode, operand_scale, RegisterOperand(callable),
                RegisterOperand(receiver_args),
                UnsignedOperand(receiver_args_count),
@@ -1000,9 +893,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(constructor), SizeForRegisterOperand(first_arg),
-      SizeForUnsignedOperand(arg_count));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      constructor.SizeOfOperand(), first_arg.SizeOfOperand(),
+      Bytecodes::SizeForUnsignedOperand(arg_count));
   OutputScaled(Bytecode::kNew, operand_scale, RegisterOperand(constructor),
                RegisterOperand(first_arg), UnsignedOperand(arg_count));
   return *this;
@@ -1012,7 +905,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     Runtime::FunctionId function_id, Register first_arg, size_t arg_count) {
   DCHECK_EQ(1, Runtime::FunctionForId(function_id)->result_size);
-  DCHECK(SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
+  DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
   if (!first_arg.is_valid()) {
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
@@ -1020,8 +913,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
   Bytecode bytecode = IntrinsicsHelper::IsSupported(function_id)
                           ? Bytecode::kInvokeIntrinsic
                           : Bytecode::kCallRuntime;
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(first_arg), SizeForUnsignedOperand(arg_count));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      first_arg.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(arg_count));
   OutputScaled(bytecode, operand_scale, static_cast<uint16_t>(function_id),
                RegisterOperand(first_arg), UnsignedOperand(arg_count));
   return *this;
@@ -1032,14 +925,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
     Runtime::FunctionId function_id, Register first_arg, size_t arg_count,
     Register first_return) {
   DCHECK_EQ(2, Runtime::FunctionForId(function_id)->result_size);
-  DCHECK(SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
+  DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
   if (!first_arg.is_valid()) {
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
-  OperandScale operand_scale = OperandSizesToScale(
-      SizeForRegisterOperand(first_arg), SizeForUnsignedOperand(arg_count),
-      SizeForRegisterOperand(first_return));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      first_arg.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(arg_count),
+      first_return.SizeOfOperand());
   OutputScaled(Bytecode::kCallRuntimeForPair, operand_scale,
                static_cast<uint16_t>(function_id), RegisterOperand(first_arg),
                UnsignedOperand(arg_count), RegisterOperand(first_return));
@@ -1048,10 +941,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(
     int context_index, Register receiver_args, size_t receiver_args_count) {
-  OperandScale operand_scale =
-      OperandSizesToScale(SizeForUnsignedOperand(context_index),
-                          SizeForRegisterOperand(receiver_args),
-                          SizeForUnsignedOperand(receiver_args_count));
+  OperandScale operand_scale = Bytecodes::OperandSizesToScale(
+      Bytecodes::SizeForUnsignedOperand(context_index),
+      receiver_args.SizeOfOperand(),
+      Bytecodes::SizeForUnsignedOperand(receiver_args_count));
   OutputScaled(Bytecode::kCallJSRuntime, operand_scale,
                UnsignedOperand(context_index), RegisterOperand(receiver_args),
                UnsignedOperand(receiver_args_count));
@@ -1062,7 +955,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(
 BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
                                                    LanguageMode language_mode) {
   OperandScale operand_scale =
-      OperandSizesToScale(SizeForRegisterOperand(object));
+      Bytecodes::OperandSizesToScale(object.SizeOfOperand());
   OutputScaled(BytecodeForDelete(language_mode), operand_scale,
                RegisterOperand(object));
   return *this;
@@ -1075,29 +968,25 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 void BytecodeArrayBuilder::SetReturnPosition() {
   if (return_position_ == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
-                                                      return_position_);
+  latest_source_info_.Update({return_position_, true});
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
   if (stmt->position() == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
-                                                      stmt->position());
+  latest_source_info_.Update({stmt->position(), true});
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-  source_position_table_builder_.AddExpressionPosition(bytecodes_.size(),
-                                                       expr->position());
+  latest_source_info_.Update({expr->position(), false});
 }
 
 void BytecodeArrayBuilder::SetExpressionAsStatementPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
-                                                      expr->position());
+  latest_source_info_.Update({expr->position(), true});
 }
 
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {
@@ -1129,10 +1018,10 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode,
     case OperandType::kRuntimeId:
     case OperandType::kImm: {
       size_t unsigned_value = static_cast<size_t>(operand_value);
-      return SizeForUnsignedOperand(unsigned_value) <= operand_size;
+      return Bytecodes::SizeForUnsignedOperand(unsigned_value) <= operand_size;
     }
     case OperandType::kMaybeReg:
-      if (operand_value == 0) {
+      if (RegisterFromOperand(operand_value) == Register(0)) {
         return true;
       }
     // Fall-through to kReg case.
@@ -1169,7 +1058,7 @@ bool BytecodeArrayBuilder::RegisterIsValid(Register reg,
     return false;
   }
 
-  if (SizeForRegisterOperand(reg) > reg_size) {
+  if (reg.SizeOfOperand() > reg_size) {
     return false;
   }
 
@@ -1185,25 +1074,6 @@ bool BytecodeArrayBuilder::RegisterIsValid(Register reg,
     return TemporaryRegisterIsLive(reg);
   }
 }
-
-
-bool BytecodeArrayBuilder::LastBytecodeInSameBlock() const {
-  return last_bytecode_start_ < bytecodes()->size() &&
-         last_bytecode_start_ >= last_block_end_;
-}
-
-
-bool BytecodeArrayBuilder::IsRegisterInAccumulator(Register reg) {
-  if (LastBytecodeInSameBlock()) {
-    PreviousBytecodeHelper previous_bytecode(*this);
-    Bytecode bytecode = previous_bytecode.GetBytecode();
-    if (bytecode == Bytecode::kLdar || bytecode == Bytecode::kStar) {
-      return previous_bytecode.GetRegisterOperand(0) == reg;
-    }
-  }
-  return false;
-}
-
 
 // static
 Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
@@ -1384,76 +1254,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForCall(TailCallMode tail_call_mode) {
       UNREACHABLE();
   }
   return Bytecode::kIllegal;
-}
-
-// static
-OperandSize BytecodeArrayBuilder::SizeForRegisterOperand(Register value) {
-  if (value.is_byte_operand()) {
-    return OperandSize::kByte;
-  } else if (value.is_short_operand()) {
-    return OperandSize::kShort;
-  } else {
-    return OperandSize::kQuad;
-  }
-}
-
-// static
-OperandSize BytecodeArrayBuilder::SizeForSignedOperand(int value) {
-  if (kMinInt8 <= value && value <= kMaxInt8) {
-    return OperandSize::kByte;
-  } else if (kMinInt16 <= value && value <= kMaxInt16) {
-    return OperandSize::kShort;
-  } else {
-    return OperandSize::kQuad;
-  }
-}
-
-// static
-OperandSize BytecodeArrayBuilder::SizeForUnsignedOperand(int value) {
-  DCHECK_GE(value, 0);
-  if (value <= kMaxUInt8) {
-    return OperandSize::kByte;
-  } else if (value <= kMaxUInt16) {
-    return OperandSize::kShort;
-  } else {
-    return OperandSize::kQuad;
-  }
-}
-
-OperandSize BytecodeArrayBuilder::SizeForUnsignedOperand(size_t value) {
-  if (value <= static_cast<size_t>(kMaxUInt8)) {
-    return OperandSize::kByte;
-  } else if (value <= static_cast<size_t>(kMaxUInt16)) {
-    return OperandSize::kShort;
-  } else if (value <= kMaxUInt32) {
-    return OperandSize::kQuad;
-  } else {
-    UNREACHABLE();
-    return OperandSize::kQuad;
-  }
-}
-
-OperandScale BytecodeArrayBuilder::OperandSizesToScale(OperandSize size0,
-                                                       OperandSize size1,
-                                                       OperandSize size2,
-                                                       OperandSize size3) {
-  OperandSize upper = std::max(size0, size1);
-  OperandSize lower = std::max(size2, size3);
-  OperandSize result = std::max(upper, lower);
-  // Operand sizes have been scaled before calling this function.
-  // Currently all scalable operands are byte sized at
-  // OperandScale::kSingle.
-  STATIC_ASSERT(static_cast<int>(OperandSize::kByte) ==
-                    static_cast<int>(OperandScale::kSingle) &&
-                static_cast<int>(OperandSize::kShort) ==
-                    static_cast<int>(OperandScale::kDouble) &&
-                static_cast<int>(OperandSize::kQuad) ==
-                    static_cast<int>(OperandScale::kQuadruple));
-  OperandScale operand_scale = static_cast<OperandScale>(result);
-  DCHECK(operand_scale == OperandScale::kSingle ||
-         operand_scale == OperandScale::kDouble ||
-         operand_scale == OperandScale::kQuadruple);
-  return operand_scale;
 }
 
 uint32_t BytecodeArrayBuilder::RegisterOperand(Register reg) {

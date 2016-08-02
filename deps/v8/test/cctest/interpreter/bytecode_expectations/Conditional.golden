@@ -15,13 +15,13 @@ frame size: 0
 parameter count: 1
 bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(JumpIfToBooleanFalse), U8(6),
-  B(LdaSmi), U8(2),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(3),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaSmi), U8(1),
+                B(JumpIfToBooleanFalse), U8(6),
+                B(LdaSmi), U8(2),
+                B(Jump), U8(4),
+                B(LdaSmi), U8(3),
+  /*   52 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -36,17 +36,17 @@ frame size: 0
 parameter count: 1
 bytecode array length: 20
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(JumpIfToBooleanFalse), U8(14),
-  B(LdaSmi), U8(2),
-  B(JumpIfToBooleanFalse), U8(6),
-  B(LdaSmi), U8(3),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(4),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(5),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaSmi), U8(1),
+                B(JumpIfToBooleanFalse), U8(14),
+                B(LdaSmi), U8(2),
+                B(JumpIfToBooleanFalse), U8(6),
+                B(LdaSmi), U8(3),
+                B(Jump), U8(4),
+                B(LdaSmi), U8(4),
+                B(Jump), U8(4),
+                B(LdaSmi), U8(5),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
 ]

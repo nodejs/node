@@ -199,11 +199,9 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
 // -----------------------------------------------------------------------------
 // Conversions.
 
-
-TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
+TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToWord32WithParameter) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Float64());
-  m.Return(
-      m.TruncateFloat64ToInt32(TruncationMode::kJavaScript, m.Parameter(0)));
+  m.Return(m.TruncateFloat64ToWord32(m.Parameter(0)));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());

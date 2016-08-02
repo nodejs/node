@@ -147,7 +147,12 @@ test(function() {
 }, "Method Set.prototype.add called on incompatible receiver [object Array]",
 TypeError);
 
-// kInstanceofFunctionExpected
+// kNonCallableInInstanceOfCheck
+test(function() {
+  1 instanceof {};
+}, "Right-hand side of 'instanceof' is not callable", TypeError);
+
+// kNonObjectInInstanceOfCheck
 test(function() {
   1 instanceof 1;
 }, "Right-hand side of 'instanceof' is not an object", TypeError);

@@ -137,6 +137,12 @@ unsigned Utf8::Length(uchar c, int previous) {
   }
 }
 
+bool Utf8::IsValidCharacter(uchar c) {
+  return c < 0xD800u || (c >= 0xE000u && c < 0xFDD0u) ||
+         (c > 0xFDEFu && c <= 0x10FFFFu && (c & 0xFFFEu) != 0xFFFEu &&
+          c != kBadChar);
+}
+
 }  // namespace unibrow
 
 #endif  // V8_UNICODE_INL_H_

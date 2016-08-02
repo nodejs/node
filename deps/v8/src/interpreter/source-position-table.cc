@@ -115,53 +115,34 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 
 }  // namespace
 
-void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
-                                                      int source_position) {
+void SourcePositionTableBuilder::AddPosition(size_t bytecode_offset,
+                                             int source_position,
+                                             bool is_statement) {
   int offset = static_cast<int>(bytecode_offset);
-  AddEntry({offset, source_position, true});
-}
-
-void SourcePositionTableBuilder::AddExpressionPosition(size_t bytecode_offset,
-                                                       int source_position) {
-  int offset = static_cast<int>(bytecode_offset);
-  AddEntry({offset, source_position, false});
+  AddEntry({offset, source_position, is_statement});
 }
 
 void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
-  // Don't encode a new entry if this bytecode already has a source position
-  // assigned.
-  if (candidate_.bytecode_offset == entry.bytecode_offset) {
-    if (entry.is_statement) candidate_ = entry;
-    return;
-  }
-
-  CommitEntry();
-  candidate_ = entry;
-}
-
-void SourcePositionTableBuilder::CommitEntry() {
-  if (candidate_.bytecode_offset == kUninitializedCandidateOffset) return;
-  PositionTableEntry tmp(candidate_);
+  PositionTableEntry tmp(entry);
   SubtractFromEntry(tmp, previous_);
   EncodeEntry(bytes_, tmp);
-  previous_ = candidate_;
+  previous_ = entry;
 
-  if (candidate_.is_statement) {
+  if (entry.is_statement) {
     LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
-                                 jit_handler_data_, candidate_.bytecode_offset,
-                                 candidate_.source_position));
+                                 jit_handler_data_, entry.bytecode_offset,
+                                 entry.source_position));
   }
   LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
-                               jit_handler_data_, candidate_.bytecode_offset,
-                               candidate_.source_position));
+                               jit_handler_data_, entry.bytecode_offset,
+                               entry.source_position));
 
 #ifdef ENABLE_SLOW_DCHECKS
-  raw_entries_.push_back(candidate_);
+  raw_entries_.push_back(entry);
 #endif
 }
 
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
-  CommitEntry();
   if (bytes_.empty()) return isolate_->factory()->empty_byte_array();
 
   Handle<ByteArray> table = isolate_->factory()->NewByteArray(

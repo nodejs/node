@@ -17,9 +17,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(this),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(Ldar), R(this),
+  /*   28 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -35,9 +35,9 @@ frame size: 0
 parameter count: 2
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(arg0),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   19 S> */ B(Ldar), R(arg0),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -53,9 +53,9 @@ frame size: 0
 parameter count: 2
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(this),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   19 S> */ B(Ldar), R(this),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -71,9 +71,9 @@ frame size: 0
 parameter count: 8
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(arg3),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   55 S> */ B(Ldar), R(arg3),
+  /*   68 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -89,9 +89,9 @@ frame size: 0
 parameter count: 8
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(this),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   55 S> */ B(Ldar), R(this),
+  /*   68 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -107,11 +107,11 @@ frame size: 0
 parameter count: 2
 bytecode array length: 7
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(arg0),
-  B(LdaUndefined),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   19 S> */ B(LdaSmi), U8(1),
+  /*   24 E> */ B(Star), R(arg0),
+                B(LdaUndefined),
+  /*   29 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -127,11 +127,11 @@ frame size: 0
 parameter count: 5
 bytecode array length: 7
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(arg1),
-  B(LdaUndefined),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   37 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(Star), R(arg1),
+                B(LdaUndefined),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
 ]

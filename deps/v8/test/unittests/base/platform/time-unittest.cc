@@ -16,6 +16,7 @@
 #endif
 
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -179,6 +180,33 @@ TEST(TimeTicks, IsMonotonic) {
     EXPECT_GE((highres_ticks - previous_highres_ticks).InMicroseconds(), 0);
     previous_normal_ticks = normal_ticks;
     previous_highres_ticks = highres_ticks;
+  }
+}
+
+
+// Disable on windows until it is implemented.
+#if V8_OS_ANDROID || V8_OS_WIN
+#define MAYBE_ThreadNow DISABLED_ThreadNow
+#else
+#define MAYBE_ThreadNow ThreadNow
+#endif
+TEST(ThreadTicks, MAYBE_ThreadNow) {
+  if (ThreadTicks::IsSupported()) {
+    TimeTicks begin = TimeTicks::Now();
+    ThreadTicks begin_thread = ThreadTicks::Now();
+    // Make sure that ThreadNow value is non-zero.
+    EXPECT_GT(begin_thread, ThreadTicks());
+    // Sleep for 10 milliseconds to get the thread de-scheduled.
+    OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+    ThreadTicks end_thread = ThreadTicks::Now();
+    TimeTicks end = TimeTicks::Now();
+    TimeDelta delta = end - begin;
+    TimeDelta delta_thread = end_thread - begin_thread;
+    // Make sure that some thread time have elapsed.
+    EXPECT_GT(delta_thread.InMicroseconds(), 0);
+    // But the thread time is at least 9ms less than clock time.
+    TimeDelta difference = delta - delta_thread;
+    EXPECT_GE(difference.InMicroseconds(), 9000);
   }
 }
 

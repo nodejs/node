@@ -30,7 +30,8 @@ function StringPad(thisString, maxLength, fillString) {
   } else {
     fillString = TO_STRING(fillString);
     if (fillString === "") {
-      fillString = " ";
+      // If filler is the empty String, return S.
+      return "";
     }
   }
 

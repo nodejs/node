@@ -14,23 +14,20 @@ namespace compiler {
 
 class LoadEliminationTest : public TypedGraphTest {
  public:
-  LoadEliminationTest()
-      : TypedGraphTest(3), common_(zone()), simplified_(zone()) {}
+  LoadEliminationTest() : TypedGraphTest(3), simplified_(zone()) {}
   ~LoadEliminationTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    LoadElimination reducer(&graph_reducer, graph(), common());
+    LoadElimination reducer(&graph_reducer, graph(), simplified());
     return reducer.Reduce(node);
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
-  CommonOperatorBuilder* common() { return &common_; }
 
  private:
-  CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;
 };
 

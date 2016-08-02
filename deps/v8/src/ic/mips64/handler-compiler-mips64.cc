@@ -584,66 +584,6 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 }
 
 
-void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<AccessorInfo> callback) {
-  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), receiver()));
-  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), reg));
-
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
-  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
-
-  // Here and below +1 is for name() pushed after the args_ array.
-  typedef PropertyCallbackArguments PCA;
-  __ Dsubu(sp, sp, (PCA::kArgsLength + 1) * kPointerSize);
-  __ sd(receiver(), MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
-  Handle<Object> data(callback->data(), isolate());
-  if (data->IsUndefined() || data->IsSmi()) {
-    __ li(scratch2(), data);
-  } else {
-    Handle<WeakCell> cell =
-        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
-    // The callback is alive if this instruction is executed,
-    // so the weak cell is not cleared and points to data.
-    __ GetWeakValue(scratch2(), cell);
-  }
-  __ sd(scratch2(), MemOperand(sp, (PCA::kDataIndex + 1) * kPointerSize));
-  __ LoadRoot(scratch2(), Heap::kUndefinedValueRootIndex);
-  __ sd(scratch2(),
-        MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
-  __ sd(scratch2(), MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
-                                       kPointerSize));
-  __ li(scratch2(), Operand(ExternalReference::isolate_address(isolate())));
-  __ sd(scratch2(), MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
-  __ sd(reg, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
-  // should_throw_on_error -> false
-  DCHECK(Smi::FromInt(0) == nullptr);
-  __ sd(zero_reg,
-        MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
-
-  __ sd(name(), MemOperand(sp, 0 * kPointerSize));
-
-  // Abi for CallApiGetter.
-  Register getter_address_reg = ApiGetterDescriptor::function_address();
-
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  ApiFunction fun(getter_address);
-  ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
-  ExternalReference ref = ExternalReference(&fun, type, isolate());
-  __ li(getter_address_reg, Operand(ref));
-
-  CallApiGetterStub stub(isolate());
-  __ TailCallStub(&stub);
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     LookupIterator* it, Register holder_reg) {
   DCHECK(holder()->HasNamedInterceptor());
@@ -737,7 +677,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);
 
   // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), name);
 }
 
 
@@ -778,7 +718,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendFooter(name, &miss);
 
   // Return the generated code.
-  return GetCode(kind(), Code::NORMAL, name);
+  return GetCode(kind(), name);
 }
 
 

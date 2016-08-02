@@ -1142,15 +1142,12 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kArmVcvtF32F64, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, kArchTruncateDoubleToI, node);
+}
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, kArchTruncateDoubleToI, node);
-    case TruncationMode::kRoundToZero:
-      return VisitRR(this, kArmVcvtS32F64, node);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRR(this, kArmVcvtS32F64, node);
 }
 
 
@@ -1208,6 +1205,35 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
   VisitRRR(this, kArmVaddF64, node);
 }
 
+namespace {
+void VisitFloat32SubHelper(InstructionSelector* selector, Node* node) {
+  ArmOperandGenerator g(selector);
+  Float32BinopMatcher m(node);
+  if (m.right().IsFloat32Mul() && selector->CanCover(node, m.right().node())) {
+    Float32BinopMatcher mright(m.right().node());
+    selector->Emit(kArmVmlsF32, g.DefineSameAsFirst(node),
+                   g.UseRegister(m.left().node()),
+                   g.UseRegister(mright.left().node()),
+                   g.UseRegister(mright.right().node()));
+    return;
+  }
+  VisitRRR(selector, kArmVsubF32, node);
+}
+
+void VisitFloat64SubHelper(InstructionSelector* selector, Node* node) {
+  ArmOperandGenerator g(selector);
+  Float64BinopMatcher m(node);
+  if (m.right().IsFloat64Mul() && selector->CanCover(node, m.right().node())) {
+    Float64BinopMatcher mright(m.right().node());
+    selector->Emit(kArmVmlsF64, g.DefineSameAsFirst(node),
+                   g.UseRegister(m.left().node()),
+                   g.UseRegister(mright.left().node()),
+                   g.UseRegister(mright.right().node()));
+    return;
+  }
+  VisitRRR(selector, kArmVsubF64, node);
+}
+}  // namespace
 
 void InstructionSelector::VisitFloat32Sub(Node* node) {
   ArmOperandGenerator g(this);
@@ -1217,16 +1243,12 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
          g.UseRegister(m.right().node()));
     return;
   }
-  if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
-    Float32BinopMatcher mright(m.right().node());
-    Emit(kArmVmlsF32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
-         g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()));
-    return;
-  }
-  VisitRRR(this, kArmVsubF32, node);
+  VisitFloat32SubHelper(this, node);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  VisitFloat32SubHelper(this, node);
+}
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   ArmOperandGenerator g(this);
@@ -1248,16 +1270,12 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
          g.UseRegister(m.right().node()));
     return;
   }
-  if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-    Float64BinopMatcher mright(m.right().node());
-    Emit(kArmVmlsF64, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
-         g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()));
-    return;
-  }
-  VisitRRR(this, kArmVsubF64, node);
+  VisitFloat64SubHelper(this, node);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitFloat64SubHelper(this, node);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRRR(this, kArmVmulF32, node);
@@ -1285,18 +1303,25 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat32Max, node);
+}
 
-void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Max(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat64Max, node);
+}
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat32Min, node);
+}
 
-void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
-
-
-void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
-
-
-void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
-
+void InstructionSelector::VisitFloat64Min(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat64Min, node);
+}
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
   VisitRR(this, kArmVabsF32, node);
@@ -1807,6 +1832,61 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(right));
 }
 
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  ArmOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicLoadWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  Emit(opcode | AddressingModeField::encode(kMode_Offset_RR),
+       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+}
+
+void InstructionSelector::VisitAtomicStore(Node* node) {
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  ArmOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kAtomicStoreWord8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kAtomicStoreWord16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicStoreWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+
+  AddressingMode addressing_mode = kMode_Offset_RR;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 0, nullptr, input_count, inputs);
+}
 
 // static
 MachineOperatorBuilder::Flags
@@ -1826,7 +1906,11 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesAway |
              MachineOperatorBuilder::kFloat32RoundTiesEven |
-             MachineOperatorBuilder::kFloat64RoundTiesEven;
+             MachineOperatorBuilder::kFloat64RoundTiesEven |
+             MachineOperatorBuilder::kFloat32Min |
+             MachineOperatorBuilder::kFloat32Max |
+             MachineOperatorBuilder::kFloat64Min |
+             MachineOperatorBuilder::kFloat64Max;
   }
   return flags;
 }

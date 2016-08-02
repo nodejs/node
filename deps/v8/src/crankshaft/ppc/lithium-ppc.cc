@@ -892,7 +892,7 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {
   LInstruction* result = new (zone()) LPrologue();
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     result = MarkAsCall(result, instr);
   }
   return result;
@@ -946,17 +946,6 @@ LInstruction* LChunkBuilder::DoArgumentsLength(HArgumentsLength* instr) {
 LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
   info()->MarkAsRequiresFrame();
   return DefineAsRegister(new (zone()) LArgumentsElements);
-}
-
-
-LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  LOperand* left =
-      UseFixed(instr->left(), InstanceOfDescriptor::LeftRegister());
-  LOperand* right =
-      UseFixed(instr->right(), InstanceOfDescriptor::RightRegister());
-  LOperand* context = UseFixed(instr->context(), cp);
-  LInstanceOf* result = new (zone()) LInstanceOf(context, left, right);
-  return MarkAsCall(DefineFixed(result, r3), instr);
 }
 
 
@@ -1107,19 +1096,31 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
+  DCHECK(instr->value()->representation().IsDouble());
   LOperand* input = UseRegister(instr->value());
-  LMathFloor* result = new (zone()) LMathFloor(input);
-  return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+  if (instr->representation().IsInteger32()) {
+    LMathFloorI* result = new (zone()) LMathFloorI(input);
+    return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+  } else {
+    DCHECK(instr->representation().IsDouble());
+    LMathFloorD* result = new (zone()) LMathFloorD(input);
+    return DefineAsRegister(result);
+  }
 }
-
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
+  DCHECK(instr->value()->representation().IsDouble());
   LOperand* input = UseRegister(instr->value());
-  LOperand* temp = TempDoubleRegister();
-  LMathRound* result = new (zone()) LMathRound(input, temp);
-  return AssignEnvironment(DefineAsRegister(result));
+  if (instr->representation().IsInteger32()) {
+    LOperand* temp = TempDoubleRegister();
+    LMathRoundI* result = new (zone()) LMathRoundI(input, temp);
+    return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+  } else {
+    DCHECK(instr->representation().IsDouble());
+    LMathRoundD* result = new (zone()) LMathRoundD(input);
+    return DefineAsRegister(result);
+  }
 }
-
 
 LInstruction* LChunkBuilder::DoMathFround(HUnaryMathOperation* instr) {
   LOperand* input = UseRegister(instr->value());
@@ -2307,13 +2308,18 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
-  info()->MarkAsDeferredCalling();
-  LOperand* context = UseAny(instr->context());
   LOperand* size = UseRegisterOrConstant(instr->size());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LAllocate* result = new (zone()) LAllocate(context, size, temp1, temp2);
-  return AssignPointerMap(DefineAsRegister(result));
+  if (instr->IsAllocationFolded()) {
+    LFastAllocate* result = new (zone()) LFastAllocate(size, temp1, temp2);
+    return DefineAsRegister(result);
+  } else {
+    info()->MarkAsDeferredCalling();
+    LOperand* context = UseAny(instr->context());
+    LAllocate* result = new (zone()) LAllocate(context, size, temp1, temp2);
+    return AssignPointerMap(DefineAsRegister(result));
+  }
 }
 
 

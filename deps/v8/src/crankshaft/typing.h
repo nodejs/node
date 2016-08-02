@@ -6,6 +6,7 @@
 #define V8_CRANKSHAFT_TYPING_H_
 
 #include "src/allocation.h"
+#include "src/ast/ast-type-bounds.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/effects.h"
@@ -16,11 +17,11 @@
 namespace v8 {
 namespace internal {
 
-
 class AstTyper: public AstVisitor {
  public:
   AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
-           Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root);
+           Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root,
+           AstTypeBounds* bounds);
   void Run();
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -41,15 +42,16 @@ class AstTyper: public AstVisitor {
   FunctionLiteral* root_;
   TypeFeedbackOracle oracle_;
   Store store_;
+  AstTypeBounds* bounds_;
 
   Zone* zone() const { return zone_; }
   TypeFeedbackOracle* oracle() { return &oracle_; }
 
   void NarrowType(Expression* e, Bounds b) {
-    e->set_bounds(Bounds::Both(e->bounds(), b, zone()));
+    bounds_->set(e, Bounds::Both(bounds_->get(e), b, zone()));
   }
   void NarrowLowerType(Expression* e, Type* t) {
-    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, zone()));
+    bounds_->set(e, Bounds::NarrowLower(bounds_->get(e), t, zone()));
   }
 
   Effects EnterEffects() {

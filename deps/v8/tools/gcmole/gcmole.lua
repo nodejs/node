@@ -185,7 +185,7 @@ end
 
 local function ParseGYPFile()
    local gyp = ""
-   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
+   local gyp_files = { "src/v8.gyp", "test/cctest/cctest.gyp" }
    for i = 1, #gyp_files do
       local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
       local t = f:read('*a')

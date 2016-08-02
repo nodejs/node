@@ -236,10 +236,6 @@ const uint32_t kUint32Values[] = {
     0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
 
 
-const TruncationMode kTruncationModes[] = {TruncationMode::kJavaScript,
-                                           TruncationMode::kRoundToZero};
-
-
 struct ComparisonBinaryOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
   const char* constructor_name;
@@ -413,47 +409,24 @@ TEST_F(MachineOperatorReducerTest, TruncateFloat64ToFloat32WithConstant) {
 
 
 // -----------------------------------------------------------------------------
-// TruncateFloat64ToInt32
-
+// TruncateFloat64ToWord32
 
 TEST_F(MachineOperatorReducerTest,
-       TruncateFloat64ToInt32WithChangeInt32ToFloat64) {
-  TRACED_FOREACH(TruncationMode, mode, kTruncationModes) {
-    Node* value = Parameter(0);
-    Reduction reduction = Reduce(graph()->NewNode(
-        machine()->TruncateFloat64ToInt32(mode),
-        graph()->NewNode(machine()->ChangeInt32ToFloat64(), value)));
-    ASSERT_TRUE(reduction.Changed());
-    EXPECT_EQ(value, reduction.replacement());
-  }
+       TruncateFloat64ToWord32WithChangeInt32ToFloat64) {
+  Node* value = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->TruncateFloat64ToWord32(),
+      graph()->NewNode(machine()->ChangeInt32ToFloat64(), value)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
 }
 
-
-TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithConstant) {
+TEST_F(MachineOperatorReducerTest, TruncateFloat64ToWord32WithConstant) {
   TRACED_FOREACH(double, x, kFloat64Values) {
     Reduction reduction = Reduce(graph()->NewNode(
-        machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript),
-        Float64Constant(x)));
+        machine()->TruncateFloat64ToWord32(), Float64Constant(x)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(x)));
-  }
-}
-
-
-TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithPhi) {
-  Node* const p0 = Parameter(0);
-  Node* const p1 = Parameter(1);
-  Node* const merge = graph()->start();
-  TRACED_FOREACH(TruncationMode, mode, kTruncationModes) {
-    Reduction reduction = Reduce(graph()->NewNode(
-        machine()->TruncateFloat64ToInt32(mode),
-        graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2), p0,
-                         p1, merge)));
-    ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(
-        reduction.replacement(),
-        IsPhi(MachineRepresentation::kWord32, IsTruncateFloat64ToInt32(p0),
-              IsTruncateFloat64ToInt32(p1), merge));
   }
 }
 
@@ -485,8 +458,30 @@ TEST_F(MachineOperatorReducerTest, TruncateInt64ToInt32WithConstant) {
 
 
 // -----------------------------------------------------------------------------
-// Word32And
+// RoundFloat64ToInt32
 
+TEST_F(MachineOperatorReducerTest,
+       RoundFloat64ToInt32WithChangeInt32ToFloat64) {
+  Node* value = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->RoundFloat64ToInt32(),
+      graph()->NewNode(machine()->ChangeInt32ToFloat64(), value)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
+TEST_F(MachineOperatorReducerTest, RoundFloat64ToInt32WithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction reduction = Reduce(
+        graph()->NewNode(machine()->RoundFloat64ToInt32(), Float64Constant(x)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(),
+                IsInt32Constant(static_cast<int32_t>(x)));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Word32And
 
 TEST_F(MachineOperatorReducerTest, Word32AndWithWord32ShlWithConstant) {
   Node* const p0 = Parameter(0);

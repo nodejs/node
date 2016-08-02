@@ -168,11 +168,11 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue begin");
 
   // Possibly allocate a local context.
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
-    int slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    int slots = info_->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
     if (info()->scope()->is_script_scope()) {
       __ Push(rdi);
@@ -299,8 +299,6 @@ bool LCodeGen::GenerateJumpTable() {
       }
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
-    info()->LogDeoptCallPosition(masm()->pc_offset(),
-                                 table_entry->deopt_info.inlining_id);
   }
 
   if (needs_frame.is_linked()) {
@@ -748,7 +746,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
     __ bind(&done);
   }
 
-  Deoptimizer::DeoptInfo deopt_info = MakeDeoptInfo(instr, deopt_reason);
+  Deoptimizer::DeoptInfo deopt_info = MakeDeoptInfo(instr, deopt_reason, id);
 
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or
@@ -757,7 +755,6 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
       !info()->saves_caller_doubles()) {
     DeoptComment(deopt_info);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
-    info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
     Deoptimizer::JumpTableEntry table_entry(entry, deopt_info, bailout_type,
                                             !frame_is_built_);
@@ -2438,16 +2435,6 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
   __ Cmp(FieldOperand(reg, HeapObject::kMapOffset), instr->map());
   EmitBranch(instr, equal);
-}
-
-
-void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  DCHECK(ToRegister(instr->context()).is(rsi));
-  DCHECK(ToRegister(instr->left()).is(InstanceOfDescriptor::LeftRegister()));
-  DCHECK(ToRegister(instr->right()).is(InstanceOfDescriptor::RightRegister()));
-  DCHECK(ToRegister(instr->result()).is(rax));
-  InstanceOfStub stub(isolate());
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -5173,7 +5160,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   Register temp = ToRegister(instr->temp());
 
   // Allocate memory for the object.
-  AllocationFlags flags = TAG_OBJECT;
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5181,6 +5168,11 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE);
   }
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDING_DOMINATOR);
+  }
+  DCHECK(!instr->hydrogen()->IsAllocationFolded());
 
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
@@ -5211,6 +5203,29 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 }
 
+void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
+  DCHECK(instr->hydrogen()->IsAllocationFolded());
+  DCHECK(!instr->hydrogen()->IsAllocationFoldingDominator());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+
+  AllocationFlags flags = ALLOCATION_FOLDED;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
+    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+    flags = static_cast<AllocationFlags>(flags | PRETENURE);
+  }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    CHECK(size <= Page::kMaxRegularHeapObjectSize);
+    __ FastAllocate(size, result, temp, flags);
+  } else {
+    Register size = ToRegister(instr->size());
+    __ FastAllocate(size, result, temp, flags);
+  }
+}
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   Register result = ToRegister(instr->result());
@@ -5243,6 +5258,22 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   CallRuntimeFromDeferred(
       Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(result, rax);
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    AllocationFlags allocation_flags = NO_ALLOCATION_FLAGS;
+    if (instr->hydrogen()->IsOldSpaceAllocation()) {
+      DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+      allocation_flags = static_cast<AllocationFlags>(flags | PRETENURE);
+    }
+    // If the allocation folding dominator allocate triggered a GC, allocation
+    // happend in the runtime. We have to reset the top pointer to virtually
+    // undo the allocation.
+    ExternalReference allocation_top =
+        AllocationUtils::GetAllocationTopReference(isolate(), allocation_flags);
+    __ subp(rax, Immediate(kHeapObjectTag));
+    __ Store(allocation_top, rax);
+    __ addp(rax, Immediate(kHeapObjectTag));
+  }
 }
 
 

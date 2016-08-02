@@ -16,8 +16,8 @@ var MakeError;
 var MapEntries;
 var MapIteratorNext;
 var MathMin = global.Math.min;
-var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
-var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
+var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
 var SetValues;
 var SymbolToString;
@@ -115,7 +115,7 @@ function ClearMirrorCache(value) {
 
 function ObjectIsPromise(value) {
   return IS_RECEIVER(value) &&
-         !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
+         !IS_UNDEFINED(%DebugGetProperty(value, promiseStateSymbol));
 }
 
 
@@ -256,13 +256,15 @@ PropertyAttribute.DontDelete = DONT_DELETE;
 // A copy of the scope types from runtime-debug.cc.
 // NOTE: these constants should be backward-compatible, so
 // add new ones to the end of this list.
-var ScopeType = { Global: 0,
-                  Local: 1,
-                  With: 2,
+var ScopeType = { Global:  0,
+                  Local:   1,
+                  With:    2,
                   Closure: 3,
-                  Catch: 4,
-                  Block: 5,
-                  Script: 6 };
+                  Catch:   4,
+                  Block:   5,
+                  Script:  6,
+                  Eval:    7,
+                };
 
 /**
  * Base class for all mirror objects.
@@ -1272,7 +1274,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %DebugGetProperty(value, promiseStatusSymbol);
+  var status = %DebugGetProperty(value, promiseStateSymbol);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1280,7 +1282,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %DebugGetProperty(value, promiseValueSymbol);
+  return %DebugGetProperty(value, promiseResultSymbol);
 }
 
 
@@ -1408,8 +1410,8 @@ inherits(GeneratorMirror, ObjectMirror);
 
 function GeneratorGetStatus_(value) {
   var continuation = %GeneratorGetContinuation(value);
-  if (continuation < 0) return "running";
-  if (continuation == 0) return "closed";
+  if (continuation < -1) return "running";
+  if (continuation == -1) return "closed";
   return "suspended";
 }
 
@@ -1532,11 +1534,6 @@ PropertyMirror.prototype.attributes = function() {
 
 PropertyMirror.prototype.propertyType = function() {
   return %DebugPropertyTypeFromDetails(this.details_);
-};
-
-
-PropertyMirror.prototype.insertionIndex = function() {
-  return %DebugPropertyIndexFromDetails(this.details_);
 };
 
 

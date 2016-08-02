@@ -15,9 +15,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 8
 bytecodes: [
-  B(StackCheck),
-  B(ExtraWide), B(LdaSmi), U32(12345678),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(ExtraWide), B(LdaSmi), U32(12345678),
+  /*   51 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -32,11 +32,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(Wide), B(LdaSmi), U16(1234),
-  B(Star), R(0),
-  B(Wide), B(LdaSmi), U16(5678),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
+  /*   42 E> */ B(Star), R(0),
+  /*   48 S> */ B(Wide), B(LdaSmi), U16(5678),
+  /*   61 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -51,11 +51,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(Wide), B(LdaSmi), U16(1234),
-  B(Star), R(0),
-  B(Wide), B(LdaSmi), U16(1234),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
+  /*   42 E> */ B(Star), R(0),
+  /*   48 S> */ B(Wide), B(LdaSmi), U16(1234),
+  /*   61 S> */ B(Return),
 ]
 constant pool: [
 ]

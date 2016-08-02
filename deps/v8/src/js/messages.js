@@ -23,6 +23,10 @@ var callSitePositionSymbol =
     utils.ImportNow("call_site_position_symbol");
 var callSiteStrictSymbol =
     utils.ImportNow("call_site_strict_symbol");
+var callSiteWasmObjectSymbol =
+    utils.ImportNow("call_site_wasm_obj_symbol");
+var callSiteWasmFunctionIndexSymbol =
+    utils.ImportNow("call_site_wasm_func_index_symbol");
 var Float32x4ToString;
 var formattedStackTraceSymbol =
     utils.ImportNow("formatted_stack_trace_symbol");
@@ -32,12 +36,10 @@ var Int32x4ToString;
 var Int8x16ToString;
 var InternalArray = utils.InternalArray;
 var internalErrorSymbol = utils.ImportNow("internal_error_symbol");
-var ObjectDefineProperty;
 var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
-var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
 var SymbolToString;
@@ -55,9 +57,7 @@ utils.Import(function(from) {
   Int16x8ToString = from.Int16x8ToString;
   Int32x4ToString = from.Int32x4ToString;
   Int8x16ToString = from.Int8x16ToString;
-  ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
   SymbolToString = from.SymbolToString;
@@ -255,6 +255,7 @@ function ScriptLineFromPosition(position) {
   return -1;
 }
 
+
 /**
  * Get information on a specific source position.
  * @param {number} position The source position
@@ -272,7 +273,7 @@ function ScriptLocationFromPosition(position,
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  if (end > 0 && %_Call(StringCharAt, this.source, end - 1) == '\r') {
+  if (end > 0 && %_StringCharAt(this.source, end - 1) === '\r') {
     end--;
   }
   var column = position - start;
@@ -556,7 +557,9 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // Error implementation
 
 function CallSite(receiver, fun, pos, strict_mode) {
-  if (!IS_FUNCTION(fun)) {
+  // For wasm frames, receiver is the wasm object and fun is the function index
+  // instead of an actual function.
+  if (!IS_FUNCTION(fun) && !IS_NUMBER(fun)) {
     throw MakeTypeError(kCallSiteExpectsFunction, typeof fun);
   }
 
@@ -564,14 +567,19 @@ function CallSite(receiver, fun, pos, strict_mode) {
     return new CallSite(receiver, fun, pos, strict_mode);
   }
 
-  SET_PRIVATE(this, callSiteReceiverSymbol, receiver);
-  SET_PRIVATE(this, callSiteFunctionSymbol, fun);
+  if (IS_FUNCTION(fun)) {
+    SET_PRIVATE(this, callSiteReceiverSymbol, receiver);
+    SET_PRIVATE(this, callSiteFunctionSymbol, fun);
+  } else {
+    SET_PRIVATE(this, callSiteWasmObjectSymbol, receiver);
+    SET_PRIVATE(this, callSiteWasmFunctionIndexSymbol, TO_UINT32(fun));
+  }
   SET_PRIVATE(this, callSitePositionSymbol, TO_INT32(pos));
   SET_PRIVATE(this, callSiteStrictSymbol, TO_BOOLEAN(strict_mode));
 }
 
 function CheckCallSite(obj, name) {
-  if (!IS_RECEIVER(obj) || !HAS_PRIVATE(obj, callSiteFunctionSymbol)) {
+  if (!IS_RECEIVER(obj) || !HAS_PRIVATE(obj, callSitePositionSymbol)) {
     throw MakeTypeError(kCallSiteMethod, name);
   }
 }
@@ -622,6 +630,12 @@ function CallSiteGetScriptNameOrSourceURL() {
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
   CheckCallSite(this, "getFunctionName");
+  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
+    var wasm = GET_PRIVATE(this, callSiteWasmObjectSymbol);
+    var func_index = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
+    if (IS_UNDEFINED(wasm)) return "<WASM>";
+    return %WasmGetFunctionName(wasm, func_index);
+  }
   return %CallSiteGetFunctionNameRT(this);
 }
 
@@ -638,6 +652,9 @@ function CallSiteGetFileName() {
 }
 
 function CallSiteGetLineNumber() {
+  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
+    return GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
+  }
   CheckCallSite(this, "getLineNumber");
   return %CallSiteGetLineNumberRT(this);
 }
@@ -658,6 +675,13 @@ function CallSiteIsConstructor() {
 }
 
 function CallSiteToString() {
+  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
+    var funName = this.getFunctionName();
+    var funcIndex = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
+    var pos = this.getPosition();
+    return funName + " (<WASM>:" + funcIndex + ":" + pos + ")";
+  }
+
   var fileName;
   var fileLocation = "";
   if (this.isNative()) {
@@ -804,7 +828,10 @@ function GetStackFrames(raw_stack) {
     var fun = internal_raw_stack[i + 1];
     var code = internal_raw_stack[i + 2];
     var pc = internal_raw_stack[i + 3];
-    var pos = %_IsSmi(code) ? code : %FunctionGetPositionForOffset(code, pc);
+    // For traps in wasm, the bytecode offset is passed as (-1 - offset).
+    // Otherwise, lookup the position from the pc.
+    var pos = IS_NUMBER(fun) && pc < 0 ? (-1 - pc) :
+      %FunctionGetPositionForOffset(code, pc);
     sloppy_frames--;
     frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
   }
@@ -881,7 +908,7 @@ var StackTraceGetter = function() {
       if (IS_UNDEFINED(stack_trace)) {
         // Neither formatted nor structured stack trace available.
         // Look further up the prototype chain.
-        holder = %_GetPrototype(holder);
+        holder = %object_get_prototype_of(holder);
         continue;
       }
       formatted_stack_trace = FormatStackTrace(holder, stack_trace);
@@ -997,9 +1024,9 @@ utils.InstallGetterSetter(StackOverflowBoilerplate, 'stack',
 // Define actual captureStackTrace function after everything has been set up.
 captureStackTrace = function captureStackTrace(obj, cons_opt) {
   // Define accessors first, as this may fail and throw.
-  ObjectDefineProperty(obj, 'stack', { get: StackTraceGetter,
-                                       set: StackTraceSetter,
-                                       configurable: true });
+  %object_define_property(obj, 'stack', { get: StackTraceGetter,
+                                          set: StackTraceSetter,
+                                          configurable: true });
   %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
 };
 

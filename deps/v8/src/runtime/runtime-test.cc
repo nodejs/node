@@ -8,6 +8,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/snapshot/natives.h"
 
 namespace v8 {
@@ -16,7 +17,16 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  // This function is used by fuzzers to get coverage in compiler.
+  // Ignore calls on non-function objects to avoid runtime errors.
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  // If it is not a JSFunction, just return.
+  if (!function_object->IsJSFunction()) {
+    return isolate->heap()->undefined_value();
+  }
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // TODO(turbofan): Deoptimization is not supported yet.
@@ -84,7 +94,16 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  // This function is used by fuzzers to get coverage for optimizations
+  // in compiler. Ignore calls on non-function objects to avoid runtime errors.
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  // If it is not a JSFunction, just return.
+  if (!function_object->IsJSFunction()) {
+    return isolate->heap()->undefined_value();
+  }
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
@@ -135,6 +154,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
                  !function->shared()->optimization_disabled());
 
+  // If function is interpreted, just return. OSR is not supported.
+  // TODO(4764): Remove this check when OSR is enabled in the interpreter.
+  if (function->shared()->HasBytecodeArray()) {
+    return isolate->heap()->undefined_value();
+  }
+
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
@@ -153,7 +178,8 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  function->shared()->set_disable_optimization_reason(kOptimizationDisabled);
+  function->shared()->set_disable_optimization_reason(
+      kOptimizationDisabledForTest);
   function->shared()->set_optimization_disabled(true);
   return isolate->heap()->undefined_value();
 }
@@ -455,6 +481,31 @@ RUNTIME_FUNCTION(Runtime_TraceTailCall) {
   PrintIndentation(isolate);
   PrintF("} -> tail call ->\n");
   return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_GetExceptionDetails) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, exception_obj, 0);
+
+  Factory* factory = isolate->factory();
+  Handle<JSMessageObject> message_obj =
+      isolate->CreateMessage(exception_obj, nullptr);
+
+  Handle<JSObject> message = factory->NewJSObject(isolate->object_function());
+
+  Handle<String> key;
+  Handle<Object> value;
+
+  key = factory->NewStringFromAsciiChecked("start_pos");
+  value = handle(Smi::FromInt(message_obj->start_position()), isolate);
+  JSObject::SetProperty(message, key, value, STRICT).Assert();
+
+  key = factory->NewStringFromAsciiChecked("end_pos");
+  value = handle(Smi::FromInt(message_obj->end_position()), isolate);
+  JSObject::SetProperty(message, key, value, STRICT).Assert();
+
+  return *message;
 }
 
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {

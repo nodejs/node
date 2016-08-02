@@ -1504,10 +1504,12 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
 }
 
-
-enum WriteBarrierKind { OLD_TO_OLD_WRITE_BARRIER, OLD_TO_NEW_WRITE_BARRIER };
+enum OldToWriteBarrierKind {
+  OLD_TO_OLD_WRITE_BARRIER,
+  OLD_TO_NEW_WRITE_BARRIER
+};
 static void TestWriteBarrierObjectShiftFieldsRight(
-    WriteBarrierKind write_barrier_kind) {
+    OldToWriteBarrierKind write_barrier_kind) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());

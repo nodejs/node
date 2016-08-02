@@ -698,12 +698,7 @@ TEST(BailoutReason) {
                         "  debugger;\n"
                         "  startProfiling();\n"
                         "}\n"
-                        "function TryFinally() {\n"
-                        "  try {\n"
-                        "    Debugger();\n"
-                        "  } finally { };\n"
-                        "}\n"
-                        "TryFinally();\n"
+                        "Debugger();\n"
                         "stopProfiling();"));
   script->Run(v8::Isolate::GetCurrent()->GetCurrentContext()).ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
@@ -715,14 +710,9 @@ TEST(BailoutReason) {
   // The tree should look like this:
   //  (root)
   //   ""
-  //     kTryFinallyStatement
-  //       kDebuggerStatement
+  //     kDebuggerStatement
   current = PickChild(current, "");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-
-  current = PickChild(current, "TryFinally");
-  CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(!strcmp("TryFinallyStatement", current->GetBailoutReason()));
 
   current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));

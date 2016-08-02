@@ -461,8 +461,7 @@ static const v8::CpuProfileNode* GetChild(v8::Local<v8::Context> context,
   const v8::CpuProfileNode* result = FindChild(context, node, name);
   if (!result) {
     char buffer[100];
-    i::SNPrintF(Vector<char>(buffer, arraysize(buffer)),
-                "Failed to GetChild: %s", name);
+    i::SNPrintF(i::ArrayVector(buffer), "Failed to GetChild: %s", name);
     FATAL(buffer);
   }
   return result;
@@ -1034,8 +1033,8 @@ static void TickLines(bool optimize) {
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, code, func->shared(), NULL,
-                           *str, line, column);
+  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, code, func->shared(), *str,
+                           line, column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor.get(), code_address);

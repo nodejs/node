@@ -34,11 +34,23 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSObject inobject property fields.
   static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
 
+  // Provides access to JSFunction::prototype_or_initial_map() field.
+  static FieldAccess ForJSFunctionPrototypeOrInitialMap();
+
   // Provides access to JSFunction::context() field.
   static FieldAccess ForJSFunctionContext();
 
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
+
+  // Provides access to JSFunction::literals() field.
+  static FieldAccess ForJSFunctionLiterals();
+
+  // Provides access to JSFunction::code() field.
+  static FieldAccess ForJSFunctionCodeEntry();
+
+  // Provides access to JSFunction::next_function_link() field.
+  static FieldAccess ForJSFunctionNextFunctionLink();
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
@@ -129,12 +141,6 @@ class AccessBuilder final : public AllStatic {
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
-
-  // ===========================================================================
-  // Access to global per-isolate variables (based on external reference).
-
-  // Provides access to the backing store of a StatsCounter.
-  static FieldAccess ForStatsCounter();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

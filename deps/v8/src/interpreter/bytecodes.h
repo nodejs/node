@@ -9,6 +9,7 @@
 
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter here!
+#include "src/frames.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -97,7 +98,7 @@ namespace interpreter {
     OperandType::kIdx)                                                        \
                                                                               \
   /* Context operations */                                                    \
-  V(PushContext, AccumulatorUse::kRead, OperandType::kReg)                    \
+  V(PushContext, AccumulatorUse::kRead, OperandType::kRegOut)                 \
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                     \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                \
     OperandType::kIdx)                                                        \
@@ -149,6 +150,7 @@ namespace interpreter {
   /* Unary Operators */                                                       \
   V(Inc, AccumulatorUse::kReadWrite)                                          \
   V(Dec, AccumulatorUse::kReadWrite)                                          \
+  V(ToBooleanLogicalNot, AccumulatorUse::kReadWrite)                          \
   V(LogicalNot, AccumulatorUse::kReadWrite)                                   \
   V(TypeOf, AccumulatorUse::kReadWrite)                                       \
   V(DeletePropertyStrict, AccumulatorUse::kReadWrite, OperandType::kReg)      \
@@ -238,14 +240,22 @@ namespace interpreter {
   /* Non-local flow control */                                                \
   V(Throw, AccumulatorUse::kRead)                                             \
   V(ReThrow, AccumulatorUse::kRead)                                           \
-  V(Return, AccumulatorUse::kNone)                                            \
+  V(Return, AccumulatorUse::kRead)                                            \
+                                                                              \
+  /* Generators */                                                            \
+  V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg)               \
+  V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg)               \
                                                                               \
   /* Debugger */                                                              \
   V(Debugger, AccumulatorUse::kNone)                                          \
   DEBUG_BREAK_BYTECODE_LIST(V)                                                \
                                                                               \
   /* Illegal bytecode (terminates execution) */                               \
-  V(Illegal, AccumulatorUse::kNone)
+  V(Illegal, AccumulatorUse::kNone)                                           \
+                                                                              \
+  /* No operation (used to maintain source positions for peephole */          \
+  /* eliminated bytecodes). */                                                \
+  V(Nop, AccumulatorUse::kNone)
 
 enum class AccumulatorUse : uint8_t {
   kNone = 0,
@@ -266,12 +276,16 @@ V8_INLINE AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
 
 // Enumeration of scaling factors applicable to scalable operands. Code
 // relies on being able to cast values to integer scaling values.
+#define OPERAND_SCALE_LIST(V) \
+  V(Single, 1)                \
+  V(Double, 2)                \
+  V(Quadruple, 4)
+
 enum class OperandScale : uint8_t {
-  kSingle = 1,
-  kDouble = 2,
-  kQuadruple = 4,
-  kMaxValid = kQuadruple,
-  kInvalid = 8,
+#define DECLARE_OPERAND_SCALE(Name, Scale) k##Name = Scale,
+  OPERAND_SCALE_LIST(DECLARE_OPERAND_SCALE)
+#undef DECLARE_OPERAND_SCALE
+      kLast = kQuadruple
 };
 
 // Enumeration of the size classes of operand types used by
@@ -328,15 +342,13 @@ enum class Bytecode : uint8_t {
 
 // An interpreter Register which is located in the function's Register file
 // in its stack-frame. Register hold parameters, this, and expression values.
-class Register {
+class Register final {
  public:
   explicit Register(int index = kInvalidIndex) : index_(index) {}
 
   int index() const { return index_; }
   bool is_parameter() const { return index() < 0; }
   bool is_valid() const { return index_ != kInvalidIndex; }
-  bool is_byte_operand() const;
-  bool is_short_operand() const;
 
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
@@ -356,8 +368,20 @@ class Register {
   static Register new_target();
   bool is_new_target() const;
 
-  int32_t ToOperand() const { return -index_; }
-  static Register FromOperand(int32_t operand) { return Register(-operand); }
+  // Returns the register for the bytecode array.
+  static Register bytecode_array();
+  bool is_bytecode_array() const;
+
+  // Returns the register for the saved bytecode offset.
+  static Register bytecode_offset();
+  bool is_bytecode_offset() const;
+
+  OperandSize SizeOfOperand() const;
+
+  int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
+  static Register FromOperand(int32_t operand) {
+    return Register(kRegisterFileStartOffset - operand);
+  }
 
   static bool AreContiguous(Register reg1, Register reg2,
                             Register reg3 = Register(),
@@ -387,6 +411,8 @@ class Register {
 
  private:
   static const int kInvalidIndex = kMaxInt;
+  static const int kRegisterFileStartOffset =
+      InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
 
   void* operator new(size_t size);
   void operator delete(void* p);
@@ -447,8 +473,19 @@ class Bytecodes {
   // Returns true if |bytecode| writes the accumulator.
   static bool WritesAccumulator(Bytecode bytecode);
 
+  // Return true if |bytecode| writes the accumulator with a boolean value.
+  static bool WritesBooleanToAccumulator(Bytecode bytecode);
+
+  // Return true if |bytecode| is an accumulator load bytecode,
+  // e.g. LdaConstant, LdaTrue, Ldar.
+  static bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode);
+
   // Returns the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
+
+  // Returns a pointer to an array of operand types terminated in
+  // OperandType::kNone.
+  static const OperandType* GetOperandTypes(Bytecode bytecode);
 
   // Returns the size of the i-th operand of |bytecode|.
   static OperandSize GetOperandSize(Bytecode bytecode, int i,
@@ -472,6 +509,9 @@ class Bytecodes {
 
   // Returns the size of |operand|.
   static OperandSize SizeOfOperand(OperandType operand, OperandScale scale);
+
+  // Returns the number of values which |bytecode| returns.
+  static size_t ReturnCount(Bytecode bytecode);
 
   // Returns true if the bytecode is a conditional jump taking
   // an immediate byte operand (OperandType::kImm).
@@ -497,6 +537,13 @@ class Bytecodes {
   // any kind of operand.
   static bool IsJump(Bytecode bytecode);
 
+  // Returns true if the bytecode is a jump that internally coerces the
+  // accumulator to a boolean.
+  static bool IsJumpIfToBoolean(Bytecode bytecode);
+
+  // Returns the equivalent jump bytecode without the accumulator coercion.
+  static Bytecode GetJumpWithoutToBoolean(Bytecode bytecode);
+
   // Returns true if the bytecode is a conditional jump, a jump, or a return.
   static bool IsJumpOrReturn(Bytecode bytecode);
 
@@ -508,6 +555,9 @@ class Bytecodes {
 
   // Returns true if the bytecode is a debug break.
   static bool IsDebugBreak(Bytecode bytecode);
+
+  // Returns true if the bytecode is Ldar or Star.
+  static bool IsLdarOrStar(Bytecode bytecode);
 
   // Returns true if the bytecode has wider operand forms.
   static bool IsBytecodeWithScalableOperands(Bytecode bytecode);
@@ -523,6 +573,10 @@ class Bytecodes {
 
   // Returns true if |operand_type| represents a register used as an output.
   static bool IsRegisterOutputOperandType(OperandType operand_type);
+
+  // Returns the number of registers represented by a register operand. For
+  // instance, a RegPair represents two registers.
+  static int GetNumberOfRegistersRepresentedBy(OperandType operand_type);
 
   // Returns true if |operand_type| is a maybe register operand
   // (kMaybeReg).
@@ -559,11 +613,32 @@ class Bytecodes {
   // OperandScale values.
   static bool BytecodeHasHandler(Bytecode bytecode, OperandScale operand_scale);
 
-  // Return the next larger operand scale.
-  static OperandScale NextOperandScale(OperandScale operand_scale);
+  // Return the operand size required to hold a signed operand.
+  static OperandSize SizeForSignedOperand(int value);
+
+  // Return the operand size required to hold an unsigned operand.
+  static OperandSize SizeForUnsignedOperand(int value);
+
+  // Return the operand size required to hold an unsigned operand.
+  static OperandSize SizeForUnsignedOperand(size_t value);
+
+  // Return the OperandScale required for bytecode emission of
+  // operand sizes.
+  static OperandScale OperandSizesToScale(
+      OperandSize size0, OperandSize size1 = OperandSize::kByte,
+      OperandSize size2 = OperandSize::kByte,
+      OperandSize size3 = OperandSize::kByte);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
+};
+
+class CreateObjectLiteralFlags {
+ public:
+  class FlagsBits : public BitField8<int, 0, 3> {};
+  class FastClonePropertiesCountBits
+      : public BitField8<int, FlagsBits::kNext, 3> {};
+  STATIC_ASSERT((FlagsBits::kMask & FastClonePropertiesCountBits::kMask) == 0);
 };
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);

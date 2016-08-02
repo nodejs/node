@@ -326,9 +326,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = effect =
-        graph()->NewNode(javascript()->StrictEqual(), target, array_function,
-                         context, effect, control);
+    Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
+                                   array_function, context);
     control = graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                effect, control);
 
@@ -344,15 +343,13 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = effect =
-          graph()->NewNode(javascript()->StrictEqual(), target, target_function,
-                           context, effect, control);
+      Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
+                                     target_function, context);
       control = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                  frame_state, effect, control);
 
       // Specialize the JSCallFunction node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
-      NodeProperties::ReplaceEffectInput(node, effect);
       NodeProperties::ReplaceControlInput(node, control);
 
       // Try to further reduce the JSCallFunction {node}.
@@ -454,9 +451,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = effect =
-        graph()->NewNode(javascript()->StrictEqual(), target, array_function,
-                         context, effect, control);
+    Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
+                                   array_function, context);
     control = graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                effect, control);
 
@@ -478,9 +474,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = effect =
-          graph()->NewNode(javascript()->StrictEqual(), target, target_function,
-                           context, effect, control);
+      Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
+                                     target_function, context);
       control = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                  frame_state, effect, control);
 

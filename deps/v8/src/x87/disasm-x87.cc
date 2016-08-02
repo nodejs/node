@@ -8,6 +8,7 @@
 
 #if V8_TARGET_ARCH_X87
 
+#include "src/base/compiler-specific.h"
 #include "src/disasm.h"
 
 namespace disasm {
@@ -29,18 +30,19 @@ struct ByteMnemonic {
 };
 
 static const ByteMnemonic two_operands_instr[] = {
-    {0x01, "add", OPER_REG_OP_ORDER},   {0x03, "add", REG_OPER_OP_ORDER},
-    {0x09, "or", OPER_REG_OP_ORDER},    {0x0B, "or", REG_OPER_OP_ORDER},
-    {0x13, "adc", REG_OPER_OP_ORDER},   {0x1B, "sbb", REG_OPER_OP_ORDER},
-    {0x21, "and", OPER_REG_OP_ORDER},   {0x23, "and", REG_OPER_OP_ORDER},
-    {0x29, "sub", OPER_REG_OP_ORDER},   {0x2A, "subb", REG_OPER_OP_ORDER},
-    {0x2B, "sub", REG_OPER_OP_ORDER},   {0x31, "xor", OPER_REG_OP_ORDER},
-    {0x33, "xor", REG_OPER_OP_ORDER},   {0x38, "cmpb", OPER_REG_OP_ORDER},
-    {0x39, "cmp", OPER_REG_OP_ORDER},   {0x3A, "cmpb", REG_OPER_OP_ORDER},
-    {0x3B, "cmp", REG_OPER_OP_ORDER},   {0x84, "test_b", REG_OPER_OP_ORDER},
-    {0x85, "test", REG_OPER_OP_ORDER},  {0x87, "xchg", REG_OPER_OP_ORDER},
-    {0x8A, "mov_b", REG_OPER_OP_ORDER}, {0x8B, "mov", REG_OPER_OP_ORDER},
-    {0x8D, "lea", REG_OPER_OP_ORDER},   {-1, "", UNSET_OP_ORDER}};
+    {0x01, "add", OPER_REG_OP_ORDER},  {0x03, "add", REG_OPER_OP_ORDER},
+    {0x09, "or", OPER_REG_OP_ORDER},   {0x0B, "or", REG_OPER_OP_ORDER},
+    {0x13, "adc", REG_OPER_OP_ORDER},  {0x1B, "sbb", REG_OPER_OP_ORDER},
+    {0x21, "and", OPER_REG_OP_ORDER},  {0x23, "and", REG_OPER_OP_ORDER},
+    {0x29, "sub", OPER_REG_OP_ORDER},  {0x2A, "subb", REG_OPER_OP_ORDER},
+    {0x2B, "sub", REG_OPER_OP_ORDER},  {0x31, "xor", OPER_REG_OP_ORDER},
+    {0x33, "xor", REG_OPER_OP_ORDER},  {0x38, "cmpb", OPER_REG_OP_ORDER},
+    {0x39, "cmp", OPER_REG_OP_ORDER},  {0x3A, "cmpb", REG_OPER_OP_ORDER},
+    {0x3B, "cmp", REG_OPER_OP_ORDER},  {0x84, "test_b", REG_OPER_OP_ORDER},
+    {0x85, "test", REG_OPER_OP_ORDER}, {0x86, "xchg_b", REG_OPER_OP_ORDER},
+    {0x87, "xchg", REG_OPER_OP_ORDER}, {0x8A, "mov_b", REG_OPER_OP_ORDER},
+    {0x8B, "mov", REG_OPER_OP_ORDER},  {0x8D, "lea", REG_OPER_OP_ORDER},
+    {-1, "", UNSET_OP_ORDER}};
 
 static const ByteMnemonic zero_operands_instr[] = {
   {0xC3, "ret", UNSET_OP_ORDER},
@@ -325,8 +327,7 @@ class DisassemblerX87 {
   int FPUInstruction(byte* data);
   int MemoryFPUInstruction(int escape_opcode, int regop, byte* modrm_start);
   int RegisterFPUInstruction(int escape_opcode, byte modrm_byte);
-  void AppendToBuffer(const char* format, ...);
-
+  PRINTF_FORMAT(2, 3) void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
@@ -948,7 +949,7 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
   const InstructionDesc& idesc = instruction_table_->Get(*data);
   switch (idesc.type) {
     case ZERO_OPERANDS_INSTR:
-      AppendToBuffer(idesc.mnem);
+      AppendToBuffer("%s", idesc.mnem);
       data++;
       break;
 
@@ -1267,6 +1268,13 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else if (*data == 0x8B) {
           data++;
           data += PrintOperands("mov_w", REG_OPER_OP_ORDER, data);
+        } else if (*data == 0x87) {
+          data++;
+          int mod, regop, rm;
+          get_modrm(*data, &mod, &regop, &rm);
+          AppendToBuffer("xchg_w ");
+          data += PrintRightOperand(data);
+          AppendToBuffer(",%s", NameOfCPURegister(regop));
         } else if (*data == 0x89) {
           data++;
           int mod, regop, rm;

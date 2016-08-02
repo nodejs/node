@@ -24,13 +24,10 @@ class SourceInfo;
 
 class MessageLocation {
  public:
+  MessageLocation(Handle<Script> script, int start_pos, int end_pos);
   MessageLocation(Handle<Script> script, int start_pos, int end_pos,
-                  Handle<JSFunction> function = Handle<JSFunction>())
-      : script_(script),
-        start_pos_(start_pos),
-        end_pos_(end_pos),
-        function_(function) {}
-  MessageLocation() : start_pos_(-1), end_pos_(-1) { }
+                  Handle<JSFunction> function);
+  MessageLocation();
 
   Handle<Script> script() const { return script_; }
   int start_pos() const { return start_pos_; }
@@ -62,13 +59,16 @@ class CallSite {
   bool IsEval();
   bool IsConstructor();
 
-  bool IsValid() { return !fun_.is_null(); }
+  bool IsJavaScript() { return !fun_.is_null(); }
+  bool IsWasm() { return !wasm_obj_.is_null(); }
 
  private:
   Isolate* isolate_;
   Handle<Object> receiver_;
   Handle<JSFunction> fun_;
-  int32_t pos_;
+  int32_t pos_ = -1;
+  Handle<JSObject> wasm_obj_;
+  uint32_t wasm_func_index_ = static_cast<uint32_t>(-1);
 };
 
 #define MESSAGE_TEMPLATES(T)                                                   \
@@ -94,12 +94,10 @@ class CallSite {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
-  T(CalledNonCallableInstanceOf,                                               \
-    "Right-hand side of 'instanceof' is not callable")                         \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
-    "CallSite expects function as second argument, got %")                     \
+    "CallSite expects function or number as second argument, got %")           \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
@@ -120,6 +118,7 @@ class CallSite {
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
+  T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueGenerator,                                                     \
     "Class extends value % may not be a generator function")                   \
@@ -131,8 +130,6 @@ class CallSite {
   T(GeneratorRunning, "Generator is already running")                          \
   T(IllegalInvocation, "Illegal invocation")                                   \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
-  T(InstanceofFunctionExpected,                                                \
-    "Expecting a function in instanceof check, but got %")                     \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
   T(InvalidArgument, "invalid_argument")                                       \
@@ -149,6 +146,8 @@ class CallSite {
     "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
   T(NoAccess, "no access")                                                     \
+  T(NonCallableInInstanceOfCheck,                                              \
+    "Right-hand side of 'instanceof' is not callable")                         \
   T(NonCoercible, "Cannot match against 'undefined' or 'null'.")               \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectInInstanceOfCheck,                                                \
@@ -175,19 +174,6 @@ class CallSite {
   T(ObjectSetterExpectingFunction,                                             \
     "Object.prototype.__defineSetter__: Expecting function")                   \
   T(ObjectSetterCallable, "Setter must be a function: %")                      \
-  T(ObserveCallbackFrozen,                                                     \
-    "Object.observe cannot deliver to a frozen function object")               \
-  T(ObserveGlobalProxy, "% cannot be called on the global proxy object")       \
-  T(ObserveAccessChecked, "% cannot be called on access-checked objects")      \
-  T(ObserveInvalidAccept,                                                      \
-    "Third argument to Object.observe must be an array of strings.")           \
-  T(ObserveNonFunction, "Object.% cannot deliver to non-function")             \
-  T(ObserveNonObject, "Object.% cannot % non-object")                          \
-  T(ObserveNotifyNonNotifier, "notify called on non-notifier object")          \
-  T(ObservePerformNonFunction, "Cannot perform non-function")                  \
-  T(ObservePerformNonString, "Invalid non-string changeType")                  \
-  T(ObserveTypeNonString,                                                      \
-    "Invalid changeRecord with non-string 'type' property")                    \
   T(OrdinaryFunctionCalledAsConstructor,                                       \
     "Function object that's not a constructor was created with new")           \
   T(PromiseCyclic, "Chaining cycle detected for promise %")                    \
@@ -370,6 +356,7 @@ class CallSite {
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
+  T(ConstructorIsAsync, "Class constructor may not be an async method")        \
   T(DerivedConstructorReturn,                                                  \
     "Derived constructors may only return object or undefined")                \
   T(DuplicateConstructor, "A class may only have one constructor")             \
@@ -380,6 +367,8 @@ class CallSite {
     "% loop variable declaration may not have an initializer.")                \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
+  T(GeneratorInLegacyContext,                                                  \
+    "Generator declarations are not allowed in legacy contexts.")              \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(IllegalContinue, "Illegal continue statement")                             \
   T(IllegalLanguageModeDirective,                                              \
@@ -430,9 +419,6 @@ class CallSite {
   T(SloppyFunction,                                                            \
     "In non-strict mode code, functions can only be declared at top level, "   \
     "inside a block, or as the body of an if statement.")                      \
-  T(SloppyLexical,                                                             \
-    "Block-scoped declarations (let, const, function, class) not yet "         \
-    "supported outside strict mode")                                           \
   T(SpeciesNotConstructor,                                                     \
     "object.constructor[Symbol.species] is not a constructor")                 \
   T(StrictDelete, "Delete of an unqualified identifier in strict mode.")       \
@@ -445,6 +431,10 @@ class CallSite {
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
+  T(AwaitBindingIdentifier,                                                    \
+    "'await' is not a valid identifier name in an async function")             \
+  T(AwaitExpressionFormalParameter,                                            \
+    "Illegal await-expression in formal parameters of async function")         \
   T(TooManyArguments,                                                          \
     "Too many arguments in function call (only 65535 allowed)")                \
   T(TooManyParameters,                                                         \
@@ -455,10 +445,19 @@ class CallSite {
   T(UnexpectedEOS, "Unexpected end of input")                                  \
   T(UnexpectedFunctionSent,                                                    \
     "function.sent expression is not allowed outside a generator")             \
+  T(UnexpectedInsideTailCall, "Unexpected expression inside tail call")        \
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
+  T(UnexpectedSloppyTailCall,                                                  \
+    "Tail call expressions are not allowed in non-strict mode")                \
   T(UnexpectedNewTarget, "new.target expression is not allowed here")          \
+  T(UnexpectedTailCall, "Tail call expression is not allowed here")            \
+  T(UnexpectedTailCallInCatchBlock,                                            \
+    "Tail call expression in catch block when finally block is also present")  \
+  T(UnexpectedTailCallInForInOf, "Tail call expression in for-in/of body")     \
+  T(UnexpectedTailCallInTryBlock, "Tail call expression in try block")         \
+  T(UnexpectedTailCallOfEval, "Tail call of a direct eval is not allowed")     \
   T(UnexpectedTemplateString, "Unexpected template string")                    \
   T(UnexpectedToken, "Unexpected token %")                                     \
   T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \
@@ -478,7 +477,16 @@ class CallSite {
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \
-  T(URIMalformed, "URI malformed")
+  T(URIMalformed, "URI malformed")                                             \
+  /* Wasm errors (currently Error) */                                          \
+  T(WasmTrapUnreachable, "unreachable")                                        \
+  T(WasmTrapMemOutOfBounds, "memory access out of bounds")                     \
+  T(WasmTrapDivByZero, "divide by zero")                                       \
+  T(WasmTrapDivUnrepresentable, "divide result unrepresentable")               \
+  T(WasmTrapRemByZero, "remainder by zero")                                    \
+  T(WasmTrapFloatUnrepresentable, "integer result unrepresentable")            \
+  T(WasmTrapFuncInvalid, "invalid function")                                   \
+  T(WasmTrapFuncSigMismatch, "function signature mismatch")
 
 class MessageTemplate {
  public:

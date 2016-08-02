@@ -175,8 +175,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedDoubleArrayMapRootIndex);
   __ SmiTag(x11, length);
-  __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ Str(map_root, MemOperand(array, HeapObject::kMapOffset));
+  __ Str(x11, FieldMemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ Str(map_root, FieldMemOperand(array, HeapObject::kMapOffset));
 
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
@@ -184,18 +184,18 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
 
   // Replace receiver's backing store with newly created FixedDoubleArray.
-  __ Add(x10, array, kHeapObjectTag);
-  __ Str(x10, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ RecordWriteField(receiver, JSObject::kElementsOffset, x10,
-                      scratch, kLRHasBeenSaved, kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ Move(x10, array);
+  __ Str(array, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ RecordWriteField(receiver, JSObject::kElementsOffset, x10, scratch,
+                      kLRHasBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
 
   // Prepare for conversion loop.
   Register src_elements = x10;
   Register dst_elements = x11;
   Register dst_end = x12;
   __ Add(src_elements, elements, FixedArray::kHeaderSize - kHeapObjectTag);
-  __ Add(dst_elements, array, FixedDoubleArray::kHeaderSize);
+  __ Add(dst_elements, array, FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ Add(dst_end, dst_elements, Operand(length, LSL, kDoubleSizeLog2));
 
   FPRegister nan_d = d1;
@@ -282,8 +282,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedArrayMapRootIndex);
   __ SmiTag(x11, length);
-  __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ Str(map_root, MemOperand(array, HeapObject::kMapOffset));
+  __ Str(x11, FieldMemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ Str(map_root, FieldMemOperand(array, HeapObject::kMapOffset));
 
   // Prepare for conversion loop.
   Register src_elements = x10;
@@ -293,7 +293,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
   __ Add(src_elements, elements,
          FixedDoubleArray::kHeaderSize - kHeapObjectTag);
-  __ Add(dst_elements, array, FixedArray::kHeaderSize);
+  __ Add(dst_elements, array, FixedArray::kHeaderSize - kHeapObjectTag);
   __ Add(dst_end, dst_elements, Operand(length, LSL, kPointerSizeLog2));
 
   // Allocating heap numbers in the loop below can fail and cause a jump to
@@ -307,8 +307,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Cmp(dst_elements, dst_end);
   __ B(lt, &initialization_loop);
 
-  __ Add(dst_elements, array, FixedArray::kHeaderSize);
-  __ Add(array, array, kHeapObjectTag);
+  __ Add(dst_elements, array, FixedArray::kHeaderSize - kHeapObjectTag);
 
   Register heap_num_map = x15;
   __ LoadRoot(heap_num_map, Heap::kHeapNumberMapRootIndex);

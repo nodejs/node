@@ -199,11 +199,6 @@ inline int JavaScriptFrame::ComputeOperandsCount() const {
 }
 
 
-inline Object* JavaScriptFrame::receiver() const {
-  return GetParameter(-1);
-}
-
-
 inline void JavaScriptFrame::set_receiver(Object* value) {
   Memory::Object_at(GetParameterSlot(-1)) = value;
 }
@@ -211,11 +206,6 @@ inline void JavaScriptFrame::set_receiver(Object* value) {
 
 inline bool JavaScriptFrame::has_adapted_arguments() const {
   return IsArgumentsAdaptorFrame(caller_fp());
-}
-
-
-inline JSFunction* JavaScriptFrame::function() const {
-  return JSFunction::cast(function_slot_object());
 }
 
 
@@ -288,6 +278,28 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   return static_cast<JavaScriptFrame*>(frame);
 }
 
+inline StandardFrame* StackTraceFrameIterator::frame() const {
+  StackFrame* frame = iterator_.frame();
+  DCHECK(frame->is_java_script() || frame->is_arguments_adaptor() ||
+         frame->is_wasm());
+  return static_cast<StandardFrame*>(frame);
+}
+
+bool StackTraceFrameIterator::is_javascript() const {
+  return frame()->is_java_script();
+}
+
+bool StackTraceFrameIterator::is_wasm() const { return frame()->is_wasm(); }
+
+JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
+  DCHECK(is_javascript());
+  return static_cast<JavaScriptFrame*>(frame());
+}
+
+WasmFrame* StackTraceFrameIterator::wasm_frame() const {
+  DCHECK(is_wasm());
+  return static_cast<WasmFrame*>(frame());
+}
 
 inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());

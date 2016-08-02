@@ -71,6 +71,7 @@ class LCodeGen;
   V(Drop)                                    \
   V(Dummy)                                   \
   V(DummyUse)                                \
+  V(FastAllocate)                            \
   V(FlooringDivByConstI)                     \
   V(FlooringDivByPowerOf2I)                  \
   V(FlooringDivI)                            \
@@ -82,7 +83,6 @@ class LCodeGen;
   V(HasInPrototypeChainAndBranch)            \
   V(HasInstanceTypeAndBranch)                \
   V(InnerAllocatedObject)                    \
-  V(InstanceOf)                              \
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
@@ -1136,22 +1136,6 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
 
   LOperand* context() { return inputs_[0]; }
   Token::Value op() const { return hydrogen()->token(); }
-};
-
-
-class LInstanceOf final : public LTemplateInstruction<1, 3, 0> {
- public:
-  LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
-    inputs_[0] = context;
-    inputs_[1] = left;
-    inputs_[2] = right;
-  }
-
-  LOperand* context() const { return inputs_[0]; }
-  LOperand* left() const { return inputs_[1]; }
-  LOperand* right() const { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
 };
 
 
@@ -2401,6 +2385,19 @@ class LAllocate final : public LTemplateInstruction<1, 2, 1> {
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
 };
 
+class LFastAllocate final : public LTemplateInstruction<1, 1, 1> {
+ public:
+  LFastAllocate(LOperand* size, LOperand* temp) {
+    inputs_[0] = size;
+    temps_[0] = temp;
+  }
+
+  LOperand* size() const { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FastAllocate, "fast-allocate")
+  DECLARE_HYDROGEN_ACCESSOR(Allocate)
+};
 
 class LTypeof final : public LTemplateInstruction<1, 2, 0> {
  public:

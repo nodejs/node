@@ -336,8 +336,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ push(Immediate(Smi::FromInt(slot)));
   __ push(Immediate(dummy_vector));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
                                                receiver, key, ebx, edi);
 
@@ -519,10 +519,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &slow);
   // Get the map from the receiver.
   __ mov(edi, FieldOperand(receiver, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks and is not observed.
-  // The generic stub does not perform map checks or handle observed objects.
+  // Check that the receiver does not require access checks.
+  // The generic stub does not perform map checks.
   __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
-            Immediate(1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved));
+            Immediate(1 << Map::kIsAccessCheckNeeded));
   __ j(not_zero, &slow);
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &maybe_name_key);
@@ -563,10 +563,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ push(Immediate(Smi::FromInt(slot)));
   __ push(Immediate(dummy_vector));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, edi, no_reg);
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::KEYED_STORE_IC, flags, receiver, key, edi, no_reg);
 
   __ pop(VectorStoreICDescriptor::VectorRegister());
   __ pop(VectorStoreICDescriptor::SlotRegister());

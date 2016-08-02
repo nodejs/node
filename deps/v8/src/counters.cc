@@ -272,29 +272,37 @@ void RuntimeCallCounter::Reset() {
   time = base::TimeDelta();
 }
 
-void RuntimeCallStats::Enter(RuntimeCallCounter* counter) {
-  RuntimeCallTimer* timer = new RuntimeCallTimer();
-  timer->Initialize(counter, current_timer_);
-  Enter(timer);
+// static
+void RuntimeCallStats::Enter(Isolate* isolate, RuntimeCallTimer* timer,
+                             CounterId counter_id) {
+  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  timer->Start(counter, stats->current_timer_);
+  stats->current_timer_ = timer;
 }
 
-void RuntimeCallStats::Enter(RuntimeCallTimer* timer_) {
-  current_timer_ = timer_;
-  current_timer_->Start();
+// static
+void RuntimeCallStats::Leave(Isolate* isolate, RuntimeCallTimer* timer) {
+  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+  DCHECK_EQ(stats->current_timer_, timer);
+  stats->current_timer_ = timer->Stop();
 }
 
-void RuntimeCallStats::Leave() {
-  RuntimeCallTimer* timer = current_timer_;
-  Leave(timer);
-  delete timer;
-}
-
-void RuntimeCallStats::Leave(RuntimeCallTimer* timer) {
-  current_timer_ = timer->Stop();
+// static
+void RuntimeCallStats::CorrectCurrentCounterId(Isolate* isolate,
+                                               CounterId counter_id) {
+  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+  DCHECK_NOT_NULL(stats->current_timer_);
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  stats->current_timer_->counter_ = counter;
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
+
+#define PRINT_COUNTER(name) entries.Add(&this->name);
+  FOR_EACH_MANUAL_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
 
 #define PRINT_COUNTER(name, nargs, ressize) entries.Add(&this->Runtime_##name);
   FOR_EACH_INTRINSIC(PRINT_COUNTER)
@@ -304,36 +312,38 @@ void RuntimeCallStats::Print(std::ostream& os) {
   BUILTIN_LIST_C(PRINT_COUNTER)
 #undef PRINT_COUNTER
 
-  entries.Add(&this->ExternalCallback);
-  entries.Add(&this->GC);
-  entries.Add(&this->UnexpectedStubMiss);
+#define PRINT_COUNTER(name) entries.Add(&this->API_##name);
+  FOR_EACH_API_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+#define PRINT_COUNTER(name) entries.Add(&this->Handler_##name);
+  FOR_EACH_HANDLER_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
 
   entries.Print(os);
 }
 
 void RuntimeCallStats::Reset() {
   if (!FLAG_runtime_call_stats) return;
-#define RESET_COUNTER(name, nargs, ressize) this->Runtime_##name.Reset();
+#define RESET_COUNTER(name) this->name.Reset();
+  FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
+#undef RESET_COUNTER
+
+#define RESET_COUNTER(name, nargs, result_size) this->Runtime_##name.Reset();
   FOR_EACH_INTRINSIC(RESET_COUNTER)
 #undef RESET_COUNTER
+
 #define RESET_COUNTER(name, type) this->Builtin_##name.Reset();
   BUILTIN_LIST_C(RESET_COUNTER)
 #undef RESET_COUNTER
-  this->ExternalCallback.Reset();
-  this->GC.Reset();
-  this->UnexpectedStubMiss.Reset();
-}
 
-void RuntimeCallTimerScope::Enter(Isolate* isolate,
-                                  RuntimeCallCounter* counter) {
-  isolate_ = isolate;
-  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
-  timer_.Initialize(counter, stats->current_timer());
-  stats->Enter(&timer_);
-}
+#define RESET_COUNTER(name) this->API_##name.Reset();
+  FOR_EACH_API_COUNTER(RESET_COUNTER)
+#undef RESET_COUNTER
 
-void RuntimeCallTimerScope::Leave() {
-  isolate_->counters()->runtime_call_stats()->Leave(&timer_);
+#define RESET_COUNTER(name) this->Handler_##name.Reset();
+  FOR_EACH_HANDLER_COUNTER(RESET_COUNTER)
+#undef RESET_COUNTER
 }
 
 }  // namespace internal

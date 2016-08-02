@@ -6,6 +6,7 @@
 
 #include "test/cctest/expression-type-collector.h"
 
+#include "src/ast/ast-type-bounds.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/codegen.h"
@@ -27,12 +28,10 @@ struct {
 
 }  // namespace
 
-
 ExpressionTypeCollector::ExpressionTypeCollector(
-    Isolate* isolate, FunctionLiteral* root,
+    Isolate* isolate, FunctionLiteral* root, const AstTypeBounds* bounds,
     ZoneVector<ExpressionTypeEntry>* dst)
-    : AstExpressionVisitor(isolate, root), result_(dst) {}
-
+    : AstExpressionVisitor(isolate, root), bounds_(bounds), result_(dst) {}
 
 void ExpressionTypeCollector::Run() {
   result_->clear();
@@ -47,7 +46,7 @@ void ExpressionTypeCollector::VisitExpression(Expression* expression) {
   if (proxy) {
     e.name = proxy->raw_name();
   }
-  e.bounds = expression->bounds();
+  e.bounds = bounds_->get(expression);
   AstNode::NodeType type = expression->node_type();
   e.kind = "unknown";
   for (size_t i = 0; i < arraysize(NodeTypeNameList); ++i) {

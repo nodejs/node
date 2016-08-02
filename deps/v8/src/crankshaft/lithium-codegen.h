@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class HGraph;
+class LChunk;
 class LEnvironment;
 class LInstruction;
 class LPlatformChunk;
@@ -33,10 +35,10 @@ class LCodeGenBase BASE_EMBEDDED {
   LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const;
 
-  void FPRINTF_CHECKING Comment(const char* format, ...);
+  void PRINTF_FORMAT(2, 3) Comment(const char* format, ...);
   void DeoptComment(const Deoptimizer::DeoptInfo& deopt_info);
   static Deoptimizer::DeoptInfo MakeDeoptInfo(
-      LInstruction* instr, Deoptimizer::DeoptReason deopt_reason);
+      LInstruction* instr, Deoptimizer::DeoptReason deopt_reason, int deopt_id);
 
   bool GenerateBody();
   virtual void GenerateBodyInstructionPre(LInstruction* instr) {}

@@ -4,7 +4,7 @@
 {
   'includes': [
     '../third_party/icu/icu.isolate',
-    '../build/config/win/msvs_dependencies.isolate',
+    '../gypfiles/config/win/msvs_dependencies.isolate',
   ],
   'conditions': [
     ['use_custom_libcxx==1', {
@@ -19,13 +19,6 @@
         'files': [
           '<(PRODUCT_DIR)/natives_blob.bin',
           '<(PRODUCT_DIR)/snapshot_blob.bin',
-        ],
-      },
-    }],
-    ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and v8_separate_ignition_snapshot==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
         ],
       },
     }],

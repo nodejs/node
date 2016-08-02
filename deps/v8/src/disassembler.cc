@@ -109,10 +109,9 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
           it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
-        SNPrintF(decode_buffer,
-                 "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
-                 reinterpret_cast<intptr_t>(ptr),
-                 ptr - begin);
+        SNPrintF(
+            decode_buffer, "%08" V8PRIxPTR "      jump table entry %4" PRIuS,
+            reinterpret_cast<intptr_t>(ptr), static_cast<size_t>(ptr - begin));
         pc += sizeof(ptr);
       } else {
         decode_buffer[0] = '\0';
@@ -147,7 +146,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     }
 
     // Instruction address and instruction offset.
-    out.AddFormatted("%p  %4d  ", prev_pc, prev_pc - begin);
+    out.AddFormatted("%p  %4" V8PRIdPTRDIFF "  ", prev_pc, prev_pc - begin);
 
     // Instruction.
     out.AddFormatted("%s", decode_buffer.start());
@@ -171,15 +170,20 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       RelocInfo::Mode rmode = relocinfo.rmode();
       if (RelocInfo::IsPosition(rmode)) {
         if (RelocInfo::IsStatementPosition(rmode)) {
-          out.AddFormatted("    ;; debug: statement %d", relocinfo.data());
+          out.AddFormatted("    ;; debug: statement %" V8PRIdPTR,
+                           relocinfo.data());
         } else {
-          out.AddFormatted("    ;; debug: position %d", relocinfo.data());
+          out.AddFormatted("    ;; debug: position %" V8PRIdPTR,
+                           relocinfo.data());
         }
       } else if (rmode == RelocInfo::DEOPT_REASON) {
         Deoptimizer::DeoptReason reason =
             static_cast<Deoptimizer::DeoptReason>(relocinfo.data());
         out.AddFormatted("    ;; debug: deopt reason '%s'",
                          Deoptimizer::GetDeoptReason(reason));
+      } else if (rmode == RelocInfo::DEOPT_ID) {
+        out.AddFormatted("    ;; debug: deopt index %d",
+                         static_cast<int>(relocinfo.data()));
       } else if (rmode == RelocInfo::EMBEDDED_OBJECT) {
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);
@@ -203,10 +207,6 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
           InlineCacheState ic_state = code->ic_state();
           out.AddFormatted(" %s, %s", Code::Kind2String(kind),
               Code::ICState2String(ic_state));
-          if (ic_state == MONOMORPHIC) {
-            Code::StubType type = code->type();
-            out.AddFormatted(", %s", Code::StubType2String(type));
-          }
         } else if (kind == Code::STUB || kind == Code::HANDLER) {
           // Get the STUB key and extract major and minor key.
           uint32_t key = code->stub_key();

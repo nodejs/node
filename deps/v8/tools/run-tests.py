@@ -105,6 +105,7 @@ TIMEOUT_DEFAULT = 60
 VARIANTS = ["default", "stress", "turbofan"]
 
 EXHAUSTIVE_VARIANTS = VARIANTS + [
+  "ignition",
   "nocrankshaft",
   "turbofan_opt",
 ]
@@ -194,6 +195,8 @@ SLOW_ARCHS = ["android_arm",
               "mips64el",
               "nacl_ia32",
               "nacl_x64",
+              "s390",
+              "s390x",
               "x87",
               "arm64"]
 
@@ -252,6 +255,9 @@ def BuildOptions():
                     help="Additional flags to pass to each test command",
                     default="")
   result.add_option("--ignition", help="Skip tests which don't run in ignition",
+                    default=False, action="store_true")
+  result.add_option("--ignition-turbofan",
+                    help="Skip tests which don't run in ignition_turbofan",
                     default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
@@ -335,7 +341,7 @@ def BuildOptions():
   result.add_option("--time", help="Print timing information after running",
                     default=False, action="store_true")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
-                    default= -1, type="int")
+                    default=TIMEOUT_DEFAULT, type="int")
   result.add_option("--tsan",
                     help="Regard test expectations for TSAN",
                     default=False, action="store_true")
@@ -378,6 +384,10 @@ def BuildbotToV8Mode(config):
 
 def SetupEnvironment(options):
   """Setup additional environment variables."""
+
+  # Many tests assume an English interface.
+  os.environ['LANG'] = 'en_US.UTF-8'
+
   symbolizer = 'external_symbolizer_path=%s' % (
       os.path.join(
           BASE_DIR, 'third_party', 'llvm-build', 'Release+Asserts', 'bin',
@@ -591,6 +601,11 @@ def Main():
     return 1
   SetupEnvironment(options)
 
+  if options.swarming:
+    # Swarming doesn't print how isolated commands are called. Lets make this
+    # less cryptic by printing it ourselves.
+    print ' '.join(sys.argv)
+
   exit_code = 0
   if not options.no_presubmit:
     print ">>> running presubmit tests"
@@ -663,19 +678,16 @@ def Execute(arch, mode, args, options, suites):
 
   # Populate context object.
   mode_flags = MODES[mode]["flags"]
-  timeout = options.timeout
-  if timeout == -1:
-    # Simulators are slow, therefore allow a longer default timeout.
-    if arch in SLOW_ARCHS:
-      timeout = 2 * TIMEOUT_DEFAULT;
-    else:
-      timeout = TIMEOUT_DEFAULT;
 
-  timeout *= MODES[mode]["timeout_scalefactor"]
+  # Simulators are slow, therefore allow a longer timeout.
+  if arch in SLOW_ARCHS:
+    options.timeout *= 2
+
+  options.timeout *= MODES[mode]["timeout_scalefactor"]
 
   if options.predictable:
     # Predictable mode is slower.
-    timeout *= 2
+    options.timeout *= 2
 
   # TODO(machenbach): Remove temporary verbose output on windows after
   # debugging driver-hung-up on XP.
@@ -685,7 +697,8 @@ def Execute(arch, mode, args, options, suites):
   )
   ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
                         mode_flags, verbose_output,
-                        timeout, options.isolates,
+                        options.timeout,
+                        options.isolates,
                         options.command_prefix,
                         options.extra_flags,
                         options.no_i18n,
@@ -711,6 +724,7 @@ def Execute(arch, mode, args, options, suites):
     "gc_stress": options.gc_stress,
     "gcov_coverage": options.gcov_coverage,
     "ignition": options.ignition,
+    "ignition_turbofan": options.ignition_turbofan,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
     "no_i18n": options.no_i18n,

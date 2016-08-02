@@ -368,14 +368,5 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
   }
   return *isolate->factory()->NewJSArrayWithElements(values);
 }
-
-
-RUNTIME_FUNCTION(Runtime_ObservationWeakMapCreate) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
-  JSWeakCollection::Initialize(weakmap, isolate);
-  return *weakmap;
-}
 }  // namespace internal
 }  // namespace v8

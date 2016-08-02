@@ -22,6 +22,8 @@ class AccessorInfo;
 #define ACCESSOR_INFO_LIST(V)     \
   V(ArgumentsIterator)            \
   V(ArrayLength)                  \
+  V(BoundFunctionLength)          \
+  V(BoundFunctionName)            \
   V(FunctionArguments)            \
   V(FunctionCaller)               \
   V(FunctionName)                 \
@@ -46,7 +48,6 @@ class AccessorInfo;
 
 #define ACCESSOR_SETTER_LIST(V)        \
   V(ReconfigureToDataProperty)         \
-  V(ObservedReconfigureToDataProperty) \
   V(ArrayLengthSetter)                 \
   V(FunctionPrototypeSetter)
 

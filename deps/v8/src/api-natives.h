@@ -23,7 +23,8 @@ class ApiNatives {
       Handle<FunctionTemplateInfo> data);
 
   MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
-      Handle<ObjectTemplateInfo> data);
+      Handle<ObjectTemplateInfo> data,
+      Handle<JSReceiver> new_target = Handle<JSReceiver>());
 
   enum ApiInstanceType {
     JavaScriptObjectType,

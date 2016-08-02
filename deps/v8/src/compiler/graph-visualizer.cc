@@ -25,9 +25,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
-FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
-                            const char* suffix, const char* mode) {
+base::SmartArrayPointer<const char> GetVisualizerLogFileName(
+    CompilationInfo* info, const char* phase, const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
   base::SmartArrayPointer<char> debug_name = info->GetDebugName();
   if (strlen(debug_name.get()) > 0) {
@@ -46,7 +45,11 @@ FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
   } else {
     SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
   }
-  return base::OS::FOpen(full_filename.start(), mode);
+
+  char* buffer = new char[full_filename.length() + 1];
+  memcpy(buffer, full_filename.start(), full_filename.length());
+  buffer[full_filename.length()] = '\0';
+  return base::SmartArrayPointer<const char>(buffer);
 }
 
 
@@ -536,7 +539,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
-      if (op.IsDoubleRegister()) {
+      if (op.IsFPRegister()) {
         DoubleRegister assigned_reg = op.GetDoubleRegister();
         os_ << " \"" << assigned_reg.ToString() << "\"";
       } else {
@@ -555,7 +558,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
             << "\"";
       } else {
         index = AllocatedOperand::cast(top->GetSpillOperand())->index();
-        if (top->kind() == DOUBLE_REGISTERS) {
+        if (top->kind() == FP_REGISTERS) {
           os_ << " \"double_stack:" << index << "\"";
         } else if (top->kind() == GENERAL_REGISTERS) {
           os_ << " \"stack:" << index << "\"";
@@ -640,7 +643,13 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
         if (j++ > 0) os << ", ";
         os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
       }
-      os << ")" << std::endl;
+      os << ")";
+      if (NodeProperties::IsTyped(n)) {
+        os << "  [Type: ";
+        NodeProperties::GetType(n)->PrintTo(os);
+        os << "]";
+      }
+      os << std::endl;
     }
   }
   return os;

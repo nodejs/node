@@ -265,3 +265,27 @@ assertEquals(Number, property_map["[[TargetFunction]]"].value().value());
 assertTrue("[[BoundArgs]]" in property_map);
 assertEquals("object", property_map["[[BoundArgs]]"].value().type());
 assertEquals(1, property_map["[[BoundArgs]]"].value().value().length);
+
+// Test JSProxy internal properties.
+var target = {};
+var handler = {
+  get: function (target, name, receiver) {
+    return target[name];
+  },
+  set: function(target, name, value, receiver) {
+    target[name] = value;
+    return value;
+  }
+}
+ip = debug.ObjectMirror.GetInternalProperties(new Proxy(target, handler));
+assertEquals(3, ip.length);
+var property_map = {};
+for (var i = 0; i < ip.length; i++) {
+  property_map[ip[i].name()] = ip[i];
+}
+assertTrue("[[Target]]" in property_map);
+assertEquals(target, property_map["[[Target]]"].value().value());
+assertTrue("[[Handler]]" in property_map);
+assertEquals(handler, property_map["[[Handler]]"].value().value());
+assertTrue("[[IsRevoked]]" in property_map);
+assertEquals(false, property_map["[[IsRevoked]]"].value().value());

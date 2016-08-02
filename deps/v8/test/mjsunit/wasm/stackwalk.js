@@ -10,13 +10,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function makeFFI(func) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([kAstI32, kAstF64, kAstF64]);
+  var sig_index = builder.addSignature(kSig_i_dd);
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,       // --
-      kExprGetLocal, 0,         // --
-      kExprGetLocal, 1])        // --
+      kExprGetLocal, 0,            // --
+      kExprGetLocal, 1,            // --
+      kExprCallImport, kArity2, 0, // --
+    ])
     .exportFunc()
 
   return builder.instantiate({func: func}).exports.main;

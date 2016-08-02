@@ -95,7 +95,6 @@ class LChunkBuilder;
   V(HasCachedArrayIndexAndBranch)             \
   V(HasInstanceTypeAndBranch)                 \
   V(InnerAllocatedObject)                     \
-  V(InstanceOf)                               \
   V(InvokeFunction)                           \
   V(HasInPrototypeChainAndBranch)             \
   V(IsStringAndBranch)                        \
@@ -2498,7 +2497,7 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
   // Indicates if we support a double (and int32) output for Math.floor and
   // Math.round.
   bool SupportsFlexibleFloorAndRound() const {
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
     return true;
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
     return CpuFeatures::IsSupported(SSE4_1);
@@ -4271,27 +4270,6 @@ class HTypeofIsAndBranch final : public HUnaryControlInstruction {
 };
 
 
-class HInstanceOf final : public HBinaryOperation {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInstanceOf, HValue*, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOf)
-
- private:
-  HInstanceOf(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right, HType::Boolean()) {
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-};
-
-
 class HHasInPrototypeChainAndBranch final
     : public HTemplateControlInstruction<2, 2> {
  public:
@@ -4939,8 +4917,7 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   FeedbackVectorSlot slot_;
 };
 
-
-class HAllocate final : public HTemplateInstruction<2> {
+class HAllocate final : public HTemplateInstruction<3> {
  public:
   static bool CompatibleInstanceTypes(InstanceType type1,
                                       InstanceType type2) {
@@ -4951,9 +4928,10 @@ class HAllocate final : public HTemplateInstruction<2> {
   static HAllocate* New(
       Isolate* isolate, Zone* zone, HValue* context, HValue* size, HType type,
       PretenureFlag pretenure_flag, InstanceType instance_type,
+      HValue* dominator,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null()) {
-    return new(zone) HAllocate(context, size, type, pretenure_flag,
-        instance_type, allocation_site);
+    return new (zone) HAllocate(context, size, type, pretenure_flag,
+                                instance_type, dominator, allocation_site);
   }
 
   // Maximum instance size for which allocations will be inlined.
@@ -4961,13 +4939,7 @@ class HAllocate final : public HTemplateInstruction<2> {
 
   HValue* context() const { return OperandAt(0); }
   HValue* size() const { return OperandAt(1); }
-
-  bool has_size_upper_bound() { return size_upper_bound_ != NULL; }
-  HConstant* size_upper_bound() { return size_upper_bound_; }
-  void set_size_upper_bound(HConstant* value) {
-    DCHECK(size_upper_bound_ == NULL);
-    size_upper_bound_ = value;
-  }
+  HValue* allocation_folding_dominator() const { return OperandAt(2); }
 
   Representation RequiredInputRepresentation(int index) override {
     if (index == 0) {
@@ -5005,13 +4977,27 @@ class HAllocate final : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
   }
 
-  bool MustClearNextMapWord() const {
-    return (flags_ & CLEAR_NEXT_MAP_WORD) != 0;
-  }
-
   void MakeDoubleAligned() {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
+
+  void MakeAllocationFoldingDominator() {
+    flags_ =
+        static_cast<HAllocate::Flags>(flags_ | ALLOCATION_FOLDING_DOMINATOR);
+  }
+
+  bool IsAllocationFoldingDominator() {
+    return (flags_ & ALLOCATION_FOLDING_DOMINATOR) != 0;
+  }
+
+  void MakeFoldedAllocation(HAllocate* dominator) {
+    flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATION_FOLDED);
+    ClearFlag(kTrackSideEffectDominators);
+    ClearChangesFlag(kNewSpacePromotion);
+    SetOperandAt(2, dominator);
+  }
+
+  bool IsAllocationFolded() { return (flags_ & ALLOCATION_FOLDED) != 0; }
 
   bool HandleSideEffectDominator(GVNFlag side_effect,
                                  HValue* dominator) override;
@@ -5026,23 +5012,19 @@ class HAllocate final : public HTemplateInstruction<2> {
     ALLOCATE_IN_OLD_SPACE = 1 << 2,
     ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
     PREFILL_WITH_FILLER = 1 << 4,
-    CLEAR_NEXT_MAP_WORD = 1 << 5
+    ALLOCATION_FOLDING_DOMINATOR = 1 << 5,
+    ALLOCATION_FOLDED = 1 << 6
   };
 
-  HAllocate(HValue* context,
-            HValue* size,
-            HType type,
-            PretenureFlag pretenure_flag,
-            InstanceType instance_type,
-            Handle<AllocationSite> allocation_site =
-                Handle<AllocationSite>::null())
-      : HTemplateInstruction<2>(type),
-        flags_(ComputeFlags(pretenure_flag, instance_type)),
-        dominating_allocate_(NULL),
-        filler_free_space_size_(NULL),
-        size_upper_bound_(NULL) {
+  HAllocate(
+      HValue* context, HValue* size, HType type, PretenureFlag pretenure_flag,
+      InstanceType instance_type, HValue* dominator,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null())
+      : HTemplateInstruction<3>(type),
+        flags_(ComputeFlags(pretenure_flag, instance_type)) {
     SetOperandAt(0, context);
     UpdateSize(size);
+    SetOperandAt(2, dominator);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetChangesFlag(kNewSpacePromotion);
@@ -5072,46 +5054,20 @@ class HAllocate final : public HTemplateInstruction<2> {
     if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
       flags = static_cast<Flags>(flags | PREFILL_WITH_FILLER);
     }
-    if (pretenure_flag == NOT_TENURED &&
-        AllocationSite::CanTrack(instance_type)) {
-      flags = static_cast<Flags>(flags | CLEAR_NEXT_MAP_WORD);
-    }
     return flags;
-  }
-
-  void UpdateClearNextMapWord(bool clear_next_map_word) {
-    flags_ = static_cast<Flags>(clear_next_map_word
-                                ? flags_ | CLEAR_NEXT_MAP_WORD
-                                : flags_ & ~CLEAR_NEXT_MAP_WORD);
   }
 
   void UpdateSize(HValue* size) {
     SetOperandAt(1, size);
-    if (size->IsInteger32Constant()) {
-      size_upper_bound_ = HConstant::cast(size);
-    } else {
-      size_upper_bound_ = NULL;
-    }
   }
-
-  HAllocate* GetFoldableDominator(HAllocate* dominator);
-
-  void UpdateFreeSpaceFiller(int32_t filler_size);
-
-  void CreateFreeSpaceFiller(int32_t filler_size);
 
   bool IsFoldable(HAllocate* allocate) {
     return (IsNewSpaceAllocation() && allocate->IsNewSpaceAllocation()) ||
            (IsOldSpaceAllocation() && allocate->IsOldSpaceAllocation());
   }
 
-  void ClearNextMapWord(int offset);
-
   Flags flags_;
   Handle<Map> known_initial_map_;
-  HAllocate* dominating_allocate_;
-  HStoreNamedField* filler_free_space_size_;
-  HConstant* size_upper_bound_;
 };
 
 
@@ -5183,9 +5139,20 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
                                             HValue* value,
                                             HValue* dominator) {
+  // There may be multiple inner allocates dominated by one allocate.
   while (object->IsInnerAllocatedObject()) {
     object = HInnerAllocatedObject::cast(object)->base_object();
   }
+
+  if (object->IsAllocate()) {
+    HAllocate* allocate = HAllocate::cast(object);
+    if (allocate->IsAllocationFolded()) {
+      HValue* dominator = allocate->allocation_folding_dominator();
+      DCHECK(HAllocate::cast(dominator)->IsAllocationFoldingDominator());
+      object = dominator;
+    }
+  }
+
   if (object->IsConstant() &&
       HConstant::cast(object)->HasExternalReferenceValue()) {
     // Stores to external references require no write barriers
@@ -5226,10 +5193,7 @@ class HLoadContextSlot final : public HUnaryOperation {
     // hole value. This is used for checking for loading of uninitialized
     // harmony bindings where we deoptimize into full-codegen generated code
     // which will subsequently throw a reference error.
-    kCheckDeoptimize,
-    // Load and check the value of the context slot. Return undefined if it's
-    // the hole value. This is used for non-harmony const assignments
-    kCheckReturnUndefined
+    kCheckDeoptimize
   };
 
   HLoadContextSlot(HValue* context, int slot_index, Mode mode)
@@ -5282,9 +5246,7 @@ class HStoreContextSlot final : public HTemplateInstruction<2> {
     // hole value. This is used for checking for assignments to uninitialized
     // harmony bindings where we deoptimize into full-codegen generated code
     // which will subsequently throw a reference error.
-    kCheckDeoptimize,
-    // Check the previous value and ignore assignment if it isn't a hole value
-    kCheckIgnoreAssignment
+    kCheckDeoptimize
   };
 
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreContextSlot, HValue*, int,

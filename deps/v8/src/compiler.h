@@ -17,8 +17,8 @@ namespace internal {
 
 // Forward declarations.
 class CompilationInfo;
+class CompilationJob;
 class JavaScriptFrame;
-class OptimizedCompileJob;
 class ParseInfo;
 class ScriptData;
 
@@ -44,13 +44,14 @@ class Compiler : public AllStatic {
   // given function holds (except for live-edit, which compiles the world).
 
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
+  static bool CompileBaseline(Handle<JSFunction> function);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static bool CompileDebugCode(Handle<JSFunction> function);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
-  static void CompileForLiveEdit(Handle<Script> script);
+  static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
-  // Generate and install code from previously queued optimization job.
-  static void FinalizeOptimizedCompileJob(OptimizedCompileJob* job);
+  // Generate and install code from previously queued compilation job.
+  static void FinalizeCompilationJob(CompilationJob* job);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -77,7 +78,8 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
-      ParseRestriction restriction, int line_offset, int column_offset = 0,
+      ParseRestriction restriction, int eval_scope_position, int eval_position,
+      int line_offset = 0, int column_offset = 0,
       Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
@@ -118,26 +120,10 @@ class Compiler : public AllStatic {
       JavaScriptFrame* osr_frame);
 };
 
-struct InlinedFunctionInfo {
-  InlinedFunctionInfo(int parent_id, SourcePosition inline_position,
-                      int script_id, int start_position)
-      : parent_id(parent_id),
-        inline_position(inline_position),
-        script_id(script_id),
-        start_position(start_position) {}
-  int parent_id;
-  SourcePosition inline_position;
-  int script_id;
-  int start_position;
-  std::vector<size_t> deopt_pc_offsets;
-
-  static const int kNoParentId = -1;
-};
-
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
-class CompilationInfo {
+class CompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
@@ -154,19 +140,18 @@ class CompilationInfo {
     kFrameSpecializing = 1 << 9,
     kNativeContextSpecializing = 1 << 10,
     kInliningEnabled = 1 << 11,
-    kTypingEnabled = 1 << 12,
-    kDisableFutureOptimization = 1 << 13,
-    kSplittingEnabled = 1 << 14,
-    kDeoptimizationEnabled = 1 << 16,
-    kSourcePositionsEnabled = 1 << 17,
-    kFirstCompile = 1 << 18,
-    kBailoutOnUninitialized = 1 << 19,
+    kDisableFutureOptimization = 1 << 12,
+    kSplittingEnabled = 1 << 13,
+    kDeoptimizationEnabled = 1 << 14,
+    kSourcePositionsEnabled = 1 << 15,
+    kBailoutOnUninitialized = 1 << 16,
+    kOptimizeFromBytecode = 1 << 17,
   };
 
-  explicit CompilationInfo(ParseInfo* parse_info);
-  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone,
+  CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
+  CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
-  virtual ~CompilationInfo();
+  ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
 
@@ -174,19 +159,11 @@ class CompilationInfo {
   // TODO(titzer): inline and delete accessors of ParseInfo
   // -----------------------------------------------------------
   Handle<Script> script() const;
-  bool is_eval() const;
-  bool is_native() const;
-  bool is_module() const;
-  LanguageMode language_mode() const;
-  Handle<JSFunction> closure() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
-  bool has_context() const;
-  bool has_literal() const;
-  bool has_scope() const;
   // -----------------------------------------------------------
 
   Isolate* isolate() const {
@@ -194,14 +171,14 @@ class CompilationInfo {
   }
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_ast_id_.IsNone(); }
+  Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
-  int opt_count() const { return opt_count_; }
+  JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
   int num_parameters_including_this() const;
   bool is_this_defined() const;
-  int num_heap_slots() const;
 
   void set_parameter_count(int parameter_count) {
     DCHECK(IsStub());
@@ -210,11 +187,6 @@ class CompilationInfo {
 
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
-
-  Handle<AbstractCode> abstract_code() const {
-    return has_bytecode_array() ? Handle<AbstractCode>::cast(bytecode_array())
-                                : Handle<AbstractCode>::cast(code());
-  }
 
   bool is_tracking_positions() const { return track_positions_; }
 
@@ -294,24 +266,20 @@ class CompilationInfo {
 
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
-  void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
-
-  bool is_typing_enabled() const { return GetFlag(kTypingEnabled); }
-
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
 
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
-
-  void MarkAsFirstCompile() { SetFlag(kFirstCompile); }
-
-  void MarkAsCompiled() { SetFlag(kFirstCompile, false); }
-
-  bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
   void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
 
   bool is_bailout_on_uninitialized() const {
     return GetFlag(kBailoutOnUninitialized);
+  }
+
+  void MarkAsOptimizeFromBytecode() { SetFlag(kOptimizeFromBytecode); }
+
+  bool is_optimizing_from_bytecode() const {
+    return GetFlag(kOptimizeFromBytecode);
   }
 
   bool GeneratePreagedPrologue() const {
@@ -357,9 +325,10 @@ class CompilationInfo {
     code_flags_ =
         Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
   }
-  void SetOptimizingForOsr(BailoutId osr_ast_id) {
+  void SetOptimizingForOsr(BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
     SetOptimizing();
     osr_ast_id_ = osr_ast_id;
+    osr_frame_ = osr_frame;
   }
 
   // Deoptimization support.
@@ -383,7 +352,7 @@ class CompilationInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    // Empty for now but will be needed once fields move from ParseInfo.
+    closure_ = Handle<JSFunction>(*closure_);
   }
 
   void AbortOptimization(BailoutReason reason) {
@@ -410,22 +379,7 @@ class CompilationInfo {
     prologue_offset_ = prologue_offset;
   }
 
-  int start_position_for(uint32_t inlining_id) {
-    return inlined_function_infos_.at(inlining_id).start_position;
-  }
-  const std::vector<InlinedFunctionInfo>& inlined_function_infos() {
-    return inlined_function_infos_;
-  }
-
-  void LogDeoptCallPosition(int pc_offset, int inlining_id);
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position, int pareint_id);
-
   CompilationDependencies* dependencies() { return &dependencies_; }
-
-  bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
-    return osr_ast_id_ == osr_ast_id && function.is_identical_to(closure());
-  }
 
   int optimization_id() const { return optimization_id_; }
 
@@ -434,8 +388,6 @@ class CompilationInfo {
     DCHECK(height >= 0);
     osr_expr_stack_height_ = height;
   }
-  JavaScriptFrame* osr_frame() const { return osr_frame_; }
-  void set_osr_frame(JavaScriptFrame* osr_frame) { osr_frame_ = osr_frame; }
 
 #if DEBUG
   void PrintAstForTesting();
@@ -474,6 +426,8 @@ class CompilationInfo {
 
   StackFrame::Type GetOutputStackFrameType() const;
 
+  int GetDeclareGlobalsFlags() const;
+
  protected:
   ParseInfo* parse_info_;
 
@@ -505,7 +459,7 @@ class CompilationInfo {
     STUB
   };
 
-  CompilationInfo(ParseInfo* parse_info, const char* debug_name,
+  CompilationInfo(ParseInfo* parse_info, Vector<const char> debug_name,
                   Code::Flags code_flags, Mode mode, Isolate* isolate,
                   Zone* zone);
 
@@ -526,6 +480,8 @@ class CompilationInfo {
   unsigned flags_;
 
   Code::Flags code_flags_;
+
+  Handle<JSFunction> closure_;
 
   // The compiled code.
   Handle<Code> code_;
@@ -552,14 +508,9 @@ class CompilationInfo {
 
   int prologue_offset_;
 
-  std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
 
   InlinedFunctionList inlined_functions_;
-
-  // A copy of shared_info()->opt_count() to avoid handle deref
-  // during graph optimization.
-  int opt_count_;
 
   // Number of parameters used for compilation of stubs that require arguments.
   int parameter_count_;
@@ -571,29 +522,30 @@ class CompilationInfo {
   // The current OSR frame for specialization or {nullptr}.
   JavaScriptFrame* osr_frame_ = nullptr;
 
-  const char* debug_name_;
+  Vector<const char> debug_name_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
 
-
-class HGraph;
-class LChunk;
-
-// A helper class that calls the three compilation phases in
-// Crankshaft and keeps track of its state.  The three phases
-// CreateGraph, OptimizeGraph and GenerateAndInstallCode can either
-// fail, bail-out to the full code generator or succeed.  Apart from
-// their return value, the status of the phase last run can be checked
-// using last_status().
-class OptimizedCompileJob: public ZoneObject {
+// A base class for compilation jobs intended to run concurrent to the main
+// thread. The job is split into three phases which are called in sequence on
+// different threads and with different limitations:
+//  1) CreateGraph:   Runs on main thread. No major limitations.
+//  2) OptimizeGraph: Runs concurrently. No heap allocation or handle derefs.
+//  3) GenerateCode:  Runs on main thread. No dependency changes.
+//
+// Each of the three phases can either fail or succeed. Apart from their return
+// value, the status of the phase last run can be checked using {last_status()}
+// as well. When failing we distinguish between the following levels:
+//  a) AbortOptimization: Persistent failure, disable future optimization.
+//  b) RetryOptimzation: Transient failure, try again next time.
+class CompilationJob {
  public:
-  explicit OptimizedCompileJob(CompilationInfo* info)
-      : info_(info), graph_(NULL), chunk_(NULL), last_status_(FAILED) {}
+  explicit CompilationJob(CompilationInfo* info, const char* compiler_name)
+      : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}
+  virtual ~CompilationJob() {}
 
-  enum Status {
-    FAILED, BAILED_OUT, SUCCEEDED
-  };
+  enum Status { FAILED, SUCCEEDED };
 
   MUST_USE_RESULT Status CreateGraph();
   MUST_USE_RESULT Status OptimizeGraph();
@@ -605,44 +557,36 @@ class OptimizedCompileJob: public ZoneObject {
 
   Status RetryOptimization(BailoutReason reason) {
     info_->RetryOptimization(reason);
-    return SetLastStatus(BAILED_OUT);
+    return SetLastStatus(FAILED);
   }
 
   Status AbortOptimization(BailoutReason reason) {
     info_->AbortOptimization(reason);
-    return SetLastStatus(BAILED_OUT);
+    return SetLastStatus(FAILED);
   }
+
+  void RecordOptimizationStats();
+
+ protected:
+  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
+
+  // Overridden by the actual implementation.
+  virtual Status CreateGraphImpl() = 0;
+  virtual Status OptimizeGraphImpl() = 0;
+  virtual Status GenerateCodeImpl() = 0;
 
  private:
   CompilationInfo* info_;
-  HGraph* graph_;
-  LChunk* chunk_;
   base::TimeDelta time_taken_to_create_graph_;
   base::TimeDelta time_taken_to_optimize_;
   base::TimeDelta time_taken_to_codegen_;
+  const char* compiler_name_;
   Status last_status_;
 
   MUST_USE_RESULT Status SetLastStatus(Status status) {
     last_status_ = status;
     return last_status_;
   }
-  void RecordOptimizationStats();
-
-  struct Timer {
-    Timer(OptimizedCompileJob* job, base::TimeDelta* location)
-        : job_(job), location_(location) {
-      DCHECK(location_ != NULL);
-      timer_.Start();
-    }
-
-    ~Timer() {
-      *location_ += timer_.Elapsed();
-    }
-
-    OptimizedCompileJob* job_;
-    base::ElapsedTimer timer_;
-    base::TimeDelta* location_;
-  };
 };
 
 }  // namespace internal

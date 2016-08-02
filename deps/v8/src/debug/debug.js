@@ -51,8 +51,7 @@ Debug.DebugEvent = { Break: 1,
                      BeforeCompile: 4,
                      AfterCompile: 5,
                      CompileError: 6,
-                     PromiseEvent: 7,
-                     AsyncTaskEvent: 8 };
+                     AsyncTaskEvent: 7 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -895,10 +894,6 @@ ExecutionState.prototype.frameCount = function() {
   return %GetFrameCount(this.break_id);
 };
 
-ExecutionState.prototype.threadCount = function() {
-  return %GetThreadCount(this.break_id);
-};
-
 ExecutionState.prototype.frame = function(opt_index) {
   // If no index supplied return the selected frame.
   if (opt_index == null) opt_index = this.selected_frame;
@@ -1138,39 +1133,6 @@ function MakeScriptObject_(script, include_source) {
     o.source = script.source();
   }
   return o;
-}
-
-
-function MakePromiseEvent(event_data) {
-  return new PromiseEvent(event_data);
-}
-
-
-function PromiseEvent(event_data) {
-  this.promise_ = event_data.promise;
-  this.parentPromise_ = event_data.parentPromise;
-  this.status_ = event_data.status;
-  this.value_ = event_data.value;
-}
-
-
-PromiseEvent.prototype.promise = function() {
-  return MakeMirror(this.promise_);
-}
-
-
-PromiseEvent.prototype.parentPromise = function() {
-  return MakeMirror(this.parentPromise_);
-}
-
-
-PromiseEvent.prototype.status = function() {
-  return this.status_;
-}
-
-
-PromiseEvent.prototype.value = function() {
-  return MakeMirror(this.value_);
 }
 
 
@@ -2207,28 +2169,6 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 };
 
 
-DebugCommandProcessor.prototype.threadsRequest_ = function(request, response) {
-  // Get the number of threads.
-  var total_threads = this.exec_state_.threadCount();
-
-  // Get information for all threads.
-  var threads = [];
-  for (var i = 0; i < total_threads; i++) {
-    var details = %GetThreadDetails(this.exec_state_.break_id, i);
-    var thread_info = { current: details[0],
-                        id: details[1]
-                      };
-    threads.push(thread_info);
-  }
-
-  // Create the response body.
-  response.body = {
-    totalThreads: total_threads,
-    threads: threads
-  };
-};
-
-
 DebugCommandProcessor.prototype.suspendRequest_ = function(request, response) {
   response.running = false;
 };
@@ -2394,7 +2334,6 @@ DebugCommandProcessor.prototype.dispatch_ = (function() {
     "references":           proto.referencesRequest_,
     "source":               proto.sourceRequest_,
     "scripts":              proto.scriptsRequest_,
-    "threads":              proto.threadsRequest_,
     "suspend":              proto.suspendRequest_,
     "version":              proto.versionRequest_,
     "changelive":           proto.changeLiveRequest_,
@@ -2517,7 +2456,6 @@ utils.InstallFunctions(utils, DONT_ENUM, [
   "MakeExceptionEvent", MakeExceptionEvent,
   "MakeBreakEvent", MakeBreakEvent,
   "MakeCompileEvent", MakeCompileEvent,
-  "MakePromiseEvent", MakePromiseEvent,
   "MakeAsyncTaskEvent", MakeAsyncTaskEvent,
   "IsBreakPointTriggered", IsBreakPointTriggered,
   "UpdateScriptBreakPoints", UpdateScriptBreakPoints,

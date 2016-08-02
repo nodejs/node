@@ -30,7 +30,8 @@ class HeapProfiler {
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
 
-  bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth);
+  bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
+                                 v8::HeapProfiler::SamplingFlags);
   void StopSamplingHeapProfiler();
   bool is_sampling_allocations() { return !sampling_heap_profiler_.is_empty(); }
   AllocationProfile* GetAllocationProfile();

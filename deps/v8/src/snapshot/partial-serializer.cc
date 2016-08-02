@@ -14,7 +14,6 @@ PartialSerializer::PartialSerializer(Isolate* isolate,
                                      SnapshotByteSink* sink)
     : Serializer(isolate, sink),
       startup_serializer_(startup_snapshot_serializer),
-      global_object_(NULL),
       next_partial_cache_index_(0) {
   InitializeCodeAddressMap();
 }
@@ -26,8 +25,7 @@ PartialSerializer::~PartialSerializer() {
 void PartialSerializer::Serialize(Object** o) {
   if ((*o)->IsContext()) {
     Context* context = Context::cast(*o);
-    global_object_ = context->global_object();
-    back_reference_map()->AddGlobalProxy(context->global_proxy());
+    reference_map()->AddAttachedReference(context->global_proxy());
     // The bootstrap snapshot has a code-stub context. When serializing the
     // partial snapshot, it is chained into the weak context list on the isolate
     // and it's next context pointer may point to the code-stub context.  Clear
@@ -74,7 +72,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Pointers from the partial snapshot to the objects in the startup snapshot
   // should go through the root array or through the partial snapshot cache.
   // If this is not the case you may have to add something to the root array.
-  DCHECK(!startup_serializer_->back_reference_map()->Lookup(obj).is_valid());
+  DCHECK(!startup_serializer_->reference_map()->Lookup(obj).is_valid());
   // All the internalized strings that the partial snapshot needs should be
   // either in the root table or in the partial snapshot cache.
   DCHECK(!obj->IsInternalizedString());

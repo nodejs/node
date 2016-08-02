@@ -168,11 +168,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
   Node* ChangeFloat64ToTagged(Node* a) {
     return NewNode(simplified()->ChangeFloat64ToTagged(), a);
   }
-  Node* ChangeBoolToBit(Node* a) {
-    return NewNode(simplified()->ChangeBoolToBit(), a);
+  Node* ChangeTaggedToBit(Node* a) {
+    return NewNode(simplified()->ChangeTaggedToBit(), a);
   }
-  Node* ChangeBitToBool(Node* a) {
-    return NewNode(simplified()->ChangeBitToBool(), a);
+  Node* ChangeBitToTagged(Node* a) {
+    return NewNode(simplified()->ChangeBitToTagged(), a);
   }
 
   Node* LoadField(const FieldAccess& access, Node* object) {
@@ -277,7 +277,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      CompilationInfo info("testing", main_isolate(), main_zone());
+      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone());
       code_ = Pipeline::GenerateCodeForTesting(&info, desc, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {

@@ -14,11 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-enum RegisterKind {
-  GENERAL_REGISTERS,
-  DOUBLE_REGISTERS
-};
-
+enum RegisterKind { GENERAL_REGISTERS, FP_REGISTERS };
 
 // This class represents a single point of a InstructionOperand's lifetime. For
 // each instruction there are four lifetime positions:
@@ -44,6 +40,14 @@ class LifetimePosition final {
   // the instruction with the given index.
   static LifetimePosition InstructionFromInstructionIndex(int index) {
     return LifetimePosition(index * kStep + kHalfStep);
+  }
+
+  static bool ExistsGapPositionBetween(LifetimePosition pos1,
+                                       LifetimePosition pos2) {
+    if (pos1 > pos2) std::swap(pos1, pos2);
+    LifetimePosition next(pos1.value_ + 1);
+    if (next.IsGapPosition()) return next < pos2;
+    return next.NextFullStart() < pos2;
   }
 
   // Returns a numeric representation of this lifetime position.
@@ -238,10 +242,8 @@ enum class UsePositionHintType : uint8_t {
 static const int32_t kUnassignedRegister =
     RegisterConfiguration::kMaxGeneralRegisters;
 
-
-static_assert(kUnassignedRegister <= RegisterConfiguration::kMaxDoubleRegisters,
+static_assert(kUnassignedRegister <= RegisterConfiguration::kMaxFPRegisters,
               "kUnassignedRegister too small");
-
 
 // Representation of a use position.
 class UsePosition final : public ZoneObject {
@@ -851,8 +853,6 @@ class RegisterAllocationData final : public ZoneObject {
   const char* const debug_name_;
   const RegisterConfiguration* const config_;
   PhiMap phi_map_;
-  ZoneVector<int> allocatable_codes_;
-  ZoneVector<int> allocatable_double_codes_;
   ZoneVector<BitVector*> live_in_sets_;
   ZoneVector<BitVector*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;

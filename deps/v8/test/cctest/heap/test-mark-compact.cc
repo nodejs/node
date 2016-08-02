@@ -236,8 +236,7 @@ TEST(MapCompact) {
 
 
 static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
+static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
@@ -262,17 +261,17 @@ HEAP_TEST(ObjectGroups) {
   Handle<Object> g1c1 =
       global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   std::pair<Handle<Object>*, int> g1s1_and_id(&g1s1, 1234);
-  GlobalHandles::MakeWeak(g1s1.location(),
-                          reinterpret_cast<void*>(&g1s1_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g1s1.location(), reinterpret_cast<void*>(&g1s1_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   std::pair<Handle<Object>*, int> g1s2_and_id(&g1s2, 1234);
-  GlobalHandles::MakeWeak(g1s2.location(),
-                          reinterpret_cast<void*>(&g1s2_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g1s2.location(), reinterpret_cast<void*>(&g1s2_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   std::pair<Handle<Object>*, int> g1c1_and_id(&g1c1, 1234);
-  GlobalHandles::MakeWeak(g1c1.location(),
-                          reinterpret_cast<void*>(&g1c1_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g1c1.location(), reinterpret_cast<void*>(&g1c1_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
 
   Handle<Object> g2s1 =
       global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
@@ -281,17 +280,17 @@ HEAP_TEST(ObjectGroups) {
   Handle<Object> g2c1 =
     global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   std::pair<Handle<Object>*, int> g2s1_and_id(&g2s1, 1234);
-  GlobalHandles::MakeWeak(g2s1.location(),
-                          reinterpret_cast<void*>(&g2s1_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g2s1.location(), reinterpret_cast<void*>(&g2s1_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   std::pair<Handle<Object>*, int> g2s2_and_id(&g2s2, 1234);
-  GlobalHandles::MakeWeak(g2s2.location(),
-                          reinterpret_cast<void*>(&g2s2_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g2s2.location(), reinterpret_cast<void*>(&g2s2_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   std::pair<Handle<Object>*, int> g2c1_and_id(&g2c1, 1234);
-  GlobalHandles::MakeWeak(g2c1.location(),
-                          reinterpret_cast<void*>(&g2c1_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g2c1.location(), reinterpret_cast<void*>(&g2c1_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
 
   Handle<Object> root = global_handles->Create(*g1s1);  // make a root.
 
@@ -317,9 +316,9 @@ HEAP_TEST(ObjectGroups) {
 
   // Weaken the root.
   std::pair<Handle<Object>*, int> root_and_id(&root, 1234);
-  GlobalHandles::MakeWeak(root.location(),
-                          reinterpret_cast<void*>(&root_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      root.location(), reinterpret_cast<void*>(&root_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   global_handles->ClearWeakness(g1c1.location());
@@ -343,12 +342,12 @@ HEAP_TEST(ObjectGroups) {
   CHECK_EQ(5, NumberOfWeakCalls);
 
   // And now make children weak again and collect them.
-  GlobalHandles::MakeWeak(g1c1.location(),
-                          reinterpret_cast<void*>(&g1c1_and_id),
-                          &WeakPointerCallback);
-  GlobalHandles::MakeWeak(g2c1.location(),
-                          reinterpret_cast<void*>(&g2c1_and_id),
-                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(
+      g1c1.location(), reinterpret_cast<void*>(&g1c1_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
+  GlobalHandles::MakeWeak(
+      g2c1.location(), reinterpret_cast<void*>(&g2c1_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
 
   heap->CollectGarbage(OLD_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);

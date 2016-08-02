@@ -127,6 +127,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Poke:
       return kHasSideEffect;
 
+    case kIA32Xchgb:
+    case kIA32Xchgw:
+    case kIA32Xchgl:
+      return kIsLoadOperation | kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE

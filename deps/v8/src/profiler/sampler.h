@@ -8,14 +8,13 @@
 #include "include/v8.h"
 
 #include "src/base/atomicops.h"
-#include "src/base/platform/time.h"
-#include "src/frames.h"
-#include "src/globals.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
 
 class Isolate;
+struct TickSample;
 
 // ----------------------------------------------------------------------------
 // Sampler
@@ -23,43 +22,6 @@ class Isolate;
 // A sampler periodically samples the state of the VM and optionally
 // (if used for profiling) the program counter and stack pointer for
 // the thread that created it.
-
-// TickSample captures the information collected for each sample.
-struct TickSample {
-  // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
-  // include the runtime function we're calling. Externally exposed tick
-  // samples don't care.
-  enum RecordCEntryFrame { kIncludeCEntryFrame, kSkipCEntryFrame };
-
-  TickSample()
-      : state(OTHER),
-        pc(NULL),
-        external_callback_entry(NULL),
-        frames_count(0),
-        has_external_callback(false),
-        update_stats(true),
-        top_frame_type(StackFrame::NONE) {}
-  void Init(Isolate* isolate, const v8::RegisterState& state,
-            RecordCEntryFrame record_c_entry_frame, bool update_stats);
-  static void GetStackSample(Isolate* isolate, const v8::RegisterState& state,
-                             RecordCEntryFrame record_c_entry_frame,
-                             void** frames, size_t frames_limit,
-                             v8::SampleInfo* sample_info);
-  StateTag state;  // The state of the VM.
-  Address pc;      // Instruction pointer.
-  union {
-    Address tos;   // Top stack value (*sp).
-    Address external_callback_entry;
-  };
-  static const unsigned kMaxFramesCountLog2 = 8;
-  static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
-  Address stack[kMaxFramesCount];  // Call stack.
-  base::TimeTicks timestamp;
-  unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
-  bool has_external_callback : 1;
-  bool update_stats : 1;  // Whether the sample should update aggregated stats.
-  StackFrame::Type top_frame_type : 5;
-};
 
 class Sampler {
  public:
@@ -92,6 +54,11 @@ class Sampler {
   // Whether the sampler is running (that is, consumes resources).
   bool IsActive() const { return base::NoBarrier_Load(&active_); }
 
+  // CpuProfiler collects samples by calling DoSample directly
+  // without calling Start. To keep it working, we register the sampler
+  // with the CpuProfiler.
+  bool IsRegistered() const { return base::NoBarrier_Load(&registered_); }
+
   void DoSample();
   // If true next sample must be initiated on the profiler event processor
   // thread right after latest sample is processed.
@@ -119,11 +86,14 @@ class Sampler {
  private:
   void SetActive(bool value) { base::NoBarrier_Store(&active_, value); }
 
+  void SetRegistered(bool value) { base::NoBarrier_Store(&registered_, value); }
+
   Isolate* isolate_;
   const int interval_;
   base::Atomic32 profiling_;
   base::Atomic32 has_processing_thread_;
   base::Atomic32 active_;
+  base::Atomic32 registered_;
   PlatformData* data_;  // Platform specific data.
   // Counts stack samples taken in various VM states.
   bool is_counting_samples_;
@@ -131,7 +101,6 @@ class Sampler {
   unsigned external_sample_count_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
-
 
 }  // namespace internal
 }  // namespace v8

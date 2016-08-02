@@ -1,0 +1,4 @@
+*%(basename)s:9: SyntaxError: Unexpected expression inside tail call
+  return continue   x  ;
+                    ^
+SyntaxError: Unexpected expression inside tail call

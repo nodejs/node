@@ -410,7 +410,6 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* ToNumber();
   const Operator* ToObject();
   const Operator* ToString();
-  const Operator* Yield();
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);

@@ -72,8 +72,7 @@ int FrameInspector::GetSourcePosition() {
     return deoptimized_frame_->GetSourcePosition();
   } else if (is_interpreted_) {
     InterpretedFrame* frame = reinterpret_cast<InterpretedFrame*>(frame_);
-    BytecodeArray* bytecode_array =
-        frame->function()->shared()->bytecode_array();
+    BytecodeArray* bytecode_array = frame->GetBytecodeArray();
     return bytecode_array->SourcePosition(frame->GetBytecodeOffset());
   } else {
     Code* code = frame_->LookupCode();
@@ -117,6 +116,7 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
     // TODO(yangguo): check whether this is necessary, now that we materialize
     //                context locals as well.
     Handle<String> name(scope_info->ParameterName(i));
+    if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
 
     Handle<Object> value =
@@ -130,8 +130,8 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
 
   // Second fill all stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    if (scope_info->LocalIsSynthetic(i)) continue;
     Handle<String> name(scope_info->StackLocalName(i));
+    if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     Handle<Object> value = GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
@@ -163,6 +163,7 @@ void FrameInspector::UpdateStackLocalsFromMaterializedObject(
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     // Shadowed parameters were not materialized.
     Handle<String> name(scope_info->ParameterName(i));
+    if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
 
     DCHECK(!frame_->GetParameter(i)->IsTheHole());
@@ -173,13 +174,12 @@ void FrameInspector::UpdateStackLocalsFromMaterializedObject(
 
   // Stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    if (scope_info->LocalIsSynthetic(i)) continue;
+    Handle<String> name(scope_info->StackLocalName(i));
+    if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     int index = scope_info->StackLocalIndex(i);
     if (frame_->GetExpression(index)->IsTheHole()) continue;
     Handle<Object> value =
-        Object::GetPropertyOrElement(
-            target, handle(scope_info->StackLocalName(i), isolate_))
-            .ToHandleChecked();
+        Object::GetPropertyOrElement(target, name).ToHandleChecked();
     frame_->SetExpression(index, *value);
   }
 }

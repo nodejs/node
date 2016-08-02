@@ -129,8 +129,7 @@ class AllocationTracker {
     void Resolve();
 
    private:
-    static void HandleWeakScript(
-        const v8::WeakCallbackData<v8::Value, void>& data);
+    static void HandleWeakScript(const v8::WeakCallbackInfo<void>& data);
 
     Handle<Script> script_;
     int start_position_;

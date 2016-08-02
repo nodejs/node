@@ -399,15 +399,6 @@ TEST(Type3) {
     COMPARE(bfi(r1, r0, 31, 1),
             "e7df1f90       bfi r1, r0, #31, #1");
 
-    COMPARE(usat(r0, 1, Operand(r1)),
-            "e6e10011       usat r0, #1, r1");
-    COMPARE(usat(r2, 7, Operand(lr)),
-            "e6e7201e       usat r2, #7, lr");
-    COMPARE(usat(r3, 31, Operand(r4, LSL, 31)),
-            "e6ff3f94       usat r3, #31, r4, lsl #31");
-    COMPARE(usat(r8, 0, Operand(r5, ASR, 17)),
-            "e6e088d5       usat r8, #0, r5, asr #17");
-
     COMPARE(pkhbt(r3, r4, Operand(r5, LSL, 17)),
             "e6843895       pkhbt r3, r4, r5, lsl #17");
     COMPARE(pkhtb(r3, r4, Operand(r5, ASR, 17)),
@@ -442,6 +433,15 @@ TEST(Type3) {
     COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
     COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
   }
+
+  COMPARE(usat(r0, 1, Operand(r1)),
+          "e6e10011       usat r0, #1, r1");
+  COMPARE(usat(r2, 7, Operand(lr)),
+          "e6e7201e       usat r2, #7, lr");
+  COMPARE(usat(r3, 31, Operand(r4, LSL, 31)),
+          "e6ff3f94       usat r3, #31, r4, lsl #31");
+  COMPARE(usat(r8, 0, Operand(r5, ASR, 17)),
+          "e6e088d5       usat r8, #0, r5, asr #17");
 
   COMPARE(smmla(r0, r1, r2, r3), "e7503211       smmla r0, r1, r2, r3");
   COMPARE(smmla(r10, r9, r8, r7), "e75a7819       smmla r10, r9, r8, r7");
@@ -854,6 +854,51 @@ TEST(ARMv8_vrintX_disasm) {
 
     COMPARE(vrintz(d0, d0), "eeb60bc0       vrintz.f64.f64 d0, d0");
     COMPARE(vrintz(d2, d3, ne), "1eb62bc3       vrintzne.f64.f64 d2, d3");
+  }
+
+  VERIFY_RUN();
+}
+
+
+TEST(ARMv8_vselX_disasm) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    // Native instructions.
+    COMPARE(vsel(eq, d0, d1, d2),
+            "fe010b02       vseleq.f64 d0, d1, d2");
+    COMPARE(vsel(eq, s0, s1, s2),
+            "fe000a81       vseleq.f32 s0, s1, s2");
+    COMPARE(vsel(ge, d0, d1, d2),
+            "fe210b02       vselge.f64 d0, d1, d2");
+    COMPARE(vsel(ge, s0, s1, s2),
+            "fe200a81       vselge.f32 s0, s1, s2");
+    COMPARE(vsel(gt, d0, d1, d2),
+            "fe310b02       vselgt.f64 d0, d1, d2");
+    COMPARE(vsel(gt, s0, s1, s2),
+            "fe300a81       vselgt.f32 s0, s1, s2");
+    COMPARE(vsel(vs, d0, d1, d2),
+            "fe110b02       vselvs.f64 d0, d1, d2");
+    COMPARE(vsel(vs, s0, s1, s2),
+            "fe100a81       vselvs.f32 s0, s1, s2");
+
+    // Inverted conditions (and swapped inputs).
+    COMPARE(vsel(ne, d0, d1, d2),
+            "fe020b01       vseleq.f64 d0, d2, d1");
+    COMPARE(vsel(ne, s0, s1, s2),
+            "fe010a20       vseleq.f32 s0, s2, s1");
+    COMPARE(vsel(lt, d0, d1, d2),
+            "fe220b01       vselge.f64 d0, d2, d1");
+    COMPARE(vsel(lt, s0, s1, s2),
+            "fe210a20       vselge.f32 s0, s2, s1");
+    COMPARE(vsel(le, d0, d1, d2),
+            "fe320b01       vselgt.f64 d0, d2, d1");
+    COMPARE(vsel(le, s0, s1, s2),
+            "fe310a20       vselgt.f32 s0, s2, s1");
+    COMPARE(vsel(vc, d0, d1, d2),
+            "fe120b01       vselvs.f64 d0, d2, d1");
+    COMPARE(vsel(vc, s0, s1, s2),
+            "fe110a20       vselvs.f32 s0, s2, s1");
   }
 
   VERIFY_RUN();

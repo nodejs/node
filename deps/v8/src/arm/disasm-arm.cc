@@ -1869,6 +1869,48 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         Unknown(instr);
       }
       break;
+    case 0x1C:
+      if ((instr->Bits(11, 9) == 0x5) && (instr->Bit(6) == 0) &&
+          (instr->Bit(4) == 0)) {
+        // VSEL* (floating-point)
+        bool dp_operation = (instr->SzValue() == 1);
+        switch (instr->Bits(21, 20)) {
+          case 0x0:
+            if (dp_operation) {
+              Format(instr, "vseleq.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vseleq.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x1:
+            if (dp_operation) {
+              Format(instr, "vselvs.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselvs.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x2:
+            if (dp_operation) {
+              Format(instr, "vselge.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselge.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x3:
+            if (dp_operation) {
+              Format(instr, "vselgt.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselgt.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
+        }
+      } else {
+        Unknown(instr);
+      }
+      break;
     default:
       Unknown(instr);
       break;

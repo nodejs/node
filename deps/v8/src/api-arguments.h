@@ -116,6 +116,7 @@ class PropertyCallbackArguments
 #define WRITE_CALL_1_NAME(Function, type, ApiReturn, InternalReturn)         \
   Handle<InternalReturn> Call(Function f, Handle<Name> name) {               \
     Isolate* isolate = this->isolate();                                      \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);       \
     VMState<EXTERNAL> state(isolate);                                        \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));             \
     PropertyCallbackInfo<ApiReturn> info(begin());                           \
@@ -138,6 +139,7 @@ class PropertyCallbackArguments
 #define WRITE_CALL_1_INDEX(Function, type, ApiReturn, InternalReturn)  \
   Handle<InternalReturn> Call(Function f, uint32_t index) {            \
     Isolate* isolate = this->isolate();                                \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function); \
     VMState<EXTERNAL> state(isolate);                                  \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));       \
     PropertyCallbackInfo<ApiReturn> info(begin());                     \
@@ -155,6 +157,8 @@ class PropertyCallbackArguments
   Handle<Object> Call(GenericNamedPropertySetterCallback f, Handle<Name> name,
                       Handle<Object> value) {
     Isolate* isolate = this->isolate();
+    RuntimeCallTimerScope timer(
+        isolate, &RuntimeCallStats::GenericNamedPropertySetterCallback);
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
     PropertyCallbackInfo<v8::Value> info(begin());
@@ -167,6 +171,8 @@ class PropertyCallbackArguments
   Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
                       Handle<Object> value) {
     Isolate* isolate = this->isolate();
+    RuntimeCallTimerScope timer(
+        isolate, &RuntimeCallStats::IndexedPropertySetterCallback);
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
     PropertyCallbackInfo<v8::Value> info(begin());
@@ -179,6 +185,8 @@ class PropertyCallbackArguments
   void Call(AccessorNameSetterCallback f, Handle<Name> name,
             Handle<Object> value) {
     Isolate* isolate = this->isolate();
+    RuntimeCallTimerScope timer(isolate,
+                                &RuntimeCallStats::AccessorNameSetterCallback);
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
     PropertyCallbackInfo<void> info(begin());
@@ -206,19 +214,19 @@ class FunctionCallbackArguments
   static const int kIsolateIndex = T::kIsolateIndex;
   static const int kCalleeIndex = T::kCalleeIndex;
   static const int kContextSaveIndex = T::kContextSaveIndex;
+  static const int kNewTargetIndex = T::kNewTargetIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate, internal::Object* data,
                             internal::HeapObject* callee,
-                            internal::Object* holder, internal::Object** argv,
-                            int argc, bool is_construct_call)
-      : Super(isolate),
-        argv_(argv),
-        argc_(argc),
-        is_construct_call_(is_construct_call) {
+                            internal::Object* holder,
+                            internal::HeapObject* new_target,
+                            internal::Object** argv, int argc)
+      : Super(isolate), argv_(argv), argc_(argc) {
     Object** values = begin();
     values[T::kDataIndex] = data;
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
+    values[T::kNewTargetIndex] = new_target;
     values[T::kContextSaveIndex] = isolate->heap()->the_hole_value();
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
     // Here the hole is set as default value.
@@ -245,7 +253,6 @@ class FunctionCallbackArguments
  private:
   internal::Object** argv_;
   int argc_;
-  bool is_construct_call_;
 };
 
 }  // namespace internal

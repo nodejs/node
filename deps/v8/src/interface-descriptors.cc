@@ -75,12 +75,6 @@ const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
 }
 
 
-void AllocateMutableHeapNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  data->InitializePlatformSpecific(0, nullptr, nullptr);
-}
-
-
 void VoidDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   data->InitializePlatformSpecific(0, nullptr);
@@ -184,13 +178,6 @@ void StoreGlobalViaContextDescriptor::InitializePlatformSpecific(
 }
 
 
-void InstanceOfDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {LeftRegister(), RightRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void StringCompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {LeftRegister(), RightRegister()};
@@ -203,6 +190,11 @@ void TypeConversionDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void HasPropertyDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {KeyRegister(), ObjectRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void MathPowTaggedDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -301,22 +293,16 @@ void VectorStoreICTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-FunctionType* ApiGetterDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 1, zone)->AsFunction();
-  function->InitParameter(0, ExternalPointer(zone));
-  return function;
+const Register ApiGetterDescriptor::ReceiverRegister() {
+  return LoadDescriptor::ReceiverRegister();
 }
-
 
 void ApiGetterDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {function_address()};
+  Register registers[] = {ReceiverRegister(), HolderRegister(),
+                          CallbackRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
-
 
 void ContextOnlyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -446,6 +432,19 @@ FunctionType* CallFunctionWithFeedbackAndVectorDescriptor::
 }
 
 FunctionType*
+ArrayNoArgumentConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
+  function->InitParameter(0, Type::Receiver());  // JSFunction
+  function->InitParameter(1, AnyTagged(zone));
+  function->InitParameter(2, UntaggedIntegral32(zone));
+  function->InitParameter(3, AnyTagged(zone));
+  return function;
+}
+
+FunctionType*
 ArrayConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
@@ -528,9 +527,8 @@ InterpreterDispatchDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
+      Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
   function->InitParameter(kAccumulatorParameter, AnyTagged(zone));
-  function->InitParameter(kRegisterFileParameter, ExternalPointer(zone));
   function->InitParameter(kBytecodeOffsetParameter, UntaggedIntegral32(zone));
   function->InitParameter(kBytecodeArrayParameter, AnyTagged(zone));
   function->InitParameter(kDispatchTableParameter, AnyTagged(zone));

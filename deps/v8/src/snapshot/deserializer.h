@@ -53,10 +53,10 @@ class Deserializer : public SerializerDeserializer {
   // Deserialize a shared function info. Fail gracefully.
   MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
 
-  // Pass a vector of externally-provided objects referenced by the snapshot.
-  // The ownership to its backing store is handed over as well.
-  void SetAttachedObjects(Vector<Handle<Object> > attached_objects) {
-    attached_objects_ = attached_objects;
+  // Add an object to back an attached reference. The order to add objects must
+  // mirror the order they are added in the serializer.
+  void AddAttachedObject(Handle<HeapObject> attached_object) {
+    attached_objects_.Add(attached_object);
   }
 
  private:
@@ -117,7 +117,7 @@ class Deserializer : public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  Vector<Handle<Object> > attached_objects_;
+  List<Handle<HeapObject> > attached_objects_;
 
   SnapshotByteSource source_;
   uint32_t magic_number_;

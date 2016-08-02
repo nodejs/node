@@ -91,7 +91,7 @@ $(NACL_MAKEFILES):
 	CXX=${NACL_CXX} \
 	LINK=${NACL_LINK} \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
-	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. \
+	tools/gyp/gyp --generator-output="${OUTDIR}" gypfiles/all.gyp \
+	              -Igypfiles/standalone.gypi --depth=. \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS) \
                       -Dwno_array_bounds=-Wno-array-bounds

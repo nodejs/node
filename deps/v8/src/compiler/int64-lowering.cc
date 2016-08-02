@@ -79,8 +79,10 @@ static int GetParameterIndexAfterLowering(
   return result;
 }
 
-static int GetParameterCountAfterLowering(
+int Int64Lowering::GetParameterCountAfterLowering(
     Signature<MachineRepresentation>* signature) {
+  // GetParameterIndexAfterLowering(parameter_count) returns the parameter count
+  // after lowering.
   return GetParameterIndexAfterLowering(
       signature, static_cast<int>(signature->parameter_count()));
 }
@@ -177,7 +179,9 @@ void Int64Lowering::LowerNode(Node* node) {
         NodeProperties::ChangeOp(node, store_op);
         ReplaceNode(node, node, high_node);
       } else {
-        DefaultLowering(node);
+        if (HasReplacementLow(node->InputAt(2))) {
+          node->ReplaceInput(2, GetReplacementLow(node->InputAt(2)));
+        }
       }
       break;
     }
@@ -223,7 +227,9 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kCall: {
-      CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
+      // TODO(turbofan): Make WASM code const-correct wrt. CallDescriptor.
+      CallDescriptor* descriptor =
+          const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
       if (DefaultLowering(node) ||
           (descriptor->ReturnCount() == 1 &&
            descriptor->GetReturnType(0) == MachineType::Int64())) {
@@ -262,9 +268,6 @@ void Int64Lowering::LowerNode(Node* node) {
       node->NullAllInputs();
       break;
     }
-    // todo(ahaas): I added a list of missing instructions here to make merging
-    // easier when I do them one by one.
-    // kExprI64Add:
     case IrOpcode::kInt64Add: {
       DCHECK(node->InputCount() == 2);
 
@@ -283,8 +286,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-
-    // kExprI64Sub:
     case IrOpcode::kInt64Sub: {
       DCHECK(node->InputCount() == 2);
 
@@ -303,7 +304,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    // kExprI64Mul:
     case IrOpcode::kInt64Mul: {
       DCHECK(node->InputCount() == 2);
 
@@ -322,11 +322,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    // kExprI64DivS:
-    // kExprI64DivU:
-    // kExprI64RemS:
-    // kExprI64RemU:
-    // kExprI64Ior:
     case IrOpcode::kWord64Or: {
       DCHECK(node->InputCount() == 2);
       Node* left = node->InputAt(0);
@@ -341,8 +336,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-
-    // kExprI64Xor:
     case IrOpcode::kWord64Xor: {
       DCHECK(node->InputCount() == 2);
       Node* left = node->InputAt(0);
@@ -357,7 +350,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    // kExprI64Shl:
     case IrOpcode::kWord64Shl: {
       // TODO(turbofan): if the shift count >= 32, then we can set the low word
       // of the output to 0 and just calculate the high word.
@@ -380,7 +372,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    // kExprI64ShrU:
     case IrOpcode::kWord64Shr: {
       // TODO(turbofan): if the shift count >= 32, then we can set the low word
       // of the output to 0 and just calculate the high word.
@@ -403,7 +394,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    // kExprI64ShrS:
     case IrOpcode::kWord64Sar: {
       // TODO(turbofan): if the shift count >= 32, then we can set the low word
       // of the output to 0 and just calculate the high word.
@@ -426,7 +416,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    // kExprI64Eq:
     case IrOpcode::kWord64Equal: {
       DCHECK(node->InputCount() == 2);
       Node* left = node->InputAt(0);
@@ -446,7 +435,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, replacement, nullptr);
       break;
     }
-    // kExprI64LtS:
     case IrOpcode::kInt64LessThan: {
       LowerComparison(node, machine()->Int32LessThan(),
                       machine()->Uint32LessThan());
@@ -467,8 +455,6 @@ void Int64Lowering::LowerNode(Node* node) {
                       machine()->Uint32LessThanOrEqual());
       break;
     }
-
-    // kExprI64SConvertI32:
     case IrOpcode::kChangeInt32ToInt64: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
@@ -483,7 +469,6 @@ void Int64Lowering::LowerNode(Node* node) {
       node->NullAllInputs();
       break;
     }
-    // kExprI64UConvertI32: {
     case IrOpcode::kChangeUint32ToUint64: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
@@ -494,7 +479,6 @@ void Int64Lowering::LowerNode(Node* node) {
       node->NullAllInputs();
       break;
     }
-    // kExprF64ReinterpretI64:
     case IrOpcode::kBitcastInt64ToFloat64: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
@@ -523,7 +507,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, load, nullptr);
       break;
     }
-    // kExprI64ReinterpretF64:
     case IrOpcode::kBitcastFloat64ToInt64: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
@@ -659,7 +642,6 @@ void Int64Lowering::LowerNode(Node* node) {
       }
       break;
     }
-    // kExprI64Clz:
     case IrOpcode::kWord64Clz: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
@@ -678,7 +660,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, graph()->NewNode(common()->Int32Constant(0)));
       break;
     }
-    // kExprI64Ctz:
     case IrOpcode::kWord64Ctz: {
       DCHECK(node->InputCount() == 1);
       DCHECK(machine()->Word32Ctz().IsSupported());
@@ -698,7 +679,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, graph()->NewNode(common()->Int32Constant(0)));
       break;
     }
-    // kExprI64Popcnt:
     case IrOpcode::kWord64Popcnt: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);

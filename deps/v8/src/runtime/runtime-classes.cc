@@ -194,14 +194,6 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, constructor, 0);
-  JSObject::MigrateSlowToFast(constructor, 0, "RuntimeToFastProperties");
-  return *constructor;
-}
-
 static MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
                                          Handle<Object> receiver,
                                          Handle<JSObject> home_object,

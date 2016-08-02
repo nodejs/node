@@ -472,6 +472,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case JS_REGEXP_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
+    case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:

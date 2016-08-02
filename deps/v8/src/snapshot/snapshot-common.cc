@@ -142,8 +142,9 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
                  Page::kObjectStartOffset;
       // Add a small allowance to the code space for small scripts.
       if (space == CODE_SPACE) required += 32 * KB;
-    } else {
-      // We expect the vanilla snapshot to only require on page per space.
+    } else if (!FLAG_debug_code) {
+      // We expect the vanilla snapshot to only require one page per space,
+      // unless we are emitting debug code.
       DCHECK(!is_default_snapshot);
     }
 

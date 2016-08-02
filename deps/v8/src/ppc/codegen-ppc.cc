@@ -185,6 +185,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiToDoubleArrayOffset(scratch3, length);
   __ addi(scratch3, scratch3, Operand(FixedDoubleArray::kHeaderSize));
   __ Allocate(scratch3, array, scratch4, scratch2, fail, DOUBLE_ALIGNMENT);
+  __ subi(array, array, Operand(kHeapObjectTag));
   // array: destination FixedDoubleArray, not tagged as heap object.
   // elements: source FixedArray.
 
@@ -313,12 +314,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ add(array_size, array_size, r0);
   __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
               NO_ALLOCATION_FLAGS);
-  // array: destination FixedArray, not tagged as heap object
+  // array: destination FixedArray, tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
-  __ StoreP(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ StoreP(scratch, MemOperand(array, HeapObject::kMapOffset));
-  __ addi(array, array, Operand(kHeapObjectTag));
+  __ StoreP(length, FieldMemOperand(array,
+            FixedDoubleArray::kLengthOffset), r0);
+  __ StoreP(scratch, FieldMemOperand(array, HeapObject::kMapOffset), r0);
 
   // Prepare for conversion loop.
   Register src_elements = elements;

@@ -19,10 +19,10 @@ const Register kReturnRegister1 = {Register::kCode_r3};
 const Register kReturnRegister2 = {Register::kCode_r4};
 const Register kJSFunctionRegister = {Register::kCode_r3};
 const Register kContextRegister = {Register::kCode_r13};
+const Register kAllocateSizeRegister = {Register::kCode_r3};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r2};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r4};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r5};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r6};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r6};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r7};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
 const Register kJavaScriptCallArgCountRegister = {Register::kCode_r2};
 const Register kJavaScriptCallNewTargetRegister = {Register::kCode_r5};
@@ -334,6 +334,7 @@ class MacroAssembler : public Assembler {
   void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadlW(Register dst, Register src);
   void LoadB(Register dst, const MemOperand& opnd);
+  void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
 
   // Load And Test
@@ -410,6 +411,12 @@ class MacroAssembler : public Assembler {
   void NotP(Register dst);
 
   void mov(Register dst, const Operand& src);
+
+  void CleanUInt32(Register x) {
+#ifdef V8_TARGET_ARCH_S390X
+    llgfr(x, x);
+#endif
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -958,6 +965,15 @@ class MacroAssembler : public Assembler {
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register scratch1,
+                    Register scratch2, AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    Register scratch, AllocationFlags flags);
+
   void AllocateTwoByteString(Register result, Register length,
                              Register scratch1, Register scratch2,
                              Register scratch3, Label* gc_required);
@@ -982,7 +998,6 @@ class MacroAssembler : public Assembler {
   // when control continues at the gc_required label.
   void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
                           Register heap_number_map, Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
   void AllocateHeapNumberWithValue(Register result, DoubleRegister value,
                                    Register scratch1, Register scratch2,
@@ -1658,6 +1673,10 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);

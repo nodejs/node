@@ -70,7 +70,9 @@ function ArrayBufferSlice(start, end) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'ArrayBuffer.prototype.slice', result);
   }
-  // TODO(littledan): Check for a detached ArrayBuffer
+  // Checks for detached source/target ArrayBuffers are done inside of
+  // %ArrayBufferSliceImpl; the reordering of checks does not violate
+  // the spec because all exceptions thrown are TypeErrors.
   if (result === this) {
     throw MakeTypeError(kArrayBufferSpeciesThis);
   }

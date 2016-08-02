@@ -65,7 +65,7 @@ class TemporaryRegisterAllocator final {
   DISALLOW_COPY_AND_ASSIGN(TemporaryRegisterAllocator);
 };
 
-// A class than allows the instantiator to allocate temporary registers that are
+// A class that allows the instantiator to allocate temporary registers that are
 // cleaned up when scope is closed.
 class BytecodeRegisterAllocator final {
  public:

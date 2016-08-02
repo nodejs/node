@@ -41,7 +41,8 @@ ALL_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--turbo"]],
+  "ignition": [["--ignition"]],
+  "ignition_turbofan": [["--ignition", "--turbo", "--turbo-from-bytecode"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
@@ -51,14 +52,17 @@ FAST_VARIANT_FLAGS = {
   "stress": [["--stress-opt"]],
   "turbofan": [["--turbo"]],
   "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--turbo"]],
+  "ignition": [["--ignition"]],
+  "ignition_turbofan": [["--ignition", "--turbo", "--turbo-from-bytecode"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "nocrankshaft", "ignition", "preparser"])
+                    "nocrankshaft", "ignition", "ignition_turbofan",
+                    "preparser"])
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
+IGNITION_VARIANT = set(["ignition"])
 
 
 class VariantGenerator(object):
@@ -69,12 +73,15 @@ class VariantGenerator(object):
     self.standard_variant = STANDARD_VARIANT & variants
 
   def FilterVariantsByTest(self, testcase):
-    if testcase.outcomes and statusfile.OnlyStandardVariant(
-        testcase.outcomes):
-      return self.standard_variant
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
-      return self.fast_variants
-    return self.all_variants
+    result = self.all_variants
+    if testcase.outcomes:
+      if statusfile.OnlyStandardVariant(testcase.outcomes):
+        return self.standard_variant
+      if statusfile.OnlyFastVariants(testcase.outcomes):
+        result = self.fast_variants
+      if statusfile.NoIgnitionVariant(testcase.outcomes):
+        result = result - IGNITION_VARIANT
+    return result
 
   def GetFlagSets(self, testcase, variant):
     if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):

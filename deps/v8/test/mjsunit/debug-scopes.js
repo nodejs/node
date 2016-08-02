@@ -183,10 +183,8 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('this').isUndefined()) {
     scope_size--;
   }
-  // Skip property with empty name.
-  if (!scope.scopeObject().property('').isUndefined()) {
-    scope_size--;
-  }
+  // Temporary variables introduced by the parser have not been materialized.
+  assertTrue(scope.scopeObject().property('').isUndefined());
 
   if (count != scope_size) {
     print('Names found in scope:');
@@ -1179,11 +1177,10 @@ var code3 = "function for_statement() {         \n" +
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 52, end: 111}, {start: 42, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
+  CheckScopeChainPositions([{start: 52, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
 }
 eval(code3);
 EndTest();

@@ -209,7 +209,9 @@ class Scope: public ZoneObject {
 
   // Remove a temporary variable. This is for adjusting the scope of
   // temporaries used when desugaring parameter initializers.
-  bool RemoveTemporary(Variable* var);
+  // Returns the index at which it was found in this scope, or -1 if
+  // it was not found.
+  int RemoveTemporary(Variable* var);
 
   // Adds a temporary variable in this scope's TemporaryScope. This is for
   // adjusting the scope of temporaries used when desugaring parameter
@@ -243,6 +245,7 @@ class Scope: public ZoneObject {
 
   // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
+    DCHECK(!is_module_scope() || is_strict(language_mode));
     language_mode_ = language_mode;
   }
 
@@ -294,6 +297,10 @@ class Scope: public ZoneObject {
   void set_end_position(int statement_pos) {
     end_position_ = statement_pos;
   }
+
+  // Scopes created for desugaring are hidden. I.e. not visible to the debugger.
+  bool is_hidden() const { return is_hidden_; }
+  void set_is_hidden() { is_hidden_ = true; }
 
   // In some cases we want to force context allocation for a whole scope.
   void ForceContextAllocation() {
@@ -574,6 +581,9 @@ class Scope: public ZoneObject {
 
 #ifdef DEBUG
   void Print(int n = 0);  // n = indentation; n < 0 => don't print recursively
+
+  // Check that the scope has positions assigned.
+  void CheckScopePositions();
 #endif
 
   // ---------------------------------------------------------------------------
@@ -597,7 +607,9 @@ class Scope: public ZoneObject {
   // variables may be implicitly 'declared' by being used (possibly in
   // an inner scope) with no intervening with statements or eval calls.
   VariableMap variables_;
-  // Compiler-allocated (user-invisible) temporaries.
+  // Compiler-allocated (user-invisible) temporaries. Due to the implementation
+  // of RemoveTemporary(), may contain nulls, which must be skipped-over during
+  // allocation and printing.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
@@ -645,6 +657,7 @@ class Scope: public ZoneObject {
   // Source positions.
   int start_position_;
   int end_position_;
+  bool is_hidden_;
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;

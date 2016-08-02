@@ -113,6 +113,7 @@ macro TO_INTEGER(arg) = (%_ToInteger(arg));
 macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(arg));
 macro TO_INT32(arg) = ((arg) | 0);
 macro TO_UINT32(arg) = ((arg) >>> 0);
+macro INVERT_NEG_ZERO(arg) = ((arg) + 0);
 macro TO_LENGTH(arg) = (%_ToLength(arg));
 macro TO_STRING(arg) = (%_ToString(arg));
 macro TO_NUMBER(arg) = (%_ToNumber(arg));
@@ -174,16 +175,6 @@ macro OVERRIDE_SUBJECT(override) = ((override)[(override).length - 1]);
 # 1-based so index of 1 returns the first capture
 macro OVERRIDE_CAPTURE(override, index) = ((override)[(index)]);
 
-# PropertyDescriptor return value indices - must match
-# PropertyDescriptorIndices in runtime-object.cc.
-define IS_ACCESSOR_INDEX = 0;
-define VALUE_INDEX = 1;
-define GETTER_INDEX = 2;
-define SETTER_INDEX = 3;
-define WRITABLE_INDEX = 4;
-define ENUMERABLE_INDEX = 5;
-define CONFIGURABLE_INDEX = 6;
-
 # For messages.js
 # Matches Script::Type from objects.h
 define TYPE_NATIVE = 0;
@@ -238,7 +229,6 @@ define NOT_FOUND = -1;
 
 # Check whether debug is active.
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
-macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (%_DebugIsActive() != 0) %DebugPrepareStepInIfStepping(function);
 
 # SharedFlag equivalents
 define kNotShared = false;
@@ -251,7 +241,6 @@ define kLegacyConst = 2;
 define kMarkDequeOverflow = 3;
 define kStoreBufferOverflow = 4;
 define kSlotsBufferOverflow = 5;
-define kObjectObserve = 6;
 define kForcedGC = 7;
 define kSloppyMode = 8;
 define kStrictMode = 9;

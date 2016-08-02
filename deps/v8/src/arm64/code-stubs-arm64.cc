@@ -43,12 +43,6 @@ static void InitializeArrayConstructorDescriptor(
 }
 
 
-void ArrayNoArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate(), descriptor, 0);
-}
-
-
 void ArraySingleArgumentConstructorStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   InitializeArrayConstructorDescriptor(isolate(), descriptor, 1);
@@ -76,11 +70,6 @@ static void InitializeInternalArrayConstructorDescriptor(
   }
 }
 
-
-void InternalArrayNoArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 0);
-}
 
 void FastArrayPushStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   Address deopt_handler = Runtime::FunctionForId(Runtime::kArrayPush)->entry;
@@ -1323,11 +1312,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Mov(jssp, csp);
   __ SetStackPointer(jssp);
 
-  // Configure the FPCR. We don't restore it, so this is technically not allowed
-  // according to AAPCS64. However, we only set default-NaN mode and this will
-  // be harmless for most C code. Also, it works for ARM.
-  __ ConfigureFPCR();
-
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Set up the reserved register for 0.0.
@@ -1517,123 +1501,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   __ Bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
-void InstanceOfStub::Generate(MacroAssembler* masm) {
-  Register const object = x1;              // Object (lhs).
-  Register const function = x0;            // Function (rhs).
-  Register const object_map = x2;          // Map of {object}.
-  Register const function_map = x3;        // Map of {function}.
-  Register const function_prototype = x4;  // Prototype of {function}.
-  Register const scratch = x5;
-
-  DCHECK(object.is(InstanceOfDescriptor::LeftRegister()));
-  DCHECK(function.is(InstanceOfDescriptor::RightRegister()));
-
-  // Check if {object} is a smi.
-  Label object_is_smi;
-  __ JumpIfSmi(object, &object_is_smi);
-
-  // Lookup the {function} and the {object} map in the global instanceof cache.
-  // Note: This is safe because we clear the global instanceof cache whenever
-  // we change the prototype of any object.
-  Label fast_case, slow_case;
-  __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ JumpIfNotRoot(function, Heap::kInstanceofCacheFunctionRootIndex,
-                   &fast_case);
-  __ JumpIfNotRoot(object_map, Heap::kInstanceofCacheMapRootIndex, &fast_case);
-  __ LoadRoot(x0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret();
-
-  // If {object} is a smi we can safely return false if {function} is a JS
-  // function, otherwise we have to miss to the runtime and throw an exception.
-  __ Bind(&object_is_smi);
-  __ JumpIfSmi(function, &slow_case);
-  __ JumpIfNotObjectType(function, function_map, scratch, JS_FUNCTION_TYPE,
-                         &slow_case);
-  __ LoadRoot(x0, Heap::kFalseValueRootIndex);
-  __ Ret();
-
-  // Fast-case: The {function} must be a valid JSFunction.
-  __ Bind(&fast_case);
-  __ JumpIfSmi(function, &slow_case);
-  __ JumpIfNotObjectType(function, function_map, scratch, JS_FUNCTION_TYPE,
-                         &slow_case);
-
-  // Go to the runtime if the function is not a constructor.
-  __ Ldrb(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
-  __ Tbz(scratch, Map::kIsConstructor, &slow_case);
-
-  // Ensure that {function} has an instance prototype.
-  __ Tbnz(scratch, Map::kHasNonInstancePrototype, &slow_case);
-
-  // Get the "prototype" (or initial map) of the {function}.
-  __ Ldr(function_prototype,
-         FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  __ AssertNotSmi(function_prototype);
-
-  // Resolve the prototype if the {function} has an initial map.  Afterwards the
-  // {function_prototype} will be either the JSReceiver prototype object or the
-  // hole value, which means that no instances of the {function} were created so
-  // far and hence we should return false.
-  Label function_prototype_valid;
-  __ JumpIfNotObjectType(function_prototype, scratch, scratch, MAP_TYPE,
-                         &function_prototype_valid);
-  __ Ldr(function_prototype,
-         FieldMemOperand(function_prototype, Map::kPrototypeOffset));
-  __ Bind(&function_prototype_valid);
-  __ AssertNotSmi(function_prototype);
-
-  // Update the global instanceof cache with the current {object} map and
-  // {function}.  The cached answer will be set when it is known below.
-  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-  __ StoreRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
-
-  // Loop through the prototype chain looking for the {function} prototype.
-  // Assume true, and change to false if not found.
-  Register const object_instance_type = function_map;
-  Register const map_bit_field = function_map;
-  Register const null = scratch;
-  Register const result = x0;
-
-  Label done, loop, fast_runtime_fallback;
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ LoadRoot(null, Heap::kNullValueRootIndex);
-  __ Bind(&loop);
-
-  // Check if the object needs to be access checked.
-  __ Ldrb(map_bit_field, FieldMemOperand(object_map, Map::kBitFieldOffset));
-  __ TestAndBranchIfAnySet(map_bit_field, 1 << Map::kIsAccessCheckNeeded,
-                           &fast_runtime_fallback);
-  // Check if the current object is a Proxy.
-  __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
-  __ B(eq, &fast_runtime_fallback);
-
-  __ Ldr(object, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ Cmp(object, function_prototype);
-  __ B(eq, &done);
-  __ Cmp(object, null);
-  __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ B(ne, &loop);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ Bind(&done);
-  __ StoreRoot(result, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret();
-
-  // Found Proxy or access check needed: Call the runtime
-  __ Bind(&fast_runtime_fallback);
-  __ Push(object, function_prototype);
-  // Invalidate the instanceof cache.
-  __ Move(scratch, Smi::FromInt(0));
-  __ StoreRoot(scratch, Heap::kInstanceofCacheFunctionRootIndex);
-  __ TailCallRuntime(Runtime::kHasInPrototypeChain);
-
-  // Slow-case: Call the %InstanceOf runtime function.
-  __ bind(&slow_case);
-  __ Push(object, function);
-  __ TailCallRuntime(is_es6_instanceof() ? Runtime::kOrdinaryHasInstance
-                                         : Runtime::kInstanceOf);
 }
 
 
@@ -3815,8 +3682,8 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 
   __ Bind(&not_array);
   __ JumpIfNotRoot(feedback, Heap::kmegamorphic_symbolRootIndex, &miss);
-  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  Code::Flags code_flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, code_flags,
                                                receiver, name, feedback,
                                                receiver_map, scratch1, x7);
@@ -3951,8 +3818,8 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 
   __ Bind(&not_array);
   __ JumpIfNotRoot(feedback, Heap::kmegamorphic_symbolRootIndex, &miss);
-  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
+  Code::Flags code_flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, code_flags,
                                                receiver, key, feedback,
                                                receiver_map, scratch1, x8);
@@ -4829,17 +4696,18 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ Bind(&done_allocate);
 
   // Initialize the JSObject fields.
-  __ Mov(x1, x0);
   STATIC_ASSERT(JSObject::kMapOffset == 0 * kPointerSize);
-  __ Str(x2, MemOperand(x1, kPointerSize, PostIndex));
+  __ Str(x2, FieldMemOperand(x0, JSObject::kMapOffset));
   __ LoadRoot(x3, Heap::kEmptyFixedArrayRootIndex);
   STATIC_ASSERT(JSObject::kPropertiesOffset == 1 * kPointerSize);
   STATIC_ASSERT(JSObject::kElementsOffset == 2 * kPointerSize);
-  __ Stp(x3, x3, MemOperand(x1, 2 * kPointerSize, PostIndex));
+  __ Str(x3, FieldMemOperand(x0, JSObject::kPropertiesOffset));
+  __ Str(x3, FieldMemOperand(x0, JSObject::kElementsOffset));
   STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
+  __ Add(x1, x0, Operand(JSObject::kHeaderSize - kHeapObjectTag));
 
   // ----------- S t a t e -------------
-  //  -- x0 : result (untagged)
+  //  -- x0 : result (tagged)
   //  -- x1 : result fields (untagged)
   //  -- x5 : result end (untagged)
   //  -- x2 : initial map
@@ -4857,10 +4725,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   {
     // Initialize all in-object fields with undefined.
     __ InitializeFieldsWithFiller(x1, x5, x6);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Add(x0, x0, kHeapObjectTag);
     __ Ret();
   }
   __ Bind(&slack_tracking);
@@ -4878,10 +4742,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     // Initialize the remaining (reserved) fields with one pointer filler map.
     __ LoadRoot(x6, Heap::kOnePointerFillerMapRootIndex);
     __ InitializeFieldsWithFiller(x1, x5, x6);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Add(x0, x0, kHeapObjectTag);
 
     // Check if we can finalize the instance size.
     Label finalize;
@@ -4912,10 +4772,10 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(x2);
   }
-  STATIC_ASSERT(kHeapObjectTag == 1);
-  __ Sub(x0, x0, kHeapObjectTag);
   __ Ldrb(x5, FieldMemOperand(x2, Map::kInstanceSizeOffset));
   __ Add(x5, x0, Operand(x5, LSL, kPointerSizeLog2));
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  __ Sub(x5, x5, kHeapObjectTag);  // Subtract the tag from end.
   __ B(&done_allocate);
 
   // Fall back to %NewObject.
@@ -4934,20 +4794,20 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make x2 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Mov(x2, fp);
-    __ B(&loop_entry);
-    __ Bind(&loop);
+  // Make x2 point to the JavaScript frame.
+  __ Mov(x2, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ Ldr(x2, MemOperand(x2, StandardFrameConstants::kCallerFPOffset));
-    __ Bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ Ldr(x3, MemOperand(x2, StandardFrameConstants::kFunctionOffset));
     __ Cmp(x3, x1);
-    __ B(ne, &loop);
+    __ B(eq, &ok);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ Bind(&ok);
   }
 
   // Check if we have rest parameters (only possible if we have an
@@ -4979,7 +4839,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
 
     // Allocate an empty rest parameter array.
     Label allocate, done_allocate;
-    __ Allocate(JSArray::kSize, x0, x1, x2, &allocate, TAG_OBJECT);
+    __ Allocate(JSArray::kSize, x0, x1, x2, &allocate, NO_ALLOCATION_FLAGS);
     __ Bind(&done_allocate);
 
     // Setup the rest parameter array in x0.
@@ -5020,7 +4880,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     Label allocate, done_allocate;
     __ Mov(x1, JSArray::kSize + FixedArray::kHeaderSize);
     __ Add(x1, x1, Operand(x0, LSL, kPointerSizeLog2));
-    __ Allocate(x1, x3, x4, x5, &allocate, TAG_OBJECT);
+    __ Allocate(x1, x3, x4, x5, &allocate, NO_ALLOCATION_FLAGS);
     __ Bind(&done_allocate);
 
     // Compute arguments.length in x6.
@@ -5081,17 +4941,34 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
+  // Make x6 point to the JavaScript frame.
+  __ Mov(x6, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
+    __ Ldr(x6, MemOperand(x6, StandardFrameConstants::kCallerFPOffset));
+  }
+  if (FLAG_debug_code) {
+    Label ok;
+    __ Ldr(x3, MemOperand(x6, StandardFrameConstants::kFunctionOffset));
+    __ Cmp(x3, x1);
+    __ B(eq, &ok);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ Bind(&ok);
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldrsw(
       x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Add(x3, fp, Operand(x2, LSL, kPointerSizeLog2));
+  __ Add(x3, x6, Operand(x2, LSL, kPointerSizeLog2));
   __ Add(x3, x3, Operand(StandardFrameConstants::kCallerSPOffset));
   __ SmiTag(x2);
 
   // x1 : function
   // x2 : number of parameters (tagged)
   // x3 : parameters pointer
+  // x6 : JavaScript frame pointer
   //
   // Returns pointer to result object in x0.
 
@@ -5109,7 +4986,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   Register caller_ctx = x12;
   Label runtime;
   Label adaptor_frame, try_allocate;
-  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ Ldr(caller_fp, MemOperand(x6, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(
       caller_ctx,
       MemOperand(caller_fp, CommonFrameConstants::kContextOrFrameTypeOffset));
@@ -5180,7 +5057,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // Do the allocation of all three objects in one go. Assign this to x0, as it
   // will be returned to the caller.
   Register alloc_obj = x0;
-  __ Allocate(size, alloc_obj, x11, x12, &runtime, TAG_OBJECT);
+  __ Allocate(size, alloc_obj, x11, x12, &runtime, NO_ALLOCATION_FLAGS);
 
   // Get the arguments boilerplate from the current (global) context.
 
@@ -5364,20 +5241,20 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make x2 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Mov(x2, fp);
-    __ B(&loop_entry);
-    __ Bind(&loop);
+  // Make x2 point to the JavaScript frame.
+  __ Mov(x2, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ Ldr(x2, MemOperand(x2, StandardFrameConstants::kCallerFPOffset));
-    __ Bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ Ldr(x3, MemOperand(x2, StandardFrameConstants::kFunctionOffset));
     __ Cmp(x3, x1);
-    __ B(ne, &loop);
+    __ B(eq, &ok);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ Bind(&ok);
   }
 
   // Check if we have an arguments adaptor frame below the function frame.
@@ -5414,7 +5291,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   Label allocate, done_allocate;
   __ Mov(x1, JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize);
   __ Add(x1, x1, Operand(x0, LSL, kPointerSizeLog2));
-  __ Allocate(x1, x3, x4, x5, &allocate, TAG_OBJECT);
+  __ Allocate(x1, x3, x4, x5, &allocate, NO_ALLOCATION_FLAGS);
   __ Bind(&done_allocate);
 
   // Compute arguments.length in x6.
@@ -5807,9 +5684,15 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
+  STATIC_ASSERT(FCA::kArgsLength == 8);
 
-  // FunctionCallbackArguments: context, callee and call data.
+  // FunctionCallbackArguments
+
+  // new target
+  __ PushRoot(Heap::kUndefinedValueRootIndex);
+
+  // context, callee and call data.
   __ Push(context, callee, call_data);
 
   if (!is_lazy()) {
@@ -5833,7 +5716,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // Allocate the v8::Arguments structure in the arguments' space, since it's
   // not controlled by GC.
-  const int kApiStackSpace = 4;
+  const int kApiStackSpace = 3;
 
   // Allocate space for CallApiFunctionAndReturn can store some scratch
   // registeres on the stack.
@@ -5849,10 +5732,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // FunctionCallbackInfo::implicit_args_ and FunctionCallbackInfo::values_
   __ Add(x10, args, Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
   __ Stp(args, x10, MemOperand(x0, 0 * kPointerSize));
-  // FunctionCallbackInfo::length_ = argc and
-  // FunctionCallbackInfo::is_construct_call = 0
+  // FunctionCallbackInfo::length_ = argc
   __ Mov(x10, argc());
-  __ Stp(x10, xzr, MemOperand(x0, 2 * kPointerSize));
+  __ Str(x10, MemOperand(x0, 2 * kPointerSize));
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_function_callback(masm->isolate());
@@ -5869,9 +5751,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   int stack_space = 0;
-  MemOperand is_construct_call_operand =
-      MemOperand(masm->StackPointer(), 4 * kPointerSize);
-  MemOperand* stack_space_operand = &is_construct_call_operand;
+  MemOperand length_operand =
+      MemOperand(masm->StackPointer(), 3 * kPointerSize);
+  MemOperand* stack_space_operand = &length_operand;
   stack_space = argc() + FCA::kArgsLength + 1;
   stack_space_operand = NULL;
 
@@ -5883,15 +5765,34 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- sp[0]                         : name
-  //  -- sp[8 .. (8 + kArgsLength*8)]  : v8::PropertyCallbackInfo::args_
-  //  -- ...
-  //  -- x2                            : api_function_address
-  // -----------------------------------
+  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
+  // name below the exit frame to make GC aware of them.
+  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
 
-  Register api_function_address = ApiGetterDescriptor::function_address();
-  DCHECK(api_function_address.is(x2));
+  Register receiver = ApiGetterDescriptor::ReceiverRegister();
+  Register holder = ApiGetterDescriptor::HolderRegister();
+  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register scratch = x4;
+  Register scratch2 = x5;
+  Register scratch3 = x6;
+  DCHECK(!AreAliased(receiver, holder, callback, scratch));
+
+  __ Push(receiver);
+
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ Mov(scratch2, Operand(ExternalReference::isolate_address(isolate())));
+  __ Ldr(scratch3, FieldMemOperand(callback, AccessorInfo::kDataOffset));
+  __ Push(scratch3, scratch, scratch, scratch2, holder);
+  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
+  __ Push(scratch);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
@@ -5918,6 +5819,11 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
 
+  Register api_function_address = x2;
+  __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
+  __ Ldr(api_function_address,
+         FieldMemOperand(scratch, Foreign::kForeignAddressOffset));
+
   const int spill_offset = 1 + kApiStackSpace;
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(
@@ -5926,7 +5832,6 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                            kStackUnwindSpace, NULL, spill_offset,
                            return_value_operand, NULL);
 }
-
 
 #undef __
 

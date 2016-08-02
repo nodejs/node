@@ -130,6 +130,7 @@ bool RegExpParser::IsSyntaxCharacterOrSlash(uc32 c) {
 
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
+  if (failed_) return NULL;  // Do not overwrite any existing error.
   failed_ = true;
   *error_ = isolate()->factory()->NewStringFromAscii(message).ToHandleChecked();
   // Zip to the end to make sure the no more input is read.
@@ -511,9 +512,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         break;
       case '{': {
         int dummy;
-        if (ParseIntervalQuantifier(&dummy, &dummy)) {
-          return ReportError(CStrVector("Nothing to repeat"));
-        }
+        bool parsed = ParseIntervalQuantifier(&dummy, &dummy CHECK_FAILED);
+        if (parsed) return ReportError(CStrVector("Nothing to repeat"));
         // fallthrough
       }
       case '}':
@@ -845,29 +845,46 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
 }
 
 #ifdef V8_I18N_SUPPORT
-bool IsExactPropertyValueAlias(const char* property_name, UProperty property,
-                               int32_t property_value) {
-  const char* short_name =
-      u_getPropertyValueName(property, property_value, U_SHORT_PROPERTY_NAME);
+bool IsExactPropertyAlias(const char* property_name, UProperty property) {
+  const char* short_name = u_getPropertyName(property, U_SHORT_PROPERTY_NAME);
   if (short_name != NULL && strcmp(property_name, short_name) == 0) return true;
   for (int i = 0;; i++) {
-    const char* long_name = u_getPropertyValueName(
-        property, property_value,
-        static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
+    const char* long_name = u_getPropertyName(
+        property, static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
     if (long_name == NULL) break;
     if (strcmp(property_name, long_name) == 0) return true;
   }
   return false;
 }
 
-bool LookupPropertyClass(UProperty property, const char* property_name,
-                         ZoneList<CharacterRange>* result, Zone* zone) {
-  int32_t property_value = u_getPropertyValueEnum(property, property_name);
+bool IsExactPropertyValueAlias(const char* property_value_name,
+                               UProperty property, int32_t property_value) {
+  const char* short_name =
+      u_getPropertyValueName(property, property_value, U_SHORT_PROPERTY_NAME);
+  if (short_name != NULL && strcmp(property_value_name, short_name) == 0) {
+    return true;
+  }
+  for (int i = 0;; i++) {
+    const char* long_name = u_getPropertyValueName(
+        property, property_value,
+        static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
+    if (long_name == NULL) break;
+    if (strcmp(property_value_name, long_name) == 0) return true;
+  }
+  return false;
+}
+
+bool LookupPropertyValueName(UProperty property,
+                             const char* property_value_name,
+                             ZoneList<CharacterRange>* result, Zone* zone) {
+  int32_t property_value =
+      u_getPropertyValueEnum(property, property_value_name);
   if (property_value == UCHAR_INVALID_CODE) return false;
 
   // We require the property name to match exactly to one of the property value
   // aliases. However, u_getPropertyValueEnum uses loose matching.
-  if (!IsExactPropertyValueAlias(property_name, property, property_value)) {
+  if (!IsExactPropertyValueAlias(property_value_name, property,
+                                 property_value)) {
     return false;
   }
 
@@ -892,48 +909,74 @@ bool LookupPropertyClass(UProperty property, const char* property_name,
   uset_close(set);
   return success;
 }
-#endif  // V8_I18N_SUPPORT
 
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
-#ifdef V8_I18N_SUPPORT
-  List<char> property_name_list;
+  // Parse the property class as follows:
+  // - \pN with a single-character N is equivalent to \p{N}
+  // - In \p{name}, 'name' is interpreted
+  //   - either as a general category property value name.
+  //   - or as a binary property name.
+  // - In \p{name=value}, 'name' is interpreted as an enumerated property name,
+  //   and 'value' is interpreted as one of the available property value names.
+  // - Aliases in PropertyAlias.txt and PropertyValueAlias.txt can be used.
+  // - Loose matching is not applied.
+  List<char> first_part;
+  List<char> second_part;
   if (current() == '{') {
-    for (Advance(); current() != '}'; Advance()) {
+    // Parse \p{[PropertyName=]PropertyNameValue}
+    for (Advance(); current() != '}' && current() != '='; Advance()) {
       if (!has_next()) return false;
-      property_name_list.Add(static_cast<char>(current()));
+      first_part.Add(static_cast<char>(current()));
+    }
+    if (current() == '=') {
+      for (Advance(); current() != '}'; Advance()) {
+        if (!has_next()) return false;
+        second_part.Add(static_cast<char>(current()));
+      }
+      second_part.Add(0);  // null-terminate string.
     }
   } else if (current() != kEndMarker) {
-    property_name_list.Add(static_cast<char>(current()));
+    // Parse \pN, where N is a single-character property name value.
+    first_part.Add(static_cast<char>(current()));
   } else {
     return false;
   }
   Advance();
-  property_name_list.Add(0);  // null-terminate string.
+  first_part.Add(0);  // null-terminate string.
 
-  const char* property_name = property_name_list.ToConstVector().start();
-
-#define PROPERTY_NAME_LOOKUP(PROPERTY)                                  \
-  do {                                                                  \
-    if (LookupPropertyClass(PROPERTY, property_name, result, zone())) { \
-      return true;                                                      \
-    }                                                                   \
-  } while (false)
-
-  // General_Category (gc) found in PropertyValueAliases.txt
-  PROPERTY_NAME_LOOKUP(UCHAR_GENERAL_CATEGORY_MASK);
-  // Script (sc) found in Scripts.txt
-  PROPERTY_NAME_LOOKUP(UCHAR_SCRIPT);
-  // To disambiguate from script names, block names have an "In"-prefix.
-  if (property_name_list.length() > 3 && property_name[0] == 'I' &&
-      property_name[1] == 'n') {
-    // Block (blk) found in Blocks.txt
-    property_name += 2;
-    PROPERTY_NAME_LOOKUP(UCHAR_BLOCK);
+  if (second_part.is_empty()) {
+    // First attempt to interpret as general category property value name.
+    const char* name = first_part.ToConstVector().start();
+    if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, result,
+                                zone())) {
+      return true;
+    }
+    // Then attempt to interpret as binary property name with value name 'Y'.
+    UProperty property = u_getPropertyEnum(name);
+    if (property < UCHAR_BINARY_START) return false;
+    if (property >= UCHAR_BINARY_LIMIT) return false;
+    if (!IsExactPropertyAlias(name, property)) return false;
+    return LookupPropertyValueName(property, "Y", result, zone());
+  } else {
+    // Both property name and value name are specified. Attempt to interpret
+    // the property name as enumerated property.
+    const char* property_name = first_part.ToConstVector().start();
+    const char* value_name = second_part.ToConstVector().start();
+    UProperty property = u_getPropertyEnum(property_name);
+    if (property < UCHAR_INT_START) return false;
+    if (property >= UCHAR_INT_LIMIT) return false;
+    if (!IsExactPropertyAlias(property_name, property)) return false;
+    return LookupPropertyValueName(property, value_name, result, zone());
   }
-#undef PROPERTY_NAME_LOOKUP
-#endif  // V8_I18N_SUPPORT
+}
+
+#else  // V8_I18N_SUPPORT
+
+bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
   return false;
 }
+
+#endif  // V8_I18N_SUPPORT
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
   uc32 x = 0;

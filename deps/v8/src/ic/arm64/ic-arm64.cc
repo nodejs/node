@@ -394,8 +394,8 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm, Register key,
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ Mov(slot, Operand(Smi::FromInt(slot_index)));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
                                                receiver, key, scratch1,
                                                scratch2, scratch3, scratch4);
@@ -622,11 +622,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &slow);
   __ Ldr(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
 
-  // Check that the receiver does not require access checks and is not observed.
-  // The generic stub does not perform map checks or handle observed objects.
+  // Check that the receiver does not require access checks.
+  // The generic stub does not perform map checks.
   __ Ldrb(x10, FieldMemOperand(receiver_map, Map::kBitFieldOffset));
-  __ TestAndBranchIfAnySet(
-      x10, (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kIsObserved), &slow);
+  __ TestAndBranchIfAnySet(x10, (1 << Map::kIsAccessCheckNeeded), &slow);
 
   // Check if the object is a JS array or not.
   Register instance_type = x10;
@@ -673,10 +672,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ Mov(slot, Operand(Smi::FromInt(slot_index)));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, x5, x6, x7, x8);
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::KEYED_STORE_IC, flags, receiver, key, x5, x6, x7, x8);
   // Cache miss.
   __ B(&miss);
 
@@ -729,14 +728,14 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  DCHECK(!AreAliased(receiver, name, StoreDescriptor::ValueRegister(), x3, x4,
-                     x5, x6));
+  DCHECK(!AreAliased(receiver, name, StoreDescriptor::ValueRegister(), x5, x6,
+                     x7, x8));
 
   // Probe the stub cache.
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, name, x3, x4, x5, x6);
+                                               receiver, name, x5, x6, x7, x8);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);

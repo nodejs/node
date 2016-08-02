@@ -141,15 +141,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
 
   if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;
-
-  if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER &&
-      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    // TODO(jkummerow): This is turned off as an experiment to see if it
-    // affects crash rates. Keep an eye on crash reports and either remove
-    // coherent cache support permanently, or re-enable it!
-    // supported_ |= 1u << COHERENT_CACHE;
-  }
 #endif
 
   DCHECK(!IsSupported(VFP3) || IsSupported(ARMv7));
@@ -212,18 +203,14 @@ void CpuFeatures::PrintTarget() {
 
 void CpuFeatures::PrintFeatures() {
   printf(
-    "ARMv8=%d ARMv7=%d VFP3=%d VFP32DREGS=%d NEON=%d SUDIV=%d MLS=%d"
-    "UNALIGNED_ACCESSES=%d MOVW_MOVT_IMMEDIATE_LOADS=%d COHERENT_CACHE=%d",
-    CpuFeatures::IsSupported(ARMv8),
-    CpuFeatures::IsSupported(ARMv7),
-    CpuFeatures::IsSupported(VFP3),
-    CpuFeatures::IsSupported(VFP32DREGS),
-    CpuFeatures::IsSupported(NEON),
-    CpuFeatures::IsSupported(SUDIV),
-    CpuFeatures::IsSupported(MLS),
-    CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
-    CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS),
-    CpuFeatures::IsSupported(COHERENT_CACHE));
+      "ARMv8=%d ARMv7=%d VFP3=%d VFP32DREGS=%d NEON=%d SUDIV=%d MLS=%d"
+      "UNALIGNED_ACCESSES=%d MOVW_MOVT_IMMEDIATE_LOADS=%d",
+      CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
+      CpuFeatures::IsSupported(VFP3), CpuFeatures::IsSupported(VFP32DREGS),
+      CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV),
+      CpuFeatures::IsSupported(MLS),
+      CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
+      CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS));
 #ifdef __arm__
   bool eabi_hardfloat = base::OS::ArmUsingHardFloat();
 #elif USE_EABI_HARDFLOAT
@@ -255,6 +242,42 @@ bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return reinterpret_cast<uint32_t>(Assembler::target_address_at(pc_, host_));
+}
+
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
+  if (IsWasmMemoryReference(rmode_)) {
+    Address updated_memory_reference;
+    DCHECK(old_base <= wasm_memory_reference() &&
+           wasm_memory_reference() < old_base + old_size);
+    updated_memory_reference = new_base + (wasm_memory_reference() - old_base);
+    DCHECK(new_base <= updated_memory_reference &&
+           updated_memory_reference < new_base + new_size);
+    Assembler::set_target_address_at(
+        isolate_, pc_, host_, updated_memory_reference, icache_flush_mode);
+  } else if (IsWasmMemorySizeReference(rmode_)) {
+    uint32_t updated_size_reference;
+    DCHECK(wasm_memory_size_reference() <= old_size);
+    updated_size_reference =
+        new_size + (wasm_memory_size_reference() - old_size);
+    DCHECK(updated_size_reference <= new_size);
+    Assembler::set_target_address_at(
+        isolate_, pc_, host_, reinterpret_cast<Address>(updated_size_reference),
+        icache_flush_mode);
+  } else {
+    UNREACHABLE();
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand
@@ -1702,8 +1725,6 @@ void Assembler::usat(Register dst,
                      int satpos,
                      const Operand& src,
                      Condition cond) {
-  // v6 and above.
-  DCHECK(CpuFeatures::IsSupported(ARMv7));
   DCHECK(!dst.is(pc) && !src.rm_.is(pc));
   DCHECK((satpos >= 0) && (satpos <= 31));
   DCHECK((src.shift_op_ == ASR) || (src.shift_op_ == LSL));
@@ -2038,7 +2059,6 @@ void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
 
 void Assembler::ldrd(Register dst1, Register dst2,
                      const MemOperand& src, Condition cond) {
-  DCHECK(IsEnabled(ARMv7));
   DCHECK(src.rm().is(no_reg));
   DCHECK(!dst1.is(lr));  // r14.
   DCHECK_EQ(0, dst1.code() % 2);
@@ -2053,7 +2073,6 @@ void Assembler::strd(Register src1, Register src2,
   DCHECK(!src1.is(lr));  // r14.
   DCHECK_EQ(0, src1.code() % 2);
   DCHECK_EQ(src1.code() + 1, src2.code());
-  DCHECK(IsEnabled(ARMv7));
   addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
 }
 
@@ -3371,6 +3390,69 @@ void Assembler::vcmp(const SwVfpRegister src1, const float src2,
        0x5 * B9 | B6);
 }
 
+void Assembler::vsel(Condition cond, const DwVfpRegister dst,
+                     const DwVfpRegister src1, const DwVfpRegister src2) {
+  // cond=kSpecialCondition(31-28) | 11100(27-23) | D(22) |
+  // vsel_cond=XX(21-20) | Vn(19-16) | Vd(15-12) | 101(11-9) | sz=1(8) | N(7) |
+  // 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int sz = 1;
+
+  // VSEL has a special (restricted) condition encoding.
+  //   eq(0b0000)... -> 0b00
+  //   ge(0b1010)... -> 0b10
+  //   gt(0b1100)... -> 0b11
+  //   vs(0b0110)... -> 0b01
+  // No other conditions are supported.
+  int vsel_cond = (cond >> 30) & 0x3;
+  if ((cond != eq) && (cond != ge) && (cond != gt) && (cond != vs)) {
+    // We can implement some other conditions by swapping the inputs.
+    DCHECK((cond == ne) | (cond == lt) | (cond == le) | (cond == vc));
+    std::swap(vn, vm);
+    std::swap(n, m);
+  }
+
+  emit(kSpecialCondition | 0x1C * B23 | d * B22 | vsel_cond * B20 | vn * B16 |
+       vd * B12 | 0x5 * B9 | sz * B8 | n * B7 | m * B5 | vm);
+}
+
+void Assembler::vsel(Condition cond, const SwVfpRegister dst,
+                     const SwVfpRegister src1, const SwVfpRegister src2) {
+  // cond=kSpecialCondition(31-28) | 11100(27-23) | D(22) |
+  // vsel_cond=XX(21-20) | Vn(19-16) | Vd(15-12) | 101(11-9) | sz=0(8) | N(7) |
+  // 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int sz = 0;
+
+  // VSEL has a special (restricted) condition encoding.
+  //   eq(0b0000)... -> 0b00
+  //   ge(0b1010)... -> 0b10
+  //   gt(0b1100)... -> 0b11
+  //   vs(0b0110)... -> 0b01
+  // No other conditions are supported.
+  int vsel_cond = (cond >> 30) & 0x3;
+  if ((cond != eq) && (cond != ge) && (cond != gt) && (cond != vs)) {
+    // We can implement some other conditions by swapping the inputs.
+    DCHECK((cond == ne) | (cond == lt) | (cond == le) | (cond == vc));
+    std::swap(vn, vm);
+    std::swap(n, m);
+  }
+
+  emit(kSpecialCondition | 0x1C * B23 | d * B22 | vsel_cond * B20 | vn * B16 |
+       vd * B12 | 0x5 * B9 | sz * B8 | n * B7 | m * B5 | vm);
+}
 
 void Assembler::vsqrt(const DwVfpRegister dst,
                       const DwVfpRegister src,

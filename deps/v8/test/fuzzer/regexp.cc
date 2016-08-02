@@ -71,5 +71,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     Test(isolate, regexp, source, results_array);
   }
 
+  isolate->RequestGarbageCollectionForTesting(
+      v8::Isolate::kFullGarbageCollection);
   return 0;
 }

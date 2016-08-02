@@ -9,19 +9,12 @@
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/graph-reducer.h"
 
-
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Counters;
-
-
 namespace compiler {
 
 // Forward declarations.
 class JSGraph;
-
 
 class EscapeAnalysisReducer final : public AdvancedReducer {
  public:
@@ -29,9 +22,9 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
                         EscapeAnalysis* escape_analysis, Zone* zone);
 
   Reduction Reduce(Node* node) final;
-  void SetExistsVirtualAllocate(bool exists) {
-    exists_virtual_allocate_ = exists;
-  }
+
+  // Verifies that all virtual allocation nodes have been dealt with. Run it
+  // after this reducer has been applied. Has no effect in release mode.
   void VerifyReplacement() const;
 
  private:
@@ -50,12 +43,12 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   EscapeAnalysis* escape_analysis() const { return escape_analysis_; }
   Zone* zone() const { return zone_; }
-  Counters* counters() const;
+  Isolate* isolate() const;
 
   JSGraph* const jsgraph_;
   EscapeAnalysis* escape_analysis_;
   Zone* const zone_;
-  // _visited marks nodes we already processed (allocs, loads, stores)
+  // This bit vector marks nodes we already processed (allocs, loads, stores)
   // and nodes that do not need a visit from ReduceDeoptState etc.
   BitVector fully_reduced_;
   bool exists_virtual_allocate_;

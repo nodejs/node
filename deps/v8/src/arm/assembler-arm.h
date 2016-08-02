@@ -57,6 +57,12 @@ namespace internal {
 #define ALLOCATABLE_GENERAL_REGISTERS(V) \
   V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  V(r8)
 
+#define FLOAT_REGISTERS(V)                                \
+  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
+  V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
+  V(s16) V(s17) V(s18) V(s19) V(s20) V(s21) V(s22) V(s23) \
+  V(s24) V(s25) V(s26) V(s27) V(s28) V(s29) V(s30) V(s31)
+
 #define DOUBLE_REGISTERS(V)                               \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15) \
@@ -154,6 +160,10 @@ struct SwVfpRegister {
     DCHECK(is_valid());
     return 1 << reg_code;
   }
+  static SwVfpRegister from_code(int code) {
+    SwVfpRegister r = {code};
+    return r;
+  }
   void split_code(int* vm, int* m) const {
     DCHECK(is_valid());
     *m = reg_code & 0x1;
@@ -163,9 +173,10 @@ struct SwVfpRegister {
   int reg_code;
 };
 
+typedef SwVfpRegister FloatRegister;
 
 // Double word VFP register.
-struct DoubleRegister {
+struct DwVfpRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -187,7 +198,7 @@ struct DoubleRegister {
   const char* ToString();
   bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  bool is(DwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
     return reg_code;
@@ -197,8 +208,8 @@ struct DoubleRegister {
     return 1 << reg_code;
   }
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
+  static DwVfpRegister from_code(int code) {
+    DwVfpRegister r = {code};
     return r;
   }
   void split_code(int* vm, int* m) const {
@@ -211,7 +222,7 @@ struct DoubleRegister {
 };
 
 
-typedef DoubleRegister DwVfpRegister;
+typedef DwVfpRegister DoubleRegister;
 
 
 // Double word VFP register d0-15.
@@ -1225,6 +1236,17 @@ class Assembler : public AssemblerBase {
             const Condition cond = al);
   void vcmp(const SwVfpRegister src1, const float src2,
             const Condition cond = al);
+
+  // VSEL supports cond in {eq, ne, ge, lt, gt, le, vs, vc}.
+  void vsel(const Condition cond,
+            const DwVfpRegister dst,
+            const DwVfpRegister src1,
+            const DwVfpRegister src2);
+  void vsel(const Condition cond,
+            const SwVfpRegister dst,
+            const SwVfpRegister src1,
+            const SwVfpRegister src2);
+
   void vsqrt(const DwVfpRegister dst,
              const DwVfpRegister src,
              const Condition cond = al);
@@ -1357,7 +1379,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, int raw_position);
+  void RecordDeoptReason(const int reason, int raw_position, int id);
 
   // Record the emission of a constant pool.
   //

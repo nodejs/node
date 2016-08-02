@@ -29,7 +29,7 @@ class ContextMeasure : public ObjectVisitor {
 
   Context* context_;
 
-  BackReferenceMap back_reference_map_;
+  SerializerReferenceMap reference_map_;
   RootIndexMap root_index_map_;
 
   static const int kMaxRecursion = 16;

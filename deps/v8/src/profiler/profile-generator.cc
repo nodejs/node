@@ -5,11 +5,12 @@
 #include "src/profiler/profile-generator.h"
 
 #include "src/ast/scopeinfo.h"
+#include "src/base/adapters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/profiler/sampler.h"
+#include "src/profiler/tick-sample.h"
 #include "src/splay-tree-inl.h"
 #include "src/unicode.h"
 
@@ -118,6 +119,19 @@ const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
   return it != inline_locations_.end() ? &it->second : NULL;
 }
 
+void CodeEntry::AddDeoptInlinedFrames(
+    int deopt_id, std::vector<DeoptInlinedFrame>& inlined_frames) {
+  // It's better to use std::move to place the vector into the map,
+  // but it's not supported by the current stdlibc++ on MacOS.
+  deopt_inlined_frames_
+      .insert(std::make_pair(deopt_id, std::vector<DeoptInlinedFrame>()))
+      .first->second.swap(inlined_frames);
+}
+
+bool CodeEntry::HasDeoptInlinedFramesFor(int deopt_id) const {
+  return deopt_inlined_frames_.find(deopt_id) != deopt_inlined_frames_.end();
+}
+
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
   if (!shared->script()->IsScript()) return;
   Script* script = Script::cast(shared->script());
@@ -131,29 +145,19 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
 
   CpuProfileDeoptInfo info;
   info.deopt_reason = deopt_reason_;
-  if (inlined_function_infos_.empty()) {
+  DCHECK_NE(Deoptimizer::DeoptInfo::kNoDeoptId, deopt_id_);
+  if (deopt_inlined_frames_.find(deopt_id_) == deopt_inlined_frames_.end()) {
     info.stack.push_back(CpuProfileDeoptFrame(
         {script_id_, position_ + deopt_position_.position()}));
-    return info;
-  }
-  // Copy the only branch from the inlining tree where the deopt happened.
-  SourcePosition position = deopt_position_;
-  int inlining_id = InlinedFunctionInfo::kNoParentId;
-  for (size_t i = 0; i < inlined_function_infos_.size(); ++i) {
-    InlinedFunctionInfo& current_info = inlined_function_infos_.at(i);
-    if (std::binary_search(current_info.deopt_pc_offsets.begin(),
-                           current_info.deopt_pc_offsets.end(), pc_offset_)) {
-      inlining_id = static_cast<int>(i);
-      break;
+  } else {
+    size_t deopt_position = deopt_position_.raw();
+    // Copy stack of inlined frames where the deopt happened.
+    std::vector<DeoptInlinedFrame>& frames = deopt_inlined_frames_[deopt_id_];
+    for (DeoptInlinedFrame& inlined_frame : base::Reversed(frames)) {
+      info.stack.push_back(CpuProfileDeoptFrame(
+          {inlined_frame.script_id, deopt_position + inlined_frame.position}));
+      deopt_position = 0;  // Done with innermost frame.
     }
-  }
-  while (inlining_id != InlinedFunctionInfo::kNoParentId) {
-    InlinedFunctionInfo& inlined_info = inlined_function_infos_.at(inlining_id);
-    info.stack.push_back(
-        CpuProfileDeoptFrame({inlined_info.script_id,
-                              inlined_info.start_position + position.raw()}));
-    position = inlined_info.inline_position;
-    inlining_id = inlined_info.parent_id;
   }
   return info;
 }
@@ -229,12 +233,13 @@ void ProfileNode::Print(int indent) {
   base::OS::Print("\n");
   for (size_t i = 0; i < deopt_infos_.size(); ++i) {
     CpuProfileDeoptInfo& info = deopt_infos_[i];
-    base::OS::Print(
-        "%*s;;; deopted at script_id: %d position: %d with reason '%s'.\n",
-        indent + 10, "", info.stack[0].script_id, info.stack[0].position,
-        info.deopt_reason);
+    base::OS::Print("%*s;;; deopted at script_id: %d position: %" PRIuS
+                    " with reason '%s'.\n",
+                    indent + 10, "", info.stack[0].script_id,
+                    info.stack[0].position, info.deopt_reason);
     for (size_t index = 1; index < info.stack.size(); ++index) {
-      base::OS::Print("%*s;;;     Inline point: script_id %d position: %d.\n",
+      base::OS::Print("%*s;;;     Inline point: script_id %d position: %" PRIuS
+                      ".\n",
                       indent + 10, "", info.stack[index].script_id,
                       info.stack[index].position);
     }

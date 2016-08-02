@@ -19,6 +19,7 @@
 
 #ifndef V8_SHARED
 #include <algorithm>
+#include <fstream>
 #include <vector>
 #endif  // !V8_SHARED
 
@@ -41,6 +42,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
+#include "src/interpreter/interpreter.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -133,7 +135,7 @@ class PredictablePlatform : public Platform {
   }
 
   uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, uint64_t id,
+                         const char* name, const char* scope, uint64_t id,
                          uint64_t bind_id, int numArgs, const char** argNames,
                          const uint8_t* argTypes, const uint64_t* argValues,
                          unsigned int flags) override {
@@ -1275,6 +1277,21 @@ struct CounterAndKey {
 inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
   return strcmp(lhs.key, rhs.key) < 0;
 }
+
+void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+
+  Local<Object> dispatch_counters = reinterpret_cast<i::Isolate*>(isolate)
+                                        ->interpreter()
+                                        ->GetDispatchCountersObject();
+  std::ofstream dispatch_counters_stream(
+      i::FLAG_trace_ignition_dispatches_output_file);
+  dispatch_counters_stream << *String::Utf8Value(
+      JSON::Stringify(context, dispatch_counters).ToLocalChecked());
+}
+
 #endif  // !V8_SHARED
 
 
@@ -1312,6 +1329,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
            "-------------+\n");
     delete [] counters;
   }
+
   delete counters_file_;
   delete counter_map_;
 #endif  // !V8_SHARED
@@ -2475,6 +2493,13 @@ int Shell::Main(int argc, char* argv[]) {
     if (options.use_interactive_shell()) {
       RunShell(isolate);
     }
+
+#ifndef V8_SHARED
+    if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches &&
+        i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
+      WriteIgnitionDispatchCountersFile(isolate);
+    }
+#endif
 
     // Shut down contexts and collect garbage.
     evaluation_context_.Reset();

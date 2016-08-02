@@ -183,6 +183,8 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm14)                  \
   V(xmm15)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
   V(xmm1)                               \
   V(xmm2)                               \
@@ -200,8 +202,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm14)                              \
   V(xmm15)
 
-
-struct DoubleRegister {
+struct XMMRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -212,15 +213,15 @@ struct DoubleRegister {
 
   static const int kMaxNumRegisters = Code::kAfterLast;
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister result = {code};
+  static XMMRegister from_code(int code) {
+    XMMRegister result = {code};
     return result;
   }
 
   const char* ToString();
   bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  bool is(XMMRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
     return reg_code;
@@ -238,17 +239,17 @@ struct DoubleRegister {
   int reg_code;
 };
 
+typedef XMMRegister FloatRegister;
+
+typedef XMMRegister DoubleRegister;
+
+typedef XMMRegister Simd128Register;
 
 #define DECLARE_REGISTER(R) \
   const DoubleRegister R = {DoubleRegister::kCode_##R};
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
-
-
-typedef DoubleRegister XMMRegister;
-
-typedef DoubleRegister Simd128Register;
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -334,6 +335,8 @@ enum RoundingMode {
 class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
+  explicit Immediate(int32_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode) {}
   explicit Immediate(Smi* value) {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
     value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
@@ -341,6 +344,7 @@ class Immediate BASE_EMBEDDED {
 
  private:
   int32_t value_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
 
   friend class Assembler;
 };
@@ -783,6 +787,9 @@ class Assembler : public AssemblerBase {
 
   void decb(Register dst);
   void decb(const Operand& dst);
+
+  void xchgb(Register reg, const Operand& op);
+  void xchgw(Register reg, const Operand& op);
 
   // Sign-extends rax into rdx:rax.
   void cqo();
@@ -1689,7 +1696,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, int raw_position);
+  void RecordDeoptReason(const int reason, int raw_position, int id);
 
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,
@@ -1755,7 +1762,12 @@ class Assembler : public AssemblerBase {
                                RelocInfo::Mode rmode,
                                TypeFeedbackId ast_id = TypeFeedbackId::None());
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
-  void emit(Immediate x) { emitl(x.value_); }
+  void emit(Immediate x) {
+    if (!RelocInfo::IsNone(x.rmode_)) {
+      RecordRelocInfo(x.rmode_);
+    }
+    emitl(x.value_);
+  }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.

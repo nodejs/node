@@ -132,6 +132,52 @@
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
+
+  ############################################################################
+  # Ignition
+
+  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
+  'test-heap/TestCodeFlushingPreAged': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushingIncrementalScavenge': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushing': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushingIncremental': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', NO_IGNITION]],
+
+  # TODO(rmcilroy,4680): Fails to find the correct function name for the
+  # anonymous function. Fails without ignition but with --no-lazy also, so seems
+  # to be an issue when eagerly parsing.
+  'test-func-name-inference/ReturnAnonymousFunction': [PASS, NO_IGNITION],
+
+  # TODO(mythria,4780): Related to type feedback support for calls.
+  'test-feedback-vector/VectorCallICStates': [PASS, NO_IGNITION],
+  'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [PASS, NO_IGNITION],
+  'test-heap/WeakFunctionInConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [PASS, NO_IGNITION],
+  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, NO_IGNITION],
+
+  # TODO(mythria,4680): Lack of code-ageing in interpreter.
+  'test-heap/Regress169209': [PASS, NO_IGNITION],
+
+  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
+  # in interpreter.
+  'test-heap/CompilationCacheCachingBehavior': [PASS, NO_IGNITION],
+
+  # TODO(mstarzinger,4680): Fails due to the turbo-asm pipeline only being taken
+  # in compiler.cc GetLazyCode for uncompiled code, and no similar path for eager
+  # code.
+  'test-api/TurboAsmDisablesNeuter': [PASS, NO_IGNITION],
+
+  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
+  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [PASS, NO_IGNITION],
+
+  # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
+  'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
+  'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
+
+  # BUG(4751). Flaky with ignition and tsan.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', NO_IGNITION]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -256,15 +302,14 @@
   'test-run-wasm-module/Run_WasmModule_Return114': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CheckMemoryIsZero': [SKIP],
   'test-run-wasm-module/Run_WasmModule_Global': [SKIP],
-  'test-run-wasm/Run_Wasm_Int32LoadInt16_signext': [SKIP],
-  'test-run-wasm/Run_Wasm_Int32LoadInt16_zeroext': [SKIP],
-  'test-run-wasm/Run_WasmMixedGlobals': [SKIP],
-  'test-run-wasm-64/Run_WasmI64*': [SKIP],
-  'test-run-wasm-64/Run_Wasm_I64*': [SKIP],
-  'test-run-wasm-64/Run_Wasm_LoadStoreI64_sx': [SKIP],
+  'test-run-wasm/RunWasmCompiled_Int32LoadInt16_signext': [SKIP],
+  'test-run-wasm/RunWasmCompiled_Int32LoadInt16_zeroext': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MixedGlobals': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_I64*': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_LoadStoreI64_sx': [SKIP],
   'test-run-wasm-64/Run_TestI64WasmRunner': [SKIP],
-  'test-run-wasm-64/Run_WasmCall_Int64Sub': [SKIP],
-  'test-run-wasm-64/Run_Wasm_MemI64_Sum': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_Call_Int64Sub': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_MemI64_Sum': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -488,12 +533,8 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['ignition == True', {
-
-  # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
-  'test-api/SetFunctionEntryHook': [FAIL],
-
-  # TODO(rmcilroy,4680): Check failed: !function->shared()->is_compiled() || function->IsOptimized().
+['ignition or ignition_turbofan', {
+  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
   'test-heap/TestCodeFlushing': [FAIL],
@@ -530,6 +571,9 @@
   # code.
   'test-api/TurboAsmDisablesNeuter': [FAIL],
 
+  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
+  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
+
   # TODO(rmcilroy,4837): We don't set a LoadContextSlot for a function as
   # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
   'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
@@ -555,6 +599,9 @@
   'test-run-inlining/InlineBuiltin': [FAIL],
   'test-run-inlining/InlineTwiceDependent': [FAIL],
   'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
-}],  # ignition == True
+
+  # BUG(4751). Flaky with ignition and tsan.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', SKIP]],
+}],  # ignition or ignition_turbofan
 
 ]

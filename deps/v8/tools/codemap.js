@@ -246,6 +246,14 @@ CodeMap.prototype.getAllStaticEntries = function() {
 
 
 /**
+ * Returns an array of pairs of all static code entries and their addresses.
+ */
+CodeMap.prototype.getAllStaticEntriesWithAddresses = function() {
+  return this.statics_.exportKeysAndValues();
+};
+
+
+/**
  * Returns an array of all libraries entries.
  */
 CodeMap.prototype.getAllLibrariesEntries = function() {

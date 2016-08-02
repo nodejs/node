@@ -421,15 +421,8 @@ class Expectations {
 
     int descriptor =
         map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
-    map = Map::TransitionToAccessorProperty(
-        map, name, descriptor, ACCESSOR_GETTER, getter, attributes);
-    CHECK(!map->is_deprecated());
-    CHECK(!map->is_dictionary_map());
-
-    descriptor =
-        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
-    map = Map::TransitionToAccessorProperty(
-        map, name, descriptor, ACCESSOR_SETTER, setter, attributes);
+    map = Map::TransitionToAccessorProperty(isolate, map, name, descriptor,
+                                            getter, setter, attributes);
     CHECK(!map->is_deprecated());
     CHECK(!map->is_dictionary_map());
     return map;
@@ -609,7 +602,7 @@ static void TestGeneralizeRepresentation(
 
   // Create new maps by generalizing representation of propX field.
   Handle<Map> field_owner(map->FindFieldOwner(property_index), isolate);
-  CompilationInfo info("testing", isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
 
   info.dependencies()->AssumeFieldType(field_owner);
@@ -988,7 +981,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
-  CompilationInfo info("testing", isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1073,7 +1066,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
-  CompilationInfo info("testing", isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1604,7 +1597,7 @@ static void TestReconfigureElementsKind_GeneralizeRepresentation(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
-  CompilationInfo info("testing", isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1697,7 +1690,7 @@ static void TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
-  CompilationInfo info("testing", isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -2052,63 +2045,6 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
       return Map::CopyForPreventExtensions(map, NONE, frozen_symbol,
                                            "CopyForPreventExtensions");
-    }
-    // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
-    bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return true; }
-  };
-  TestConfig config;
-  TestGeneralizeRepresentationWithSpecialTransition(
-      config, Representation::Smi(), any_type, Representation::HeapObject(),
-      value_type, Representation::Tagged(), any_type);
-}
-
-
-TEST(ForObservedTransitionFromMapOwningDescriptor) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
-      FieldType::Class(Map::Create(isolate, 0), isolate);
-
-  struct TestConfig {
-    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      return Map::CopyForObserved(map);
-    }
-    // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
-    bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return true; }
-  };
-  TestConfig config;
-  TestGeneralizeRepresentationWithSpecialTransition(
-      config, Representation::Smi(), any_type, Representation::HeapObject(),
-      value_type, Representation::Tagged(), any_type);
-}
-
-
-TEST(ForObservedTransitionFromMapNotOwningDescriptor) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
-      FieldType::Class(Map::Create(isolate, 0), isolate);
-
-  struct TestConfig {
-    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      Isolate* isolate = CcTest::i_isolate();
-      Handle<FieldType> any_type = FieldType::Any(isolate);
-
-      // Add one more transition to |map| in order to prevent descriptors
-      // ownership.
-      CHECK(map->owns_descriptors());
-      Map::CopyWithField(map, MakeString("foo"), any_type, NONE,
-                         Representation::Smi(), INSERT_TRANSITION)
-          .ToHandleChecked();
-      CHECK(!map->owns_descriptors());
-
-      return Map::CopyForObserved(map);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }

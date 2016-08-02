@@ -19,10 +19,11 @@ const Register kReturnRegister1 = {Register::kCode_edx};
 const Register kReturnRegister2 = {Register::kCode_edi};
 const Register kJSFunctionRegister = {Register::kCode_edi};
 const Register kContextRegister = {Register::kCode_esi};
+const Register kAllocateSizeRegister = {Register::kCode_edx};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_edx};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_ecx};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_edi};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_esi};
 const Register kJavaScriptCallArgCountRegister = {Register::kCode_eax};
 const Register kJavaScriptCallNewTargetRegister = {Register::kCode_edx};
 const Register kRuntimeCallFunctionRegister = {Register::kCode_ebx};
@@ -499,6 +500,23 @@ class MacroAssembler: public Assembler {
     j(not_zero, not_smi_label, distance);
   }
 
+  // Jump if the value cannot be represented by a smi.
+  inline void JumpIfNotValidSmiValue(Register value, Register scratch,
+                                     Label* on_invalid,
+                                     Label::Distance distance = Label::kFar) {
+    mov(scratch, value);
+    add(scratch, Immediate(0x40000000U));
+    j(sign, on_invalid, distance);
+  }
+
+  // Jump if the unsigned integer value cannot be represented by a smi.
+  inline void JumpIfUIntNotValidSmiValue(
+      Register value, Label* on_invalid,
+      Label::Distance distance = Label::kFar) {
+    cmp(value, Immediate(0x40000000U));
+    j(above_equal, on_invalid, distance);
+  }
+
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
@@ -551,6 +569,10 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
@@ -606,6 +628,14 @@ class MacroAssembler: public Assembler {
 
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
+
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register result_end,
+                    AllocationFlags flags);
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    AllocationFlags flags);
 
   // Allocate a heap number in new space with undefined value. The
   // register scratch2 can be passed as no_reg; the others must be

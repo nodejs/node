@@ -38,5 +38,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   info.set_global();
   v8::internal::Parser parser(&info);
   parser.Parse(&info);
+  isolate->RequestGarbageCollectionForTesting(
+      v8::Isolate::kFullGarbageCollection);
   return 0;
 }

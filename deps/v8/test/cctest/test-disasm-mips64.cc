@@ -530,41 +530,28 @@ TEST(Type0) {
   COMPARE(dsrav(v0, v1, fp),
           "03c31017       dsrav   v0, v1, fp");
 
-  if (kArchVariant == kMips64r2) {
-    COMPARE(rotr(a0, a1, 0),
-            "00252002       rotr    a0, a1, 0");
-    COMPARE(rotr(s0, s1, 8),
-            "00318202       rotr    s0, s1, 8");
-    COMPARE(rotr(a6, a7, 24),
-            "002b5602       rotr    a6, a7, 24");
-    COMPARE(rotr(v0, v1, 31),
-            "002317c2       rotr    v0, v1, 31");
-    COMPARE(drotr(a0, a1, 0),
-            "0025203a       drotr   a0, a1, 0");
-    COMPARE(drotr(s0, s1, 8),
-            "0031823a       drotr   s0, s1, 8");
-    COMPARE(drotr(a6, a7, 24),
-            "002b563a       drotr   a6, a7, 24");
-    COMPARE(drotr(v0, v1, 31),
-            "002317fa       drotr   v0, v1, 31");
+  COMPARE(rotr(a0, a1, 0), "00252002       rotr    a0, a1, 0");
+  COMPARE(rotr(s0, s1, 8), "00318202       rotr    s0, s1, 8");
+  COMPARE(rotr(a6, a7, 24), "002b5602       rotr    a6, a7, 24");
+  COMPARE(rotr(v0, v1, 31), "002317c2       rotr    v0, v1, 31");
+  COMPARE(drotr(a0, a1, 0), "0025203a       drotr   a0, a1, 0");
+  COMPARE(drotr(s0, s1, 8), "0031823a       drotr   s0, s1, 8");
+  COMPARE(drotr(a6, a7, 24), "002b563a       drotr   a6, a7, 24");
+  COMPARE(drotr(v0, v1, 31), "002317fa       drotr   v0, v1, 31");
 
-    COMPARE(rotrv(a0, a1, a2),
-            "00c52046       rotrv   a0, a1, a2");
-    COMPARE(rotrv(s0, s1, s2),
-            "02518046       rotrv   s0, s1, s2");
-    COMPARE(rotrv(a6, a7, t0),
-            "018b5046       rotrv   a6, a7, t0");
-    COMPARE(rotrv(v0, v1, fp),
-            "03c31046       rotrv   v0, v1, fp");
-    COMPARE(drotrv(a0, a1, a2),
-            "00c52056       drotrv  a0, a1, a2");
-    COMPARE(drotrv(s0, s1, s2),
-            "02518056       drotrv  s0, s1, s2");
-    COMPARE(drotrv(a6, a7, t0),
-            "018b5056       drotrv  a6, a7, t0");
-    COMPARE(drotrv(v0, v1, fp),
-            "03c31056       drotrv  v0, v1, fp");
-  }
+  COMPARE(drotr32(a0, a1, 0), "0025203e       drotr32 a0, a1, 0");
+  COMPARE(drotr32(s0, s1, 8), "0031823e       drotr32 s0, s1, 8");
+  COMPARE(drotr32(a6, a7, 24), "002b563e       drotr32 a6, a7, 24");
+  COMPARE(drotr32(v0, v1, 31), "002317fe       drotr32 v0, v1, 31");
+
+  COMPARE(rotrv(a0, a1, a2), "00c52046       rotrv   a0, a1, a2");
+  COMPARE(rotrv(s0, s1, s2), "02518046       rotrv   s0, s1, s2");
+  COMPARE(rotrv(a6, a7, t0), "018b5046       rotrv   a6, a7, t0");
+  COMPARE(rotrv(v0, v1, fp), "03c31046       rotrv   v0, v1, fp");
+  COMPARE(drotrv(a0, a1, a2), "00c52056       drotrv  a0, a1, a2");
+  COMPARE(drotrv(s0, s1, s2), "02518056       drotrv  s0, s1, s2");
+  COMPARE(drotrv(a6, a7, t0), "018b5056       drotrv  a6, a7, t0");
+  COMPARE(drotrv(v0, v1, fp), "03c31056       drotrv  v0, v1, fp");
 
   COMPARE(break_(0),
           "0000000d       break, code: 0x00000 (0)");

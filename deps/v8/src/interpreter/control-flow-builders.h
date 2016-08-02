@@ -87,27 +87,22 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
         continue_sites_(builder->zone()) {}
   ~LoopBuilder();
 
-  void LoopHeader();
-  void Condition() { builder()->Bind(&condition_); }
-  void Next() { builder()->Bind(&next_); }
+  void LoopHeader(ZoneVector<BytecodeLabel>* additional_labels);
   void JumpToHeader() { builder()->Jump(&loop_header_); }
   void JumpToHeaderIfTrue() { builder()->JumpIfTrue(&loop_header_); }
+  void SetContinueTarget();
   void EndLoop();
 
   // This method is called when visiting continue statements in the AST.
-  // Inserts a jump to a unbound label that is patched when the corresponding
-  // SetContinueTarget is called.
+  // Inserts a jump to an unbound label that is patched when SetContinueTarget
+  // is called.
   void Continue() { EmitJump(&continue_sites_); }
   void ContinueIfTrue() { EmitJumpIfTrue(&continue_sites_); }
   void ContinueIfUndefined() { EmitJumpIfUndefined(&continue_sites_); }
   void ContinueIfNull() { EmitJumpIfNull(&continue_sites_); }
 
  private:
-  void SetContinueTarget(const BytecodeLabel& continue_target);
-
   BytecodeLabel loop_header_;
-  BytecodeLabel condition_;
-  BytecodeLabel next_;
   BytecodeLabel loop_end_;
 
   // Unbound labels that identify jumps for continue statements in the code.

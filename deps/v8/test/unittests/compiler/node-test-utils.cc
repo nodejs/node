@@ -612,49 +612,6 @@ class IsEffectPhiMatcher final : public NodeMatcher {
 };
 
 
-class IsEffectSetMatcher final : public NodeMatcher {
- public:
-  IsEffectSetMatcher(const Matcher<Node*>& effect0_matcher,
-                     const Matcher<Node*>& effect1_matcher)
-      : NodeMatcher(IrOpcode::kEffectSet),
-        effect0_matcher_(effect0_matcher),
-        effect1_matcher_(effect1_matcher) {}
-
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << "), effect0 (";
-    effect0_matcher_.DescribeTo(os);
-    *os << ") and effect1 (";
-    effect1_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    if (!NodeMatcher::MatchAndExplain(node, listener)) return false;
-
-    Node* effect0 = NodeProperties::GetEffectInput(node, 0);
-    Node* effect1 = NodeProperties::GetEffectInput(node, 1);
-
-    {
-      // Try matching in the reverse order first.
-      StringMatchResultListener value_listener;
-      if (effect0_matcher_.MatchAndExplain(effect1, &value_listener) &&
-          effect1_matcher_.MatchAndExplain(effect0, &value_listener)) {
-        return true;
-      }
-    }
-
-    return PrintMatchAndExplain(effect0, "effect0", effect0_matcher_,
-                                listener) &&
-           PrintMatchAndExplain(effect1, "effect1", effect1_matcher_, listener);
-  }
-
- private:
-  const Matcher<Node*> effect0_matcher_;
-  const Matcher<Node*> effect1_matcher_;
-};
-
-
 class IsProjectionMatcher final : public NodeMatcher {
  public:
   IsProjectionMatcher(const Matcher<size_t>& index_matcher,
@@ -1352,12 +1309,12 @@ class IsStackSlotMatcher final : public NodeMatcher {
   const Matcher<MachineRepresentation> rep_matcher_;
 };
 
-class IsGuardMatcher final : public NodeMatcher {
+class IsTypeGuardMatcher final : public NodeMatcher {
  public:
-  IsGuardMatcher(const Matcher<Type*>& type_matcher,
-                 const Matcher<Node*>& value_matcher,
-                 const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kGuard),
+  IsTypeGuardMatcher(const Matcher<Type*>& type_matcher,
+                     const Matcher<Node*>& value_matcher,
+                     const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kTypeGuard),
         type_matcher_(type_matcher),
         value_matcher_(value_matcher),
         control_matcher_(control_matcher) {}
@@ -1818,12 +1775,6 @@ Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
 }
 
 
-Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
-                           const Matcher<Node*>& effect1_matcher) {
-  return MakeMatcher(new IsEffectSetMatcher(effect0_matcher, effect1_matcher));
-}
-
-
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher) {
   return MakeMatcher(new IsProjectionMatcher(index_matcher, base_matcher));
@@ -2064,11 +2015,11 @@ Matcher<Node*> IsTailCall(
                                            effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsGuard(const Matcher<Type*>& type_matcher,
-                       const Matcher<Node*>& value_matcher,
-                       const Matcher<Node*>& control_matcher) {
+Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
+                           const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher) {
   return MakeMatcher(
-      new IsGuardMatcher(type_matcher, value_matcher, control_matcher));
+      new IsTypeGuardMatcher(type_matcher, value_matcher, control_matcher));
 }
 
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
@@ -2204,6 +2155,10 @@ Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
 }
 
+Matcher<Node*> IsLoadParentFramePointer() {
+  return MakeMatcher(new NodeMatcher(IrOpcode::kLoadParentFramePointer));
+}
+
 #define IS_QUADOP_MATCHER(Name)                                               \
   Matcher<Node*> Is##Name(                                                    \
       const Matcher<Node*>& a_matcher, const Matcher<Node*>& b_matcher,       \
@@ -2284,6 +2239,7 @@ IS_BINOP_MATCHER(Float64InsertHighWord32)
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
 IS_UNOP_MATCHER(BooleanNot)
+IS_UNOP_MATCHER(TruncateFloat64ToWord32)
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeFloat64ToUint32)
 IS_UNOP_MATCHER(ChangeInt32ToFloat64)
@@ -2291,7 +2247,6 @@ IS_UNOP_MATCHER(ChangeInt32ToInt64)
 IS_UNOP_MATCHER(ChangeUint32ToFloat64)
 IS_UNOP_MATCHER(ChangeUint32ToUint64)
 IS_UNOP_MATCHER(TruncateFloat64ToFloat32)
-IS_UNOP_MATCHER(TruncateFloat64ToInt32)
 IS_UNOP_MATCHER(TruncateInt64ToInt32)
 IS_UNOP_MATCHER(Float32Abs)
 IS_UNOP_MATCHER(Float64Abs)

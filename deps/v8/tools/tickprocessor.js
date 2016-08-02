@@ -83,7 +83,7 @@ function TickProcessor(
     pairwiseTimedRange,
     onlySummary) {
   LogReader.call(this, {
-      'shared-library': { parsers: [null, parseInt, parseInt],
+      'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
           parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
@@ -242,13 +242,13 @@ TickProcessor.prototype.processLogFileInTest = function(fileName) {
 
 
 TickProcessor.prototype.processSharedLibrary = function(
-    name, startAddr, endAddr) {
-  var entry = this.profile_.addLibrary(name, startAddr, endAddr);
+    name, startAddr, endAddr, aslrSlide) {
+  var entry = this.profile_.addLibrary(name, startAddr, endAddr, aslrSlide);
   this.setCodeType(entry.getName(), 'SHARED_LIB');
 
   var self = this;
   var libFuncs = this.cppEntriesProvider_.parseVmSymbols(
-      name, startAddr, endAddr, function(fName, fStart, fEnd) {
+      name, startAddr, endAddr, aslrSlide, function(fName, fStart, fEnd) {
     self.profile_.addStaticCode(fName, fStart, fEnd);
     self.setCodeType(fName, 'CPP');
   });
@@ -559,7 +559,7 @@ function CppEntriesProvider() {
 
 
 CppEntriesProvider.prototype.parseVmSymbols = function(
-    libName, libStart, libEnd, processorFunc) {
+    libName, libStart, libEnd, libASLRSlide, processorFunc) {
   this.loadSymbols(libName);
 
   var prevEntry;
@@ -588,6 +588,7 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
     } else if (funcInfo === false) {
       break;
     }
+    funcInfo.start += libASLRSlide;
     if (funcInfo.start < libStart && funcInfo.start < libEnd - libStart) {
       funcInfo.start += libStart;
     }

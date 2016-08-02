@@ -260,12 +260,6 @@ BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
   return it->GetBreakLocation();
 }
 
-FrameSummary GetFirstFrameSummary(JavaScriptFrame* frame) {
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  frame->Summarize(&frames);
-  return frames.first();
-}
-
 int CallOffsetFromCodeOffset(int code_offset, bool is_interpreted) {
   // Code offset points to the instruction after the call. Subtract 1 to
   // exclude that instruction from the search. For bytecode, the code offset
@@ -275,7 +269,7 @@ int CallOffsetFromCodeOffset(int code_offset, bool is_interpreted) {
 
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
-  FrameSummary summary = GetFirstFrameSummary(frame);
+  FrameSummary summary = FrameSummary::GetFirst(frame);
   int call_offset =
       CallOffsetFromCodeOffset(summary.code_offset(), frame->is_interpreted());
   return FromCodeOffset(debug_info, call_offset);
@@ -631,7 +625,7 @@ void Debug::Break(JavaScriptFrame* frame) {
       step_break = location.IsTailCall();
     // Fall through.
     case StepIn: {
-      FrameSummary summary = GetFirstFrameSummary(frame);
+      FrameSummary summary = FrameSummary::GetFirst(frame);
       int offset = summary.code_offset();
       step_break = step_break || location.IsReturn() ||
                    (current_fp != last_fp) ||
@@ -962,6 +956,14 @@ void Debug::PrepareStepOnThrow() {
     it.Advance();
   }
 
+  if (last_step_action() == StepNext) {
+    while (!it.done()) {
+      Address current_fp = it.frame()->UnpaddedFP();
+      if (current_fp >= thread_local_.target_fp_) break;
+      it.Advance();
+    }
+  }
+
   // Find the closest Javascript frame we can flood with one-shots.
   while (!it.done() &&
          !it.frame()->function()->shared()->IsSubjectToDebugging()) {
@@ -1011,7 +1013,7 @@ void Debug::PrepareStep(StepAction step_action) {
   }
 
   // Get the debug info (create it if it does not exist).
-  FrameSummary summary = GetFirstFrameSummary(frame);
+  FrameSummary summary = FrameSummary::GetFirst(frame);
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
@@ -1022,7 +1024,7 @@ void Debug::PrepareStep(StepAction step_action) {
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Refresh frame summary if the code has been recompiled for debugging.
   if (AbstractCode::cast(shared->code()) != *summary.abstract_code()) {
-    summary = GetFirstFrameSummary(frame);
+    summary = FrameSummary::GetFirst(frame);
   }
 
   int call_offset =
@@ -1604,7 +1606,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   if (!shared->HasDebugInfo()) return false;
 
   DCHECK(!frame->is_optimized());
-  FrameSummary summary = GetFirstFrameSummary(frame);
+  FrameSummary summary = FrameSummary::GetFirst(frame);
 
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   BreakLocation location =
@@ -1656,21 +1658,6 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 }
 
 
-void Debug::RecordEvalCaller(Handle<Script> script) {
-  script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
-  // For eval scripts add information on the function from which eval was
-  // called.
-  StackTraceFrameIterator it(script->GetIsolate());
-  if (!it.done()) {
-    script->set_eval_from_shared(it.frame()->function()->shared());
-    Code* code = it.frame()->LookupCode();
-    int offset = static_cast<int>(
-        it.frame()->pc() - code->instruction_start());
-    script->set_eval_from_instructions_offset(offset);
-  }
-}
-
-
 MaybeHandle<Object> Debug::MakeExecutionState() {
   // Create the execution state object.
   Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()) };
@@ -1705,13 +1692,6 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   Handle<Object> argv[] = { script_wrapper,
                             isolate_->factory()->NewNumberFromInt(type) };
   return CallFunction("MakeCompileEvent", arraysize(argv), argv);
-}
-
-
-MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
-  // Create the promise event object.
-  Handle<Object> argv[] = { event_data };
-  return CallFunction("MakePromiseEvent", arraysize(argv), argv);
 }
 
 
@@ -1845,25 +1825,6 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 }
 
 
-void Debug::OnPromiseEvent(Handle<JSObject> data) {
-  if (in_debug_scope() || ignore_events()) return;
-
-  HandleScope scope(isolate_);
-  DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
-
-  // Create the script collected state object.
-  Handle<Object> event_data;
-  // Bail out and don't call debugger if exception.
-  if (!MakePromiseEvent(data).ToHandle(&event_data)) return;
-
-  // Process debug event.
-  ProcessDebugEvent(v8::PromiseEvent,
-                    Handle<JSObject>::cast(event_data),
-                    true);
-}
-
-
 void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
   if (in_debug_scope() || ignore_events()) return;
 
@@ -1937,7 +1898,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               exec_state,
                               event_data,
                               event_listener_data_ };
-    Handle<JSReceiver> global(isolate_->global_proxy());
+    Handle<JSReceiver> global = isolate_->global_proxy();
     Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
                        global, arraysize(argv), argv);
   }
@@ -2013,7 +1974,6 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     case v8::NewFunction:
     case v8::BeforeCompile:
     case v8::CompileError:
-    case v8::PromiseEvent:
     case v8::AsyncTaskEvent:
       break;
     case v8::Exception:
@@ -2287,7 +2247,7 @@ void Debug::PrintBreakLocation() {
   JavaScriptFrameIterator iterator(isolate_);
   if (iterator.done()) return;
   JavaScriptFrame* frame = iterator.frame();
-  FrameSummary summary = GetFirstFrameSummary(frame);
+  FrameSummary summary = FrameSummary::GetFirst(frame);
   int source_position =
       summary.abstract_code()->SourcePosition(summary.code_offset());
   Handle<Object> script_obj(summary.function()->shared()->script(), isolate_);
@@ -2298,8 +2258,10 @@ void Debug::PrintBreakLocation() {
     Handle<Script> script = Handle<Script>::cast(script_obj);
     Handle<String> source(String::cast(script->source()));
     Script::InitLineEnds(script);
-    int line = Script::GetLineNumber(script, source_position);
-    int column = Script::GetColumnNumber(script, source_position);
+    int line =
+        Script::GetLineNumber(script, source_position) - script->line_offset();
+    int column = Script::GetColumnNumber(script, source_position) -
+                 (line == 0 ? script->column_offset() : 0);
     Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
     int line_start =
         line == 0 ? 0 : Smi::cast(line_ends->get(line - 1))->value() + 1;

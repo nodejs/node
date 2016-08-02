@@ -8,6 +8,7 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/base/compiler-specific.h"
 #include "src/base/lazy-instance.h"
 #include "src/disasm.h"
 
@@ -359,7 +360,7 @@ class DisassemblerX64 {
   bool vex_128() {
     DCHECK(vex_byte0_ == VEX3_PREFIX || vex_byte0_ == VEX2_PREFIX);
     byte checked = vex_byte0_ == VEX3_PREFIX ? vex_byte2_ : vex_byte1_;
-    return (checked & 4) != 1;
+    return (checked & 4) == 0;
   }
 
   bool vex_none() {
@@ -479,7 +480,7 @@ class DisassemblerX64 {
   int MemoryFPUInstruction(int escape_opcode, int regop, byte* modrm_start);
   int RegisterFPUInstruction(int escape_opcode, byte modrm_byte);
   int AVXInstruction(byte* data);
-  void AppendToBuffer(const char* format, ...);
+  PRINTF_FORMAT(2, 3) void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
@@ -618,7 +619,7 @@ int DisassemblerX64::PrintImmediate(byte* data, OperandSize size) {
       value = 0;  // Initialize variables on all paths to satisfy the compiler.
       count = 0;
   }
-  AppendToBuffer("%" V8_PTR_PREFIX "x", value);
+  AppendToBuffer("%" PRIx64, value);
   return count;
 }
 
@@ -1999,7 +2000,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           if (rex_w()) AppendToBuffer("REX.W ");
           AppendToBuffer("%s%c", idesc.mnem, operand_size_code());
         } else {
-          AppendToBuffer("%s", idesc.mnem, operand_size_code());
+          AppendToBuffer("%s%c", idesc.mnem, operand_size_code());
         }
         data++;
         break;
@@ -2141,9 +2142,11 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           default:
             mnem = "???";
         }
-        AppendToBuffer(((regop <= 1) ? "%s%c " : "%s "),
-                       mnem,
-                       operand_size_code());
+        if (regop <= 1) {
+          AppendToBuffer("%s%c ", mnem, operand_size_code());
+        } else {
+          AppendToBuffer("%s ", mnem);
+        }
         data += PrintRightOperand(data);
       }
         break;
@@ -2334,9 +2337,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           default:
             UNREACHABLE();
         }
-        AppendToBuffer("test%c rax,0x%" V8_PTR_PREFIX "x",
-                       operand_size_code(),
-                       value);
+        AppendToBuffer("test%c rax,0x%" PRIx64, operand_size_code(), value);
         break;
       }
       case 0xD1:  // fall through

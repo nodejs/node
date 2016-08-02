@@ -384,9 +384,10 @@ class RelocInfo {
     CODE_TARGET_WITH_ID,
     DEBUGGER_STATEMENT,  // Code target for the debugger statement.
     EMBEDDED_OBJECT,
-    CELL,
     // To relocate pointers into the wasm memory embedded in wasm code
     WASM_MEMORY_REFERENCE,
+    WASM_MEMORY_SIZE_REFERENCE,
+    CELL,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
@@ -415,6 +416,7 @@ class RelocInfo {
     VENEER_POOL,
 
     DEOPT_REASON,  // Deoptimization reason index.
+    DEOPT_ID,      // Deoptimization inlining id.
 
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
@@ -430,7 +432,7 @@ class RelocInfo {
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     LAST_CODE_ENUM = DEBUGGER_STATEMENT,
-    LAST_GCED_ENUM = WASM_MEMORY_REFERENCE,
+    LAST_GCED_ENUM = WASM_MEMORY_SIZE_REFERENCE,
     FIRST_SHAREABLE_RELOC_MODE = CELL,
   };
 
@@ -474,6 +476,9 @@ class RelocInfo {
   }
   static inline bool IsDeoptReason(Mode mode) {
     return mode == DEOPT_REASON;
+  }
+  static inline bool IsDeoptId(Mode mode) {
+    return mode == DEOPT_ID;
   }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;
@@ -521,6 +526,9 @@ class RelocInfo {
   static inline bool IsWasmMemoryReference(Mode mode) {
     return mode == WASM_MEMORY_REFERENCE;
   }
+  static inline bool IsWasmMemorySizeReference(Mode mode) {
+    return mode == WASM_MEMORY_SIZE_REFERENCE;
+  }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
@@ -546,6 +554,12 @@ class RelocInfo {
   // If true, the pointer this relocation info refers to is an entry in the
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
+
+  Address wasm_memory_reference();
+  uint32_t wasm_memory_size_reference();
+  void update_wasm_memory_reference(
+      Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+      ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH);
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -581,10 +595,6 @@ class RelocInfo {
                                 ICacheFlushMode icache_flush_mode =
                                     FLUSH_ICACHE_IF_NEEDED));
 
-  INLINE(Address wasm_memory_reference());
-  INLINE(void update_wasm_memory_reference(
-      Address old_base, Address new_base, size_t old_size, size_t new_size,
-      ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH));
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.
   INLINE(Address constant_pool_entry_address());
@@ -631,6 +641,8 @@ class RelocInfo {
   INLINE(void WipeOut());
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
+
+  template <typename ObjectVisitor>
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
 
   // Check whether this debug break slot has been patched with a call to the
@@ -909,6 +921,7 @@ class ExternalReference BASE_EMBEDDED {
   // ExternalReferenceTable in serialize.cc manually.
 
   static ExternalReference interpreter_dispatch_table_address(Isolate* isolate);
+  static ExternalReference interpreter_dispatch_counters(Isolate* isolate);
 
   static ExternalReference incremental_marking_record_write_function(
       Isolate* isolate);
@@ -948,6 +961,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_int64_mod(Isolate* isolate);
   static ExternalReference wasm_uint64_div(Isolate* isolate);
   static ExternalReference wasm_uint64_mod(Isolate* isolate);
+  static ExternalReference wasm_word32_ctz(Isolate* isolate);
+  static ExternalReference wasm_word64_ctz(Isolate* isolate);
+  static ExternalReference wasm_word32_popcnt(Isolate* isolate);
+  static ExternalReference wasm_word64_popcnt(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);

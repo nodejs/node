@@ -222,7 +222,11 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
         edge.UpdateTo(dead_);
         Revisit(user);
       } else {
-        UNREACHABLE();
+        DCHECK_NOT_NULL(control);
+        edge.UpdateTo(control);
+        Revisit(user);
+        // TODO(jarin) Check that the node cannot throw (otherwise, it
+        // would have to be connected via IfSuccess/IfException).
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);

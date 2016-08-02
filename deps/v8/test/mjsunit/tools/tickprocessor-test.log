@@ -1,6 +1,6 @@
-shared-library,"shell",0x08048000,0x081ee000
-shared-library,"/lib32/libm-2.7.so",0xf7db6000,0xf7dd9000
-shared-library,"ffffe000-fffff000",0xffffe000,0xfffff000
+shared-library,"shell",0x08048000,0x081ee000,0
+shared-library,"/lib32/libm-2.7.so",0xf7db6000,0xf7dd9000,0
+shared-library,"ffffe000-fffff000",0xffffe000,0xfffff000,0
 profiler,"begin",1
 code-creation,Stub,0,0xf540a100,474,"CEntryStub"
 code-creation,Script,0,0xf541cd80,736,"exp.js"

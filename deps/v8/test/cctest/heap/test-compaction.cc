@@ -50,6 +50,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
 
       heap->set_force_oom(true);
       heap->CollectAllGarbage();
+      heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // Check that all handles still point to the same page, i.e., compaction
       // has been aborted on the page.
@@ -108,6 +109,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 
         heap->set_force_oom(true);
         heap->CollectAllGarbage();
+        heap->mark_compact_collector()->EnsureSweepingCompleted();
 
         bool migration_aborted = false;
         for (Handle<FixedArray> object : compaction_page_handles) {
@@ -190,6 +192,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
       heap->set_force_oom(true);
       heap->CollectAllGarbage();
+      heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.
@@ -283,6 +286,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
 
       heap->set_force_oom(true);
       heap->CollectAllGarbage();
+      heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.

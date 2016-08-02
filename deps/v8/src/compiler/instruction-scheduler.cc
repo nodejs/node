@@ -82,7 +82,8 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       graph_(zone),
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
-      last_live_in_reg_marker_(nullptr) {
+      last_live_in_reg_marker_(nullptr),
+      last_deopt_(nullptr) {
 }
 
 
@@ -91,6 +92,7 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(last_side_effect_instr_ == nullptr);
   DCHECK(pending_loads_.empty());
   DCHECK(last_live_in_reg_marker_ == nullptr);
+  DCHECK(last_deopt_ == nullptr);
   sequence()->StartBlock(rpo);
 }
 
@@ -106,6 +108,7 @@ void InstructionScheduler::EndBlock(RpoNumber rpo) {
   last_side_effect_instr_ = nullptr;
   pending_loads_.clear();
   last_live_in_reg_marker_ = nullptr;
+  last_deopt_ = nullptr;
 }
 
 
@@ -128,6 +131,12 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       last_live_in_reg_marker_->AddSuccessor(new_node);
     }
 
+    // Make sure that new instructions are not scheduled before the last
+    // deoptimization point.
+    if (last_deopt_ != nullptr) {
+      last_deopt_->AddSuccessor(new_node);
+    }
+
     // Instructions with side effects and memory operations can't be
     // reordered with respect to each other.
     if (HasSideEffect(instr)) {
@@ -146,6 +155,13 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
       pending_loads_.push_back(new_node);
+    } else if (instr->IsDeoptimizeCall()) {
+      // Ensure that deopts are not reordered with respect to side-effect
+      // instructions.
+      if (last_side_effect_instr_ != nullptr) {
+        last_side_effect_instr_->AddSuccessor(new_node);
+      }
+      last_deopt_ = new_node;
     }
 
     // Look for operand dependencies.
@@ -224,6 +240,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchTailCallCodeObject:
     case kArchTailCallJSFunctionFromJSFunction:
     case kArchTailCallJSFunction:
+    case kArchTailCallAddress:
       return kHasSideEffect | kIsBlockTerminator;
 
     case kArchDeoptimize:
@@ -251,6 +268,18 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kCheckedStoreFloat32:
     case kCheckedStoreFloat64:
     case kArchStoreWithWriteBarrier:
+      return kHasSideEffect;
+
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
+      return kIsLoadOperation;
+
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

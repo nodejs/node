@@ -23,7 +23,7 @@ class RegisterConfiguration {
 
   // Architecture independent maxes.
   static const int kMaxGeneralRegisters = 32;
-  static const int kMaxDoubleRegisters = 32;
+  static const int kMaxFPRegisters = 32;
 
   static const RegisterConfiguration* ArchDefault(CompilerSelector compiler);
 

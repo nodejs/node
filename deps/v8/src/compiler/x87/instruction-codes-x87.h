@@ -96,7 +96,10 @@ namespace compiler {
   V(X87PushFloat64)                \
   V(X87PushFloat32)                \
   V(X87Poke)                       \
-  V(X87StackCheck)
+  V(X87StackCheck)                 \
+  V(X87Xchgb)                      \
+  V(X87Xchgw)                      \
+  V(X87Xchgl)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

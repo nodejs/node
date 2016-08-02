@@ -225,8 +225,14 @@ class LiteralBuffer {
     } else {
       is_one_byte_ = other->is_one_byte_;
       position_ = other->position_;
-      backing_store_.Dispose();
-      backing_store_ = other->backing_store_.Clone();
+      if (position_ < backing_store_.length()) {
+        std::copy(other->backing_store_.begin(),
+                  other->backing_store_.begin() + position_,
+                  backing_store_.begin());
+      } else {
+        backing_store_.Dispose();
+        backing_store_ = other->backing_store_.Clone();
+      }
     }
   }
 
@@ -419,6 +425,13 @@ class Scanner {
   // Returns the location of the last seen octal literal.
   Location octal_position() const { return octal_pos_; }
   void clear_octal_position() { octal_pos_ = Location::invalid(); }
+  // Returns the location of the last seen decimal literal with a leading zero.
+  Location decimal_with_leading_zero_position() const {
+    return decimal_with_leading_zero_pos_;
+  }
+  void clear_decimal_with_leading_zero_position() {
+    decimal_with_leading_zero_pos_ = Location::invalid();
+  }
 
   // Returns the value of the last smi that was scanned.
   int smi_value() const { return current_.smi_value_; }
@@ -434,6 +447,12 @@ class Scanner {
   bool HasAnyLineTerminatorBeforeNext() const {
     return has_line_terminator_before_next_ ||
            has_multiline_comment_before_next_;
+  }
+
+  bool HasAnyLineTerminatorAfterNext() {
+    Token::Value ensure_next_next = PeekAhead();
+    USE(ensure_next_next);
+    return has_line_terminator_after_next_;
   }
 
   // Scans the input as a regular expression pattern, previous
@@ -582,7 +601,7 @@ class Scanner {
   }
 
   void PushBack(uc32 ch) {
-    if (ch > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+    if (c0_ > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       source_->PushBack(unibrow::Utf16::TrailSurrogate(c0_));
       source_->PushBack(unibrow::Utf16::LeadSurrogate(c0_));
     } else {
@@ -766,9 +785,9 @@ class Scanner {
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* source_;
 
-
-  // Start position of the octal literal last scanned.
+  // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;
+  Location decimal_with_leading_zero_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
@@ -780,6 +799,7 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
+  bool has_line_terminator_after_next_;
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;

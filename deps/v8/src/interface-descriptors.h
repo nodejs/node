@@ -21,7 +21,6 @@ class PlatformInterfaceDescriptor;
   V(VectorStoreTransition)                    \
   V(VectorStoreICTrampoline)                  \
   V(VectorStoreIC)                            \
-  V(InstanceOf)                               \
   V(LoadWithVector)                           \
   V(FastArrayPush)                            \
   V(FastNewClosure)                           \
@@ -47,7 +46,6 @@ class PlatformInterfaceDescriptor;
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
-  V(AllocateMutableHeapNumber)                \
   V(AllocateFloat32x4)                        \
   V(AllocateInt32x4)                          \
   V(AllocateUint32x4)                         \
@@ -58,7 +56,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateInt8x16)                          \
   V(AllocateUint8x16)                         \
   V(AllocateBool8x16)                         \
-  V(AllocateInNewSpace)                       \
+  V(ArrayNoArgumentConstructor)               \
   V(ArrayConstructorConstantArgCount)         \
   V(ArrayConstructor)                         \
   V(InternalArrayConstructorConstantArgCount) \
@@ -66,10 +64,12 @@ class PlatformInterfaceDescriptor;
   V(Compare)                                  \
   V(BinaryOp)                                 \
   V(BinaryOpWithAllocationSite)               \
+  V(CountOp)                                  \
   V(StringAdd)                                \
   V(StringCompare)                            \
   V(Keyed)                                    \
   V(Named)                                    \
+  V(HasProperty)                              \
   V(CallHandler)                              \
   V(ArgumentAdaptor)                          \
   V(ApiCallbackWith0Args)                     \
@@ -90,7 +90,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterDispatch)                      \
   V(InterpreterPushArgsAndCall)               \
   V(InterpreterPushArgsAndConstruct)          \
-  V(InterpreterCEntry)
+  V(InterpreterCEntry)                        \
+  V(ResumeGenerator)
 
 class CallInterfaceDescriptorData {
  public:
@@ -334,16 +335,6 @@ class VectorStoreTransitionDescriptor : public StoreDescriptor {
 };
 
 
-class InstanceOfDescriptor final : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(InstanceOfDescriptor, CallInterfaceDescriptor)
-
-  enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
-  static const Register LeftRegister();
-  static const Register RightRegister();
-};
-
-
 class VectorStoreICTrampolineDescriptor : public StoreDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
@@ -430,6 +421,15 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   static const Register ArgumentRegister();
 };
 
+class HasPropertyDescriptor final : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices { kKeyIndex, kObjectIndex };
+
+  DECLARE_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor)
+
+  static const Register KeyRegister();
+  static const Register ObjectRegister();
+};
 
 class TypeofDescriptor : public CallInterfaceDescriptor {
  public:
@@ -570,18 +570,17 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
 
-class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
+class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(AllocateMutableHeapNumberDescriptor,
-                     CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      ArrayNoArgumentConstructorDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices {
+    kFunctionIndex,
+    kAllocationSiteIndex,
+    kArgumentCountIndex,
+    kContextIndex
+  };
 };
-
-
-class AllocateInNewSpaceDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(AllocateInNewSpaceDescriptor, CallInterfaceDescriptor)
-};
-
 
 class ArrayConstructorConstantArgCountDescriptor
     : public CallInterfaceDescriptor {
@@ -631,6 +630,10 @@ class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
                      CallInterfaceDescriptor)
 };
 
+class CountOpDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(CountOpDescriptor, CallInterfaceDescriptor)
+};
 
 class StringAddDescriptor : public CallInterfaceDescriptor {
  public:
@@ -746,10 +749,11 @@ class ApiCallbackWith7ArgsDescriptor : public ApiCallbackDescriptorBase {
 
 class ApiGetterDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiGetterDescriptor,
-                                               CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(ApiGetterDescriptor, CallInterfaceDescriptor)
 
-  static const Register function_address();
+  static const Register ReceiverRegister();
+  static const Register HolderRegister();
+  static const Register CallbackRegister();
 };
 
 
@@ -795,11 +799,9 @@ class InterpreterDispatchDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   static const int kAccumulatorParameter = 0;
-  static const int kRegisterFileParameter = 1;
-  static const int kBytecodeOffsetParameter = 2;
-  static const int kBytecodeArrayParameter = 3;
-  static const int kDispatchTableParameter = 4;
-  static const int kContextParameter = 5;
+  static const int kBytecodeOffsetParameter = 1;
+  static const int kBytecodeArrayParameter = 2;
+  static const int kDispatchTableParameter = 3;
 };
 
 class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
@@ -820,6 +822,11 @@ class InterpreterPushArgsAndConstructDescriptor
 class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
+};
+
+class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
 };
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE

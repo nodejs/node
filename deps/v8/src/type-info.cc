@@ -295,7 +295,7 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     *key_type = ELEMENT;
   } else {
     KeyedLoadICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
+    CollectReceiverTypes(&nexus, receiver_types);
     *is_string = HasOnlyStringMaps(receiver_types);
     *key_type = nexus.GetKeyType();
   }
@@ -332,21 +332,20 @@ void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
                                               Code::Flags flags,
                                               SmallMapList* types) {
   StoreICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes<FeedbackNexus>(&nexus, name, flags, types);
+  CollectReceiverTypes(&nexus, name, flags, types);
 }
 
-
-template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, Handle<Name> name,
+void TypeFeedbackOracle::CollectReceiverTypes(FeedbackNexus* nexus,
+                                              Handle<Name> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
-      obj->ic_state() == MEGAMORPHIC) {
+      nexus->ic_state() == MEGAMORPHIC) {
     types->Reserve(4, zone());
     isolate()->stub_cache()->CollectMatchingMaps(
         types, name, flags, native_context_, zone());
   } else {
-    CollectReceiverTypes<T>(obj, types);
+    CollectReceiverTypes(nexus, types);
   }
 }
 
@@ -356,23 +355,22 @@ void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
   FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
   if (kind == FeedbackVectorSlotKind::STORE_IC) {
     StoreICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+    CollectReceiverTypes(&nexus, types);
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, kind);
     KeyedStoreICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+    CollectReceiverTypes(&nexus, types);
   }
 }
 
-
-template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
+void TypeFeedbackOracle::CollectReceiverTypes(FeedbackNexus* nexus,
+                                              SmallMapList* types) {
   MapHandleList maps;
-  if (obj->ic_state() == MONOMORPHIC) {
-    Map* map = obj->FindFirstMap();
+  if (nexus->ic_state() == MONOMORPHIC) {
+    Map* map = nexus->FindFirstMap();
     if (map != NULL) maps.Add(handle(map));
-  } else if (obj->ic_state() == POLYMORPHIC) {
-    obj->FindAllMaps(&maps);
+  } else if (nexus->ic_state() == POLYMORPHIC) {
+    nexus->FindAllMaps(&maps);
   } else {
     return;
   }

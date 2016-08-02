@@ -48,3 +48,22 @@ assertEquals(Function.prototype[Symbol.hasInstance].call({}, {}), false);
 
 // OrdinaryHasInstance passed a non-object argument returns false.
 assertEquals(Function.prototype[Symbol.hasInstance].call(Array, 0), false);
+
+// Cannot assign to @@hasInstance with %FunctionPrototype%.
+(function() {
+  "use strict";
+  function F() {}
+  assertThrows(function() { F[Symbol.hasInstance] = (v) => v }, TypeError);
+})();
+
+// Check correct invocation of @@hasInstance handler on function instance.
+(function() {
+  function F() {}
+  var counter = 0;
+  var proto = Object.getPrototypeOf(F);
+  Object.setPrototypeOf(F, null);
+  F[Symbol.hasInstance] = function(v) { ++counter; return true };
+  Object.setPrototypeOf(F, proto);
+  assertTrue(1 instanceof F);
+  assertEquals(1, counter);
+})();

@@ -24,10 +24,10 @@ V8_INCLUDE_BASE = os.path.join(V8_BASE, 'include')
 
 GYP_FILES = [
   os.path.join(V8_BASE, 'src', 'd8.gyp'),
+  os.path.join(V8_BASE, 'src', 'v8.gyp'),
   os.path.join(V8_BASE, 'src', 'third_party', 'vtune', 'v8vtune.gyp'),
   os.path.join(V8_BASE, 'test', 'cctest', 'cctest.gyp'),
   os.path.join(V8_BASE, 'test', 'unittests', 'unittests.gyp'),
-  os.path.join(V8_BASE, 'tools', 'gyp', 'v8.gyp'),
   os.path.join(V8_BASE, 'tools', 'parser-shell.gyp'),
 ]
 

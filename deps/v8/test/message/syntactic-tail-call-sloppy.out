@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: Tail call expressions are not allowed in non-strict mode
+  return  continue  f()  ;
+          ^^^^^^^^^^^^^
+SyntaxError: Tail call expressions are not allowed in non-strict mode

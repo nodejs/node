@@ -246,8 +246,9 @@ TEST(FixedArrayAccessSmiIndex) {
   CodeStubAssemblerTester m(isolate, descriptor);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(5);
   array->set(4, Smi::FromInt(733));
-  m.Return(m.LoadFixedArrayElementSmiIndex(m.HeapConstant(array),
-                                           m.SmiTag(m.Int32Constant(4))));
+  m.Return(m.LoadFixedArrayElement(m.HeapConstant(array),
+                                   m.SmiTag(m.Int32Constant(4)), 0,
+                                   CodeStubAssembler::SMI_PARAMETERS));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
@@ -359,6 +360,33 @@ TEST(SplitEdgeSwitchMerge) {
   m.Goto(&default_label);
   m.Bind(&default_label);
   USE(m.GenerateCode());
+}
+
+TEST(TestToConstant) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  int32_t value32;
+  int64_t value64;
+  Node* a = m.Int32Constant(5);
+  CHECK(m.ToInt32Constant(a, value32));
+  CHECK(m.ToInt64Constant(a, value64));
+
+  a = m.Int64Constant(static_cast<int64_t>(1) << 32);
+  CHECK(!m.ToInt32Constant(a, value32));
+  CHECK(m.ToInt64Constant(a, value64));
+
+  a = m.Int64Constant(13);
+  CHECK(m.ToInt32Constant(a, value32));
+  CHECK(m.ToInt64Constant(a, value64));
+
+  a = m.UndefinedConstant();
+  CHECK(!m.ToInt32Constant(a, value32));
+  CHECK(!m.ToInt64Constant(a, value64));
+
+  a = m.UndefinedConstant();
+  CHECK(!m.ToInt32Constant(a, value32));
+  CHECK(!m.ToInt64Constant(a, value64));
 }
 
 }  // namespace compiler

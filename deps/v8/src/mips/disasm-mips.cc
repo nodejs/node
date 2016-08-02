@@ -1191,6 +1191,9 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case TNE:
       Format(instr, "tne     'rs, 'rt, code: 'code");
       break;
+    case SYNC:
+      Format(instr, "sync");
+      break;
     case MOVZ:
       Format(instr, "movz    'rd, 'rs, 'rt");
       break;

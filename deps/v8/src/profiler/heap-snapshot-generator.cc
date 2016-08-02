@@ -80,7 +80,7 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_ASSERT(sizeof(unsigned) == sizeof(id()));
-  base::OS::Print("%6" V8PRIuPTR " @%6u %*c %s%s: ", self_size(), id(), indent,
+  base::OS::Print("%6" PRIuS " @%6u %*c %s%s: ", self_size(), id(), indent,
                   ' ', prefix, edge_name);
   if (type() != kString) {
     base::OS::Print("%s %.40s\n", TypeAsString(), name_);
@@ -1058,8 +1058,6 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractAccessorInfoReferences(entry, AccessorInfo::cast(obj));
   } else if (obj->IsAccessorPair()) {
     ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
-  } else if (obj->IsCodeCache()) {
-    ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
   } else if (obj->IsBox()) {
@@ -1444,19 +1442,6 @@ void V8HeapExplorer::ExtractAccessorPairReferences(
 }
 
 
-void V8HeapExplorer::ExtractCodeCacheReferences(
-    int entry, CodeCache* code_cache) {
-  TagObject(code_cache->default_cache(), "(default code cache)");
-  SetInternalReference(code_cache, entry,
-                       "default_cache", code_cache->default_cache(),
-                       CodeCache::kDefaultCacheOffset);
-  TagObject(code_cache->normal_type_cache(), "(code type cache)");
-  SetInternalReference(code_cache, entry,
-                       "type_cache", code_cache->normal_type_cache(),
-                       CodeCache::kNormalTypeCacheOffset);
-}
-
-
 void V8HeapExplorer::TagBuiltinCodeObject(Code* code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
@@ -1598,14 +1583,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           int field_offset =
               field_index.is_inobject() ? field_index.offset() : -1;
 
-          if (k != heap_->hidden_properties_symbol()) {
-            SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry, k,
-                                               value, NULL, field_offset);
-          } else {
-            TagObject(value, "(hidden properties)");
-            SetInternalReference(js_obj, entry, "hidden_properties", value,
-                                 field_offset);
-          }
+          SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry, k,
+                                             value, NULL, field_offset);
           break;
         }
         case kDescriptor:
@@ -1625,11 +1604,6 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         DCHECK(dictionary->ValueAt(i)->IsPropertyCell());
         PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(i));
         Object* value = cell->value();
-        if (k == heap_->hidden_properties_symbol()) {
-          TagObject(value, "(hidden properties)");
-          SetInternalReference(js_obj, entry, "hidden_properties", value);
-          continue;
-        }
         PropertyDetails details = cell->property_details();
         SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
                                            Name::cast(k), value);
@@ -1642,11 +1616,6 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
       Object* k = dictionary->KeyAt(i);
       if (dictionary->IsKey(k)) {
         Object* value = dictionary->ValueAt(i);
-        if (k == heap_->hidden_properties_symbol()) {
-          TagObject(value, "(hidden properties)");
-          SetInternalReference(js_obj, entry, "hidden_properties", value);
-          continue;
-        }
         PropertyDetails details = dictionary->DetailsAt(i);
         SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
                                            Name::cast(k), value);
@@ -2262,9 +2231,9 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
   intptr_t elements = info->GetElementCount();
   intptr_t size = info->GetSizeInBytes();
   const char* name = elements != -1
-      ? names_->GetFormatted(
-            "%s / %" V8_PTR_PREFIX "d entries", info->GetLabel(), elements)
-      : names_->GetCopy(info->GetLabel());
+                         ? names_->GetFormatted("%s / %" V8PRIdPTR " entries",
+                                                info->GetLabel(), elements)
+                         : names_->GetCopy(info->GetLabel());
   return snapshot_->AddEntry(
       entries_type_,
       name,

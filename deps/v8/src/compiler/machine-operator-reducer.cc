@@ -419,8 +419,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceInt64(static_cast<uint64_t>(m.Value()));
       break;
     }
-    case IrOpcode::kTruncateFloat64ToInt32:
-      return ReduceTruncateFloat64ToInt32(node);
+    case IrOpcode::kTruncateFloat64ToWord32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
+      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+      return NoChange();
+    }
     case IrOpcode::kTruncateInt64ToInt32: {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
@@ -433,11 +437,18 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kRoundFloat64ToInt32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
+      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+      break;
+    }
     case IrOpcode::kFloat64InsertLowWord32:
       return ReduceFloat64InsertLowWord32(node);
     case IrOpcode::kFloat64InsertHighWord32:
       return ReduceFloat64InsertHighWord32(node);
     case IrOpcode::kStore:
+    case IrOpcode::kCheckedStore:
       return ReduceStore(node);
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
@@ -645,41 +656,20 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
 }
 
 
-Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
-  Float64Matcher m(node->InputAt(0));
-  if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
-  if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
-  if (m.IsPhi()) {
-    Node* const phi = m.node();
-    DCHECK_EQ(MachineRepresentation::kFloat64, PhiRepresentationOf(phi->op()));
-    if (phi->OwnedBy(node)) {
-      // TruncateFloat64ToInt32[mode](Phi[Float64](x1,...,xn))
-      //   => Phi[Int32](TruncateFloat64ToInt32[mode](x1),
-      //                 ...,
-      //                 TruncateFloat64ToInt32[mode](xn))
-      const int value_input_count = phi->InputCount() - 1;
-      for (int i = 0; i < value_input_count; ++i) {
-        Node* input = graph()->NewNode(node->op(), phi->InputAt(i));
-        // TODO(bmeurer): Reschedule input for reduction once we have Revisit()
-        // instead of recursing into ReduceTruncateFloat64ToInt32() here.
-        Reduction reduction = ReduceTruncateFloat64ToInt32(input);
-        if (reduction.Changed()) input = reduction.replacement();
-        phi->ReplaceInput(i, input);
-      }
-      NodeProperties::ChangeOp(
-          phi,
-          common()->Phi(MachineRepresentation::kWord32, value_input_count));
-      return Replace(phi);
-    }
-  }
-  return NoChange();
-}
-
-
 Reduction MachineOperatorReducer::ReduceStore(Node* node) {
-  MachineRepresentation const rep =
-      StoreRepresentationOf(node->op()).representation();
-  Node* const value = node->InputAt(2);
+  NodeMatcher nm(node);
+  MachineRepresentation rep;
+  int value_input;
+  if (nm.IsCheckedStore()) {
+    rep = CheckedStoreRepresentationOf(node->op());
+    value_input = 3;
+  } else {
+    rep = StoreRepresentationOf(node->op()).representation();
+    value_input = 2;
+  }
+
+  Node* const value = node->InputAt(value_input);
+
   switch (value->opcode()) {
     case IrOpcode::kWord32And: {
       Uint32BinopMatcher m(value);
@@ -687,7 +677,7 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
                                     (m.right().Value() & 0xff) == 0xff) ||
                                    (rep == MachineRepresentation::kWord16 &&
                                     (m.right().Value() & 0xffff) == 0xffff))) {
-        node->ReplaceInput(2, m.left().node());
+        node->ReplaceInput(value_input, m.left().node());
         return Changed(node);
       }
       break;
@@ -700,7 +690,7 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
                                       m.right().IsInRange(1, 16)))) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().Is(m.right().Value())) {
-          node->ReplaceInput(2, mleft.left().node());
+          node->ReplaceInput(value_input, mleft.left().node());
           return Changed(node);
         }
       }

@@ -20,12 +20,12 @@ frame size: 1
 parameter count: 1
 bytecode array length: 11
 bytecodes: [
-  B(StackCheck),
-  B(LdaGlobal), U8(0), U8(1),
-  B(Star), R(0),
-  B(LdaConstant), U8(1),
-  B(DeletePropertySloppy), R(0),
-  B(Return),
+  /*   32 E> */ B(StackCheck),
+  /*   39 S> */ B(LdaGlobal), U8(0), U8(1),
+                B(Star), R(0),
+                B(LdaConstant), U8(1),
+                B(DeletePropertySloppy), R(0),
+  /*   58 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
@@ -47,12 +47,12 @@ frame size: 1
 parameter count: 1
 bytecode array length: 11
 bytecodes: [
-  B(StackCheck),
-  B(LdaGlobal), U8(0), U8(1),
-  B(Star), R(0),
-  B(LdaSmi), U8(1),
-  B(DeletePropertyStrict), R(0),
-  B(Return),
+  /*   28 E> */ B(StackCheck),
+  /*   51 S> */ B(LdaGlobal), U8(0), U8(1),
+                B(Star), R(0),
+                B(LdaSmi), U8(1),
+                B(DeletePropertyStrict), R(0),
+  /*   71 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
@@ -72,14 +72,14 @@ frame size: 2
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(LdaContextSlot), R(context), U8(3),
-  B(Star), R(0),
-  B(LdaContextSlot), R(0), U8(2),
-  B(Star), R(1),
-  B(LdaConstant), U8(0),
-  B(DeletePropertySloppy), R(1),
-  B(Return),
+  /*   32 E> */ B(StackCheck),
+  /*   39 S> */ B(LdaContextSlot), R(context), U8(3),
+                B(Star), R(0),
+                B(LdaContextSlot), R(0), U8(2),
+                B(Star), R(1),
+                B(LdaConstant), U8(0),
+                B(DeletePropertySloppy), R(1),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
@@ -99,14 +99,14 @@ frame size: 2
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(LdaContextSlot), R(context), U8(3),
-  B(Star), R(0),
-  B(LdaContextSlot), R(0), U8(2),
-  B(Star), R(1),
-  B(LdaConstant), U8(0),
-  B(DeletePropertySloppy), R(1),
-  B(Return),
+  /*   18 E> */ B(StackCheck),
+  /*   25 S> */ B(LdaContextSlot), R(context), U8(3),
+                B(Star), R(0),
+                B(LdaContextSlot), R(0), U8(2),
+                B(Star), R(1),
+                B(LdaConstant), U8(0),
+                B(DeletePropertySloppy), R(1),
+  /*   42 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,

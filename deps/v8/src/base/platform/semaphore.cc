@@ -34,7 +34,6 @@ Semaphore::~Semaphore() {
   USE(result);
 }
 
-
 void Semaphore::Signal() {
   kern_return_t result = semaphore_signal(native_handle_);
   DCHECK_EQ(KERN_SUCCESS, result);
@@ -74,6 +73,19 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_POSIX
 
 Semaphore::Semaphore(int count) {
+  // The sem_init() does not check for alignment of the native handle.
+  // Unaligned native handle can later cause a failure in semaphore signal.
+  // Check the alignment here to catch the failure earlier.
+  // Context: crbug.com/605349.
+#if V8_OS_AIX
+  // On aix sem_t is of type int
+  const uintptr_t kSemaphoreAlignmentMask = sizeof(int) - 1;
+#else
+  const uintptr_t kSemaphoreAlignmentMask = sizeof(void*) - 1;
+#endif
+  CHECK_EQ(
+      0, reinterpret_cast<uintptr_t>(&native_handle_) &
+      kSemaphoreAlignmentMask);
   DCHECK(count >= 0);
 #if V8_LIBC_GLIBC
   // sem_init in glibc prior to 2.1 does not zero out semaphores.
@@ -90,7 +102,6 @@ Semaphore::~Semaphore() {
   DCHECK_EQ(0, result);
   USE(result);
 }
-
 
 void Semaphore::Signal() {
   int result = sem_post(&native_handle_);
@@ -161,7 +172,6 @@ Semaphore::~Semaphore() {
   DCHECK(result);
   USE(result);
 }
-
 
 void Semaphore::Signal() {
   LONG dummy;

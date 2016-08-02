@@ -612,6 +612,21 @@ class Platform(object):
 class DesktopPlatform(Platform):
   def __init__(self, options):
     super(DesktopPlatform, self).__init__(options)
+    self.command_prefix = []
+
+    if options.prioritize or options.affinitize != None:
+      self.command_prefix = ["schedtool"]
+      if options.prioritize:
+        self.command_prefix += ["-n", "-20"]
+      if options.affinitize != None:
+      # schedtool expects a bit pattern when setting affinity, where each
+      # bit set to '1' corresponds to a core where the process may run on.
+      # First bit corresponds to CPU 0. Since the 'affinitize' parameter is
+      # a core number, we need to map to said bit pattern.
+        cpu = int(options.affinitize)
+        core = 1 << cpu
+        self.command_prefix += ["-a", ("0x%x" % core)]
+      self.command_prefix += ["-e"]
 
   def PreExecution(self):
     pass
@@ -627,15 +642,18 @@ class DesktopPlatform(Platform):
     suffix = ' - without patch' if no_patch else ''
     shell_dir = self.shell_dir_no_patch if no_patch else self.shell_dir
     title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
+    command = self.command_prefix + runnable.GetCommand(shell_dir,
+                                                        self.extra_flags)
     try:
       output = commands.Execute(
-          runnable.GetCommand(shell_dir, self.extra_flags),
-          timeout=runnable.timeout,
+        command,
+        timeout=runnable.timeout,
       )
     except OSError as e:  # pragma: no cover
       print title % "OSError"
       print e
       return ""
+
     print title % "Stdout"
     print output.stdout
     if output.stderr:  # pragma: no cover
@@ -788,6 +806,107 @@ class AndroidPlatform(Platform):  # pragma: no cover
       stdout = ""
     return stdout
 
+class CustomMachineConfiguration:
+  def __init__(self, disable_aslr = False, governor = None):
+    self.aslr_backup = None
+    self.governor_backup = None
+    self.disable_aslr = disable_aslr
+    self.governor = governor
+
+  def __enter__(self):
+    if self.disable_aslr:
+      self.aslr_backup = CustomMachineConfiguration.GetASLR()
+      CustomMachineConfiguration.SetASLR(0)
+    if self.governor != None:
+      self.governor_backup = CustomMachineConfiguration.GetCPUGovernor()
+      CustomMachineConfiguration.SetCPUGovernor(self.governor)
+    return self
+
+  def __exit__(self, type, value, traceback):
+    if self.aslr_backup != None:
+      CustomMachineConfiguration.SetASLR(self.aslr_backup)
+    if self.governor_backup != None:
+      CustomMachineConfiguration.SetCPUGovernor(self.governor_backup)
+
+  @staticmethod
+  def GetASLR():
+    try:
+      with open("/proc/sys/kernel/randomize_va_space", "r") as f:
+        return int(f.readline().strip())
+    except Exception as e:
+      print "Failed to get current ASLR settings."
+      raise e
+
+  @staticmethod
+  def SetASLR(value):
+    try:
+      with open("/proc/sys/kernel/randomize_va_space", "w") as f:
+        f.write(str(value))
+    except Exception as e:
+      print "Failed to update ASLR to %s." % value
+      print "Are we running under sudo?"
+      raise e
+
+    new_value = CustomMachineConfiguration.GetASLR()
+    if value != new_value:
+      raise Exception("Present value is %s" % new_value)
+
+  @staticmethod
+  def GetCPUCoresRange():
+    try:
+      with open("/sys/devices/system/cpu/present", "r") as f:
+        indexes = f.readline()
+        first, last = map(int, indexes.split("-"))
+        return range(first, last + 1)
+    except Exception as e:
+      print "Failed to retrieve number of CPUs."
+      raise e
+
+  @staticmethod
+  def GetCPUPathForId(cpu_index):
+    ret = "/sys/devices/system/cpu/cpu"
+    ret += str(cpu_index)
+    ret += "/cpufreq/scaling_governor"
+    return ret
+
+  @staticmethod
+  def GetCPUGovernor():
+    try:
+      cpu_indices = CustomMachineConfiguration.GetCPUCoresRange()
+      ret = None
+      for cpu_index in cpu_indices:
+        cpu_device = CustomMachineConfiguration.GetCPUPathForId(cpu_index)
+        with open(cpu_device, "r") as f:
+          # We assume the governors of all CPUs are set to the same value
+          val = f.readline().strip()
+          if ret == None:
+            ret = val
+          elif ret != val:
+            raise Exception("CPU cores have differing governor settings")
+      return ret
+    except Exception as e:
+      print "Failed to get the current CPU governor."
+      print "Is the CPU governor disabled? Check BIOS."
+      raise e
+
+  @staticmethod
+  def SetCPUGovernor(value):
+    try:
+      cpu_indices = CustomMachineConfiguration.GetCPUCoresRange()
+      for cpu_index in cpu_indices:
+        cpu_device = CustomMachineConfiguration.GetCPUPathForId(cpu_index)
+        with open(cpu_device, "w") as f:
+          f.write(value)
+
+    except Exception as e:
+      print "Failed to change CPU governor to %s." % value
+      print "Are we running under sudo?"
+      raise e
+
+    cur_value = CustomMachineConfiguration.GetCPUGovernor()
+    if cur_value != value:
+      raise Exception("Could not set CPU governor. Present value is %s"
+                      % cur_value )
 
 # TODO: Implement results_processor.
 def Main(args):
@@ -822,6 +941,27 @@ def Main(args):
                     help="JavaScript engine binary. By default, d8 under "
                     "architecture-specific build dir. "
                     "Not supported in conjunction with outdir-no-patch.")
+  parser.add_option("--prioritize",
+                    help="Raise the priority to nice -20 for the benchmarking "
+                    "process.Requires Linux, schedtool, and sudo privileges.",
+                    default=False, action="store_true")
+  parser.add_option("--affinitize",
+                    help="Run benchmarking process on the specified core. "
+                    "For example: "
+                    "--affinitize=0 will run the benchmark process on core 0. "
+                    "--affinitize=3 will run the benchmark process on core 3. "
+                    "Requires Linux, schedtool, and sudo privileges.",
+                    default=None)
+  parser.add_option("--noaslr",
+                    help="Disable ASLR for the duration of the benchmarked "
+                    "process. Requires Linux and sudo privileges.",
+                    default=False, action="store_true")
+  parser.add_option("--cpu-governor",
+                    help="Set cpu governor to specified policy for the "
+                    "duration of the benchmarked process. Typical options: "
+                    "'powersave' for more stable results, or 'performance' "
+                    "for shorter completion time of suite, with potentially "
+                    "more noise in results.")
 
   (options, args) = parser.parse_args(args)
 
@@ -872,56 +1012,60 @@ def Main(args):
   else:
     options.shell_dir_no_patch = None
 
+  prev_aslr = None
+  prev_cpu_gov = None
   platform = Platform.GetPlatform(options)
 
   results = Results()
   results_no_patch = Results()
-  for path in args:
-    path = os.path.abspath(path)
+  with CustomMachineConfiguration(governor = options.cpu_governor,
+                                  disable_aslr = options.noaslr) as conf:
+    for path in args:
+      path = os.path.abspath(path)
 
-    if not os.path.exists(path):  # pragma: no cover
-      results.errors.append("Configuration file %s does not exist." % path)
-      continue
+      if not os.path.exists(path):  # pragma: no cover
+        results.errors.append("Configuration file %s does not exist." % path)
+        continue
 
-    with open(path) as f:
-      suite = json.loads(f.read())
+      with open(path) as f:
+        suite = json.loads(f.read())
 
-    # If no name is given, default to the file name without .json.
-    suite.setdefault("name", os.path.splitext(os.path.basename(path))[0])
+      # If no name is given, default to the file name without .json.
+      suite.setdefault("name", os.path.splitext(os.path.basename(path))[0])
 
-    # Setup things common to one test suite.
-    platform.PreExecution()
+      # Setup things common to one test suite.
+      platform.PreExecution()
 
-    # Build the graph/trace tree structure.
-    default_parent = DefaultSentinel(default_binary_name)
-    root = BuildGraphConfigs(suite, options.arch, default_parent)
+      # Build the graph/trace tree structure.
+      default_parent = DefaultSentinel(default_binary_name)
+      root = BuildGraphConfigs(suite, options.arch, default_parent)
 
-    # Callback to be called on each node on traversal.
-    def NodeCB(node):
-      platform.PreTests(node, path)
+      # Callback to be called on each node on traversal.
+      def NodeCB(node):
+        platform.PreTests(node, path)
 
-    # Traverse graph/trace tree and interate over all runnables.
-    for runnable in FlattenRunnables(root, NodeCB):
-      print ">>> Running suite: %s" % "/".join(runnable.graphs)
+      # Traverse graph/trace tree and interate over all runnables.
+      for runnable in FlattenRunnables(root, NodeCB):
+        print ">>> Running suite: %s" % "/".join(runnable.graphs)
 
-      def Runner():
-        """Output generator that reruns several times."""
-        for i in xrange(0, max(1, runnable.run_count)):
-          # TODO(machenbach): Allow timeout per arch like with run_count per
-          # arch.
-          yield platform.Run(runnable, i)
+        def Runner():
+          """Output generator that reruns several times."""
+          for i in xrange(0, max(1, runnable.run_count)):
+            # TODO(machenbach): Allow timeout per arch like with run_count per
+            # arch.
+            yield platform.Run(runnable, i)
 
-      # Let runnable iterate over all runs and handle output.
-      result, result_no_patch = runnable.Run(
+        # Let runnable iterate over all runs and handle output.
+        result, result_no_patch = runnable.Run(
           Runner, trybot=options.shell_dir_no_patch)
-      results += result
-      results_no_patch += result_no_patch
-    platform.PostExecution()
+        results += result
+        results_no_patch += result_no_patch
+      platform.PostExecution()
 
-  if options.json_test_results:
-    results.WriteToFile(options.json_test_results)
-  else:  # pragma: no cover
-    print results
+    if options.json_test_results:
+      results.WriteToFile(options.json_test_results)
+    else:  # pragma: no cover
+      print results
 
   if options.json_test_results_no_patch:
     results_no_patch.WriteToFile(options.json_test_results_no_patch)

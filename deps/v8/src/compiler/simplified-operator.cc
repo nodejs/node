@@ -13,6 +13,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+size_t hash_value(BaseTaggedness base_taggedness) {
+  return static_cast<uint8_t>(base_taggedness);
+}
+
 std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
   switch (base_taggedness) {
     case kUntaggedBase:
@@ -84,6 +88,9 @@ BufferAccess const BufferAccessOf(const Operator* op) {
 
 
 bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
+  // On purpose we don't include the write barrier kind here, as this method is
+  // really only relevant for eliminating loads and they don't care about the
+  // write barrier mode.
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
          lhs.machine_type == rhs.machine_type;
 }
@@ -95,6 +102,9 @@ bool operator!=(FieldAccess const& lhs, FieldAccess const& rhs) {
 
 
 size_t hash_value(FieldAccess const& access) {
+  // On purpose we don't include the write barrier kind here, as this method is
+  // really only relevant for eliminating loads and they don't care about the
+  // write barrier mode.
   return base::hash_combine(access.base_is_tagged, access.offset,
                             access.machine_type);
 }
@@ -110,12 +120,15 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   }
 #endif
   access.type->PrintTo(os);
-  os << ", " << access.machine_type << "]";
+  os << ", " << access.machine_type << ", " << access.write_barrier_kind << "]";
   return os;
 }
 
 
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
+  // On purpose we don't include the write barrier kind here, as this method is
+  // really only relevant for eliminating loads and they don't care about the
+  // write barrier mode.
   return lhs.base_is_tagged == rhs.base_is_tagged &&
          lhs.header_size == rhs.header_size &&
          lhs.machine_type == rhs.machine_type;
@@ -128,6 +141,9 @@ bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs) {
 
 
 size_t hash_value(ElementAccess const& access) {
+  // On purpose we don't include the write barrier kind here, as this method is
+  // really only relevant for eliminating loads and they don't care about the
+  // write barrier mode.
   return base::hash_combine(access.base_is_tagged, access.header_size,
                             access.machine_type);
 }
@@ -136,7 +152,7 @@ size_t hash_value(ElementAccess const& access) {
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", ";
   access.type->PrintTo(os);
-  os << ", " << access.machine_type;
+  os << ", " << access.machine_type << ", " << access.write_barrier_kind;
   return os;
 }
 
@@ -156,51 +172,58 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   return OpParameter<ElementAccess>(op);
 }
 
-#define PURE_OP_LIST(V)                                  \
-  V(BooleanNot, Operator::kNoProperties, 1)              \
-  V(BooleanToNumber, Operator::kNoProperties, 1)         \
-  V(NumberEqual, Operator::kCommutative, 2)              \
-  V(NumberLessThan, Operator::kNoProperties, 2)          \
-  V(NumberLessThanOrEqual, Operator::kNoProperties, 2)   \
-  V(NumberAdd, Operator::kCommutative, 2)                \
-  V(NumberSubtract, Operator::kNoProperties, 2)          \
-  V(NumberMultiply, Operator::kCommutative, 2)           \
-  V(NumberDivide, Operator::kNoProperties, 2)            \
-  V(NumberModulus, Operator::kNoProperties, 2)           \
-  V(NumberBitwiseOr, Operator::kCommutative, 2)          \
-  V(NumberBitwiseXor, Operator::kCommutative, 2)         \
-  V(NumberBitwiseAnd, Operator::kCommutative, 2)         \
-  V(NumberShiftLeft, Operator::kNoProperties, 2)         \
-  V(NumberShiftRight, Operator::kNoProperties, 2)        \
-  V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
-  V(NumberImul, Operator::kNoProperties, 2)              \
-  V(NumberClz32, Operator::kNoProperties, 1)             \
-  V(NumberCeil, Operator::kNoProperties, 1)              \
-  V(NumberFloor, Operator::kNoProperties, 1)             \
-  V(NumberRound, Operator::kNoProperties, 1)             \
-  V(NumberTrunc, Operator::kNoProperties, 1)             \
-  V(NumberToInt32, Operator::kNoProperties, 1)           \
-  V(NumberToUint32, Operator::kNoProperties, 1)          \
-  V(NumberIsHoleNaN, Operator::kNoProperties, 1)         \
-  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)  \
-  V(StringToNumber, Operator::kNoProperties, 1)          \
-  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)     \
-  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)    \
-  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)   \
-  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)     \
-  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)    \
-  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)   \
-  V(ChangeBoolToBit, Operator::kNoProperties, 1)         \
-  V(ChangeBitToBool, Operator::kNoProperties, 1)         \
-  V(ObjectIsNumber, Operator::kNoProperties, 1)          \
-  V(ObjectIsReceiver, Operator::kNoProperties, 1)        \
-  V(ObjectIsSmi, Operator::kNoProperties, 1)             \
-  V(ObjectIsUndetectable, Operator::kNoProperties, 1)
+Type* TypeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
+  return OpParameter<Type*>(op);
+}
 
-#define NO_THROW_OP_LIST(V)                 \
-  V(StringEqual, Operator::kCommutative, 2) \
-  V(StringLessThan, Operator::kNoThrow, 2)  \
-  V(StringLessThanOrEqual, Operator::kNoThrow, 2)
+#define PURE_OP_LIST(V)                                    \
+  V(BooleanNot, Operator::kNoProperties, 1)                \
+  V(BooleanToNumber, Operator::kNoProperties, 1)           \
+  V(NumberEqual, Operator::kCommutative, 2)                \
+  V(NumberLessThan, Operator::kNoProperties, 2)            \
+  V(NumberLessThanOrEqual, Operator::kNoProperties, 2)     \
+  V(NumberAdd, Operator::kCommutative, 2)                  \
+  V(NumberSubtract, Operator::kNoProperties, 2)            \
+  V(NumberMultiply, Operator::kCommutative, 2)             \
+  V(NumberDivide, Operator::kNoProperties, 2)              \
+  V(NumberModulus, Operator::kNoProperties, 2)             \
+  V(NumberBitwiseOr, Operator::kCommutative, 2)            \
+  V(NumberBitwiseXor, Operator::kCommutative, 2)           \
+  V(NumberBitwiseAnd, Operator::kCommutative, 2)           \
+  V(NumberShiftLeft, Operator::kNoProperties, 2)           \
+  V(NumberShiftRight, Operator::kNoProperties, 2)          \
+  V(NumberShiftRightLogical, Operator::kNoProperties, 2)   \
+  V(NumberImul, Operator::kCommutative, 2)                 \
+  V(NumberClz32, Operator::kNoProperties, 1)               \
+  V(NumberCeil, Operator::kNoProperties, 1)                \
+  V(NumberFloor, Operator::kNoProperties, 1)               \
+  V(NumberRound, Operator::kNoProperties, 1)               \
+  V(NumberTrunc, Operator::kNoProperties, 1)               \
+  V(NumberToInt32, Operator::kNoProperties, 1)             \
+  V(NumberToUint32, Operator::kNoProperties, 1)            \
+  V(NumberIsHoleNaN, Operator::kNoProperties, 1)           \
+  V(StringToNumber, Operator::kNoProperties, 1)            \
+  V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1) \
+  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)       \
+  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)      \
+  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)     \
+  V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1) \
+  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)       \
+  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)      \
+  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)     \
+  V(ChangeTaggedToBit, Operator::kNoProperties, 1)         \
+  V(ChangeBitToTagged, Operator::kNoProperties, 1)         \
+  V(TruncateTaggedToWord32, Operator::kNoProperties, 1)    \
+  V(ObjectIsCallable, Operator::kNoProperties, 1)          \
+  V(ObjectIsNumber, Operator::kNoProperties, 1)            \
+  V(ObjectIsReceiver, Operator::kNoProperties, 1)          \
+  V(ObjectIsSmi, Operator::kNoProperties, 1)               \
+  V(ObjectIsString, Operator::kNoProperties, 1)            \
+  V(ObjectIsUndetectable, Operator::kNoProperties, 1)      \
+  V(StringEqual, Operator::kCommutative, 2)                \
+  V(StringLessThan, Operator::kNoProperties, 2)            \
+  V(StringLessThanOrEqual, Operator::kNoProperties, 2)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
@@ -213,15 +236,14 @@ struct SimplifiedOperatorGlobalCache final {
   PURE_OP_LIST(PURE)
 #undef PURE
 
-#define NO_THROW(Name, properties, input_count)                               \
-  struct Name##Operator final : public Operator {                             \
-    Name##Operator()                                                          \
-        : Operator(IrOpcode::k##Name, Operator::kNoThrow | properties, #Name, \
-                   input_count, 1, 1, 1, 1, 0) {}                             \
-  };                                                                          \
-  Name##Operator k##Name;
-  NO_THROW_OP_LIST(NO_THROW)
-#undef NO_THROW
+  template <PretenureFlag kPretenure>
+  struct AllocateOperator final : public Operator1<PretenureFlag> {
+    AllocateOperator()
+        : Operator1<PretenureFlag>(IrOpcode::kAllocate, Operator::kNoThrow,
+                                   "Allocate", 1, 1, 1, 1, 1, 0, kPretenure) {}
+  };
+  AllocateOperator<NOT_TENURED> kAllocateNotTenuredOperator;
+  AllocateOperator<TENURED> kAllocateTenuredOperator;
 
 #define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
   struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
@@ -256,7 +278,6 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 #define GET_FROM_CACHE(Name, properties, input_count) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(GET_FROM_CACHE)
-NO_THROW_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
 
 
@@ -266,11 +287,32 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
+const Operator* SimplifiedOperatorBuilder::TypeGuard(Type* type) {
+  class TypeGuardOperator final : public Operator1<Type*> {
+   public:
+    explicit TypeGuardOperator(Type* type)
+        : Operator1<Type*>(                           // --
+              IrOpcode::kTypeGuard, Operator::kPure,  // opcode
+              "TypeGuard",                            // name
+              1, 0, 1, 1, 0, 0,                       // counts
+              type) {}                                // parameter
+
+    void PrintParameter(std::ostream& os) const final {
+      parameter()->PrintTo(os);
+    }
+  };
+  return new (zone()) TypeGuardOperator(type);
+}
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {
-  return new (zone())
-      Operator1<PretenureFlag>(IrOpcode::kAllocate, Operator::kNoThrow,
-                               "Allocate", 1, 1, 1, 1, 1, 0, pretenure);
+  switch (pretenure) {
+    case NOT_TENURED:
+      return &cache_.kAllocateNotTenuredOperator;
+    case TENURED:
+      return &cache_.kAllocateTenuredOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
 

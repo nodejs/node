@@ -35,18 +35,27 @@ MODES = release debug
 ANDROID_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(ANDROID_ARCHES)))
 
+HOST_OS = $(shell uname -s | sed -e 's/Linux/linux/;s/Darwin/darwin/')
+HOST_ARCH = $(shell uname -m | sed -e 's/i[3456]86/x86/')
+
 ifeq ($(ARCH), android_arm)
   DEFINES  = target_arch=arm v8_target_arch=arm
+  ANDROID_TOOLCHAIN = $(ANDROID_NDK_ROOT)/toolchains/arm-linux-androideabi-4.9/prebuilt/$(HOST_OS)-$(HOST_ARCH)/arm-linux-androideabi/bin
 else ifeq ($(ARCH), android_arm64)
   DEFINES  = target_arch=arm64 v8_target_arch=arm64
+  ANDROID_TOOLCHAIN = $(ANDROID_NDK_ROOT)/toolchains/aarch64-linux-android-4.9/prebuilt/$(HOST_OS)-$(HOST_ARCH)/aarch64-linux-android/bin
 else ifeq ($(ARCH), android_mipsel)
   DEFINES  = target_arch=mipsel v8_target_arch=mipsel
+  ANDROID_TOOLCHAIN = $(ANDROID_NDK_ROOT)/toolchains/mipsel-linux-android-4.9/prebuilt/$(HOST_OS)-$(HOST_ARCH)/mipsel-linux-android/bin
 else ifeq ($(ARCH), android_ia32)
   DEFINES = target_arch=ia32 v8_target_arch=ia32
+  ANDROID_TOOLCHAIN = $(ANDROID_NDK_ROOT)/toolchains/x86-4.9/prebuilt/$(HOST_OS)-$(HOST_ARCH)/i686-linux-android/bin
 else ifeq ($(ARCH), android_x64)
   DEFINES = target_arch=x64 v8_target_arch=x64
+  ANDROID_TOOLCHAIN = $(ANDROID_NDK_ROOT)/toolchains/x86_64-4.9/prebuilt/$(HOST_OS)-$(HOST_ARCH)/x86_64-linux-android/bin
 else ifeq ($(ARCH), android_x87)
   DEFINES = target_arch=ia32 v8_target_arch=x87
+  ANDROID_TOOLCHAIN = $(ANDROID_NDK_ROOT)/toolchains/x86-4.9/prebuilt/$(HOST_OS)-$(HOST_ARCH)/i686-linux-android/bin
 else
   $(error Target architecture "${ARCH}" is not supported)
 endif
@@ -57,6 +66,7 @@ DEFINES += OS=android
 .SECONDEXPANSION:
 $(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$@
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
+	          AR="$(ANDROID_TOOLCHAIN)/ar" \
 	          BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                      python -c "print raw_input().capitalize()") \
 	          builddir="$(shell pwd)/$(OUTDIR)/$@"
@@ -67,6 +77,6 @@ $(ANDROID_MAKEFILES):
 	GYP_GENERATORS=make-android \
 	GYP_DEFINES="${DEFINES}" \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
-	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. \
+	tools/gyp/gyp --generator-output="${OUTDIR}" gypfiles/all.gyp \
+	              -Igypfiles/standalone.gypi --depth=. \
 	              -S$(suffix $(basename $@))$(suffix $@) ${GYPFLAGS}

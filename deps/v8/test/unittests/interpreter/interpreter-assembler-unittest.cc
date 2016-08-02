@@ -313,12 +313,7 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    m.Dispatch();
-    Graph* graph = m.graph();
-
-    Node* end = graph->end();
-    EXPECT_EQ(1, end->InputCount());
-    Node* tail_call_node = end->InputAt(0);
+    Node* tail_call_node = m.Dispatch();
 
     OperandScale operand_scale = OperandScale::kSingle;
     Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
@@ -342,12 +337,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
         IsTailCall(
             _, code_target_matcher,
             IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-            IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
             next_bytecode_offset_matcher,
             IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
             IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-            IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-            _));
+            _, _));
   }
 }
 
@@ -359,11 +352,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
   TRACED_FOREACH(int, jump_offset, jump_offsets) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
       InterpreterAssemblerForTest m(this, bytecode);
-      m.Jump(m.IntPtrConstant(jump_offset));
-      Graph* graph = m.graph();
-      Node* end = graph->end();
-      EXPECT_EQ(1, end->InputCount());
-      Node* tail_call_node = end->InputAt(0);
+      Node* tail_call_node = m.Jump(m.IntPtrConstant(jump_offset));
 
       Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
           IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
@@ -385,97 +374,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
           IsTailCall(
               _, code_target_matcher,
               IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-              IsParameter(
-                  InterpreterDispatchDescriptor::kRegisterFileParameter),
               next_bytecode_offset_matcher, _,
               IsParameter(
                   InterpreterDispatchDescriptor::kDispatchTableParameter),
-              IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-              _));
+              _, _));
     }
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
-  static const int kJumpIfTrueOffset = 73;
-
-  // If debug code is enabled we emit extra code in Jump.
-  if (FLAG_debug_code) return;
-
-  MachineOperatorBuilder machine(zone());
-
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Node* lhs = m.IntPtrConstant(0);
-    Node* rhs = m.IntPtrConstant(1);
-    m.JumpIfWordEqual(lhs, rhs, m.IntPtrConstant(kJumpIfTrueOffset));
-    Graph* graph = m.graph();
-    Node* end = graph->end();
-    EXPECT_EQ(2, end->InputCount());
-
-    OperandScale operand_scale = OperandScale::kSingle;
-    int jump_offsets[] = {kJumpIfTrueOffset, interpreter::Bytecodes::Size(
-                                                 bytecode, operand_scale)};
-    for (int i = 0; i < static_cast<int>(arraysize(jump_offsets)); i++) {
-      Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-          IsIntPtrConstant(jump_offsets[i]));
-      Matcher<Node*> target_bytecode_matcher =
-          m.IsLoad(MachineType::Uint8(), _, next_bytecode_offset_matcher);
-      if (kPointerSize == 8) {
-        target_bytecode_matcher =
-            IsChangeUint32ToUint64(target_bytecode_matcher);
-      }
-      Matcher<Node*> code_target_matcher = m.IsLoad(
-          MachineType::Pointer(),
-          IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-          IsWordShl(target_bytecode_matcher,
-                    IsIntPtrConstant(kPointerSizeLog2)));
-      EXPECT_THAT(
-          end->InputAt(i),
-          IsTailCall(
-              _, code_target_matcher,
-              IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-              IsParameter(
-                  InterpreterDispatchDescriptor::kRegisterFileParameter),
-              next_bytecode_offset_matcher, _,
-              IsParameter(
-                  InterpreterDispatchDescriptor::kDispatchTableParameter),
-              IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-              _));
-    }
-
-    // TODO(oth): test control flow paths.
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
-  // If debug code is enabled we emit extra code in InterpreterReturn.
-  if (FLAG_debug_code) return;
-
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    m.InterpreterReturn();
-    Graph* graph = m.graph();
-
-    Node* end = graph->end();
-    EXPECT_EQ(1, end->InputCount());
-    Node* tail_call_node = end->InputAt(0);
-
-    Handle<HeapObject> exit_trampoline =
-        isolate()->builtins()->InterpreterExitTrampoline();
-    EXPECT_THAT(
-        tail_call_node,
-        IsTailCall(
-            _, IsHeapConstant(exit_trampoline),
-            IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-            IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            _,
-            IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-            IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-            _));
   }
 }
 
@@ -555,24 +458,21 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
     EXPECT_THAT(m.GetAccumulator(), accumulator_value_2);
 
     // Should be passed to next bytecode handler on dispatch.
-    m.Dispatch();
-    Graph* graph = m.graph();
-
-    Node* end = graph->end();
-    EXPECT_EQ(1, end->InputCount());
-    Node* tail_call_node = end->InputAt(0);
+    Node* tail_call_node = m.Dispatch();
 
     EXPECT_THAT(tail_call_node,
-                IsTailCall(_, _, accumulator_value_2, _, _, _, _, _, _));
+                IsTailCall(_, _, accumulator_value_2, _, _, _, _));
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, GetSetContext) {
+TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    Node* context_node = m.Int32Constant(100);
-    m.SetContext(context_node);
-    EXPECT_THAT(m.GetContext(), context_node);
+    EXPECT_THAT(
+        m.GetContext(),
+        m.IsLoad(MachineType::AnyTagged(), IsLoadParentFramePointer(),
+                 IsIntPtrConstant(Register::current_context().ToOperand()
+                                  << kPointerSizeLog2)));
   }
 }
 
@@ -581,11 +481,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, RegisterLocation) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* reg_index_node = m.IntPtrConstant(44);
     Node* reg_location_node = m.RegisterLocation(reg_index_node);
-    EXPECT_THAT(
-        reg_location_node,
-        IsIntPtrAdd(
-            IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
-            IsWordShl(reg_index_node, IsIntPtrConstant(kPointerSizeLog2))));
+    EXPECT_THAT(reg_location_node,
+                IsIntPtrAdd(IsLoadParentFramePointer(),
+                            IsWordShl(reg_index_node,
+                                      IsIntPtrConstant(kPointerSizeLog2))));
   }
 }
 
@@ -594,12 +493,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadRegister) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* reg_index_node = m.IntPtrConstant(44);
     Node* load_reg_node = m.LoadRegister(reg_index_node);
-    EXPECT_THAT(
-        load_reg_node,
-        m.IsLoad(
-            MachineType::AnyTagged(),
-            IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
-            IsWordShl(reg_index_node, IsIntPtrConstant(kPointerSizeLog2))));
+    EXPECT_THAT(load_reg_node,
+                m.IsLoad(MachineType::AnyTagged(), IsLoadParentFramePointer(),
+                         IsWordShl(reg_index_node,
+                                   IsIntPtrConstant(kPointerSizeLog2))));
   }
 }
 
@@ -611,12 +508,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
     Node* store_reg_node = m.StoreRegister(store_value, reg_index_node);
     EXPECT_THAT(
         store_reg_node,
-        m.IsStore(
-            StoreRepresentation(MachineRepresentation::kTagged,
-                                kNoWriteBarrier),
-            IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
-            IsWordShl(reg_index_node, IsIntPtrConstant(kPointerSizeLog2)),
-            store_value));
+        m.IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                      kNoWriteBarrier),
+                  IsLoadParentFramePointer(),
+                  IsWordShl(reg_index_node, IsIntPtrConstant(kPointerSizeLog2)),
+                  store_value));
   }
 }
 
@@ -624,9 +520,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* value = m.Int32Constant(44);
-    EXPECT_THAT(
-        m.SmiTag(value),
-        IsWordShl(value, IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiTag(value),
+                IsIntPtrConstant(static_cast<intptr_t>(44)
+                                 << (kSmiShiftSize + kSmiTagSize)));
     EXPECT_THAT(
         m.SmiUntag(value),
         IsWordSar(value, IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
@@ -730,14 +626,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime2) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* arg1 = m.Int32Constant(2);
     Node* arg2 = m.Int32Constant(3);
-    Node* context =
-        m.Parameter(InterpreterDispatchDescriptor::kContextParameter);
+    Node* context = m.Int32Constant(4);
     Node* call_runtime = m.CallRuntime(Runtime::kAdd, context, arg1, arg2);
-    EXPECT_THAT(
-        call_runtime,
-        IsCall(_, _, arg1, arg2, _, IsInt32Constant(2),
-               IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-               _));
+    EXPECT_THAT(call_runtime,
+                IsCall(_, _, arg1, arg2, _, IsInt32Constant(2), context, _, _));
   }
 }
 
@@ -751,8 +643,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
       Node* function_id = m.Int32Constant(0);
       Node* first_arg = m.Int32Constant(1);
       Node* arg_count = m.Int32Constant(2);
-      Node* context =
-          m.Parameter(InterpreterDispatchDescriptor::kContextParameter);
+      Node* context = m.Int32Constant(4);
 
       Matcher<Node*> function_table = IsExternalConstant(
           ExternalReference::runtime_function_table_address(isolate()));
@@ -765,12 +656,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
 
       Node* call_runtime = m.CallRuntimeN(function_id, context, first_arg,
                                           arg_count, result_size);
-      EXPECT_THAT(
-          call_runtime,
-          IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
-                 function_entry,
-                 IsParameter(InterpreterDispatchDescriptor::kContextParameter),
-                 _, _));
+      EXPECT_THAT(call_runtime,
+                  IsCall(_, IsHeapConstant(builtin.code()), arg_count,
+                         first_arg, function_entry, context, _, _));
     }
   }
 }
@@ -786,16 +674,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
       Node* function = m.Int32Constant(0);
       Node* first_arg = m.Int32Constant(1);
       Node* arg_count = m.Int32Constant(2);
-      Node* context =
-          m.Parameter(InterpreterDispatchDescriptor::kContextParameter);
+      Node* context = m.Int32Constant(3);
       Node* call_js =
           m.CallJS(function, context, first_arg, arg_count, tail_call_mode);
-      EXPECT_THAT(
-          call_js,
-          IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
-                 function,
-                 IsParameter(InterpreterDispatchDescriptor::kContextParameter),
-                 _, _));
+      EXPECT_THAT(call_js, IsCall(_, IsHeapConstant(builtin.code()), arg_count,
+                                  first_arg, function, context, _, _));
     }
   }
 }
@@ -805,11 +688,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadTypeFeedbackVector) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* feedback_vector = m.LoadTypeFeedbackVector();
 
-    Matcher<Node*> load_function_matcher = m.IsLoad(
-        MachineType::AnyTagged(),
-        IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
-        IsIntPtrConstant(
-            InterpreterFrameConstants::kFunctionFromRegisterPointer));
+    Matcher<Node*> load_function_matcher =
+        m.IsLoad(MachineType::AnyTagged(), IsLoadParentFramePointer(),
+                 IsIntPtrConstant(Register::function_closure().ToOperand()
+                                  << kPointerSizeLog2));
     Matcher<Node*> load_shared_function_info_matcher =
         m.IsLoad(MachineType::AnyTagged(), load_function_matcher,
                  IsIntPtrConstant(JSFunction::kSharedFunctionInfoOffset -

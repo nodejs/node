@@ -85,7 +85,8 @@ TEST(ReturnThreeValues) {
   Node* mul = m.Int32Mul(p0, p1);
   m.Return(add, sub, mul);
 
-  CompilationInfo info("testing", handles.main_isolate(), handles.main_zone());
+  CompilationInfo info(ArrayVector("testing"), handles.main_isolate(),
+                       handles.main_zone());
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, desc, m.graph(), m.Export());
 #ifdef ENABLE_DISASSEMBLER

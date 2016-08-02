@@ -57,30 +57,6 @@ function StringValueOf() {
 }
 
 
-// ECMA-262, section 15.5.4.4
-function StringCharAtJS(pos) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.charAt");
-
-  var result = %_StringCharAt(this, pos);
-  if (%_IsSmi(result)) {
-    result = %_StringCharAt(TO_STRING(this), TO_INTEGER(pos));
-  }
-  return result;
-}
-
-
-// ECMA-262 section 15.5.4.5
-function StringCharCodeAtJS(pos) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.charCodeAt");
-
-  var result = %_StringCharCodeAt(this, pos);
-  if (!%_IsSmi(result)) {
-    result = %_StringCharCodeAt(TO_STRING(this), TO_INTEGER(pos));
-  }
-  return result;
-}
-
-
 // ECMA-262, section 15.5.4.6
 function StringConcat(other /* and more */) {  // length == 1
   "use strict";
@@ -845,13 +821,6 @@ function StringRaw(callSite) {
 
 // -------------------------------------------------------------------
 
-// Set the String function and constructor.
-%FunctionSetPrototype(GlobalString, new GlobalString());
-
-// Set up the constructor property on the String prototype object.
-%AddNamedProperty(
-    GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
-
 // Set up the non-enumerable functions on the String object.
 utils.InstallFunctions(GlobalString, DONT_ENUM, [
   "fromCodePoint", StringFromCodePoint,
@@ -862,8 +831,6 @@ utils.InstallFunctions(GlobalString, DONT_ENUM, [
 utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "valueOf", StringValueOf,
   "toString", StringToString,
-  "charAt", StringCharAtJS,
-  "charCodeAt", StringCharCodeAtJS,
   "codePointAt", StringCodePointAt,
   "concat", StringConcat,
   "endsWith", StringEndsWith,
@@ -909,7 +876,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 
 utils.Export(function(to) {
   to.ExpandReplacement = ExpandReplacement;
-  to.StringCharAt = StringCharAtJS;
   to.StringIndexOf = StringIndexOf;
   to.StringLastIndexOf = StringLastIndexOf;
   to.StringMatch = StringMatchJS;

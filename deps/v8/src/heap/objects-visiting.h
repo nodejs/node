@@ -58,6 +58,15 @@ class StaticVisitorBase : public AllStatic {
   V(JSObject8)             \
   V(JSObject9)             \
   V(JSObjectGeneric)       \
+  V(JSApiObject2)          \
+  V(JSApiObject3)          \
+  V(JSApiObject4)          \
+  V(JSApiObject5)          \
+  V(JSApiObject6)          \
+  V(JSApiObject7)          \
+  V(JSApiObject8)          \
+  V(JSApiObject9)          \
+  V(JSApiObjectGeneric)    \
   V(Struct2)               \
   V(Struct3)               \
   V(Struct4)               \
@@ -96,9 +105,10 @@ class StaticVisitorBase : public AllStatic {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
     VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
-    kVisitorIdCount,
+        kVisitorIdCount,
     kVisitDataObject = kVisitDataObject2,
     kVisitJSObject = kVisitJSObject2,
+    kVisitJSApiObject = kVisitJSApiObject2,
     kVisitStruct = kVisitStruct2,
   };
 
@@ -119,11 +129,12 @@ class StaticVisitorBase : public AllStatic {
                                        int object_size,
                                        bool has_unboxed_fields) {
     DCHECK((base == kVisitDataObject) || (base == kVisitStruct) ||
-           (base == kVisitJSObject));
+           (base == kVisitJSObject) || (base == kVisitJSApiObject));
     DCHECK(IsAligned(object_size, kPointerSize));
     DCHECK(Heap::kMinObjectSizeInWords * kPointerSize <= object_size);
     DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
-    DCHECK(!has_unboxed_fields || (base == kVisitJSObject));
+    DCHECK(!has_unboxed_fields || (base == kVisitJSObject) ||
+           (base == kVisitJSApiObject));
 
     if (has_unboxed_fields) return generic;
 
@@ -399,6 +410,28 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   typedef FlexibleBodyVisitor<StaticVisitor, JSObject::BodyDescriptor, void>
       JSObjectVisitor;
+
+  class JSApiObjectVisitor : AllStatic {
+   public:
+    template <int size>
+    static inline void VisitSpecialized(Map* map, HeapObject* object) {
+      TracePossibleWrapper(object);
+      JSObjectVisitor::template VisitSpecialized<size>(map, object);
+    }
+
+    INLINE(static void Visit(Map* map, HeapObject* object)) {
+      TracePossibleWrapper(object);
+      JSObjectVisitor::Visit(map, object);
+    }
+
+   private:
+    INLINE(static void TracePossibleWrapper(HeapObject* object)) {
+      if (object->GetHeap()->UsingEmbedderHeapTracer()) {
+        DCHECK(object->IsJSObject());
+        object->GetHeap()->TracePossibleWrapper(JSObject::cast(object));
+      }
+    }
+  };
 
   typedef FlexibleBodyVisitor<StaticVisitor, StructBodyDescriptor, void>
       StructObjectVisitor;

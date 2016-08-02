@@ -815,7 +815,7 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {
   LInstruction* result = new (zone()) LPrologue();
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     result = MarkAsCall(result, instr);
   }
   return result;
@@ -863,16 +863,6 @@ LInstruction* LChunkBuilder::DoArgumentsLength(HArgumentsLength* instr) {
 LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
   info()->MarkAsRequiresFrame();
   return DefineAsRegister(new (zone()) LArgumentsElements);
-}
-
-LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  LOperand* left =
-      UseFixed(instr->left(), InstanceOfDescriptor::LeftRegister());
-  LOperand* right =
-      UseFixed(instr->right(), InstanceOfDescriptor::RightRegister());
-  LOperand* context = UseFixed(instr->context(), cp);
-  LInstanceOf* result = new (zone()) LInstanceOf(context, left, right);
-  return MarkAsCall(DefineFixed(result, r2), instr);
 }
 
 LInstruction* LChunkBuilder::DoHasInPrototypeChainAndBranch(
@@ -2124,13 +2114,18 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 }
 
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
-  info()->MarkAsDeferredCalling();
-  LOperand* context = UseAny(instr->context());
   LOperand* size = UseRegisterOrConstant(instr->size());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LAllocate* result = new (zone()) LAllocate(context, size, temp1, temp2);
-  return AssignPointerMap(DefineAsRegister(result));
+  if (instr->IsAllocationFolded()) {
+    LFastAllocate* result = new (zone()) LFastAllocate(size, temp1, temp2);
+    return DefineAsRegister(result);
+  } else {
+    info()->MarkAsDeferredCalling();
+    LOperand* context = UseAny(instr->context());
+    LAllocate* result = new (zone()) LAllocate(context, size, temp1, temp2);
+    return AssignPointerMap(DefineAsRegister(result));
+  }
 }
 
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {

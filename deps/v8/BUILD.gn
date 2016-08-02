@@ -18,9 +18,51 @@ import("//build_overrides/v8.gni")
 import("snapshot_toolchain.gni")
 
 declare_args() {
+  # Use ICU data file (icudtl.dat) if true or library (shared on windows,
+  # static otherwise).
+  icu_use_data_file_flag = true
+
   # Enable the snapshot feature, for fast context creation.
   # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
   v8_use_snapshot = true
+
+  # Use external files for startup data blobs:
+  # the JS builtins sources and the start snapshot.
+  v8_use_external_startup_data = true
+
+  # Sets -DVERIFY_HEAP.
+  v8_enable_verify_heap = false
+
+  # Enable compiler warnings when using V8_DEPRECATED apis.
+  v8_deprecation_warnings = false
+
+  # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
+  v8_imminent_deprecation_warnings = false
+
+  # Sets -dENABLE_DISASSEMBLER.
+  v8_enable_disassembler = false
+
+  # Sets -dENABLE_GDB_JIT_INTERFACE.
+  v8_enable_gdbjit = false
+
+  # Sets -dENABLE_HANDLE_ZAPPING.
+  v8_enable_handle_zapping = is_debug
+
+  # Enable ECMAScript Internationalization API. Enabling this feature will
+  # add a dependency on the ICU library.
+  v8_enable_i18n_support = true
+
+  # Interpreted regexp engine exists as platform-independent alternative
+  # based where the regular expression is compiled to a bytecode.
+  v8_interpreted_regexp = false
+
+  # Sets -dOBJECT_PRINT.
+  v8_object_print = false
+
+  # With post mortem support enabled, metadata is embedded into libv8 that
+  # describes various parameters of the VM for use by debuggers. See
+  # tools/gen-postmortem-metadata.py for details.
+  v8_postmortem_support = false
 
   # Similar to vfp but on MIPS.
   v8_can_use_fpu_instructions = true
@@ -29,19 +71,8 @@ declare_args() {
   v8_use_mips_abi_hardfloat = true
 }
 
-# TODO(jochen): These will need to be user-settable to support standalone V8
-# builds.
-v8_deprecation_warnings = false
-v8_enable_disassembler = false
-v8_enable_gdbjit = false
-v8_enable_handle_zapping = false
-v8_enable_i18n_support = true
-v8_enable_verify_heap = false
-v8_interpreted_regexp = false
-v8_object_print = false
-v8_postmortem_support = false
 v8_random_seed = "314159265"
-v8_toolset_for_d8 = "host"
+v8_toolset_for_shell = "host"
 
 if (is_msan) {
   # Running the V8-generated code on an ARM simulator is a powerful hack that
@@ -98,6 +129,10 @@ config("external_config") {
     ]
   }
   include_dirs = [ "include" ]
+  libs = []
+  if (is_android && current_toolchain != host_toolchain) {
+    libs += [ "log" ]
+  }
 }
 
 # This config should only be applied to code that needs to be explicitly
@@ -113,31 +148,34 @@ config("features") {
 
   defines = []
 
-  if (v8_enable_disassembler == true) {
+  if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
   }
-  if (v8_enable_gdbjit == true) {
+  if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }
-  if (v8_object_print == true) {
+  if (v8_object_print) {
     defines += [ "OBJECT_PRINT" ]
   }
-  if (v8_enable_verify_heap == true) {
+  if (v8_enable_verify_heap) {
     defines += [ "VERIFY_HEAP" ]
   }
-  if (v8_interpreted_regexp == true) {
+  if (v8_interpreted_regexp) {
     defines += [ "V8_INTERPRETED_REGEXP" ]
   }
-  if (v8_deprecation_warnings == true) {
+  if (v8_deprecation_warnings) {
     defines += [ "V8_DEPRECATION_WARNINGS" ]
   }
-  if (v8_enable_i18n_support == true) {
+  if (v8_imminent_deprecation_warnings) {
+    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
+  }
+  if (v8_enable_i18n_support) {
     defines += [ "V8_I18N_SUPPORT" ]
   }
-  if (v8_enable_handle_zapping == true) {
+  if (v8_enable_handle_zapping) {
     defines += [ "ENABLE_HANDLE_ZAPPING" ]
   }
-  if (v8_use_external_startup_data == true) {
+  if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
   }
 }
@@ -167,6 +205,7 @@ config("toolchain") {
         "CAN_USE_NEON",
       ]
     }
+
     # TODO(jochen): Add support for arm_test_noprobe.
 
     if (current_cpu != "arm") {
@@ -181,6 +220,7 @@ config("toolchain") {
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
+
   # TODO(jochen): Add support for mips.
   if (v8_target_arch == "mipsel") {
     defines += [ "V8_TARGET_ARCH_MIPS" ]
@@ -212,14 +252,17 @@ config("toolchain") {
     } else if (mips_arch_variant == "r1") {
       defines += [ "FPU_MODE_FP32" ]
     }
+
     # TODO(jochen): Add support for mips_arch_variant rx and loongson.
   }
+
   # TODO(jochen): Add support for mips64.
   if (v8_target_arch == "mips64el") {
     defines += [ "V8_TARGET_ARCH_MIPS64" ]
     if (v8_can_use_fpu_instructions) {
       defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
     }
+
     # TODO(jochen): Add support for big endian host byteorder.
     defines += [ "V8_TARGET_ARCH_MIPS64_LE" ]
     if (v8_use_mips_abi_hardfloat) {
@@ -238,7 +281,7 @@ config("toolchain") {
   }
   if (v8_target_arch == "s390") {
     defines += [ "V8_TARGET_ARCH_S390" ]
-  } 
+  }
   if (v8_target_arch == "s390x") {
     defines += [
       "V8_TARGET_ARCH_S390",
@@ -251,7 +294,7 @@ config("toolchain") {
   if (v8_target_arch == "x64") {
     defines += [ "V8_TARGET_ARCH_X64" ]
   }
-     
+
   if (is_win) {
     defines += [ "WIN32" ]
     # TODO(jochen): Support v8_enable_prof.
@@ -267,8 +310,33 @@ config("toolchain") {
       "OBJECT_PRINT",
       "VERIFY_HEAP",
       "DEBUG",
-      "OPTIMIZED_DEBUG",
+      "TRACE_MAPS",
     ]
+    if (!v8_optimized_debug) {
+      defines += [ "ENABLE_SLOW_DCHECKS" ]
+    }
+  }
+}
+
+###############################################################################
+# Templates
+#
+
+template("v8_source_set") {
+  source_set(target_name) {
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":features",
+      ":toolchain",
+    ]
+
+    if (!is_debug || v8_optimized_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
+    }
   }
 }
 
@@ -304,8 +372,6 @@ action("js2c") {
     "src/js/arraybuffer.js",
     "src/js/typedarray.js",
     "src/js/iterator-prototype.js",
-    "src/js/generator.js",
-    "src/js/object-observe.js",
     "src/js/collection.js",
     "src/js/weak-collection.js",
     "src/js/collection-iterator.js",
@@ -359,10 +425,9 @@ action("js2c_experimental") {
   sources = [
     "src/js/macros.py",
     "src/messages.h",
-    "src/js/generator.js",
+    "src/js/harmony-async-await.js",
     "src/js/harmony-atomics.js",
     "src/js/harmony-regexp-exec.js",
-    "src/js/harmony-object-observe.js",
     "src/js/harmony-sharedarraybuffer.js",
     "src/js/harmony-simd.js",
     "src/js/harmony-species.js",
@@ -374,6 +439,13 @@ action("js2c_experimental") {
   outputs = [
     "$target_gen_dir/experimental-libraries.cc",
   ]
+
+  if (v8_enable_i18n_support) {
+    sources += [
+      "src/js/icu-case-mapping.js",
+      "src/js/intl-extra.js",
+    ]
+  }
 
   args = [
            rebase_path("$target_gen_dir/experimental-libraries.cc",
@@ -580,7 +652,7 @@ action("run_mksnapshot") {
 # Source Sets (aka static libraries)
 #
 
-source_set("v8_nosnapshot") {
+v8_source_set("v8_nosnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
@@ -599,16 +671,10 @@ source_set("v8_nosnapshot") {
     "src/snapshot/snapshot-empty.cc",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }
 
-source_set("v8_snapshot") {
+v8_source_set("v8_snapshot") {
   # Only targets in this file and the top-level visibility target can
   # depend on this.
   visibility = [
@@ -637,17 +703,11 @@ source_set("v8_snapshot") {
     "$target_gen_dir/snapshot.cc",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 if (v8_use_external_startup_data) {
-  source_set("v8_external_snapshot") {
+  v8_source_set("v8_external_snapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
@@ -667,17 +727,11 @@ if (v8_use_external_startup_data) {
       "src/snapshot/snapshot-external.cc",
     ]
 
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-    configs += [
-      ":internal_config",
-      ":features",
-      ":toolchain",
-    ]
+    configs = [ ":internal_config" ]
   }
 }
 
-source_set("v8_base") {
+v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
@@ -722,6 +776,7 @@ source_set("v8_base") {
     "src/ast/ast-literal-reindexer.h",
     "src/ast/ast-numbering.cc",
     "src/ast/ast-numbering.h",
+    "src/ast/ast-type-bounds.h",
     "src/ast/ast-value-factory.cc",
     "src/ast/ast-value-factory.h",
     "src/ast/ast.cc",
@@ -736,7 +791,6 @@ source_set("v8_base") {
     "src/ast/scopes.h",
     "src/ast/variables.cc",
     "src/ast/variables.h",
-    "src/atomic-utils.h",
     "src/background-parsing-task.cc",
     "src/background-parsing-task.h",
     "src/bailout-reason.cc",
@@ -763,6 +817,8 @@ source_set("v8_base") {
     "src/checks.h",
     "src/code-factory.cc",
     "src/code-factory.h",
+    "src/code-stub-assembler.cc",
+    "src/code-stub-assembler.h",
     "src/code-stubs-hydrogen.cc",
     "src/code-stubs.cc",
     "src/code-stubs.h",
@@ -796,15 +852,13 @@ source_set("v8_base") {
     "src/compiler/bytecode-graph-builder.cc",
     "src/compiler/bytecode-graph-builder.h",
     "src/compiler/c-linkage.cc",
-    "src/compiler/change-lowering.cc",
-    "src/compiler/change-lowering.h",
     "src/compiler/coalesced-live-ranges.cc",
     "src/compiler/coalesced-live-ranges.h",
+    "src/compiler/code-assembler.cc",
+    "src/compiler/code-assembler.h",
     "src/compiler/code-generator-impl.h",
     "src/compiler/code-generator.cc",
     "src/compiler/code-generator.h",
-    "src/compiler/code-stub-assembler.cc",
-    "src/compiler/code-stub-assembler.h",
     "src/compiler/common-node-cache.cc",
     "src/compiler/common-node-cache.h",
     "src/compiler/common-operator-reducer.cc",
@@ -820,6 +874,8 @@ source_set("v8_base") {
     "src/compiler/dead-code-elimination.cc",
     "src/compiler/dead-code-elimination.h",
     "src/compiler/diamond.h",
+    "src/compiler/effect-control-linearizer.cc",
+    "src/compiler/effect-control-linearizer.h",
     "src/compiler/escape-analysis-reducer.cc",
     "src/compiler/escape-analysis-reducer.h",
     "src/compiler/escape-analysis.cc",
@@ -899,6 +955,8 @@ source_set("v8_base") {
     "src/compiler/machine-operator-reducer.h",
     "src/compiler/machine-operator.cc",
     "src/compiler/machine-operator.h",
+    "src/compiler/memory-optimizer.cc",
+    "src/compiler/memory-optimizer.h",
     "src/compiler/move-optimizer.cc",
     "src/compiler/move-optimizer.h",
     "src/compiler/node-aux-data.h",
@@ -973,6 +1031,7 @@ source_set("v8_base") {
     "src/conversions-inl.h",
     "src/conversions.cc",
     "src/conversions.h",
+    "src/counters-inl.h",
     "src/counters.cc",
     "src/counters.h",
     "src/crankshaft/compilation-phase.cc",
@@ -1075,6 +1134,8 @@ source_set("v8_base") {
     "src/extensions/free-buffer-extension.h",
     "src/extensions/gc-extension.cc",
     "src/extensions/gc-extension.h",
+    "src/extensions/ignition-statistics-extension.cc",
+    "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.cc",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.cc",
@@ -1177,8 +1238,14 @@ source_set("v8_base") {
     "src/interpreter/bytecode-array-builder.h",
     "src/interpreter/bytecode-array-iterator.cc",
     "src/interpreter/bytecode-array-iterator.h",
+    "src/interpreter/bytecode-array-writer.cc",
+    "src/interpreter/bytecode-array-writer.h",
     "src/interpreter/bytecode-generator.cc",
     "src/interpreter/bytecode-generator.h",
+    "src/interpreter/bytecode-peephole-optimizer.cc",
+    "src/interpreter/bytecode-peephole-optimizer.h",
+    "src/interpreter/bytecode-pipeline.cc",
+    "src/interpreter/bytecode-pipeline.h",
     "src/interpreter/bytecode-register-allocator.cc",
     "src/interpreter/bytecode-register-allocator.h",
     "src/interpreter/bytecode-traits.h",
@@ -1281,6 +1348,8 @@ source_set("v8_base") {
     "src/profiler/sampling-heap-profiler.h",
     "src/profiler/strings-storage.cc",
     "src/profiler/strings-storage.h",
+    "src/profiler/tick-sample.cc",
+    "src/profiler/tick-sample.h",
     "src/profiler/unbound-queue-inl.h",
     "src/profiler/unbound-queue.h",
     "src/property-descriptor.cc",
@@ -1332,7 +1401,6 @@ source_set("v8_base") {
     "src/runtime/runtime-maths.cc",
     "src/runtime/runtime-numbers.cc",
     "src/runtime/runtime-object.cc",
-    "src/runtime/runtime-observe.cc",
     "src/runtime/runtime-operators.cc",
     "src/runtime/runtime-proxy.cc",
     "src/runtime/runtime-regexp.cc",
@@ -1399,8 +1467,6 @@ source_set("v8_base") {
     "src/types.h",
     "src/typing-asm.cc",
     "src/typing-asm.h",
-    "src/typing-reset.cc",
-    "src/typing-reset.h",
     "src/unicode-cache-inl.h",
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",
@@ -1408,6 +1474,8 @@ source_set("v8_base") {
     "src/unicode-inl.h",
     "src/unicode.cc",
     "src/unicode.h",
+    "src/uri.cc",
+    "src/uri.h",
     "src/utils-inl.h",
     "src/utils.cc",
     "src/utils.h",
@@ -1427,9 +1495,15 @@ source_set("v8_base") {
     "src/wasm/decoder.h",
     "src/wasm/encoder.cc",
     "src/wasm/encoder.h",
+    "src/wasm/leb-helper.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
+    "src/wasm/switch-logic.cc",
+    "src/wasm/switch-logic.h",
+    "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
+    "src/wasm/wasm-function-name-table.cc",
+    "src/wasm/wasm-function-name-table.h",
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",
     "src/wasm/wasm-macro-gen.h",
@@ -1664,10 +1738,10 @@ source_set("v8_base") {
     ]
   } else if (v8_target_arch == "mips64el") {
     sources += [
-      "compiler/mips64/code-generator-mips64.cc",
-      "compiler/mips64/instruction-codes-mips64.h",
-      "compiler/mips64/instruction-scheduler-mips64.cc",
-      "compiler/mips64/instruction-selector-mips64.cc",
+      "src/compiler/mips64/code-generator-mips64.cc",
+      "src/compiler/mips64/instruction-codes-mips64.h",
+      "src/compiler/mips64/instruction-scheduler-mips64.cc",
+      "src/compiler/mips64/instruction-selector-mips64.cc",
       "src/crankshaft/mips64/lithium-codegen-mips64.cc",
       "src/crankshaft/mips64/lithium-codegen-mips64.h",
       "src/crankshaft/mips64/lithium-gap-resolver-mips64.cc",
@@ -1748,18 +1822,7 @@ source_set("v8_base") {
     ]
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":features",
-    ":toolchain",
-  ]
-
-  if (!is_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
+  configs = [ ":internal_config" ]
 
   defines = []
   deps = [
@@ -1777,8 +1840,13 @@ source_set("v8_base") {
       deps += [ "//third_party/icu:icudata" ]
     }
 
-    # TODO(jochen): Add support for icu_use_data_file_flag
-    defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
+    if (icu_use_data_file_flag) {
+      defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
+    } else if (is_win) {
+      defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED" ]
+    } else {
+      defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC" ]
+    }
   } else {
     sources -= [
       "src/i18n.cc",
@@ -1792,13 +1860,14 @@ source_set("v8_base") {
   }
 }
 
-source_set("v8_libbase") {
+v8_source_set("v8_libbase") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
     "src/base/accounting-allocator.cc",
     "src/base/accounting-allocator.h",
     "src/base/adapters.h",
+    "src/base/atomic-utils.h",
     "src/base/atomicops.h",
     "src/base/atomicops_internals_arm64_gcc.h",
     "src/base/atomicops_internals_arm_gcc.h",
@@ -1820,6 +1889,7 @@ source_set("v8_libbase") {
     "src/base/division-by-constant.cc",
     "src/base/division-by-constant.h",
     "src/base/flags.h",
+    "src/base/format-macros.h",
     "src/base/functional.cc",
     "src/base/functional.h",
     "src/base/iterator.h",
@@ -1850,18 +1920,7 @@ source_set("v8_libbase") {
     "src/base/utils/random-number-generator.h",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config_base",
-    ":features",
-    ":toolchain",
-  ]
-
-  if (!is_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
+  configs = [ ":internal_config_base" ]
 
   defines = []
 
@@ -1910,7 +1969,7 @@ source_set("v8_libbase") {
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
-source_set("v8_libplatform") {
+v8_source_set("v8_libplatform") {
   sources = [
     "include/libplatform/libplatform.h",
     "src/libplatform/default-platform.cc",
@@ -1921,25 +1980,16 @@ source_set("v8_libplatform") {
     "src/libplatform/worker-thread.h",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config_base",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config_base" ]
 
-  if (!is_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
+  public_configs = [ ":libplatform_config" ]
 
   deps = [
     ":v8_libbase",
   ]
 }
 
-source_set("fuzzer_support") {
+v8_source_set("fuzzer_support") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
@@ -1947,18 +1997,14 @@ source_set("fuzzer_support") {
     "test/fuzzer/fuzzer-support.h",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config_base",
-    ":libplatform_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config_base" ]
 
   deps = [
-    ":v8_libplatform",
     snapshot_target,
+  ]
+
+  public_deps = [
+    ":v8_libplatform",
   ]
 }
 
@@ -1978,7 +2024,6 @@ if (current_toolchain == snapshot_toolchain) {
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
       ":internal_config",
-      ":libplatform_config",
       ":features",
       ":toolchain",
     ]
@@ -1988,6 +2033,7 @@ if (current_toolchain == snapshot_toolchain) {
       ":v8_libplatform",
       ":v8_nosnapshot",
       "//build/config/sanitizers:deps",
+      "//build/win:default_exe_manifest",
     ]
   }
 }
@@ -2016,11 +2062,6 @@ if (is_component_build) {
     ]
 
     public_configs = [ ":external_config" ]
-
-    libs = []
-    if (is_android && current_toolchain != host_toolchain) {
-      libs += [ "log" ]
-    }
   }
 } else {
   group("v8") {
@@ -2032,13 +2073,51 @@ if (is_component_build) {
   }
 }
 
-if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
-    (current_toolchain == snapshot_toolchain && v8_toolset_for_d8 == "host") ||
-    (current_toolchain != host_toolchain && v8_toolset_for_d8 == "target")) {
-  executable("d8") {
+executable("d8") {
+  sources = [
+    "src/d8.cc",
+    "src/d8.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    # Note: don't use :internal_config here because this target will get
+    # the :external_config applied to it by virtue of depending on :v8, and
+    # you can't have both applied to the same target.
+    ":internal_config_base",
+    ":features",
+    ":toolchain",
+  ]
+
+  deps = [
+    ":d8_js2c",
+    ":v8",
+    ":v8_libplatform",
+    "//build/config/sanitizers:deps",
+    "//build/win:default_exe_manifest",
+  ]
+
+  # TODO(jochen): Add support for vtunejit.
+
+  if (is_posix) {
+    sources += [ "src/d8-posix.cc" ]
+  } else if (is_win) {
+    sources += [ "src/d8-windows.cc" ]
+  }
+
+  if (!is_component_build) {
+    sources += [ "$target_gen_dir/d8-js.cc" ]
+  }
+  if (v8_enable_i18n_support) {
+    deps += [ "//third_party/icu" ]
+  }
+}
+
+if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (current_toolchain == snapshot_toolchain && v8_toolset_for_shell == "host") || (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
+  executable("v8_shell") {
     sources = [
-      "src/d8.cc",
-      "src/d8.h",
+      "samples/shell.cc",
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
@@ -2053,30 +2132,19 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
     ]
 
     deps = [
-      ":d8_js2c",
       ":v8",
       ":v8_libplatform",
       "//build/config/sanitizers:deps",
+      "//build/win:default_exe_manifest",
     ]
 
-    # TODO(jochen): Add support for vtunejit.
-
-    if (is_posix) {
-      sources += [ "src/d8-posix.cc" ]
-    } else if (is_win) {
-      sources += [ "src/d8-windows.cc" ]
-    }
-
-    if (!is_component_build) {
-      sources += [ "$target_gen_dir/d8-js.cc" ]
-    }
     if (v8_enable_i18n_support) {
       deps += [ "//third_party/icu" ]
     }
   }
 }
 
-source_set("json_fuzzer") {
+v8_source_set("json_fuzzer") {
   sources = [
     "test/fuzzer/json.cc",
   ]
@@ -2085,17 +2153,10 @@ source_set("json_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":libplatform_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }
 
-source_set("parser_fuzzer") {
+v8_source_set("parser_fuzzer") {
   sources = [
     "test/fuzzer/parser.cc",
   ]
@@ -2104,17 +2165,10 @@ source_set("parser_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":libplatform_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }
 
-source_set("regexp_fuzzer") {
+v8_source_set("regexp_fuzzer") {
   sources = [
     "test/fuzzer/regexp.cc",
   ]
@@ -2123,17 +2177,10 @@ source_set("regexp_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":libplatform_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }
 
-source_set("wasm_fuzzer") {
+v8_source_set("wasm_fuzzer") {
   sources = [
     "test/fuzzer/wasm.cc",
   ]
@@ -2142,17 +2189,10 @@ source_set("wasm_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":libplatform_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }
 
-source_set("wasm_asmjs_fuzzer") {
+v8_source_set("wasm_asmjs_fuzzer") {
   sources = [
     "test/fuzzer/wasm-asmjs.cc",
   ]
@@ -2161,12 +2201,5 @@ source_set("wasm_asmjs_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    ":internal_config",
-    ":libplatform_config",
-    ":features",
-    ":toolchain",
-  ]
+  configs = [ ":internal_config" ]
 }

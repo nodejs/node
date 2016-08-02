@@ -6,6 +6,7 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
 #include "src/ast/ast.h"
+#include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
@@ -21,6 +22,8 @@ class Isolate;
 namespace interpreter {
 
 class BytecodeLabel;
+class BytecodeNode;
+class BytecodePipelineStage;
 class Register;
 
 class BytecodeArrayBuilder final : public ZoneObject {
@@ -28,7 +31,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
                        int context_count, int locals_count,
                        FunctionLiteral* literal = nullptr);
-  ~BytecodeArrayBuilder();
 
   Handle<BytecodeArray> ToBytecodeArray();
 
@@ -224,7 +226,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
 
-  BytecodeArrayBuilder& StackCheck();
+  BytecodeArrayBuilder& StackCheck(int position);
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
@@ -240,6 +242,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
                                   Register cache_type_array_pair,
                                   int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
+
+  // Generators.
+  BytecodeArrayBuilder& SuspendGenerator(Register generator);
+  BytecodeArrayBuilder& ResumeGenerator(Register generator);
 
   // Exception handling.
   BytecodeArrayBuilder& MarkHandler(int handler_id, bool will_catch);
@@ -257,25 +263,15 @@ class BytecodeArrayBuilder final : public ZoneObject {
   void SetExpressionAsStatementPosition(Expression* expr);
 
   // Accessors
-  Zone* zone() const { return zone_; }
   TemporaryRegisterAllocator* temporary_register_allocator() {
     return &temporary_allocator_;
   }
   const TemporaryRegisterAllocator* temporary_register_allocator() const {
     return &temporary_allocator_;
   }
+  Zone* zone() const { return zone_; }
 
   void EnsureReturn();
-
-  static OperandScale OperandSizesToScale(
-      OperandSize size0, OperandSize size1 = OperandSize::kByte,
-      OperandSize size2 = OperandSize::kByte,
-      OperandSize size3 = OperandSize::kByte);
-
-  static OperandSize SizeForRegisterOperand(Register reg);
-  static OperandSize SizeForSignedOperand(int value);
-  static OperandSize SizeForUnsignedOperand(int value);
-  static OperandSize SizeForUnsignedOperand(size_t value);
 
   static uint32_t RegisterOperand(Register reg);
   static Register RegisterFromOperand(uint32_t operand);
@@ -284,7 +280,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   static uint32_t UnsignedOperand(size_t value);
 
  private:
-  class PreviousBytecodeHelper;
   friend class BytecodeRegisterAllocator;
 
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
@@ -300,11 +295,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   static Bytecode BytecodeForCall(TailCallMode tail_call_mode);
 
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_smi8_operand);
-  static Bytecode GetJumpWithToBoolean(Bytecode jump_smi8_operand);
 
-  template <size_t N>
-  INLINE(void Output(Bytecode bytecode, uint32_t (&operands)[N],
-                     OperandScale operand_scale = OperandScale::kSingle));
   void Output(Bytecode bytecode);
   void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
                     uint32_t operand0, uint32_t operand1, uint32_t operand2,
@@ -318,14 +309,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
                                    BytecodeLabel* label);
-  void PatchJump(const ZoneVector<uint8_t>::iterator& jump_target,
-                 const ZoneVector<uint8_t>::iterator& jump_location);
-  void PatchIndirectJumpWith8BitOperand(
-      const ZoneVector<uint8_t>::iterator& jump_location, int delta);
-  void PatchIndirectJumpWith16BitOperand(
-      const ZoneVector<uint8_t>::iterator& jump_location, int delta);
-  void PatchIndirectJumpWith32BitOperand(
-      const ZoneVector<uint8_t>::iterator& jump_location, int delta);
+  void PatchJump(size_t jump_target, size_t jump_location);
+  void PatchJumpWith8BitOperand(ZoneVector<uint8_t>* bytecodes,
+                                size_t jump_location, int delta);
+  void PatchJumpWith16BitOperand(ZoneVector<uint8_t>* bytecodes,
+                                 size_t jump_location, int delta);
+  void PatchJumpWith32BitOperand(ZoneVector<uint8_t>* bytecodes,
+                                 size_t jump_location, int delta);
 
   void LeaveBasicBlock();
 
@@ -333,9 +323,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
                       int operand_index, uint32_t operand_value) const;
   bool RegisterIsValid(Register reg, OperandSize reg_size) const;
 
-  bool LastBytecodeInSameBlock() const;
-  bool NeedToBooleanCast();
-  bool IsRegisterInAccumulator(Register reg);
+  // Attach latest source position to |node|.
+  void AttachSourceInfo(BytecodeNode* node);
 
   // Set position for return.
   void SetReturnPosition();
@@ -343,9 +332,16 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
 
-  ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
-  const ZoneVector<uint8_t>* bytecodes() const { return &bytecodes_; }
+  // Not implemented as the illegal bytecode is used inside internally
+  // to indicate a bytecode field is not valid or an error has occured
+  // during bytecode generation.
+  BytecodeArrayBuilder& Illegal();
+
   Isolate* isolate() const { return isolate_; }
+  BytecodeArrayWriter* bytecode_array_writer() {
+    return &bytecode_array_writer_;
+  }
+  BytecodePipelineStage* pipeline() { return pipeline_; }
   ConstantArrayBuilder* constant_array_builder() {
     return &constant_array_builder_;
   }
@@ -361,13 +357,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   Isolate* isolate_;
   Zone* zone_;
-  ZoneVector<uint8_t> bytecodes_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
   SourcePositionTableBuilder source_position_table_builder_;
-  size_t last_block_end_;
-  size_t last_bytecode_start_;
   bool exit_seen_in_block_;
   int unbound_jumps_;
   int parameter_count_;
@@ -375,6 +368,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
   int context_register_count_;
   int return_position_;
   TemporaryRegisterAllocator temporary_allocator_;
+  BytecodeArrayWriter bytecode_array_writer_;
+  BytecodePipelineStage* pipeline_;
+  BytecodeSourceInfo latest_source_info_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };

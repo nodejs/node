@@ -15,7 +15,7 @@ namespace internal {
 
 // Forward declarations.
 class BitVector;
-
+class CompilationInfo;
 
 namespace compiler {
 
@@ -341,7 +341,6 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildThrowUnsupportedSuperError(BailoutId bailout_id);
 
   // Builders for dynamic hole-checks at runtime.
-  Node* BuildHoleCheckSilent(Node* value, Node* for_hole, Node* not_hole);
   Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,
                                 BailoutId bailout_id);
   Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,

@@ -14,6 +14,15 @@ namespace compiler {
 #define CACHED(name, expr) \
   cached_nodes_[name] ? cached_nodes_[name] : (cached_nodes_[name] = (expr))
 
+Node* JSGraph::AllocateInNewSpaceStubConstant() {
+  return CACHED(kAllocateInNewSpaceStubConstant,
+                HeapConstant(isolate()->builtins()->AllocateInNewSpace()));
+}
+
+Node* JSGraph::AllocateInOldSpaceStubConstant() {
+  return CACHED(kAllocateInOldSpaceStubConstant,
+                HeapConstant(isolate()->builtins()->AllocateInOldSpace()));
+}
 
 Node* JSGraph::CEntryStubConstant(int result_size) {
   if (result_size == 1) {
@@ -29,9 +38,19 @@ Node* JSGraph::EmptyFixedArrayConstant() {
                 HeapConstant(factory()->empty_fixed_array()));
 }
 
+Node* JSGraph::HeapNumberMapConstant() {
+  return CACHED(kHeapNumberMapConstant,
+                HeapConstant(factory()->heap_number_map()));
+}
+
 Node* JSGraph::OptimizedOutConstant() {
   return CACHED(kOptimizedOutConstant,
                 HeapConstant(factory()->optimized_out()));
+}
+
+Node* JSGraph::StaleRegisterConstant() {
+  return CACHED(kStaleRegisterConstant,
+                HeapConstant(factory()->stale_register()));
 }
 
 Node* JSGraph::UndefinedConstant() {
@@ -76,9 +95,6 @@ Node* JSGraph::NaNConstant() {
 
 
 Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
-  if (value->IsConsString()) {
-    value = String::Flatten(Handle<String>::cast(value), TENURED);
-  }
   Node** loc = cache_.FindHeapConstant(value);
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->HeapConstant(value));
@@ -139,6 +155,28 @@ Node* JSGraph::Int64Constant(int64_t value) {
   return *loc;
 }
 
+Node* JSGraph::RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
+  Node** loc = cache_.FindRelocatableInt32Constant(value);
+  if (*loc == nullptr) {
+    *loc = graph()->NewNode(common()->RelocatableInt32Constant(value, rmode));
+  }
+  return *loc;
+}
+
+Node* JSGraph::RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode) {
+  Node** loc = cache_.FindRelocatableInt64Constant(value);
+  if (*loc == nullptr) {
+    *loc = graph()->NewNode(common()->RelocatableInt64Constant(value, rmode));
+  }
+  return *loc;
+}
+
+Node* JSGraph::RelocatableIntPtrConstant(intptr_t value,
+                                         RelocInfo::Mode rmode) {
+  return kPointerSize == 8
+             ? RelocatableInt64Constant(value, rmode)
+             : RelocatableInt32Constant(static_cast<int>(value), rmode);
+}
 
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);

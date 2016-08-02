@@ -15,14 +15,14 @@ frame size: 2
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
-  B(Star), R(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LdaConstant), U8(1),
-  B(DeletePropertySloppy), R(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
+                B(Star), R(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   56 S> */ B(Star), R(1),
+                B(LdaConstant), U8(1),
+                B(DeletePropertySloppy), R(1),
+  /*   75 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -39,14 +39,14 @@ frame size: 2
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
-  B(Star), R(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LdaConstant), U8(1),
-  B(DeletePropertyStrict), R(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
+                B(Star), R(1),
+  /*   56 E> */ B(Star), R(0),
+  /*   70 S> */ B(Star), R(1),
+                B(LdaConstant), U8(1),
+                B(DeletePropertyStrict), R(1),
+  /*   89 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -63,14 +63,14 @@ frame size: 2
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
-  B(Star), R(1),
-  B(Star), R(0),
-  B(Star), R(1),
-  B(LdaSmi), U8(2),
-  B(DeletePropertySloppy), R(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
+                B(Star), R(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   56 S> */ B(Star), R(1),
+                B(LdaSmi), U8(2),
+                B(DeletePropertySloppy), R(1),
+  /*   76 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -86,11 +86,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 7
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(10),
-  B(Star), R(0),
-  B(LdaFalse),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(10),
+  /*   42 E> */ B(Star), R(0),
+  /*   46 S> */ B(LdaFalse),
+  /*   63 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -108,18 +108,18 @@ frame size: 2
 parameter count: 1
 bytecode array length: 30
 bytecodes: [
-  B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
-  B(PushContext), R(0),
-  B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
-  B(Star), R(1),
-  B(StaContextSlot), R(context), U8(4),
-  B(CreateClosure), U8(1), U8(0),
-  B(LdaContextSlot), R(context), U8(4),
-  B(Star), R(1),
-  B(LdaSmi), U8(1),
-  B(DeletePropertyStrict), R(1),
-  B(Return),
+                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(PushContext), R(0),
+  /*   30 E> */ B(StackCheck),
+  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
+                B(Star), R(1),
+  /*   56 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   64 S> */ B(CreateClosure), U8(1), U8(0),
+  /*   93 S> */ B(LdaContextSlot), R(context), U8(4),
+                B(Star), R(1),
+                B(LdaSmi), U8(1),
+                B(DeletePropertyStrict), R(1),
+  /*  113 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -136,9 +136,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 3
 bytecodes: [
-  B(StackCheck),
-  B(LdaTrue),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaTrue),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
 ]

@@ -34,7 +34,7 @@ function listener(event, exec_state, event_data, data) {
       exec_state.frame(0).evaluate("debugger;");
     } else {
       checkScopes(exec_state.frame(0).allScopes(),
-                  [ ScopeType.With, ScopeType.Closure,
+                  [ ScopeType.Eval, ScopeType.With, ScopeType.Closure,
                     ScopeType.Script, ScopeType.Global ]);
     }
   } catch (e) {

@@ -135,8 +135,6 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  LanguageMode language_mode() const { return info()->language_mode(); }
-
   Scope* scope() const { return scope_; }
 
   Register scratch0() { return r9; }

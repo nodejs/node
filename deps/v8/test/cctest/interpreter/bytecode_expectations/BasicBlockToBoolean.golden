@@ -15,19 +15,19 @@ frame size: 2
 parameter count: 1
 bytecode array length: 21
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(0),
-  B(JumpIfToBooleanTrue), U8(9),
-  B(Ldar), R(0),
-  B(Star), R(1),
-  B(LdaZero),
-  B(TestLessThan), R(1),
-  B(JumpIfToBooleanFalse), U8(5),
-  B(LdaSmi), U8(1),
-  B(Return),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(9),
+  /*   54 E> */ B(Ldar), R(0),
+                B(Star), R(1),
+                B(LdaZero),
+  /*   56 E> */ B(TestLessThan), R(1),
+                B(JumpIfToBooleanFalse), U8(5),
+  /*   63 S> */ B(LdaSmi), U8(1),
+  /*   75 S> */ B(Return),
+                B(LdaUndefined),
+  /*   75 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -42,19 +42,19 @@ frame size: 2
 parameter count: 1
 bytecode array length: 21
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(0),
-  B(JumpIfToBooleanFalse), U8(9),
-  B(Ldar), R(0),
-  B(Star), R(1),
-  B(LdaZero),
-  B(TestLessThan), R(1),
-  B(JumpIfToBooleanFalse), U8(5),
-  B(LdaSmi), U8(1),
-  B(Return),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   45 S> */ B(JumpIfToBooleanFalse), U8(9),
+  /*   54 E> */ B(Ldar), R(0),
+                B(Star), R(1),
+                B(LdaZero),
+  /*   56 E> */ B(TestLessThan), R(1),
+                B(JumpIfToBooleanFalse), U8(5),
+  /*   63 S> */ B(LdaSmi), U8(1),
+  /*   75 S> */ B(Return),
+                B(LdaUndefined),
+  /*   75 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -69,21 +69,21 @@ frame size: 2
 parameter count: 1
 bytecode array length: 26
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(0),
-  B(JumpIfToBooleanTrue), U8(9),
-  B(Ldar), R(0),
-  B(Star), R(1),
-  B(LdaZero),
-  B(TestLessThan), R(1),
-  B(JumpIfToBooleanFalse), U8(6),
-  B(LdaSmi), U8(2),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(3),
-  B(Star), R(0),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 E> */ B(Star), R(0),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(9),
+  /*   55 E> */ B(Ldar), R(0),
+                B(Star), R(1),
+                B(LdaZero),
+  /*   57 E> */ B(TestLessThan), R(1),
+                B(JumpIfToBooleanFalse), U8(6),
+                B(LdaSmi), U8(2),
+                B(Jump), U8(4),
+                B(LdaSmi), U8(3),
+  /*   47 E> */ B(Star), R(0),
+                B(LdaUndefined),
+  /*   71 S> */ B(Return),
 ]
 constant pool: [
 ]

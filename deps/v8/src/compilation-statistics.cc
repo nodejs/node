@@ -66,9 +66,8 @@ static void WriteLine(std::ostream& os, const char* name,
   double size_percent =
       static_cast<double>(stats.total_allocated_bytes_ * 100) /
       static_cast<double>(total_stats.total_allocated_bytes_);
-  base::OS::SNPrintF(buffer, kBufferSize,
-                     "%28s %10.3f (%5.1f%%)  "
-                     "%10u (%5.1f%%) %10u %10u",
+  base::OS::SNPrintF(buffer, kBufferSize, "%28s %10.3f (%5.1f%%)  %10" PRIuS
+                                          " (%5.1f%%) %10" PRIuS " %10" PRIuS,
                      name, ms, percent, stats.total_allocated_bytes_,
                      size_percent, stats.max_allocated_bytes_,
                      stats.absolute_max_allocated_bytes_);

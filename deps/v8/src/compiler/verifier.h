@@ -21,8 +21,10 @@ class Schedule;
 class Verifier {
  public:
   enum Typing { TYPED, UNTYPED };
+  enum CheckInputs { kValuesOnly, kAll };
 
-  static void Run(Graph* graph, Typing typing = TYPED);
+  static void Run(Graph* graph, Typing typing = TYPED,
+                  CheckInputs check_inputs = kAll);
 
 #ifdef DEBUG
   // Verifies consistency of node inputs and uses:

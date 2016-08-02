@@ -100,6 +100,15 @@ void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
   Bind(&ok);
 }
 
+void RegExpMacroAssembler::CheckPosition(int cp_offset,
+                                         Label* on_outside_input) {
+  LoadCurrentCharacter(cp_offset, on_outside_input, true);
+}
+
+bool RegExpMacroAssembler::CheckSpecialCharacterClass(uc16 type,
+                                                      Label* on_no_match) {
+  return false;
+}
 
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 

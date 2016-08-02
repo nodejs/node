@@ -73,12 +73,10 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                          where_to_point);
         return;
       case Code::STUB:
-        SerializeCodeStub(code_object->stub_key(), how_to_code, where_to_point);
-        return;
 #define IC_KIND_CASE(KIND) case Code::KIND:
         IC_KIND_LIST(IC_KIND_CASE)
 #undef IC_KIND_CASE
-        SerializeIC(code_object, how_to_code, where_to_point);
+        SerializeCodeStub(code_object, how_to_code, where_to_point);
         return;
       case Code::FUNCTION:
         DCHECK(code_object->has_reloc_info_for_serialization());
@@ -130,71 +128,23 @@ void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
   sink_->PutInt(builtin_index, "builtin_index");
 }
 
-void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
+void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                                        WhereToPoint where_to_point) {
-  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kPlain && where_to_point == kInnerPointer) ||
-         (how_to_code == kFromCode && where_to_point == kInnerPointer));
+  // We only arrive here if we have not encountered this code stub before.
+  DCHECK(!reference_map()->Lookup(code_stub).is_valid());
+  uint32_t stub_key = code_stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
   DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
-
-  int index = AddCodeStubKey(stub_key) + kCodeStubsBaseIndex;
-
-  if (FLAG_trace_serializer) {
-    PrintF(" Encoding code stub %s as %d\n",
-           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)), index);
-  }
-
-  sink_->Put(kAttachedReference + how_to_code + where_to_point, "CodeStub");
-  sink_->PutInt(index, "CodeStub key");
-}
-
-void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
-                                 WhereToPoint where_to_point) {
-  // The IC may be implemented as a stub.
-  uint32_t stub_key = ic->stub_key();
-  if (stub_key != CodeStub::NoCacheKey()) {
-    if (FLAG_trace_serializer) {
-      PrintF(" %s is a code stub\n", Code::Kind2String(ic->kind()));
-    }
-    SerializeCodeStub(stub_key, how_to_code, where_to_point);
-    return;
-  }
-  // The IC may be implemented as builtin. Only real builtins have an
-  // actual builtin_index value attached (otherwise it's just garbage).
-  // Compare to make sure we are really dealing with a builtin.
-  int builtin_index = ic->builtin_index();
-  if (builtin_index < Builtins::builtin_count) {
-    Builtins::Name name = static_cast<Builtins::Name>(builtin_index);
-    Code* builtin = isolate()->builtins()->builtin(name);
-    if (builtin == ic) {
-      if (FLAG_trace_serializer) {
-        PrintF(" %s is a builtin\n", Code::Kind2String(ic->kind()));
-      }
-      DCHECK(ic->kind() == Code::KEYED_LOAD_IC ||
-             ic->kind() == Code::KEYED_STORE_IC);
-      SerializeBuiltin(builtin_index, how_to_code, where_to_point);
-      return;
-    }
-  }
-  // The IC may also just be a piece of code kept in the non_monomorphic_cache.
-  // In that case, just serialize as a normal code object.
-  if (FLAG_trace_serializer) {
-    PrintF(" %s has no special handling\n", Code::Kind2String(ic->kind()));
-  }
-  DCHECK(ic->kind() == Code::LOAD_IC || ic->kind() == Code::STORE_IC);
-  SerializeGeneric(ic, how_to_code, where_to_point);
-}
-
-int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
-  // TODO(yangguo) Maybe we need a hash table for a faster lookup than O(n^2).
-  int index = 0;
-  while (index < stub_keys_.length()) {
-    if (stub_keys_[index] == stub_key) return index;
-    index++;
-  }
   stub_keys_.Add(stub_key);
-  return index;
+
+  SerializerReference reference =
+      reference_map()->AddAttachedReference(code_stub);
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding code stub %s as attached reference %d\n",
+           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)),
+           reference.attached_reference_index());
+  }
+  PutAttachedReference(reference, how_to_code, where_to_point);
 }
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
@@ -212,18 +162,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  // Prepare and register list of attached objects.
-  Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
-  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
-      code_stub_keys.length() + kCodeStubsBaseIndex);
-  attached_objects[kSourceObjectIndex] = source;
-  for (int i = 0; i < code_stub_keys.length(); i++) {
-    attached_objects[i + kCodeStubsBaseIndex] =
-        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
-  }
-
   Deserializer deserializer(scd.get());
-  deserializer.SetAttachedObjects(attached_objects);
+  deserializer.AddAttachedObject(source);
+  Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
+  for (int i = 0; i < code_stub_keys.length(); i++) {
+    deserializer.AddAttachedObject(
+        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked());
+  }
 
   // Deserialize.
   Handle<SharedFunctionInfo> result;
@@ -247,8 +192,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());
     }
-    isolate->logger()->CodeCreateEvent(
-        Logger::SCRIPT_TAG, result->abstract_code(), *result, NULL, name);
+    isolate->logger()->CodeCreateEvent(Logger::SCRIPT_TAG,
+                                       result->abstract_code(), *result, name);
   }
   return scope.CloseAndEscape(result);
 }

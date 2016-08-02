@@ -10,14 +10,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function makeFFI(func, t) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([t,t,t,t,t,t,t,t,t,t,t]);
+  var sig_index = builder.addSignature([10,t,t,t,t,t,t,t,t,t,t,1,t]);
   builder.addImport("func", sig_index);
   // Try to create a frame with lots of spilled values and parameters
   // on the stack to try to catch GC bugs in the reference maps for
   // the different parts of the stack.
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,       // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -28,7 +27,7 @@ function makeFFI(func, t) {
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
       kExprGetLocal, 9,         // --
-      kExprCallImport, 0,       // --
+      kExprCallImport, 10, 0,   // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -38,7 +37,8 @@ function makeFFI(func, t) {
       kExprGetLocal, 6,         // --
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
-      kExprGetLocal, 9          // --
+      kExprGetLocal, 9,         // --
+      kExprCallImport, 10, 0    // --
     ])                          // --
     .exportFunc();
 

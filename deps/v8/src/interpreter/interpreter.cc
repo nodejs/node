@@ -4,6 +4,8 @@
 
 #include "src/interpreter/interpreter.h"
 
+#include <fstream>
+
 #include "src/ast/prettyprinter.h"
 #include "src/code-factory.h"
 #include "src/compiler.h"
@@ -20,6 +22,8 @@ namespace internal {
 namespace interpreter {
 
 using compiler::Node;
+typedef CodeStubAssembler::Label Label;
+typedef CodeStubAssembler::Variable Variable;
 
 #define __ assembler->
 
@@ -28,15 +32,26 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
 }
 
 void Interpreter::Initialize() {
-  DCHECK(FLAG_ignition);
   if (IsDispatchTableInitialized()) return;
   Zone zone(isolate_->allocator());
   HandleScope scope(isolate_);
 
+  if (FLAG_trace_ignition_dispatches) {
+    static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
+    bytecode_dispatch_counters_table_.Reset(
+        new uintptr_t[kBytecodeCount * kBytecodeCount]);
+    memset(bytecode_dispatch_counters_table_.get(), 0,
+           sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
+  }
+
   // Generate bytecode handlers for all bytecodes and scales.
-  for (OperandScale operand_scale = OperandScale::kSingle;
-       operand_scale <= OperandScale::kMaxValid;
-       operand_scale = Bytecodes::NextOperandScale(operand_scale)) {
+  const OperandScale kOperandScales[] = {
+#define VALUE(Name, _) OperandScale::k##Name,
+      OPERAND_SCALE_LIST(VALUE)
+#undef VALUE
+  };
+
+  for (OperandScale operand_scale : kOperandScales) {
 #define GENERATE_CODE(Name, ...)                                               \
   {                                                                            \
     if (Bytecodes::BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {     \
@@ -45,7 +60,7 @@ void Interpreter::Initialize() {
       Do##Name(&assembler);                                                    \
       Handle<Code> code = assembler.GenerateCode();                            \
       size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
-      dispatch_table_[index] = *code;                                          \
+      dispatch_table_[index] = code->entry();                                  \
       TraceCodegen(code);                                                      \
       LOG_CODE_EVENT(                                                          \
           isolate_,                                                            \
@@ -73,7 +88,8 @@ Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
   DCHECK(IsDispatchTableInitialized());
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  return dispatch_table_[index];
+  Address code_entry = dispatch_table_[index];
+  return Code::GetCodeFromTargetAddress(code_entry);
 }
 
 // static
@@ -81,18 +97,30 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                                           OperandScale operand_scale) {
   static const size_t kEntriesPerOperandScale = 1u << kBitsPerByte;
   size_t index = static_cast<size_t>(bytecode);
-  OperandScale current_scale = OperandScale::kSingle;
-  while (current_scale != operand_scale) {
-    index += kEntriesPerOperandScale;
-    current_scale = Bytecodes::NextOperandScale(current_scale);
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      return index;
+    case OperandScale::kDouble:
+      return index + kEntriesPerOperandScale;
+    case OperandScale::kQuadruple:
+      return index + 2 * kEntriesPerOperandScale;
   }
-  return index;
+  UNREACHABLE();
+  return 0;
 }
 
 void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
-  v->VisitPointers(
-      reinterpret_cast<Object**>(&dispatch_table_[0]),
-      reinterpret_cast<Object**>(&dispatch_table_[0] + kDispatchTableSize));
+  for (int i = 0; i < kDispatchTableSize; i++) {
+    Address code_entry = dispatch_table_[i];
+    Object* code = code_entry == nullptr
+                       ? nullptr
+                       : Code::GetCodeFromTargetAddress(code_entry);
+    Object* old_code = code;
+    v->VisitPointer(&code);
+    if (code != old_code) {
+      dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
+    }
+  }
 }
 
 // static
@@ -103,6 +131,8 @@ int Interpreter::InterruptBudget() {
 }
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
+  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+                                     &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.CompileIgnition");
 
@@ -131,8 +161,8 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   }
 #endif  // DEBUG
 
-  BytecodeGenerator generator(info->isolate(), info->zone());
-  Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
+  BytecodeGenerator generator(info);
+  Handle<BytecodeArray> bytecodes = generator.MakeBytecode();
 
   if (generator.HasStackOverflow()) return false;
 
@@ -148,9 +178,11 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 }
 
 bool Interpreter::IsDispatchTableInitialized() {
-  if (FLAG_trace_ignition || FLAG_trace_ignition_codegen) {
-    // Regenerate table to add bytecode tracing operations
-    // or to print the assembly code generated by TurboFan.
+  if (FLAG_trace_ignition || FLAG_trace_ignition_codegen ||
+      FLAG_trace_ignition_dispatches) {
+    // Regenerate table to add bytecode tracing operations,
+    // print the assembly code generated by TurboFan,
+    // or instrument handlers with dispatch counters.
     return false;
   }
   return dispatch_table_[0] != nullptr;
@@ -168,14 +200,71 @@ void Interpreter::TraceCodegen(Handle<Code> code) {
 
 const char* Interpreter::LookupNameOfBytecodeHandler(Code* code) {
 #ifdef ENABLE_DISASSEMBLER
-#define RETURN_NAME(Name, ...)                                         \
-  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == code) { \
-    return #Name;                                                      \
+#define RETURN_NAME(Name, ...)                                 \
+  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == \
+      code->entry()) {                                         \
+    return #Name;                                              \
   }
   BYTECODE_LIST(RETURN_NAME)
 #undef RETURN_NAME
 #endif  // ENABLE_DISASSEMBLER
   return nullptr;
+}
+
+uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
+  int from_index = Bytecodes::ToByte(from);
+  int to_index = Bytecodes::ToByte(to);
+  return bytecode_dispatch_counters_table_[from_index * kNumberOfBytecodes +
+                                           to_index];
+}
+
+Local<v8::Object> Interpreter::GetDispatchCountersObject() {
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  Local<v8::Object> counters_map = v8::Object::New(isolate);
+
+  // Output is a JSON-encoded object of objects.
+  //
+  // The keys on the top level object are source bytecodes,
+  // and corresponding value are objects. Keys on these last are the
+  // destinations of the dispatch and the value associated is a counter for
+  // the correspondent source-destination dispatch chain.
+  //
+  // Only non-zero counters are written to file, but an entry in the top-level
+  // object is always present, even if the value is empty because all counters
+  // for that source are zero.
+
+  for (int from_index = 0; from_index < kNumberOfBytecodes; ++from_index) {
+    Bytecode from_bytecode = Bytecodes::FromByte(from_index);
+    Local<v8::Object> counters_row = v8::Object::New(isolate);
+
+    for (int to_index = 0; to_index < kNumberOfBytecodes; ++to_index) {
+      Bytecode to_bytecode = Bytecodes::FromByte(to_index);
+      uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
+
+      if (counter > 0) {
+        std::string to_name = Bytecodes::ToString(to_bytecode);
+        Local<v8::String> to_name_object =
+            v8::String::NewFromUtf8(isolate, to_name.c_str(),
+                                    NewStringType::kNormal)
+                .ToLocalChecked();
+        Local<v8::Number> counter_object = v8::Number::New(isolate, counter);
+        CHECK(counters_row->Set(context, to_name_object, counter_object)
+                  .IsJust());
+      }
+    }
+
+    std::string from_name = Bytecodes::ToString(from_bytecode);
+    Local<v8::String> from_name_object =
+        v8::String::NewFromUtf8(isolate, from_name.c_str(),
+                                NewStringType::kNormal)
+            .ToLocalChecked();
+
+    CHECK(counters_map->Set(context, from_name_object, counters_row).IsJust());
+  }
+
+  return counters_map;
 }
 
 // LdaZero
@@ -640,12 +729,22 @@ void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
   __ Dispatch();
 }
 
+template <class Generator>
+void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
 
 // Add <src>
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Add(isolate_), assembler);
+  DoBinaryOp<AddStub>(assembler);
 }
 
 
@@ -653,7 +752,7 @@ void Interpreter::DoAdd(InterpreterAssembler* assembler) {
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Subtract(isolate_), assembler);
+  DoBinaryOp<SubtractStub>(assembler);
 }
 
 
@@ -661,7 +760,7 @@ void Interpreter::DoSub(InterpreterAssembler* assembler) {
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kMultiply, assembler);
+  DoBinaryOp<MultiplyStub>(assembler);
 }
 
 
@@ -669,7 +768,7 @@ void Interpreter::DoMul(InterpreterAssembler* assembler) {
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kDivide, assembler);
+  DoBinaryOp<DivideStub>(assembler);
 }
 
 
@@ -677,7 +776,7 @@ void Interpreter::DoDiv(InterpreterAssembler* assembler) {
 //
 // Modulo register <src> by accumulator.
 void Interpreter::DoMod(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kModulus, assembler);
+  DoBinaryOp<ModulusStub>(assembler);
 }
 
 
@@ -685,7 +784,7 @@ void Interpreter::DoMod(InterpreterAssembler* assembler) {
 //
 // BitwiseOr register <src> to accumulator.
 void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::BitwiseOr(isolate_), assembler);
+  DoBinaryOp<BitwiseOrStub>(assembler);
 }
 
 
@@ -693,7 +792,7 @@ void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
 //
 // BitwiseXor register <src> to accumulator.
 void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::BitwiseXor(isolate_), assembler);
+  DoBinaryOp<BitwiseXorStub>(assembler);
 }
 
 
@@ -701,7 +800,7 @@ void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
 //
 // BitwiseAnd register <src> to accumulator.
 void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::BitwiseAnd(isolate_), assembler);
+  DoBinaryOp<BitwiseAndStub>(assembler);
 }
 
 
@@ -712,7 +811,7 @@ void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
 // before the operation. 5 lsb bits from the accumulator are used as count
 // i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kShiftLeft, assembler);
+  DoBinaryOp<ShiftLeftStub>(assembler);
 }
 
 
@@ -723,7 +822,7 @@ void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
 // accumulator to uint32 before the operation. 5 lsb bits from the accumulator
 // are used as count i.e. <src> >> (accumulator & 0x1F).
 void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kShiftRight, assembler);
+  DoBinaryOp<ShiftRightStub>(assembler);
 }
 
 
@@ -734,62 +833,77 @@ void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
 // uint32 before the operation 5 lsb bits from the accumulator are used as
 // count i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kShiftRightLogical, assembler);
+  DoBinaryOp<ShiftRightLogicalStub>(assembler);
 }
 
-void Interpreter::DoCountOp(Runtime::FunctionId function_id,
-                            InterpreterAssembler* assembler) {
+template <class Generator>
+void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
-  Node* one = __ NumberConstant(1);
   Node* context = __ GetContext();
-  Node* result = __ CallRuntime(function_id, context, value, one);
+  Node* result = Generator::Generate(assembler, value, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }
-
 
 // Inc
 //
 // Increments value in the accumulator by one.
 void Interpreter::DoInc(InterpreterAssembler* assembler) {
-  DoCountOp(Runtime::kAdd, assembler);
+  DoUnaryOp<IncStub>(assembler);
 }
-
 
 // Dec
 //
 // Decrements value in the accumulator by one.
 void Interpreter::DoDec(InterpreterAssembler* assembler) {
-  DoCountOp(Runtime::kSubtract, assembler);
+  DoUnaryOp<DecStub>(assembler);
 }
 
+void Interpreter::DoLogicalNotOp(Node* value, InterpreterAssembler* assembler) {
+  Label if_true(assembler), if_false(assembler), end(assembler);
+  Node* true_value = __ BooleanConstant(true);
+  Node* false_value = __ BooleanConstant(false);
+  __ BranchIfWordEqual(value, true_value, &if_true, &if_false);
+  __ Bind(&if_true);
+  {
+    __ SetAccumulator(false_value);
+    __ Goto(&end);
+  }
+  __ Bind(&if_false);
+  {
+    if (FLAG_debug_code) {
+      __ AbortIfWordNotEqual(value, false_value,
+                             BailoutReason::kExpectedBooleanValue);
+    }
+    __ SetAccumulator(true_value);
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+}
 
-// LogicalNot
+// ToBooleanLogicalNot
 //
 // Perform logical-not on the accumulator, first casting the
 // accumulator to a boolean value if required.
-void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
+void Interpreter::DoToBooleanLogicalNot(InterpreterAssembler* assembler) {
   Callable callable = CodeFactory::ToBoolean(isolate_);
   Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
       __ CallStub(callable.descriptor(), target, context, accumulator);
-  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
-  Node* true_value = __ BooleanConstant(true);
-  Node* false_value = __ BooleanConstant(false);
-  Node* condition = __ WordEqual(to_boolean_value, true_value);
-  __ Branch(condition, &if_true, &if_false);
-  __ Bind(&if_true);
-  {
-    __ SetAccumulator(false_value);
-    __ Dispatch();
-  }
-  __ Bind(&if_false);
-  {
-    __ SetAccumulator(true_value);
-    __ Dispatch();
-  }
+  DoLogicalNotOp(to_boolean_value, assembler);
+  __ Dispatch();
+}
+
+// LogicalNot
+//
+// Perform logical-not on the accumulator, which must already be a boolean
+// value.
+void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  DoLogicalNotOp(value, assembler);
+  __ Dispatch();
 }
 
 // TypeOf
@@ -1058,7 +1172,7 @@ void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
 void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kHasProperty, assembler);
+  DoBinaryOp(CodeFactory::HasProperty(isolate_), assembler);
 }
 
 
@@ -1067,7 +1181,7 @@ void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInstanceOf, assembler);
+  DoBinaryOp(CodeFactory::InstanceOf(isolate_), assembler);
 }
 
 void Interpreter::DoTypeConversionOp(Callable callable,
@@ -1316,23 +1430,6 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 
-void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
-                                  InterpreterAssembler* assembler) {
-  Node* index = __ BytecodeOperandIdx(0);
-  Node* constant_elements = __ LoadConstantPoolEntry(index);
-  Node* literal_index_raw = __ BytecodeOperandIdx(1);
-  Node* literal_index = __ SmiTag(literal_index_raw);
-  Node* flags_raw = __ BytecodeOperandFlag(2);
-  Node* flags = __ SmiTag(flags_raw);
-  Node* closure = __ LoadRegister(Register::function_closure());
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(function_id, context, closure, literal_index,
-                                constant_elements, flags);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
 // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
 //
 // Creates a regular expression literal for literal index <literal_idx> with
@@ -1359,15 +1456,67 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
 // Creates an array literal for literal index <literal_idx> with flags <flags>
 // and constant elements in <element_idx>.
 void Interpreter::DoCreateArrayLiteral(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateArrayLiteral, assembler);
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant_elements = __ LoadConstantPoolEntry(index);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* flags_raw = __ BytecodeOperandFlag(2);
+  Node* flags = __ SmiTag(flags_raw);
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* context = __ GetContext();
+  Node* result = __ CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
+                                literal_index, constant_elements, flags);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 // CreateObjectLiteral <element_idx> <literal_idx> <flags>
 //
-// Creates an object literal for literal index <literal_idx> with flags <flags>
-// and constant elements in <element_idx>.
+// Creates an object literal for literal index <literal_idx> with
+// CreateObjectLiteralFlags <flags> and constant elements in <element_idx>.
 void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateObjectLiteral, assembler);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* bytecode_flags = __ BytecodeOperandFlag(2);
+  Node* closure = __ LoadRegister(Register::function_closure());
+
+  // Check if we can do a fast clone or have to call the runtime.
+  Label if_fast_clone(assembler),
+      if_not_fast_clone(assembler, Label::kDeferred);
+  Node* fast_clone_properties_count =
+      __ BitFieldDecode<CreateObjectLiteralFlags::FastClonePropertiesCountBits>(
+          bytecode_flags);
+  __ BranchIf(fast_clone_properties_count, &if_fast_clone, &if_not_fast_clone);
+
+  __ Bind(&if_fast_clone);
+  {
+    // If we can do a fast clone do the fast-path in FastCloneShallowObjectStub.
+    Node* result = FastCloneShallowObjectStub::GenerateFastPath(
+        assembler, &if_not_fast_clone, closure, literal_index,
+        fast_clone_properties_count);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
+
+  __ Bind(&if_not_fast_clone);
+  {
+    // If we can't do a fast clone, call into the runtime.
+    Node* index = __ BytecodeOperandIdx(0);
+    Node* constant_elements = __ LoadConstantPoolEntry(index);
+    Node* context = __ GetContext();
+
+    STATIC_ASSERT(CreateObjectLiteralFlags::FlagsBits::kShift == 0);
+    Node* flags_raw = __ Word32And(
+        bytecode_flags,
+        __ Int32Constant(CreateObjectLiteralFlags::FlagsBits::kMask));
+    Node* flags = __ SmiTag(flags_raw);
+
+    Node* result =
+        __ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
+                       literal_index, constant_elements, flags);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 // CreateClosure <index> <tenured>
@@ -1394,10 +1543,40 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
 void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure);
-  __ SetAccumulator(result);
-  __ Dispatch();
+
+  Label if_duplicate_parameters(assembler, Label::kDeferred);
+  Label if_not_duplicate_parameters(assembler);
+
+  // Check if function has duplicate parameters.
+  // TODO(rmcilroy): Remove this check when FastNewSloppyArgumentsStub supports
+  // duplicate parameters.
+  Node* shared_info =
+      __ LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
+  Node* compiler_hints = __ LoadObjectField(
+      shared_info, SharedFunctionInfo::kHasDuplicateParametersByteOffset,
+      MachineType::Uint8());
+  Node* duplicate_parameters_bit = __ Int32Constant(
+      1 << SharedFunctionInfo::kHasDuplicateParametersBitWithinByte);
+  Node* compare = __ Word32And(compiler_hints, duplicate_parameters_bit);
+  __ BranchIf(compare, &if_duplicate_parameters, &if_not_duplicate_parameters);
+
+  __ Bind(&if_not_duplicate_parameters);
+  {
+    // TODO(rmcilroy): Inline FastNewSloppyArguments when it is a TurboFan stub.
+    Callable callable = CodeFactory::FastNewSloppyArguments(isolate_, true);
+    Node* target = __ HeapConstant(callable.code());
+    Node* result = __ CallStub(callable.descriptor(), target, context, closure);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
+
+  __ Bind(&if_duplicate_parameters);
+  {
+    Node* result =
+        __ CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 
@@ -1405,7 +1584,8 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new unmapped arguments object.
 void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
-  Callable callable = CodeFactory::FastNewStrictArguments(isolate_);
+  // TODO(rmcilroy): Inline FastNewStrictArguments when it is a TurboFan stub.
+  Callable callable = CodeFactory::FastNewStrictArguments(isolate_, true);
   Node* target = __ HeapConstant(callable.code());
   Node* context = __ GetContext();
   Node* closure = __ LoadRegister(Register::function_closure());
@@ -1418,7 +1598,8 @@ void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new rest parameter array.
 void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
-  Callable callable = CodeFactory::FastNewRestParameter(isolate_);
+  // TODO(rmcilroy): Inline FastNewRestArguments when it is a TurboFan stub.
+  Callable callable = CodeFactory::FastNewRestParameter(isolate_, true);
   Node* target = __ HeapConstant(callable.code());
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
@@ -1431,8 +1612,20 @@ void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
 //
 // Performs a stack guard check.
 void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
-  __ StackCheck();
+  Label ok(assembler), stack_check_interrupt(assembler, Label::kDeferred);
+
+  Node* interrupt = __ StackCheckTriggeredInterrupt();
+  __ BranchIf(interrupt, &stack_check_interrupt, &ok);
+
+  __ Bind(&ok);
   __ Dispatch();
+
+  __ Bind(&stack_check_interrupt);
+  {
+    Node* context = __ GetContext();
+    __ CallRuntime(Runtime::kStackGuard, context);
+    __ Dispatch();
+  }
 }
 
 // Throw
@@ -1463,7 +1656,9 @@ void Interpreter::DoReThrow(InterpreterAssembler* assembler) {
 //
 // Return the value in the accumulator.
 void Interpreter::DoReturn(InterpreterAssembler* assembler) {
-  __ InterpreterReturn();
+  __ UpdateInterruptBudgetOnReturn();
+  Node* accumulator = __ GetAccumulator();
+  __ Return(accumulator);
 }
 
 // Debugger
@@ -1525,13 +1720,14 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   Node* cache_array = __ LoadRegister(cache_array_reg);
 
   // Load the next key from the enumeration array.
-  Node* key = __ LoadFixedArrayElementSmiIndex(cache_array, index);
+  Node* key = __ LoadFixedArrayElement(cache_array, index, 0,
+                                       CodeStubAssembler::SMI_PARAMETERS);
 
   // Check if we can use the for-in fast path potentially using the enum cache.
-  InterpreterAssembler::Label if_fast(assembler), if_slow(assembler);
+  Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
   Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
   Node* condition = __ WordEqual(receiver_map, cache_type);
-  __ Branch(condition, &if_fast, &if_slow);
+  __ BranchIf(condition, &if_fast, &if_slow);
   __ Bind(&if_fast);
   {
     // Enum cache in use for {receiver}, the {key} is definitely valid.
@@ -1545,8 +1741,8 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
     Node* type_feedback_vector = __ LoadTypeFeedbackVector();
     Node* megamorphic_sentinel =
         __ HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate_));
-    __ StoreFixedArrayElementNoWriteBarrier(type_feedback_vector, vector_index,
-                                            megamorphic_sentinel);
+    __ StoreFixedArrayElement(type_feedback_vector, vector_index,
+                              megamorphic_sentinel, SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.
     Node* context = __ GetContext();
@@ -1567,21 +1763,20 @@ void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
   Node* cache_length = __ LoadRegister(cache_length_reg);
 
   // Check if {index} is at {cache_length} already.
-  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
-  Node* condition = __ WordEqual(index, cache_length);
-  __ Branch(condition, &if_true, &if_false);
+  Label if_true(assembler), if_false(assembler), end(assembler);
+  __ BranchIfWordEqual(index, cache_length, &if_true, &if_false);
   __ Bind(&if_true);
   {
-    Node* result = __ BooleanConstant(true);
-    __ SetAccumulator(result);
-    __ Dispatch();
+    __ SetAccumulator(__ BooleanConstant(true));
+    __ Goto(&end);
   }
   __ Bind(&if_false);
   {
-    Node* result = __ BooleanConstant(false);
-    __ SetAccumulator(result);
-    __ Dispatch();
+    __ SetAccumulator(__ BooleanConstant(false));
+    __ Goto(&end);
   }
+  __ Bind(&end);
+  __ Dispatch();
 }
 
 // ForInStep <index>
@@ -1616,6 +1811,53 @@ void Interpreter::DoExtraWide(InterpreterAssembler* assembler) {
 // An invalid bytecode aborting execution if dispatched.
 void Interpreter::DoIllegal(InterpreterAssembler* assembler) {
   __ Abort(kInvalidBytecode);
+}
+
+// Nop
+//
+// No operation.
+void Interpreter::DoNop(InterpreterAssembler* assembler) { __ Dispatch(); }
+
+// SuspendGenerator <generator>
+//
+// Exports the register file and stores it into the generator.  Also stores the
+// current context and the state given in the accumulator into the generator.
+void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
+  Node* generator_reg = __ BytecodeOperandReg(0);
+  Node* generator = __ LoadRegister(generator_reg);
+
+  Node* array =
+      __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset);
+  Node* context = __ GetContext();
+  Node* state = __ GetAccumulator();
+
+  __ ExportRegisterFile(array);
+  __ StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
+  __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
+
+  __ Dispatch();
+}
+
+// ResumeGenerator <generator>
+//
+// Imports the register file stored in the generator. Also loads the
+// generator's state and stores it in the accumulator, before overwriting it
+// with kGeneratorExecuting.
+void Interpreter::DoResumeGenerator(InterpreterAssembler* assembler) {
+  Node* generator_reg = __ BytecodeOperandReg(0);
+  Node* generator = __ LoadRegister(generator_reg);
+
+  __ ImportRegisterFile(
+      __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset));
+
+  Node* old_state =
+      __ LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
+  Node* new_state = __ Int32Constant(JSGeneratorObject::kGeneratorExecuting);
+  __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+      __ SmiTag(new_state));
+  __ SetAccumulator(old_state);
+
+  __ Dispatch();
 }
 
 }  // namespace interpreter

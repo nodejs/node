@@ -26,10 +26,8 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats* stats =
-        tracer_->heap_->isolate()->counters()->runtime_call_stats();
-    timer_.Initialize(&stats->GC, stats->current_timer());
-    stats->Enter(&timer_);
+    RuntimeCallStats::Enter(tracer_->heap_->isolate(), &timer_,
+                            &RuntimeCallStats::GC);
   }
 }
 
@@ -40,7 +38,7 @@ GCTracer::Scope::~Scope() {
       tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_;
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    tracer_->heap_->isolate()->counters()->runtime_call_stats()->Leave(&timer_);
+    RuntimeCallStats::Leave(tracer_->heap_->isolate(), &timer_);
   }
 }
 
@@ -164,7 +162,7 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
   current_.reduce_memory = heap_->ShouldReduceMemory();
   current_.start_time = start_time;
   current_.start_object_size = heap_->SizeOfObjects();
-  current_.start_memory_size = heap_->isolate()->memory_allocator()->Size();
+  current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
   current_.new_space_object_size =
       heap_->new_space()->top() - heap_->new_space()->bottom();
@@ -190,10 +188,7 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
       start_time, used_memory);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats* stats =
-        heap_->isolate()->counters()->runtime_call_stats();
-    timer_.Initialize(&stats->GC, stats->current_timer());
-    stats->Enter(&timer_);
+    RuntimeCallStats::Enter(heap_->isolate(), &timer_, &RuntimeCallStats::GC);
   }
 }
 
@@ -214,7 +209,7 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   current_.end_object_size = heap_->SizeOfObjects();
-  current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();
+  current_.end_memory_size = heap_->memory_allocator()->Size();
   current_.end_holes_size = CountTotalHolesSize(heap_);
   current_.survived_new_space_object_size = heap_->SurvivedNewSpaceObjectSize();
 
@@ -303,7 +298,7 @@ void GCTracer::Stop(GarbageCollector collector) {
   cumulative_incremental_marking_finalization_duration_ = 0.0;
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    heap_->isolate()->counters()->runtime_call_stats()->Leave(&timer_);
+    RuntimeCallStats::Leave(heap_->isolate(), &timer_);
   }
 }
 
@@ -411,7 +406,7 @@ void GCTracer::Output(const char* format, ...) const {
 
 void GCTracer::Print() const {
   if (FLAG_trace_gc) {
-    PrintIsolate(heap_->isolate(), "");
+    PrintIsolate(heap_->isolate(), "%s", "");
   }
   Output("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
@@ -480,20 +475,20 @@ void GCTracer::PrintNVP() const {
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "scavenge_throughput=%.f "
-                   "total_size_before=%" V8_PTR_PREFIX
-                   "d "
-                   "total_size_after=%" V8_PTR_PREFIX
-                   "d "
-                   "holes_size_before=%" V8_PTR_PREFIX
-                   "d "
-                   "holes_size_after=%" V8_PTR_PREFIX
-                   "d "
-                   "allocated=%" V8_PTR_PREFIX
-                   "d "
-                   "promoted=%" V8_PTR_PREFIX
-                   "d "
-                   "semi_space_copied=%" V8_PTR_PREFIX
-                   "d "
+                   "total_size_before=%" V8PRIdPTR
+                   " "
+                   "total_size_after=%" V8PRIdPTR
+                   " "
+                   "holes_size_before=%" V8PRIdPTR
+                   " "
+                   "holes_size_after=%" V8PRIdPTR
+                   " "
+                   "allocated=%" V8PRIdPTR
+                   " "
+                   "promoted=%" V8PRIdPTR
+                   " "
+                   "semi_space_copied=%" V8PRIdPTR
+                   " "
                    "nodes_died_in_new=%d "
                    "nodes_copied_in_new=%d "
                    "nodes_promoted=%d "
@@ -555,7 +550,6 @@ void GCTracer::PrintNVP() const {
           "evacuate.clean_up=%.1f "
           "evacuate.copy=%.1f "
           "evacuate.update_pointers=%.1f "
-          "evacuate.update_pointers.between_evacuated=%.1f "
           "evacuate.update_pointers.to_evacuated=%.1f "
           "evacuate.update_pointers.to_new=%.1f "
           "evacuate.update_pointers.weak=%.1f "
@@ -586,20 +580,20 @@ void GCTracer::PrintNVP() const {
           "finalization_steps_took=%.1f "
           "finalization_longest_step=%.1f "
           "incremental_marking_throughput=%.f "
-          "total_size_before=%" V8_PTR_PREFIX
-          "d "
-          "total_size_after=%" V8_PTR_PREFIX
-          "d "
-          "holes_size_before=%" V8_PTR_PREFIX
-          "d "
-          "holes_size_after=%" V8_PTR_PREFIX
-          "d "
-          "allocated=%" V8_PTR_PREFIX
-          "d "
-          "promoted=%" V8_PTR_PREFIX
-          "d "
-          "semi_space_copied=%" V8_PTR_PREFIX
-          "d "
+          "total_size_before=%" V8PRIdPTR
+          " "
+          "total_size_after=%" V8PRIdPTR
+          " "
+          "holes_size_before=%" V8PRIdPTR
+          " "
+          "holes_size_after=%" V8PRIdPTR
+          " "
+          "allocated=%" V8PRIdPTR
+          " "
+          "promoted=%" V8PRIdPTR
+          " "
+          "semi_space_copied=%" V8PRIdPTR
+          " "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
           "nodes_promoted=%d "
@@ -628,7 +622,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_CLEAN_UP],
           current_.scopes[Scope::MC_EVACUATE_COPY],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],

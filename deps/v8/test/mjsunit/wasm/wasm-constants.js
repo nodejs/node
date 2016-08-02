@@ -21,7 +21,7 @@ var kWasmH1 = 0x61;
 var kWasmH2 = 0x73;
 var kWasmH3 = 0x6d;
 
-var kWasmV0 = 10;
+var kWasmV0 = 11;
 var kWasmV1 = 0;
 var kWasmV2 = 0;
 var kWasmV3 = 0;
@@ -65,10 +65,16 @@ var kDeclFunctionSignatures = 0x0a;
 var kDeclFunctionBodies = 0x0b;
 var kDeclNames = 0x0c;
 
+var kArity0 = 0;
+var kArity1 = 1;
+var kArity2 = 2;
+var kArity3 = 3;
+var kWasmFunctionTypeForm = 0x40;
+
 var section_names = [
-  "memory", "signatures", "functions", "globals", "data_segments",
-  "function_table", "end", "start_function", "import_table", "export_table",
-  "function_signatures", "function_bodies", "names"];
+  "memory", "type", "old_function", "global", "data",
+  "table", "end", "start", "import", "export",
+  "function", "code", "name"];
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;
@@ -83,31 +89,60 @@ var kAstI64 = 2;
 var kAstF32 = 3;
 var kAstF64 = 4;
 
+// Useful signatures
+var kSig_i = [0, 1, kAstI32];
+var kSig_d = [0, 1, kAstF64];
+var kSig_i_i = [1, kAstI32, 1, kAstI32];
+var kSig_i_ii = [2, kAstI32, kAstI32, 1, kAstI32];
+var kSig_i_iii = [3, kAstI32, kAstI32, kAstI32, 1, kAstI32];
+var kSig_d_dd = [2, kAstF64, kAstF64, 1, kAstF64];
+var kSig_l_ll = [2, kAstI64, kAstI64, 1, kAstI64];
+var kSig_i_dd = [2, kAstF64, kAstF64, 1, kAstI32];
+var kSig_v_v = [0, 0];
+var kSig_i_v = [0, 1, kAstI32];
+
+function makeSig_v_xx(x) {
+  return [2, x, x, 0];
+}
+
+function makeSig_v_x(x) {
+  return [1, x, 0];
+}
+
+function makeSig_r_xx(r, x) {
+  return [2, x, x, 1, r];
+}
+
+function makeSig_r_x(r, x) {
+  return [1, x, 1, r];
+}
+
 // Opcodes
 var kExprNop = 0x00;
 var kExprBlock = 0x01;
 var kExprLoop = 0x02;
 var kExprIf = 0x03;
-var kExprIfElse = 0x04;
+var kExprElse = 0x04;
 var kExprSelect = 0x05;
 var kExprBr = 0x06;
 var kExprBrIf = 0x07;
-var kExprTableSwitch = 0x08;
-var kExprReturn = 0x14;
-var kExprUnreachable = 0x15;
+var kExprBrTable = 0x08;
+var kExprReturn = 0x09;
+var kExprUnreachable = 0x0a;
+var kExprEnd = 0x0f;
 
-var kExprI8Const = 0x09;
-var kExprI32Const = 0x0a;
-var kExprI64Const = 0x0b;
-var kExprF64Const = 0x0c;
-var kExprF32Const = 0x0d;
-var kExprGetLocal = 0x0e;
-var kExprSetLocal = 0x0f;
-var kExprLoadGlobal = 0x10;
-var kExprStoreGlobal = 0x11;
-var kExprCallFunction = 0x12;
-var kExprCallIndirect = 0x13;
-var kExprCallImport = 0x1F;
+var kExprI32Const = 0x10;
+var kExprI64Const = 0x11;
+var kExprF64Const = 0x12;
+var kExprF32Const = 0x13;
+var kExprGetLocal = 0x14;
+var kExprSetLocal = 0x15;
+var kExprCallFunction = 0x16;
+var kExprCallIndirect = 0x17;
+var kExprCallImport = 0x18;
+var kExprI8Const = 0xcb;
+var kExprLoadGlobal = 0xcc;
+var kExprStoreGlobal = 0xcd;
 
 var kExprI32LoadMem8S = 0x20;
 var kExprI32LoadMem8U = 0x21;
@@ -290,8 +325,8 @@ function assertTraps(trap, code) {
       }
       threwException = false;
     } catch (e) {
-      assertEquals("string", typeof e);
-      assertEquals(kTrapMsgs[trap], e);
+      assertEquals("object", typeof e);
+      assertEquals(kTrapMsgs[trap], e.message);
       // Success.
       return;
     }

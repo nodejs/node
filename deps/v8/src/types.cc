@@ -192,7 +192,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
-             map == heap->optimized_out_map());
+             map == heap->optimized_out_map() ||
+             map == heap->stale_register_map());
       return kInternal & kTaggedPointer;
     }
     case HEAP_NUMBER_TYPE:
@@ -202,6 +203,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
+    case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       if (map->is_undetectable()) return kOtherUndetectable;
       return kOtherObject;
@@ -266,8 +268,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case CODE_CACHE_TYPE:
-    case POLYMORPHIC_CODE_CACHE_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case BOX_TYPE:

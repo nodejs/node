@@ -18,7 +18,6 @@ namespace internal {
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
   V(kArgumentsObjectValueInATestContext,                                       \
     "Arguments object value in a test context")                                \
-  V(kArrayBoilerplateCreationFailed, "Array boilerplate creation failed")      \
   V(kArrayIndexConstantValueTooBig, "Array index constant value too big")      \
   V(kAssignmentToArguments, "Assignment to arguments")                         \
   V(kAssignmentToLetVariableBeforeInitialization,                              \
@@ -62,8 +61,8 @@ namespace internal {
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \
   V(kEval, "eval")                                                             \
-  V(kExpectedAlignmentMarker, "Expected alignment marker")                     \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
+  V(kExpectedBooleanValue, "Expected boolean value")                           \
   V(kExpectedFunctionObject, "Expected function object in register")           \
   V(kExpectedHeapNumber, "Expected HeapNumber")                                \
   V(kExpectedNativeContext, "Expected native context")                         \
@@ -79,17 +78,15 @@ namespace internal {
   V(kForInStatementWithNonLocalEachVariable,                                   \
     "ForInStatement with non-local each variable")                             \
   V(kForOfStatement, "ForOfStatement")                                         \
-  V(kFrameIsExpectedToBeAligned, "Frame is expected to be aligned")            \
   V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \
-  V(kGeneratorFailedToResume, "Generator failed to resume")                    \
-  V(kGeneratorResumeMethod, "Generator resume method is being called")         \
   V(kGenerator, "Generator")                                                   \
   V(kGlobalFunctionsMustHaveInitialMap,                                        \
     "Global functions must have initial map")                                  \
+  V(kGraphBuildingFailed, "Optimized graph construction failed")               \
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")       \
   V(kHydrogenFilter, "Optimization disabled by filter")                        \
   V(kImportDeclaration, "Import declaration")                                  \
@@ -102,15 +99,22 @@ namespace internal {
   V(kInteger32ToSmiFieldWritingToNonSmiLocation,                               \
     "Integer32ToSmiField writing to non-smi location")                         \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
-  V(kInvalidCaptureReferenced, "Invalid capture referenced")                   \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                 \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")           \
+  V(kInvalidFrameForFastNewRestArgumentsStub,                                  \
+    "Invalid frame for FastNewRestArgumentsStub")                              \
+  V(kInvalidFrameForFastNewSloppyArgumentsStub,                                \
+    "Invalid frame for FastNewSloppyArgumentsStub")                            \
+  V(kInvalidFrameForFastNewStrictArgumentsStub,                                \
+    "Invalid frame for FastNewStrictArgumentsStub")                            \
   V(kInvalidFullCodegenState, "invalid full-codegen state")                    \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
+  V(kInvalidJumpTableIndex, "Invalid jump table index")                        \
   V(kInvalidLeftHandSideInAssignment, "Invalid left-hand side in assignment")  \
   V(kInvalidLhsInCompoundAssignment, "Invalid lhs in compound assignment")     \
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \
   V(kInvalidMinLength, "Invalid min_length")                                   \
+  V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
   V(kJSGlobalObjectNativeContextShouldBeANativeContext,                        \
     "JSGlobalObject::native_context should be a native context")               \
   V(kJSGlobalProxyContextShouldNotBeNull,                                      \
@@ -118,7 +122,6 @@ namespace internal {
   V(kJSObjectWithFastElementsMapHasSlowElements,                               \
     "JSObject with fast elements map has slow elements")                       \
   V(kLetBindingReInitialization, "Let binding re-initialization")              \
-  V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size")  \
   V(kLiveEdit, "LiveEdit")                                                     \
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
@@ -143,13 +146,15 @@ namespace internal {
   V(kOperandIsASmiAndNotABoundFunction,                                        \
     "Operand is a smi and not a bound function")                               \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
+  V(kOperandIsASmiAndNotAGeneratorObject,                                      \
+    "Operand is a smi and not a generator object")                             \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAReceiver, "Operand is a smi and not a receiver")      \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
-  V(kOperandIsNotADate, "Operand is not a date")                               \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
+  V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \
   V(kOperandIsNotAName, "Operand is not a name")                               \
   V(kOperandIsNotANumber, "Operand is not a number")                           \
   V(kOperandIsNotAReceiver, "Operand is not a receiver")                       \
@@ -159,7 +164,8 @@ namespace internal {
   V(kOperandNotANumber, "Operand not a number")                                \
   V(kObjectTagged, "The object is tagged")                                     \
   V(kObjectNotTagged, "The object is not tagged")                              \
-  V(kOptimizationDisabled, "Optimization is disabled")                         \
+  V(kOptimizationDisabled, "Optimization disabled")                            \
+  V(kOptimizationDisabledForTest, "Optimization disabled for test")            \
   V(kOptimizedTooManyTimes, "Optimized too many times")                        \
   V(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister,                   \
     "Out of virtual registers while trying to allocate temp register")         \
@@ -185,8 +191,6 @@ namespace internal {
   V(kTailCall, "Tail call")                                                    \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
-  V(kTheSourceAndDestinationAreTheSame,                                        \
-    "The source and destination are the same")                                 \
   V(kTheStackWasCorruptedByMacroAssemblerCall,                                 \
     "The stack was corrupted by MacroAssembler::Call()")                       \
   V(kTooManyParametersLocals, "Too many parameters/locals")                    \
@@ -228,8 +232,6 @@ namespace internal {
   V(kUnexpectedLevelAfterReturnFromApiCall,                                    \
     "Unexpected level after return from api call")                             \
   V(kUnexpectedNegativeValue, "Unexpected negative value")                     \
-  V(kUnexpectedNumberOfPreAllocatedPropertyFields,                             \
-    "Unexpected number of pre-allocated property fields")                      \
   V(kUnexpectedFunctionIDForInvokeIntrinsic,                                   \
     "Unexpected runtime function id for the InvokeIntrinsic bytecode")         \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
@@ -252,8 +254,6 @@ namespace internal {
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const or let variable")                            \
-  V(kUnexpectedReturnFromBytecodeHandler,                                      \
-    "Unexpectedly returned from a bytecode handler")                           \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
   V(kUnsupportedSwitchStatement, "Unsupported switch statement")               \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \

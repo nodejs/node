@@ -6,6 +6,7 @@
 #define V8_PROFILER_STRINGS_STORAGE_H_
 
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
 #include "src/hashmap.h"
 
 namespace v8 {
@@ -19,7 +20,8 @@ class StringsStorage {
   ~StringsStorage();
 
   const char* GetCopy(const char* src);
-  const char* GetFormatted(const char* format, ...);
+  PRINTF_FORMAT(2, 3) const char* GetFormatted(const char* format, ...);
+  PRINTF_FORMAT(2, 0)
   const char* GetVFormatted(const char* format, va_list args);
   const char* GetName(Name* name);
   const char* GetName(int index);

@@ -11,6 +11,5 @@
   'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllStoreMemCombinations': [SKIP],
-  'Bytecodes.DecodeBytecodeAndOperands': [SKIP],
 }],  # 'byteorder == big'
 ]

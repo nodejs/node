@@ -450,6 +450,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ mov(lr, Operand(length, LSL, 2));
   __ add(lr, lr, Operand(FixedDoubleArray::kHeaderSize));
   __ Allocate(lr, array, elements, scratch2, &gc_required, DOUBLE_ALIGNMENT);
+  __ sub(array, array, Operand(kHeapObjectTag));
   // array: destination FixedDoubleArray, not tagged as heap object.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // r4: source FixedArray.
@@ -594,11 +595,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ add(array_size, array_size, Operand(length, LSL, 1));
   __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
               NO_ALLOCATION_FLAGS);
-  // array: destination FixedArray, not tagged as heap object
+  // array: destination FixedArray, tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
-  __ str(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ str(scratch, MemOperand(array, HeapObject::kMapOffset));
+  __ str(length, FieldMemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ str(scratch, FieldMemOperand(array, HeapObject::kMapOffset));
+
+  __ sub(array, array, Operand(kHeapObjectTag));
 
   // Prepare for conversion loop.
   Register src_elements = elements;

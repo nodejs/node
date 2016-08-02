@@ -30,43 +30,33 @@ enum ContextLookupFlags {
 // their state is changed by the InitializeImmutableBinding method. The
 // BindingFlags enum represents information if a binding has definitely been
 // initialized. A mutable binding does not need to be checked and thus has
-// the BindingFlag MUTABLE_IS_INITIALIZED.
+// the BindingFlag BINDING_IS_INITIALIZED.
 //
-// There are two possibilities for immutable bindings
-//  * 'const' declared variables. They are initialized when evaluating the
-//    corresponding declaration statement. They need to be checked for being
-//    initialized and thus get the flag IMMUTABLE_CHECK_INITIALIZED.
+// There is one possibility for legacy immutable bindings:
 //  * The function name of a named function literal. The binding is immediately
 //    initialized when entering the function and thus does not need to be
-//    checked. it gets the BindingFlag IMMUTABLE_IS_INITIALIZED.
-// Accessing an uninitialized binding produces the undefined value.
+//    checked. it gets the BindingFlag BINDING_IS_INITIALIZED.
 //
 // The harmony proposal for block scoped bindings also introduces the
 // uninitialized state for mutable bindings.
 //  * A 'let' declared variable. They are initialized when evaluating the
 //    corresponding declaration statement. They need to be checked for being
-//    initialized and thus get the flag MUTABLE_CHECK_INITIALIZED.
+//    initialized and thus get the flag BINDING_CHECK_INITIALIZED.
 //  * A 'var' declared variable. It is initialized immediately upon creation
 //    and thus doesn't need to be checked. It gets the flag
-//    MUTABLE_IS_INITIALIZED.
+//    BINDING_IS_INITIALIZED.
 //  * Catch bound variables, function parameters and variables introduced by
 //    function declarations are initialized immediately and do not need to be
-//    checked. Thus they get the flag MUTABLE_IS_INITIALIZED.
-// Immutable bindings in harmony mode get the _HARMONY flag variants. Accessing
-// an uninitialized binding produces a reference error.
+//    checked. Thus they get the flag BINDING_IS_INITIALIZED.
+// Accessing an uninitialized binding produces a reference error.
 //
 // In V8 uninitialized bindings are set to the hole value upon creation and set
 // to a different value upon initialization.
 enum BindingFlags {
-  MUTABLE_IS_INITIALIZED,
-  MUTABLE_CHECK_INITIALIZED,
-  IMMUTABLE_IS_INITIALIZED,
-  IMMUTABLE_CHECK_INITIALIZED,
-  IMMUTABLE_IS_INITIALIZED_HARMONY,
-  IMMUTABLE_CHECK_INITIALIZED_HARMONY,
+  BINDING_IS_INITIALIZED,
+  BINDING_CHECK_INITIALIZED,
   MISSING_BINDING
 };
-
 
 // Heap-allocated activation contexts.
 //
@@ -77,79 +67,76 @@ enum BindingFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                             \
-  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                               \
-  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
-  V(OBJECT_FREEZE, JSFunction, object_freeze)                             \
-  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)               \
-  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                       \
-  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                       \
-  V(OBJECT_KEYS, JSFunction, object_keys)                                 \
-  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
-  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
-  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property)   \
-  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property)   \
-  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
-  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
-  V(ORDINARY_HAS_INSTANCE_INDEX, JSFunction, ordinary_has_instance)       \
-  V(MATH_FLOOR, JSFunction, math_floor)                                   \
+#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
+  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
+  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)   \
+  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
+  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
+  V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)     \
+  V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)         \
+  V(OBJECT_FREEZE, JSFunction, object_freeze)                           \
+  V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)       \
+  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)             \
+  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                     \
+  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                     \
+  V(OBJECT_KEYS, JSFunction, object_keys)                               \
+  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
+  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
+  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
+  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
+  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
+  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
+  V(MATH_FLOOR, JSFunction, math_floor)                                 \
   V(MATH_SQRT, JSFunction, math_sqrt)
 
-#define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
-  V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
-  V(ARRAY_POP_INDEX, JSFunction, array_pop)                                   \
-  V(ARRAY_PUSH_INDEX, JSFunction, array_push)                                 \
-  V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                               \
-  V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                             \
-  V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                               \
-  V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                           \
-  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
-  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \
-  V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                         \
-  V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \
-  V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)         \
-  V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                       \
-  V(JSON_SERIALIZE_ADAPTER_INDEX, JSFunction, json_serialize_adapter)         \
-  V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)               \
-  V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                          \
-  V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                \
-  V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                \
-  V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                                \
-  V(MATH_POW_METHOD_INDEX, JSFunction, math_pow)                              \
-  V(MESSAGE_GET_COLUMN_NUMBER_INDEX, JSFunction, message_get_column_number)   \
-  V(MESSAGE_GET_LINE_NUMBER_INDEX, JSFunction, message_get_line_number)       \
-  V(MESSAGE_GET_SOURCE_LINE_INDEX, JSFunction, message_get_source_line)       \
-  V(NATIVE_OBJECT_GET_NOTIFIER_INDEX, JSFunction, native_object_get_notifier) \
-  V(NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE, JSFunction,                        \
-    native_object_notifier_perform_change)                                    \
-  V(NATIVE_OBJECT_OBSERVE_INDEX, JSFunction, native_object_observe)           \
-  V(NO_SIDE_EFFECTS_TO_STRING_FUN_INDEX, JSFunction,                          \
-    no_side_effects_to_string_fun)                                            \
-  V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
-  V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
-  V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, observers_begin_perform_splice) \
-  V(OBSERVERS_END_SPLICE_INDEX, JSFunction, observers_end_perform_splice)     \
-  V(OBSERVERS_ENQUEUE_SPLICE_INDEX, JSFunction, observers_enqueue_splice)     \
-  V(OBSERVERS_NOTIFY_CHANGE_INDEX, JSFunction, observers_notify_change)       \
-  V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
-  V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain)                           \
-  V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \
-  V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
-  V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,                \
-    promise_has_user_defined_reject_handler)                                  \
-  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
-  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                       \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                             \
-  V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
-  V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
-  V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
-  V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                          \
-  V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                \
-  V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate)   \
-  V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)           \
-  V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
+#define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                   \
+  V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                           \
+  V(ARRAY_POP_INDEX, JSFunction, array_pop)                                 \
+  V(ARRAY_PUSH_INDEX, JSFunction, array_push)                               \
+  V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                             \
+  V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                           \
+  V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                             \
+  V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                         \
+  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)         \
+  V(ASYNC_FUNCTION_AWAIT_INDEX, JSFunction, async_function_await)           \
+  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                   \
+  V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                       \
+  V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)             \
+  V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)       \
+  V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                     \
+  V(JSON_SERIALIZE_ADAPTER_INDEX, JSFunction, json_serialize_adapter)       \
+  V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)             \
+  V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                        \
+  V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                              \
+  V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                              \
+  V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                              \
+  V(MATH_POW_METHOD_INDEX, JSFunction, math_pow)                            \
+  V(MESSAGE_GET_COLUMN_NUMBER_INDEX, JSFunction, message_get_column_number) \
+  V(MESSAGE_GET_LINE_NUMBER_INDEX, JSFunction, message_get_line_number)     \
+  V(MESSAGE_GET_SOURCE_LINE_INDEX, JSFunction, message_get_source_line)     \
+  V(NO_SIDE_EFFECTS_TO_STRING_FUN_INDEX, JSFunction,                        \
+    no_side_effects_to_string_fun)                                          \
+  V(OBJECT_VALUE_OF, JSFunction, object_value_of)                           \
+  V(OBJECT_TO_STRING, JSFunction, object_to_string)                         \
+  V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                         \
+  V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain)                         \
+  V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                       \
+  V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                   \
+  V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,              \
+    promise_has_user_defined_reject_handler)                                \
+  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                       \
+  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                     \
+  V(PROMISE_CREATE_RESOLVED_INDEX, JSFunction, promise_create_resolved)     \
+  V(PROMISE_CREATE_REJECTED_INDEX, JSFunction, promise_create_rejected)     \
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                           \
+  V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)           \
+  V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)   \
+  V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                              \
+  V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                        \
+  V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                              \
+  V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate) \
+  V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)         \
+  V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)             \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
@@ -162,6 +149,7 @@ enum BindingFlags {
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
+  V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
   V(BOOL16X8_FUNCTION_INDEX, JSFunction, bool16x8_function)                    \
   V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \
   V(BOOL8X16_FUNCTION_INDEX, JSFunction, bool8x16_function)                    \
@@ -193,6 +181,7 @@ enum BindingFlags {
     generator_function_function)                                               \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(INITIAL_ARRAY_PROTOTYPE_INDEX, JSObject, initial_array_prototype)          \
+  V(INITIAL_GENERATOR_PROTOTYPE_INDEX, JSObject, initial_generator_prototype)  \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun)                        \
   V(INT16X8_FUNCTION_INDEX, JSFunction, int16x8_function)                      \
@@ -249,8 +238,10 @@ enum BindingFlags {
   V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
     sloppy_function_with_readonly_prototype_map)                               \
   V(WASM_FUNCTION_MAP_INDEX, Map, wasm_function_map)                           \
+  V(SLOPPY_ASYNC_FUNCTION_MAP_INDEX, Map, sloppy_async_function_map)           \
   V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map)   \
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
+  V(STRICT_ASYNC_FUNCTION_MAP_INDEX, Map, strict_async_function_map)           \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map)                       \
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
@@ -421,6 +412,8 @@ class Context: public FixedArray {
   inline Context* previous();
   inline void set_previous(Context* context);
 
+  inline Object* next_context_link();
+
   inline bool has_extension();
   inline HeapObject* extension();
   inline void set_extension(HeapObject* object);
@@ -529,6 +522,11 @@ class Context: public FixedArray {
     if (IsGeneratorFunction(kind)) {
       return is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
                                       : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;
+    }
+
+    if (IsAsyncFunction(kind)) {
+      return is_strict(language_mode) ? STRICT_ASYNC_FUNCTION_MAP_INDEX
+                                      : SLOPPY_ASYNC_FUNCTION_MAP_INDEX;
     }
 
     if (IsClassConstructor(kind)) {

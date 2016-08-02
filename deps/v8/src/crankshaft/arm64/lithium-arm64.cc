@@ -726,7 +726,7 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {
   LInstruction* result = new (zone()) LPrologue();
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     result = MarkAsCall(result, instr);
   }
   return result;
@@ -841,14 +841,20 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
-  info()->MarkAsDeferredCalling();
-  LOperand* context = UseAny(instr->context());
   LOperand* size = UseRegisterOrConstant(instr->size());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LOperand* temp3 = instr->MustPrefillWithFiller() ? TempRegister() : NULL;
-  LAllocate* result = new(zone()) LAllocate(context, size, temp1, temp2, temp3);
-  return AssignPointerMap(DefineAsRegister(result));
+  if (instr->IsAllocationFolded()) {
+    LFastAllocate* result = new (zone()) LFastAllocate(size, temp1, temp2);
+    return DefineAsRegister(result);
+  } else {
+    info()->MarkAsDeferredCalling();
+    LOperand* context = UseAny(instr->context());
+    LOperand* temp3 = instr->MustPrefillWithFiller() ? TempRegister() : NULL;
+    LAllocate* result =
+        new (zone()) LAllocate(context, size, temp1, temp2, temp3);
+    return AssignPointerMap(DefineAsRegister(result));
+  }
 }
 
 
@@ -1458,17 +1464,6 @@ LInstruction* LChunkBuilder::DoInnerAllocatedObject(
   LOperand* offset = UseRegisterOrConstantAtStart(instr->offset());
   return DefineAsRegister(
       new(zone()) LInnerAllocatedObject(base_object, offset));
-}
-
-
-LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  LOperand* left =
-      UseFixed(instr->left(), InstanceOfDescriptor::LeftRegister());
-  LOperand* right =
-      UseFixed(instr->right(), InstanceOfDescriptor::RightRegister());
-  LOperand* context = UseFixed(instr->context(), cp);
-  LInstanceOf* result = new (zone()) LInstanceOf(context, left, right);
-  return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
 

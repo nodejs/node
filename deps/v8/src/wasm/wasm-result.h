@@ -5,6 +5,7 @@
 #ifndef V8_WASM_RESULT_H_
 #define V8_WASM_RESULT_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/smart-pointers.h"
 
 #include "src/globals.h"
@@ -93,13 +94,13 @@ class ErrorThrower {
   ErrorThrower(Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context), error_(false) {}
 
-  void Error(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void Error(const char* fmt, ...);
 
   template <typename T>
   void Failed(const char* error, Result<T>& result) {
     std::ostringstream str;
     str << error << result;
-    return Error(str.str().c_str());
+    return Error("%s", str.str().c_str());
   }
 
   bool error() const { return error_; }

@@ -28,6 +28,8 @@
 // Testing v8Parse method for date and time pattern.
 // Month is represented as a short name.
 
+// Flags: --intl-extra
+
 var dtf = new Intl.DateTimeFormat(['en'],
                                   {year: 'numeric', month: 'short',
                                    day: 'numeric',

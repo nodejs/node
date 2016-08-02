@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include "src/base/platform/elapsed-timer.h"
+#include "src/base/smart-pointers.h"
 #include "src/compilation-statistics.h"
 #include "src/compiler/zone-pool.h"
 
@@ -22,6 +24,7 @@ class PipelineStatistics : public Malloced {
   ~PipelineStatistics();
 
   void BeginPhaseKind(const char* phase_kind_name);
+  void EndPhaseKind();
 
  private:
   size_t OuterZoneSize() {
@@ -43,7 +46,6 @@ class PipelineStatistics : public Malloced {
   };
 
   bool InPhaseKind() { return !phase_kind_stats_.scope_.is_empty(); }
-  void EndPhaseKind();
 
   friend class PhaseScope;
   bool InPhase() { return !phase_stats_.scope_.is_empty(); }

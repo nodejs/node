@@ -7,14 +7,16 @@ vars = {
 }
 
 deps = {
-  "v8/build/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "4ec6c4e3a94bd04a6da2858163d40b2429b8aad1",
+  "v8/build":
+    Var("git_url") + "/chromium/src/build.git" + "@" + "01ca9403e7d6ba63e9a4b6df1cb5cb8397ff7b92",
+  "v8/tools/gyp":
+    Var("git_url") + "/external/gyp.git" + "@" + "bce1c7793010574d88d7915e2d55395213ac63d1",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "c291cde264469b20ca969ce8832088acb21e0c48",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "80b5126f91be4eb359248d28696746ef09d5be67",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "06e80a0e17319868d4a9b13f9bb6a248dc8d8b20",
   "v8/base/trace_event/common":
-    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "c8c8665c2deaf1cc749d9f8e153256d4f67bf1b8",
+    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
   "v8/testing/gtest":
@@ -27,9 +29,9 @@ deps = {
     Var("git_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
   "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "c8ef63c728283debc25891123eb00482fee4b8cd",
   "v8/test/test262/data":
-    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "57d3e2216fa86ad63b6c0a54914ba9dcbff96003",
+    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "9c45e2ac684bae64614d8eb55789cae97323a7e7",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "faee82e064e04e5cbf60cc7327e7a81d2a4557ad",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "18b63c680a59a7125514b1e05ca42cdfb89a19c7",
 }
 
 deps_os = {
@@ -53,6 +55,7 @@ include_rules = [
 # checkdeps.py shouldn't check for includes in these directories:
 skip_child_includes = [
   "build",
+  "gypfiles",
   "third_party",
 ]
 
@@ -65,7 +68,7 @@ hooks = [
     'pattern': '.',
     'action': [
         'python',
-        'v8/build/landmines.py',
+        'v8/gypfiles/landmines.py',
     ],
   },
   # Pull clang-format binaries using checked-in hashes.
@@ -190,7 +193,7 @@ hooks = [
     # Update the Windows toolchain if necessary.
     'name': 'win_toolchain',
     'pattern': '.',
-    'action': ['python', 'v8/build/vs_toolchain.py', 'update'],
+    'action': ['python', 'v8/gypfiles/vs_toolchain.py', 'update'],
   },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
@@ -208,7 +211,7 @@ hooks = [
     # Note: This must run before the clang update.
     'name': 'gold_plugin',
     'pattern': '.',
-    'action': ['python', 'v8/build/download_gold_plugin.py'],
+    'action': ['python', 'v8/gypfiles/download_gold_plugin.py'],
   },
   {
     # Pull clang if needed or requested via GYP_DEFINES.
@@ -220,6 +223,6 @@ hooks = [
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     "pattern": ".",
-    "action": ["python", "v8/build/gyp_v8"],
+    "action": ["python", "v8/gypfiles/gyp_v8"],
   },
 ]

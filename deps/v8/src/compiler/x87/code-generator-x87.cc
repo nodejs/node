@@ -42,7 +42,7 @@ class X87OperandConverter : public InstructionOperandConverter {
       DCHECK(extra == 0);
       return Operand(ToRegister(op));
     }
-    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToOperand(AllocatedOperand::cast(op)->index(), extra);
   }
 
@@ -53,12 +53,18 @@ class X87OperandConverter : public InstructionOperandConverter {
   }
 
   Operand HighOperand(InstructionOperand* op) {
-    DCHECK(op->IsDoubleStackSlot());
+    DCHECK(op->IsFPStackSlot());
     return ToOperand(op, kPointerSize);
   }
 
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
+    if (constant.type() == Constant::kInt32 &&
+        (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+         constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE)) {
+      return Immediate(reinterpret_cast<Address>(constant.ToInt32()),
+                       constant.rmode());
+    }
     switch (constant.type()) {
       case Constant::kInt32:
         return Immediate(constant.ToInt32());
@@ -369,11 +375,6 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ pop(ebp);
 }
 
-// For insert fninit/fld1 instructions after the Prologue
-thread_local bool is_block_0 = false;
-
-void CodeGenerator::AssembleSetupStackPointer() { is_block_0 = true; }
-
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta > 0) {
@@ -434,17 +435,11 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 }
 
 // Assembles an instruction after register allocation, producing machine code.
-void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
+CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
+    Instruction* instr) {
   X87OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
-
-  // Workaround for CL #35139 (https://codereview.chromium.org/1775323002)
-  if (is_block_0) {
-    __ fninit();
-    __ fld1();
-    is_block_0 = false;
-  }
 
   switch (arch_opcode) {
     case kArchCallCodeObject: {
@@ -463,7 +458,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       RecordCallPosition(instr);
       bool double_result =
-          instr->HasOutput() && instr->Output()->IsDoubleRegister();
+          instr->HasOutput() && instr->Output()->IsFPRegister();
       if (double_result) {
         __ lea(esp, Operand(esp, -kDoubleSize));
         __ fstp_d(Operand(esp, 0));
@@ -501,6 +496,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchTailCallAddress: {
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
+      CHECK(!HasImmediateInput(instr, 0));
+      Register reg = i.InputRegister(0);
+      __ jmp(reg);
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchCallJSFunction: {
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
@@ -516,7 +520,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       RecordCallPosition(instr);
       bool double_result =
-          instr->HasOutput() && instr->Output()->IsDoubleRegister();
+          instr->HasOutput() && instr->Output()->IsFPRegister();
       if (double_result) {
         __ lea(esp, Operand(esp, -kDoubleSize));
         __ fstp_d(Operand(esp, 0));
@@ -577,7 +581,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ CallCFunction(func, num_parameters);
       }
       bool double_result =
-          instr->HasOutput() && instr->Output()->IsDoubleRegister();
+          instr->HasOutput() && instr->Output()->IsFPRegister();
       if (double_result) {
         __ lea(esp, Operand(esp, -kDoubleSize));
         __ fstp_d(Operand(esp, 0));
@@ -612,7 +616,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       int double_register_param_count = 0;
       int x87_layout = 0;
       for (size_t i = 0; i < instr->InputCount(); i++) {
-        if (instr->InputAt(i)->IsDoubleRegister()) {
+        if (instr->InputAt(i)->IsFPRegister()) {
           double_register_param_count++;
         }
       }
@@ -630,7 +634,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
       Deoptimizer::BailoutType bailout_type =
           Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      CodeGenResult result =
+          AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      if (result != kSuccess) return result;
       break;
     }
     case kArchRet:
@@ -650,11 +656,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     case kArchTruncateDoubleToI: {
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fld_d(i.InputOperand(0));
       }
       __ TruncateX87TOSToI(i.OutputRegister());
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fstp(0);
       }
       break;
@@ -900,7 +906,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       uint64_t src = bit_cast<uint64_t>(src_constant.ToFloat64());
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
         __ mov(MemOperand(esp, 0), Immediate(lower));
         __ mov(MemOperand(esp, kInt32Size), Immediate(upper));
@@ -1092,10 +1098,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // Set the correct round mode in x87 control register
       __ X87SetRC((mode << 10));
 
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         InstructionOperand* input = instr->InputAt(0);
         USE(input);
-        DCHECK(input->IsDoubleStackSlot());
+        DCHECK(input->IsFPStackSlot());
         if (FLAG_debug_code && FLAG_enable_slow_asserts) {
           __ VerifyX87StackDepth(1);
         }
@@ -1333,13 +1339,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kX87Float32ToFloat64: {
       InstructionOperand* input = instr->InputAt(0);
-      if (input->IsDoubleRegister()) {
+      if (input->IsFPRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
         __ fstp_s(MemOperand(esp, 0));
         __ fld_s(MemOperand(esp, 0));
         __ add(esp, Immediate(kDoubleSize));
       } else {
-        DCHECK(input->IsDoubleStackSlot());
+        DCHECK(input->IsFPStackSlot());
         if (FLAG_debug_code && FLAG_enable_slow_asserts) {
           __ VerifyX87StackDepth(1);
         }
@@ -1357,17 +1363,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Float32ToInt32: {
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fld_s(i.InputOperand(0));
       }
       __ TruncateX87TOSToI(i.OutputRegister(0));
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fstp(0);
       }
       break;
     }
     case kX87Float32ToUint32: {
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fld_s(i.InputOperand(0));
       }
       Label success;
@@ -1381,30 +1387,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ TruncateX87TOSToI(i.OutputRegister(0));
       __ or_(i.OutputRegister(0), Immediate(0x80000000));
       __ bind(&success);
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fstp(0);
       }
       break;
     }
     case kX87Float64ToInt32: {
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fld_d(i.InputOperand(0));
       }
       __ TruncateX87TOSToI(i.OutputRegister(0));
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fstp(0);
       }
       break;
     }
     case kX87Float64ToFloat32: {
       InstructionOperand* input = instr->InputAt(0);
-      if (input->IsDoubleRegister()) {
+      if (input->IsFPRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
         __ fstp_s(MemOperand(esp, 0));
         __ fld_s(MemOperand(esp, 0));
         __ add(esp, Immediate(kDoubleSize));
       } else {
-        DCHECK(input->IsDoubleStackSlot());
+        DCHECK(input->IsFPStackSlot());
         if (FLAG_debug_code && FLAG_enable_slow_asserts) {
           __ VerifyX87StackDepth(1);
         }
@@ -1419,7 +1425,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kX87Float64ToUint32: {
       __ push_imm32(-2147483648);
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fld_d(i.InputOperand(0));
       }
       __ fild_s(Operand(esp, 0));
@@ -1429,13 +1435,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ add(esp, Immediate(kInt32Size));
       __ add(i.OutputRegister(), Immediate(0x80000000));
       __ fstp(0);
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         __ fstp(0);
       }
       break;
     }
     case kX87Float64ExtractHighWord32: {
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
         __ fst_d(MemOperand(esp, 0));
         __ mov(i.OutputRegister(), MemOperand(esp, kDoubleSize / 2));
@@ -1443,13 +1449,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         InstructionOperand* input = instr->InputAt(0);
         USE(input);
-        DCHECK(input->IsDoubleStackSlot());
+        DCHECK(input->IsFPStackSlot());
         __ mov(i.OutputRegister(), i.InputOperand(0, kDoubleSize / 2));
       }
       break;
     }
     case kX87Float64ExtractLowWord32: {
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
         __ fst_d(MemOperand(esp, 0));
         __ mov(i.OutputRegister(), MemOperand(esp, 0));
@@ -1457,7 +1463,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         InstructionOperand* input = instr->InputAt(0);
         USE(input);
-        DCHECK(input->IsDoubleStackSlot());
+        DCHECK(input->IsFPStackSlot());
         __ mov(i.OutputRegister(), i.InputOperand(0));
       }
       break;
@@ -1496,10 +1502,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // Set the correct round mode in x87 control register
       __ X87SetRC((mode << 10));
 
-      if (!instr->InputAt(0)->IsDoubleRegister()) {
+      if (!instr->InputAt(0)->IsFPRegister()) {
         InstructionOperand* input = instr->InputAt(0);
         USE(input);
-        DCHECK(input->IsDoubleStackSlot());
+        DCHECK(input->IsFPStackSlot());
         if (FLAG_debug_code && FLAG_enable_slow_asserts) {
           __ VerifyX87StackDepth(1);
         }
@@ -1652,7 +1658,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Push:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
         if (allocated.representation() == MachineRepresentation::kFloat32) {
           __ sub(esp, Immediate(kDoubleSize));
@@ -1663,7 +1669,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
           __ fst_d(Operand(esp, 0));
         }
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
-      } else if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      } else if (instr->InputAt(0)->IsFPStackSlot()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
         if (allocated.representation() == MachineRepresentation::kFloat32) {
           __ sub(esp, Immediate(kDoubleSize));
@@ -1693,12 +1699,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kX87Xchgb: {
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ xchg_b(i.InputRegister(index), operand);
+      break;
+    }
+    case kX87Xchgw: {
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ xchg_w(i.InputRegister(index), operand);
+      break;
+    }
+    case kX87Xchgl: {
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ xchg(i.InputRegister(index), operand);
+      break;
+    }
     case kX87PushFloat32:
       __ lea(esp, Operand(esp, -kFloatSize));
-      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      if (instr->InputAt(0)->IsFPStackSlot()) {
         __ fld_s(i.InputOperand(0));
         __ fstp_s(MemOperand(esp, 0));
-      } else if (instr->InputAt(0)->IsDoubleRegister()) {
+      } else if (instr->InputAt(0)->IsFPRegister()) {
         __ fst_s(MemOperand(esp, 0));
       } else {
         UNREACHABLE();
@@ -1706,10 +1730,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kX87PushFloat64:
       __ lea(esp, Operand(esp, -kDoubleSize));
-      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      if (instr->InputAt(0)->IsFPStackSlot()) {
         __ fld_d(i.InputOperand(0));
         __ fstp_d(MemOperand(esp, 0));
-      } else if (instr->InputAt(0)->IsDoubleRegister()) {
+      } else if (instr->InputAt(0)->IsFPRegister()) {
         __ fst_d(MemOperand(esp, 0));
       } else {
         UNREACHABLE();
@@ -1761,7 +1785,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kCheckedStoreWord64:
       UNREACHABLE();  // currently unsupported checked int64 load/store.
       break;
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
+      UNREACHABLE();  // Won't be generated by instruction selector.
+      break;
   }
+  return kSuccess;
 }  // NOLINT(readability/fn_size)
 
 
@@ -1837,7 +1872,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     int double_register_param_count = 0;
     int x87_layout = 0;
     for (size_t i = 0; i < instr->InputCount(); i++) {
-      if (instr->InputAt(i)->IsDoubleRegister()) {
+      if (instr->InputAt(i)->IsFPRegister()) {
         double_register_param_count++;
       }
     }
@@ -1971,12 +2006,13 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ jmp(Operand::JumpTable(input, times_4, table));
 }
 
-
-void CodeGenerator::AssembleDeoptimizerCall(
+CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
+  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+  return kSuccess;
 }
 
 
@@ -2107,8 +2143,25 @@ void CodeGenerator::AssembleDeoptimizerCall(
 //                                            | RET | args |  caller frame |
 //                                            ^ esp                        ^ ebp
 
+void CodeGenerator::FinishFrame(Frame* frame) {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  const RegList saves = descriptor->CalleeSavedRegisters();
+  if (saves != 0) {  // Save callee-saved registers.
+    DCHECK(!info()->is_osr());
+    int pushed = 0;
+    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+      if (!((1 << i) & saves)) continue;
+      ++pushed;
+    }
+    frame->AllocateSavedCalleeRegisterSlots(pushed);
+  }
 
-void CodeGenerator::AssemblePrologue() {
+  // Initailize FPU state.
+  __ fninit();
+  __ fld1();
+}
+
+void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
@@ -2120,7 +2173,9 @@ void CodeGenerator::AssemblePrologue() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
   }
-  int stack_shrink_slots = frame()->GetSpillSlotCount();
+
+  int shrink_slots = frame()->GetSpillSlotCount();
+
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -2131,7 +2186,7 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
+    shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
 
     // Initailize FPU state.
     __ fninit();
@@ -2139,8 +2194,8 @@ void CodeGenerator::AssemblePrologue() {
   }
 
   const RegList saves = descriptor->CalleeSavedRegisters();
-  if (stack_shrink_slots > 0) {
-    __ sub(esp, Immediate(stack_shrink_slots * kPointerSize));
+  if (shrink_slots > 0) {
+    __ sub(esp, Immediate(shrink_slots * kPointerSize));
   }
 
   if (saves != 0) {  // Save callee-saved registers.
@@ -2151,7 +2206,6 @@ void CodeGenerator::AssemblePrologue() {
       __ push(Register::from_code(i));
       ++pushed;
     }
-    frame()->AllocateSavedCalleeRegisterSlots(pushed);
   }
 }
 
@@ -2263,7 +2317,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src_constant.type() == Constant::kFloat32) {
       // TODO(turbofan): Can we do better here?
       uint32_t src = bit_cast<uint32_t>(src_constant.ToFloat32());
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         __ sub(esp, Immediate(kInt32Size));
         __ mov(MemOperand(esp, 0), Immediate(src));
         // always only push one value into the x87 stack.
@@ -2271,7 +2325,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ fld_s(MemOperand(esp, 0));
         __ add(esp, Immediate(kInt32Size));
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         Operand dst = g.ToOperand(destination);
         __ Move(dst, Immediate(src));
       }
@@ -2280,7 +2334,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       uint64_t src = bit_cast<uint64_t>(src_constant.ToFloat64());
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
         __ mov(MemOperand(esp, 0), Immediate(lower));
         __ mov(MemOperand(esp, kInt32Size), Immediate(upper));
@@ -2289,15 +2343,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ fld_d(MemOperand(esp, 0));
         __ add(esp, Immediate(kDoubleSize));
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         Operand dst0 = g.ToOperand(destination);
         Operand dst1 = g.HighOperand(destination);
         __ Move(dst0, Immediate(lower));
         __ Move(dst1, Immediate(upper));
       }
     }
-  } else if (source->IsDoubleRegister()) {
-    DCHECK(destination->IsDoubleStackSlot());
+  } else if (source->IsFPRegister()) {
+    DCHECK(destination->IsFPStackSlot());
     Operand dst = g.ToOperand(destination);
     auto allocated = AllocatedOperand::cast(*source);
     switch (allocated.representation()) {
@@ -2310,11 +2364,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       default:
         UNREACHABLE();
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     Operand src = g.ToOperand(source);
     auto allocated = AllocatedOperand::cast(*source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       // always only push one value into the x87 stack.
       __ fstp(0);
       switch (allocated.representation()) {
@@ -2373,9 +2427,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     frame_access_state()->IncreaseSPDelta(-1);
     Operand src2 = g.ToOperand(source);
     __ pop(src2);
-  } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
+  } else if (source->IsFPRegister() && destination->IsFPRegister()) {
     UNREACHABLE();
-  } else if (source->IsDoubleRegister() && destination->IsDoubleStackSlot()) {
+  } else if (source->IsFPRegister() && destination->IsFPStackSlot()) {
     auto allocated = AllocatedOperand::cast(*source);
     switch (allocated.representation()) {
       case MachineRepresentation::kFloat32:
@@ -2391,7 +2445,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       default:
         UNREACHABLE();
     }
-  } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
+  } else if (source->IsFPStackSlot() && destination->IsFPStackSlot()) {
     auto allocated = AllocatedOperand::cast(*source);
     switch (allocated.representation()) {
       case MachineRepresentation::kFloat32:
@@ -2421,9 +2475,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
     __ dd(targets[index]);
   }
 }
-
-
-void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
