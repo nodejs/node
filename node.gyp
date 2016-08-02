@@ -319,7 +319,7 @@
             'src/inspector_agent.cc',
             'src/inspector_socket.cc',
             'src/inspector_socket.h',
-            'src/inspector-agent.h',
+            'src/inspector_agent.h',
           ],
           'dependencies': [
             'deps/v8_inspector/platform/v8_inspector/v8_inspector.gyp:v8_inspector_stl',
