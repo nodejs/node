@@ -316,7 +316,7 @@
             'src/inspector_agent.cc',
             'src/inspector_socket.cc',
             'src/inspector_socket.h',
-            'src/inspector-agent.h',
+            'src/inspector_agent.h',
           ],
           'dependencies': [
             'deps/v8_inspector/third_party/v8_inspector/platform/'
