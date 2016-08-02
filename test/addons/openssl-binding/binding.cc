@@ -1,7 +1,4 @@
-#include "node.h"
-#include "../../../src/util.h"
-#include "../../../src/util-inl.h"
-
+#include <node.h>
 #include <assert.h>
 #include <openssl/rand.h>
 
