@@ -251,7 +251,7 @@ void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
 
   const char* iface_cstr = *iface;
   if (args[0]->IsUndefined() || args[0]->IsNull()) {
-      iface_cstr = nullptr;
+    iface_cstr = nullptr;
   }
 
   int err = uv_udp_set_multicast_interface(&wrap->handle_,

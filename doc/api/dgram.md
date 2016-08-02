@@ -372,7 +372,7 @@ packets may be sent to a local interface's broadcast address.
 
 ### socket.setMulticastInterface(multicastInterface)
 <!-- YAML
-added: v7.0.0
+added: REPLACEME
 -->
 
 * `multicastInterface` {String}
@@ -380,9 +380,9 @@ added: v7.0.0
 Sets the outgoing multicast interface using the provided IP. For IPv6, the addresses should use explicit scope to indicate the interface, as in the following example:
  
 ```js
-const s = dgram.createSocket('udp6');
-s.bind(1234, () => {
-        s.setMulticastInterface('::%eth1');
+const socket = dgram.createSocket('udp6');
+socket.bind(1234, () => {
+  socket.setMulticastInterface('::%eth1');
 });
 
 ```
