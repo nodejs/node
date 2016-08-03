@@ -1757,7 +1757,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       # Hash the target name to avoid generating overlong filenames.
       cmddigest = _new_sha1(command if command else self.target).hexdigest()
-      intermediate = "%s.intermediate" % (cmddigest)
+      intermediate = "%s.intermediate" % cmddigest
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
       self.WriteLn('\t%s' % '@:');
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
