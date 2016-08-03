@@ -366,7 +366,9 @@
                   'conditions': [
                     ['OS in "linux freebsd" and node_shared=="false"', {
                       'ldflags': [
-                        '-Wl,--whole-archive <(PRODUCT_DIR)/<(OPENSSL_PRODUCT)',
+                        '-Wl,--whole-archive,'
+                            '<(PRODUCT_DIR)/obj.target/deps/openssl/'
+                            '<(OPENSSL_PRODUCT)',
                         '-Wl,--no-whole-archive',
                       ],
                     }],

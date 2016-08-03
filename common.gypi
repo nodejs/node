@@ -271,8 +271,9 @@
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
-          ['_type=="static_library"', {
-            'standalone_static_library': 1, # disable thin archive which needs binutils >= 2.19
+          # The 1990s toolchain on SmartOS can't handle thin archives.
+          ['_type=="static_library" and OS=="solaris"', {
+            'standalone_static_library': 1,
           }],
         ],
         'conditions': [
