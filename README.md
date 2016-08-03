@@ -154,6 +154,7 @@ information about the governance of the Node.js project, see
 
 ### CTC (Core Technical Committee)
 
+* [addaleax](https://github.com/addaleax) - **Anna Henningsen** &lt;anna@addaleax.net&gt;
 * [bnoordhuis](https://github.com/bnoordhuis) - **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [ChALkeR](https://github.com/ChALkeR) - **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt;
 * [chrisdickinson](https://github.com/chrisdickinson) - **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
@@ -175,7 +176,6 @@ information about the governance of the Node.js project, see
 
 ### Collaborators
 
-* [addaleax](https://github.com/addaleax) - **Anna Henningsen** &lt;anna@addaleax.net&gt;
 * [andrasq](https://github.com/andrasq) - **Andras** &lt;andras@kinvey.com&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) - **Andreas Madsen** &lt;amwebdk@gmail.com&gt;
 * [bengl](https://github.com/bengl) - **Bryan English** &lt;bryan@bryanenglish.com&gt;
