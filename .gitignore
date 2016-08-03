@@ -43,6 +43,7 @@ ipch/
 *.opensdf
 *.VC.opendb
 .vs/
+.vscode/
 
 /config.mk
 /config.gypi
