@@ -10,22 +10,38 @@ const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
 
   --filter pattern          string to filter benchmark scripts
   --set    variable=value   set benchmark variable (can be repeated)
+  --format [simple|csv]     optional value that specifies the output format
 `, {
   arrayArgs: ['set']
 });
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
-  console.error('no benchmarks found');
-  process.exit(1);
+  console.error('No benchmarks found');
+  process.exitCode = 1;
+  return;
+}
+
+const validFormats = ['csv', 'simple'];
+const format = cli.optional.format || 'simple';
+if (!validFormats.includes(format)) {
+  console.error('Invalid format detected');
+  process.exitCode = 1;
+  return;
+}
+
+if (format === 'csv') {
+  console.log('"filename", "configuration", "rate", "time"');
 }
 
 (function recursive(i) {
   const filename = benchmarks[i];
   const child = fork(path.resolve(__dirname, filename), cli.optional.set);
 
-  console.log();
-  console.log(filename);
+  if (format !== 'csv') {
+    console.log();
+    console.log(filename);
+  }
 
   child.on('message', function(data) {
     // Construct configuration string, " A=a, B=b, ..."
@@ -33,8 +49,15 @@ if (benchmarks.length === 0) {
     for (const key of Object.keys(data.conf)) {
       conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
     }
-
-    console.log(`${data.name}${conf}: ${data.rate}`);
+    // delete first space of the configuration
+    conf = conf.slice(1);
+    if (format === 'csv') {
+      // Escape quotes (") for correct csv formatting
+      conf = conf.replace(/"/g, '""');
+      console.log(`"${data.name}", "${conf}", ${data.rate}, ${data.time}`);
+    } else {
+      console.log(`${data.name} ${conf}: ${data.rate}`);
+    }
   });
 
   child.once('close', function(code) {
