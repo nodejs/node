@@ -3359,7 +3359,6 @@ void LoadEnvironment(Environment* env) {
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
   env->isolate()->AddMessageListener(OnMessage);
 
-  // The node.js file returns a function 'f'
   atexit(AtExit);
 
   TryCatch try_catch(env->isolate());
@@ -3379,16 +3378,17 @@ void LoadEnvironment(Environment* env) {
     ReportException(env, try_catch);
     exit(10);
   }
+  // The bootstrap_node.js file returns a function 'f'
   CHECK(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
 
   // Now we call 'f' with the 'process' variable that we've built up with
-  // all our bindings. Inside node.js we'll take care of assigning things to
-  // their places.
+  // all our bindings. Inside bootstrap_node.js we'll take care of
+  // assigning things to their places.
 
   // We start the process this way in order to be more modular. Developers
-  // who do not like how 'src/node.js' setups the module system but do like
-  // Node's I/O bindings may want to replace 'f' with their own function.
+  // who do not like how bootstrap_node.js setups the module system but do
+  // like Node's I/O bindings may want to replace 'f' with their own function.
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
