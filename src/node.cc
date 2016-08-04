@@ -2720,23 +2720,18 @@ static void EnvQuery(Local<String> property,
 
 static void EnvDeleter(Local<String> property,
                        const PropertyCallbackInfo<Boolean>& info) {
-  bool rc = true;
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
-  rc = getenv(*key) != nullptr;
-  if (rc)
-    unsetenv(*key);
+  unsetenv(*key);
 #else
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  if (key_ptr[0] == L'=' || !SetEnvironmentVariableW(key_ptr, nullptr)) {
-    // Deletion failed. Return true if the key wasn't there in the first place,
-    // false if it is still there.
-    rc = GetEnvironmentVariableW(key_ptr, nullptr, 0) == 0 &&
-         GetLastError() != ERROR_SUCCESS;
-  }
+  SetEnvironmentVariableW(key_ptr, nullptr);
 #endif
-  info.GetReturnValue().Set(rc);
+
+  // process.env never has non-configurable properties, so always
+  // return true like the tc39 delete operator.
+  info.GetReturnValue().Set(true);
 }
 
 
