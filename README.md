@@ -92,14 +92,14 @@ download.
 
 The _SHASUM256.txt_ can be downloaded using curl.
 
-```shell
+```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
 ```
 
 To check that a downloaded file matches the checksum, run
 it through `sha256sum` with a command such as:
 
-```shell
+```console
 $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
@@ -115,7 +115,7 @@ the GPG keys of individuals authorized to create releases. They are
 listed at the bottom of this README under [Release Team](#release-team).
 Use a command such as this to import the keys:
 
-```shell
+```console
 $ gpg --keyserver pool.sks-keyservers.net \
   --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
@@ -346,7 +346,7 @@ Releases of Node.js and io.js will be signed with one of the following GPG keys:
 
 The full set of trusted release keys can be imported by running:
 
-```shell
+```console
 gpg --keyserver pool.sks-keyservers.net --recv-keys 9554F04D7259F04124DE6B476D5A82AC7E37093B
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys 0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93
