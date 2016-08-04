@@ -346,7 +346,7 @@ Releases of Node.js and io.js will be signed with one of the following GPG keys:
 
 The full set of trusted release keys can be imported by running:
 
-```console
+```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 9554F04D7259F04124DE6B476D5A82AC7E37093B
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys 0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93
