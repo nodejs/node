@@ -65,7 +65,7 @@ console.log('"binary", "filename", "configuration", "rate", "time"');
     }
     conf = conf.slice(1);
 
-    // Escape qoutes (") for correct csv formatting
+    // Escape quotes (") for correct csv formatting
     conf = conf.replace(/"/g, '""');
 
     console.log(`"${job.binary}", "${job.filename}", "${conf}", ` +

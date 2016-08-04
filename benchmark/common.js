@@ -30,7 +30,7 @@ function Benchmark(fn, options) {
 Benchmark.prototype._parseArgs = function(argv, options) {
   const cliOptions = Object.assign({}, options);
 
-  // Parse configuarion arguments
+  // Parse configuration arguments
   for (const arg of argv) {
     const match = arg.match(/^(.+?)=([\s\S]*)$/);
     if (!match || !match[1]) {
@@ -52,7 +52,7 @@ Benchmark.prototype._queue = function(options) {
   const queue = [];
   const keys = Object.keys(options);
 
-  // Perform a depth-first walk though all options to genereate a
+  // Perform a depth-first walk though all options to generate a
   // configuration list that contains all combinations.
   function recursive(keyIndex, prevConfig) {
     const key = keys[keyIndex];
@@ -171,9 +171,9 @@ Benchmark.prototype._run = function() {
 };
 
 Benchmark.prototype.start = function() {
-  if (this._started)
+  if (this._started) {
     throw new Error('Called start more than once in a single benchmark');
-
+  }
   this._started = true;
   this._time = process.hrtime();
 };
@@ -195,7 +195,7 @@ Benchmark.prototype.end = function(operations) {
 };
 
 function formatResult(data) {
-  // Construct confiuration string, " A=a, B=b, ..."
+  // Construct configuration string, " A=a, B=b, ..."
   let conf = '';
   for (const key of Object.keys(data.conf)) {
     conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
