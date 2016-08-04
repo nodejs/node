@@ -76,6 +76,15 @@ function runTest(atime, mtime, callback) {
     }
     expect_errno('utimesSync', 'foobarbaz', err, 'ENOENT');
     tests_run++;
+
+    err = undefined;
+    try {
+      fs.futimesSync(-1, atime, mtime);
+    } catch (ex) {
+      err = ex;
+    }
+    expect_errno('futimesSync', -1, err, 'EBADF');
+    tests_run++;
   }
 
   //
@@ -96,8 +105,13 @@ function runTest(atime, mtime, callback) {
 
       fs.futimes(fd, atime, mtime, function(err) {
         expect_ok('futimes', fd, err, atime, mtime);
-        syncTests();
-        callback();
+
+        fs.futimes(-1, atime, mtime, function(err) {
+          expect_errno('futimes', -1, err, 'EBADF');
+          syncTests();
+          callback();
+        });
+        tests_run++;
       });
       tests_run++;
     });
@@ -123,56 +137,6 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   });
 });
 
-// validate if the file descriptors are in the valid range
-assert.throws(() => fs.futimes(-1, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(-1),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes('-1', () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync('-1'),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes(0xFFFFFFFF + 1, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(0xFFFFFFFF + 1),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes('0x100000000', () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync('0x100000000'),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-// invalid file descriptors also should throw
-assert.throws(() => fs.futimes(null, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(null),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes(undefined, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(undefined),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes(NaN, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(NaN),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes({}, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync({}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes([], () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync([]),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes(() => true, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(() => true),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes(() => /RegEx/, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(() => /RegEx/),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimes(() => 3.14, () => {}),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
-assert.throws(() => fs.futimesSync(() => 3.14),
-              /TypeError: file descriptor must be a unsigned 32-bit integer/);
 
 process.on('exit', function() {
   console.log('Tests run / ok:', tests_run, '/', tests_ok);
