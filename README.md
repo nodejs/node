@@ -116,8 +116,7 @@ listed at the bottom of this README under [Release Team](#release-team).
 Use a command such as this to import the keys:
 
 ```console
-$ gpg --keyserver pool.sks-keyservers.net \
-  --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+$ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
 
 _(See the bottom of this README for a full script to import active
