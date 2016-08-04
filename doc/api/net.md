@@ -73,8 +73,7 @@ var server = net.createServer((socket) => {
 
 // grab a random port.
 server.listen(() => {
-  address = server.address();
-  console.log('opened server on %j', address);
+  console.log('opened server on', server.address());
 });
 ```
 
@@ -140,7 +139,7 @@ The last parameter `callback` will be added as a listener for the
 [`'listening'`][] event.
 
 The parameter `backlog` behaves the same as in
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 
 ### server.listen(options[, callback])
 <!-- YAML
@@ -157,7 +156,7 @@ added: v0.11.14
 
 The `port`, `host`, and `backlog` properties of `options`, as well as the
 optional callback function, behave as they do on a call to
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 Alternatively, the `path` option can be used to specify a UNIX socket.
 
 If `exclusive` is `false` (default), then cluster workers will use the same
@@ -209,17 +208,19 @@ double-backslashes, such as:
         path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
 
 The parameter `backlog` behaves the same as in
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 
-### server.listen(port[, hostname][, backlog][, callback])
+### server.listen([port][, hostname][, backlog][, callback])
 <!-- YAML
 added: v0.1.90
 -->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
-(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. Use a
-port value of `0` to have the operating system assign an available port.
+(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise.
+Omit the port argument, or use a port value of `0`, to have the operating system
+assign a random port, which can be retrieved by using `server.address().port`
+after the `'listening'` event has been emitted.
 
 Backlog is the maximum length of the queue of pending connections.
 The actual length will be determined by the OS through sysctl settings such as
