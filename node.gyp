@@ -78,6 +78,7 @@
       'lib/internal/freelist.js',
       'lib/internal/linkedlist.js',
       'lib/internal/net.js',
+      'lib/internal/mapproxy.js',
       'lib/internal/module.js',
       'lib/internal/process/next_tick.js',
       'lib/internal/process/promises.js',
