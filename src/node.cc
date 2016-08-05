@@ -150,6 +150,8 @@ static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
+static bool trace_enabled = false;
+static const char* trace_config_file = nullptr;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -194,6 +196,7 @@ static struct {
   void Initialize(int thread_pool_size) {
     platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
     V8::InitializePlatform(platform_);
+    tracing::TraceEventHelper::SetCurrentPlatform(platform_);
   }
 
   void PumpMessageLoop(Isolate* isolate) {
@@ -2204,6 +2207,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
   WaitForInspectorDisconnect(Environment::GetCurrent(args));
+  Environment::GetCurrent(args)->tracing_agent()->Stop();
   exit(args[0]->Int32Value());
 }
 
@@ -3626,6 +3630,10 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--enable-tracing") == 0) {
+      trace_enabled = true;
+    } else if (strncmp(arg, "--trace-config=", 15) == 0) {
+      trace_config_file = arg + 15;
     } else if (strcmp(arg, "--track-heap-objects") == 0) {
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
@@ -4332,6 +4340,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       return 12;  // Signal internal error.
   }
 
+  // Enable tracing when argv has --enable-tracing.
+  if (trace_enabled) {
+    env.tracing_agent()->Start(v8_platform.platform_, trace_config_file);
+  }
+
   {
     Environment::AsyncCallbackScope callback_scope(&env);
     LoadEnvironment(&env);
@@ -4369,6 +4382,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   RunAtExit(&env);
 
   WaitForInspectorDisconnect(&env);
+  env.tracing_agent()->Stop();
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif

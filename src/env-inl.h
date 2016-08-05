@@ -176,6 +176,7 @@ inline Environment::Environment(IsolateData* isolate_data,
 #if HAVE_INSPECTOR
       inspector_agent_(this),
 #endif
+      tracing_agent_(this),
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       context_(context->GetIsolate(), context) {

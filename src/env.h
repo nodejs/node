@@ -8,6 +8,7 @@
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
 #endif
+#include "tracing/agent.h"
 #include "handle_wrap.h"
 #include "req-wrap.h"
 #include "tree.h"
@@ -537,6 +538,10 @@ class Environment {
   }
 #endif
 
+  inline tracing::Agent* tracing_agent() {
+    return &tracing_agent_;
+  }
+
   typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
   typedef ListHead<ReqWrap<uv_req_t>, &ReqWrap<uv_req_t>::req_wrap_queue_>
           ReqWrapQueue;
@@ -574,6 +579,7 @@ class Environment {
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
 #endif
+  tracing::Agent tracing_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
