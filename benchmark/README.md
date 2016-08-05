@@ -14,9 +14,28 @@ This folder contains benchmarks to measure the performance of the Node.js APIs.
 
 ## Prerequisites
 
-Most of the http benchmarks require [`wrk`][wrk] to be installed. It may be
-available through your preferred package manager. If not, `wrk` can be built
-[from source][wrk] via `make`.
+Most of the HTTP benchmarks require a benchmarker to be installed, this can be
+either [`wrk`][wrk] or [`autocannon`][autocannon].
+
+`Autocannon` is a Node script that can be installed using
+`npm install -g autocannon`. It will use the Node executable that is in the
+path, hence if you want to compare two HTTP benchmark runs make sure that the
+Node version in the path is not altered.
+
+`wrk` may be available through your preferred package manger. If not, you can
+easily build it [from source][wrk] via `make`.
+
+To select which tool will be used to run your HTTP benchmark you can:
+* When running the benchmakrs, set `NODE_HTTP_BENCHMARKER` environment variable
+to desired benchmarker.
+* To select the default benchmarker for a particular benchmark, specify it as
+`benchmarker` key (e.g. `benchmarker: 'wrk'`) in configuration passed to
+`createBenchmark`. This can be overridden by `NODE_HTTP_BENCHMARKER` in run
+time.
+
+If you do not specify which benchmarker to use, all of the installed tools will
+be used to run the benchmarks. This will also happen if you pass `all` as the
+desired benchmark tool.
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
@@ -287,5 +306,6 @@ function main(conf) {
 }
 ```
 
+[autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances

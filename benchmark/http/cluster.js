@@ -27,9 +27,8 @@ function main(conf) {
 
     setTimeout(function() {
       var path = '/' + conf.type + '/' + conf.length;
-      var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
-      bench.http(path, args, function() {
+      bench.http(path, 10, conf.c, function() {
         w1.destroy();
         w2.destroy();
       });
