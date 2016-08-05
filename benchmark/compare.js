@@ -33,7 +33,8 @@ const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
   console.error('no benchmarks found');
-  process.exit(1);
+  process.exitCode = 1;
+  return;
 }
 
 // Create queue from the benchmarks list such both node versions are tested
