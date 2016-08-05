@@ -38,6 +38,7 @@
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
+#include "tracing/agent.h"
 #include "util.h"
 #include "uv.h"
 #if NODE_USE_V8_PLATFORM
@@ -151,6 +152,8 @@ static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
+static bool trace_enabled = false;
+static const char* trace_enabled_categories = nullptr;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -195,6 +198,7 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
+static tracing::Agent* tracing_agent;
 
 static node::DebugOptions debug_options;
 
@@ -203,6 +207,7 @@ static struct {
   void Initialize(int thread_pool_size) {
     platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
     V8::InitializePlatform(platform_);
+    tracing::TraceEventHelper::SetCurrentPlatform(platform_);
   }
 
   void PumpMessageLoop(Isolate* isolate) {
@@ -3369,6 +3374,9 @@ void SetupProcessObject(Environment* env,
 
 void SignalExit(int signo) {
   uv_tty_reset_mode();
+  if (trace_enabled) {
+    tracing_agent->Stop();
+  }
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
   struct sigaction sa;
@@ -3655,6 +3663,16 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--trace-events-enabled") == 0) {
+      trace_enabled = true;
+    } else if (strcmp(arg, "--trace-event-categories") == 0) {
+      const char* categories = argv[index + 1];
+      if (categories == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      trace_enabled_categories = categories;
     } else if (strcmp(arg, "--track-heap-objects") == 0) {
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
@@ -4499,10 +4517,20 @@ int Start(int argc, char** argv) {
 #endif  // HAVE_OPENSSL
 
   v8_platform.Initialize(v8_thread_pool_size);
+  // Enable tracing when argv has --trace-events-enabled.
+  if (trace_enabled) {
+    fprintf(stderr, "Warning: Trace event is an experimental feature "
+            "and could change at any time.\n");
+    tracing_agent = new tracing::Agent();
+    tracing_agent->Start(v8_platform.platform_, trace_enabled_categories);
+  }
   V8::Initialize();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
+  if (trace_enabled) {
+    tracing_agent->Stop();
+  }
   v8_initialized = false;
   V8::Dispose();
 
