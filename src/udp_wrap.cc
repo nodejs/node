@@ -246,13 +246,11 @@ void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
                           args.GetReturnValue().Set(UV_EBADF));
 
   CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
 
-  node::Utf8Value iface(args.GetIsolate(), args[0]);
+  Utf8Value iface(args.GetIsolate(), args[0]);
 
   const char* iface_cstr = *iface;
-  if (args[0]->IsUndefined() || args[0]->IsNull()) {
-    iface_cstr = nullptr;
-  }
 
   int err = uv_udp_set_multicast_interface(&wrap->handle_,
                                            iface_cstr);

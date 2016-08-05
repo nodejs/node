@@ -377,15 +377,54 @@ added: REPLACEME
 
 * `multicastInterface` {String}
 
-Sets the outgoing multicast interface using the provided IP. For IPv6, the addresses should use explicit scope to indicate the interface, as in the following example:
+Sets the default outgoing multicast interface of the socket to a chosen interface or back to system interface selection. The `multicastInterface` must be a valid string representation of an IP from the socket's family.
+
+For IPv4 sockets, this should be the IP configured for the desired physical interface. All packets sent to multicast on the socket will be sent on the interface determined by the most recent successful use of this call.
+
+For IPv6 sockets, `multicastInterface` should include a Scope ("IP%Scope") to indicate the interface as in the examples that follow. In IPv6, individual send calls can also use explicit Scope in addresses, so only packets sent to a multicast address without specifying an explicit Scope are affected by the most recent successful use of this call.
  
+#### Examples: IPv6 Outgoing Multicast Interface
+On most systems, where Scope format uses the interface name:
 ```js
 const socket = dgram.createSocket('udp6');
+
 socket.bind(1234, () => {
   socket.setMulticastInterface('::%eth1');
 });
-
 ```
+
+On windows, where Scope format uses an interface number:
+
+```js
+const socket = dgram.createSocket('udp6');
+
+socket.bind(1234, () => {
+  socket.setMulticastInterface('::%2');
+});
+```
+
+#### Example: IPv4 Outgoing Multicast Interface
+All systems use an IP of the host on the desired physical interface:
+```js
+const socket = dgram.createSocket('udp4');
+
+socket.bind(1234, () => {
+  socket.setMulticastInterface('10.0.0.2');
+});
+```
+
+#### Call Results
+
+A call on a socket that is not ready to send or no longer open may cause a *Not running* Error Exception.
+
+If `multicastInterface` can not be parsed into an IP then an *EINVAL* Error Exception is thrown.
+
+On IPv4, if `multicastInterface` is a valid Address but does not match any interface, or if the address does not match the family then system provided errors such as *EADDRNOTAVAIL* or *EPROTONOSUP* are indicated in the Error Exception.
+
+On IPv6 most errors with specifying or omiting Scope will result in the socket continuing to use (or returning to) the system's default interface selection. 
+
+A socket's Address Families' ANY address (IPv4 "0.0.0.0" or IPv6 "::") can be used to return control of the sockets default outgoing interface to the system for future multicast packets.
+
 
 ### socket.setMulticastLoopback(flag)
 <!-- YAML
