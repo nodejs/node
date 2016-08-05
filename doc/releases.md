@@ -218,7 +218,7 @@ Tag summaries have a predictable format, look at a recent tag to see, `git tag -
 
 Install `git-secure-tag` npm module:
 
-```sh
+```console
 $ npm install -g git-secure-tag
 ```
 
