@@ -478,6 +478,12 @@ parser.add_option('--without-bundled-v8',
     help='do not use V8 includes from the bundled deps folder. ' +
          '(This mode is not officially supported for regular applications)')
 
+# Create compile_commands.json in out/Debug and out/Release.
+parser.add_option('-C',
+    action='store_true',
+    dest='compile_commands_json',
+    help=optparse.SUPPRESS_HELP)
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -1350,6 +1356,9 @@ elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
 else:
   gyp_args += ['-f', 'make-' + flavor]
+
+if options.compile_commands_json:
+  gyp_args += ['-f', 'compile_commands_json']
 
 gyp_args += args
 
