@@ -152,6 +152,10 @@
       ],
 
       'sources': [
+        'src/tracing/agent.cc',
+        'src/tracing/node_trace_buffer.cc',
+        'src/tracing/node_trace_writer.cc',
+        'src/tracing/trace_event.cc',
         'src/async-wrap.cc',
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',
@@ -230,6 +234,7 @@
         'src/stream_base.h',
         'src/stream_base-inl.h',
         'src/stream_wrap.h',
+        'src/tracing/trace_event.h'
         'src/tree.h',
         'src/util.h',
         'src/util-inl.h',
