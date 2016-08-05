@@ -7,6 +7,7 @@ import sys
 categories = []
 defines = []
 excludes = []
+bases = []
 
 if __name__ == '__main__':
   out = sys.stdout
@@ -18,6 +19,7 @@ if __name__ == '__main__':
     elif option.startswith('-C'): categories += option[2:].split(',')
     elif option.startswith('-D'): defines += option[2:].split(',')
     elif option.startswith('-X'): excludes += option[2:].split(',')
+    elif option.startswith('-B'): bases += option[2:].split(',')
 
   excludes = map(re.compile, excludes)
   exported = []
@@ -39,6 +41,13 @@ if __name__ == '__main__':
       if not satisfy(meta[1], defines): continue
       if not satisfy(meta[3], categories): continue
       exported.append(name)
+
+  for filename in bases:
+    for line in open(filename).readlines():
+      line = line.strip()
+      if line == 'EXPORTS': continue
+      if line[0] == ';': continue
+      exported.append(line)
 
   print('EXPORTS', file=out)
   for name in sorted(exported): print('    ', name, file=out)
