@@ -1,9 +1,7 @@
 'use strict';
 
 const child_process = require('child_process');
-
-// The port used by servers and wrk
-exports.PORT = process.env.PORT || 12346;
+const http_benchmarkers = require('./_http-benchmarkers.js');
 
 exports.createBenchmark = function(fn, options) {
   return new Benchmark(fn, options);
@@ -11,7 +9,9 @@ exports.createBenchmark = function(fn, options) {
 
 function Benchmark(fn, options) {
   this.name = require.main.filename.slice(__dirname.length + 1);
-  this.options = this._parseArgs(process.argv.slice(2), options);
+  const parsed_args = this._parseArgs(process.argv.slice(2), options);
+  this.options = parsed_args.cli;
+  this.extra_options = parsed_args.extra;
   this.queue = this._queue(this.options);
   this.config = this.queue[0];
 
@@ -29,7 +29,7 @@ function Benchmark(fn, options) {
 
 Benchmark.prototype._parseArgs = function(argv, options) {
   const cliOptions = Object.assign({}, options);
-
+  const extraOptions = {};
   // Parse configuration arguments
   for (const arg of argv) {
     const match = arg.match(/^(.+?)=([\s\S]*)$/);
@@ -38,14 +38,16 @@ Benchmark.prototype._parseArgs = function(argv, options) {
       process.exit(1);
     }
 
-    // Infer the type from the options object and parse accordingly
-    const isNumber = typeof options[match[1]][0] === 'number';
-    const value = isNumber ? +match[2] : match[2];
-
-    cliOptions[match[1]] = [value];
+    if (options[match[1]]) {
+      // Infer the type from the options object and parse accordingly
+      const isNumber = typeof options[match[1]][0] === 'number';
+      const value = isNumber ? +match[2] : match[2];
+      cliOptions[match[1]] = [value];
+    } else {
+      extraOptions[match[1]] = match[2];
+    }
   }
-
-  return cliOptions;
+  return { cli: cliOptions, extra: extraOptions };
 };
 
 Benchmark.prototype._queue = function(options) {
@@ -88,51 +90,29 @@ Benchmark.prototype._queue = function(options) {
   return queue;
 };
 
-function hasWrk() {
-  const result = child_process.spawnSync('wrk', ['-h']);
-  if (result.error && result.error.code === 'ENOENT') {
-    console.error('Couldn\'t locate `wrk` which is needed for running ' +
-      'benchmarks. Check benchmark/README.md for further instructions.');
-    process.exit(1);
-  }
-}
+// Benchmark an http server.
+exports.default_http_benchmarker =
+  http_benchmarkers.default_http_benchmarker;
+exports.PORT = http_benchmarkers.PORT;
 
-// benchmark an http server.
-const WRK_REGEXP = /Requests\/sec:[ \t]+([0-9\.]+)/;
-Benchmark.prototype.http = function(urlPath, args, cb) {
-  hasWrk();
+Benchmark.prototype.http = function(options, cb) {
   const self = this;
-
-  const urlFull = 'http://127.0.0.1:' + exports.PORT + urlPath;
-  args = args.concat(urlFull);
-
-  const childStart = process.hrtime();
-  const child = child_process.spawn('wrk', args);
-  child.stderr.pipe(process.stderr);
-
-  // Collect stdout
-  let stdout = '';
-  child.stdout.on('data', (chunk) => stdout += chunk.toString());
-
-  child.once('close', function(code) {
-    const elapsed = process.hrtime(childStart);
-    if (cb) cb(code);
-
-    if (code) {
-      console.error('wrk failed with ' + code);
-      process.exit(code);
+  const http_options = Object.assign({ }, options);
+  http_options.benchmarker = http_options.benchmarker ||
+                             self.config.benchmarker ||
+                             self.extra_options.benchmarker ||
+                             exports.default_http_benchmarker;
+  http_benchmarkers.run(http_options, function(error, code, used_benchmarker,
+                                               result, elapsed) {
+    if (cb) {
+      cb(code);
     }
-
-    // Extract requests pr second and check for odd results
-    const match = stdout.match(WRK_REGEXP);
-    if (!match || match.length <= 1) {
-      console.error('wrk produced strange output:');
-      console.error(stdout);
-      process.exit(1);
+    if (error) {
+      console.error(error);
+      process.exit(code || 1);
     }
-
-    // Report rate
-    self.report(+match[1], elapsed);
+    self.config.benchmarker = used_benchmarker;
+    self.report(result, elapsed);
   });
 };
 
@@ -151,6 +131,9 @@ Benchmark.prototype._run = function() {
     const childArgs = [];
     for (const key of Object.keys(config)) {
       childArgs.push(`${key}=${config[key]}`);
+    }
+    for (const key of Object.keys(self.extra_options)) {
+      childArgs.push(`${key}=${self.extra_options[key]}`);
     }
 
     const child = child_process.fork(require.main.filename, childArgs, {

@@ -627,13 +627,6 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
-haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
-wrk:
-ifneq ($(haswrk), 0)
-	@echo "please install wrk before proceeding. More information can be found in benchmark/README.md." >&2
-	@exit 1
-endif
-
 bench-net: all
 	@$(NODE) benchmark/run.js net
 
@@ -643,7 +636,7 @@ bench-crypto: all
 bench-tls: all
 	@$(NODE) benchmark/run.js tls
 
-bench-http: wrk all
+bench-http: all
 	@$(NODE) benchmark/run.js http
 
 bench-fs: all
