@@ -186,6 +186,8 @@ class AgentImpl {
                                      const std::string& path);
   static void WriteCbIO(uv_async_t* async);
 
+  void InstallInspectorOnProcess();
+
   void WorkerRunIO();
   void OnInspectorConnectionIO(inspector_socket_t* socket);
   void OnRemoteDataIO(inspector_socket_t* stream, ssize_t read,
@@ -276,6 +278,9 @@ class ChannelImpl final : public blink::protocol::FrontendChannel {
   AgentImpl* const agent_;
 };
 
+// Used in V8NodeInspector::currentTimeMS() below.
+#define NANOS_PER_MSEC 1000000
+
 class V8NodeInspector : public blink::V8InspectorClient {
  public:
   V8NodeInspector(AgentImpl* agent, node::Environment* env,
@@ -306,6 +311,10 @@ class V8NodeInspector : public blink::V8InspectorClient {
     } while (!terminated_);
     terminated_ = false;
     running_nested_loop_ = false;
+  }
+
+  double currentTimeMS() override {
+    return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
   }
 
   void quitMessageLoopOnPause() override {
@@ -361,10 +370,77 @@ AgentImpl::~AgentImpl() {
   data_written_ = nullptr;
 }
 
+void InspectorConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  CHECK(info.Data()->IsArray());
+  v8::Local<v8::Array> args = info.Data().As<v8::Array>();
+  CHECK_EQ(args->Length(), 3);
+
+  v8::Local<v8::Value> inspector_method =
+      args->Get(context, 0).ToLocalChecked();
+  CHECK(inspector_method->IsFunction());
+  v8::Local<v8::Value> node_method =
+      args->Get(context, 1).ToLocalChecked();
+  CHECK(node_method->IsFunction());
+  v8::Local<v8::Value> config_value =
+      args->Get(context, 2).ToLocalChecked();
+  CHECK(config_value->IsObject());
+  v8::Local<v8::Object> config_object = config_value.As<v8::Object>();
+
+  std::vector<v8::Local<v8::Value>> call_args(info.Length());
+  for (int i = 0; i < info.Length(); ++i) {
+    call_args[i] = info[i];
+  }
+
+  v8::Local<v8::String> in_call_key = OneByteString(isolate, "in_call");
+  bool in_call = config_object->Has(context, in_call_key).FromMaybe(false);
+  if (!in_call) {
+    CHECK(config_object->Set(context,
+                             in_call_key,
+                             v8::True(isolate)).FromJust());
+    CHECK(!inspector_method.As<v8::Function>()->Call(
+        context,
+        info.Holder(),
+        call_args.size(),
+        call_args.data()).IsEmpty());
+  }
+
+  v8::TryCatch try_catch(info.GetIsolate());
+  node_method.As<v8::Function>()->Call(context,
+                                       info.Holder(),
+                                       call_args.size(),
+                                       call_args.data());
+  CHECK(config_object->Delete(context, in_call_key).FromJust());
+  if (try_catch.HasCaught())
+    try_catch.ReThrow();
+}
+
+void InspectorWrapConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() != 3 || !args[0]->IsFunction() ||
+      !args[1]->IsFunction() || !args[2]->IsObject()) {
+    return env->ThrowError("inspector.wrapConsoleCall takes exactly 3 "
+        "arguments: two functions and an object.");
+  }
+
+  v8::Local<v8::Array> array = v8::Array::New(env->isolate(), args.Length());
+  CHECK(array->Set(env->context(), 0, args[0]).FromJust());
+  CHECK(array->Set(env->context(), 1, args[1]).FromJust());
+  CHECK(array->Set(env->context(), 2, args[2]).FromJust());
+  args.GetReturnValue().Set(v8::Function::New(env->context(),
+                                              InspectorConsoleCall,
+                                              array).ToLocalChecked());
+}
+
 bool AgentImpl::Start(v8::Platform* platform, int port, bool wait) {
   auto env = parent_env_;
   inspector_ = new V8NodeInspector(this, env, platform);
   platform_ = platform;
+
+  InstallInspectorOnProcess();
 
   int err = uv_loop_init(&child_loop_);
   CHECK_EQ(err, 0);
@@ -401,6 +477,22 @@ void AgentImpl::WaitForDisconnect() {
   shutting_down_ = true;
   fprintf(stderr, "Waiting for the debugger to disconnect...\n");
   inspector_->runMessageLoopOnPause(0);
+}
+
+#define READONLY_PROPERTY(obj, str, var)                                      \
+  do {                                                                        \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), str),                \
+                           var,                                               \
+                           v8::ReadOnly).FromJust();                          \
+  } while (0)
+
+void AgentImpl::InstallInspectorOnProcess() {
+  auto env = parent_env_;
+  v8::Local<v8::Object> process = env->process_object();
+  v8::Local<v8::Object> inspector = v8::Object::New(env->isolate());
+  READONLY_PROPERTY(process, "inspector", inspector);
+  env->SetMethod(inspector, "wrapConsoleCall", InspectorWrapConsoleCall);
 }
 
 // static
