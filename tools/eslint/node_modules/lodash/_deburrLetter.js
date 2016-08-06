@@ -1,3 +1,5 @@
+var basePropertyOf = require('./_basePropertyOf');
+
 /** Used to map latin-1 supplementary letters to basic latin letters. */
 var deburredLetters = {
   '\xc0': 'A',  '\xc1': 'A', '\xc2': 'A', '\xc3': 'A', '\xc4': 'A', '\xc5': 'A',
@@ -26,8 +28,6 @@ var deburredLetters = {
  * @param {string} letter The matched letter to deburr.
  * @returns {string} Returns the deburred letter.
  */
-function deburrLetter(letter) {
-  return deburredLetters[letter];
-}
+var deburrLetter = basePropertyOf(deburredLetters);
 
 module.exports = deburrLetter;

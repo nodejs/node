@@ -70,13 +70,12 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
       isCommon = false;
     }
   }
-  stack.set(srcValue, newValue);
-
   if (isCommon) {
     // Recursively merge objects and arrays (susceptible to call stack limits).
+    stack.set(srcValue, newValue);
     mergeFunc(newValue, srcValue, srcIndex, customizer, stack);
+    stack['delete'](srcValue);
   }
-  stack['delete'](srcValue);
   assignMergeValue(object, key, newValue);
 }
 

@@ -16,11 +16,11 @@
  *      a Property.
  * @param {ASTNode|null} right - A right node to traverse. This is a Pattern or
  *      a Property.
- * @param {function} report - A callback function to report.
+ * @param {Function} report - A callback function to report.
  * @returns {void}
  */
 function eachSelfAssignment(left, right, report) {
-    var i, j;
+    let i, j;
 
     if (!left || !right) {
 
@@ -35,10 +35,10 @@ function eachSelfAssignment(left, right, report) {
         left.type === "ArrayPattern" &&
         right.type === "ArrayExpression"
     ) {
-        var end = Math.min(left.elements.length, right.elements.length);
+        let end = Math.min(left.elements.length, right.elements.length);
 
         for (i = 0; i < end; ++i) {
-            var rightElement = right.elements[i];
+            let rightElement = right.elements[i];
 
             eachSelfAssignment(left.elements[i], rightElement, report);
 
@@ -60,7 +60,7 @@ function eachSelfAssignment(left, right, report) {
 
         // Gets the index of the last spread property.
         // It's possible to overwrite properties followed by it.
-        var startJ = 0;
+        let startJ = 0;
 
         for (i = right.properties.length - 1; i >= 0; --i) {
             if (right.properties[i].type === "ExperimentalSpreadProperty") {

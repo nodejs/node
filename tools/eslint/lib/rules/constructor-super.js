@@ -75,10 +75,11 @@ function isPossibleConstructor(node) {
                 isPossibleConstructor(node.consequent)
             );
 
-        case "SequenceExpression":
-            var lastExpression = node.expressions[node.expressions.length - 1];
+        case "SequenceExpression": {
+            const lastExpression = node.expressions[node.expressions.length - 1];
 
             return isPossibleConstructor(lastExpression);
+        }
 
         default:
             return false;
@@ -111,7 +112,7 @@ module.exports = {
          * - scope:      The scope of own class.
          * - codePath:   The code path object of the constructor.
          */
-        var funcInfo = null;
+        let funcInfo = null;
 
         /*
          * {Map<string, {calledInSomePaths: boolean, calledInEveryPaths: boolean}>}
@@ -120,7 +121,7 @@ module.exports = {
          * - calledInEveryPaths: A flag of be called `super()` in all code paths.
          * - validNodes:
          */
-        var segInfoMap = Object.create(null);
+        let segInfoMap = Object.create(null);
 
         /**
          * Gets the flag which shows `super()` is called in some paths.
@@ -163,8 +164,8 @@ module.exports = {
                 if (isConstructorFunction(node)) {
 
                     // Class > ClassBody > MethodDefinition > FunctionExpression
-                    var classNode = node.parent.parent.parent;
-                    var superClass = classNode.superClass;
+                    let classNode = node.parent.parent.parent;
+                    let superClass = classNode.superClass;
 
                     funcInfo = {
                         upper: funcInfo,
@@ -192,7 +193,7 @@ module.exports = {
              * @returns {void}
              */
             onCodePathEnd: function(codePath, node) {
-                var hasExtends = funcInfo.hasExtends;
+                let hasExtends = funcInfo.hasExtends;
 
                 // Pop.
                 funcInfo = funcInfo.upper;
@@ -202,9 +203,9 @@ module.exports = {
                 }
 
                 // Reports if `super()` lacked.
-                var segments = codePath.returnedSegments;
-                var calledInEveryPaths = segments.every(isCalledInEveryPath);
-                var calledInSomePaths = segments.some(isCalledInSomePath);
+                let segments = codePath.returnedSegments;
+                let calledInEveryPaths = segments.every(isCalledInEveryPath);
+                let calledInSomePaths = segments.some(isCalledInSomePath);
 
                 if (!calledInEveryPaths) {
                     context.report({
@@ -227,14 +228,14 @@ module.exports = {
                 }
 
                 // Initialize info.
-                var info = segInfoMap[segment.id] = {
+                let info = segInfoMap[segment.id] = {
                     calledInSomePaths: false,
                     calledInEveryPaths: false,
                     validNodes: []
                 };
 
                 // When there are previous segments, aggregates these.
-                var prevSegments = segment.prevSegments;
+                let prevSegments = segment.prevSegments;
 
                 if (prevSegments.length > 0) {
                     info.calledInSomePaths = prevSegments.some(isCalledInSomePath);
@@ -257,13 +258,13 @@ module.exports = {
                 }
 
                 // Update information inside of the loop.
-                var isRealLoop = toSegment.prevSegments.length >= 2;
+                let isRealLoop = toSegment.prevSegments.length >= 2;
 
                 funcInfo.codePath.traverseSegments(
                     {first: toSegment, last: fromSegment},
                     function(segment) {
-                        var info = segInfoMap[segment.id];
-                        var prevSegments = segment.prevSegments;
+                        let info = segInfoMap[segment.id];
+                        let prevSegments = segment.prevSegments;
 
                         // Updates flags.
                         info.calledInSomePaths = prevSegments.some(isCalledInSomePath);
@@ -271,12 +272,12 @@ module.exports = {
 
                         // If flags become true anew, reports the valid nodes.
                         if (info.calledInSomePaths || isRealLoop) {
-                            var nodes = info.validNodes;
+                            let nodes = info.validNodes;
 
                             info.validNodes = [];
 
-                            for (var i = 0; i < nodes.length; ++i) {
-                                var node = nodes[i];
+                            for (let i = 0; i < nodes.length; ++i) {
+                                let node = nodes[i];
 
                                 context.report({
                                     message: "Unexpected duplicate 'super()'.",
@@ -305,23 +306,22 @@ module.exports = {
 
                 // Reports if needed.
                 if (funcInfo.hasExtends) {
-                    var segments = funcInfo.codePath.currentSegments;
-                    var reachable = false;
-                    var duplicate = false;
+                    let segments = funcInfo.codePath.currentSegments;
+                    let duplicate = false;
+                    let info = null;
 
-                    for (var i = 0; i < segments.length; ++i) {
-                        var segment = segments[i];
+                    for (let i = 0; i < segments.length; ++i) {
+                        let segment = segments[i];
 
                         if (segment.reachable) {
-                            var info = segInfoMap[segment.id];
+                            info = segInfoMap[segment.id];
 
-                            reachable = true;
                             duplicate = duplicate || info.calledInSomePaths;
                             info.calledInSomePaths = info.calledInEveryPaths = true;
                         }
                     }
 
-                    if (reachable) {
+                    if (info) {
                         if (duplicate) {
                             context.report({
                                 message: "Unexpected duplicate 'super()'.",
@@ -360,13 +360,13 @@ module.exports = {
                 }
 
                 // Returning argument is a substitute of 'super()'.
-                var segments = funcInfo.codePath.currentSegments;
+                let segments = funcInfo.codePath.currentSegments;
 
-                for (var i = 0; i < segments.length; ++i) {
-                    var segment = segments[i];
+                for (let i = 0; i < segments.length; ++i) {
+                    let segment = segments[i];
 
                     if (segment.reachable) {
-                        var info = segInfoMap[segment.id];
+                        let info = segInfoMap[segment.id];
 
                         info.calledInSomePaths = info.calledInEveryPaths = true;
                     }

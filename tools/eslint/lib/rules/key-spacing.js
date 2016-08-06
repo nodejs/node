@@ -34,7 +34,7 @@ function last(arr) {
  * @returns {boolean} True if the candidate property is part of the group.
  */
 function continuesPropertyGroup(lastMember, candidate) {
-    var groupEndLine = lastMember.loc.start.line,
+    let groupEndLine = lastMember.loc.start.line,
         candidateStartLine = candidate.loc.start.line,
         comments, i;
 
@@ -71,18 +71,14 @@ function isSingleLine(node) {
     return (node.loc.end.line === node.loc.start.line);
 }
 
-/** Sets option values from the configured options with defaults
+/**
+ * Initializes a single option property from the configuration with defaults for undefined values
  * @param {Object} toOptions Object to be initialized
  * @param {Object} fromOptions Object to be initialized from
  * @returns {Object} The object with correctly initialized options and values
  */
-function initOptions(toOptions, fromOptions) {
+function initOptionProperty(toOptions, fromOptions) {
     toOptions.mode = fromOptions.mode || "strict";
-
-    // Set align if exists -  multiLine case
-    if (typeof fromOptions.align !== "undefined") {
-        toOptions.align = fromOptions.align;
-    }
 
     // Set value of beforeColon
     if (typeof fromOptions.beforeColon !== "undefined") {
@@ -98,6 +94,55 @@ function initOptions(toOptions, fromOptions) {
         toOptions.afterColon = 1;
     }
 
+    // Set align if exists
+    if (typeof fromOptions.align !== "undefined") {
+        if (typeof fromOptions.align === "object") {
+            toOptions.align = fromOptions.align;
+        } else { // "string"
+            toOptions.align = {
+                on: fromOptions.align,
+                mode: toOptions.mode,
+                beforeColon: toOptions.beforeColon,
+                afterColon: toOptions.afterColon
+            };
+        }
+    }
+
+    return toOptions;
+}
+
+/**
+ * Initializes all the option values (singleLine, multiLine and align) from the configuration with defaults for undefined values
+ * @param {Object} toOptions Object to be initialized
+ * @param {Object} fromOptions Object to be initialized from
+ * @returns {Object} The object with correctly initialized options and values
+ */
+function initOptions(toOptions, fromOptions) {
+    if (typeof fromOptions.align === "object") {
+
+        // Initialize the alignment configuration
+        toOptions.align = initOptionProperty({}, fromOptions.align);
+        toOptions.align.on = fromOptions.align.on || "colon";
+        toOptions.align.mode = fromOptions.align.mode || "strict";
+
+        toOptions.multiLine = initOptionProperty({}, (fromOptions.multiLine || fromOptions));
+        toOptions.singleLine = initOptionProperty({}, (fromOptions.singleLine || fromOptions));
+
+    } else { // string or undefined
+        toOptions.multiLine = initOptionProperty({}, (fromOptions.multiLine || fromOptions));
+        toOptions.singleLine = initOptionProperty({}, (fromOptions.singleLine || fromOptions));
+
+        // If alignment options are defined in multiLine, pull them out into the general align configuration
+        if (toOptions.multiLine.align) {
+            toOptions.align = {
+                on: toOptions.multiLine.align.on,
+                mode: toOptions.multiLine.mode,
+                beforeColon: toOptions.multiLine.align.beforeColon,
+                afterColon: toOptions.multiLine.align.afterColon
+            };
+        }
+    }
+
     return toOptions;
 }
 
@@ -105,7 +150,7 @@ function initOptions(toOptions, fromOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var messages = {
+let messages = {
     key: "{{error}} space after {{computed}}key '{{key}}'.",
     value: "{{error}} space before value for {{computed}}key '{{key}}'."
 };
@@ -126,7 +171,29 @@ module.exports = {
                     type: "object",
                     properties: {
                         align: {
-                            enum: ["colon", "value"]
+                            anyOf: [
+                                {
+                                    enum: ["colon", "value"]
+                                },
+                                {
+                                    type: "object",
+                                    properties: {
+                                        mode: {
+                                            enum: ["strict", "minimum"]
+                                        },
+                                        on: {
+                                            enum: ["colon", "value"]
+                                        },
+                                        beforeColon: {
+                                            type: "boolean"
+                                        },
+                                        afterColon: {
+                                            type: "boolean"
+                                        }
+                                    },
+                                    additionalProperties: false
+                                }
+                            ]
                         },
                         mode: {
                             enum: ["strict", "minimum"]
@@ -162,10 +229,83 @@ module.exports = {
                             type: "object",
                             properties: {
                                 align: {
-                                    enum: ["colon", "value"]
+                                    anyOf: [
+                                        {
+                                            enum: ["colon", "value"]
+                                        },
+                                        {
+                                            type: "object",
+                                            properties: {
+                                                mode: {
+                                                    enum: ["strict", "minimum"]
+                                                },
+                                                on: {
+                                                    enum: ["colon", "value"]
+                                                },
+                                                beforeColon: {
+                                                    type: "boolean"
+                                                },
+                                                afterColon: {
+                                                    type: "boolean"
+                                                }
+                                            },
+                                            additionalProperties: false
+                                        }
+                                    ]
                                 },
                                 mode: {
                                     enum: ["strict", "minimum"]
+                                },
+                                beforeColon: {
+                                    type: "boolean"
+                                },
+                                afterColon: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    },
+                    additionalProperties: false
+                },
+                {
+                    type: "object",
+                    properties: {
+                        singleLine: {
+                            type: "object",
+                            properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
+                                beforeColon: {
+                                    type: "boolean"
+                                },
+                                afterColon: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        },
+                        multiLine: {
+                            type: "object",
+                            properties: {
+                                beforeColon: {
+                                    type: "boolean"
+                                },
+                                afterColon: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        },
+                        align: {
+                            type: "object",
+                            properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
+                                on: {
+                                    enum: ["colon", "value"]
                                 },
                                 beforeColon: {
                                     type: "boolean"
@@ -193,17 +333,18 @@ module.exports = {
          *     align: "colon" // Optional, or "value"
          * }
          */
+        let options = context.options[0] || {},
+            ruleOptions = initOptions({}, options),
+            multiLineOptions = ruleOptions.multiLine,
+            singleLineOptions = ruleOptions.singleLine,
+            alignmentOptions = ruleOptions.align || null;
 
-        var options = context.options[0] || {},
-            multiLineOptions = initOptions({}, (options.multiLine || options)),
-            singleLineOptions = initOptions({}, (options.singleLine || options));
-
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Determines if the given property is key-value property.
          * @param {ASTNode} property Property node to check.
-         * @returns {Boolean} Whether the property is a key-value property.
+         * @returns {boolean} Whether the property is a key-value property.
          */
         function isKeyValueProperty(property) {
             return !(
@@ -220,7 +361,7 @@ module.exports = {
          * @returns {ASTNode} The last token before a colon punctuator.
          */
         function getLastTokenBeforeColon(node) {
-            var prevNode;
+            let prevNode;
 
             while (node && (node.type !== "Punctuator" || node.value !== ":")) {
                 prevNode = node;
@@ -251,7 +392,7 @@ module.exports = {
          * @returns {string} The property's key.
          */
         function getKey(property) {
-            var key = property.key;
+            let key = property.key;
 
             if (property.computed) {
                 return sourceCode.getText().slice(key.range[0], key.range[1]);
@@ -271,7 +412,7 @@ module.exports = {
          * @returns {void}
          */
         function report(property, side, whitespace, expected, mode) {
-            var diff = whitespace.length - expected,
+            let diff = whitespace.length - expected,
                 nextColon = getNextColon(property.key),
                 tokenBeforeColon = sourceCode.getTokenBefore(nextColon),
                 tokenAfterColon = sourceCode.getTokenAfter(nextColon),
@@ -335,7 +476,7 @@ module.exports = {
          * @returns {int} Width of the key.
          */
         function getKeyWidth(property) {
-            var startToken, endToken;
+            let startToken, endToken;
 
             startToken = sourceCode.getFirstToken(property);
             endToken = getLastTokenBeforeColon(property.key);
@@ -349,7 +490,7 @@ module.exports = {
          * @returns {Object} Whitespace before and after the property's colon.
          */
         function getPropertyWhitespace(property) {
-            var whitespace = /(\s*):(\s*)/.exec(sourceCode.getText().slice(
+            let whitespace = /(\s*):(\s*)/.exec(sourceCode.getText().slice(
                 property.key.range[1], property.value.range[0]
             ));
 
@@ -373,7 +514,7 @@ module.exports = {
             }
 
             return node.properties.reduce(function(groups, property) {
-                var currentGroup = last(groups),
+                let currentGroup = last(groups),
                     prev = last(currentGroup);
 
                 if (!prev || continuesPropertyGroup(prev, property)) {
@@ -394,14 +535,22 @@ module.exports = {
          * @returns {void}
          */
         function verifyGroupAlignment(properties) {
-            var length = properties.length,
+            let length = properties.length,
                 widths = properties.map(getKeyWidth), // Width of keys, including quotes
                 targetWidth = Math.max.apply(null, widths),
+                align = alignmentOptions.on, // "value" or "colon"
                 i, property, whitespace, width,
-                align = multiLineOptions.align,
-                beforeColon = multiLineOptions.beforeColon,
-                afterColon = multiLineOptions.afterColon,
-                mode = multiLineOptions.mode;
+                beforeColon, afterColon, mode;
+
+            if (alignmentOptions && length > 1) { // When aligning values within a group, use the alignment configuration.
+                beforeColon = alignmentOptions.beforeColon;
+                afterColon = alignmentOptions.afterColon;
+                mode = alignmentOptions.mode;
+            } else {
+                beforeColon = multiLineOptions.beforeColon;
+                afterColon = multiLineOptions.afterColon;
+                mode = alignmentOptions.mode;
+            }
 
             // Conditionally include one space before or after colon
             targetWidth += (align === "colon" ? beforeColon : afterColon);
@@ -441,7 +590,7 @@ module.exports = {
          * @returns {void}
          */
         function verifySpacing(node, lineOptions) {
-            var actual = getPropertyWhitespace(node);
+            let actual = getPropertyWhitespace(node);
 
             if (actual) { // Object literal getters/setters lack colons
                 report(node, "key", actual.beforeColon, lineOptions.beforeColon, lineOptions.mode);
@@ -455,9 +604,9 @@ module.exports = {
          * @returns {void}
          */
         function verifyListSpacing(properties) {
-            var length = properties.length;
+            let length = properties.length;
 
-            for (var i = 0; i < length; i++) {
+            for (let i = 0; i < length; i++) {
                 verifySpacing(properties[i], singleLineOptions);
             }
         }
@@ -466,7 +615,7 @@ module.exports = {
         // Public API
         //--------------------------------------------------------------------------
 
-        if (multiLineOptions.align) { // Verify vertical alignment
+        if (alignmentOptions) { // Verify vertical alignment
 
             return {
                 ObjectExpression: function(node) {

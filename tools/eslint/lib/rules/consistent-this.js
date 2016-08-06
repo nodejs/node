@@ -27,7 +27,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var aliases = [];
+        let aliases = [];
 
         if (context.options.length === 0) {
             aliases.push("that");
@@ -57,7 +57,7 @@ module.exports = {
          * @returns {void}
          */
         function checkAssignment(node, name, value) {
-            var isThis = value.type === "ThisExpression";
+            let isThis = value.type === "ThisExpression";
 
             if (aliases.indexOf(name) !== -1) {
                 if (!isThis || node.operator && node.operator !== "=") {
@@ -73,12 +73,12 @@ module.exports = {
          * Ensures that a variable declaration of the alias in a program or function
          * is assigned to the correct value.
          * @param {string} alias alias the check the assignment of.
-         * @param {object} scope scope of the current code we are checking.
+         * @param {Object} scope scope of the current code we are checking.
          * @private
          * @returns {void}
          */
         function checkWasAssigned(alias, scope) {
-            var variable = scope.set.get(alias);
+            let variable = scope.set.get(alias);
 
             if (!variable) {
                 return;
@@ -94,7 +94,7 @@ module.exports = {
             // The alias has been declared and not assigned: check it was
             // assigned later in the same scope.
             if (!variable.references.some(function(reference) {
-                var write = reference.writeExpr;
+                let write = reference.writeExpr;
 
                 return (
                     reference.from === scope &&
@@ -115,7 +115,7 @@ module.exports = {
          * @returns {void}
          */
         function ensureWasAssigned() {
-            var scope = context.getScope();
+            let scope = context.getScope();
 
             aliases.forEach(function(alias) {
                 checkWasAssigned(alias, scope);
@@ -128,8 +128,8 @@ module.exports = {
             "FunctionDeclaration:exit": ensureWasAssigned,
 
             VariableDeclarator: function(node) {
-                var id = node.id;
-                var isDestructuring =
+                let id = node.id;
+                let isDestructuring =
                     id.type === "ArrayPattern" || id.type === "ObjectPattern";
 
                 if (node.init !== null && !isDestructuring) {

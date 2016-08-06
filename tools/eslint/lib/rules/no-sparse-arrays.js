@@ -30,7 +30,7 @@ module.exports = {
 
             ArrayExpression: function(node) {
 
-                var emptySpot = node.elements.indexOf(null) > -1;
+                let emptySpot = node.elements.indexOf(null) > -1;
 
                 if (emptySpot) {
                     context.report(node, "Unexpected comma in middle of array.");

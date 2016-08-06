@@ -56,7 +56,7 @@ module.exports = {
          */
         function naiveHasReturn(node) {
             if (node.type === "BlockStatement") {
-                var body = node.body,
+                let body = node.body,
                     lastChildNode = body[body.length - 1];
 
                 return lastChildNode && checkForReturn(lastChildNode);
@@ -128,7 +128,7 @@ module.exports = {
         return {
 
             IfStatement: function(node) {
-                var parent = context.getAncestors().pop(),
+                let parent = context.getAncestors().pop(),
                     consequents,
                     alternate;
 

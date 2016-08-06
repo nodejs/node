@@ -8,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug")("eslint:text-fixer");
+let debug = require("debug")("eslint:text-fixer");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var BOM = "\uFEFF";
+let BOM = "\uFEFF";
 
 /**
  * Compares items in a messages array by line and column.
@@ -24,7 +24,7 @@ var BOM = "\uFEFF";
  * @private
  */
 function compareMessagesByLocation(a, b) {
-    var lineDiff = a.line - b.line;
+    let lineDiff = a.line - b.line;
 
     if (lineDiff === 0) {
         return a.column - b.column;
@@ -66,7 +66,7 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
     }
 
     // clone the array
-    var remainingMessages = [],
+    let remainingMessages = [],
         fixes = [],
         text = sourceCode.text,
         lastFixPos = text.length + 1,
@@ -89,13 +89,13 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         });
 
         // split into array of characters for easier manipulation
-        var chars = text.split("");
+        let chars = text.split("");
 
         fixes.forEach(function(problem) {
-            var fix = problem.fix;
-            var start = fix.range[0];
-            var end = fix.range[1];
-            var insertionText = fix.text;
+            let fix = problem.fix;
+            let start = fix.range[0];
+            let end = fix.range[1];
+            let insertionText = fix.text;
 
             if (end < lastFixPos) {
                 if (start < 0) {

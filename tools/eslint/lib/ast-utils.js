@@ -9,18 +9,19 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var esutils = require("esutils");
+let esutils = require("esutils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
-var arrayOrTypedArrayPattern = /Array$/;
-var arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
-var bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
-var breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
-var thisTagPattern = /^[\s\*]*@this/m;
+let anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
+let anyLoopPattern = /^(?:DoWhile|For|ForIn|ForOf|While)Statement$/;
+let arrayOrTypedArrayPattern = /Array$/;
+let arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
+let bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
+let breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
+let thisTagPattern = /^[\s\*]*@this/m;
 
 /**
  * Checks reference if is non initializer and writable.
@@ -31,7 +32,7 @@ var thisTagPattern = /^[\s\*]*@this/m;
  * @private
  */
 function isModifyingReference(reference, index, references) {
-    var identifier = reference.identifier,
+    let identifier = reference.identifier,
         modifyingDifferentIdentifier;
 
     /*
@@ -159,7 +160,7 @@ function isMethodWhichHasThisArg(node) {
  * @returns {boolean} Whether or not the node has a `@this` tag in its comments.
  */
 function hasJSDocThisTag(node, sourceCode) {
-    var jsdocComment = sourceCode.getJSDocComment(node);
+    let jsdocComment = sourceCode.getJSDocComment(node);
 
     if (jsdocComment && thisTagPattern.test(jsdocComment.value)) {
         return true;
@@ -182,7 +183,7 @@ function hasJSDocThisTag(node, sourceCode) {
  * @private
  */
 function isParenthesised(sourceCode, node) {
-    var previousToken = sourceCode.getTokenBefore(node),
+    let previousToken = sourceCode.getTokenBefore(node),
         nextToken = sourceCode.getTokenAfter(node);
 
     return Boolean(previousToken && nextToken) &&
@@ -284,7 +285,7 @@ module.exports = {
      * @returns {boolean} `true` if the node is an ESLint directive comment
      */
     isDirectiveComment: function(node) {
-        var comment = node.value.trim();
+        let comment = node.value.trim();
 
         return (
             node.type === "Line" && comment.indexOf("eslint-") === 0 ||
@@ -317,10 +318,10 @@ module.exports = {
      * @returns {escope.Variable|null} A found variable or `null`.
      */
     getVariableByName: function(initScope, name) {
-        var scope = initScope;
+        let scope = initScope;
 
         while (scope) {
-            var variable = scope.set.get(name);
+            let variable = scope.set.get(name);
 
             if (variable) {
                 return variable;
@@ -359,7 +360,7 @@ module.exports = {
         }
 
         while (node) {
-            var parent = node.parent;
+            let parent = node.parent;
 
             switch (parent.type) {
 
@@ -378,14 +379,15 @@ module.exports = {
                 //     // setup...
                 //     return function foo() { ... };
                 //   })();
-                case "ReturnStatement":
-                    var func = getUpperFunction(parent);
+                case "ReturnStatement": {
+                    const func = getUpperFunction(parent);
 
                     if (func === null || !isCallee(func)) {
                         return true;
                     }
                     node = func.parent;
                     break;
+                }
 
                 // e.g.
                 //   var obj = { foo() { ... } };
@@ -551,5 +553,37 @@ module.exports = {
             // no default
         }
         return 18;
+    },
+
+    /**
+     * Checks whether a given node is a loop node or not.
+     * The following types are loop nodes:
+     *
+     * - DoWhileStatement
+     * - ForInStatement
+     * - ForOfStatement
+     * - ForStatement
+     * - WhileStatement
+     *
+     * @param {ASTNode|null} node - A node to check.
+     * @returns {boolean} `true` if the node is a loop node.
+     */
+    isLoop: function(node) {
+        return Boolean(node && anyLoopPattern.test(node.type));
+    },
+
+    /**
+     * Checks whether a given node is a function node or not.
+     * The following types are function nodes:
+     *
+     * - ArrowFunctionExpression
+     * - FunctionDeclaration
+     * - FunctionExpression
+     *
+     * @param {ASTNode|null} node - A node to check.
+     * @returns {boolean} `true` if the node is a function node.
+     */
+    isFunction: function(node) {
+        return Boolean(node && anyFunctionPattern.test(node.type));
     }
 };

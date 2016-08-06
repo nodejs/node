@@ -13,12 +13,12 @@
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.13.1';
+  var VERSION = '4.14.1';
 
   /** Used as the `TypeError` message for "Functions" methods. */
   var FUNC_ERROR_TEXT = 'Expected a function';
 
-  /** Used to compose bitmasks for wrapper metadata. */
+  /** Used to compose bitmasks for function metadata. */
   var BIND_FLAG = 1,
       PARTIAL_FLAG = 32;
 
@@ -57,23 +57,20 @@
     '`': '&#96;'
   };
 
-  /** Detect free variable `exports`. */
-  var freeExports = typeof exports == 'object' && exports;
-
-  /** Detect free variable `module`. */
-  var freeModule = freeExports && typeof module == 'object' && module;
-
   /** Detect free variable `global` from Node.js. */
-  var freeGlobal = checkGlobal(typeof global == 'object' && global);
+  var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
 
   /** Detect free variable `self`. */
-  var freeSelf = checkGlobal(typeof self == 'object' && self);
-
-  /** Detect `this` as the global object. */
-  var thisGlobal = checkGlobal(typeof this == 'object' && this);
+  var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
 
   /** Used as a reference to the global object. */
-  var root = freeGlobal || freeSelf || thisGlobal || Function('return this')();
+  var root = freeGlobal || freeSelf || Function('return this')();
+
+  /** Detect free variable `exports`. */
+  var freeExports = typeof exports == 'object' && exports && !exports.nodeType && exports;
+
+  /** Detect free variable `module`. */
+  var freeModule = freeExports && typeof module == 'object' && module && !module.nodeType && module;
 
   /*--------------------------------------------------------------------------*/
 
@@ -111,6 +108,32 @@
       }
     }
     return -1;
+  }
+
+  /**
+   * The base implementation of `_.property` without support for deep paths.
+   *
+   * @private
+   * @param {string} key The key of the property to get.
+   * @returns {Function} Returns the new accessor function.
+   */
+  function baseProperty(key) {
+    return function(object) {
+      return object == null ? undefined : object[key];
+    };
+  }
+
+  /**
+   * The base implementation of `_.propertyOf` without support for deep paths.
+   *
+   * @private
+   * @param {Object} object The object to query.
+   * @returns {Function} Returns the new accessor function.
+   */
+  function basePropertyOf(object) {
+    return function(key) {
+      return object == null ? undefined : object[key];
+    };
   }
 
   /**
@@ -152,26 +175,13 @@
   }
 
   /**
-   * Checks if `value` is a global object.
-   *
-   * @private
-   * @param {*} value The value to check.
-   * @returns {null|Object} Returns `value` if it's a global object, else `null`.
-   */
-  function checkGlobal(value) {
-    return (value && value.Object === Object) ? value : null;
-  }
-
-  /**
    * Used by `_.escape` to convert characters to HTML entities.
    *
    * @private
    * @param {string} chr The matched character to escape.
    * @returns {string} Returns the escaped character.
    */
-  function escapeHtmlChar(chr) {
-    return htmlEscapes[chr];
-  }
+  var escapeHtmlChar = basePropertyOf(htmlEscapes);
 
   /**
    * Checks if `value` is a host object in IE < 9.
@@ -182,6 +192,20 @@
    */
   function isHostObject() {
     return false;
+  }
+
+  /**
+   * Creates a function that invokes `func` with its first argument transformed.
+   *
+   * @private
+   * @param {Function} func The function to wrap.
+   * @param {Function} transform The argument transform.
+   * @returns {Function} Returns the new function.
+   */
+  function overArg(func, transform) {
+    return function(arg) {
+      return func(transform(arg));
+    };
   }
 
   /*--------------------------------------------------------------------------*/
@@ -283,16 +307,16 @@
    *
    * The wrapper methods that are **not** chainable by default are:
    * `add`, `attempt`, `camelCase`, `capitalize`, `ceil`, `clamp`, `clone`,
-   * `cloneDeep`, `cloneDeepWith`, `cloneWith`, `deburr`, `divide`, `each`,
-   * `eachRight`, `endsWith`, `eq`, `escape`, `escapeRegExp`, `every`, `find`,
-   * `findIndex`, `findKey`, `findLast`, `findLastIndex`, `findLastKey`, `first`,
-   * `floor`, `forEach`, `forEachRight`, `forIn`, `forInRight`, `forOwn`,
-   * `forOwnRight`, `get`, `gt`, `gte`, `has`, `hasIn`, `head`, `identity`,
-   * `includes`, `indexOf`, `inRange`, `invoke`, `isArguments`, `isArray`,
-   * `isArrayBuffer`, `isArrayLike`, `isArrayLikeObject`, `isBoolean`,
-   * `isBuffer`, `isDate`, `isElement`, `isEmpty`, `isEqual`, `isEqualWith`,
-   * `isError`, `isFinite`, `isFunction`, `isInteger`, `isLength`, `isMap`,
-   * `isMatch`, `isMatchWith`, `isNaN`, `isNative`, `isNil`, `isNull`,
+   * `cloneDeep`, `cloneDeepWith`, `cloneWith`, `conformsTo`, `deburr`,
+   * `defaultTo`, `divide`, `each`, `eachRight`, `endsWith`, `eq`, `escape`,
+   * `escapeRegExp`, `every`, `find`, `findIndex`, `findKey`, `findLast`,
+   * `findLastIndex`, `findLastKey`, `first`, `floor`, `forEach`, `forEachRight`,
+   * `forIn`, `forInRight`, `forOwn`, `forOwnRight`, `get`, `gt`, `gte`, `has`,
+   * `hasIn`, `head`, `identity`, `includes`, `indexOf`, `inRange`, `invoke`,
+   * `isArguments`, `isArray`, `isArrayBuffer`, `isArrayLike`, `isArrayLikeObject`,
+   * `isBoolean`, `isBuffer`, `isDate`, `isElement`, `isEmpty`, `isEqual`,
+   * `isEqualWith`, `isError`, `isFinite`, `isFunction`, `isInteger`, `isLength`,
+   * `isMap`, `isMatch`, `isMatchWith`, `isNaN`, `isNative`, `isNil`, `isNull`,
    * `isNumber`, `isObject`, `isObjectLike`, `isPlainObject`, `isRegExp`,
    * `isSafeInteger`, `isSet`, `isString`, `isUndefined`, `isTypedArray`,
    * `isWeakMap`, `isWeakSet`, `join`, `kebabCase`, `last`, `lastIndexOf`,
@@ -407,13 +431,13 @@
   }
 
   /**
-   * The base implementation of `_.delay` and `_.defer` which accepts an array
-   * of `func` arguments.
+   * The base implementation of `_.delay` and `_.defer` which accepts `args`
+   * to provide to `func`.
    *
    * @private
    * @param {Function} func The function to delay.
    * @param {number} wait The number of milliseconds to delay invocation.
-   * @param {Object} args The arguments to provide to `func`.
+   * @param {Array} args The arguments to provide to `func`.
    * @returns {number} Returns the timer id.
    */
   function baseDelay(func, wait, args) {
@@ -573,7 +597,7 @@
   }
 
   /**
-   * The base implementation of `_.gt` which doesn't coerce arguments to numbers.
+   * The base implementation of `_.gt` which doesn't coerce arguments.
    *
    * @private
    * @param {*} value The value to compare.
@@ -583,6 +607,17 @@
    */
   function baseGt(value, other) {
     return value > other;
+  }
+
+  /**
+   * The base implementation of `_.isDate` without Node.js optimizations.
+   *
+   * @private
+   * @param {*} value The value to check.
+   * @returns {boolean} Returns `true` if `value` is a date object, else `false`.
+   */
+  function baseIsDate(value) {
+    return isObjectLike(value) && objectToString.call(value) == dateTag;
   }
 
   /**
@@ -644,13 +679,17 @@
         isSameTag = objTag == othTag;
 
     stack || (stack = []);
-    var stacked = find(stack, function(entry) {
-      return entry[0] === object;
+    var objStack = find(stack, function(entry) {
+      return entry[0] == object;
     });
-    if (stacked && stacked[1]) {
-      return stacked[1] == other;
+    var othStack = find(stack, function(entry) {
+      return entry[0] == other;
+    });
+    if (objStack && othStack) {
+      return objStack[1] == other;
     }
     stack.push([object, other]);
+    stack.push([other, object]);
     if (isSameTag && !objIsObj) {
       var result = (objIsArr)
         ? equalArrays(object, other, equalFunc, customizer, bitmask, stack)
@@ -680,6 +719,17 @@
   }
 
   /**
+   * The base implementation of `_.isRegExp` without Node.js optimizations.
+   *
+   * @private
+   * @param {*} value The value to check.
+   * @returns {boolean} Returns `true` if `value` is a regexp, else `false`.
+   */
+  function baseIsRegExp(value) {
+    return isObject(value) && objectToString.call(value) == regexpTag;
+  }
+
+  /**
    * The base implementation of `_.iteratee`.
    *
    * @private
@@ -704,9 +754,7 @@
    * @param {Object} object The object to query.
    * @returns {Array} Returns the array of property names.
    */
-  function baseKeys(object) {
-    return nativeKeys(Object(object));
-  }
+  var baseKeys = overArg(nativeKeys, Object);
 
   /**
    * The base implementation of `_.keysIn` which doesn't skip the constructor
@@ -727,7 +775,7 @@
   }
 
   /**
-   * The base implementation of `_.lt` which doesn't coerce arguments to numbers.
+   * The base implementation of `_.lt` which doesn't coerce arguments.
    *
    * @private
    * @param {*} value The value to compare.
@@ -804,15 +852,31 @@
   }
 
   /**
-   * The base implementation of `_.property` without support for deep paths.
+   * The base implementation of `_.rest` which doesn't validate or coerce arguments.
    *
    * @private
-   * @param {string} key The key of the property to get.
-   * @returns {Function} Returns the new accessor function.
+   * @param {Function} func The function to apply a rest parameter to.
+   * @param {number} [start=func.length-1] The start position of the rest parameter.
+   * @returns {Function} Returns the new function.
    */
-  function baseProperty(key) {
-    return function(object) {
-      return object == null ? undefined : object[key];
+  function baseRest(func, start) {
+    start = nativeMax(start === undefined ? (func.length - 1) : start, 0);
+    return function() {
+      var args = arguments,
+          index = -1,
+          length = nativeMax(args.length - start, 0),
+          array = Array(length);
+
+      while (++index < length) {
+        array[index] = args[start + index];
+      }
+      index = -1;
+      var otherArgs = Array(start + 1);
+      while (++index < start) {
+        otherArgs[index] = args[index];
+      }
+      otherArgs[start] = array;
+      return func.apply(this, otherArgs);
     };
   }
 
@@ -953,9 +1017,9 @@
 
       var newValue = customizer
         ? customizer(object[key], source[key], key, object, source)
-        : source[key];
+        : undefined;
 
-      assignValue(object, key, newValue);
+      assignValue(object, key, newValue === undefined ? source[key] : newValue);
     }
     return object;
   }
@@ -968,7 +1032,7 @@
    * @returns {Function} Returns the new assigner function.
    */
   function createAssigner(assigner) {
-    return rest(function(object, sources) {
+    return baseRest(function(object, sources) {
       var index = -1,
           length = sources.length,
           customizer = length > 1 ? sources[length - 1] : undefined;
@@ -1049,7 +1113,7 @@
    * @param {Function} Ctor The constructor to wrap.
    * @returns {Function} Returns the new wrapped function.
    */
-  function createCtorWrapper(Ctor) {
+  function createCtor(Ctor) {
     return function() {
       // Use a `switch` statement to work with class constructors. See
       // http://ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
@@ -1074,18 +1138,13 @@
   function createFind(findIndexFunc) {
     return function(collection, predicate, fromIndex) {
       var iterable = Object(collection);
-      predicate = baseIteratee(predicate, 3);
       if (!isArrayLike(collection)) {
-        var props = keys(collection);
+        var iteratee = baseIteratee(predicate, 3);
+        collection = keys(collection);
+        predicate = function(key) { return iteratee(iterable[key], key, iterable); };
       }
-      var index = findIndexFunc(props || collection, function(value, key) {
-        if (props) {
-          key = value;
-          value = iterable[key];
-        }
-        return predicate(value, key, iterable);
-      }, fromIndex);
-      return index > -1 ? collection[props ? props[index] : index] : undefined;
+      var index = findIndexFunc(collection, predicate, fromIndex);
+      return index > -1 ? iterable[iteratee ? collection[index] : index] : undefined;
     };
   }
 
@@ -1095,19 +1154,18 @@
    *
    * @private
    * @param {Function} func The function to wrap.
-   * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper`
-   *  for more details.
+   * @param {number} bitmask The bitmask flags. See `createWrap` for more details.
    * @param {*} thisArg The `this` binding of `func`.
    * @param {Array} partials The arguments to prepend to those provided to
    *  the new function.
    * @returns {Function} Returns the new wrapped function.
    */
-  function createPartialWrapper(func, bitmask, thisArg, partials) {
+  function createPartial(func, bitmask, thisArg, partials) {
     if (typeof func != 'function') {
       throw new TypeError(FUNC_ERROR_TEXT);
     }
     var isBind = bitmask & BIND_FLAG,
-        Ctor = createCtorWrapper(func);
+        Ctor = createCtor(func);
 
     function wrapper() {
       var argsIndex = -1,
@@ -1212,17 +1270,13 @@
 
       case boolTag:
       case dateTag:
-        // Coerce dates and booleans to numbers, dates to milliseconds and
-        // booleans to `1` or `0` treating invalid dates coerced to `NaN` as
-        // not equal.
-        return +object == +other;
+      case numberTag:
+        // Coerce booleans to `1` or `0` and dates to milliseconds.
+        // Invalid dates are coerced to `NaN`.
+        return eq(+object, +other);
 
       case errorTag:
         return object.name == other.name && object.message == other.message;
-
-      case numberTag:
-        // Treat `NaN` vs. `NaN` as equal.
-        return (object != +object) ? other != +other : object == +other;
 
       case regexpTag:
       case stringTag:
@@ -1399,7 +1453,7 @@
    * @since 1.1.0
    * @category Array
    * @param {Array} array The array to search.
-   * @param {Array|Function|Object|string} [predicate=_.identity]
+   * @param {Function} [predicate=_.identity]
    *  The function invoked per iteration.
    * @param {number} [fromIndex=0] The index to search from.
    * @returns {number} Returns the index of the found element, else `-1`.
@@ -1735,7 +1789,7 @@
    * @since 0.1.0
    * @category Collection
    * @param {Array|Object} collection The collection to iterate over.
-   * @param {Array|Function|Object|string} [predicate=_.identity]
+   * @param {Function} [predicate=_.identity]
    *  The function invoked per iteration.
    * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
    * @returns {boolean} Returns `true` if all elements pass the predicate check,
@@ -1772,12 +1826,14 @@
    * `predicate` returns truthy for. The predicate is invoked with three
    * arguments: (value, index|key, collection).
    *
+   * **Note:** Unlike `_.remove`, this method returns a new array.
+   *
    * @static
    * @memberOf _
    * @since 0.1.0
    * @category Collection
    * @param {Array|Object} collection The collection to iterate over.
-   * @param {Array|Function|Object|string} [predicate=_.identity]
+   * @param {Function} [predicate=_.identity]
    *  The function invoked per iteration.
    * @returns {Array} Returns the new filtered array.
    * @see _.reject
@@ -1817,7 +1873,7 @@
    * @since 0.1.0
    * @category Collection
    * @param {Array|Object} collection The collection to search.
-   * @param {Array|Function|Object|string} [predicate=_.identity]
+   * @param {Function} [predicate=_.identity]
    *  The function invoked per iteration.
    * @param {number} [fromIndex=0] The index to search from.
    * @returns {*} Returns the matched element, else `undefined`.
@@ -1899,8 +1955,7 @@
    * @since 0.1.0
    * @category Collection
    * @param {Array|Object} collection The collection to iterate over.
-   * @param {Array|Function|Object|string} [iteratee=_.identity]
-   *  The function invoked per iteration.
+   * @param {Function} [iteratee=_.identity] The function invoked per iteration.
    * @returns {Array} Returns the new mapped array.
    * @example
    *
@@ -2007,8 +2062,7 @@
    * @since 0.1.0
    * @category Collection
    * @param {Array|Object} collection The collection to iterate over.
-   * @param {Array|Function|Object|string} [predicate=_.identity]
-   *  The function invoked per iteration.
+   * @param {Function} [predicate=_.identity] The function invoked per iteration.
    * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
    * @returns {boolean} Returns `true` if any element passes the predicate check,
    *  else `false`.
@@ -2050,8 +2104,8 @@
    * @since 0.1.0
    * @category Collection
    * @param {Array|Object} collection The collection to iterate over.
-   * @param {...(Array|Array[]|Function|Function[]|Object|Object[]|string|string[])}
-   *  [iteratees=[_.identity]] The iteratees to sort by.
+   * @param {...(Function|Function[])} [iteratees=[_.identity]]
+   *  The iteratees to sort by.
    * @returns {Array} Returns the new sorted array.
    * @example
    *
@@ -2101,7 +2155,7 @@
    * @example
    *
    * jQuery(element).on('click', _.before(5, addContactToList));
-   * // => allows adding up to 4 contacts to the list
+   * // => Allows adding up to 4 contacts to the list.
    */
   function before(n, func) {
     var result;
@@ -2140,9 +2194,9 @@
    * @returns {Function} Returns the new bound function.
    * @example
    *
-   * var greet = function(greeting, punctuation) {
+   * function greet(greeting, punctuation) {
    *   return greeting + ' ' + this.user + punctuation;
-   * };
+   * }
    *
    * var object = { 'user': 'fred' };
    *
@@ -2155,8 +2209,8 @@
    * bound('hi');
    * // => 'hi fred!'
    */
-  var bind = rest(function(func, thisArg, partials) {
-    return createPartialWrapper(func, BIND_FLAG | PARTIAL_FLAG, thisArg, partials);
+  var bind = baseRest(function(func, thisArg, partials) {
+    return createPartial(func, BIND_FLAG | PARTIAL_FLAG, thisArg, partials);
   });
 
   /**
@@ -2177,7 +2231,7 @@
    * }, 'deferred');
    * // => Logs 'deferred' after one or more milliseconds.
    */
-  var defer = rest(function(func, args) {
+  var defer = baseRest(function(func, args) {
     return baseDelay(func, 1, args);
   });
 
@@ -2200,7 +2254,7 @@
    * }, 1000, 'later');
    * // => Logs 'later' after one second.
    */
-  var delay = rest(function(func, wait, args) {
+  var delay = baseRest(function(func, wait, args) {
     return baseDelay(func, toNumber(wait) || 0, args);
   });
 
@@ -2229,7 +2283,8 @@
       throw new TypeError(FUNC_ERROR_TEXT);
     }
     return function() {
-      return !predicate.apply(this, arguments);
+      var args = arguments;
+      return !predicate.apply(this, args);
     };
   }
 
@@ -2249,59 +2304,10 @@
    * var initialize = _.once(createApplication);
    * initialize();
    * initialize();
-   * // `initialize` invokes `createApplication` once
+   * // => `createApplication` is invoked once
    */
   function once(func) {
     return before(2, func);
-  }
-
-  /**
-   * Creates a function that invokes `func` with the `this` binding of the
-   * created function and arguments from `start` and beyond provided as
-   * an array.
-   *
-   * **Note:** This method is based on the
-   * [rest parameter](https://mdn.io/rest_parameters).
-   *
-   * @static
-   * @memberOf _
-   * @since 4.0.0
-   * @category Function
-   * @param {Function} func The function to apply a rest parameter to.
-   * @param {number} [start=func.length-1] The start position of the rest parameter.
-   * @returns {Function} Returns the new function.
-   * @example
-   *
-   * var say = _.rest(function(what, names) {
-   *   return what + ' ' + _.initial(names).join(', ') +
-   *     (_.size(names) > 1 ? ', & ' : '') + _.last(names);
-   * });
-   *
-   * say('hello', 'fred', 'barney', 'pebbles');
-   * // => 'hello fred, barney, & pebbles'
-   */
-  function rest(func, start) {
-    if (typeof func != 'function') {
-      throw new TypeError(FUNC_ERROR_TEXT);
-    }
-    start = nativeMax(start === undefined ? (func.length - 1) : toInteger(start), 0);
-    return function() {
-      var args = arguments,
-          index = -1,
-          length = nativeMax(args.length - start, 0),
-          array = Array(length);
-
-      while (++index < length) {
-        array[index] = args[start + index];
-      }
-      var otherArgs = Array(start + 1);
-      index = -1;
-      while (++index < start) {
-        otherArgs[index] = args[index];
-      }
-      otherArgs[start] = array;
-      return func.apply(this, otherArgs);
-    };
   }
 
   /*------------------------------------------------------------------------*/
@@ -2353,8 +2359,8 @@
    * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
    * @example
    *
-   * var object = { 'user': 'fred' };
-   * var other = { 'user': 'fred' };
+   * var object = { 'a': 1 };
+   * var other = { 'a': 1 };
    *
    * _.eq(object, object);
    * // => true
@@ -2383,7 +2389,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
+   * @returns {boolean} Returns `true` if `value` is an `arguments` object,
    *  else `false`.
    * @example
    *
@@ -2405,11 +2411,9 @@
    * @static
    * @memberOf _
    * @since 0.1.0
-   * @type {Function}
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is an array, else `false`.
    * @example
    *
    * _.isArray([1, 2, 3]);
@@ -2492,8 +2496,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a boolean, else `false`.
    * @example
    *
    * _.isBoolean(false);
@@ -2515,8 +2518,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a date object, else `false`.
    * @example
    *
    * _.isDate(new Date);
@@ -2525,9 +2527,7 @@
    * _.isDate('Mon April 23 2012');
    * // => false
    */
-  function isDate(value) {
-    return isObjectLike(value) && objectToString.call(value) == dateTag;
-  }
+  var isDate = baseIsDate;
 
   /**
    * Checks if `value` is an empty object, collection, map, or set.
@@ -2591,8 +2591,8 @@
    *  else `false`.
    * @example
    *
-   * var object = { 'user': 'fred' };
-   * var other = { 'user': 'fred' };
+   * var object = { 'a': 1 };
+   * var other = { 'a': 1 };
    *
    * _.isEqual(object, other);
    * // => true
@@ -2643,8 +2643,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a function, else `false`.
    * @example
    *
    * _.isFunction(_);
@@ -2818,8 +2817,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a number, else `false`.
    * @example
    *
    * _.isNumber(3);
@@ -2847,8 +2845,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a regexp, else `false`.
    * @example
    *
    * _.isRegExp(/abc/);
@@ -2857,9 +2854,7 @@
    * _.isRegExp('/abc/');
    * // => false
    */
-  function isRegExp(value) {
-    return isObject(value) && objectToString.call(value) == regexpTag;
-  }
+  var isRegExp = baseIsRegExp;
 
   /**
    * Checks if `value` is classified as a `String` primitive or object.
@@ -2869,8 +2864,7 @@
    * @memberOf _
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is correctly classified,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a string, else `false`.
    * @example
    *
    * _.isString('abc');
@@ -3037,18 +3031,18 @@
    * @example
    *
    * function Foo() {
-   *   this.c = 3;
+   *   this.a = 1;
    * }
    *
    * function Bar() {
-   *   this.e = 5;
+   *   this.c = 3;
    * }
    *
-   * Foo.prototype.d = 4;
-   * Bar.prototype.f = 6;
+   * Foo.prototype.b = 2;
+   * Bar.prototype.d = 4;
    *
-   * _.assign({ 'a': 1 }, new Foo, new Bar);
-   * // => { 'a': 1, 'c': 3, 'e': 5 }
+   * _.assign({ 'a': 0 }, new Foo, new Bar);
+   * // => { 'a': 1, 'c': 3 }
    */
   var assign = createAssigner(function(object, source) {
     copyObject(source, keys(source), object);
@@ -3072,18 +3066,18 @@
    * @example
    *
    * function Foo() {
-   *   this.b = 2;
+   *   this.a = 1;
    * }
    *
    * function Bar() {
-   *   this.d = 4;
+   *   this.c = 3;
    * }
    *
-   * Foo.prototype.c = 3;
-   * Bar.prototype.e = 5;
+   * Foo.prototype.b = 2;
+   * Bar.prototype.d = 4;
    *
-   * _.assignIn({ 'a': 1 }, new Foo, new Bar);
-   * // => { 'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5 }
+   * _.assignIn({ 'a': 0 }, new Foo, new Bar);
+   * // => { 'a': 1, 'b': 2, 'c': 3, 'd': 4 }
    */
   var assignIn = createAssigner(function(object, source) {
     copyObject(source, keysIn(source), object);
@@ -3179,10 +3173,10 @@
    * @see _.defaultsDeep
    * @example
    *
-   * _.defaults({ 'user': 'barney' }, { 'age': 36 }, { 'user': 'fred' });
-   * // => { 'user': 'barney', 'age': 36 }
+   * _.defaults({ 'a': 1 }, { 'b': 2 }, { 'a': 3 });
+   * // => { 'a': 1, 'b': 2 }
    */
-  var defaults = rest(function(args) {
+  var defaults = baseRest(function(args) {
     args.push(undefined, assignInDefaults);
     return assignInWith.apply(undefined, args);
   });
@@ -3290,7 +3284,7 @@
    * _.pick(object, ['a', 'c']);
    * // => { 'a': 1, 'c': 3 }
    */
-  var pick = rest(function(object, props) {
+  var pick = baseRest(function(object, props) {
     return object == null ? {} : basePick(object, baseMap(baseFlatten(props, 1), toKey));
   });
 
@@ -3407,7 +3401,7 @@
   /*------------------------------------------------------------------------*/
 
   /**
-   * This method returns the first argument given to it.
+   * This method returns the first argument it receives.
    *
    * @static
    * @since 0.1.0
@@ -3417,7 +3411,7 @@
    * @returns {*} Returns `value`.
    * @example
    *
-   * var object = { 'user': 'fred' };
+   * var object = { 'a': 1 };
    *
    * console.log(_.identity(object) === object);
    * // => true
@@ -3473,10 +3467,10 @@
   /**
    * Creates a function that performs a partial deep comparison between a given
    * object and `source`, returning `true` if the given object has equivalent
-   * property values, else `false`. The created function is equivalent to
-   * `_.isMatch` with a `source` partially applied.
+   * property values, else `false`.
    *
-   * **Note:** This method supports comparing the same values as `_.isEqual`.
+   * **Note:** The created function supports comparing the same values as
+   * `_.isEqual` is equivalent to `_.isMatch` with `source` partially applied.
    *
    * @static
    * @memberOf _
@@ -3486,13 +3480,13 @@
    * @returns {Function} Returns the new spec function.
    * @example
    *
-   * var users = [
-   *   { 'user': 'barney', 'age': 36, 'active': true },
-   *   { 'user': 'fred',   'age': 40, 'active': false }
+   * var objects = [
+   *   { 'a': 1, 'b': 2, 'c': 3 },
+   *   { 'a': 4, 'b': 5, 'c': 6 }
    * ];
    *
-   * _.filter(users, _.matches({ 'age': 40, 'active': false }));
-   * // => [{ 'user': 'fred', 'age': 40, 'active': false }]
+   * _.filter(objects, _.matches({ 'a': 4, 'c': 6 }));
+   * // => [{ 'a': 4, 'b': 5, 'c': 6 }]
    */
   function matches(source) {
     return baseMatches(assign({}, source));
@@ -3591,7 +3585,7 @@
   }
 
   /**
-   * A method that returns `undefined`.
+   * This method returns `undefined`.
    *
    * @static
    * @memberOf _
@@ -3801,22 +3795,21 @@
 
   /*--------------------------------------------------------------------------*/
 
-  // Expose Lodash on the free variable `window` or `self` when available so it's
-  // globally accessible, even when bundled with Browserify, Webpack, etc. This
-  // also prevents errors in cases where Lodash is loaded by a script tag in the
-  // presence of an AMD loader. See http://requirejs.org/docs/errors.html#mismatch
-  // for more details. Use `_.noConflict` to remove Lodash from the global object.
-  (freeSelf || {})._ = lodash;
-
-  // Some AMD build optimizers like r.js check for condition patterns like the following:
+  // Some AMD build optimizers, like r.js, check for condition patterns like:
   if (typeof define == 'function' && typeof define.amd == 'object' && define.amd) {
+    // Expose Lodash on the global object to prevent errors when Lodash is
+    // loaded by a script tag in the presence of an AMD loader.
+    // See http://requirejs.org/docs/errors.html#mismatch for more details.
+    // Use `_.noConflict` to remove Lodash from the global object.
+    root._ = lodash;
+
     // Define as an anonymous module so, through path mapping, it can be
     // referenced as the "underscore" module.
     define(function() {
       return lodash;
     });
   }
-  // Check for `exports` after `define` in case a build optimizer adds an `exports` object.
+  // Check for `exports` after `define` in case a build optimizer adds it.
   else if (freeModule) {
     // Export for Node.js.
     (freeModule.exports = lodash)._ = lodash;

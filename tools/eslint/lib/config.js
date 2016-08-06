@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var path = require("path"),
+let path = require("path"),
     ConfigOps = require("./config/config-ops"),
     ConfigFile = require("./config/config-file"),
     Plugins = require("./config/plugins"),
@@ -23,7 +23,7 @@ var path = require("path"),
 // Constants
 //------------------------------------------------------------------------------
 
-var PERSONAL_CONFIG_DIR = userHome || null;
+let PERSONAL_CONFIG_DIR = userHome || null;
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -48,7 +48,7 @@ function isObject(item) {
  * @private
  */
 function loadConfig(configToLoad) {
-    var config = {},
+    let config = {},
         filePath = "";
 
     if (configToLoad) {
@@ -75,7 +75,7 @@ function loadConfig(configToLoad) {
  * @private
  */
 function getPersonalConfig() {
-    var config,
+    let config,
         filename;
 
     if (PERSONAL_CONFIG_DIR) {
@@ -106,7 +106,7 @@ function hasRules(options) {
  * @returns {Object} The local config object, or an empty object if there is no local config.
  */
 function getLocalConfig(thisConfig, directory) {
-    var found,
+    let found,
         i,
         localConfig,
         localConfigFile,
@@ -162,10 +162,10 @@ function getLocalConfig(thisConfig, directory) {
 
         if (personalConfig) {
             config = ConfigOps.merge(config, personalConfig);
-        } else if (!hasRules(thisConfig.options)) {
+        } else if (!hasRules(thisConfig.options) && !thisConfig.options.baseConfig) {
 
             // No config file, no manual configuration, and no rules, so error.
-            var noConfigError = new Error("No ESLint configuration found.");
+            let noConfigError = new Error("No ESLint configuration found.");
 
             noConfigError.messageTemplate = "no-config-found";
             noConfigError.messageData = {
@@ -191,7 +191,7 @@ function getLocalConfig(thisConfig, directory) {
  * @param {Object} options Options to be passed in
  */
 function Config(options) {
-    var useConfig;
+    let useConfig;
 
     options = options || {};
 
@@ -217,7 +217,7 @@ function Config(options) {
      * If user declares "foo", convert to "foo:false".
      */
     this.globals = (options.globals || []).reduce(function(globals, def) {
-        var parts = def.split(":");
+        let parts = def.split(":");
 
         globals[parts[0]] = (parts.length > 1 && parts[1] === "true");
 
@@ -244,7 +244,7 @@ function Config(options) {
  * @returns {Object} config object
  */
 Config.prototype.getConfig = function(filePath) {
-    var config,
+    let config,
         userConfig,
         directory = filePath ? path.dirname(filePath) : this.options.cwd;
 

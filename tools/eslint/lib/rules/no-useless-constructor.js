@@ -109,7 +109,7 @@ function isPassingThrough(ctorParams, superArgs) {
         return false;
     }
 
-    for (var i = 0; i < ctorParams.length; ++i) {
+    for (let i = 0; i < ctorParams.length; ++i) {
         if (!isValidPair(ctorParams[i], superArgs[i])) {
             return false;
         }
@@ -163,9 +163,9 @@ module.exports = {
                 return;
             }
 
-            var body = node.value.body.body;
-            var ctorParams = node.value.params;
-            var superClass = node.parent.parent.superClass;
+            let body = node.value.body.body;
+            let ctorParams = node.value.params;
+            let superClass = node.parent.parent.superClass;
 
             if (superClass ? isRedundantSuperCall(body, ctorParams) : (body.length === 0)) {
                 context.report({

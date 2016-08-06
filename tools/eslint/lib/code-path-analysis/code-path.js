@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var CodePathState = require("./code-path-state");
-var IdGenerator = require("./id-generator");
+let CodePathState = require("./code-path-state");
+let IdGenerator = require("./id-generator");
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -22,7 +22,7 @@ var IdGenerator = require("./id-generator");
  * @constructor
  * @param {string} id - An identifier.
  * @param {CodePath|null} upper - The code path of the upper function scope.
- * @param {function} onLooped - A callback function to notify looping.
+ * @param {Function} onLooped - A callback function to notify looping.
  */
 function CodePath(id, upper, onLooped) {
 
@@ -117,10 +117,10 @@ CodePath.prototype = {
      * - `controller.skip()` - Skip the following segments in this branch.
      * - `controller.break()` - Skip all following segments.
      *
-     * @param {object} [options] - Omittable.
+     * @param {Object} [options] - Omittable.
      * @param {CodePathSegment} [options.first] - The first segment to traverse.
      * @param {CodePathSegment} [options.last] - The last segment to traverse.
-     * @param {function} callback - A callback function.
+     * @param {Function} callback - A callback function.
      * @returns {void}
      */
     traverseSegments: function(options, callback) {
@@ -130,18 +130,18 @@ CodePath.prototype = {
         }
 
         options = options || {};
-        var startSegment = options.first || this.internal.initialSegment;
-        var lastSegment = options.last;
+        let startSegment = options.first || this.internal.initialSegment;
+        let lastSegment = options.last;
 
-        var item = null;
-        var index = 0;
-        var end = 0;
-        var segment = null;
-        var visited = Object.create(null);
-        var stack = [[startSegment, 0]];
-        var skippedSegment = null;
-        var broken = false;
-        var controller = {
+        let item = null;
+        let index = 0;
+        let end = 0;
+        let segment = null;
+        let visited = Object.create(null);
+        let stack = [[startSegment, 0]];
+        let skippedSegment = null;
+        let broken = false;
+        let controller = {
             skip: function() {
                 if (stack.length <= 1) {
                     broken = true;

@@ -34,11 +34,11 @@ module.exports = {
     },
 
     create: function(context) {
-        var style = context.options[0] || "1tbs",
+        let style = context.options[0] || "1tbs",
             params = context.options[1] || {},
             sourceCode = context.getSourceCode();
 
-        var OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
+        let OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
             OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
             BODY_MESSAGE = "Statement inside of curly braces should be on next line.",
             CLOSE_MESSAGE = "Closing curly brace does not appear on the same line as the subsequent block.",
@@ -61,7 +61,7 @@ module.exports = {
 
         /**
          * Check if the token is an punctuator with a value of curly brace
-         * @param {object} token - Token to check
+         * @param {Object} token - Token to check
          * @returns {boolean} true if its a curly punctuator
          * @private
          */
@@ -78,11 +78,11 @@ module.exports = {
          * @private
          */
         function checkBlock() {
-            var blockProperties = arguments;
+            let blockProperties = arguments;
 
             return function(node) {
                 Array.prototype.forEach.call(blockProperties, function(blockProp) {
-                    var block = node[blockProp],
+                    let block = node[blockProp],
                         previousToken,
                         curlyToken,
                         curlyTokenEnd,
@@ -129,7 +129,7 @@ module.exports = {
          * @private
          */
         function checkIfStatement(node) {
-            var tokens;
+            let tokens;
 
             checkBlock("consequent", "alternate")(node);
 
@@ -157,7 +157,7 @@ module.exports = {
          * @private
          */
         function checkTryStatement(node) {
-            var tokens;
+            let tokens;
 
             checkBlock("block", "finalizer")(node);
 
@@ -180,7 +180,7 @@ module.exports = {
          * @private
          */
         function checkCatchClause(node) {
-            var previousToken = sourceCode.getTokenBefore(node),
+            let previousToken = sourceCode.getTokenBefore(node),
                 firstToken = sourceCode.getFirstToken(node);
 
             checkBlock("body")(node);
@@ -205,7 +205,7 @@ module.exports = {
          * @private
          */
         function checkSwitchStatement(node) {
-            var tokens;
+            let tokens;
 
             if (node.cases && node.cases.length) {
                 tokens = sourceCode.getTokensBefore(node.cases[0], 2);

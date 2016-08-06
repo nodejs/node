@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -38,10 +38,10 @@ module.exports = {
 
     create: function(context) {
 
-        var sourceCode = context.getSourceCode();
-        var tokensAndComments = sourceCode.tokensAndComments;
+        let sourceCode = context.getSourceCode();
+        let tokensAndComments = sourceCode.tokensAndComments;
 
-        var options = {
+        let options = {
             before: context.options[0] ? !!context.options[0].before : false,
             after: context.options[0] ? !!context.options[0].after : true
         };
@@ -51,7 +51,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // list of comma tokens to ignore for the check of leading whitespace
-        var commaTokensToIgnore = [];
+        let commaTokensToIgnore = [];
 
         /**
          * Determines if a given token is a comma operator.
@@ -82,8 +82,8 @@ module.exports = {
                             return fixer.insertTextAfter(node, " ");
                         }
                     } else {
-                        var start, end;
-                        var newText = "";
+                        let start, end;
+                        let newText = "";
 
                         if (dir === "before") {
                             start = otherNode.range[1];
@@ -136,10 +136,10 @@ module.exports = {
          * @returns {void}
          */
         function addNullElementsToIgnoreList(node) {
-            var previousToken = sourceCode.getFirstToken(node);
+            let previousToken = sourceCode.getFirstToken(node);
 
             node.elements.forEach(function(element) {
-                var token;
+                let token;
 
                 if (element === null) {
                     token = sourceCode.getTokenAfter(previousToken);
@@ -162,7 +162,7 @@ module.exports = {
         return {
             "Program:exit": function() {
 
-                var previousToken,
+                let previousToken,
                     nextToken;
 
                 tokensAndComments.forEach(function(token, i) {

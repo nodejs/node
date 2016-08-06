@@ -346,7 +346,7 @@ goto jslint
 :jslint
 if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
-if not exist tools\eslint\bin\eslint.js goto no-lint
+if not exist tools\eslint\lib\eslint.js goto no-lint
 echo running jslint
 %config%\node tools\jslint.js -J benchmark lib src test tools
 goto exit

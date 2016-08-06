@@ -19,7 +19,7 @@ var baseIteratee = require('./_baseIteratee'),
  */
 function sortedUniqBy(array, iteratee) {
   return (array && array.length)
-    ? baseSortedUniq(array, baseIteratee(iteratee))
+    ? baseSortedUniq(array, baseIteratee(iteratee, 2))
     : [];
 }
 

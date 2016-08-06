@@ -29,7 +29,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
   }
   // Assume cyclic values are equal.
   var stacked = stack.get(array);
-  if (stacked) {
+  if (stacked && stack.get(other)) {
     return stacked == other;
   }
   var index = -1,
@@ -37,6 +37,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
       seen = (bitmask & UNORDERED_COMPARE_FLAG) ? new SetCache : undefined;
 
   stack.set(array, other);
+  stack.set(other, array);
 
   // Ignore non-index properties.
   while (++index < arrLength) {
@@ -75,6 +76,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
     }
   }
   stack['delete'](array);
+  stack['delete'](other);
   return result;
 }
 

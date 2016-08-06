@@ -1,5 +1,5 @@
 /**
- * A method that returns `undefined`.
+ * This method returns `undefined`.
  *
  * @static
  * @memberOf _

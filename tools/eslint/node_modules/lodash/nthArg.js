@@ -1,5 +1,5 @@
 var baseNth = require('./_baseNth'),
-    rest = require('./rest'),
+    baseRest = require('./_baseRest'),
     toInteger = require('./toInteger');
 
 /**
@@ -24,7 +24,7 @@ var baseNth = require('./_baseNth'),
  */
 function nthArg(n) {
   n = toInteger(n);
-  return rest(function(args) {
+  return baseRest(function(args) {
     return baseNth(args, n);
   });
 }

@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -34,7 +34,7 @@ module.exports = {
 
         /**
          * Check if the identifier is present inside current scope
-         * @param {object} scope current scope
+         * @param {Object} scope current scope
          * @param {string} name To evaluate
          * @returns {boolean} True if its present
          * @private
@@ -52,7 +52,7 @@ module.exports = {
             LabeledStatement: function(node) {
 
                 // Fetch the innermost scope.
-                var scope = context.getScope();
+                let scope = context.getScope();
 
                 // Recursively find the identifier walking up the scope, starting
                 // with the innermost scope.

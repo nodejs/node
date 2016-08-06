@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug")("eslint:code-path");
+let debug = require("debug")("eslint:code-path");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,8 +54,8 @@ module.exports = {
      * @returns {void}
      */
     dumpState: !debug.enabled ? debug : /* istanbul ignore next */ function(node, state, leaving) {
-        for (var i = 0; i < state.currentSegments.length; ++i) {
-            var segInternal = state.currentSegments[i].internal;
+        for (let i = 0; i < state.currentSegments.length; ++i) {
+            let segInternal = state.currentSegments[i].internal;
 
             if (leaving) {
                 segInternal.exitNodes.push(node);
@@ -80,7 +80,7 @@ module.exports = {
      * @see http://www.webgraphviz.com
      */
     dumpDot: !debug.enabled ? debug : /* istanbul ignore next */ function(codePath) {
-        var text =
+        let text =
             "\n" +
             "digraph {\n" +
             "node[shape=box,style=\"rounded,filled\",fillcolor=white];\n" +
@@ -93,11 +93,11 @@ module.exports = {
             text += "thrown[label=\"✘\",shape=circle,width=0.3,height=0.3,fixedsize];\n";
         }
 
-        var traceMap = Object.create(null);
-        var arrows = this.makeDotArrows(codePath, traceMap);
+        let traceMap = Object.create(null);
+        let arrows = this.makeDotArrows(codePath, traceMap);
 
-        for (var id in traceMap) { // eslint-disable-line guard-for-in
-            var segment = traceMap[id];
+        for (let id in traceMap) { // eslint-disable-line guard-for-in
+            let segment = traceMap[id];
 
             text += id + "[";
 
@@ -140,26 +140,26 @@ module.exports = {
      * The DOT code can be visialized with Graphvis.
      *
      * @param {CodePath} codePath - A code path to make DOT.
-     * @param {object} traceMap - Optional. A map to check whether or not segments had been done.
+     * @param {Object} traceMap - Optional. A map to check whether or not segments had been done.
      * @returns {string} A DOT code of the code path.
      */
     makeDotArrows: function(codePath, traceMap) {
-        var stack = [[codePath.initialSegment, 0]];
-        var done = traceMap || Object.create(null);
-        var lastId = codePath.initialSegment.id;
-        var text = "initial->" + codePath.initialSegment.id;
+        let stack = [[codePath.initialSegment, 0]];
+        let done = traceMap || Object.create(null);
+        let lastId = codePath.initialSegment.id;
+        let text = "initial->" + codePath.initialSegment.id;
 
         while (stack.length > 0) {
-            var item = stack.pop();
-            var segment = item[0];
-            var index = item[1];
+            let item = stack.pop();
+            let segment = item[0];
+            let index = item[1];
 
             if (done[segment.id] && index === 0) {
                 continue;
             }
             done[segment.id] = segment;
 
-            var nextSegment = segment.allNextSegments[index];
+            let nextSegment = segment.allNextSegments[index];
 
             if (!nextSegment) {
                 continue;

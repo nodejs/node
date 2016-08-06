@@ -31,7 +31,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {},
+        let options = context.options[0] || {},
             ignoreDestructuring = options.ignoreDestructuring === true,
             ignoreImport = options.ignoreImport === true,
             ignoreExport = options.ignoreExport === true;
@@ -49,7 +49,7 @@ module.exports = {
          * @returns {void}
          */
         function reportError(node, initial, result, type) {
-            var name = initial.type === "Identifier" ? initial.name : initial.value;
+            let name = initial.type === "Identifier" ? initial.name : initial.value;
 
             return context.report({
                 node: node,
@@ -73,7 +73,7 @@ module.exports = {
          * @returns {void}
          */
         function checkDestructured(node) {
-            var properties,
+            let properties,
                 i;
 
             if (ignoreDestructuring) {

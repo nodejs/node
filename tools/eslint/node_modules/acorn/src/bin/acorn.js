@@ -1,8 +1,6 @@
-#!/usr/bin/env node
-
 import {basename} from "path"
 import {readFileSync as readFile} from "fs"
-import * as acorn from "../dist/acorn.js"
+import * as acorn from "acorn"
 
 let infile, forceFile, silent = false, compact = false, tokenize = false
 const options = {}

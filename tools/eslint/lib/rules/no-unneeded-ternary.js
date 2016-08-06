@@ -31,8 +31,8 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
-        var defaultAssignment = options.defaultAssignment !== false;
+        let options = context.options[0] || {};
+        let defaultAssignment = options.defaultAssignment !== false;
 
         /**
          * Test if the node is a boolean literal
@@ -60,9 +60,9 @@ module.exports = {
 
             ConditionalExpression: function(node) {
                 if (isBooleanLiteral(node.alternate) && isBooleanLiteral(node.consequent)) {
-                    context.report(node, node.consequent.loc.start, "Unnecessary use of boolean literals in conditional expression");
+                    context.report(node, node.consequent.loc.start, "Unnecessary use of boolean literals in conditional expression.");
                 } else if (!defaultAssignment && matchesDefaultAssignment(node)) {
-                    context.report(node, node.consequent.loc.start, "Unnecessary use of conditional expression for default assignment");
+                    context.report(node, node.consequent.loc.start, "Unnecessary use of conditional expression for default assignment.");
                 }
             }
         };

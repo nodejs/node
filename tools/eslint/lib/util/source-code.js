@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
+let lodash = require("lodash"),
     createTokenStore = require("../token-store.js"),
     Traverser = require("./traverser");
 
@@ -52,7 +52,7 @@ function validate(ast) {
 function findJSDocComment(comments, line) {
 
     if (comments) {
-        for (var i = comments.length - 1; i >= 0; i--) {
+        for (let i = comments.length - 1; i >= 0; i--) {
             if (comments[i].type === "Block" && comments[i].value.charAt(0) === "*") {
 
                 if (line - comments[i].loc.end.line <= 1) {
@@ -123,13 +123,13 @@ function SourceCode(text, ast) {
     });
 
     // create token store methods
-    var tokenStore = createTokenStore(ast.tokens);
+    let tokenStore = createTokenStore(ast.tokens);
 
     Object.keys(tokenStore).forEach(function(methodName) {
         this[methodName] = tokenStore[methodName];
     }, this);
 
-    var tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
+    let tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
 
     this.getTokenOrCommentBefore = tokensAndCommentsStore.getTokenBefore;
     this.getTokenOrCommentAfter = tokensAndCommentsStore.getTokenAfter;
@@ -193,7 +193,7 @@ SourceCode.prototype = {
      */
     getComments: function(node) {
 
-        var leadingComments = node.leadingComments || [],
+        let leadingComments = node.leadingComments || [],
             trailingComments = node.trailingComments || [];
 
         /*
@@ -222,7 +222,7 @@ SourceCode.prototype = {
      */
     getJSDocComment: function(node) {
 
-        var parent = node.parent;
+        let parent = node.parent;
 
         switch (node.type) {
             case "ClassDeclaration":
@@ -261,7 +261,7 @@ SourceCode.prototype = {
      * @returns {ASTNode} The node if found or null if not found.
      */
     getNodeByRangeIndex: function(index) {
-        var result = null,
+        let result = null,
             resultParent = null,
             traverser = new Traverser();
 
@@ -294,7 +294,7 @@ SourceCode.prototype = {
      *  if there is anything other than whitespace between tokens.
      */
     isSpaceBetweenTokens: function(first, second) {
-        var text = this.text.slice(first.range[1], second.range[0]);
+        let text = this.text.slice(first.range[1], second.range[0]);
 
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
     }

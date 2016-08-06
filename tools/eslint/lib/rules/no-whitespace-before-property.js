@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -23,7 +23,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -36,7 +36,7 @@ module.exports = {
          * @private
          */
         function findOpeningBracket(node) {
-            var token = sourceCode.getTokenBefore(node.property);
+            let token = sourceCode.getTokenBefore(node.property);
 
             while (token.value !== "[") {
                 token = sourceCode.getTokenBefore(token);
@@ -53,7 +53,7 @@ module.exports = {
          * @private
          */
         function reportError(node, leftToken, rightToken) {
-            var replacementText = node.computed ? "" : ".";
+            let replacementText = node.computed ? "" : ".";
 
             context.report({
                 node: node,
@@ -73,8 +73,8 @@ module.exports = {
 
         return {
             MemberExpression: function(node) {
-                var rightToken;
-                var leftToken;
+                let rightToken;
+                let leftToken;
 
                 if (!astUtils.isTokenOnSameLine(node.object, node.property)) {
                     return;

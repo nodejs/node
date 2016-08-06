@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -53,12 +53,12 @@ module.exports = {
 
     create: function(context) {
 
-        var multiOnly = (context.options[0] === "multi");
-        var multiLine = (context.options[0] === "multi-line");
-        var multiOrNest = (context.options[0] === "multi-or-nest");
-        var consistent = (context.options[1] === "consistent");
+        let multiOnly = (context.options[0] === "multi");
+        let multiLine = (context.options[0] === "multi-line");
+        let multiOrNest = (context.options[0] === "multi-or-nest");
+        let consistent = (context.options[1] === "consistent");
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -71,7 +71,7 @@ module.exports = {
          * @private
          */
         function isCollapsedOneLiner(node) {
-            var before = sourceCode.getTokenBefore(node),
+            let before = sourceCode.getTokenBefore(node),
                 last = sourceCode.getLastToken(node);
 
             return before.loc.start.line === last.loc.end.line;
@@ -84,7 +84,7 @@ module.exports = {
          * @private
          */
         function isOneLiner(node) {
-            var first = sourceCode.getFirstToken(node),
+            let first = sourceCode.getFirstToken(node),
                 last = sourceCode.getLastToken(node);
 
             return first.loc.start.line === last.loc.end.line;
@@ -96,7 +96,7 @@ module.exports = {
          * @returns {Token} The `else` keyword token.
          */
         function getElseKeyword(node) {
-            var token = sourceCode.getTokenAfter(node.consequent);
+            let token = sourceCode.getTokenAfter(node.consequent);
 
             while (token.type !== "Keyword" || token.value !== "else") {
                 token = sourceCode.getTokenAfter(token);
@@ -180,7 +180,7 @@ module.exports = {
          * @param {ASTNode} body The body node to check for blocks.
          * @param {string} name The name to report if there's a problem.
          * @param {string} suffix Additional string to add to the end of a report.
-         * @returns {object} a prepared check object, with "actual", "expected", "check" properties.
+         * @returns {Object} a prepared check object, with "actual", "expected", "check" properties.
          *   "actual" will be `true` or `false` whether the body is already a block statement.
          *   "expected" will be `true` or `false` if the body should be a block statement or not, or
          *   `null` if it doesn't matter, depending on the rule options. It can be modified to change
@@ -189,8 +189,8 @@ module.exports = {
          *   properties.
          */
         function prepareCheck(node, body, name, suffix) {
-            var hasBlock = (body.type === "BlockStatement");
-            var expected = null;
+            let hasBlock = (body.type === "BlockStatement");
+            let expected = null;
 
             if (node.type === "IfStatement" && node.consequent === body && requiresBraceOfConsequent(node)) {
                 expected = true;
@@ -230,11 +230,11 @@ module.exports = {
         /**
          * Prepares to check the bodies of a "if", "else if" and "else" chain.
          * @param {ASTNode} node The first IfStatement node of the chain.
-         * @returns {object[]} prepared checks for each body of the chain. See `prepareCheck` for more
+         * @returns {Object[]} prepared checks for each body of the chain. See `prepareCheck` for more
          *   information.
          */
         function prepareIfChecks(node) {
-            var preparedChecks = [];
+            let preparedChecks = [];
 
             do {
                 preparedChecks.push(prepareCheck(node, node.consequent, "if", "condition"));
@@ -252,7 +252,7 @@ module.exports = {
                  * all have braces.
                  * If all nodes shouldn't have braces, make sure they don't.
                  */
-                var expected = preparedChecks.some(function(preparedCheck) {
+                let expected = preparedChecks.some(function(preparedCheck) {
                     if (preparedCheck.expected !== null) {
                         return preparedCheck.expected;
                     }

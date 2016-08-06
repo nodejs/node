@@ -9,7 +9,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var VALID_STRING_ESCAPES = [
+let VALID_STRING_ESCAPES = [
     "\\",
     "n",
     "r",
@@ -23,7 +23,7 @@ var VALID_STRING_ESCAPES = [
     "\r"
 ];
 
-var VALID_REGEX_ESCAPES = [
+let VALID_REGEX_ESCAPES = [
     "\\",
     ".",
     "-",
@@ -80,8 +80,8 @@ module.exports = {
          * @returns {void}
          */
         function validate(escapes, node, elm) {
-            var escapeNotFound = escapes.indexOf(elm[0][1]) === -1;
-            var isQuoteEscape = elm[0][1] === node.raw[0];
+            let escapeNotFound = escapes.indexOf(elm[0][1]) === -1;
+            let isQuoteEscape = elm[0][1] === node.raw[0];
 
             if (escapeNotFound && !isQuoteEscape) {
                 context.report({
@@ -90,7 +90,7 @@ module.exports = {
                         line: node.loc.start.line,
                         column: node.loc.start.column + elm.index
                     },
-                    message: "Unnecessary escape character: " + elm[0]
+                    message: "Unnecessary escape character: " + elm[0] + "."
                 });
             }
         }
@@ -102,8 +102,8 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            var nodeEscapes, match;
-            var pattern = /\\[^\d]/g;
+            let nodeEscapes, match;
+            let pattern = /\\[^\d]/g;
 
             if (typeof node.value === "string") {
 

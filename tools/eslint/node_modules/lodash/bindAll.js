@@ -1,7 +1,7 @@
 var arrayEach = require('./_arrayEach'),
     baseFlatten = require('./_baseFlatten'),
+    baseRest = require('./_baseRest'),
     bind = require('./bind'),
-    rest = require('./rest'),
     toKey = require('./_toKey');
 
 /**
@@ -21,16 +21,16 @@ var arrayEach = require('./_arrayEach'),
  *
  * var view = {
  *   'label': 'docs',
- *   'onClick': function() {
+ *   'click': function() {
  *     console.log('clicked ' + this.label);
  *   }
  * };
  *
- * _.bindAll(view, ['onClick']);
- * jQuery(element).on('click', view.onClick);
+ * _.bindAll(view, ['click']);
+ * jQuery(element).on('click', view.click);
  * // => Logs 'clicked docs' when clicked.
  */
-var bindAll = rest(function(object, methodNames) {
+var bindAll = baseRest(function(object, methodNames) {
   arrayEach(baseFlatten(methodNames, 1), function(key) {
     key = toKey(key);
     object[key] = bind(object[key], object);

@@ -33,7 +33,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var config = context.options[0] || {},
+        let config = context.options[0] || {},
             allowShortCircuit = config.allowShortCircuit || false,
             allowTernary = config.allowTernary || false;
 
@@ -52,12 +52,12 @@ module.exports = {
          * @returns {a[]} the leading sequence of members in the given list that pass the given predicate
          */
         function takeWhile(predicate, list) {
-            for (var i = 0, l = list.length; i < l; ++i) {
+            for (let i = 0; i < list.length; ++i) {
                 if (!predicate(list[i])) {
-                    break;
+                    return list.slice(0, i);
                 }
             }
-            return [].slice.call(list, 0, i);
+            return list.slice();
         }
 
         /**
@@ -74,7 +74,7 @@ module.exports = {
          * @returns {boolean} whether the given node is considered a directive in its current position
          */
         function isDirective(node, ancestors) {
-            var parent = ancestors[ancestors.length - 1],
+            let parent = ancestors[ancestors.length - 1],
                 grandparent = ancestors[ancestors.length - 2];
 
             return (parent.type === "Program" || parent.type === "BlockStatement" &&

@@ -11,7 +11,7 @@
 
 /**
  * Returns the severity of warning or error
- * @param {object} message message object to examine
+ * @param {Object} message message object to examine
  * @returns {string} severity level
  * @private
  */
@@ -30,12 +30,12 @@ function getMessageType(message) {
 
 module.exports = function(results) {
 
-    var output = "",
+    let output = "",
         total = 0;
 
     results.forEach(function(result) {
 
-        var messages = result.messages;
+        let messages = result.messages;
 
         total += messages.length;
 

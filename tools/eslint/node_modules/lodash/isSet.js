@@ -1,8 +1,9 @@
-var getTag = require('./_getTag'),
-    isObjectLike = require('./isObjectLike');
+var baseIsSet = require('./_baseIsSet'),
+    baseUnary = require('./_baseUnary'),
+    nodeUtil = require('./_nodeUtil');
 
-/** `Object#toString` result references. */
-var setTag = '[object Set]';
+/* Node.js helper references. */
+var nodeIsSet = nodeUtil && nodeUtil.isSet;
 
 /**
  * Checks if `value` is classified as a `Set` object.
@@ -12,8 +13,7 @@ var setTag = '[object Set]';
  * @since 4.3.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified,
- *  else `false`.
+ * @returns {boolean} Returns `true` if `value` is a set, else `false`.
  * @example
  *
  * _.isSet(new Set);
@@ -22,8 +22,6 @@ var setTag = '[object Set]';
  * _.isSet(new WeakSet);
  * // => false
  */
-function isSet(value) {
-  return isObjectLike(value) && getTag(value) == setTag;
-}
+var isSet = nodeIsSet ? baseUnary(nodeIsSet) : baseIsSet;
 
 module.exports = isSet;

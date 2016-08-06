@@ -10,7 +10,7 @@
 
 /**
  * Determines whether an operator is a comparison operator.
- * @param {String} operator The operator to check.
+ * @param {string} operator The operator to check.
  * @returns {boolean} Whether or not it is a comparison operator.
  */
 function isComparisonOperator(operator) {
@@ -19,7 +19,7 @@ function isComparisonOperator(operator) {
 
 /**
  * Determines whether an operator is an equality operator.
- * @param {String} operator The operator to check.
+ * @param {string} operator The operator to check.
  * @returns {boolean} Whether or not it is an equality operator.
  */
 function isEqualityOperator(operator) {
@@ -29,7 +29,7 @@ function isEqualityOperator(operator) {
 /**
  * Determines whether an operator is one used in a range test.
  * Allowed operators are `<` and `<=`.
- * @param {String} operator The operator to check.
+ * @param {string} operator The operator to check.
  * @returns {boolean} Whether the operator is used in range tests.
  */
 function isRangeTestOperator(operator) {
@@ -147,11 +147,11 @@ module.exports = {
     create: function(context) {
 
         // Default to "never" (!always) if no option
-        var always = (context.options[0] === "always");
-        var exceptRange = (context.options[1] && context.options[1].exceptRange);
-        var onlyEquality = (context.options[1] && context.options[1].onlyEquality);
+        let always = (context.options[0] === "always");
+        let exceptRange = (context.options[1] && context.options[1].exceptRange);
+        let onlyEquality = (context.options[1] && context.options[1].onlyEquality);
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Determines whether node represents a range test.
@@ -161,18 +161,18 @@ module.exports = {
          * must be less than or equal to the literal on the right side so that the
          * test makes any sense.
          * @param {ASTNode} node LogicalExpression node to test.
-         * @returns {Boolean} Whether node is a range test.
+         * @returns {boolean} Whether node is a range test.
          */
         function isRangeTest(node) {
-            var left = node.left,
+            let left = node.left,
                 right = node.right;
 
             /**
              * Determines whether node is of the form `0 <= x && x < 1`.
-             * @returns {Boolean} Whether node is a "between" range test.
+             * @returns {boolean} Whether node is a "between" range test.
              */
             function isBetweenTest() {
-                var leftLiteral, rightLiteral;
+                let leftLiteral, rightLiteral;
 
                 return (node.operator === "&&" &&
                     (leftLiteral = getNormalizedLiteral(left.left)) &&
@@ -183,10 +183,10 @@ module.exports = {
 
             /**
              * Determines whether node is of the form `x < 0 || 1 <= x`.
-             * @returns {Boolean} Whether node is an "outside" range test.
+             * @returns {boolean} Whether node is an "outside" range test.
              */
             function isOutsideTest() {
-                var leftLiteral, rightLiteral;
+                let leftLiteral, rightLiteral;
 
                 return (node.operator === "||" &&
                     (leftLiteral = getNormalizedLiteral(left.right)) &&
@@ -197,12 +197,12 @@ module.exports = {
 
             /**
              * Determines whether node is wrapped in parentheses.
-             * @returns {Boolean} Whether node is preceded immediately by an open
+             * @returns {boolean} Whether node is preceded immediately by an open
              *                    paren token and followed immediately by a close
              *                    paren token.
              */
             function isParenWrapped() {
-                var tokenBefore, tokenAfter;
+                let tokenBefore, tokenAfter;
 
                 return ((tokenBefore = sourceCode.getTokenBefore(node)) &&
                     tokenBefore.value === "(" &&

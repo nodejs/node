@@ -33,7 +33,7 @@ module.exports = {
                 return node.value;
             } else if (typeof node.value === "string") {
 
-                var parent = context.getAncestors().pop();
+                let parent = context.getAncestors().pop();
 
                 if ((parent.type === "NewExpression" || parent.type === "CallExpression") &&
                     parent.callee.type === "Identifier" && parent.callee.name === "RegExp"
@@ -53,22 +53,22 @@ module.exports = {
 
         /**
          * Check if given regex string has control characters in it
-         * @param {String} regexStr regex as string to check
-         * @returns {Boolean} returns true if finds control characters on given string
+         * @param {string} regexStr regex as string to check
+         * @returns {boolean} returns true if finds control characters on given string
          * @private
          */
         function hasControlCharacters(regexStr) {
 
             // check control characters, if RegExp object used
-            var hasControlChars = /[\x00-\x1f]/.test(regexStr); // eslint-disable-line no-control-regex
+            let hasControlChars = /[\x00-\x1f]/.test(regexStr); // eslint-disable-line no-control-regex
 
             // check substr, if regex literal used
-            var subStrIndex = regexStr.search(/\\x[01][0-9a-f]/i);
+            let subStrIndex = regexStr.search(/\\x[01][0-9a-f]/i);
 
             if (!hasControlChars && subStrIndex > -1) {
 
                 // is it escaped, check backslash count
-                var possibleEscapeCharacters = regexStr.substr(0, subStrIndex).match(/\\+$/gi);
+                let possibleEscapeCharacters = regexStr.substr(0, subStrIndex).match(/\\+$/gi);
 
                 hasControlChars = possibleEscapeCharacters === null || !(possibleEscapeCharacters[0].length % 2);
             }
@@ -78,7 +78,7 @@ module.exports = {
 
         return {
             Literal: function(node) {
-                var computedValue,
+                let computedValue,
                     regex = getRegExp(node);
 
                 if (regex) {

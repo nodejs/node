@@ -23,7 +23,7 @@ module.exports = {
 
         return {
             IfStatement: function(node) {
-                var ancestors = context.getAncestors(),
+                let ancestors = context.getAncestors(),
                     parent = ancestors.pop(),
                     grandparent = ancestors.pop();
 

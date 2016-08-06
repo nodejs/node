@@ -44,7 +44,7 @@ module.exports = {
 
     create: function(context) {
 
-        var configuration = context.options[0] || {},
+        let configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false,
             ignoreMemberSort = configuration.ignoreMemberSort || false,
             memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"],
@@ -98,7 +98,7 @@ module.exports = {
         return {
             ImportDeclaration: function(node) {
                 if (previousDeclaration) {
-                    var currentLocalMemberName = getFirstLocalMemberName(node),
+                    let currentLocalMemberName = getFirstLocalMemberName(node),
                         currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
                         previousLocalMemberName = getFirstLocalMemberName(previousDeclaration),
                         previousMemberSyntaxGroupIndex = getMemberParameterGroupIndex(previousDeclaration);
@@ -137,17 +137,17 @@ module.exports = {
 
                 // Multiple members of an import declaration should also be sorted alphabetically.
                 if (!ignoreMemberSort && node.specifiers.length > 1) {
-                    var previousSpecifier = null;
-                    var previousSpecifierName = null;
+                    let previousSpecifier = null;
+                    let previousSpecifierName = null;
 
-                    for (var i = 0; i < node.specifiers.length; ++i) {
-                        var currentSpecifier = node.specifiers[i];
+                    for (let i = 0; i < node.specifiers.length; ++i) {
+                        let currentSpecifier = node.specifiers[i];
 
                         if (currentSpecifier.type !== "ImportSpecifier") {
                             continue;
                         }
 
-                        var currentSpecifierName = currentSpecifier.local.name;
+                        let currentSpecifierName = currentSpecifier.local.name;
 
                         if (ignoreCase) {
                             currentSpecifierName = currentSpecifierName.toLowerCase();

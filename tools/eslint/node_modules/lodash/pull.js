@@ -1,5 +1,5 @@
-var pullAll = require('./pullAll'),
-    rest = require('./rest');
+var baseRest = require('./_baseRest'),
+    pullAll = require('./pullAll');
 
 /**
  * Removes all given values from `array` using
@@ -24,6 +24,6 @@ var pullAll = require('./pullAll'),
  * console.log(array);
  * // => ['b', 'b']
  */
-var pull = rest(pullAll);
+var pull = baseRest(pullAll);
 
 module.exports = pull;

@@ -1,6 +1,6 @@
 var baseRandom = require('./_baseRandom'),
     isIterateeCall = require('./_isIterateeCall'),
-    toNumber = require('./toNumber');
+    toFinite = require('./toFinite');
 
 /** Built-in method references without a dependency on `root`. */
 var freeParseFloat = parseFloat;
@@ -59,12 +59,12 @@ function random(lower, upper, floating) {
     upper = 1;
   }
   else {
-    lower = toNumber(lower) || 0;
+    lower = toFinite(lower);
     if (upper === undefined) {
       upper = lower;
       lower = 0;
     } else {
-      upper = toNumber(upper) || 0;
+      upper = toFinite(upper);
     }
   }
   if (lower > upper) {

@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var OPEN_PAREN = /\$\{$/;
-var CLOSE_PAREN = /^\}/;
+let OPEN_PAREN = /\$\{$/;
+let CLOSE_PAREN = /^\}/;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -38,9 +38,9 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
-        var always = context.options[0] === "always";
-        var prefix = always ? "Expected" : "Unexpected";
+        let sourceCode = context.getSourceCode();
+        let always = context.options[0] === "always";
+        let prefix = always ? "Expected" : "Unexpected";
 
         /**
          * Checks spacing before `}` of a given token.
@@ -48,7 +48,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingBefore(token) {
-            var prevToken = sourceCode.getTokenBefore(token);
+            let prevToken = sourceCode.getTokenBefore(token);
 
             if (prevToken &&
                 CLOSE_PAREN.test(token.value) &&
@@ -77,7 +77,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingAfter(token) {
-            var nextToken = sourceCode.getTokenAfter(token);
+            let nextToken = sourceCode.getTokenAfter(token);
 
             if (nextToken &&
                 OPEN_PAREN.test(token.value) &&
@@ -105,7 +105,7 @@ module.exports = {
 
         return {
             TemplateElement: function(node) {
-                var token = sourceCode.getFirstToken(node);
+                let token = sourceCode.getFirstToken(node);
 
                 checkSpacingBefore(token);
                 checkSpacingAfter(token);

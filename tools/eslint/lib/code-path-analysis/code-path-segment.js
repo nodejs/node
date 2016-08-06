@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("./debug-helpers");
+let debug = require("./debug-helpers");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -22,11 +22,11 @@ var debug = require("./debug-helpers");
  * @returns {CodePathSegment[]} The replaced array.
  */
 function flattenUnusedSegments(segments) {
-    var done = Object.create(null);
-    var retv = [];
+    let done = Object.create(null);
+    let retv = [];
 
-    for (var i = 0; i < segments.length; ++i) {
-        var segment = segments[i];
+    for (let i = 0; i < segments.length; ++i) {
+        let segment = segments[i];
 
         // Ignores duplicated.
         if (done[segment.id]) {
@@ -35,8 +35,8 @@ function flattenUnusedSegments(segments) {
 
         // Use previous segments if unused.
         if (!segment.internal.used) {
-            for (var j = 0; j < segment.allPrevSegments.length; ++j) {
-                var prevSegment = segment.allPrevSegments[j];
+            for (let j = 0; j < segment.allPrevSegments.length; ++j) {
+                let prevSegment = segment.allPrevSegments[j];
 
                 if (!done[prevSegment.id]) {
                     done[prevSegment.id] = true;
@@ -175,7 +175,7 @@ CodePathSegment.newNext = function(id, allPrevSegments) {
  * @returns {CodePathSegment} The created segment.
  */
 CodePathSegment.newUnreachable = function(id, allPrevSegments) {
-    var segment = new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
+    let segment = new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
 
     // In `if (a) return a; foo();` case, the unreachable segment preceded by
     // the return statement is not used but must not be remove.
@@ -211,11 +211,11 @@ CodePathSegment.markUsed = function(segment) {
     }
     segment.internal.used = true;
 
-    var i;
+    let i;
 
     if (segment.reachable) {
         for (i = 0; i < segment.allPrevSegments.length; ++i) {
-            var prevSegment = segment.allPrevSegments[i];
+            let prevSegment = segment.allPrevSegments[i];
 
             prevSegment.allNextSegments.push(segment);
             prevSegment.nextSegments.push(segment);

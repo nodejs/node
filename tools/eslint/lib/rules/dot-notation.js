@@ -8,8 +8,8 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var validIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
-var keywords = require("../util/keywords");
+let validIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+let keywords = require("../util/keywords");
 
 module.exports = {
     meta: {
@@ -36,10 +36,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
-        var allowKeywords = options.allowKeywords === void 0 || !!options.allowKeywords;
+        let options = context.options[0] || {};
+        let allowKeywords = options.allowKeywords === void 0 || !!options.allowKeywords;
 
-        var allowPattern;
+        let allowPattern;
 
         if (options.allowPattern) {
             allowPattern = new RegExp(options.allowPattern);

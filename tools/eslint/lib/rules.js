@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var loadRules = require("./load-rules");
+let loadRules = require("./load-rules");
 
 //------------------------------------------------------------------------------
 // Privates
 //------------------------------------------------------------------------------
 
-var rules = Object.create(null);
+let rules = Object.create(null);
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -38,7 +38,7 @@ function define(ruleId, ruleModule) {
  * @returns {void}
  */
 function load(rulesDir, cwd) {
-    var newRules = loadRules(rulesDir, cwd);
+    let newRules = loadRules(rulesDir, cwd);
 
     Object.keys(newRules).forEach(function(ruleId) {
         define(ruleId, newRules[ruleId]);
@@ -53,7 +53,7 @@ function load(rulesDir, cwd) {
  */
 function importPlugin(pluginRules, pluginName) {
     Object.keys(pluginRules).forEach(function(ruleId) {
-        var qualifiedRuleId = pluginName + "/" + ruleId,
+        let qualifiedRuleId = pluginName + "/" + ruleId,
             rule = pluginRules[ruleId];
 
         define(qualifiedRuleId, rule);

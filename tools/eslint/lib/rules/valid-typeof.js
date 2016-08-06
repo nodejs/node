@@ -21,7 +21,7 @@ module.exports = {
 
     create: function(context) {
 
-        var VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
+        let VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
             OPERATORS = ["==", "===", "!=", "!=="];
 
         //--------------------------------------------------------------------------
@@ -31,7 +31,7 @@ module.exports = {
         return {
 
             UnaryExpression: function(node) {
-                var parent, sibling;
+                let parent, sibling;
 
                 if (node.operator === "typeof") {
                     parent = context.getAncestors().pop();
@@ -40,7 +40,7 @@ module.exports = {
                         sibling = parent.left === node ? parent.right : parent.left;
 
                         if (sibling.type === "Literal" && VALID_TYPES.indexOf(sibling.value) === -1) {
-                            context.report(sibling, "Invalid typeof comparison value");
+                            context.report(sibling, "Invalid typeof comparison value.");
                         }
                     }
                 }

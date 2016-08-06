@@ -14,7 +14,7 @@ var arrayEvery = require('./_arrayEvery'),
  * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Array|Function|Object|string} [predicate=_.identity]
+ * @param {Function} [predicate=_.identity]
  *  The function invoked per iteration.
  * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
  * @returns {boolean} Returns `true` if all elements pass the predicate check,
