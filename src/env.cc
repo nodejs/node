@@ -21,7 +21,6 @@ using v8::Local;
 using v8::Message;
 using v8::StackFrame;
 using v8::StackTrace;
-using v8::Value;
 
 void Environment::Start(int argc,
                         const char* const* argv,

@@ -36,7 +36,6 @@ namespace node {
 namespace debugger {
 
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;

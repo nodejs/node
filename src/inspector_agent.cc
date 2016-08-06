@@ -155,7 +155,6 @@ bool RespondToGet(inspector_socket_t* socket, const std::string& path,
 
 namespace inspector {
 
-using blink::protocol::DictionaryValue;
 
 class AgentImpl {
  public:

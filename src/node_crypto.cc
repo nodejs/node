@@ -83,7 +83,6 @@ using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
 using v8::String;
-using v8::V8;
 using v8::Value;
 
 

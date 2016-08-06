@@ -17,7 +17,6 @@ namespace node {
 
 using crypto::SecureContext;
 using crypto::SSLWrap;
-using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
