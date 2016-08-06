@@ -292,6 +292,29 @@ if (cluster.isMaster) {
 }
 ```
 
+### worker.exitedAfterDisconnect
+
+* {Boolean}
+
+Alias to [`worker.suicide`][].
+
+Set by calling `.kill()` or `.disconnect()`, until then it is `undefined`.
+
+The boolean `worker.exitedAfterDisconnect` lets you distinguish between
+voluntary and accidental exit, the master may choose not to respawn a worker
+based on this value.
+
+```js
+cluster.on('exit', (worker, code, signal) => {
+  if (worker.exitedAfterDisconnect === true) {
+    console.log('The worker exited after disconnect.').
+  }
+});
+
+// kill worker
+worker.kill();
+```
+
 ### worker.id
 
 * {Number}
@@ -690,3 +713,4 @@ socket.on('data', (id) => {
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
 [`process` event: `'message'`]: process.html#process_event_message
+[`worker.suicide`]: #cluster_worker_suicide
