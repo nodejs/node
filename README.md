@@ -319,8 +319,9 @@ more information about the governance of the Node.js project, see
 * [zkat](https://github.com/zkat) -
 **Kat Marchán** &lt;kzm@sykosomatic.org&gt;
 
-Collaborators & CTC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
-maintaining the Node.js project.
+Collaborators (which includes CTC members) follow the
+[COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in maintaining the Node.js
+project.
 
 ### Release Team
 
