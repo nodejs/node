@@ -42,7 +42,7 @@ module.exports = {
 
     create: function(context) {
 
-        var grouping = false,
+        let grouping = false,
             allowCall = false,
             options = context.options[0];
 
@@ -74,13 +74,13 @@ module.exports = {
             ];
         }
 
-        var BUILTIN_MODULES = getBuiltinModules();
+        let BUILTIN_MODULES = getBuiltinModules();
 
-        var DECL_REQUIRE = "require",
+        let DECL_REQUIRE = "require",
             DECL_UNINITIALIZED = "uninitialized",
             DECL_OTHER = "other";
 
-        var REQ_CORE = "core",
+        let REQ_CORE = "core",
             REQ_FILE = "file",
             REQ_MODULE = "module",
             REQ_COMPUTED = "computed";
@@ -137,7 +137,7 @@ module.exports = {
                 return REQ_COMPUTED;
             }
 
-            var arg = initExpression.arguments[0];
+            let arg = initExpression.arguments[0];
 
             if (arg.type !== "Literal" || typeof arg.value !== "string") {
 
@@ -167,10 +167,10 @@ module.exports = {
          * @returns {boolean} True if the declarations are mixed, false if not.
          */
         function isMixed(declarations) {
-            var contains = {};
+            let contains = {};
 
             declarations.forEach(function(declaration) {
-                var type = getDeclarationType(declaration.init);
+                let type = getDeclarationType(declaration.init);
 
                 contains[type] = true;
             });
@@ -188,7 +188,7 @@ module.exports = {
          * @returns {boolean} True if the declarations are grouped, false if not.
          */
         function isGrouped(declarations) {
-            var found = {};
+            let found = {};
 
             declarations.forEach(function(declaration) {
                 if (getDeclarationType(declaration.init) === DECL_REQUIRE) {

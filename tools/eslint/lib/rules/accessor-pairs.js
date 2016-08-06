@@ -28,7 +28,7 @@ function isIdentifier(node, name) {
  * @returns {boolean} `true` if the node is an argument of the specified method call.
  */
 function isArgumentOfMethodCall(node, index, object, property) {
-    var parent = node.parent;
+    let parent = node.parent;
 
     return (
         parent.type === "CallExpression" &&
@@ -91,9 +91,9 @@ module.exports = {
         }]
     },
     create: function(context) {
-        var config = context.options[0] || {};
-        var checkGetWithoutSet = config.getWithoutSet === true;
-        var checkSetWithoutGet = config.setWithoutGet !== false;
+        let config = context.options[0] || {};
+        let checkGetWithoutSet = config.getWithoutSet === true;
+        let checkSetWithoutGet = config.setWithoutGet !== false;
 
         /**
          * Checks a object expression to see if it has setter and getter both present or none.
@@ -102,14 +102,14 @@ module.exports = {
          * @private
          */
         function checkLonelySetGet(node) {
-            var isSetPresent = false;
-            var isGetPresent = false;
-            var isDescriptor = isPropertyDescriptor(node);
+            let isSetPresent = false;
+            let isGetPresent = false;
+            let isDescriptor = isPropertyDescriptor(node);
 
-            for (var i = 0, end = node.properties.length; i < end; i++) {
-                var property = node.properties[i];
+            for (let i = 0, end = node.properties.length; i < end; i++) {
+                let property = node.properties[i];
 
-                var propToCheck = "";
+                let propToCheck = "";
 
                 if (property.kind === "init") {
                     if (isDescriptor && !property.computed) {
@@ -139,9 +139,9 @@ module.exports = {
             }
 
             if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-                context.report(node, "Getter is not present");
+                context.report(node, "Getter is not present.");
             } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-                context.report(node, "Setter is not present");
+                context.report(node, "Setter is not present.");
             }
         }
 

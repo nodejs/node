@@ -14,7 +14,7 @@ var mapTag = '[object Map]',
     setTag = '[object Set]';
 
 /** Built-in value references. */
-var iteratorSymbol = typeof (iteratorSymbol = Symbol && Symbol.iterator) == 'symbol' ? iteratorSymbol : undefined;
+var iteratorSymbol = Symbol ? Symbol.iterator : undefined;
 
 /**
  * Converts `value` to an array.

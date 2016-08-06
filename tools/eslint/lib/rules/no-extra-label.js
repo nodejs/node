@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -27,7 +27,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var scopeInfo = null;
+        let scopeInfo = null;
 
         /**
          * Creates a new scope with a breakable statement.
@@ -98,9 +98,9 @@ module.exports = {
                 return;
             }
 
-            var labelNode = node.label;
-            var label = labelNode.name;
-            var info = scopeInfo;
+            let labelNode = node.label;
+            let label = labelNode.name;
+            let info = scopeInfo;
 
             while (info) {
                 if (info.breakable || info.label === label) {

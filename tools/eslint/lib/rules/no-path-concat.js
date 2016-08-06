@@ -21,7 +21,7 @@ module.exports = {
 
     create: function(context) {
 
-        var MATCHER = /^__(?:dir|file)name$/;
+        let MATCHER = /^__(?:dir|file)name$/;
 
         //--------------------------------------------------------------------------
         // Public
@@ -31,7 +31,7 @@ module.exports = {
 
             BinaryExpression: function(node) {
 
-                var left = node.left,
+                let left = node.left,
                     right = node.right;
 
                 if (node.operator === "+" &&

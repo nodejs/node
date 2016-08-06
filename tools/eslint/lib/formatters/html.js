@@ -4,17 +4,17 @@
  */
 "use strict";
 
-var lodash = require("lodash");
-var fs = require("fs");
-var path = require("path");
+let lodash = require("lodash");
+let fs = require("fs");
+let path = require("path");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var pageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-page.html"), "utf-8"));
-var messageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-message.html"), "utf-8"));
-var resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-result.html"), "utf-8"));
+let pageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-page.html"), "utf-8"));
+let messageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-message.html"), "utf-8"));
+let resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-result.html"), "utf-8"));
 
 /**
  * Given a word and a count, append an s if count is not one.
@@ -33,8 +33,8 @@ function pluralize(word, count) {
  * @returns {string} The formatted string, pluralized where necessary
  */
 function renderSummary(totalErrors, totalWarnings) {
-    var totalProblems = totalErrors + totalWarnings;
-    var renderedText = totalProblems + " " + pluralize("problem", totalProblems);
+    let totalProblems = totalErrors + totalWarnings;
+    let renderedText = totalProblems + " " + pluralize("problem", totalProblems);
 
     if (totalProblems !== 0) {
         renderedText += " (" + totalErrors + " " + pluralize("error", totalErrors) + ", " + totalWarnings + " " + pluralize("warning", totalWarnings) + ")";
@@ -71,7 +71,7 @@ function renderMessages(messages, parentIndex) {
      * @returns {string} HTML (table row) describing a message.
      */
     return lodash.map(messages, function(message) {
-        var lineNumber,
+        let lineNumber,
             columnNumber;
 
         lineNumber = message.line || 0;
@@ -110,7 +110,7 @@ function renderResults(results) {
 //------------------------------------------------------------------------------
 
 module.exports = function(results) {
-    var totalErrors,
+    let totalErrors,
         totalWarnings;
 
     totalErrors = 0;

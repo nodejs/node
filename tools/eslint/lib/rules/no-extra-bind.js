@@ -20,7 +20,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var scopeInfo = null;
+        let scopeInfo = null;
 
         /**
          * Reports a given function node.
@@ -73,8 +73,8 @@ module.exports = {
          * @returns {boolean} `true` if the node is the callee of `.bind()` method.
          */
         function isCalleeOfBindMethod(node) {
-            var parent = node.parent;
-            var grandparent = parent.parent;
+            let parent = node.parent;
+            let grandparent = parent.parent;
 
             return (
                 grandparent &&

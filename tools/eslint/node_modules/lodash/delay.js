@@ -1,5 +1,5 @@
 var baseDelay = require('./_baseDelay'),
-    rest = require('./rest'),
+    baseRest = require('./_baseRest'),
     toNumber = require('./toNumber');
 
 /**
@@ -21,7 +21,7 @@ var baseDelay = require('./_baseDelay'),
  * }, 1000, 'later');
  * // => Logs 'later' after one second.
  */
-var delay = rest(function(func, wait, args) {
+var delay = baseRest(function(func, wait, args) {
   return baseDelay(func, toNumber(wait) || 0, args);
 });
 

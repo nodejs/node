@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var fs = require("fs"),
+let fs = require("fs"),
     path = require("path");
 
 //------------------------------------------------------------------------------
@@ -55,11 +55,11 @@ function FileFinder(files, cwd) {
  * @returns {Object} Hashmap of filenames
  */
 function normalizeDirectoryEntries(entries, directory, supportedConfigs) {
-    var fileHash = {};
+    let fileHash = {};
 
     entries.forEach(function(entry) {
         if (supportedConfigs.indexOf(entry) >= 0) {
-            var resolvedEntry = path.resolve(directory, entry);
+            let resolvedEntry = path.resolve(directory, entry);
 
             if (fs.statSync(resolvedEntry).isFile()) {
                 fileHash[entry] = resolvedEntry;
@@ -79,7 +79,7 @@ function normalizeDirectoryEntries(entries, directory, supportedConfigs) {
  * @returns {string[]} The file paths found.
  */
 FileFinder.prototype.findAllInDirectoryAndParents = function(directory) {
-    var cache = this.cache,
+    let cache = this.cache,
         child,
         dirs,
         fileNames,
@@ -106,10 +106,10 @@ FileFinder.prototype.findAllInDirectoryAndParents = function(directory) {
         dirs[searched++] = directory;
         cache[directory] = [];
 
-        var filesMap = normalizeDirectoryEntries(getDirectoryEntries(directory), directory, fileNames);
+        let filesMap = normalizeDirectoryEntries(getDirectoryEntries(directory), directory, fileNames);
 
         if (Object.keys(filesMap).length) {
-            for (var k = 0; k < fileNames.length; k++) {
+            for (let k = 0; k < fileNames.length; k++) {
 
                 if (filesMap[fileNames[k]]) {
                     filePath = filesMap[fileNames[k]];

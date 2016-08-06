@@ -20,7 +20,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -34,7 +34,7 @@ module.exports = {
          * @private
          */
         function isPrecededByTokens(node, testTokens) {
-            var tokenBefore = sourceCode.getTokenBefore(node);
+            let tokenBefore = sourceCode.getTokenBefore(node);
 
             return testTokens.some(function(token) {
                 return tokenBefore.value === token;
@@ -48,7 +48,7 @@ module.exports = {
          * @private
          */
         function isFirstNode(node) {
-            var parentType = node.parent.type;
+            let parentType = node.parent.type;
 
             if (node.parent.body) {
                 return Array.isArray(node.parent.body)
@@ -75,7 +75,7 @@ module.exports = {
          * @private
          */
         function calcCommentLines(node, lineNumTokenBefore) {
-            var comments = sourceCode.getComments(node).leading,
+            let comments = sourceCode.getComments(node).leading,
                 numLinesComments = 0;
 
             if (!comments.length) {
@@ -109,7 +109,7 @@ module.exports = {
          * @private
          */
         function hasNewlineBefore(node) {
-            var tokenBefore = sourceCode.getTokenBefore(node),
+            let tokenBefore = sourceCode.getTokenBefore(node),
                 lineNumNode = node.loc.start.line,
                 lineNumTokenBefore,
                 commentLines;

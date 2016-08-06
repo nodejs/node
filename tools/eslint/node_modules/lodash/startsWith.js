@@ -29,7 +29,8 @@ var baseClamp = require('./_baseClamp'),
 function startsWith(string, target, position) {
   string = toString(string);
   position = baseClamp(toInteger(position), 0, string.length);
-  return string.lastIndexOf(baseToString(target), position) == position;
+  target = baseToString(target);
+  return string.slice(position, position + target.length) == target;
 }
 
 module.exports = startsWith;

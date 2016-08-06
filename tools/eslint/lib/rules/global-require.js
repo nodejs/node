@@ -5,7 +5,7 @@
 
 "use strict";
 
-var ACCEPTABLE_PARENTS = [
+let ACCEPTABLE_PARENTS = [
     "AssignmentExpression",
     "VariableDeclarator",
     "MemberExpression",
@@ -23,7 +23,7 @@ var ACCEPTABLE_PARENTS = [
  * @returns {Reference|null} Returns the found reference or null if none were found.
  */
 function findReference(scope, node) {
-    var references = scope.references.filter(function(reference) {
+    let references = scope.references.filter(function(reference) {
         return reference.identifier.range[0] === node.range[0] &&
             reference.identifier.range[1] === node.range[1];
     });
@@ -43,7 +43,7 @@ function findReference(scope, node) {
  * @returns {boolean} Whether or not the name is shadowed.
  */
 function isShadowed(scope, node) {
-    var reference = findReference(scope, node);
+    let reference = findReference(scope, node);
 
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
@@ -62,7 +62,7 @@ module.exports = {
     create: function(context) {
         return {
             CallExpression: function(node) {
-                var currentScope = context.getScope(),
+                let currentScope = context.getScope(),
                     isGoodRequire;
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {

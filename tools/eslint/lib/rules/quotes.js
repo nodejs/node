@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var QUOTE_SETTINGS = {
+let QUOTE_SETTINGS = {
     double: {
         quote: "\"",
         alternateQuote: "'",
@@ -45,8 +45,8 @@ var QUOTE_SETTINGS = {
 QUOTE_SETTINGS.double.convert =
 QUOTE_SETTINGS.single.convert =
 QUOTE_SETTINGS.backtick.convert = function(str) {
-    var newQuote = this.quote;
-    var oldQuote = str[0];
+    let newQuote = this.quote;
+    let oldQuote = str[0];
 
     if (newQuote === oldQuote) {
         return str;
@@ -65,8 +65,7 @@ QUOTE_SETTINGS.backtick.convert = function(str) {
     }) + newQuote;
 };
 
-var AVOID_ESCAPE = "avoid-escape",
-    FUNCTION_TYPE = /^(?:Arrow)?Function(?:Declaration|Expression)$/;
+let AVOID_ESCAPE = "avoid-escape";
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -110,7 +109,7 @@ module.exports = {
 
     create: function(context) {
 
-        var quoteOption = context.options[0],
+        let quoteOption = context.options[0],
             settings = QUOTE_SETTINGS[quoteOption || "double"],
             options = context.options[1],
             avoidEscape = options && options.avoidEscape === true,
@@ -155,15 +154,15 @@ module.exports = {
          * @private
          */
         function isPartOfDirectivePrologue(node) {
-            var block = node.parent.parent;
+            let block = node.parent.parent;
 
-            if (block.type !== "Program" && (block.type !== "BlockStatement" || !FUNCTION_TYPE.test(block.parent.type))) {
+            if (block.type !== "Program" && (block.type !== "BlockStatement" || !astUtils.isFunction(block.parent))) {
                 return false;
             }
 
             // Check the node is at a prologue.
-            for (var i = 0; i < block.body.length; ++i) {
-                var statement = block.body[i];
+            for (let i = 0; i < block.body.length; ++i) {
+                let statement = block.body[i];
 
                 if (statement === node.parent) {
                     return true;
@@ -183,7 +182,7 @@ module.exports = {
          * @private
          */
         function isAllowedAsNonBacktick(node) {
-            var parent = node.parent;
+            let parent = node.parent;
 
             switch (parent.type) {
 
@@ -210,7 +209,7 @@ module.exports = {
         return {
 
             Literal: function(node) {
-                var val = node.value,
+                let val = node.value,
                     rawVal = node.raw,
                     isValid;
 
@@ -242,7 +241,7 @@ module.exports = {
                     return;
                 }
 
-                var shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
+                let shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
 
                 if (shouldWarn) {
                     context.report({

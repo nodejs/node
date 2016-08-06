@@ -28,7 +28,7 @@ module.exports = {
 
                 // Object that will be a map of properties--safe because we will
                 // prefix all of the keys.
-                var nodeProps = Object.create(null);
+                let nodeProps = Object.create(null);
 
                 node.properties.forEach(function(property) {
 
@@ -36,7 +36,7 @@ module.exports = {
                         return;
                     }
 
-                    var keyName = property.key.name || property.key.value,
+                    let keyName = property.key.name || property.key.value,
                         key = property.kind + "-" + keyName,
                         checkProperty = (!property.computed || property.key.type === "Literal");
 

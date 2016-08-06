@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var chalk = require("chalk"),
+let chalk = require("chalk"),
     table = require("text-table");
 
 //------------------------------------------------------------------------------
@@ -27,14 +27,14 @@ function pluralize(word, count) {
 
 module.exports = function(results) {
 
-    var output = "\n",
+    let output = "\n",
         total = 0,
         errors = 0,
         warnings = 0,
         summaryColor = "yellow";
 
     results.forEach(function(result) {
-        var messages = result.messages;
+        let messages = result.messages;
 
         if (messages.length === 0) {
             return;
@@ -45,7 +45,7 @@ module.exports = function(results) {
 
         output += table(
             messages.map(function(message) {
-                var messageType;
+                let messageType;
 
                 if (message.fatal || message.severity === 2) {
                     messageType = chalk.red("error");

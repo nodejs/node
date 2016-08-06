@@ -36,18 +36,18 @@ var nonEnumShadows = !propertyIsEnumerable.call({ 'valueOf': 1 }, 'valueOf');
  * @example
  *
  * function Foo() {
- *   this.c = 3;
+ *   this.a = 1;
  * }
  *
  * function Bar() {
- *   this.e = 5;
+ *   this.c = 3;
  * }
  *
- * Foo.prototype.d = 4;
- * Bar.prototype.f = 6;
+ * Foo.prototype.b = 2;
+ * Bar.prototype.d = 4;
  *
- * _.assign({ 'a': 1 }, new Foo, new Bar);
- * // => { 'a': 1, 'c': 3, 'e': 5 }
+ * _.assign({ 'a': 0 }, new Foo, new Bar);
+ * // => { 'a': 1, 'c': 3 }
  */
 var assign = createAssigner(function(object, source) {
   if (nonEnumShadows || isPrototype(source) || isArrayLike(source)) {

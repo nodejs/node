@@ -32,13 +32,13 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
-        var BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
+        let BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
             SKIP_BLANK = "^" + BLANK_CLASS + "*$",
             NONBLANK = BLANK_CLASS + "+$";
 
-        var options = context.options[0] || {},
+        let options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false;
 
         /**
@@ -78,7 +78,7 @@ module.exports = {
                 // Let's hack. Since Espree does not return whitespace nodes,
                 // fetch the source code and do matching via regexps.
 
-                var re = new RegExp(NONBLANK),
+                let re = new RegExp(NONBLANK),
                     skipMatch = new RegExp(SKIP_BLANK),
                     matches,
                     lines = sourceCode.lines,
@@ -90,14 +90,14 @@ module.exports = {
                     fixRange = [],
                     containingNode;
 
-                for (var i = 0, ii = lines.length; i < ii; i++) {
+                for (let i = 0, ii = lines.length; i < ii; i++) {
                     matches = re.exec(lines[i]);
 
                     // Always add linebreak length to line length to accommodate for line break (\n or \r\n)
                     // Because during the fix time they also reserve one spot in the array.
                     // Usually linebreak length is 2 for \r\n (CRLF) and 1 for \n (LF)
-                    var linebreakLength = linebreaks && linebreaks[i] ? linebreaks[i].length : 1;
-                    var lineLength = lines[i].length + linebreakLength;
+                    let linebreakLength = linebreaks && linebreaks[i] ? linebreaks[i].length : 1;
+                    let lineLength = lines[i].length + linebreakLength;
 
                     if (matches) {
                         location = {

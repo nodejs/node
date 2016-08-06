@@ -32,7 +32,7 @@ module.exports = {
 
     create: function(context) {
 
-        var sourceCode = context.getSourceCode(),
+        let sourceCode = context.getSourceCode(),
             options = context.options[0] || {},
             lastStatementLine = 0,
             numberOfStatementsOnThisLine = 0,
@@ -43,7 +43,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        var SINGLE_CHILD_ALLOWED = /^(?:(?:DoWhile|For|ForIn|ForOf|If|Labeled|While)Statement|Export(?:Default|Named)Declaration)$/;
+        let SINGLE_CHILD_ALLOWED = /^(?:(?:DoWhile|For|ForIn|ForOf|If|Labeled|While)Statement|Export(?:Default|Named)Declaration)$/;
 
         /**
          * Gets the actual last token of a given node.
@@ -52,7 +52,7 @@ module.exports = {
          * @returns {Token} The actual last token.
          */
         function getActualLastToken(node) {
-            var lastToken = sourceCode.getLastToken(node);
+            let lastToken = sourceCode.getLastToken(node);
 
             if (lastToken.value === ";") {
                 lastToken = sourceCode.getTokenBefore(lastToken);
@@ -68,7 +68,7 @@ module.exports = {
          * @returns {void}
          */
         function enterStatement(node) {
-            var line = node.loc.start.line;
+            let line = node.loc.start.line;
 
             // Skip to allow non-block statements if this is direct child of control statements.
             // `if (a) foo();` is counted as 1.
@@ -100,7 +100,7 @@ module.exports = {
          * @returns {void}
          */
         function leaveStatement(node) {
-            var line = getActualLastToken(node).loc.end.line;
+            let line = getActualLastToken(node).loc.end.line;
 
             // Update state.
             if (line !== lastStatementLine) {

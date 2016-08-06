@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var espree = require("espree"),
+let espree = require("espree"),
     keywords = require("../util/keywords");
 
 //------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ module.exports = {
 
     create: function(context) {
 
-        var MODE = context.options[0],
+        let MODE = context.options[0],
             KEYWORDS = context.options[1] && context.options[1].keywords,
             CHECK_UNNECESSARY = !context.options[1] || context.options[1].unnecessary !== false,
             NUMBERS = context.options[1] && context.options[1].numbers,
@@ -106,7 +106,7 @@ module.exports = {
          * @returns {void}
          */
         function checkUnnecessaryQuotes(node) {
-            var key = node.key,
+            let key = node.key,
                 isKeywordToken,
                 tokens;
 
@@ -147,7 +147,7 @@ module.exports = {
          * @returns {void}
          */
         function checkOmittedQuotes(node) {
-            var key = node.key;
+            let key = node.key;
 
             if (!node.method && !node.computed && !node.shorthand && !(key.type === "Literal" && typeof key.value === "string")) {
                 context.report(node, MESSAGE_UNQUOTED, {
@@ -163,12 +163,12 @@ module.exports = {
          * @returns {void}
          */
         function checkConsistency(node, checkQuotesRedundancy) {
-            var quotes = false,
+            let quotes = false,
                 lackOfQuotes = false,
                 necessaryQuotes = false;
 
             node.properties.forEach(function(property) {
-                var key = property.key,
+                let key = property.key,
                     tokens;
 
                 if (!key || property.method || property.computed || property.shorthand) {

@@ -1,10 +1,10 @@
 var LodashWrapper = require('./_LodashWrapper'),
     baseFlatten = require('./_baseFlatten'),
+    baseRest = require('./_baseRest'),
     getData = require('./_getData'),
     getFuncName = require('./_getFuncName'),
     isArray = require('./isArray'),
-    isLaziable = require('./_isLaziable'),
-    rest = require('./rest');
+    isLaziable = require('./_isLaziable');
 
 /** Used as the size to enable large array optimizations. */
 var LARGE_ARRAY_SIZE = 200;
@@ -12,7 +12,7 @@ var LARGE_ARRAY_SIZE = 200;
 /** Used as the `TypeError` message for "Functions" methods. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
-/** Used to compose bitmasks for wrapper metadata. */
+/** Used to compose bitmasks for function metadata. */
 var CURRY_FLAG = 8,
     PARTIAL_FLAG = 32,
     ARY_FLAG = 128,
@@ -26,7 +26,7 @@ var CURRY_FLAG = 8,
  * @returns {Function} Returns the new flow function.
  */
 function createFlow(fromRight) {
-  return rest(function(funcs) {
+  return baseRest(function(funcs) {
     funcs = baseFlatten(funcs, 1);
 
     var length = funcs.length,

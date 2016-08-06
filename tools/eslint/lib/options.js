@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var optionator = require("optionator");
+let optionator = require("optionator");
 
 //------------------------------------------------------------------------------
 // Initialization and Public Interface

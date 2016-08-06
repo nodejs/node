@@ -5,10 +5,10 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Constants
+// Requirements
 //------------------------------------------------------------------------------
 
-var LOOP_TYPES = /^(?:While|DoWhile|For|ForIn|ForOf)Statement$/;
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -39,10 +39,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0];
-        var allowLoop = Boolean(options && options.allowLoop);
-        var allowSwitch = Boolean(options && options.allowSwitch);
-        var scopeInfo = null;
+        let options = context.options[0];
+        let allowLoop = Boolean(options && options.allowLoop);
+        let allowSwitch = Boolean(options && options.allowSwitch);
+        let scopeInfo = null;
 
         /**
          * Gets the kind of a given node.
@@ -51,12 +51,10 @@ module.exports = {
          * @returns {string} The kind of the node.
          */
         function getBodyKind(node) {
-            var type = node.type;
-
-            if (LOOP_TYPES.test(type)) {
+            if (astUtils.isLoop(node)) {
                 return "loop";
             }
-            if (type === "SwitchStatement") {
+            if (node.type === "SwitchStatement") {
                 return "switch";
             }
             return "other";
@@ -83,7 +81,7 @@ module.exports = {
          * @returns {boolean} `true` if the name is a label of a loop.
          */
         function getKind(label) {
-            var info = scopeInfo;
+            let info = scopeInfo;
 
             while (info) {
                 if (info.label === label) {

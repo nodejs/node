@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -39,7 +39,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var style = context.options[0] || "last",
+        let style = context.options[0] || "last",
             exceptions = {},
             sourceCode = context.getSourceCode();
 
@@ -108,7 +108,7 @@ module.exports = {
          * @returns {void}
          */
         function validateComma(node, property) {
-            var items = node[property],
+            let items = node[property],
                 arrayLiteral = (node.type === "ArrayExpression"),
                 previousItemToken;
 
@@ -118,7 +118,7 @@ module.exports = {
                 previousItemToken = sourceCode.getFirstToken(node);
 
                 items.forEach(function(item) {
-                    var commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
+                    let commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
                         currentItemToken = item ? sourceCode.getFirstToken(item) : sourceCode.getTokenAfter(commaToken),
                         reportItem = item || currentItemToken,
                         tokenBeforeComma = sourceCode.getTokenBefore(commaToken);
@@ -158,7 +158,7 @@ module.exports = {
                  */
                 if (arrayLiteral) {
 
-                    var lastToken = sourceCode.getLastToken(node),
+                    let lastToken = sourceCode.getLastToken(node),
                         nextToLastToken = sourceCode.getTokenBefore(lastToken);
 
                     if (isComma(nextToLastToken)) {
@@ -177,7 +177,7 @@ module.exports = {
         // Public
         //--------------------------------------------------------------------------
 
-        var nodes = {};
+        let nodes = {};
 
         if (!exceptions.VariableDeclaration) {
             nodes.VariableDeclaration = function(node) {

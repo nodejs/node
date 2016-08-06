@@ -11,7 +11,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug"),
+let debug = require("debug"),
     fs = require("fs"),
     path = require("path"),
     ConfigOps = require("./config-ops"),
@@ -48,7 +48,7 @@ function sortByKey(a, b) {
 // Private
 //------------------------------------------------------------------------------
 
-var CONFIG_FILES = [
+let CONFIG_FILES = [
     ".eslintrc.js",
     ".eslintrc.yaml",
     ".eslintrc.yml",
@@ -57,7 +57,7 @@ var CONFIG_FILES = [
     "package.json"
 ];
 
-var resolver = new ModuleResolver();
+let resolver = new ModuleResolver();
 
 debug = debug("eslint:config-file");
 
@@ -94,7 +94,7 @@ function loadYAMLConfigFile(filePath) {
     debug("Loading YAML config file: " + filePath);
 
     // lazy load YAML to improve performance when not used
-    var yaml = require("js-yaml");
+    let yaml = require("js-yaml");
 
     try {
 
@@ -137,7 +137,7 @@ function loadLegacyConfigFile(filePath) {
     debug("Loading config file: " + filePath);
 
     // lazy load YAML to improve performance when not used
-    var yaml = require("js-yaml");
+    let yaml = require("js-yaml");
 
     try {
         return yaml.safeLoad(stripComments(readFile(filePath))) || /* istanbul ignore next */ {};
@@ -192,7 +192,7 @@ function loadPackageJSONConfigFile(filePath) {
  * @private
  */
 function loadConfigFile(file) {
-    var config,
+    let config,
         filePath = file.filePath;
 
     switch (path.extname(filePath)) {
@@ -236,7 +236,7 @@ function loadConfigFile(file) {
 function writeJSONConfigFile(config, filePath) {
     debug("Writing JSON config file: " + filePath);
 
-    var content = stringify(config, {cmp: sortByKey, space: 4});
+    let content = stringify(config, {cmp: sortByKey, space: 4});
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -252,9 +252,9 @@ function writeYAMLConfigFile(config, filePath) {
     debug("Writing YAML config file: " + filePath);
 
     // lazy load YAML to improve performance when not used
-    var yaml = require("js-yaml");
+    let yaml = require("js-yaml");
 
-    var content = yaml.safeDump(config, {sortKeys: true});
+    let content = yaml.safeDump(config, {sortKeys: true});
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -269,7 +269,7 @@ function writeYAMLConfigFile(config, filePath) {
 function writeJSConfigFile(config, filePath) {
     debug("Writing JS config file: " + filePath);
 
-    var content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
+    let content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -313,7 +313,7 @@ function write(config, filePath) {
 function getBaseDir(configFilePath) {
 
     // calculates the path of the project including ESLint as dependency
-    var projectPath = path.resolve(__dirname, "../../../");
+    let projectPath = path.resolve(__dirname, "../../../");
 
     if (configFilePath && pathIsInside(configFilePath, projectPath)) {
 
@@ -336,7 +336,7 @@ function getBaseDir(configFilePath) {
  * @private
  */
 function getLookupPath(configFilePath) {
-    var basedir = getBaseDir(configFilePath);
+    let basedir = getBaseDir(configFilePath);
 
     return path.join(basedir, "node_modules");
 }
@@ -352,7 +352,7 @@ function getLookupPath(configFilePath) {
  * @private
  */
 function applyExtends(config, filePath, relativeTo) {
-    var configExtends = config.extends;
+    let configExtends = config.extends;
 
     // normalize into an array for easier handling
     if (!Array.isArray(config.extends)) {
@@ -431,7 +431,7 @@ function normalizePackageName(name, prefix) {
          * it's a scoped package
          * package name is "eslint-config", or just a username
          */
-        var scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
+        let scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
             scopedPackageNameRegex = new RegExp("^" + prefix + "(-|$)");
 
         if (scopedPackageShortcutRegex.test(name)) {
@@ -463,11 +463,11 @@ function resolve(filePath, relativeTo) {
     if (isFilePath(filePath)) {
         return { filePath: path.resolve(relativeTo || "", filePath) };
     } else {
-        var normalizedPackageName;
+        let normalizedPackageName;
 
         if (filePath.indexOf("plugin:") === 0) {
-            var packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
-            var configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
+            let packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
+            let configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
 
             normalizedPackageName = normalizePackageName(packagePath, "eslint-plugin");
             debug("Attempting to resolve " + normalizedPackageName);
@@ -493,7 +493,7 @@ function resolve(filePath, relativeTo) {
  * @private
  */
 function load(filePath, applyEnvironments, relativeTo) {
-    var resolvedPath = resolve(filePath, relativeTo),
+    let resolvedPath = resolve(filePath, relativeTo),
         dirname = path.dirname(resolvedPath.filePath),
         lookupPath = getLookupPath(dirname),
         config = loadConfigFile(resolvedPath);
@@ -565,9 +565,9 @@ module.exports = {
      */
     getFilenameForDirectory: function(directory) {
 
-        var filename;
+        let filename;
 
-        for (var i = 0, len = CONFIG_FILES.length; i < len; i++) {
+        for (let i = 0, len = CONFIG_FILES.length; i < len; i++) {
             filename = path.join(directory, CONFIG_FILES[i]);
             if (fs.existsSync(filename)) {
                 return filename;

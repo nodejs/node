@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(tokens) {
-    var api = {},
+    let api = {},
         starts = Object.create(null),
         ends = Object.create(null),
         index, length, range;
@@ -21,7 +21,7 @@ module.exports = function(tokens) {
      * @returns {Token[]} Tokens in the interval.
      */
     function get(start, end) {
-        var result = [],
+        let result = [],
             i;
 
         for (i = Math.max(0, start); i < end && i < length; i++) {
@@ -39,7 +39,7 @@ module.exports = function(tokens) {
      * @returns {int} Index in the tokens array of the node's last token.
      */
     function lastTokenIndex(node) {
-        var end = node.range[1],
+        let end = node.range[1],
             cursor = ends[end];
 
         // If the node extends beyond its last token, get the token before the
@@ -73,7 +73,7 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getTokensBefore = function(node, beforeCount) {
-        var first = starts[node.range[0]];
+        let first = starts[node.range[0]];
 
         return get(first - (beforeCount || 0), first);
     };
@@ -98,7 +98,7 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getTokensAfter = function(node, afterCount) {
-        var start = lastTokenIndex(node) + 1;
+        let start = lastTokenIndex(node) + 1;
 
         return get(start, start + (afterCount || 0));
     };
@@ -135,7 +135,7 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getFirstTokens = function(node, count) {
-        var first = starts[node.range[0]];
+        let first = starts[node.range[0]];
 
         return get(
             first,
@@ -160,7 +160,7 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getLastTokens = function(node, count) {
-        var last = lastTokenIndex(node) + 1;
+        let last = lastTokenIndex(node) + 1;
 
         return get(Math.max(starts[node.range[0]], last - (count || 0)), last);
     };

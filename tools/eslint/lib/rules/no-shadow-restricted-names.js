@@ -21,7 +21,7 @@ module.exports = {
 
     create: function(context) {
 
-        var RESTRICTED = ["undefined", "NaN", "Infinity", "arguments", "eval"];
+        let RESTRICTED = ["undefined", "NaN", "Infinity", "arguments", "eval"];
 
         /**
          * Check if the node name is present inside the restricted list

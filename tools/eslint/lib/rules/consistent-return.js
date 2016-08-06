@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -57,9 +57,9 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
-        var treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
-        var funcInfo = null;
+        let options = context.options[0] || {};
+        let treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
+        let funcInfo = null;
 
         /**
          * Checks whether of not the implicit returning is consistent if the last
@@ -69,7 +69,7 @@ module.exports = {
          * @returns {void}
          */
         function checkLastSegment(node) {
-            var loc, type;
+            let loc, type;
 
             /*
              * Skip if it expected no return value or unreachable.
@@ -135,8 +135,8 @@ module.exports = {
 
             // Reports a given return statement if it's inconsistent.
             ReturnStatement: function(node) {
-                var argument = node.argument;
-                var hasReturnValue = Boolean(argument);
+                let argument = node.argument;
+                let hasReturnValue = Boolean(argument);
 
                 if (treatUndefinedAsUnspecified && hasReturnValue) {
                     hasReturnValue = !isIdentifier(argument, "undefined") && argument.operator !== "void";

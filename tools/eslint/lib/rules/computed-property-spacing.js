@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -28,8 +28,8 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
-        var propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
+        let sourceCode = context.getSourceCode();
+        let propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -46,7 +46,7 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "There should be no space after '" + token.value + "'",
+                message: "There should be no space after '" + token.value + "'.",
                 fix: function(fixer) {
                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                 }
@@ -64,7 +64,7 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "There should be no space before '" + token.value + "'",
+                message: "There should be no space before '" + token.value + "'.",
                 fix: function(fixer) {
                     return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                 }
@@ -81,7 +81,7 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "A space is required after '" + token.value + "'",
+                message: "A space is required after '" + token.value + "'.",
                 fix: function(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
@@ -98,7 +98,7 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "A space is required before '" + token.value + "'",
+                message: "A space is required before '" + token.value + "'.",
                 fix: function(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }
@@ -108,7 +108,7 @@ module.exports = {
         /**
          * Returns a function that checks the spacing of a node on the property name
          * that was passed in.
-         * @param {String} propertyName The property on the node to check for spacing
+         * @param {string} propertyName The property on the node to check for spacing
          * @returns {Function} A function that will check spacing on a node
          */
         function checkSpacing(propertyName) {
@@ -117,9 +117,9 @@ module.exports = {
                     return;
                 }
 
-                var property = node[propertyName];
+                let property = node[propertyName];
 
-                var before = sourceCode.getTokenBefore(property),
+                let before = sourceCode.getTokenBefore(property),
                     first = sourceCode.getFirstToken(property),
                     last = sourceCode.getLastToken(property),
                     after = sourceCode.getTokenAfter(property);

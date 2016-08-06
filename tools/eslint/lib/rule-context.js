@@ -8,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var RuleFixer = require("./util/rule-fixer");
+let RuleFixer = require("./util/rule-fixer");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var PASSTHROUGHS = [
+let PASSTHROUGHS = [
     "getAncestors",
     "getDeclaredVariables",
     "getFilename",
@@ -111,7 +111,7 @@ RuleContext.prototype = {
      * @returns {void}
      */
     report: function(nodeOrDescriptor, location, message, opts) {
-        var descriptor,
+        let descriptor,
             fix = null;
 
         // check to see if it's a new style call

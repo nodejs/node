@@ -21,7 +21,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Validate regular expressions
@@ -31,7 +31,7 @@ module.exports = {
          * @private
          */
         function checkRegex(node, value) {
-            var multipleSpacesRegex = /( {2,})+?/,
+            let multipleSpacesRegex = /( {2,})+?/,
                 regexResults = multipleSpacesRegex.exec(value);
 
             if (regexResults !== null) {
@@ -46,7 +46,7 @@ module.exports = {
          * @private
          */
         function checkLiteral(node) {
-            var token = sourceCode.getFirstToken(node),
+            let token = sourceCode.getFirstToken(node),
                 nodeType = token.type,
                 nodeValue = token.value;
 

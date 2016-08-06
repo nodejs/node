@@ -1,6 +1,6 @@
-var createWrapper = require('./_createWrapper');
+var createWrap = require('./_createWrap');
 
-/** Used to compose bitmasks for wrapper metadata. */
+/** Used to compose bitmasks for function metadata. */
 var FLIP_FLAG = 512;
 
 /**
@@ -22,7 +22,7 @@ var FLIP_FLAG = 512;
  * // => ['d', 'c', 'b', 'a']
  */
 function flip(func) {
-  return createWrapper(func, FLIP_FLAG);
+  return createWrap(func, FLIP_FLAG);
 }
 
 module.exports = flip;

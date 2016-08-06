@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var MODE_ALWAYS = "always",
+let MODE_ALWAYS = "always",
     MODE_AS_NEEDED = "as-needed";
 
 /**
@@ -92,7 +92,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var mode = context.options[0] || MODE_ALWAYS;
+        let mode = context.options[0] || MODE_ALWAYS;
 
         /**
          * Checks the arguments of a given CallExpression node and reports it if it
@@ -102,7 +102,7 @@ module.exports = {
          * @returns {void}
          */
         function checkArguments(node) {
-            var args = node.arguments;
+            let args = node.arguments;
 
             switch (args.length) {
                 case 0:
@@ -139,14 +139,14 @@ module.exports = {
 
         return {
             "Program:exit": function() {
-                var scope = context.getScope();
-                var variable;
+                let scope = context.getScope();
+                let variable;
 
                 // Check `parseInt()`
                 variable = astUtils.getVariableByName(scope, "parseInt");
                 if (!isShadowed(variable)) {
                     variable.references.forEach(function(reference) {
-                        var node = reference.identifier;
+                        let node = reference.identifier;
 
                         if (astUtils.isCallee(node)) {
                             checkArguments(node.parent);
@@ -158,7 +158,7 @@ module.exports = {
                 variable = astUtils.getVariableByName(scope, "Number");
                 if (!isShadowed(variable)) {
                     variable.references.forEach(function(reference) {
-                        var node = reference.identifier.parent;
+                        let node = reference.identifier.parent;
 
                         if (isParseIntMethod(node) && astUtils.isCallee(node)) {
                             checkArguments(node.parent);

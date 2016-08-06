@@ -21,20 +21,20 @@ module.exports = {
     },
 
     create: function(context) {
-        var stack = [];
+        let stack = [];
 
         /**
          * Gets state of a given member name.
          * @param {string} name - A name of a member.
          * @param {boolean} isStatic - A flag which specifies that is a static member.
-         * @returns {object} A state of a given member name.
+         * @returns {Object} A state of a given member name.
          *   - retv.init {boolean} A flag which shows the name is declared as normal member.
          *   - retv.get {boolean} A flag which shows the name is declared as getter.
          *   - retv.set {boolean} A flag which shows the name is declared as setter.
          */
         function getState(name, isStatic) {
-            var stateMap = stack[stack.length - 1];
-            var key = "$" + name; // to avoid "__proto__".
+            let stateMap = stack[stack.length - 1];
+            let key = "$" + name; // to avoid "__proto__".
 
             if (!stateMap[key]) {
                 stateMap[key] = {
@@ -85,9 +85,9 @@ module.exports = {
                     return;
                 }
 
-                var name = getName(node.key);
-                var state = getState(name, node.static);
-                var isDuplicate = false;
+                let name = getName(node.key);
+                let state = getState(name, node.static);
+                let isDuplicate = false;
 
                 if (node.kind === "get") {
                     isDuplicate = (state.init || state.get);

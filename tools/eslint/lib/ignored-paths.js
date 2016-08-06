@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
+let lodash = require("lodash"),
     fs = require("fs"),
     path = require("path"),
     debug = require("debug"),
@@ -23,12 +23,12 @@ debug = debug("eslint:ignored-paths");
 // Constants
 //------------------------------------------------------------------------------
 
-var ESLINT_IGNORE_FILENAME = ".eslintignore";
-var DEFAULT_IGNORE_DIRS = [
+let ESLINT_IGNORE_FILENAME = ".eslintignore";
+let DEFAULT_IGNORE_DIRS = [
     "node_modules/",
     "bower_components/"
 ];
-var DEFAULT_OPTIONS = {
+let DEFAULT_OPTIONS = {
     dotfiles: false,
     cwd: process.cwd()
 };
@@ -47,15 +47,15 @@ var DEFAULT_OPTIONS = {
 function findIgnoreFile(cwd) {
     cwd = cwd || DEFAULT_OPTIONS.cwd;
 
-    var ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
+    let ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
 
     return fs.existsSync(ignoreFilePath) ? ignoreFilePath : "";
 }
 
 /**
  * Merge options with defaults
- * @param {object} options Options to merge with DEFAULT_OPTIONS constant
- * @returns {object} Merged options
+ * @param {Object} options Options to merge with DEFAULT_OPTIONS constant
+ * @returns {Object} Merged options
  */
 function mergeDefaultOptions(options) {
     options = (options || {});
@@ -78,7 +78,7 @@ function IgnoredPaths(options) {
 
     /**
      * add pattern to node-ignore instance
-     * @param {object} ig, instance of node-ignore
+     * @param {Object} ig, instance of node-ignore
      * @param {string} pattern, pattern do add to ig
      * @returns {array} raw ignore rules
      */
@@ -88,7 +88,7 @@ function IgnoredPaths(options) {
 
     /**
      * add ignore file to node-ignore instance
-     * @param {object} ig, instance of node-ignore
+     * @param {Object} ig, instance of node-ignore
      * @param {string} filepath, file to add to ig
      * @returns {array} raw ignore rules
      */
@@ -124,7 +124,7 @@ function IgnoredPaths(options) {
     addPattern(this.ig.default, this.defaultPatterns);
 
     if (options.ignore !== false) {
-        var ignorePath;
+        let ignorePath;
 
         if (options.ignorePath) {
             debug("Using specific ignore file");
@@ -174,9 +174,9 @@ function IgnoredPaths(options) {
  */
 IgnoredPaths.prototype.contains = function(filepath, category) {
 
-    var result = false;
-    var absolutePath = path.resolve(this.options.cwd, filepath);
-    var relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
+    let result = false;
+    let absolutePath = path.resolve(this.options.cwd, filepath);
+    let relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
 
     if ((typeof category === "undefined") || (category === "default")) {
         result = result || (this.ig.default.filter([relativePath]).length === 0);
@@ -195,13 +195,13 @@ IgnoredPaths.prototype.contains = function(filepath, category) {
  * @returns {string[]} list of glob ignore patterns
  */
 IgnoredPaths.prototype.getIgnoredFoldersGlobPatterns = function() {
-    var dirs = DEFAULT_IGNORE_DIRS;
+    let dirs = DEFAULT_IGNORE_DIRS;
 
     if (this.options.ignore) {
 
         /* eslint-disable no-underscore-dangle */
 
-        var patterns = this.ig.custom._rules.filter(function(rule) {
+        let patterns = this.ig.custom._rules.filter(function(rule) {
             return rule.negative;
         }).map(function(rule) {
             return rule.origin;

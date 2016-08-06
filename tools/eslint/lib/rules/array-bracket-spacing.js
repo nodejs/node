@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
     create: function(context) {
-        var spaced = context.options[0] === "always",
+        let spaced = context.options[0] === "always",
             sourceCode = context.getSourceCode();
 
         /**
@@ -54,7 +54,7 @@ module.exports = {
             return context.options[1] ? context.options[1][option] === !spaced : false;
         }
 
-        var options = {
+        let options = {
             spaced: spaced,
             singleElementException: isOptionSet("singleValue"),
             objectsInArraysException: isOptionSet("objectsInArrays"),
@@ -75,9 +75,9 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "There should be no space after '" + token.value + "'",
+                message: "There should be no space after '" + token.value + "'.",
                 fix: function(fixer) {
-                    var nextToken = sourceCode.getTokenAfter(token);
+                    let nextToken = sourceCode.getTokenAfter(token);
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
@@ -94,9 +94,9 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "There should be no space before '" + token.value + "'",
+                message: "There should be no space before '" + token.value + "'.",
                 fix: function(fixer) {
-                    var previousToken = sourceCode.getTokenBefore(token);
+                    let previousToken = sourceCode.getTokenBefore(token);
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
@@ -113,7 +113,7 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "A space is required after '" + token.value + "'",
+                message: "A space is required after '" + token.value + "'.",
                 fix: function(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
@@ -130,7 +130,7 @@ module.exports = {
             context.report({
                 node: node,
                 loc: token.loc.start,
-                message: "A space is required before '" + token.value + "'",
+                message: "A space is required before '" + token.value + "'.",
                 fix: function(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }
@@ -165,20 +165,20 @@ module.exports = {
                 return;
             }
 
-            var first = sourceCode.getFirstToken(node),
+            let first = sourceCode.getFirstToken(node),
                 second = sourceCode.getFirstToken(node, 1),
                 penultimate = sourceCode.getLastToken(node, 1),
                 last = sourceCode.getLastToken(node),
                 firstElement = node.elements[0],
                 lastElement = node.elements[node.elements.length - 1];
 
-            var openingBracketMustBeSpaced =
+            let openingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(firstElement) ||
                 options.arraysInArraysException && isArrayType(firstElement) ||
                 options.singleElementException && node.elements.length === 1
                     ? !options.spaced : options.spaced;
 
-            var closingBracketMustBeSpaced =
+            let closingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(lastElement) ||
                 options.arraysInArraysException && isArrayType(lastElement) ||
                 options.singleElementException && node.elements.length === 1

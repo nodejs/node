@@ -11,8 +11,8 @@
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-var util = require("util");
-var lodash = require("lodash");
+let util = require("util");
+let lodash = require("lodash");
 
 module.exports = {
     meta: {
@@ -71,6 +71,10 @@ module.exports = {
                     outerIIFEBody: {
                         type: "integer",
                         minimum: 0
+                    },
+                    MemberExpression: {
+                        type: "integer",
+                        minimum: 0
                     }
                 },
                 additionalProperties: false
@@ -80,12 +84,12 @@ module.exports = {
 
     create: function(context) {
 
-        var MESSAGE = "Expected indentation of {{needed}} {{type}} {{characters}} but found {{gotten}}.";
-        var DEFAULT_VARIABLE_INDENT = 1;
+        let MESSAGE = "Expected indentation of {{needed}} {{type}} {{characters}} but found {{gotten}}.";
+        let DEFAULT_VARIABLE_INDENT = 1;
 
-        var indentType = "space";
-        var indentSize = 4;
-        var options = {
+        let indentType = "space";
+        let indentSize = 4;
+        let options = {
             SwitchCase: 0,
             VariableDeclarator: {
                 var: DEFAULT_VARIABLE_INDENT,
@@ -95,7 +99,7 @@ module.exports = {
             outerIIFEBody: null
         };
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         if (context.options.length) {
             if (context.options[0] === "tab") {
@@ -107,10 +111,10 @@ module.exports = {
             }
 
             if (context.options[1]) {
-                var opts = context.options[1];
+                let opts = context.options[1];
 
                 options.SwitchCase = opts.SwitchCase || 0;
-                var variableDeclaratorRules = opts.VariableDeclarator;
+                let variableDeclaratorRules = opts.VariableDeclarator;
 
                 if (typeof variableDeclaratorRules === "number") {
                     options.VariableDeclarator = {
@@ -125,15 +129,19 @@ module.exports = {
                 if (typeof opts.outerIIFEBody === "number") {
                     options.outerIIFEBody = opts.outerIIFEBody;
                 }
+
+                if (typeof opts.MemberExpression === "number") {
+                    options.MemberExpression = opts.MemberExpression;
+                }
             }
         }
 
-        var indentPattern = {
+        let indentPattern = {
             normal: indentType === "space" ? /^ +/ : /^\t+/,
             excludeCommas: indentType === "space" ? /^[ ,]+/ : /^[\t,]+/
         };
 
-        var caseIndentStore = {};
+        let caseIndentStore = {};
 
         /**
          * Reports a given indent violation and properly pluralizes the message
@@ -145,13 +153,13 @@ module.exports = {
          * @returns {void}
          */
         function report(node, needed, gotten, loc, isLastNodeCheck) {
-            var msgContext = {
+            let msgContext = {
                 needed: needed,
                 type: indentType,
                 characters: needed === 1 ? "character" : "characters",
                 gotten: gotten
             };
-            var indentChar = indentType === "space" ? " " : "\t";
+            let indentChar = indentType === "space" ? " " : "\t";
 
             /**
              * Responsible for fixing the indentation issue fix
@@ -159,10 +167,10 @@ module.exports = {
              * @private
              */
             function getFixerFunction() {
-                var rangeToFix = [];
+                let rangeToFix = [];
 
                 if (needed > gotten) {
-                    var spaces = "" + new Array(needed - gotten + 1).join(indentChar);  // replace with repeat in future
+                    let spaces = "" + new Array(needed - gotten + 1).join(indentChar);  // replace with repeat in future
 
                     if (isLastNodeCheck === true) {
                         rangeToFix = [
@@ -224,10 +232,10 @@ module.exports = {
          * @returns {int} Indent
          */
         function getNodeIndent(node, byLastLine, excludeCommas) {
-            var token = byLastLine ? sourceCode.getLastToken(node) : sourceCode.getFirstToken(node);
-            var src = sourceCode.getText(token, token.loc.start.column);
-            var regExp = excludeCommas ? indentPattern.excludeCommas : indentPattern.normal;
-            var indent = regExp.exec(src);
+            let token = byLastLine ? sourceCode.getLastToken(node) : sourceCode.getFirstToken(node);
+            let src = sourceCode.getText(token, token.loc.start.column);
+            let regExp = excludeCommas ? indentPattern.excludeCommas : indentPattern.normal;
+            let indent = regExp.exec(src);
 
             return indent ? indent[0].length : 0;
         }
@@ -239,7 +247,7 @@ module.exports = {
          * @returns {boolean} true if its the first in the its start line
          */
         function isNodeFirstInLine(node, byEndLocation) {
-            var firstToken = byEndLocation === true ? sourceCode.getLastToken(node, 1) : sourceCode.getTokenBefore(node),
+            let firstToken = byEndLocation === true ? sourceCode.getLastToken(node, 1) : sourceCode.getTokenBefore(node),
                 startLine = byEndLocation === true ? node.loc.end.line : node.loc.start.line,
                 endLine = firstToken ? firstToken.loc.end.line : -1;
 
@@ -254,7 +262,7 @@ module.exports = {
          * @returns {void}
          */
         function checkNodeIndent(node, indent, excludeCommas) {
-            var nodeIndent = getNodeIndent(node, false, excludeCommas);
+            let nodeIndent = getNodeIndent(node, false, excludeCommas);
 
             if (
                 node.type !== "ArrayExpression" && node.type !== "ObjectExpression" &&
@@ -274,7 +282,7 @@ module.exports = {
         function checkNodesIndent(nodes, indent, excludeCommas) {
             nodes.forEach(function(node) {
                 if (node.type === "IfStatement" && node.alternate) {
-                    var elseToken = sourceCode.getTokenBefore(node.alternate);
+                    let elseToken = sourceCode.getTokenBefore(node.alternate);
 
                     checkNodeIndent(elseToken, indent, excludeCommas);
                 }
@@ -289,8 +297,8 @@ module.exports = {
          * @returns {void}
          */
         function checkLastNodeLineIndent(node, lastLineIndent) {
-            var lastToken = sourceCode.getLastToken(node);
-            var endIndent = getNodeIndent(lastToken, true);
+            let lastToken = sourceCode.getLastToken(node);
+            let endIndent = getNodeIndent(lastToken, true);
 
             if (endIndent !== lastLineIndent && isNodeFirstInLine(node, true)) {
                 report(
@@ -310,7 +318,7 @@ module.exports = {
          * @returns {void}
          */
         function checkFirstNodeLineIndent(node, firstLineIndent) {
-            var startIndent = getNodeIndent(node, false);
+            let startIndent = getNodeIndent(node, false);
 
             if (startIndent !== firstLineIndent && isNodeFirstInLine(node)) {
                 report(
@@ -323,19 +331,40 @@ module.exports = {
         }
 
         /**
+         * Returns a parent node of given node based on a specified type
+         * if not present then return null
+         * @param {ASTNode} node node to examine
+         * @param {string} type type that is being looked for
+         * @returns {ASTNode|void} if found then node otherwise null
+         */
+        function getParentNodeByType(node, type) {
+            let parent = node.parent;
+
+            while (parent.type !== type && parent.type !== "Program") {
+                parent = parent.parent;
+            }
+
+            return parent.type === type ? parent : null;
+        }
+
+        /**
          * Returns the VariableDeclarator based on the current node
          * if not present then return null
          * @param {ASTNode} node node to examine
          * @returns {ASTNode|void} if found then node otherwise null
          */
         function getVariableDeclaratorNode(node) {
-            var parent = node.parent;
+            return getParentNodeByType(node, "VariableDeclarator");
+        }
 
-            while (parent.type !== "VariableDeclarator" && parent.type !== "Program") {
-                parent = parent.parent;
-            }
-
-            return parent.type === "VariableDeclarator" ? parent : null;
+        /**
+         * Returns the ExpressionStatement based on the current node
+         * if not present then return null
+         * @param {ASTNode} node node to examine
+         * @returns {ASTNode|void} if found then node otherwise null
+         */
+        function getAssignmentExpressionNode(node) {
+            return getParentNodeByType(node, "AssignmentExpression");
         }
 
         /**
@@ -358,7 +387,7 @@ module.exports = {
          * @returns {boolean} True if arguments are multi-line
          */
         function isArgBeforeCalleeNodeMultiline(node) {
-            var parent = node.parent;
+            let parent = node.parent;
 
             if (parent.arguments.length >= 2 && parent.arguments[1] === node) {
                 return parent.arguments[0].loc.end.line > parent.arguments[0].loc.start.line;
@@ -367,19 +396,46 @@ module.exports = {
             return false;
         }
 
-		/**
+        /**
          * Check to see if the node is a file level IIFE
          * @param {ASTNode} node The function node to check.
          * @returns {boolean} True if the node is the outer IIFE
          */
         function isOuterIIFE(node) {
-            var parent = node.parent;
+            let parent = node.parent;
+            let stmt = parent.parent;
 
-            return (
-                parent.type === "CallExpression" &&
-                parent.callee === node &&
-                parent.parent.type === "ExpressionStatement" &&
-                parent.parent.parent && parent.parent.parent.type === "Program"
+            /*
+             * Verify that the node is an IIEF
+             */
+            if (
+                parent.type !== "CallExpression" ||
+                parent.callee !== node) {
+
+                return false;
+            }
+
+            /*
+             * Navigate legal ancestors to determine whether this IIEF is outer
+             */
+            while (
+                stmt.type === "UnaryExpression" && (
+                    stmt.operator === "!" ||
+                    stmt.operator === "~" ||
+                    stmt.operator === "+" ||
+                    stmt.operator === "-") ||
+                stmt.type === "AssignmentExpression" ||
+                stmt.type === "LogicalExpression" ||
+                stmt.type === "SequenceExpression" ||
+                stmt.type === "VariableDeclarator") {
+
+                stmt = stmt.parent;
+            }
+
+            return ((
+                    stmt.type === "ExpressionStatement" ||
+                    stmt.type === "VariableDeclaration") &&
+                stmt.parent && stmt.parent.type === "Program"
             );
         }
 
@@ -403,8 +459,8 @@ module.exports = {
              *
              * Looks for 'Models'
              */
-            var calleeNode = node.parent; // FunctionExpression
-            var indent;
+            let calleeNode = node.parent; // FunctionExpression
+            let indent;
 
             if (calleeNode.parent &&
                 (calleeNode.parent.type === "Property" ||
@@ -419,7 +475,7 @@ module.exports = {
             }
 
             if (calleeNode.parent.type === "CallExpression") {
-                var calleeParent = calleeNode.parent;
+                let calleeParent = calleeNode.parent;
 
                 if (calleeNode.type !== "FunctionExpression" && calleeNode.type !== "ArrowFunctionExpression") {
                     if (calleeParent && calleeParent.loc.start.line < node.loc.start.line) {
@@ -436,7 +492,7 @@ module.exports = {
 
             // function body indent should be indent + indent size, unless this
             // is the outer IIFE and that option is enabled.
-            var functionOffset = indentSize;
+            let functionOffset = indentSize;
 
             if (options.outerIIFEBody !== null && isOuterIIFE(calleeNode)) {
                 functionOffset = options.outerIIFEBody * indentSize;
@@ -444,7 +500,7 @@ module.exports = {
             indent += functionOffset;
 
             // check if the node is inside a variable
-            var parentVarNode = getVariableDeclaratorNode(node);
+            let parentVarNode = getVariableDeclaratorNode(node);
 
             if (parentVarNode && isNodeInVarOnTop(node, parentVarNode)) {
                 indent += indentSize * options.VariableDeclarator[parentVarNode.parent.kind];
@@ -464,7 +520,7 @@ module.exports = {
          * @returns {boolean} Whether or not the block starts and ends on the same line.
          */
         function isSingleLineNode(node) {
-            var lastToken = sourceCode.getLastToken(node),
+            let lastToken = sourceCode.getLastToken(node),
                 startLine = node.loc.start.line,
                 endLine = lastToken.loc.end.line;
 
@@ -497,7 +553,7 @@ module.exports = {
                 return;
             }
 
-            var elements = (node.type === "ArrayExpression") ? node.elements : node.properties;
+            let elements = (node.type === "ArrayExpression") ? node.elements : node.properties;
 
             // filter out empty elements example would be [ , 2] so remove first element as espree considers it as null
             elements = elements.filter(function(elem) {
@@ -509,14 +565,14 @@ module.exports = {
                 return;
             }
 
-            var nodeIndent;
-            var elementsIndent;
-            var parentVarNode = getVariableDeclaratorNode(node);
+            let nodeIndent;
+            let elementsIndent;
+            let parentVarNode = getVariableDeclaratorNode(node);
 
             // TODO - come up with a better strategy in future
             if (isNodeFirstInLine(node)) {
-                var parent = node.parent;
-                var effectiveParent = parent;
+                let parent = node.parent;
+                let effectiveParent = parent;
 
                 if (parent.type === "MemberExpression") {
                     if (isNodeFirstInLine(parent)) {
@@ -605,14 +661,14 @@ module.exports = {
                 return;
             }
 
-            var indent;
-            var nodesToCheck = [];
+            let indent;
+            let nodesToCheck = [];
 
             /*
              * For this statements we should check indent from statement beginning,
              * not from the beginning of the block.
              */
-            var statementsWithProperties = [
+            let statementsWithProperties = [
                 "IfStatement", "WhileStatement", "ForStatement", "ForInStatement", "ForOfStatement", "DoWhileStatement", "ClassDeclaration"
             ];
 
@@ -647,7 +703,7 @@ module.exports = {
          */
         function filterOutSameLineVars(node) {
             return node.declarations.reduce(function(finalCollection, elem) {
-                var lastElem = finalCollection[finalCollection.length - 1];
+                let lastElem = finalCollection[finalCollection.length - 1];
 
                 if ((elem.loc.start.line !== node.loc.start.line && !lastElem) ||
                     (lastElem && lastElem.loc.start.line !== elem.loc.start.line)) {
@@ -664,11 +720,11 @@ module.exports = {
          * @returns {void}
          */
         function checkIndentInVariableDeclarations(node) {
-            var elements = filterOutSameLineVars(node);
-            var nodeIndent = getNodeIndent(node);
-            var lastElement = elements[elements.length - 1];
+            let elements = filterOutSameLineVars(node);
+            let nodeIndent = getNodeIndent(node);
+            let lastElement = elements[elements.length - 1];
 
-            var elementsIndent = nodeIndent + indentSize * options.VariableDeclarator[node.kind];
+            let elementsIndent = nodeIndent + indentSize * options.VariableDeclarator[node.kind];
 
             // Comma can be placed before declaration
             checkNodesIndent(elements, elementsIndent, true);
@@ -678,7 +734,7 @@ module.exports = {
                 return;
             }
 
-            var tokenBeforeLastElement = sourceCode.getTokenBefore(lastElement);
+            let tokenBeforeLastElement = sourceCode.getTokenBefore(lastElement);
 
             if (tokenBeforeLastElement.value === ",") {
 
@@ -708,8 +764,8 @@ module.exports = {
          * @returns {int} indent size
          */
         function expectedCaseIndent(node, switchIndent) {
-            var switchNode = (node.type === "SwitchStatement") ? node : node.parent;
-            var caseIndent;
+            let switchNode = (node.type === "SwitchStatement") ? node : node.parent;
+            let caseIndent;
 
             if (caseIndentStore[switchNode.loc.start.line]) {
                 return caseIndentStore[switchNode.loc.start.line];
@@ -772,11 +828,45 @@ module.exports = {
                 checkIndentInArrayOrObjectBlock(node);
             },
 
+            MemberExpression: function(node) {
+                if (typeof options.MemberExpression === "undefined") {
+                    return;
+                }
+
+                if (isSingleLineNode(node)) {
+                    return;
+                }
+
+                // The typical layout of variable declarations and assignments
+                // alter the expectation of correct indentation. Skip them.
+                // TODO: Add appropriate configuration options for variable
+                // declarations and assignments.
+                if (getVariableDeclaratorNode(node)) {
+                    return;
+                }
+
+                if (getAssignmentExpressionNode(node)) {
+                    return;
+                }
+
+                let propertyIndent = getNodeIndent(node) + indentSize * options.MemberExpression;
+
+                let checkNodes = [node.property];
+
+                let dot = context.getTokenBefore(node.property);
+
+                if (dot.type === "Punctuator" && dot.value === ".") {
+                    checkNodes.push(dot);
+                }
+
+                checkNodesIndent(checkNodes, propertyIndent);
+            },
+
             SwitchStatement: function(node) {
 
                 // Switch is not a 'BlockStatement'
-                var switchIndent = getNodeIndent(node);
-                var caseIndent = expectedCaseIndent(node, switchIndent);
+                let switchIndent = getNodeIndent(node);
+                let caseIndent = expectedCaseIndent(node, switchIndent);
 
                 checkNodesIndent(node.cases, caseIndent);
 
@@ -790,7 +880,7 @@ module.exports = {
                 if (isSingleLineNode(node)) {
                     return;
                 }
-                var caseIndent = expectedCaseIndent(node);
+                let caseIndent = expectedCaseIndent(node);
 
                 checkNodesIndent(node.consequent, caseIndent + indentSize);
             }

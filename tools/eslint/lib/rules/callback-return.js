@@ -24,7 +24,7 @@ module.exports = {
 
     create: function(context) {
 
-        var callbacks = context.options[0] || ["callback", "cb", "next"],
+        let callbacks = context.options[0] || ["callback", "cb", "next"],
             sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
@@ -50,7 +50,7 @@ module.exports = {
         /**
          * Check to see if a node contains only identifers
          * @param {ASTNode} node The node to check
-         * @returns {Boolean} Whether or not the node contains only identifers
+         * @returns {boolean} Whether or not the node contains only identifers
          */
         function containsOnlyIdentifiers(node) {
             if (node.type === "Identifier") {
@@ -71,7 +71,7 @@ module.exports = {
         /**
          * Check to see if a CallExpression is in our callback list.
          * @param {ASTNode} node The node to check against our callback names list.
-         * @returns {Boolean} Whether or not this function matches our callback name.
+         * @returns {boolean} Whether or not this function matches our callback name.
          */
         function isCallback(node) {
             return containsOnlyIdentifiers(node.callee) && callbacks.indexOf(sourceCode.getText(node.callee)) > -1;
@@ -118,7 +118,7 @@ module.exports = {
                 }
 
                 // find the closest block, return or loop
-                var closestBlock = findClosestParentOfType(node, ["BlockStatement", "ReturnStatement", "ArrowFunctionExpression"]) || {},
+                let closestBlock = findClosestParentOfType(node, ["BlockStatement", "ReturnStatement", "ArrowFunctionExpression"]) || {},
                     lastItem, parentType;
 
                 // if our parent is a return we know we're ok

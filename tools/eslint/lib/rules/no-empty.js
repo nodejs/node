@@ -5,10 +5,14 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Rule Definition
+// Requirements
 //------------------------------------------------------------------------------
 
-var FUNCTION_TYPE = /^(?:ArrowFunctionExpression|Function(?:Declaration|Expression))$/;
+let astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
+// Rule Definition
+//------------------------------------------------------------------------------
 
 module.exports = {
     meta: {
@@ -32,10 +36,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {},
+        let options = context.options[0] || {},
             allowEmptyCatch = options.allowEmptyCatch || false;
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         return {
             BlockStatement: function(node) {
@@ -46,7 +50,7 @@ module.exports = {
                 }
 
                 // a function is generally allowed to be empty
-                if (FUNCTION_TYPE.test(node.parent.type)) {
+                if (astUtils.isFunction(node.parent)) {
                     return;
                 }
 

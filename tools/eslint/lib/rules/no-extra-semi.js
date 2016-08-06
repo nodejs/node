@@ -22,7 +22,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Reports an unnecessary semicolon error.
@@ -47,7 +47,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForPartOfClassBody(firstToken) {
-            for (var token = firstToken;
+            for (let token = firstToken;
                 token.type === "Punctuator" && token.value !== "}";
                 token = sourceCode.getTokenAfter(token)
             ) {
@@ -65,7 +65,7 @@ module.exports = {
              * @returns {void}
              */
             EmptyStatement: function(node) {
-                var parent = node.parent,
+                let parent = node.parent,
                     allowedParentTypes = [
                         "ForStatement",
                         "ForInStatement",

@@ -26,16 +26,16 @@ module.exports = {
 
     create: function(context) {
 
-        var ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
+        let ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
             NEVER_MESSAGE = "Unexpected blank line after variable declarations.";
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         // Default `mode` to "always".
-        var mode = context.options[0] === "never" ? "never" : "always";
+        let mode = context.options[0] === "never" ? "never" : "always";
 
         // Cache starting and ending line numbers of comments for faster lookup
-        var commentEndLine = sourceCode.getAllComments().reduce(function(result, token) {
+        let commentEndLine = sourceCode.getAllComments().reduce(function(result, token) {
             result[token.loc.start.line] = token.loc.end.line;
             return result;
         }, {});
@@ -83,7 +83,7 @@ module.exports = {
          * @returns {boolean} True if `node` is last of their parent block.
          */
         function isLastNode(node) {
-            var token = sourceCode.getTokenAfter(node);
+            let token = sourceCode.getTokenAfter(node);
 
             return !token || (token.type === "Punctuator" && token.value === "}");
         }
@@ -95,7 +95,7 @@ module.exports = {
          * @returns {boolean}                 True if `token` does not start immediately after a comment
          */
         function hasBlankLineAfterComment(token, commentStartLine) {
-            var commentEnd = commentEndLine[commentStartLine];
+            let commentEnd = commentEndLine[commentStartLine];
 
             // If there's another comment, repeat check for blank line
             if (commentEndLine[commentEnd + 1]) {
@@ -114,7 +114,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForBlankLine(node) {
-            var lastToken = sourceCode.getLastToken(node),
+            let lastToken = sourceCode.getLastToken(node),
                 nextToken = sourceCode.getTokenAfter(node),
                 nextLineNum = lastToken.loc.end.line + 1,
                 noNextLineToken,

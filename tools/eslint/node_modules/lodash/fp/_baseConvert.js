@@ -71,11 +71,11 @@ function createCloner(func) {
  * @param {Function} cloner The function to clone arguments.
  * @returns {Function} Returns the new immutable function.
  */
-function immutWrap(func, cloner) {
+function wrapImmutable(func, cloner) {
   return function() {
     var length = arguments.length;
     if (!length) {
-      return result;
+      return;
     }
     var args = Array(length);
     while (length--) {
@@ -209,6 +209,12 @@ function baseConvert(util, name, func, options) {
         return func;
       };
     },
+    'rearg': function(rearg) {
+      return function(func, indexes) {
+        var n = indexes ? indexes.length : 0;
+        return curry(rearg(func, indexes), n);
+      };
+    },
     'runInContext': function(runInContext) {
       return function(context) {
         return baseConvert(util, runInContext(context), options);
@@ -217,6 +223,77 @@ function baseConvert(util, name, func, options) {
   };
 
   /*--------------------------------------------------------------------------*/
+
+  /**
+   * Casts `func` to a function with an arity capped iteratee if needed.
+   *
+   * @private
+   * @param {string} name The name of the function to inspect.
+   * @param {Function} func The function to inspect.
+   * @returns {Function} Returns the cast function.
+   */
+  function castCap(name, func) {
+    if (config.cap) {
+      var indexes = mapping.iterateeRearg[name];
+      if (indexes) {
+        return iterateeRearg(func, indexes);
+      }
+      var n = !isLib && mapping.iterateeAry[name];
+      if (n) {
+        return iterateeAry(func, n);
+      }
+    }
+    return func;
+  }
+
+  /**
+   * Casts `func` to a curried function if needed.
+   *
+   * @private
+   * @param {string} name The name of the function to inspect.
+   * @param {Function} func The function to inspect.
+   * @param {number} n The arity of `func`.
+   * @returns {Function} Returns the cast function.
+   */
+  function castCurry(name, func, n) {
+    return (forceCurry || (config.curry && n > 1))
+      ? curry(func, n)
+      : func;
+  }
+
+  /**
+   * Casts `func` to a fixed arity function if needed.
+   *
+   * @private
+   * @param {string} name The name of the function to inspect.
+   * @param {Function} func The function to inspect.
+   * @param {number} n The arity cap.
+   * @returns {Function} Returns the cast function.
+   */
+  function castFixed(name, func, n) {
+    if (config.fixed && (forceFixed || !mapping.skipFixed[name])) {
+      var data = mapping.methodSpread[name],
+          start = data && data.start;
+
+      return start  === undefined ? ary(func, n) : spread(func, start);
+    }
+    return func;
+  }
+
+  /**
+   * Casts `func` to an rearged function if needed.
+   *
+   * @private
+   * @param {string} name The name of the function to inspect.
+   * @param {Function} func The function to inspect.
+   * @param {number} n The arity of `func`.
+   * @returns {Function} Returns the cast function.
+   */
+  function castRearg(name, func, n) {
+    return (config.rearg && n > 1 && (forceRearg || !mapping.skipRearg[name]))
+      ? rearg(func, mapping.methodRearg[name] || mapping.aryRearg[n])
+      : func;
+  }
 
   /**
    * Creates a clone of `object` by `path`.
@@ -310,12 +387,11 @@ function baseConvert(util, name, func, options) {
   }
 
   /**
-   * Creates a function that invokes `func` with its first argument passed
-   * thru `transform`.
+   * Creates a function that invokes `func` with its first argument transformed.
    *
    * @private
    * @param {Function} func The function to wrap.
-   * @param {...Function} transform The functions to transform the first argument.
+   * @param {Function} transform The argument transform.
    * @returns {Function} Returns the new function.
    */
   function overArg(func, transform) {
@@ -355,42 +431,27 @@ function baseConvert(util, name, func, options) {
     }
     else if (config.immutable) {
       if (mutateMap.array[name]) {
-        wrapped = immutWrap(func, cloneArray);
+        wrapped = wrapImmutable(func, cloneArray);
       }
       else if (mutateMap.object[name]) {
-        wrapped = immutWrap(func, createCloner(func));
+        wrapped = wrapImmutable(func, createCloner(func));
       }
       else if (mutateMap.set[name]) {
-        wrapped = immutWrap(func, cloneByPath);
+        wrapped = wrapImmutable(func, cloneByPath);
       }
     }
     each(aryMethodKeys, function(aryKey) {
       each(mapping.aryMethod[aryKey], function(otherName) {
         if (name == otherName) {
-          var aryN = !isLib && mapping.iterateeAry[name],
-              reargIndexes = mapping.iterateeRearg[name],
-              spreadStart = mapping.methodSpread[name];
+          var spreadData = mapping.methodSpread[name],
+              afterRearg = spreadData && spreadData.afterRearg;
 
-          result = wrapped;
-          if (config.fixed && (forceFixed || !mapping.skipFixed[name])) {
-            result = spreadStart === undefined
-              ? ary(result, aryKey)
-              : spread(result, spreadStart);
-          }
-          if (config.rearg && aryKey > 1 && (forceRearg || !mapping.skipRearg[name])) {
-            result = rearg(result, mapping.methodRearg[name] || mapping.aryRearg[aryKey]);
-          }
-          if (config.cap) {
-            if (reargIndexes) {
-              result = iterateeRearg(result, reargIndexes);
-            } else if (aryN) {
-              result = iterateeAry(result, aryN);
-            }
-          }
-          if (forceCurry || (config.curry && aryKey > 1)) {
-            forceCurry  && console.log(forceCurry, name);
-            result = curry(result, aryKey);
-          }
+          result = afterRearg
+            ? castFixed(name, castRearg(name, wrapped, aryKey), aryKey)
+            : castRearg(name, castFixed(name, wrapped, aryKey), aryKey);
+
+          result = castCap(name, result);
+          result = castCurry(name, result, aryKey);
           return false;
         }
       });

@@ -9,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-var ALLOW_OPTIONS = Object.freeze([
+let ALLOW_OPTIONS = Object.freeze([
     "functions",
     "arrowFunctions",
     "generatorFunctions",
@@ -19,7 +19,7 @@ var ALLOW_OPTIONS = Object.freeze([
     "setters",
     "constructors"
 ]);
-var SHOW_KIND = Object.freeze({
+let SHOW_KIND = Object.freeze({
     functions: "function",
     arrowFunctions: "arrow function",
     generatorFunctions: "generator function",
@@ -44,8 +44,8 @@ var SHOW_KIND = Object.freeze({
  *      "constructors".
  */
 function getKind(node) {
-    var parent = node.parent;
-    var kind = "";
+    let parent = node.parent;
+    let kind = "";
 
     if (node.type === "ArrowFunctionExpression") {
         return "arrowFunctions";
@@ -78,7 +78,7 @@ function getKind(node) {
     }
 
     // Detects prefix.
-    var prefix = "";
+    let prefix = "";
 
     if (node.generator) {
         prefix = "generator";
@@ -118,10 +118,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
-        var allowed = options.allow || [];
+        let options = context.options[0] || {};
+        let allowed = options.allow || [];
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Reports a given function node if the node matches the following patterns.
@@ -136,7 +136,7 @@ module.exports = {
          * @returns {void}
          */
         function reportIfEmpty(node) {
-            var kind = getKind(node);
+            let kind = getKind(node);
 
             if (allowed.indexOf(kind) === -1 &&
                 node.body.type === "BlockStatement" &&

@@ -2,9 +2,9 @@ var arrayMap = require('./_arrayMap'),
     baseAt = require('./_baseAt'),
     baseFlatten = require('./_baseFlatten'),
     basePullAt = require('./_basePullAt'),
+    baseRest = require('./_baseRest'),
     compareAscending = require('./_compareAscending'),
-    isIndex = require('./_isIndex'),
-    rest = require('./rest');
+    isIndex = require('./_isIndex');
 
 /**
  * Removes elements from `array` corresponding to `indexes` and returns an
@@ -30,7 +30,7 @@ var arrayMap = require('./_arrayMap'),
  * console.log(pulled);
  * // => ['b', 'd']
  */
-var pullAt = rest(function(array, indexes) {
+var pullAt = baseRest(function(array, indexes) {
   indexes = baseFlatten(indexes, 1);
 
   var length = array ? array.length : 0,

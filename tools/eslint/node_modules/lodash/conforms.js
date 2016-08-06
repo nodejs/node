@@ -6,6 +6,9 @@ var baseClone = require('./_baseClone'),
  * the corresponding property values of a given object, returning `true` if
  * all predicates return truthy, else `false`.
  *
+ * **Note:** The created function is equivalent to `_.conformsTo` with
+ * `source` partially applied.
+ *
  * @static
  * @memberOf _
  * @since 4.0.0
@@ -14,13 +17,13 @@ var baseClone = require('./_baseClone'),
  * @returns {Function} Returns the new spec function.
  * @example
  *
- * var users = [
- *   { 'user': 'barney', 'age': 36 },
- *   { 'user': 'fred',   'age': 40 }
+ * var objects = [
+ *   { 'a': 2, 'b': 1 },
+ *   { 'a': 1, 'b': 2 }
  * ];
  *
- * _.filter(users, _.conforms({ 'age': function(n) { return n > 38; } }));
- * // => [{ 'user': 'fred', 'age': 40 }]
+ * _.filter(objects, _.conforms({ 'b': function(n) { return n > 1; } }));
+ * // => [{ 'a': 1, 'b': 2 }]
  */
 function conforms(source) {
   return baseConforms(baseClone(source, true));

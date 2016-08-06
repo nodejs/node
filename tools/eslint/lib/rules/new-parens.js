@@ -21,18 +21,18 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         return {
 
             NewExpression: function(node) {
-                var tokens = sourceCode.getTokens(node);
-                var prenticesTokens = tokens.filter(function(token) {
+                let tokens = sourceCode.getTokens(node);
+                let prenticesTokens = tokens.filter(function(token) {
                     return token.value === "(" || token.value === ")";
                 });
 
                 if (prenticesTokens.length < 2) {
-                    context.report(node, "Missing '()' invoking a constructor");
+                    context.report(node, "Missing '()' invoking a constructor.");
                 }
             }
         };

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var yaml = require("js-yaml");
+let yaml = require("js-yaml");
 
 //------------------------------------------------------------------------------
 // Helper Functions
@@ -12,8 +12,8 @@ var yaml = require("js-yaml");
 
 /**
  * Returns a canonical error level string based upon the error message passed in.
- * @param {object} message Individual error message provided by eslint
- * @returns {String} Error level string
+ * @param {Object} message Individual error message provided by eslint
+ * @returns {string} Error level string
  */
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
@@ -25,12 +25,12 @@ function getMessageType(message) {
 
 /**
  * Takes in a JavaScript object and outputs a TAP diagnostics string
- * @param {object} diagnostic JavaScript object to be embedded as YAML into output.
+ * @param {Object} diagnostic JavaScript object to be embedded as YAML into output.
  * @returns {string} diagnostics string with YAML embedded - TAP version 13 compliant
  */
 function outputDiagnostics(diagnostic) {
-    var prefix = "  ";
-    var output = prefix + "---\n";
+    let prefix = "  ";
+    let output = prefix + "---\n";
 
     output += prefix + yaml.safeDump(diagnostic).split("\n").join("\n" + prefix);
     output += "...\n";
@@ -42,18 +42,18 @@ function outputDiagnostics(diagnostic) {
 //------------------------------------------------------------------------------
 
 module.exports = function(results) {
-    var output = "TAP version 13\n1.." + results.length + "\n";
+    let output = "TAP version 13\n1.." + results.length + "\n";
 
     results.forEach(function(result, id) {
-        var messages = result.messages;
-        var testResult = "ok";
-        var diagnostics = {};
+        let messages = result.messages;
+        let testResult = "ok";
+        let diagnostics = {};
 
         if (messages.length > 0) {
             testResult = "not ok";
 
             messages.forEach(function(message) {
-                var diagnostic = {
+                let diagnostic = {
                     message: message.message,
                     severity: getMessageType(message),
                     data: {

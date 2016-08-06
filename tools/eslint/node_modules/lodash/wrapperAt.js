@@ -2,8 +2,8 @@ var LazyWrapper = require('./_LazyWrapper'),
     LodashWrapper = require('./_LodashWrapper'),
     baseAt = require('./_baseAt'),
     baseFlatten = require('./_baseFlatten'),
+    baseRest = require('./_baseRest'),
     isIndex = require('./_isIndex'),
-    rest = require('./rest'),
     thru = require('./thru');
 
 /**
@@ -22,7 +22,7 @@ var LazyWrapper = require('./_LazyWrapper'),
  * _(object).at(['a[0].b.c', 'a[1]']).value();
  * // => [3, 4]
  */
-var wrapperAt = rest(function(paths) {
+var wrapperAt = baseRest(function(paths) {
   paths = baseFlatten(paths, 1);
   var length = paths.length,
       start = length ? paths[0] : 0,
