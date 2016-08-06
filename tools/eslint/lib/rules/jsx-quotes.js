@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var QUOTE_SETTINGS = {
+let QUOTE_SETTINGS = {
     "prefer-double": {
         quote: "\"",
         description: "singlequote",
@@ -54,7 +54,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var quoteOption = context.options[0] || "prefer-double",
+        let quoteOption = context.options[0] || "prefer-double",
             setting = QUOTE_SETTINGS[quoteOption];
 
         /**
@@ -69,7 +69,7 @@ module.exports = {
 
         return {
             JSXAttribute: function(node) {
-                var attributeValue = node.value;
+                let attributeValue = node.value;
 
                 if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
                     context.report({

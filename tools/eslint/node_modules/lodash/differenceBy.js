@@ -1,9 +1,9 @@
 var baseDifference = require('./_baseDifference'),
     baseFlatten = require('./_baseFlatten'),
     baseIteratee = require('./_baseIteratee'),
+    baseRest = require('./_baseRest'),
     isArrayLikeObject = require('./isArrayLikeObject'),
-    last = require('./last'),
-    rest = require('./rest');
+    last = require('./last');
 
 /**
  * This method is like `_.difference` except that it accepts `iteratee` which
@@ -11,14 +11,15 @@ var baseDifference = require('./_baseDifference'),
  * by which they're compared. Result values are chosen from the first array.
  * The iteratee is invoked with one argument: (value).
  *
+ * **Note:** Unlike `_.pullAllBy`, this method returns a new array.
+ *
  * @static
  * @memberOf _
  * @since 4.0.0
  * @category Array
  * @param {Array} array The array to inspect.
  * @param {...Array} [values] The values to exclude.
- * @param {Array|Function|Object|string} [iteratee=_.identity]
- *  The iteratee invoked per element.
+ * @param {Function} [iteratee=_.identity] The iteratee invoked per element.
  * @returns {Array} Returns the new array of filtered values.
  * @example
  *
@@ -29,13 +30,13 @@ var baseDifference = require('./_baseDifference'),
  * _.differenceBy([{ 'x': 2 }, { 'x': 1 }], [{ 'x': 1 }], 'x');
  * // => [{ 'x': 2 }]
  */
-var differenceBy = rest(function(array, values) {
+var differenceBy = baseRest(function(array, values) {
   var iteratee = last(values);
   if (isArrayLikeObject(iteratee)) {
     iteratee = undefined;
   }
   return isArrayLikeObject(array)
-    ? baseDifference(array, baseFlatten(values, 1, isArrayLikeObject, true), baseIteratee(iteratee))
+    ? baseDifference(array, baseFlatten(values, 1, isArrayLikeObject, true), baseIteratee(iteratee, 2))
     : [];
 });
 

@@ -1,0 +1,2 @@
+rules:
+    internal-no-invalid-meta: "error"

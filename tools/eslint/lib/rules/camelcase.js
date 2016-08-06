@@ -37,11 +37,11 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
-        var reported = [];
+        let reported = [];
 
         /**
          * Checks if a string contains an underscore and isn't all upper-case
-         * @param {String} name The string to check.
+         * @param {string} name The string to check.
          * @returns {boolean} if the string is underscored
          * @private
          */
@@ -64,7 +64,7 @@ module.exports = {
             }
         }
 
-        var options = context.options[0] || {},
+        let options = context.options[0] || {},
             properties = options.properties || "";
 
         if (properties !== "always" && properties !== "never") {
@@ -79,7 +79,7 @@ module.exports = {
                  * Leading and trailing underscores are commonly used to flag
                  * private/protected identifiers, strip them
                  */
-                var name = node.name.replace(/^_+|_+$/g, ""),
+                let name = node.name.replace(/^_+|_+$/g, ""),
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
                 // MemberExpressions get special rules

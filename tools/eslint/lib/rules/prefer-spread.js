@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -35,13 +35,13 @@ function isVariadicApplyCalling(node) {
  * @returns {boolean} the source code for the given node.
  */
 function equalTokens(left, right, sourceCode) {
-    var tokensL = sourceCode.getTokens(left);
-    var tokensR = sourceCode.getTokens(right);
+    let tokensL = sourceCode.getTokens(left);
+    let tokensR = sourceCode.getTokens(right);
 
     if (tokensL.length !== tokensR.length) {
         return false;
     }
-    for (var i = 0; i < tokensL.length; ++i) {
+    for (let i = 0; i < tokensL.length; ++i) {
         if (tokensL[i].type !== tokensR[i].type ||
             tokensL[i].value !== tokensR[i].value
         ) {
@@ -82,7 +82,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         return {
             CallExpression: function(node) {
@@ -90,9 +90,9 @@ module.exports = {
                     return;
                 }
 
-                var applied = node.callee.object;
-                var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
-                var thisArg = node.arguments[0];
+                let applied = node.callee.object;
+                let expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
+                let thisArg = node.arguments[0];
 
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
                     context.report(node, "use the spread operator instead of the '.apply()'.");

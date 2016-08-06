@@ -15,10 +15,10 @@
  * @returns {escope.Variable} The found variable object.
  */
 function getVariableOfArguments(scope) {
-    var variables = scope.variables;
+    let variables = scope.variables;
 
-    for (var i = 0; i < variables.length; ++i) {
-        var variable = variables[i];
+    for (let i = 0; i < variables.length; ++i) {
+        let variable = variables[i];
 
         if (variable.name === "arguments") {
 
@@ -68,7 +68,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForArguments() {
-            var argumentsVar = getVariableOfArguments(context.getScope());
+            let argumentsVar = getVariableOfArguments(context.getScope());
 
             if (argumentsVar) {
                 argumentsVar.references.forEach(report);

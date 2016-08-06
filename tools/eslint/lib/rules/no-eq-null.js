@@ -26,7 +26,7 @@ module.exports = {
         return {
 
             BinaryExpression: function(node) {
-                var badOperator = node.operator === "==" || node.operator === "!=";
+                let badOperator = node.operator === "==" || node.operator === "!=";
 
                 if (node.right.type === "Literal" && node.right.raw === "null" && badOperator ||
                         node.left.type === "Literal" && node.left.raw === "null" && badOperator) {

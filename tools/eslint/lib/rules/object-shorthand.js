@@ -5,7 +5,7 @@
 
 "use strict";
 
-var OPTIONS = {
+let OPTIONS = {
     always: "always",
     never: "never",
     methods: "methods",
@@ -83,14 +83,14 @@ module.exports = {
     },
 
     create: function(context) {
-        var APPLY = context.options[0] || OPTIONS.always;
-        var APPLY_TO_METHODS = APPLY === OPTIONS.methods || APPLY === OPTIONS.always;
-        var APPLY_TO_PROPS = APPLY === OPTIONS.properties || APPLY === OPTIONS.always;
-        var APPLY_NEVER = APPLY === OPTIONS.never;
+        let APPLY = context.options[0] || OPTIONS.always;
+        let APPLY_TO_METHODS = APPLY === OPTIONS.methods || APPLY === OPTIONS.always;
+        let APPLY_TO_PROPS = APPLY === OPTIONS.properties || APPLY === OPTIONS.always;
+        let APPLY_NEVER = APPLY === OPTIONS.never;
 
-        var PARAMS = context.options[1] || {};
-        var IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
-        var AVOID_QUOTES = PARAMS.avoidQuotes;
+        let PARAMS = context.options[1] || {};
+        let IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
+        let AVOID_QUOTES = PARAMS.avoidQuotes;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -103,7 +103,7 @@ module.exports = {
          * @private
          */
         function isConstructor(name) {
-            var firstChar = name.charAt(0);
+            let firstChar = name.charAt(0);
 
             return firstChar === firstChar.toUpperCase();
         }
@@ -123,7 +123,7 @@ module.exports = {
 
         return {
             Property: function(node) {
-                var isConciseProperty = node.method || node.shorthand,
+                let isConciseProperty = node.method || node.shorthand,
                     type;
 
                 // Ignore destructuring assignment

@@ -4,6 +4,7 @@ module.exports = {
   'cond': require('./cond'),
   'conforms': require('./conforms'),
   'constant': require('./constant'),
+  'defaultTo': require('./defaultTo'),
   'flow': require('./flow'),
   'flowRight': require('./flowRight'),
   'identity': require('./identity'),

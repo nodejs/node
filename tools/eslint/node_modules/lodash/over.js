@@ -9,8 +9,8 @@ var arrayMap = require('./_arrayMap'),
  * @memberOf _
  * @since 4.0.0
  * @category Util
- * @param {...(Array|Array[]|Function|Function[]|Object|Object[]|string|string[])}
- *  [iteratees=[_.identity]] The iteratees to invoke.
+ * @param {...(Function|Function[])} [iteratees=[_.identity]]
+ *  The iteratees to invoke.
  * @returns {Function} Returns the new function.
  * @example
  *

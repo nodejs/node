@@ -9,9 +9,9 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-var SENTINEL_NODE_TYPE_RETURN_THROW = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression)$/;
-var SENTINEL_NODE_TYPE_BREAK = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement|SwitchStatement)$/;
-var SENTINEL_NODE_TYPE_CONTINUE = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement)$/;
+let SENTINEL_NODE_TYPE_RETURN_THROW = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression)$/;
+let SENTINEL_NODE_TYPE_BREAK = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement|SwitchStatement)$/;
+let SENTINEL_NODE_TYPE_CONTINUE = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement)$/;
 
 
 //------------------------------------------------------------------------------
@@ -24,7 +24,9 @@ module.exports = {
             description: "disallow control flow statements in `finally` blocks",
             category: "Possible Errors",
             recommended: true
-        }
+        },
+
+        schema: []
     },
     create: function(context) {
 
@@ -32,7 +34,7 @@ module.exports = {
          * Checks if the node is the finalizer of a TryStatement
          *
          * @param {ASTNode} node - node to check.
-         * @returns {Boolean} - true if the node is the finalizer of a TryStatement
+         * @returns {boolean} - true if the node is the finalizer of a TryStatement
          */
         function isFinallyBlock(node) {
             return node.parent.type === "TryStatement" && node.parent.finalizer === node;
@@ -42,12 +44,12 @@ module.exports = {
          * Climbs up the tree if the node is not a sentinel node
          *
          * @param {ASTNode} node - node to check.
-         * @param {String} label - label of the break or continue statement
-         * @returns {Boolean} - return whether the node is a finally block or a sentinel node
+         * @param {string} label - label of the break or continue statement
+         * @returns {boolean} - return whether the node is a finally block or a sentinel node
          */
         function isInFinallyBlock(node, label) {
-            var labelInside = false;
-            var sentinelNodeType;
+            let labelInside = false;
+            let sentinelNodeType;
 
             if (node.type === "BreakStatement" && !node.label) {
                 sentinelNodeType = SENTINEL_NODE_TYPE_BREAK;
@@ -81,7 +83,7 @@ module.exports = {
         function check(node) {
             if (isInFinallyBlock(node, node.label)) {
                 context.report({
-                    message: "Unsafe usage of " + node.type,
+                    message: "Unsafe usage of " + node.type + ".",
                     node: node,
                     line: node.loc.line,
                     column: node.loc.column

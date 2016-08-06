@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var fs = require("fs"),
+let fs = require("fs"),
     path = require("path"),
     shell = require("shelljs"),
     log = require("../logging");
@@ -26,10 +26,10 @@ var fs = require("fs"),
  * @returns {string}                          Absolute path to closest package.json file
  */
 function findPackageJson(startDir) {
-    var dir = path.resolve(startDir || process.cwd());
+    let dir = path.resolve(startDir || process.cwd());
 
     do {
-        var pkgfile = path.join(dir, "package.json");
+        let pkgfile = path.join(dir, "package.json");
 
         if (!fs.existsSync(pkgfile)) {
             dir = path.join(dir, "..");
@@ -68,9 +68,9 @@ function installSyncSaveDev(packages) {
  *                                        and values are booleans indicating installation.
  */
 function check(packages, opt) {
-    var deps = [];
-    var pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
-    var fileJson;
+    let deps = [];
+    let pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
+    let fileJson;
 
     if (!pkgJson) {
         throw new Error("Could not find a package.json file. Run 'npm init' to create one.");

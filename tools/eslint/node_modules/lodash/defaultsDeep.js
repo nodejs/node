@@ -1,7 +1,7 @@
 var apply = require('./_apply'),
+    baseRest = require('./_baseRest'),
     mergeDefaults = require('./_mergeDefaults'),
-    mergeWith = require('./mergeWith'),
-    rest = require('./rest');
+    mergeWith = require('./mergeWith');
 
 /**
  * This method is like `_.defaults` except that it recursively assigns
@@ -19,11 +19,10 @@ var apply = require('./_apply'),
  * @see _.defaults
  * @example
  *
- * _.defaultsDeep({ 'user': { 'name': 'barney' } }, { 'user': { 'name': 'fred', 'age': 36 } });
- * // => { 'user': { 'name': 'barney', 'age': 36 } }
- *
+ * _.defaultsDeep({ 'a': { 'b': 2 } }, { 'a': { 'b': 1, 'c': 3 } });
+ * // => { 'a': { 'b': 2, 'c': 3 } }
  */
-var defaultsDeep = rest(function(args) {
+var defaultsDeep = baseRest(function(args) {
   args.push(undefined, mergeDefaults);
   return apply(mergeWith, undefined, args);
 });

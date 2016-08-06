@@ -51,7 +51,7 @@ function getPropertyName(memberExpressionNode) {
  * @returns {Reference|null} Returns the found reference or null if none were found.
  */
 function findReference(scope, node) {
-    var references = scope.references.filter(function(reference) {
+    let references = scope.references.filter(function(reference) {
         return reference.identifier.range[0] === node.range[0] &&
             reference.identifier.range[1] === node.range[1];
     });
@@ -70,7 +70,7 @@ function findReference(scope, node) {
  * @returns {boolean} Whether or not the name is shadowed.
  */
 function isShadowed(scope, globalScope, node) {
-    var reference = findReference(scope, node);
+    let reference = findReference(scope, node);
 
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
@@ -108,7 +108,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var globalScope;
+        let globalScope;
 
         return {
 
@@ -117,7 +117,7 @@ module.exports = {
             },
 
             CallExpression: function(node) {
-                var callee = node.callee,
+                let callee = node.callee,
                     identifierName,
                     currentScope = context.getScope();
 

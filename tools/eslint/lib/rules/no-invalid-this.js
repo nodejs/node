@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -27,7 +27,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var stack = [],
+        let stack = [],
             sourceCode = context.getSourceCode();
 
         /**
@@ -40,7 +40,7 @@ module.exports = {
          *   an object which has a flag that whether or not `this` keyword is valid.
          */
         stack.getCurrent = function() {
-            var current = this[this.length - 1];
+            let current = this[this.length - 1];
 
             if (!current.init) {
                 current.init = true;
@@ -86,7 +86,7 @@ module.exports = {
              * Modules is always strict mode.
              */
             Program: function(node) {
-                var scope = context.getScope(),
+                let scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {};
 
                 stack.push({
@@ -111,7 +111,7 @@ module.exports = {
 
             // Reports if `this` of the current context is invalid.
             ThisExpression: function(node) {
-                var current = stack.getCurrent();
+                let current = stack.getCurrent();
 
                 if (current && !current.valid) {
                     context.report(node, "Unexpected 'this'.");

@@ -26,11 +26,11 @@ module.exports = {
     },
 
     create: function(context) {
-        var message = "Expected parentheses around arrow function argument.";
-        var asNeededMessage = "Unexpected parentheses around single function argument";
-        var asNeeded = context.options[0] === "as-needed";
+        let message = "Expected parentheses around arrow function argument.";
+        let asNeededMessage = "Unexpected parentheses around single function argument.";
+        let asNeeded = context.options[0] === "as-needed";
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Determines whether a arrow function argument end with `)`
@@ -38,7 +38,7 @@ module.exports = {
          * @returns {void}
          */
         function parens(node) {
-            var token = sourceCode.getFirstToken(node);
+            let token = sourceCode.getFirstToken(node);
 
             // as-needed: x => x
             if (asNeeded && node.params.length === 1 && node.params[0].type === "Identifier") {
@@ -47,8 +47,8 @@ module.exports = {
                         node: node,
                         message: asNeededMessage,
                         fix: function(fixer) {
-                            var paramToken = context.getTokenAfter(token);
-                            var closingParenToken = context.getTokenAfter(paramToken);
+                            let paramToken = context.getTokenAfter(token);
+                            let closingParenToken = context.getTokenAfter(paramToken);
 
                             return fixer.replaceTextRange([
                                 token.range[0],
@@ -61,7 +61,7 @@ module.exports = {
             }
 
             if (token.type === "Identifier") {
-                var after = sourceCode.getTokenAfter(token);
+                let after = sourceCode.getTokenAfter(token);
 
                 // (x) => x
                 if (after.value !== ")") {

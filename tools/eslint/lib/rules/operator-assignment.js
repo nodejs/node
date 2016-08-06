@@ -93,7 +93,7 @@ module.exports = {
          * @returns {void}
          */
         function verify(node) {
-            var expr, left, operator;
+            let expr, left, operator;
 
             if (node.operator !== "=" || node.right.type !== "BinaryExpression") {
                 return;

@@ -27,10 +27,11 @@ function couldBeError(node) {
         case "AssignmentExpression":
             return couldBeError(node.right);
 
-        case "SequenceExpression":
-            var exprs = node.expressions;
+        case "SequenceExpression": {
+            const exprs = node.expressions;
 
             return exprs.length !== 0 && couldBeError(exprs[exprs.length - 1]);
+        }
 
         case "LogicalExpression":
             return couldBeError(node.left) || couldBeError(node.right);

@@ -23,7 +23,7 @@ module.exports = {
     create: function(context) {
         return {
             Program: function() {
-                var scope = context.getScope();
+                let scope = context.getScope();
 
                 scope.variables.forEach(function(variable) {
                     if (variable.writeable) {
@@ -38,7 +38,7 @@ module.exports = {
                 });
 
                 scope.implicit.variables.forEach(function(variable) {
-                    var scopeVariable = scope.set.get(variable.name);
+                    let scopeVariable = scope.set.get(variable.name);
 
                     if (scopeVariable && scopeVariable.writeable) {
                         return;

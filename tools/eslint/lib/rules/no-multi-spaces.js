@@ -41,7 +41,7 @@ module.exports = {
     create: function(context) {
 
         // the index of the last comment that was checked
-        var exceptions = { Property: true },
+        let exceptions = { Property: true },
             hasExceptions = true,
             options = context.options[0],
             lastCommentIndex = 0;
@@ -69,7 +69,7 @@ module.exports = {
          */
         function isIndexInComment(index, comments) {
 
-            var comment;
+            let comment;
 
             while (lastCommentIndex < comments.length) {
 
@@ -95,7 +95,7 @@ module.exports = {
         return {
             Program: function() {
 
-                var sourceCode = context.getSourceCode(),
+                let sourceCode = context.getSourceCode(),
                     source = sourceCode.getText(),
                     allComments = sourceCode.getAllComments(),
                     pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g,  // note: repeating space
@@ -108,7 +108,7 @@ module.exports = {
                  * Creates a fix function that removes the multiple spaces between the two tokens
                  * @param {RuleFixer} leftToken left token
                  * @param {RuleFixer} rightToken right token
-                 * @returns {function} fix function
+                 * @returns {Function} fix function
                  * @private
                  */
                 function createFix(leftToken, rightToken) {

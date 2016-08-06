@@ -23,7 +23,7 @@ module.exports = {
 
     create: function(context) {
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Check if open space is present in a function name
@@ -32,7 +32,7 @@ module.exports = {
          * @private
          */
         function detectOpenSpaces(node) {
-            var lastCalleeToken = sourceCode.getLastToken(node.callee),
+            let lastCalleeToken = sourceCode.getLastToken(node.callee),
                 prevToken = lastCalleeToken,
                 parenToken = sourceCode.getTokenAfter(lastCalleeToken);
 

@@ -21,12 +21,12 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Parts of the grammar that are required to have parens.
          */
-        var parenthesized = {
+        let parenthesized = {
             DoWhileStatement: "test",
             IfStatement: "test",
             SwitchStatement: "discriminant",
@@ -57,7 +57,7 @@ module.exports = {
          * @returns {boolean} True if the node has a paren on each side.
          */
         function isParenthesised(node) {
-            var previousToken = sourceCode.getTokenBefore(node),
+            let previousToken = sourceCode.getTokenBefore(node),
                 nextToken = sourceCode.getTokenAfter(node);
 
             return previousToken && nextToken &&
@@ -71,7 +71,7 @@ module.exports = {
          * @returns {boolean} True if two parens surround the node on each side.
          */
         function isParenthesisedTwice(node) {
-            var previousToken = sourceCode.getTokenBefore(node, 1),
+            let previousToken = sourceCode.getTokenBefore(node, 1),
                 nextToken = sourceCode.getTokenAfter(node, 1);
 
             return isParenthesised(node) && previousToken && nextToken &&
@@ -99,7 +99,7 @@ module.exports = {
                     }
                 }
 
-                var child = sourceCode.getTokenAfter(node.expressions[0]);
+                let child = sourceCode.getTokenAfter(node.expressions[0]);
 
                 context.report(node, child.loc.start, "Unexpected use of comma operator.");
             }

@@ -697,7 +697,7 @@ cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 	@$(PYTHON) tools/check-imports.py
 
-ifneq ("","$(wildcard tools/eslint/bin/eslint.js)")
+ifneq ("","$(wildcard tools/eslint/lib/eslint.js)")
 lint: jslint cpplint
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 lint-ci: jslint-ci cpplint

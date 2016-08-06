@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/;
-var TARGET_METHODS = /^(?:every|filter|find(?:Index)?|map|reduce(?:Right)?|some|sort)$/;
+let TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/;
+let TARGET_METHODS = /^(?:every|filter|find(?:Index)?|map|reduce(?:Right)?|some|sort)$/;
 
 /**
  * Checks a given code path segment is reachable.
@@ -104,7 +104,7 @@ function isTargetMethod(node) {
  */
 function isCallbackOfArrayMethod(node) {
     while (node) {
-        var parent = node.parent;
+        let parent = node.parent;
 
         switch (parent.type) {
 
@@ -123,14 +123,15 @@ function isCallbackOfArrayMethod(node) {
             //     // setup...
             //     return function callback() { ... };
             //   })());
-            case "ReturnStatement":
-                var func = astUtils.getUpperFunction(parent);
+            case "ReturnStatement": {
+                const func = astUtils.getUpperFunction(parent);
 
                 if (func === null || !astUtils.isCallee(func)) {
                     return false;
                 }
                 node = func.parent;
                 break;
+            }
 
             // e.g.
             //   Array.from([], function() {});
@@ -176,7 +177,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var funcInfo = {
+        let funcInfo = {
             upper: null,
             codePath: null,
             hasReturn: false,

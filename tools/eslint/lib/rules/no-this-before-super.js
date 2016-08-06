@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -55,7 +55,7 @@ module.exports = {
          * - scope:      The scope of the owner class.
          * - codePath:   The code path of this constructor.
          */
-        var funcInfo = null;
+        let funcInfo = null;
 
         /*
          * Information for each code path segment.
@@ -64,7 +64,7 @@ module.exports = {
          * - superCalled:  The flag which shows `super()` called in all code paths.
          * - invalidNodes: The array of invalid ThisExpression and Super nodes.
          */
-        var segInfoMap = Object.create(null);
+        let segInfoMap = Object.create(null);
 
         /**
          * Gets whether or not `super()` is called in a given code path segment.
@@ -101,10 +101,10 @@ module.exports = {
          * @returns {void}
          */
         function setInvalid(node) {
-            var segments = funcInfo.codePath.currentSegments;
+            let segments = funcInfo.codePath.currentSegments;
 
-            for (var i = 0; i < segments.length; ++i) {
-                var segment = segments[i];
+            for (let i = 0; i < segments.length; ++i) {
+                let segment = segments[i];
 
                 if (segment.reachable) {
                     segInfoMap[segment.id].invalidNodes.push(node);
@@ -117,10 +117,10 @@ module.exports = {
          * @returns {void}
          */
         function setSuperCalled() {
-            var segments = funcInfo.codePath.currentSegments;
+            let segments = funcInfo.codePath.currentSegments;
 
-            for (var i = 0; i < segments.length; ++i) {
-                var segment = segments[i];
+            for (let i = 0; i < segments.length; ++i) {
+                let segment = segments[i];
 
                 if (segment.reachable) {
                     segInfoMap[segment.id].superCalled = true;
@@ -140,7 +140,7 @@ module.exports = {
                 if (isConstructorFunction(node)) {
 
                     // Class > ClassBody > MethodDefinition > FunctionExpression
-                    var classNode = node.parent.parent.parent;
+                    let classNode = node.parent.parent.parent;
 
                     funcInfo = {
                         upper: funcInfo,
@@ -172,7 +172,7 @@ module.exports = {
              * @returns {void}
              */
             onCodePathEnd: function(codePath) {
-                var isDerivedClass = funcInfo.hasExtends;
+                let isDerivedClass = funcInfo.hasExtends;
 
                 funcInfo = funcInfo.upper;
                 if (!isDerivedClass) {
@@ -180,10 +180,10 @@ module.exports = {
                 }
 
                 codePath.traverseSegments(function(segment, controller) {
-                    var info = segInfoMap[segment.id];
+                    let info = segInfoMap[segment.id];
 
-                    for (var i = 0; i < info.invalidNodes.length; ++i) {
-                        var invalidNode = info.invalidNodes[i];
+                    for (let i = 0; i < info.invalidNodes.length; ++i) {
+                        let invalidNode = info.invalidNodes[i];
 
                         context.report({
                             message: "'{{kind}}' is not allowed before 'super()'.",
@@ -238,7 +238,7 @@ module.exports = {
                 funcInfo.codePath.traverseSegments(
                     {first: toSegment, last: fromSegment},
                     function(segment, controller) {
-                        var info = segInfoMap[segment.id];
+                        let info = segInfoMap[segment.id];
 
                         if (info.superCalled) {
                             info.invalidNodes = [];

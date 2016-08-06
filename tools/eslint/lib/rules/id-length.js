@@ -45,18 +45,18 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
-        var minLength = typeof options.min !== "undefined" ? options.min : 2;
-        var maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
-        var properties = options.properties !== "never";
-        var exceptions = (options.exceptions ? options.exceptions : [])
+        let options = context.options[0] || {};
+        let minLength = typeof options.min !== "undefined" ? options.min : 2;
+        let maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
+        let properties = options.properties !== "never";
+        let exceptions = (options.exceptions ? options.exceptions : [])
             .reduce(function(obj, item) {
                 obj[item] = true;
 
                 return obj;
             }, {});
 
-        var SUPPORTED_EXPRESSIONS = {
+        let SUPPORTED_EXPRESSIONS = {
             MemberExpression: properties && function(parent) {
                 return !parent.computed && (
 
@@ -87,24 +87,24 @@ module.exports = {
 
         return {
             Identifier: function(node) {
-                var name = node.name;
-                var parent = node.parent;
+                let name = node.name;
+                let parent = node.parent;
 
-                var isShort = name.length < minLength;
-                var isLong = name.length > maxLength;
+                let isShort = name.length < minLength;
+                let isLong = name.length > maxLength;
 
                 if (!(isShort || isLong) || exceptions[name]) {
                     return;  // Nothing to report
                 }
 
-                var isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
+                let isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
 
                 if (isValidExpression && (isValidExpression === true || isValidExpression(parent, node))) {
                     context.report(
                         node,
                         isShort ?
-                            "Identifier name '{{name}}' is too short. (< {{min}})" :
-                            "Identifier name '{{name}}' is too long. (> {{max}})",
+                            "Identifier name '{{name}}' is too short (< {{min}})." :
+                            "Identifier name '{{name}}' is too long (> {{max}}).",
                         { name: name, min: minLength, max: maxLength }
                     );
                 }

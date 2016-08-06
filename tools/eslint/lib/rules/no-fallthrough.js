@@ -8,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
+let lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
+let DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
 
 /**
  * Checks whether or not a given node has a fallthrough comment.
@@ -24,8 +24,8 @@ var DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
  * @returns {boolean} `true` if the node has a valid fallthrough comment.
  */
 function hasFallthroughComment(node, context, fallthroughCommentPattern) {
-    var sourceCode = context.getSourceCode();
-    var comment = lodash.last(sourceCode.getComments(node).leading);
+    let sourceCode = context.getSourceCode();
+    let comment = lodash.last(sourceCode.getComments(node).leading);
 
     return Boolean(comment && fallthroughCommentPattern.test(comment.value));
 }
@@ -75,16 +75,16 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
-        var currentCodePath = null;
-        var sourceCode = context.getSourceCode();
+        let options = context.options[0] || {};
+        let currentCodePath = null;
+        let sourceCode = context.getSourceCode();
 
         /*
          * We need to use leading comments of the next SwitchCase node because
          * trailing comments is wrong if semicolons are omitted.
          */
-        var fallthroughCase = null;
-        var fallthroughCommentPattern = null;
+        let fallthroughCase = null;
+        let fallthroughCommentPattern = null;
 
         if (options.commentPattern) {
             fallthroughCommentPattern = new RegExp(options.commentPattern);
@@ -117,7 +117,7 @@ module.exports = {
             },
 
             "SwitchCase:exit": function(node) {
-                var nextToken = sourceCode.getTokenAfter(node);
+                let nextToken = sourceCode.getTokenAfter(node);
 
                 /*
                  * `reachable` meant fall through because statements preceded by

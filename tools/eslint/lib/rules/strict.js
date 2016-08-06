@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
+let lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var messages = {
+let messages = {
     function: "Use the function form of 'use strict'.",
     global: "Use the global form of 'use strict'.",
     multiple: "Multiple 'use strict' directives.",
@@ -35,7 +35,7 @@ var messages = {
  * @returns {ASTNode[]} All of the Use Strict Directives.
  */
 function getUseStrictDirectives(statements) {
-    var directives = [],
+    let directives = [],
         i, statement;
 
     for (i = 0; i < statements.length; i++) {
@@ -96,7 +96,7 @@ module.exports = {
 
     create: function(context) {
 
-        var mode = context.options[0] || "safe",
+        let mode = context.options[0] || "safe",
             ecmaFeatures = context.parserOptions.ecmaFeatures || {},
             scopes = [],
             classScopes = [],
@@ -117,7 +117,7 @@ module.exports = {
          * @returns {void}
          */
         function reportSlice(nodes, start, end, message) {
-            var i;
+            let i;
 
             for (i = start; i < end; i++) {
                 context.report(nodes[i], message);
@@ -152,7 +152,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunctionInFunctionMode(node, useStrictDirectives) {
-            var isInClass = classScopes.length > 0,
+            let isInClass = classScopes.length > 0,
                 isParentGlobal = scopes.length === 0 && classScopes.length === 0,
                 isParentStrict = scopes.length > 0 && scopes[scopes.length - 1],
                 isStrict = useStrictDirectives.length > 0;
@@ -194,7 +194,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunction(node) {
-            var isBlock = node.body.type === "BlockStatement",
+            let isBlock = node.body.type === "BlockStatement",
                 useStrictDirectives = isBlock ?
                     getUseStrictDirectives(node.body.body) : [];
 
@@ -212,7 +212,7 @@ module.exports = {
 
         rule = {
             Program: function(node) {
-                var useStrictDirectives = getUseStrictDirectives(node.body);
+                let useStrictDirectives = getUseStrictDirectives(node.body);
 
                 if (node.sourceType === "module") {
                     mode = "module";

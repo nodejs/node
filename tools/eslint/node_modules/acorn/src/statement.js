@@ -40,7 +40,7 @@ pp.isLet = function() {
   let next = this.pos + skip[0].length, nextCh = this.input.charCodeAt(next)
   if (nextCh === 91 || nextCh == 123) return true // '{' and '['
   if (isIdentifierStart(nextCh, true)) {
-    for (var pos = next + 1; isIdentifierChar(this.input.charCodeAt(pos, true)); ++pos) {}
+    for (var pos = next + 1; isIdentifierChar(this.input.charCodeAt(pos), true); ++pos) {}
     let ident = this.input.slice(next, pos)
     if (!this.isKeyword(ident)) return true
   }

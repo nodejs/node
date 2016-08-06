@@ -16,7 +16,7 @@ module.exports = {
 
     return {
       /**
-       * the flat cache storage used to persist the metadata of the files
+       * the flat cache storage used to persist the metadata of the `files
        * @type {Object}
        */
       cache: cache,
@@ -161,16 +161,18 @@ module.exports = {
       },
       /**
        * Sync the files and persist them to the cache
-       *
+       * @param [noPrune=false] {Boolean} whether to remove non visited/saved entries
        * @method reconcile
        */
-      reconcile: function () {
+      reconcile: function ( noPrune ) {
         var entries = normalizedEntries;
 
         var keys = Object.keys( entries );
+
         if ( keys.length === 0 ) {
           return;
         }
+
         keys.forEach( function ( entryName ) {
           var cacheEntry = entries[ entryName ];
           var stat = fs.statSync( cacheEntry.key );
@@ -183,7 +185,7 @@ module.exports = {
           cache.setKey( entryName, meta );
         } );
 
-        cache.save();
+        cache.save( noPrune );
       }
     };
   }

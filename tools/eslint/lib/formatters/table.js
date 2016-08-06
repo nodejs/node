@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var chalk,
+let chalk,
     table,
     pluralize;
 
@@ -26,7 +26,7 @@ pluralize = require("pluralize");
  * @returns {string} A text table.
  */
 function drawTable(messages) {
-    var rows;
+    let rows;
 
     rows = [];
 
@@ -43,7 +43,7 @@ function drawTable(messages) {
     ]);
 
     messages.forEach(function(message) {
-        var messageType;
+        let messageType;
 
         if (message.fatal || message.severity === 2) {
             messageType = chalk.red("error");
@@ -96,7 +96,7 @@ function drawTable(messages) {
  * @returns {string} A column of text tables.
  */
 function drawReport(results) {
-    var files;
+    let files;
 
     files = results.map(function(result) {
         if (!result.messages.length) {
@@ -118,7 +118,7 @@ function drawReport(results) {
 //------------------------------------------------------------------------------
 
 module.exports = function(report) {
-    var result,
+    let result,
         errorCount,
         warningCount;
 

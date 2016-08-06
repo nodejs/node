@@ -1,7 +1,7 @@
 var apply = require('./_apply'),
     arrayPush = require('./_arrayPush'),
+    baseRest = require('./_baseRest'),
     castSlice = require('./_castSlice'),
-    rest = require('./rest'),
     toInteger = require('./toInteger');
 
 /** Used as the `TypeError` message for "Functions" methods. */
@@ -49,7 +49,7 @@ function spread(func, start) {
     throw new TypeError(FUNC_ERROR_TEXT);
   }
   start = start === undefined ? 0 : nativeMax(toInteger(start), 0);
-  return rest(function(args) {
+  return baseRest(function(args) {
     var array = args[start],
         otherArgs = castSlice(args, 0, start);
 

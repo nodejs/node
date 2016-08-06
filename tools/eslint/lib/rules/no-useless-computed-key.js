@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var MESSAGE_UNNECESSARY_COMPUTED = "Unnecessarily computed property [{{property}}] found.";
+let MESSAGE_UNNECESSARY_COMPUTED = "Unnecessarily computed property [{{property}}] found.";
 
 module.exports = {
     meta: {
@@ -16,10 +16,12 @@ module.exports = {
             description: "disallow unnecessary computed property keys in object literals",
             category: "ECMAScript 6",
             recommended: false
-        }
+        },
+
+        schema: []
     },
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         return {
             Property: function(node) {
@@ -27,7 +29,7 @@ module.exports = {
                     return;
                 }
 
-                var key = node.key,
+                let key = node.key,
                     nodeType = typeof key.value;
 
                 if (key.type === "Literal" && (nodeType === "string" || nodeType === "number")) {

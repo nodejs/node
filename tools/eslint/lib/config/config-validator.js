@@ -9,12 +9,12 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var rules = require("../rules"),
+let rules = require("../rules"),
     Environments = require("./environments"),
     schemaValidator = require("is-my-json-valid"),
     util = require("util");
 
-var validators = {
+let validators = {
     rules: Object.create(null)
 };
 
@@ -25,10 +25,10 @@ var validators = {
 /**
  * Gets a complete options schema for a rule.
  * @param {string} id The rule's unique name.
- * @returns {object} JSON Schema for the rule's options.
+ * @returns {Object} JSON Schema for the rule's options.
  */
 function getRuleOptionsSchema(id) {
-    var rule = rules.get(id),
+    let rule = rules.get(id),
         schema = rule && rule.schema || rule && rule.meta && rule.meta.schema;
 
     // Given a tuple of schemas, insert warning level at the beginning
@@ -61,7 +61,7 @@ function getRuleOptionsSchema(id) {
  * @returns {void}
  */
 function validateRuleOptions(id, options, source) {
-    var validateRule = validators.rules[id],
+    let validateRule = validators.rules[id],
         message,
         severity,
         localOptions,
@@ -119,7 +119,7 @@ function validateRuleOptions(id, options, source) {
 
 /**
  * Validates an environment object
- * @param {object} environment The environment config object to validate.
+ * @param {Object} environment The environment config object to validate.
  * @param {string} source The location to report with any errors.
  * @returns {void}
  */
@@ -137,7 +137,7 @@ function validateEnvironment(environment, source) {
     if (typeof environment === "object") {
         Object.keys(environment).forEach(function(env) {
             if (!Environments.get(env)) {
-                var message = [
+                let message = [
                     source, ":\n",
                     "\tEnvironment key \"", env, "\" is unknown\n"
                 ];
@@ -152,7 +152,7 @@ function validateEnvironment(environment, source) {
 
 /**
  * Validates an entire config object.
- * @param {object} config The config object to validate.
+ * @param {Object} config The config object to validate.
  * @param {string} source The location to report with any errors.
  * @returns {void}
  */

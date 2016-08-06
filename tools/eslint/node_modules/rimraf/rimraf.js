@@ -48,9 +48,9 @@ function rimraf (p, options, cb) {
 
   assert(p, 'rimraf: missing path')
   assert.equal(typeof p, 'string', 'rimraf: path should be a string')
-  assert(options, 'rimraf: missing options')
-  assert.equal(typeof options, 'object', 'rimraf: options should be object')
   assert.equal(typeof cb, 'function', 'rimraf: callback function required')
+  assert(options, 'rimraf: invalid options argument provided')
+  assert.equal(typeof options, 'object', 'rimraf: options should be object')
 
   defaults(options)
 

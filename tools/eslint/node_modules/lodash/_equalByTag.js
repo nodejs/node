@@ -1,5 +1,6 @@
 var Symbol = require('./_Symbol'),
     Uint8Array = require('./_Uint8Array'),
+    eq = require('./eq'),
     equalArrays = require('./_equalArrays'),
     mapToArray = require('./_mapToArray'),
     setToArray = require('./_setToArray');
@@ -63,17 +64,13 @@ function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
 
     case boolTag:
     case dateTag:
-      // Coerce dates and booleans to numbers, dates to milliseconds and
-      // booleans to `1` or `0` treating invalid dates coerced to `NaN` as
-      // not equal.
-      return +object == +other;
+    case numberTag:
+      // Coerce booleans to `1` or `0` and dates to milliseconds.
+      // Invalid dates are coerced to `NaN`.
+      return eq(+object, +other);
 
     case errorTag:
       return object.name == other.name && object.message == other.message;
-
-    case numberTag:
-      // Treat `NaN` vs. `NaN` as equal.
-      return (object != +object) ? other != +other : object == +other;
 
     case regexpTag:
     case stringTag:
@@ -98,10 +95,12 @@ function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
         return stacked == other;
       }
       bitmask |= UNORDERED_COMPARE_FLAG;
-      stack.set(object, other);
 
       // Recursively compare objects (susceptible to call stack limits).
-      return equalArrays(convert(object), convert(other), equalFunc, customizer, bitmask, stack);
+      stack.set(object, other);
+      var result = equalArrays(convert(object), convert(other), equalFunc, customizer, bitmask, stack);
+      stack['delete'](object);
+      return result;
 
     case symbolTag:
       if (symbolValueOf) {

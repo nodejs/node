@@ -1,11 +1,13 @@
 var baseDifference = require('./_baseDifference'),
-    isArrayLikeObject = require('./isArrayLikeObject'),
-    rest = require('./rest');
+    baseRest = require('./_baseRest'),
+    isArrayLikeObject = require('./isArrayLikeObject');
 
 /**
  * Creates an array excluding all given values using
  * [`SameValueZero`](http://ecma-international.org/ecma-262/6.0/#sec-samevaluezero)
  * for equality comparisons.
+ *
+ * **Note:** Unlike `_.pull`, this method returns a new array.
  *
  * @static
  * @memberOf _
@@ -20,7 +22,7 @@ var baseDifference = require('./_baseDifference'),
  * _.without([2, 1, 2, 3], 1, 2);
  * // => [3]
  */
-var without = rest(function(array, values) {
+var without = baseRest(function(array, values) {
   return isArrayLikeObject(array)
     ? baseDifference(array, values)
     : [];

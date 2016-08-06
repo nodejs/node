@@ -1,4 +1,4 @@
-var rest = require('./rest'),
+var baseRest = require('./_baseRest'),
     unzipWith = require('./unzipWith');
 
 /**
@@ -20,7 +20,7 @@ var rest = require('./rest'),
  * });
  * // => [111, 222]
  */
-var zipWith = rest(function(arrays) {
+var zipWith = baseRest(function(arrays) {
   var length = arrays.length,
       iteratee = length > 1 ? arrays[length - 1] : undefined;
 

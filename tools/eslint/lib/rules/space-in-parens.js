@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -42,7 +42,7 @@ module.exports = {
 
     create: function(context) {
 
-        var MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
+        let MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
             REJECTED_SPACE_MESSAGE = "There should be no spaces inside this paren.",
             ALWAYS = context.options[0] === "always",
 
@@ -64,7 +64,7 @@ module.exports = {
          * @private
          */
         function getExceptions() {
-            var openers = [],
+            let openers = [],
                 closers = [];
 
             if (options.braceException) {
@@ -96,7 +96,7 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Determines if a token is one of the exceptions for the opener paren
@@ -217,7 +217,7 @@ module.exports = {
 
         return {
             Program: function checkParenSpaces(node) {
-                var tokens, prevToken, nextToken;
+                let tokens, prevToken, nextToken;
 
                 exceptions = getExceptions();
                 tokens = sourceCode.tokensAndComments;

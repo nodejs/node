@@ -1,5 +1,5 @@
-var isIterateeCall = require('./_isIterateeCall'),
-    rest = require('./rest');
+var baseRest = require('./_baseRest'),
+    isIterateeCall = require('./_isIterateeCall');
 
 /**
  * Creates a function like `_.assign`.
@@ -9,7 +9,7 @@ var isIterateeCall = require('./_isIterateeCall'),
  * @returns {Function} Returns the new assigner function.
  */
 function createAssigner(assigner) {
-  return rest(function(object, sources) {
+  return baseRest(function(object, sources) {
     var index = -1,
         length = sources.length,
         customizer = length > 1 ? sources[length - 1] : undefined,

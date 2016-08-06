@@ -41,6 +41,16 @@ function binop(name, prec) {
 }
 const beforeExpr = {beforeExpr: true}, startsExpr = {startsExpr: true}
 
+// Map keyword names to token types.
+
+export const keywords = {}
+
+// Succinct definitions of keyword token types
+function kw(name, options = {}) {
+  options.keyword = name
+  return keywords[name] = new TokenType(name, options)
+}
+
 export const types = {
   num: new TokenType("num", startsExpr),
   regexp: new TokenType("regexp", startsExpr),
@@ -96,51 +106,42 @@ export const types = {
   modulo: binop("%", 10),
   star: binop("*", 10),
   slash: binop("/", 10),
-  starstar: new TokenType("**", {beforeExpr: true})
+  starstar: new TokenType("**", {beforeExpr: true}),
+
+  // Keyword token types.
+  _break: kw("break"),
+  _case: kw("case", beforeExpr),
+  _catch: kw("catch"),
+  _continue: kw("continue"),
+  _debugger: kw("debugger"),
+  _default: kw("default", beforeExpr),
+  _do: kw("do", {isLoop: true, beforeExpr: true}),
+  _else: kw("else", beforeExpr),
+  _finally: kw("finally"),
+  _for: kw("for", {isLoop: true}),
+  _function: kw("function", startsExpr),
+  _if: kw("if"),
+  _return: kw("return", beforeExpr),
+  _switch: kw("switch"),
+  _throw: kw("throw", beforeExpr),
+  _try: kw("try"),
+  _var: kw("var"),
+  _const: kw("const"),
+  _while: kw("while", {isLoop: true}),
+  _with: kw("with"),
+  _new: kw("new", {beforeExpr: true, startsExpr: true}),
+  _this: kw("this", startsExpr),
+  _super: kw("super", startsExpr),
+  _class: kw("class"),
+  _extends: kw("extends", beforeExpr),
+  _export: kw("export"),
+  _import: kw("import"),
+  _null: kw("null", startsExpr),
+  _true: kw("true", startsExpr),
+  _false: kw("false", startsExpr),
+  _in: kw("in", {beforeExpr: true, binop: 7}),
+  _instanceof: kw("instanceof", {beforeExpr: true, binop: 7}),
+  _typeof: kw("typeof", {beforeExpr: true, prefix: true, startsExpr: true}),
+  _void: kw("void", {beforeExpr: true, prefix: true, startsExpr: true}),
+  _delete: kw("delete", {beforeExpr: true, prefix: true, startsExpr: true})
 }
-
-// Map keyword names to token types.
-
-export const keywords = {}
-
-// Succinct definitions of keyword token types
-function kw(name, options = {}) {
-  options.keyword = name
-  keywords[name] = types["_" + name] = new TokenType(name, options)
-}
-
-kw("break")
-kw("case", beforeExpr)
-kw("catch")
-kw("continue")
-kw("debugger")
-kw("default", beforeExpr)
-kw("do", {isLoop: true, beforeExpr: true})
-kw("else", beforeExpr)
-kw("finally")
-kw("for", {isLoop: true})
-kw("function", startsExpr)
-kw("if")
-kw("return", beforeExpr)
-kw("switch")
-kw("throw", beforeExpr)
-kw("try")
-kw("var")
-kw("const")
-kw("while", {isLoop: true})
-kw("with")
-kw("new", {beforeExpr: true, startsExpr: true})
-kw("this", startsExpr)
-kw("super", startsExpr)
-kw("class")
-kw("extends", beforeExpr)
-kw("export")
-kw("import")
-kw("null", startsExpr)
-kw("true", startsExpr)
-kw("false", startsExpr)
-kw("in", {beforeExpr: true, binop: 7})
-kw("instanceof", {beforeExpr: true, binop: 7})
-kw("typeof", {beforeExpr: true, prefix: true, startsExpr: true})
-kw("void", {beforeExpr: true, prefix: true, startsExpr: true})
-kw("delete", {beforeExpr: true, prefix: true, startsExpr: true})

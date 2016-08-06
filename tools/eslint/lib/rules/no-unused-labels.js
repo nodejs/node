@@ -21,7 +21,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var scopeInfo = null;
+        let scopeInfo = null;
 
         /**
          * Adds a scope info to the stack.
@@ -68,8 +68,8 @@ module.exports = {
                 return;
             }
 
-            var label = node.label.name;
-            var info = scopeInfo;
+            let label = node.label.name;
+            let info = scopeInfo;
 
             while (info) {
                 if (info.label === label) {

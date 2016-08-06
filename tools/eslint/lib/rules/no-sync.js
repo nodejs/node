@@ -27,7 +27,7 @@ module.exports = {
         return {
 
             MemberExpression: function(node) {
-                var propertyName = node.property.name,
+                let propertyName = node.property.name,
                     syncRegex = /.*Sync$/;
 
                 if (syncRegex.exec(propertyName) !== null) {

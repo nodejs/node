@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug"),
+let debug = require("debug"),
     Environments = require("./environments"),
     rules = require("../rules");
 
@@ -18,9 +18,9 @@ var debug = require("debug"),
 
 debug = debug("eslint:plugins");
 
-var plugins = Object.create(null);
+let plugins = Object.create(null);
 
-var PLUGIN_NAME_PREFIX = "eslint-plugin-",
+let PLUGIN_NAME_PREFIX = "eslint-plugin-",
     NAMESPACE_REGEX = /^@.*\//i;
 
 /**
@@ -67,7 +67,7 @@ module.exports = {
      * @returns {void}
      */
     define: function(pluginName, plugin) {
-        var pluginNameWithoutNamespace = removeNamespace(pluginName),
+        let pluginNameWithoutNamespace = removeNamespace(pluginName),
             pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace);
 
         plugins[pluginNameWithoutPrefix] = plugin;
@@ -104,7 +104,7 @@ module.exports = {
      * @throws {Error} If the plugin cannot be loaded.
      */
     load: function(pluginName) {
-        var pluginNamespace = getNamespace(pluginName),
+        let pluginNamespace = getNamespace(pluginName),
             pluginNameWithoutNamespace = removeNamespace(pluginName),
             pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace),
             plugin = null;

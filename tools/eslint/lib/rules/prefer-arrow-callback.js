@@ -35,10 +35,10 @@ function checkMetaProperty(node, metaName, propertyName) {
  * @returns {escope.Variable} The found variable object.
  */
 function getVariableOfArguments(scope) {
-    var variables = scope.variables;
+    let variables = scope.variables;
 
-    for (var i = 0; i < variables.length; ++i) {
-        var variable = variables[i];
+    for (let i = 0; i < variables.length; ++i) {
+        let variable = variables[i];
 
         if (variable.name === "arguments") {
 
@@ -58,13 +58,13 @@ function getVariableOfArguments(scope) {
 /**
  * Checkes whether or not a given node is a callback.
  * @param {ASTNode} node - A node to check.
- * @returns {object}
+ * @returns {Object}
  *   {boolean} retv.isCallback - `true` if the node is a callback.
  *   {boolean} retv.isLexicalThis - `true` if the node is with `.bind(this)`.
  */
 function getCallbackInfo(node) {
-    var retv = {isCallback: false, isLexicalThis: false};
-    var parent = node.parent;
+    let retv = {isCallback: false, isLexicalThis: false};
+    let parent = node.parent;
 
     while (node) {
         switch (parent.type) {
@@ -144,10 +144,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {};
+        let options = context.options[0] || {};
 
-        var allowUnboundThis = options.allowUnboundThis !== false;  // default to true
-        var allowNamedFunctions = options.allowNamedFunctions;
+        let allowUnboundThis = options.allowUnboundThis !== false;  // default to true
+        let allowNamedFunctions = options.allowNamedFunctions;
 
         /*
          * {Array<{this: boolean, super: boolean, meta: boolean}>}
@@ -155,7 +155,7 @@ module.exports = {
          * - super - A flag which shows there are one or more Super.
          * - meta - A flag which shows there are one or more MethProperty.
          */
-        var stack = [];
+        let stack = [];
 
         /**
          * Pushes new function scope with all `false` flags.
@@ -182,7 +182,7 @@ module.exports = {
 
             // If there are below, it cannot replace with arrow functions merely.
             ThisExpression: function() {
-                var info = stack[stack.length - 1];
+                let info = stack[stack.length - 1];
 
                 if (info) {
                     info.this = true;
@@ -190,7 +190,7 @@ module.exports = {
             },
 
             Super: function() {
-                var info = stack[stack.length - 1];
+                let info = stack[stack.length - 1];
 
                 if (info) {
                     info.super = true;
@@ -198,7 +198,7 @@ module.exports = {
             },
 
             MetaProperty: function(node) {
-                var info = stack[stack.length - 1];
+                let info = stack[stack.length - 1];
 
                 if (info && checkMetaProperty(node, "new", "target")) {
                     info.meta = true;
@@ -212,7 +212,7 @@ module.exports = {
             // Main.
             FunctionExpression: enterScope,
             "FunctionExpression:exit": function(node) {
-                var scopeInfo = exitScope();
+                let scopeInfo = exitScope();
 
                 // Skip named function expressions
                 if (allowNamedFunctions && node.id && node.id.name) {
@@ -225,21 +225,21 @@ module.exports = {
                 }
 
                 // Skip recursive functions.
-                var nameVar = context.getDeclaredVariables(node)[0];
+                let nameVar = context.getDeclaredVariables(node)[0];
 
                 if (isFunctionName(nameVar) && nameVar.references.length > 0) {
                     return;
                 }
 
                 // Skip if it's using arguments.
-                var variable = getVariableOfArguments(context.getScope());
+                let variable = getVariableOfArguments(context.getScope());
 
                 if (variable && variable.references.length > 0) {
                     return;
                 }
 
                 // Reports if it's a callback which can replace with arrows.
-                var callbackInfo = getCallbackInfo(node);
+                let callbackInfo = getCallbackInfo(node);
 
                 if (callbackInfo.isCallback &&
                     (!allowUnboundThis || !scopeInfo.this || callbackInfo.isLexicalThis) &&

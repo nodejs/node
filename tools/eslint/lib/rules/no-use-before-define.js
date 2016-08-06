@@ -9,17 +9,18 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-var SENTINEL_TYPE = /^(?:(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|CatchClause|ImportDeclaration|ExportNamedDeclaration)$/;
+let SENTINEL_TYPE = /^(?:(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|CatchClause|ImportDeclaration|ExportNamedDeclaration)$/;
+let FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/;
 
 /**
  * Parses a given value as options.
  *
  * @param {any} options - A value to parse.
- * @returns {object} The parsed options.
+ * @returns {Object} The parsed options.
  */
 function parseOptions(options) {
-    var functions = true;
-    var classes = true;
+    let functions = true;
+    let classes = true;
 
     if (typeof options === "string") {
         functions = (options !== "nofunc");
@@ -87,6 +88,14 @@ function isInRange(node, location) {
 /**
  * Checks whether or not a given reference is inside of the initializers of a given variable.
  *
+ * This returns `true` in the following cases:
+ *
+ *     var a = a
+ *     var [a = a] = list
+ *     var {a = a} = obj
+ *     for (var a in a) {}
+ *     for (var a of a) {}
+ *
  * @param {Variable} variable - A variable to check.
  * @param {Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is inside of the initializers.
@@ -96,12 +105,17 @@ function isInInitializer(variable, reference) {
         return false;
     }
 
-    var node = variable.identifiers[0].parent;
-    var location = reference.identifier.range[1];
+    let node = variable.identifiers[0].parent;
+    let location = reference.identifier.range[1];
 
     while (node) {
         if (node.type === "VariableDeclarator") {
             if (isInRange(node.init, location)) {
+                return true;
+            }
+            if (FOR_IN_OF_TYPE.test(node.parent.parent.type) &&
+                isInRange(node.parent.parent.right, location)
+            ) {
                 return true;
             }
             break;
@@ -151,10 +165,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = parseOptions(context.options[0]);
+        let options = parseOptions(context.options[0]);
 
         // Defines a function which checks whether or not a reference is allowed according to the option.
-        var isAllowed;
+        let isAllowed;
 
         if (options.functions && options.classes) {
             isAllowed = alwaysFalse;
@@ -174,7 +188,7 @@ module.exports = {
          */
         function findVariablesInScope(scope) {
             scope.references.forEach(function(reference) {
-                var variable = reference.resolved;
+                let variable = reference.resolved;
 
                 // Skips when the reference is:
                 // - initialization's.
@@ -194,7 +208,7 @@ module.exports = {
                 // Reports.
                 context.report({
                     node: reference.identifier,
-                    message: "'{{name}}' was used before it was defined",
+                    message: "'{{name}}' was used before it was defined.",
                     data: reference.identifier
                 });
             });
@@ -207,14 +221,14 @@ module.exports = {
          * @private
          */
         function findVariables() {
-            var scope = context.getScope();
+            let scope = context.getScope();
 
             findVariablesInScope(scope);
         }
 
-        var ruleDefinition = {
+        let ruleDefinition = {
             "Program:exit": function(node) {
-                var scope = context.getScope(),
+                let scope = context.getScope(),
                     ecmaFeatures = context.parserOptions.ecmaFeatures || {};
 
                 findVariablesInScope(scope);

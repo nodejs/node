@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
+let lodash = require("lodash"),
     debug = require("debug"),
     Environments = require("./environments");
 
@@ -19,7 +19,7 @@ var lodash = require("lodash"),
 
 debug = debug("eslint:config-ops");
 
-var RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
+let RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
     RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
         map[value] = index;
         return map;
@@ -53,7 +53,7 @@ module.exports = {
      */
     createEnvironmentConfig: function(env) {
 
-        var envConfig = this.createEmptyConfig();
+        let envConfig = this.createEmptyConfig();
 
         if (env) {
 
@@ -62,7 +62,7 @@ module.exports = {
             Object.keys(env).filter(function(name) {
                 return env[name];
             }).forEach(function(name) {
-                var environment = Environments.get(name);
+                let environment = Environments.get(name);
 
                 if (environment) {
                     debug("Creating config for environment " + name);
@@ -134,8 +134,8 @@ module.exports = {
          * (https://github.com/KyleAMathews/deepmerge)
          * and modified to meet our needs.
          */
-        var array = Array.isArray(src) || Array.isArray(target);
-        var dst = array && [] || {};
+        let array = Array.isArray(src) || Array.isArray(target);
+        let dst = array && [] || {};
 
         combine = !!combine;
         isRule = !!isRule;
@@ -202,7 +202,7 @@ module.exports = {
 
         if (config.rules) {
             Object.keys(config.rules).forEach(function(ruleId) {
-                var ruleConfig = config.rules[ruleId];
+                let ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "string") {
                     config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
@@ -224,7 +224,7 @@ module.exports = {
 
         if (config.rules) {
             Object.keys(config.rules).forEach(function(ruleId) {
-                var ruleConfig = config.rules[ruleId];
+                let ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "number") {
                     config.rules[ruleId] = RULE_SEVERITY_STRINGS[ruleConfig] || RULE_SEVERITY_STRINGS[0];
@@ -242,7 +242,7 @@ module.exports = {
      */
     isErrorSeverity: function(ruleConfig) {
 
-        var severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
+        let severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
         if (typeof severity === "string") {
             severity = RULE_SEVERITY[severity.toLowerCase()] || 0;
@@ -257,7 +257,7 @@ module.exports = {
      * @returns {boolean} `true` if the configuration has valid severity.
      */
     isValidSeverity: function(ruleConfig) {
-        var severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
+        let severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
         if (typeof severity === "string") {
             severity = severity.toLowerCase();
@@ -267,7 +267,7 @@ module.exports = {
 
     /**
      * Checks whether every rule of a given config has valid severity or not.
-     * @param {object} config - The configuration for rules.
+     * @param {Object} config - The configuration for rules.
      * @returns {boolean} `true` if the configuration has valid severity.
      */
     isEverySeverityValid: function(config) {

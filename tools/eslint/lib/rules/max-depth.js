@@ -49,7 +49,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        var functionStack = [],
+        let functionStack = [],
             option = context.options[0],
             maxDepth = 4;
 
@@ -88,7 +88,7 @@ module.exports = {
          * @private
          */
         function pushBlock(node) {
-            var len = ++functionStack[functionStack.length - 1];
+            let len = ++functionStack[functionStack.length - 1];
 
             if (len > maxDepth) {
                 context.report(node, "Blocks are nested too deeply ({{depth}}).",

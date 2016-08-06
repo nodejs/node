@@ -33,7 +33,7 @@ module.exports = {
 
     create: function(context) {
 
-        var config = context.options[0],
+        let config = context.options[0],
             allowInForAfterthought = false;
 
         if (typeof config === "object") {

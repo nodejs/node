@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 // Schema objects.
-var OPTION_VALUE = {
+let OPTION_VALUE = {
     oneOf: [
         {
             enum: ["always", "never"]
@@ -41,12 +41,12 @@ var OPTION_VALUE = {
 /**
  * Normalizes a given option value.
  *
- * @param {string|object|undefined} value - An option value to parse.
+ * @param {string|Object|undefined} value - An option value to parse.
  * @returns {{multiline: boolean, minProperties: number}} Normalized option object.
  */
 function normalizeOptionValue(value) {
-    var multiline = false;
-    var minProperties = Number.POSITIVE_INFINITY;
+    let multiline = false;
+    let minProperties = Number.POSITIVE_INFINITY;
 
     if (value) {
         if (value === "always") {
@@ -67,7 +67,7 @@ function normalizeOptionValue(value) {
 /**
  * Normalizes a given option value.
  *
- * @param {string|object|undefined} options - An option value to parse.
+ * @param {string|Object|undefined} options - An option value to parse.
  * @returns {{ObjectExpression: {multiline: boolean, minProperties: number}, ObjectPattern: {multiline: boolean, minProperties: number}}} Normalized option object.
  */
 function normalizeOptions(options) {
@@ -78,7 +78,7 @@ function normalizeOptions(options) {
         };
     }
 
-    var value = normalizeOptionValue(options);
+    let value = normalizeOptionValue(options);
 
     return {ObjectExpression: value, ObjectPattern: value};
 }
@@ -114,8 +114,8 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
-        var normalizedOptions = normalizeOptions(context.options[0]);
+        let sourceCode = context.getSourceCode();
+        let normalizedOptions = normalizeOptions(context.options[0]);
 
         /**
          * Reports a given node if it violated this rule.
@@ -125,12 +125,12 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            var options = normalizedOptions[node.type];
-            var openBrace = sourceCode.getFirstToken(node);
-            var closeBrace = sourceCode.getLastToken(node);
-            var first = sourceCode.getTokenOrCommentAfter(openBrace);
-            var last = sourceCode.getTokenOrCommentBefore(closeBrace);
-            var needsLinebreaks = (
+            let options = normalizedOptions[node.type];
+            let openBrace = sourceCode.getFirstToken(node);
+            let closeBrace = sourceCode.getLastToken(node);
+            let first = sourceCode.getTokenOrCommentAfter(openBrace);
+            let last = sourceCode.getTokenOrCommentBefore(closeBrace);
+            let needsLinebreaks = (
                 node.properties.length >= options.minProperties ||
                 (
                     options.multiline &&
@@ -153,7 +153,7 @@ module.exports = {
             if (needsLinebreaks) {
                 if (astUtils.isTokenOnSameLine(openBrace, first)) {
                     context.report({
-                        message: "Expected a line break after this open brace.",
+                        message: "Expected a line break after this opening brace.",
                         node: node,
                         loc: openBrace.loc.start,
                         fix: function(fixer) {
@@ -163,7 +163,7 @@ module.exports = {
                 }
                 if (astUtils.isTokenOnSameLine(last, closeBrace)) {
                     context.report({
-                        message: "Expected a line break before this close brace.",
+                        message: "Expected a line break before this closing brace.",
                         node: node,
                         loc: closeBrace.loc.start,
                         fix: function(fixer) {
@@ -174,7 +174,7 @@ module.exports = {
             } else {
                 if (!astUtils.isTokenOnSameLine(openBrace, first)) {
                     context.report({
-                        message: "Unexpected a line break after this open brace.",
+                        message: "Unexpected line break after this opening brace.",
                         node: node,
                         loc: openBrace.loc.start,
                         fix: function(fixer) {
@@ -187,7 +187,7 @@ module.exports = {
                 }
                 if (!astUtils.isTokenOnSameLine(last, closeBrace)) {
                     context.report({
-                        message: "Unexpected a line break before this close brace.",
+                        message: "Unexpected line break before this closing brace.",
                         node: node,
                         loc: closeBrace.loc.start,
                         fix: function(fixer) {

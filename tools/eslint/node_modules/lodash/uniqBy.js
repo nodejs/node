@@ -11,7 +11,7 @@ var baseIteratee = require('./_baseIteratee'),
  * @since 4.0.0
  * @category Array
  * @param {Array} array The array to inspect.
- * @param {Array|Function|Object|string} [iteratee=_.identity]
+ * @param {Function} [iteratee=_.identity]
  *  The iteratee invoked per element.
  * @returns {Array} Returns the new duplicate free array.
  * @example
@@ -25,7 +25,7 @@ var baseIteratee = require('./_baseIteratee'),
  */
 function uniqBy(array, iteratee) {
   return (array && array.length)
-    ? baseUniq(array, baseIteratee(iteratee))
+    ? baseUniq(array, baseIteratee(iteratee, 2))
     : [];
 }
 
