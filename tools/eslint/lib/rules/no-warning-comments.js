@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -40,7 +40,7 @@ module.exports = {
 
     create: function(context) {
 
-        var configuration = context.options[0] || {},
+        let configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
             location = configuration.location || "start",
             selfConfigRegEx = /\bno-warning-comments\b/,
@@ -51,11 +51,11 @@ module.exports = {
          * location ("start" or "anywhere"). If the term starts or ends with non word characters, then the match will not
          * require word boundaries on that side.
          *
-         * @param {String} term A term to convert to a RegExp
+         * @param {string} term A term to convert to a RegExp
          * @returns {RegExp} The term converted to a RegExp
          */
         function convertToRegExp(term) {
-            var escaped = term.replace(/[-\/\\$\^*+?.()|\[\]{}]/g, "\\$&"),
+            let escaped = term.replace(/[-\/\\$\^*+?.()|\[\]{}]/g, "\\$&"),
                 suffix,
                 prefix;
 
@@ -89,11 +89,11 @@ module.exports = {
 
         /**
          * Checks the specified comment for matches of the configured warning terms and returns the matches.
-         * @param {String} comment The comment which is checked.
+         * @param {string} comment The comment which is checked.
          * @returns {Array} All matched warning terms for this comment.
          */
         function commentContainsWarningTerm(comment) {
-            var matches = [];
+            let matches = [];
 
             warningRegExps.forEach(function(regex, index) {
                 if (regex.test(comment)) {
@@ -114,7 +114,7 @@ module.exports = {
                 return;
             }
 
-            var matches = commentContainsWarningTerm(node.value);
+            let matches = commentContainsWarningTerm(node.value);
 
             matches.forEach(function(matchedTerm) {
                 context.report(node, "Unexpected '" + matchedTerm + "' comment.");

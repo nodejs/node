@@ -75,7 +75,7 @@ pp.toAssignableList = function(exprList, isBinding) {
       --end
     }
 
-    if (isBinding && last.type === "RestElement" && last.argument.type !== "Identifier")
+    if (isBinding && last && last.type === "RestElement" && last.argument.type !== "Identifier")
       this.unexpected(last.argument.start)
   }
   for (let i = 0; i < end; i++) {
@@ -90,7 +90,7 @@ pp.toAssignableList = function(exprList, isBinding) {
 pp.parseSpread = function(refDestructuringErrors) {
   let node = this.startNode()
   this.next()
-  node.argument = this.parseMaybeAssign(refDestructuringErrors)
+  node.argument = this.parseMaybeAssign(false, refDestructuringErrors)
   return this.finishNode(node, "SpreadElement")
 }
 

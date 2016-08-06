@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var util = require("util"),
+let util = require("util"),
     debug = require("debug"),
     lodash = require("lodash"),
     inquirer = require("inquirer"),
@@ -38,7 +38,7 @@ debug = debug("eslint:config-initializer");
 function writeFile(config, format) {
 
     // default is .js
-    var extname = ".js";
+    let extname = ".js";
 
     if (format === "YAML") {
         extname = ".yml";
@@ -60,7 +60,7 @@ function writeFile(config, format) {
  * @returns {void}
  */
 function installModules(config) {
-    var modules = [],
+    let modules = [],
         installStatus,
         modulesToInstall;
 
@@ -86,7 +86,7 @@ function installModules(config) {
 
     // Install packages which aren't already installed
     modulesToInstall = Object.keys(installStatus).filter(function(module) {
-        var notInstalled = installStatus[module] === false;
+        let notInstalled = installStatus[module] === false;
 
         if (module === "eslint" && notInstalled) {
             log.info("Local ESLint installation not found.");
@@ -113,10 +113,10 @@ function installModules(config) {
  * @returns {Object}          config object with configured rules
  */
 function configureRules(answers, config) {
-    var BAR_TOTAL = 20,
+    let BAR_TOTAL = 20,
         BAR_SOURCE_CODE_TOTAL = 4;
 
-    var newConfig = lodash.assign({}, config),
+    let newConfig = lodash.assign({}, config),
         bar,
         patterns,
         sourceCodes,
@@ -163,7 +163,7 @@ function configureRules(answers, config) {
     debug("\nRegistry: " + util.inspect(registry.rules, {depth: null}));
 
     // Create a list of recommended rules, because we don't want to disable them
-    var recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
+    let recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
         return ConfigOps.isErrorSeverity(recConfig.rules[ruleId]);
     });
 
@@ -202,12 +202,12 @@ function configureRules(answers, config) {
     bar.update(BAR_TOTAL);
 
     // Log out some stats to let the user know what happened
-    var finalRuleIds = Object.keys(newConfig.rules),
+    let finalRuleIds = Object.keys(newConfig.rules),
         totalRules = finalRuleIds.length;
-    var enabledRules = finalRuleIds.filter(function(ruleId) {
+    let enabledRules = finalRuleIds.filter(function(ruleId) {
         return (newConfig.rules[ruleId] !== 0);
     }).length;
-    var resultMessage = [
+    let resultMessage = [
         "\nEnabled " + enabledRules + " out of " + totalRules,
         "rules based on " + fileQty,
         "file" + ((fileQty === 1) ? "." : "s.")
@@ -225,7 +225,7 @@ function configureRules(answers, config) {
  * @returns {Object} config object
  */
 function processAnswers(answers) {
-    var config = {rules: {}, env: {}};
+    let config = {rules: {}, env: {}};
 
     if (answers.es6) {
         config.env.es6 = true;
@@ -275,10 +275,10 @@ function processAnswers(answers) {
  * @returns {Object} config object
  */
 function getConfigForStyleGuide(guide) {
-    var guides = {
+    let guides = {
         google: {extends: "google"},
         airbnb: {extends: "airbnb", plugins: ["react"]},
-        standard: {extends: "standard", plugins: ["standard"]}
+        standard: {extends: "standard", plugins: ["standard", "promise"]}
     };
 
     if (!guides[guide]) {
@@ -293,11 +293,11 @@ function getConfigForStyleGuide(guide) {
 /* istanbul ignore next: no need to test inquirer*/
 /**
  * Ask use a few questions on command prompt
- * @param {function} callback callback function when file has been written
+ * @param {Function} callback callback function when file has been written
  * @returns {void}
  */
 function promptUser(callback) {
-    var config;
+    let config;
 
     inquirer.prompt([
         {
@@ -419,7 +419,7 @@ function promptUser(callback) {
             // early exit if you are using automatic style generation
             if (earlyAnswers.source === "auto") {
                 try {
-                    var combinedAnswers = lodash.assign({}, earlyAnswers, secondAnswers);
+                    let combinedAnswers = lodash.assign({}, earlyAnswers, secondAnswers);
 
                     config = processAnswers(combinedAnswers);
                     installModules(config);
@@ -469,7 +469,7 @@ function promptUser(callback) {
                 }
             ], function(answers) {
                 try {
-                    var totalAnswers = lodash.assign({}, earlyAnswers, secondAnswers, answers);
+                    let totalAnswers = lodash.assign({}, earlyAnswers, secondAnswers, answers);
 
                     config = processAnswers(totalAnswers);
                     installModules(config);
@@ -488,7 +488,7 @@ function promptUser(callback) {
 // Public Interface
 //------------------------------------------------------------------------------
 
-var init = {
+let init = {
     getConfigForStyleGuide: getConfigForStyleGuide,
     processAnswers: processAnswers,
     initializeConfig: /* istanbul ignore next */ function(callback) {

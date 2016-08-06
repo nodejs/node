@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var doctrine = require("doctrine");
+let doctrine = require("doctrine");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -61,7 +61,7 @@ module.exports = {
 
     create: function(context) {
 
-        var options = context.options[0] || {},
+        let options = context.options[0] || {},
             prefer = options.prefer || {},
             sourceCode = context.getSourceCode(),
 
@@ -78,7 +78,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // Using a stack to store if a function returns or not (handling nested functions)
-        var fns = [];
+        let fns = [];
 
         /**
          * Check if node type is a Class
@@ -110,7 +110,7 @@ module.exports = {
          * @private
          */
         function addReturn(node) {
-            var functionState = fns[fns.length - 1];
+            let functionState = fns[fns.length - 1];
 
             if (functionState && node.argument !== null) {
                 functionState.returnPresent = true;
@@ -148,8 +148,8 @@ module.exports = {
          * @private
          */
         function getCurrentExpectedTypes(type) {
-            var currentType;
-            var expectedType;
+            let currentType;
+            let expectedType;
 
             if (type.name) {
                 currentType = type.name;
@@ -177,8 +177,8 @@ module.exports = {
                 return;
             }
 
-            var typesToCheck = [];
-            var elements = [];
+            let typesToCheck = [];
+            let elements = [];
 
             switch (type.type) {
                 case "TypeApplication":  // {Array.<String>}
@@ -223,7 +223,7 @@ module.exports = {
          * @private
          */
         function checkJSDoc(node) {
-            var jsdocNode = sourceCode.getJSDocComment(node),
+            let jsdocNode = sourceCode.getJSDocComment(node),
                 functionData = fns.pop(),
                 hasReturns = false,
                 hasConstructor = false,
@@ -336,7 +336,7 @@ module.exports = {
                 }
 
                 // check the parameters
-                var jsdocParams = Object.keys(params);
+                let jsdocParams = Object.keys(params);
 
                 if (node.params) {
                     node.params.forEach(function(param, i) {
@@ -344,7 +344,7 @@ module.exports = {
                             param = param.left;
                         }
 
-                        var name = param.name;
+                        let name = param.name;
 
                         // TODO(nzakas): Figure out logical things to do with destructured, default, rest params
                         if (param.type === "Identifier") {
@@ -363,7 +363,7 @@ module.exports = {
                 }
 
                 if (options.matchDescription) {
-                    var regex = new RegExp(options.matchDescription);
+                    let regex = new RegExp(options.matchDescription);
 
                     if (!regex.test(jsdoc.description)) {
                         context.report(jsdocNode, "JSDoc description does not satisfy the regex pattern.");

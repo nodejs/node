@@ -2,8 +2,8 @@ var arrayMap = require('./_arrayMap'),
     baseDifference = require('./_baseDifference'),
     baseFlatten = require('./_baseFlatten'),
     basePick = require('./_basePick'),
+    baseRest = require('./_baseRest'),
     getAllKeysIn = require('./_getAllKeysIn'),
-    rest = require('./rest'),
     toKey = require('./_toKey');
 
 /**
@@ -25,7 +25,7 @@ var arrayMap = require('./_arrayMap'),
  * _.omit(object, ['a', 'c']);
  * // => { 'b': '2' }
  */
-var omit = rest(function(object, props) {
+var omit = baseRest(function(object, props) {
   if (object == null) {
     return {};
   }

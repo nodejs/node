@@ -1,14 +1,15 @@
 var baseFlatten = require('./_baseFlatten'),
     baseIteratee = require('./_baseIteratee'),
+    baseRest = require('./_baseRest'),
     baseUniq = require('./_baseUniq'),
     isArrayLikeObject = require('./isArrayLikeObject'),
-    last = require('./last'),
-    rest = require('./rest');
+    last = require('./last');
 
 /**
  * This method is like `_.union` except that it accepts `iteratee` which is
  * invoked for each element of each `arrays` to generate the criterion by
- * which uniqueness is computed. The iteratee is invoked with one argument:
+ * which uniqueness is computed. Result values are chosen from the first
+ * array in which the value occurs. The iteratee is invoked with one argument:
  * (value).
  *
  * @static
@@ -16,7 +17,7 @@ var baseFlatten = require('./_baseFlatten'),
  * @since 4.0.0
  * @category Array
  * @param {...Array} [arrays] The arrays to inspect.
- * @param {Array|Function|Object|string} [iteratee=_.identity]
+ * @param {Function} [iteratee=_.identity]
  *  The iteratee invoked per element.
  * @returns {Array} Returns the new array of combined values.
  * @example
@@ -28,12 +29,12 @@ var baseFlatten = require('./_baseFlatten'),
  * _.unionBy([{ 'x': 1 }], [{ 'x': 2 }, { 'x': 1 }], 'x');
  * // => [{ 'x': 1 }, { 'x': 2 }]
  */
-var unionBy = rest(function(arrays) {
+var unionBy = baseRest(function(arrays) {
   var iteratee = last(arrays);
   if (isArrayLikeObject(iteratee)) {
     iteratee = undefined;
   }
-  return baseUniq(baseFlatten(arrays, 1, isArrayLikeObject, true), baseIteratee(iteratee));
+  return baseUniq(baseFlatten(arrays, 1, isArrayLikeObject, true), baseIteratee(iteratee, 2));
 });
 
 module.exports = unionBy;

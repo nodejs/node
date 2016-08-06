@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
-var astUtils = require("../ast-utils");
+let lodash = require("lodash");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -60,15 +60,15 @@ module.exports = {
 
     create: function(context) {
 
-        var MESSAGE = "'{{name}}' is defined but never used";
+        let MESSAGE = "'{{name}}' is defined but never used.";
 
-        var config = {
+        let config = {
             vars: "all",
             args: "after-used",
             caughtErrors: "none"
         };
 
-        var firstOption = context.options[0];
+        let firstOption = context.options[0];
 
         if (firstOption) {
             if (typeof firstOption === "string") {
@@ -96,7 +96,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        var STATEMENT_TYPE = /(?:Statement|Declaration)$/;
+        let STATEMENT_TYPE = /(?:Statement|Declaration)$/;
 
         /**
          * Determines if a given variable is being exported from a module.
@@ -106,11 +106,11 @@ module.exports = {
          */
         function isExported(variable) {
 
-            var definition = variable.defs[0];
+            let definition = variable.defs[0];
 
             if (definition) {
 
-                var node = definition.node;
+                let node = definition.node;
 
                 if (node.type === "VariableDeclarator") {
                     node = node.parent;
@@ -142,7 +142,7 @@ module.exports = {
          * @private
          */
         function isSelfReference(ref, nodes) {
-            var scope = ref.from;
+            let scope = ref.from;
 
             while (scope) {
                 if (nodes.indexOf(scope.block) >= 0) {
@@ -156,11 +156,34 @@ module.exports = {
         }
 
         /**
+         * Checks whether a given node is inside of a loop or not.
+         *
+         * @param {ASTNode} node - A node to check.
+         * @returns {boolean} `true` if the node is inside of a loop.
+         * @private
+         */
+        function isInsideOfLoop(node) {
+            while (node) {
+                if (astUtils.isLoop(node)) {
+                    return true;
+                }
+                if (astUtils.isFunction(node)) {
+                    return false;
+                }
+
+                node = node.parent;
+            }
+
+            return false;
+        }
+
+        /**
          * Checks the position of given nodes.
          *
          * @param {ASTNode} inner - A node which is expected as inside.
          * @param {ASTNode} outer - A node which is expected as outside.
          * @returns {boolean} `true` if the `inner` node exists in the `outer` node.
+         * @private
          */
         function isInside(inner, outer) {
             return (
@@ -173,17 +196,25 @@ module.exports = {
          * If a given reference is left-hand side of an assignment, this gets
          * the right-hand side node of the assignment.
          *
+         * In the following cases, this returns null.
+         *
+         * - The reference is not the LHS of an assignment expression.
+         * - The reference is inside of a loop.
+         * - The reference is inside of a function scope which is different from
+         *   the declaration.
+         *
          * @param {escope.Reference} ref - A reference to check.
          * @param {ASTNode} prevRhsNode - The previous RHS node.
-         * @returns {ASTNode} The RHS node.
+         * @returns {ASTNode|null} The RHS node or null.
+         * @private
          */
         function getRhsNode(ref, prevRhsNode) {
-            var id = ref.identifier;
-            var parent = id.parent;
-            var granpa = parent.parent;
-            var refScope = ref.from.variableScope;
-            var varScope = ref.resolved.scope.variableScope;
-            var canBeUsedLater = refScope !== varScope;
+            let id = ref.identifier;
+            let parent = id.parent;
+            let granpa = parent.parent;
+            let refScope = ref.from.variableScope;
+            let varScope = ref.resolved.scope.variableScope;
+            let canBeUsedLater = refScope !== varScope || isInsideOfLoop(id);
 
             /*
              * Inherits the previous node if this reference is in the node.
@@ -213,10 +244,11 @@ module.exports = {
          *      - the funcNode is assigned to a variable.
          *      - the funcNode is bound as an argument of a function call.
          *      - the function is bound to a property and the object satisfies above conditions.
+         * @private
          */
         function isStorableFunction(funcNode, rhsNode) {
-            var node = funcNode;
-            var parent = funcNode.parent;
+            let node = funcNode;
+            let parent = funcNode.parent;
 
             while (parent && isInside(parent, rhsNode)) {
                 switch (parent.type) {
@@ -266,9 +298,10 @@ module.exports = {
          * @param {ASTNode} id - An Identifier node to check.
          * @param {ASTNode} rhsNode - The RHS node of the previous assignment.
          * @returns {boolean} `true` if the `id` node exists inside of a function node which can be used later.
+         * @private
          */
         function isInsideOfStorableFunction(id, rhsNode) {
-            var funcNode = astUtils.getUpperFunction(id);
+            let funcNode = astUtils.getUpperFunction(id);
 
             return (
                 funcNode &&
@@ -283,11 +316,12 @@ module.exports = {
          * @param {escope.Reference} ref - A reference to check.
          * @param {ASTNode} rhsNode - The RHS node of the previous assignment.
          * @returns {boolean} The reference is a read to update itself.
+         * @private
          */
         function isReadForItself(ref, rhsNode) {
-            var id = ref.identifier;
-            var parent = id.parent;
-            var granpa = parent.parent;
+            let id = ref.identifier;
+            let parent = id.parent;
+            let granpa = parent.parent;
 
             return ref.isRead() && (
 
@@ -319,7 +353,7 @@ module.exports = {
          * @private
          */
         function isForInRef(ref) {
-            var target = ref.identifier.parent;
+            let target = ref.identifier.parent;
 
 
             // "for (var ...) { return; }"
@@ -355,7 +389,7 @@ module.exports = {
          * @private
          */
         function isUsedVariable(variable) {
-            var functionNodes = variable.defs.filter(function(def) {
+            let functionNodes = variable.defs.filter(function(def) {
                     return def.type === "FunctionName";
                 }).map(function(def) {
                     return def.node;
@@ -368,7 +402,7 @@ module.exports = {
                     return true;
                 }
 
-                var forItself = isReadForItself(ref, rhsNode);
+                let forItself = isReadForItself(ref, rhsNode);
 
                 rhsNode = getRhsNode(ref, rhsNode);
 
@@ -388,13 +422,13 @@ module.exports = {
          * @private
          */
         function collectUnusedVariables(scope, unusedVars) {
-            var variables = scope.variables;
-            var childScopes = scope.childScopes;
-            var i, l;
+            let variables = scope.variables;
+            let childScopes = scope.childScopes;
+            let i, l;
 
             if (scope.type !== "TDZ" && (scope.type !== "global" || config.vars === "all")) {
                 for (i = 0, l = variables.length; i < l; ++i) {
-                    var variable = variables[i];
+                    let variable = variables[i];
 
                     // skip a variable of class itself name in the class scope
                     if (scope.type === "class" && scope.block.id === variable.identifiers[0]) {
@@ -412,10 +446,10 @@ module.exports = {
                     }
 
                     // explicit global variables don't have definitions.
-                    var def = variable.defs[0];
+                    let def = variable.defs[0];
 
                     if (def) {
-                        var type = def.type;
+                        let type = def.type;
 
                         // skip catch variables
                         if (type === "CatchClause") {
@@ -480,13 +514,13 @@ module.exports = {
          * @private
          */
         function getColumnInComment(variable, comment) {
-            var namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
+            let namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
 
             // To ignore the first text "global".
             namePattern.lastIndex = comment.value.indexOf("global") + 6;
 
             // Search a given variable name.
-            var match = namePattern.exec(comment.value);
+            let match = namePattern.exec(comment.value);
 
             return match ? match.index + 1 : 0;
         }
@@ -500,11 +534,11 @@ module.exports = {
          * @private
          */
         function getLocation(variable) {
-            var comment = variable.eslintExplicitGlobalComment;
-            var baseLoc = comment.loc.start;
-            var column = getColumnInComment(variable, comment);
-            var prefix = comment.value.slice(0, column);
-            var lineInComment = (prefix.match(/\n/g) || []).length;
+            let comment = variable.eslintExplicitGlobalComment;
+            let baseLoc = comment.loc.start;
+            let column = getColumnInComment(variable, comment);
+            let prefix = comment.value.slice(0, column);
+            let lineInComment = (prefix.match(/\n/g) || []).length;
 
             if (lineInComment > 0) {
                 column -= 1 + prefix.lastIndexOf("\n");
@@ -526,10 +560,10 @@ module.exports = {
 
         return {
             "Program:exit": function(programNode) {
-                var unusedVars = collectUnusedVariables(context.getScope(), []);
+                let unusedVars = collectUnusedVariables(context.getScope(), []);
 
-                for (var i = 0, l = unusedVars.length; i < l; ++i) {
-                    var unusedVar = unusedVars[i];
+                for (let i = 0, l = unusedVars.length; i < l; ++i) {
+                    let unusedVar = unusedVars[i];
 
                     if (unusedVar.eslintExplicitGlobal) {
                         context.report({

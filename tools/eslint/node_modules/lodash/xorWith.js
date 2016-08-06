@@ -1,8 +1,8 @@
 var arrayFilter = require('./_arrayFilter'),
+    baseRest = require('./_baseRest'),
     baseXor = require('./_baseXor'),
     isArrayLikeObject = require('./isArrayLikeObject'),
-    last = require('./last'),
-    rest = require('./rest');
+    last = require('./last');
 
 /**
  * This method is like `_.xor` except that it accepts `comparator` which is
@@ -24,7 +24,7 @@ var arrayFilter = require('./_arrayFilter'),
  * _.xorWith(objects, others, _.isEqual);
  * // => [{ 'x': 2, 'y': 1 }, { 'x': 1, 'y': 1 }]
  */
-var xorWith = rest(function(arrays) {
+var xorWith = baseRest(function(arrays) {
   var comparator = last(arrays);
   if (isArrayLikeObject(comparator)) {
     comparator = undefined;

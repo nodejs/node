@@ -40,8 +40,8 @@ module.exports = {
 
         return {
             SwitchCase: function(node) {
-                for (var i = 0; i < node.consequent.length; i++) {
-                    var statement = node.consequent[i];
+                for (let i = 0; i < node.consequent.length; i++) {
+                    let statement = node.consequent[i];
 
                     if (isLexicalDeclaration(statement)) {
                         context.report({

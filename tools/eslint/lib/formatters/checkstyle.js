@@ -4,13 +4,15 @@
  */
 "use strict";
 
+let xmlEscape = require("../util/xml-escape");
+
 //------------------------------------------------------------------------------
 // Helper Functions
 //------------------------------------------------------------------------------
 
 /**
  * Returns the severity of warning or error
- * @param {object} message message object to examine
+ * @param {Object} message message object to examine
  * @returns {string} severity level
  * @private
  */
@@ -22,44 +24,19 @@ function getMessageType(message) {
     }
 }
 
-/**
- * Returns the escaped value for a character
- * @param {string} s string to examine
- * @returns {string} severity level
- * @private
- */
-function xmlEscape(s) {
-    return ("" + s).replace(/[<>&"']/g, function(c) {
-        switch (c) {
-            case "<":
-                return "&lt;";
-            case ">":
-                return "&gt;";
-            case "&":
-                return "&amp;";
-            case "\"":
-                return "&quot;";
-            case "'":
-                return "&apos;";
-            default:
-                throw new Error("unreachable");
-        }
-    });
-}
-
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
 module.exports = function(results) {
 
-    var output = "";
+    let output = "";
 
     output += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
     output += "<checkstyle version=\"4.3\">";
 
     results.forEach(function(result) {
-        var messages = result.messages;
+        let messages = result.messages;
 
         output += "<file name=\"" + xmlEscape(result.filePath) + "\">";
 

@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var globals = require("globals");
+let globals = require("globals");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -42,9 +42,9 @@ module.exports = {
 
     create: function(context) {
 
-        var config = context.options[0] || {};
-        var exceptions = config.exceptions || [];
-        var modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
+        let config = context.options[0] || {};
+        let exceptions = config.exceptions || [];
+        let modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
             return builtin[0].toUpperCase() === builtin[0];
         });
 
@@ -58,7 +58,7 @@ module.exports = {
 
             // handle the Array.prototype.extra style case
             AssignmentExpression: function(node) {
-                var lhs = node.left,
+                let lhs = node.left,
                     affectsProto;
 
                 if (lhs.type !== "MemberExpression" || lhs.object.type !== "MemberExpression") {
@@ -83,7 +83,7 @@ module.exports = {
             // handle the Object.definePropert[y|ies](Array.prototype) case
             CallExpression: function(node) {
 
-                var callee = node.callee,
+                let callee = node.callee,
                     subject,
                     object;
 

@@ -23,7 +23,7 @@ module.exports = {
     create: function(context) {
 
         // A stack of lone blocks to be checked for block-level bindings
-        var loneBlocks = [],
+        let loneBlocks = [],
             ruleDef;
 
         /**
@@ -32,7 +32,7 @@ module.exports = {
          * @returns {void}
         */
         function report(node) {
-            var parent = context.getAncestors().pop();
+            let parent = context.getAncestors().pop();
 
             context.report(node, parent.type === "Program" ?
                 "Block is redundant." :
@@ -45,7 +45,7 @@ module.exports = {
          * @returns {boolean} True if the current node is a lone block.
         */
         function isLoneBlock() {
-            var parent = context.getAncestors().pop();
+            let parent = context.getAncestors().pop();
 
             return parent.type === "BlockStatement" || parent.type === "Program";
         }
@@ -60,7 +60,7 @@ module.exports = {
                 return;
             }
 
-            var block = context.getAncestors().pop();
+            let block = context.getAncestors().pop();
 
             if (loneBlocks[loneBlocks.length - 1] === block) {
                 loneBlocks.pop();

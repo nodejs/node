@@ -20,11 +20,11 @@ module.exports = {
 
     create: function(context) {
 
-        var FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
-        var PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
-        var TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
+        let FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
+        let PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
+        let TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Check to see if there is a newline between the node and the following open bracket
@@ -35,8 +35,8 @@ module.exports = {
          * @private
          */
         function checkForBreakAfter(node, msg) {
-            var nodeExpressionEnd = node;
-            var openParen = sourceCode.getTokenAfter(node);
+            let nodeExpressionEnd = node;
+            let openParen = sourceCode.getTokenAfter(node);
 
             // Move along until the end of the wrapped expression
             while (openParen.value === ")") {

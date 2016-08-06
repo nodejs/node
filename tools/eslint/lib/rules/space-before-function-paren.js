@@ -43,7 +43,7 @@ module.exports = {
 
     create: function(context) {
 
-        var configuration = context.options[0],
+        let configuration = context.options[0],
             sourceCode = context.getSourceCode(),
             requireAnonymousFunctionSpacing = true,
             forbidAnonymousFunctionSpacing = false,
@@ -70,7 +70,7 @@ module.exports = {
          * @returns {boolean} Whether the function has a name.
          */
         function isNamedFunction(node) {
-            var parent;
+            let parent;
 
             if (node.id) {
                 return true;
@@ -93,7 +93,7 @@ module.exports = {
          * @returns {void}
          */
         function validateSpacingBeforeParentheses(node) {
-            var isNamed = isNamedFunction(node),
+            let isNamed = isNamedFunction(node),
                 leftToken,
                 rightToken,
                 location;

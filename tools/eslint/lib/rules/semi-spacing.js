@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -39,7 +39,7 @@ module.exports = {
 
     create: function(context) {
 
-        var config = context.options[0],
+        let config = context.options[0],
             requireSpaceBefore = false,
             requireSpaceAfter = true,
             sourceCode = context.getSourceCode();
@@ -59,7 +59,7 @@ module.exports = {
          * @returns {boolean} True if the given token has leading space, false if not.
          */
         function hasLeadingSpace(token) {
-            var tokenBefore = sourceCode.getTokenBefore(token);
+            let tokenBefore = sourceCode.getTokenBefore(token);
 
             return tokenBefore && astUtils.isTokenOnSameLine(tokenBefore, token) && sourceCode.isSpaceBetweenTokens(tokenBefore, token);
         }
@@ -70,7 +70,7 @@ module.exports = {
          * @returns {boolean} True if the given token has trailing space, false if not.
          */
         function hasTrailingSpace(token) {
-            var tokenAfter = sourceCode.getTokenAfter(token);
+            let tokenAfter = sourceCode.getTokenAfter(token);
 
             return tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter) && sourceCode.isSpaceBetweenTokens(token, tokenAfter);
         }
@@ -81,7 +81,7 @@ module.exports = {
          * @returns {boolean} Whether or not the token is the last in its line.
          */
         function isLastTokenInCurrentLine(token) {
-            var tokenAfter = sourceCode.getTokenAfter(token);
+            let tokenAfter = sourceCode.getTokenAfter(token);
 
             return !(tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter));
         }
@@ -92,7 +92,7 @@ module.exports = {
          * @returns {boolean} Whether or not the token is the first in its line.
          */
         function isFirstTokenInCurrentLine(token) {
-            var tokenBefore = sourceCode.getTokenBefore(token);
+            let tokenBefore = sourceCode.getTokenBefore(token);
 
             return !(tokenBefore && astUtils.isTokenOnSameLine(token, tokenBefore));
         }
@@ -103,7 +103,7 @@ module.exports = {
          * @returns {boolean} Whether or not the next token of a given token is a closing parenthesis.
          */
         function isBeforeClosingParen(token) {
-            var nextToken = sourceCode.getTokenAfter(token);
+            let nextToken = sourceCode.getTokenAfter(token);
 
             return (
                 nextToken &&
@@ -128,7 +128,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSemicolonSpacing(token, node) {
-            var location;
+            let location;
 
             if (isSemicolon(token)) {
                 location = token.loc.start;
@@ -140,7 +140,7 @@ module.exports = {
                             loc: location,
                             message: "Unexpected whitespace before semicolon.",
                             fix: function(fixer) {
-                                var tokenBefore = sourceCode.getTokenBefore(token);
+                                let tokenBefore = sourceCode.getTokenBefore(token);
 
                                 return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                             }
@@ -167,7 +167,7 @@ module.exports = {
                                 loc: location,
                                 message: "Unexpected whitespace after semicolon.",
                                 fix: function(fixer) {
-                                    var tokenAfter = sourceCode.getTokenAfter(token);
+                                    let tokenAfter = sourceCode.getTokenAfter(token);
 
                                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                                 }
@@ -195,7 +195,7 @@ module.exports = {
          * @returns {void}
          */
         function checkNode(node) {
-            var token = sourceCode.getLastToken(node);
+            let token = sourceCode.getLastToken(node);
 
             checkSemicolonSpacing(token, node);
         }

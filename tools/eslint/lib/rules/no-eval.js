@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var candidatesOfGlobalObject = Object.freeze([
+let candidatesOfGlobalObject = Object.freeze([
     "global",
     "window"
 ]);
@@ -94,12 +94,12 @@ module.exports = {
     },
 
     create: function(context) {
-        var allowIndirect = Boolean(
+        let allowIndirect = Boolean(
             context.options[0] &&
             context.options[0].allowIndirect
         );
-        var sourceCode = context.getSourceCode();
-        var funcInfo = null;
+        let sourceCode = context.getSourceCode();
+        let funcInfo = null;
 
         /**
          * Pushs a variable scope (Program or Function) information to the stack.
@@ -112,7 +112,7 @@ module.exports = {
          * @returns {void}
          */
         function enterVarScope(node) {
-            var strict = context.getScope().isStrict;
+            let strict = context.getScope().isStrict;
 
             funcInfo = {
                 upper: funcInfo,
@@ -146,8 +146,8 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            var locationNode = node;
-            var parent = node.parent;
+            let locationNode = node;
+            let parent = node.parent;
 
             if (node.type === "MemberExpression") {
                 locationNode = node.property;
@@ -170,19 +170,19 @@ module.exports = {
          * @returns {void}
          */
         function reportAccessingEvalViaGlobalObject(globalScope) {
-            for (var i = 0; i < candidatesOfGlobalObject.length; ++i) {
-                var name = candidatesOfGlobalObject[i];
-                var variable = astUtils.getVariableByName(globalScope, name);
+            for (let i = 0; i < candidatesOfGlobalObject.length; ++i) {
+                let name = candidatesOfGlobalObject[i];
+                let variable = astUtils.getVariableByName(globalScope, name);
 
                 if (!variable) {
                     continue;
                 }
 
-                var references = variable.references;
+                let references = variable.references;
 
-                for (var j = 0; j < references.length; ++j) {
-                    var identifier = references[j].identifier;
-                    var node = identifier.parent;
+                for (let j = 0; j < references.length; ++j) {
+                    let identifier = references[j].identifier;
+                    let node = identifier.parent;
 
                     // To detect code like `window.window.eval`.
                     while (isMember(node, name)) {
@@ -204,17 +204,17 @@ module.exports = {
          * @returns {void}
          */
         function reportAccessingEval(globalScope) {
-            var variable = astUtils.getVariableByName(globalScope, "eval");
+            let variable = astUtils.getVariableByName(globalScope, "eval");
 
             if (!variable) {
                 return;
             }
 
-            var references = variable.references;
+            let references = variable.references;
 
-            for (var i = 0; i < references.length; ++i) {
-                var reference = references[i];
-                var id = reference.identifier;
+            for (let i = 0; i < references.length; ++i) {
+                let reference = references[i];
+                let id = reference.identifier;
 
                 if (id.name === "eval" && !astUtils.isCallee(id)) {
 
@@ -229,7 +229,7 @@ module.exports = {
             // Checks only direct calls to eval. It's simple!
             return {
                 "CallExpression:exit": function(node) {
-                    var callee = node.callee;
+                    let callee = node.callee;
 
                     if (isIdentifier(callee, "eval")) {
                         report(callee);
@@ -240,7 +240,7 @@ module.exports = {
 
         return {
             "CallExpression:exit": function(node) {
-                var callee = node.callee;
+                let callee = node.callee;
 
                 if (isIdentifier(callee, "eval")) {
                     report(callee);
@@ -248,7 +248,7 @@ module.exports = {
             },
 
             Program: function(node) {
-                var scope = context.getScope(),
+                let scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {},
                     strict =
                         scope.isStrict ||
@@ -265,7 +265,7 @@ module.exports = {
             },
 
             "Program:exit": function() {
-                var globalScope = context.getScope();
+                let globalScope = context.getScope();
 
                 exitVarScope();
                 reportAccessingEval(globalScope);

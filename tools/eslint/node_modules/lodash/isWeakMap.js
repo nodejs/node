@@ -12,8 +12,7 @@ var weakMapTag = '[object WeakMap]';
  * @since 4.3.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified,
- *  else `false`.
+ * @returns {boolean} Returns `true` if `value` is a weak map, else `false`.
  * @example
  *
  * _.isWeakMap(new WeakMap);

@@ -1,5 +1,5 @@
 /**
- * A method that returns an empty string.
+ * This method returns an empty string.
  *
  * @static
  * @memberOf _

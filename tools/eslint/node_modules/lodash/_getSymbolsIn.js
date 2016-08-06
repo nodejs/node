@@ -1,9 +1,10 @@
 var arrayPush = require('./_arrayPush'),
     getPrototype = require('./_getPrototype'),
-    getSymbols = require('./_getSymbols');
+    getSymbols = require('./_getSymbols'),
+    stubArray = require('./stubArray');
 
-/** Built-in value references. */
-var getOwnPropertySymbols = Object.getOwnPropertySymbols;
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeGetSymbols = Object.getOwnPropertySymbols;
 
 /**
  * Creates an array of the own and inherited enumerable symbol properties
@@ -13,7 +14,7 @@ var getOwnPropertySymbols = Object.getOwnPropertySymbols;
  * @param {Object} object The object to query.
  * @returns {Array} Returns the array of symbols.
  */
-var getSymbolsIn = !getOwnPropertySymbols ? getSymbols : function(object) {
+var getSymbolsIn = !nativeGetSymbols ? stubArray : function(object) {
   var result = [];
   while (object) {
     arrayPush(result, getSymbols(object));

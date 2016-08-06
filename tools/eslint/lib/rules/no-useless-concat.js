@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -29,7 +29,7 @@ function isConcatenation(node) {
  * @returns {ASTNode} node
  */
 function getLeft(node) {
-    var left = node.left;
+    let left = node.left;
 
     while (isConcatenation(left)) {
         left = left.right;
@@ -43,7 +43,7 @@ function getLeft(node) {
  * @returns {ASTNode} node
  */
 function getRight(node) {
-    var right = node.right;
+    let right = node.right;
 
     while (isConcatenation(right)) {
         right = right.left;
@@ -67,7 +67,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         return {
             BinaryExpression: function(node) {
@@ -78,8 +78,8 @@ module.exports = {
                 }
 
                 // account for the `foo + "a" + "b"` case
-                var left = getLeft(node);
-                var right = getRight(node);
+                let left = getLeft(node);
+                let right = getRight(node);
 
                 if (astUtils.isStringLiteral(left) &&
                     astUtils.isStringLiteral(right) &&
@@ -87,7 +87,7 @@ module.exports = {
                 ) {
 
                     // move warning location to operator
-                    var operatorToken = sourceCode.getTokenAfter(left);
+                    let operatorToken = sourceCode.getTokenAfter(left);
 
                     while (operatorToken.value !== "+") {
                         operatorToken = sourceCode.getTokenAfter(operatorToken);

@@ -42,13 +42,13 @@ module.exports = {
          * @private
          */
         function checkParams(node) {
-            var variables = context.getDeclaredVariables(node);
+            let variables = context.getDeclaredVariables(node);
 
-            for (var i = 0; i < variables.length; ++i) {
-                var variable = variables[i];
+            for (let i = 0; i < variables.length; ++i) {
+                let variable = variables[i];
 
                 // Checks and reports duplications.
-                var defs = variable.defs.filter(isParameter);
+                let defs = variable.defs.filter(isParameter);
 
                 if (defs.length >= 2) {
                     context.report({

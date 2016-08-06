@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var rules = require("../rules"),
+let rules = require("../rules"),
     loadRules = require("../load-rules");
 
 
@@ -41,7 +41,7 @@ function explodeArray(xs) {
  * @returns {array}      A mixture of the elements of the first and second arrays.
  */
 function combineArrays(arr1, arr2) {
-    var res = [];
+    let res = [];
 
     if (arr1.length === 0) {
         return explodeArray(arr2);
@@ -78,8 +78,8 @@ function combineArrays(arr1, arr2) {
  * @returns {Array[]}          Array of arrays of objects grouped by property
  */
 function groupByProperty(objects) {
-    var groupedObj = objects.reduce(function(accumulator, obj) {
-        var prop = Object.keys(obj)[0];
+    let groupedObj = objects.reduce(function(accumulator, obj) {
+        let prop = Object.keys(obj)[0];
 
         accumulator[prop] = accumulator[prop] ? accumulator[prop].concat(obj) : [obj];
         return accumulator;
@@ -144,7 +144,7 @@ function groupByProperty(objects) {
  * @returns {Object[]}         Combined objects for each combination of input properties and values
  */
 function combinePropertyObjects(objArr1, objArr2) {
-    var res = [];
+    let res = [];
 
     if (objArr1.length === 0) {
         return objArr2;
@@ -154,9 +154,9 @@ function combinePropertyObjects(objArr1, objArr2) {
     }
     objArr1.forEach(function(obj1) {
         objArr2.forEach(function(obj2) {
-            var combinedObj = {};
-            var obj1Props = Object.keys(obj1);
-            var obj2Props = Object.keys(obj2);
+            let combinedObj = {};
+            let obj1Props = Object.keys(obj1);
+            let obj2Props = Object.keys(obj2);
 
             obj1Props.forEach(function(prop1) {
                 combinedObj[prop1] = obj1[prop1];
@@ -229,12 +229,12 @@ RuleConfigSet.prototype = {
     * @returns {void}
     */
     addObject: function(obj) {
-        var objectConfigSet = {
+        let objectConfigSet = {
             objectConfigs: [],
             add: function(property, values) {
-                var optionObj;
+                let optionObj;
 
-                for (var idx = 0; idx < values.length; idx++) {
+                for (let idx = 0; idx < values.length; idx++) {
                     optionObj = {};
                     optionObj[property] = values[idx];
                     this.objectConfigs.push(optionObj);
@@ -274,7 +274,7 @@ RuleConfigSet.prototype = {
 * @returns {array[]}        Valid rule configurations
 */
 function generateConfigsFromSchema(schema) {
-    var configSet = new RuleConfigSet();
+    let configSet = new RuleConfigSet();
 
     if (Array.isArray(schema)) {
         schema.forEach(function(opt) {
@@ -301,11 +301,11 @@ function generateConfigsFromSchema(schema) {
 * @returns {rulesConfig} Hash of rule names and arrays of possible configurations
 */
 function createCoreRuleConfigs() {
-    var ruleList = loadRules();
+    let ruleList = loadRules();
 
     return Object.keys(ruleList).reduce(function(accumulator, id) {
-        var rule = rules.get(id);
-        var schema = (typeof rule === "function") ? rule.schema : rule.meta.schema;
+        let rule = rules.get(id);
+        let schema = (typeof rule === "function") ? rule.schema : rule.meta.schema;
 
         accumulator[id] = generateConfigsFromSchema(schema);
         return accumulator;

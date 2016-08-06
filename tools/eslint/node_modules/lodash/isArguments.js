@@ -27,7 +27,7 @@ var propertyIsEnumerable = objectProto.propertyIsEnumerable;
  * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified,
+ * @returns {boolean} Returns `true` if `value` is an `arguments` object,
  *  else `false`.
  * @example
  *

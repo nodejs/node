@@ -25,7 +25,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode(),
+        let sourceCode = context.getSourceCode(),
             alwaysSpace = context.options[0] === "always";
 
         //--------------------------------------------------------------------------
@@ -38,7 +38,7 @@ module.exports = {
          * @returns {void}
          */
         function checkWhiteSpace(node) {
-            var operator = sourceCode.getFirstToken(node),
+            let operator = sourceCode.getFirstToken(node),
                 nextToken = sourceCode.getTokenAfter(operator),
                 hasWhitespace = sourceCode.isSpaceBetweenTokens(operator, nextToken),
                 type;
@@ -67,7 +67,7 @@ module.exports = {
                         line: operator.loc.end.line,
                         column: operator.loc.end.column
                     },
-                    message: "Expected whitespace after {{type}} operator",
+                    message: "Expected whitespace after {{type}} operator.",
                     data: {
                         type: type
                     },
@@ -82,7 +82,7 @@ module.exports = {
                         line: operator.loc.end.line,
                         column: operator.loc.end.column
                     },
-                    message: "Unexpected whitespace after {{type}} operator",
+                    message: "Unexpected whitespace after {{type}} operator.",
                     data: {
                         type: type
                     },

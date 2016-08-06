@@ -53,9 +53,9 @@ module.exports = {
 
     create: function(context) {
 
-        var OPT_OUT_PATTERN = /[\[\(\/\+\-]/; // One of [(/+-
-        var options = context.options[1];
-        var never = context.options[0] === "never",
+        let OPT_OUT_PATTERN = /[\[\(\/\+\-]/; // One of [(/+-
+        let options = context.options[1];
+        let never = context.options[0] === "never",
             exceptOneLine = options && options.omitLastInOneLineBlock === true,
             sourceCode = context.getSourceCode();
 
@@ -70,7 +70,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node, missing) {
-            var message,
+            let message,
                 fix,
                 lastToken = sourceCode.getLastToken(node),
                 loc = lastToken.loc;
@@ -115,7 +115,7 @@ module.exports = {
          * @returns {boolean} whether the semicolon is unnecessary.
          */
         function isUnnecessarySemicolon(lastToken) {
-            var isDivider, isOptOutToken, lastTokenLine, nextToken, nextTokenLine;
+            let isDivider, isOptOutToken, lastTokenLine, nextToken, nextTokenLine;
 
             if (!isSemicolon(lastToken)) {
                 return false;
@@ -141,13 +141,13 @@ module.exports = {
          * @returns {boolean} whether the node is in a one-liner block statement.
          */
         function isOneLinerBlock(node) {
-            var nextToken = sourceCode.getTokenAfter(node);
+            let nextToken = sourceCode.getTokenAfter(node);
 
             if (!nextToken || nextToken.value !== "}") {
                 return false;
             }
 
-            var parent = node.parent;
+            let parent = node.parent;
 
             return parent && parent.type === "BlockStatement" &&
               parent.loc.start.line === parent.loc.end.line;
@@ -159,7 +159,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForSemicolon(node) {
-            var lastToken = sourceCode.getLastToken(node);
+            let lastToken = sourceCode.getLastToken(node);
 
             if (never) {
                 if (isUnnecessarySemicolon(lastToken)) {
@@ -184,7 +184,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForSemicolonForVariableDeclaration(node) {
-            var ancestors = context.getAncestors(),
+            let ancestors = context.getAncestors(),
                 parentIndex = ancestors.length - 1,
                 parent = ancestors[parentIndex];
 

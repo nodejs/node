@@ -6,7 +6,7 @@ var Set = require('./_Set'),
 var INFINITY = 1 / 0;
 
 /**
- * Creates a set of `values`.
+ * Creates a set object of `values`.
  *
  * @private
  * @param {Array} values The values to add to the set.

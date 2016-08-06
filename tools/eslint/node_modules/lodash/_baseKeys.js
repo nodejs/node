@@ -1,3 +1,5 @@
+var overArg = require('./_overArg');
+
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeKeys = Object.keys;
 
@@ -9,8 +11,6 @@ var nativeKeys = Object.keys;
  * @param {Object} object The object to query.
  * @returns {Array} Returns the array of property names.
  */
-function baseKeys(object) {
-  return nativeKeys(Object(object));
-}
+var baseKeys = overArg(nativeKeys, Object);
 
 module.exports = baseKeys;

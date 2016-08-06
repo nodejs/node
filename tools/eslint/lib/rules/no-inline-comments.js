@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+let astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -22,7 +22,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Will check that comments are not on lines starting with or ending with code
@@ -33,16 +33,16 @@ module.exports = {
         function testCodeAroundComment(node) {
 
             // Get the whole line and cut it off at the start of the comment
-            var startLine = String(sourceCode.lines[node.loc.start.line - 1]);
-            var endLine = String(sourceCode.lines[node.loc.end.line - 1]);
+            let startLine = String(sourceCode.lines[node.loc.start.line - 1]);
+            let endLine = String(sourceCode.lines[node.loc.end.line - 1]);
 
-            var preamble = startLine.slice(0, node.loc.start.column).trim();
+            let preamble = startLine.slice(0, node.loc.start.column).trim();
 
             // Also check after the comment
-            var postamble = endLine.slice(node.loc.end.column).trim();
+            let postamble = endLine.slice(node.loc.end.column).trim();
 
             // Check that this comment isn't an ESLint directive
-            var isDirective = astUtils.isDirectiveComment(node);
+            let isDirective = astUtils.isDirectiveComment(node);
 
             // Should be empty if there was only whitespace around the comment
             if (!isDirective && (preamble || postamble)) {

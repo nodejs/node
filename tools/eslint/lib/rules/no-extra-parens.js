@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils.js");
+let astUtils = require("../ast-utils.js");
 
 module.exports = {
     meta: {
@@ -54,14 +54,14 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
-        var isParenthesised = astUtils.isParenthesised.bind(astUtils, sourceCode);
-        var precedence = astUtils.getPrecedence;
-        var ALL_NODES = context.options[0] !== "functions";
-        var EXCEPT_COND_ASSIGN = ALL_NODES && context.options[1] && context.options[1].conditionalAssign === false;
-        var NESTED_BINARY = ALL_NODES && context.options[1] && context.options[1].nestedBinaryExpressions === false;
-        var EXCEPT_RETURN_ASSIGN = ALL_NODES && context.options[1] && context.options[1].returnAssign === false;
+        let isParenthesised = astUtils.isParenthesised.bind(astUtils, sourceCode);
+        let precedence = astUtils.getPrecedence;
+        let ALL_NODES = context.options[0] !== "functions";
+        let EXCEPT_COND_ASSIGN = ALL_NODES && context.options[1] && context.options[1].conditionalAssign === false;
+        let NESTED_BINARY = ALL_NODES && context.options[1] && context.options[1].nestedBinaryExpressions === false;
+        let EXCEPT_RETURN_ASSIGN = ALL_NODES && context.options[1] && context.options[1].returnAssign === false;
 
         /**
          * Determines if this rule should be enforced for a node given the current configuration.
@@ -80,7 +80,7 @@ module.exports = {
          * @private
          */
         function isParenthesisedTwice(node) {
-            var previousToken = sourceCode.getTokenBefore(node, 1),
+            let previousToken = sourceCode.getTokenBefore(node, 1),
                 nextToken = sourceCode.getTokenAfter(node, 1);
 
             return isParenthesised(node) && previousToken && nextToken &&
@@ -199,7 +199,7 @@ module.exports = {
          * @returns {boolean} `true` if the node is located at the head of ExpressionStatement.
          */
         function isHeadOfExpressionStatement(node) {
-            var parent = node.parent;
+            let parent = node.parent;
 
             while (parent) {
                 switch (parent.type) {
@@ -263,7 +263,7 @@ module.exports = {
          * @private
          */
         function report(node) {
-            var previousToken = sourceCode.getTokenBefore(node);
+            let previousToken = sourceCode.getTokenBefore(node);
 
             context.report(node, previousToken.loc.start, "Gratuitous parentheses around expression.");
         }
@@ -317,7 +317,7 @@ module.exports = {
          */
         function dryBinaryLogical(node) {
             if (!NESTED_BINARY) {
-                var prec = precedence(node);
+                let prec = precedence(node);
 
                 if (hasExcessParens(node.left) && precedence(node.left) >= prec) {
                     report(node.left);
@@ -394,7 +394,7 @@ module.exports = {
             },
 
             ExpressionStatement: function(node) {
-                var firstToken, secondToken, firstTokens;
+                let firstToken, secondToken, firstTokens;
 
                 if (hasExcessParens(node.expression)) {
                     firstTokens = sourceCode.getFirstTokens(node.expression, 2);
@@ -484,7 +484,7 @@ module.exports = {
 
             ObjectExpression: function(node) {
                 [].forEach.call(node.properties, function(e) {
-                    var v = e.value;
+                    let v = e.value;
 
                     if (v && hasExcessParens(v) && precedence(v) >= precedence({type: "AssignmentExpression"})) {
                         report(v);
@@ -493,7 +493,7 @@ module.exports = {
             },
 
             ReturnStatement: function(node) {
-                var returnToken = sourceCode.getFirstToken(node);
+                let returnToken = sourceCode.getFirstToken(node);
 
                 if (isReturnAssignException(node)) {
                     return;
@@ -529,7 +529,7 @@ module.exports = {
             },
 
             ThrowStatement: function(node) {
-                var throwToken = sourceCode.getFirstToken(node);
+                let throwToken = sourceCode.getFirstToken(node);
 
                 if (hasExcessParensNoLineTerminator(throwToken, node.argument)) {
                     report(node.argument);
@@ -562,7 +562,7 @@ module.exports = {
             },
 
             YieldExpression: function(node) {
-                var yieldToken;
+                let yieldToken;
 
                 if (node.argument) {
                     yieldToken = sourceCode.getFirstToken(node);

@@ -32,29 +32,29 @@ module.exports = {
     },
 
     create: function(context) {
-        var int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
+        let int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
 
-        var OPERATORS = [
+        let OPERATORS = [
             "*", "/", "%", "+", "-", "<<", ">>", ">>>", "<", "<=", ">", ">=", "in",
             "instanceof", "==", "!=", "===", "!==", "&", "^", "|", "&&", "||", "=",
             "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "^=", "|=",
             "?", ":", ",", "**"
         ];
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Returns the first token which violates the rule
          * @param {ASTNode} left - The left node of the main node
          * @param {ASTNode} right - The right node of the main node
-         * @returns {object} The violator token or null
+         * @returns {Object} The violator token or null
          * @private
          */
         function getFirstNonSpacedToken(left, right) {
-            var op,
+            let op,
                 tokens = sourceCode.getTokensBetween(left, right, 1);
 
-            for (var i = 1, l = tokens.length - 1; i < l; ++i) {
+            for (let i = 1, l = tokens.length - 1; i < l; ++i) {
                 op = tokens[i];
                 if (
                     op.type === "Punctuator" &&
@@ -70,7 +70,7 @@ module.exports = {
         /**
          * Reports an AST node as a rule violation
          * @param {ASTNode} mainNode - The node to report
-         * @param {object} culpritToken - The token which has a problem
+         * @param {Object} culpritToken - The token which has a problem
          * @returns {void}
          * @private
          */
@@ -80,9 +80,9 @@ module.exports = {
                 loc: culpritToken.loc.start,
                 message: "Infix operators must be spaced.",
                 fix: function(fixer) {
-                    var previousToken = sourceCode.getTokenBefore(culpritToken);
-                    var afterToken = sourceCode.getTokenAfter(culpritToken);
-                    var fixString = "";
+                    let previousToken = sourceCode.getTokenBefore(culpritToken);
+                    let afterToken = sourceCode.getTokenAfter(culpritToken);
+                    let fixString = "";
 
                     if (culpritToken.range[0] - previousToken.range[1] === 0) {
                         fixString = " ";
@@ -106,7 +106,11 @@ module.exports = {
          * @private
          */
         function checkBinary(node) {
-            var nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
+            if (node.left.typeAnnotation) {
+                return;
+            }
+
+            let nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
 
             if (nonSpacedNode) {
                 if (!(int32Hint && sourceCode.getText(node).substr(-2) === "|0")) {
@@ -122,8 +126,8 @@ module.exports = {
          * @private
          */
         function checkConditional(node) {
-            var nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent);
-            var nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate);
+            let nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent);
+            let nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate);
 
             if (nonSpacedConsequesntNode) {
                 report(node, nonSpacedConsequesntNode);
@@ -139,7 +143,7 @@ module.exports = {
          * @private
          */
         function checkVar(node) {
-            var nonSpacedNode;
+            let nonSpacedNode;
 
             if (node.init) {
                 nonSpacedNode = getFirstNonSpacedToken(node.id, node.init);

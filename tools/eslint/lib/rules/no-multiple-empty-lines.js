@@ -45,12 +45,12 @@ module.exports = {
     create: function(context) {
 
         // Use options.max or 2 as default
-        var max = 2,
+        let max = 2,
             maxEOF,
             maxBOF;
 
         // store lines that appear empty but really aren't
-        var notEmpty = [];
+        let notEmpty = [];
 
         if (context.options.length) {
             max = context.options[0].max;
@@ -58,7 +58,7 @@ module.exports = {
             maxBOF = typeof context.options[0].maxBOF !== "undefined" ? context.options[0].maxBOF : max;
         }
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Public
@@ -67,8 +67,8 @@ module.exports = {
         return {
 
             TemplateLiteral: function(node) {
-                var start = node.loc.start.line;
-                var end = node.loc.end.line;
+                let start = node.loc.start.line;
+                let end = node.loc.end.line;
 
                 while (start <= end) {
                     notEmpty.push(start);
@@ -77,7 +77,7 @@ module.exports = {
             },
 
             "Program:exit": function checkBlankLines(node) {
-                var lines = sourceCode.lines,
+                let lines = sourceCode.lines,
                     fullLines = sourceCode.text.match(/.*(\r\n|\r|\n|\u2028|\u2029)/g) || [],
                     firstNonBlankLine = -1,
                     trimmedLines = [],
@@ -98,7 +98,7 @@ module.exports = {
 
                 linesRangeStart.push(0);
                 lines.forEach(function(str, i) {
-                    var length = i < fullLines.length ? fullLines[i].length : 0,
+                    let length = i < fullLines.length ? fullLines[i].length : 0,
                         trimmed = str.trim();
 
                     if ((firstNonBlankLine === -1) && (trimmed !== "")) {

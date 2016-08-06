@@ -21,7 +21,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var stack = [];
+        let stack = [];
 
         /**
          * If the node is a generator function, start counting `yield` keywords.
@@ -45,7 +45,7 @@ module.exports = {
                 return;
             }
 
-            var countYield = stack.pop();
+            let countYield = stack.pop();
 
             if (countYield === 0 && node.body.body.length > 0) {
                 context.report(

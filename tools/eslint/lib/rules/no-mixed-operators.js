@@ -9,43 +9,43 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils.js");
+let astUtils = require("../ast-utils.js");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var ARITHMETIC_OPERATORS = ["+", "-", "*", "/", "%", "**"];
-var BITWISE_OPERATORS = ["&", "|", "^", "~", "<<", ">>", ">>>"];
-var COMPARISON_OPERATORS = ["==", "!=", "===", "!==", ">", ">=", "<", "<="];
-var LOGICAL_OPERATORS = ["&&", "||"];
-var RELATIONAL_OPERATORS = ["in", "instanceof"];
-var ALL_OPERATORS = [].concat(
+let ARITHMETIC_OPERATORS = ["+", "-", "*", "/", "%", "**"];
+let BITWISE_OPERATORS = ["&", "|", "^", "~", "<<", ">>", ">>>"];
+let COMPARISON_OPERATORS = ["==", "!=", "===", "!==", ">", ">=", "<", "<="];
+let LOGICAL_OPERATORS = ["&&", "||"];
+let RELATIONAL_OPERATORS = ["in", "instanceof"];
+let ALL_OPERATORS = [].concat(
     ARITHMETIC_OPERATORS,
     BITWISE_OPERATORS,
     COMPARISON_OPERATORS,
     LOGICAL_OPERATORS,
     RELATIONAL_OPERATORS
 );
-var DEFAULT_GROUPS = [
+let DEFAULT_GROUPS = [
     ARITHMETIC_OPERATORS,
     BITWISE_OPERATORS,
     COMPARISON_OPERATORS,
     LOGICAL_OPERATORS,
     RELATIONAL_OPERATORS
 ];
-var TARGET_NODE_TYPE = /^(?:Binary|Logical)Expression$/;
+let TARGET_NODE_TYPE = /^(?:Binary|Logical)Expression$/;
 
 /**
  * Normalizes options.
  *
- * @param {object|undefined} options - A options object to normalize.
- * @returns {object} Normalized option object.
+ * @param {Object|undefined} options - A options object to normalize.
+ * @returns {Object} Normalized option object.
  */
 function normalizeOptions(options) {
-    var hasGroups = (options && options.groups && options.groups.length > 0);
-    var groups = hasGroups ? options.groups : DEFAULT_GROUPS;
-    var allowSamePrecedence = (options && options.allowSamePrecedence) !== false;
+    let hasGroups = (options && options.groups && options.groups.length > 0);
+    let groups = hasGroups ? options.groups : DEFAULT_GROUPS;
+    let allowSamePrecedence = (options && options.allowSamePrecedence) !== false;
 
     return {
         groups: groups,
@@ -102,8 +102,8 @@ module.exports = {
     },
 
     create: function(context) {
-        var sourceCode = context.getSourceCode();
-        var options = normalizeOptions(context.options[0]);
+        let sourceCode = context.getSourceCode();
+        let options = normalizeOptions(context.options[0]);
 
         /**
          * Checks whether a given node should be ignored by options or not.
@@ -114,8 +114,8 @@ module.exports = {
          * @returns {boolean} `true` if the node should be ignored.
          */
         function shouldIgnore(node) {
-            var a = node;
-            var b = node.parent;
+            let a = node;
+            let b = node.parent;
 
             return (
                 !includesBothInAGroup(options.groups, a.operator, b.operator) ||
@@ -150,7 +150,7 @@ module.exports = {
          * @returns {Token} The operator token of the node.
          */
         function getOperatorToken(node) {
-            var token = sourceCode.getTokenAfter(node.left);
+            let token = sourceCode.getTokenAfter(node.left);
 
             while (token.value === ")") {
                 token = sourceCode.getTokenAfter(token);
@@ -169,10 +169,10 @@ module.exports = {
          * @returns {void}
          */
         function reportBothOperators(node) {
-            var parent = node.parent;
-            var left = (parent.left === node) ? node : parent;
-            var right = (parent.left !== node) ? node : parent;
-            var message =
+            let parent = node.parent;
+            let left = (parent.left === node) ? node : parent;
+            let right = (parent.left !== node) ? node : parent;
+            let message =
                 "Unexpected mix of '" + left.operator + "' and '" +
                 right.operator + "'.";
 

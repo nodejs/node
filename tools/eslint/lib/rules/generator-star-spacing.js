@@ -40,7 +40,7 @@ module.exports = {
 
     create: function(context) {
 
-        var mode = (function(option) {
+        let mode = (function(option) {
             if (!option || typeof option === "string") {
                 return {
                     before: { before: true, after: false },
@@ -52,7 +52,7 @@ module.exports = {
             return option;
         }(context.options[0]));
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         /**
          * Gets `*` token from a given node.
@@ -63,7 +63,7 @@ module.exports = {
          * @returns {Token} `*` token.
          */
         function getStarToken(node) {
-            var token = sourceCode.getFirstToken(node);
+            let token = sourceCode.getFirstToken(node);
 
             while (token.value !== "*") {
                 token = sourceCode.getTokenAfter(token);
@@ -83,11 +83,11 @@ module.exports = {
          */
         function checkSpacing(side, leftToken, rightToken) {
             if (!!(rightToken.range[0] - leftToken.range[1]) !== mode[side]) {
-                var after = leftToken.value === "*";
-                var spaceRequired = mode[side];
-                var node = after ? leftToken : rightToken;
-                var type = spaceRequired ? "Missing" : "Unexpected";
-                var message = type + " space " + side + " *.";
+                let after = leftToken.value === "*";
+                let spaceRequired = mode[side];
+                let node = after ? leftToken : rightToken;
+                let type = spaceRequired ? "Missing" : "Unexpected";
+                let message = type + " space " + side + " *.";
 
                 context.report({
                     node: node,
@@ -111,7 +111,7 @@ module.exports = {
          * @returns {void}
          */
         function checkFunction(node) {
-            var prevToken, starToken, nextToken;
+            let prevToken, starToken, nextToken;
 
             if (!node.generator) {
                 return;

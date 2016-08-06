@@ -196,7 +196,7 @@
     });
   }
   // commonjs
-  else if (typeof module !== "undefined" && module !== null) {
+  else if (typeof module !== "undefined" && module !== null && typeof exports !== "undefined" && module.exports === exports) {
     module.exports = Levenshtein;
   }
   // web worker

@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
+let lodash = require("lodash"),
     astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
@@ -21,7 +21,7 @@ var lodash = require("lodash"),
  * @returns {Array} An array of line numbers.
  */
 function getEmptyLineNums(lines) {
-    var emptyLines = lines.map(function(line, i) {
+    let emptyLines = lines.map(function(line, i) {
         return {
             code: line.trim(),
             num: i + 1
@@ -41,11 +41,11 @@ function getEmptyLineNums(lines) {
  * @returns {Array} An array of line numbers.
  */
 function getCommentLineNums(comments) {
-    var lines = [];
+    let lines = [];
 
     comments.forEach(function(token) {
-        var start = token.loc.start.line;
-        var end = token.loc.end.line;
+        let start = token.loc.start.line;
+        let end = token.loc.end.line;
 
         lines.push(start, end);
     });
@@ -108,7 +108,7 @@ module.exports = {
 
     create: function(context) {
 
-        var options = context.options[0] ? lodash.assign({}, context.options[0]) : {};
+        let options = context.options[0] ? lodash.assign({}, context.options[0]) : {};
 
         options.beforeLineComment = options.beforeLineComment || false;
         options.afterLineComment = options.afterLineComment || false;
@@ -117,9 +117,9 @@ module.exports = {
         options.allowBlockStart = options.allowBlockStart || false;
         options.allowBlockEnd = options.allowBlockEnd || false;
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
-        var lines = sourceCode.lines,
+        let lines = sourceCode.lines,
             numLines = lines.length + 1,
             comments = sourceCode.getAllComments(),
             commentLines = getCommentLineNums(comments),
@@ -141,7 +141,7 @@ module.exports = {
          * @returns {boolean} True if the comment is not alone.
          */
         function codeAroundComment(node) {
-            var token;
+            let token;
 
             token = node;
             do {
@@ -184,8 +184,8 @@ module.exports = {
          * @returns {boolean} True if the comment is at parent start.
          */
         function isCommentAtParentStart(node, nodeType) {
-            var ancestors = context.getAncestors();
-            var parent;
+            let ancestors = context.getAncestors();
+            let parent;
 
             if (ancestors.length) {
                 parent = ancestors.pop();
@@ -202,8 +202,8 @@ module.exports = {
          * @returns {boolean} True if the comment is at parent end.
          */
         function isCommentAtParentEnd(node, nodeType) {
-            var ancestors = context.getAncestors();
-            var parent;
+            let ancestors = context.getAncestors();
+            let parent;
 
             if (ancestors.length) {
                 parent = ancestors.pop();
@@ -271,27 +271,27 @@ module.exports = {
          * Checks if a comment node has lines around it (ignores inline comments)
          * @param {ASTNode} node The Comment node.
          * @param {Object} opts Options to determine the newline.
-         * @param {Boolean} opts.after Should have a newline after this line.
-         * @param {Boolean} opts.before Should have a newline before this line.
+         * @param {boolean} opts.after Should have a newline after this line.
+         * @param {boolean} opts.before Should have a newline before this line.
          * @returns {void}
          */
         function checkForEmptyLine(node, opts) {
-            var after = opts.after,
+            let after = opts.after,
                 before = opts.before;
 
-            var prevLineNum = node.loc.start.line - 1,
+            let prevLineNum = node.loc.start.line - 1,
                 nextLineNum = node.loc.end.line + 1,
                 commentIsNotAlone = codeAroundComment(node);
 
-            var blockStartAllowed = options.allowBlockStart && isCommentAtBlockStart(node),
+            let blockStartAllowed = options.allowBlockStart && isCommentAtBlockStart(node),
                 blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(node),
                 objectStartAllowed = options.allowObjectStart && isCommentAtObjectStart(node),
                 objectEndAllowed = options.allowObjectEnd && isCommentAtObjectEnd(node),
                 arrayStartAllowed = options.allowArrayStart && isCommentAtArrayStart(node),
                 arrayEndAllowed = options.allowArrayEnd && isCommentAtArrayEnd(node);
 
-            var exceptionStartAllowed = blockStartAllowed || objectStartAllowed || arrayStartAllowed;
-            var exceptionEndAllowed = blockEndAllowed || objectEndAllowed || arrayEndAllowed;
+            let exceptionStartAllowed = blockStartAllowed || objectStartAllowed || arrayStartAllowed;
+            let exceptionEndAllowed = blockEndAllowed || objectEndAllowed || arrayEndAllowed;
 
             // ignore top of the file and bottom of the file
             if (prevLineNum < 1) {
@@ -306,14 +306,14 @@ module.exports = {
                 return;
             }
 
-            var previousTokenOrComment = sourceCode.getTokenOrCommentBefore(node);
-            var nextTokenOrComment = sourceCode.getTokenOrCommentAfter(node);
+            let previousTokenOrComment = sourceCode.getTokenOrCommentBefore(node);
+            let nextTokenOrComment = sourceCode.getTokenOrCommentAfter(node);
 
             // check for newline before
             if (!exceptionStartAllowed && before && !lodash.includes(commentAndEmptyLines, prevLineNum) &&
                     !(isCommentNodeType(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, node))) {
-                var lineStart = node.range[0] - node.loc.start.column;
-                var range = [lineStart, lineStart];
+                let lineStart = node.range[0] - node.loc.start.column;
+                let range = [lineStart, lineStart];
 
                 context.report({
                     node: node,

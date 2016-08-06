@@ -5,6 +5,15 @@
 
 "use strict";
 
+/**
+ * Checks whether or not a given variable is a function name.
+ * @param {escope.Variable} variable - A variable to check.
+ * @returns {boolean} `true` if the variable is a function name.
+ */
+function isFunctionName(variable) {
+    return variable && variable.defs[0].type === "FunctionName";
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -25,7 +34,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var never = context.options[0] === "never";
+        let never = context.options[0] === "never";
 
         /**
          * Determines whether the current FunctionExpression node is a get, set, or
@@ -33,7 +42,7 @@ module.exports = {
          * @returns {boolean} True if the node is a get, set, or shorthand method.
          */
         function isObjectOrClassMethod() {
-            var parent = context.getAncestors().pop();
+            let parent = context.getAncestors().pop();
 
             return (parent.type === "MethodDefinition" || (
                 parent.type === "Property" && (
@@ -45,9 +54,16 @@ module.exports = {
         }
 
         return {
-            FunctionExpression: function(node) {
+            "FunctionExpression:exit": function(node) {
 
-                var name = node.id && node.id.name;
+                // Skip recursive functions.
+                let nameVar = context.getDeclaredVariables(node)[0];
+
+                if (isFunctionName(nameVar) && nameVar.references.length > 0) {
+                    return;
+                }
+
+                let name = node.id && node.id.name;
 
                 if (never) {
                     if (name) {

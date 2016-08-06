@@ -96,7 +96,7 @@ tt.incDec.updateContext = function() {
 
 tt._function.updateContext = function(prevType) {
   if (prevType.beforeExpr && prevType !== tt.semi && prevType !== tt._else &&
-      (prevType !== tt.colon || this.curContext() !== types.b_stat))
+      !((prevType === tt.colon || prevType === tt.braceL) && this.curContext() === types.b_stat))
     this.context.push(types.f_expr)
   this.exprAllowed = false
 }

@@ -3,6 +3,7 @@ module.exports = {
   'assignIn': require('./assignIn'),
   'assignInWith': require('./assignInWith'),
   'assignWith': require('./assignWith'),
+  'at': require('./at'),
   'create': require('./create'),
   'defaults': require('./defaults'),
   'defaultsDeep': require('./defaultsDeep'),

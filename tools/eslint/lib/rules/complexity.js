@@ -45,7 +45,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var option = context.options[0],
+        let option = context.options[0],
             THRESHOLD = 20;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
@@ -63,7 +63,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // Using a stack to store complexity (handling nested functions)
-        var fns = [];
+        let fns = [];
 
         /**
          * When parsing a new function, store it in our function stack
@@ -81,7 +81,7 @@ module.exports = {
          * @private
          */
         function endFunction(node) {
-            var complexity = fns.pop(),
+            let complexity = fns.pop(),
                 name = "anonymous";
 
             if (node.id) {

@@ -9,8 +9,8 @@ var arraySome = require('./_arraySome'),
  * @memberOf _
  * @since 4.0.0
  * @category Util
- * @param {...(Array|Array[]|Function|Function[]|Object|Object[]|string|string[])}
- *  [predicates=[_.identity]] The predicates to check.
+ * @param {...(Function|Function[])} [predicates=[_.identity]]
+ *  The predicates to check.
  * @returns {Function} Returns the new function.
  * @example
  *

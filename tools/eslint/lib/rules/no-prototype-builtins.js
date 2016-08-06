@@ -14,11 +14,13 @@ module.exports = {
             description: "disallow calling some `Object.prototype` methods directly on objects",
             category: "Possible Errors",
             recommended: false
-        }
+        },
+
+        schema: []
     },
 
     create: function(context) {
-        var DISALLOWED_PROPS = [
+        let DISALLOWED_PROPS = [
             "hasOwnProperty",
             "isPrototypeOf",
             "propertyIsEnumerable"
@@ -33,7 +35,7 @@ module.exports = {
             if (node.callee.type !== "MemberExpression" || node.callee.computed) {
                 return;
             }
-            var propName = node.callee.property.name;
+            let propName = node.callee.property.name;
 
             if (DISALLOWED_PROPS.indexOf(propName) > -1) {
                 context.report({

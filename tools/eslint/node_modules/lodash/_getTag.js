@@ -3,6 +3,7 @@ var DataView = require('./_DataView'),
     Promise = require('./_Promise'),
     Set = require('./_Set'),
     WeakMap = require('./_WeakMap'),
+    baseGetTag = require('./_baseGetTag'),
     toSource = require('./_toSource');
 
 /** `Object#toString` result references. */
@@ -38,9 +39,7 @@ var dataViewCtorString = toSource(DataView),
  * @param {*} value The value to query.
  * @returns {string} Returns the `toStringTag`.
  */
-function getTag(value) {
-  return objectToString.call(value);
-}
+var getTag = baseGetTag;
 
 // Fallback for data views, maps, sets, and weak maps in IE 11,
 // for data views in Edge, and promises in Node.js.

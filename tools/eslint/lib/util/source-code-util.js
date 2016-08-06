@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
+let lodash = require("lodash"),
     debug = require("debug"),
     CLIEngine = require("../cli-engine"),
     eslint = require("../eslint"),
@@ -31,16 +31,16 @@ debug = debug("eslint:source-code-util");
  */
 function getSourceCodeOfFile(filename, options) {
     debug("getting sourceCode of", filename);
-    var opts = lodash.assign({}, options, { rules: {}});
-    var cli = new CLIEngine(opts);
-    var results = cli.executeOnFiles([filename]);
+    let opts = lodash.assign({}, options, { rules: {}});
+    let cli = new CLIEngine(opts);
+    let results = cli.executeOnFiles([filename]);
 
     if (results && results.results[0] && results.results[0].messages[0] && results.results[0].messages[0].fatal) {
-        var msg = results.results[0].messages[0];
+        let msg = results.results[0].messages[0];
 
         throw new Error("(" + filename + ":" + msg.line + ":" + msg.column + ") " + msg.message);
     }
-    var sourceCode = eslint.getSourceCode();
+    let sourceCode = eslint.getSourceCode();
 
     return sourceCode;
 }
@@ -66,7 +66,7 @@ function getSourceCodeOfFile(filename, options) {
  * @returns {Object}                      The SourceCode of all processed files.
  */
 function getSourceCodeOfFiles(patterns, options, cb) {
-    var sourceCodes = {},
+    let sourceCodes = {},
         filenames,
         opts;
 
@@ -94,7 +94,7 @@ function getSourceCodeOfFiles(patterns, options, cb) {
         debug("Did not find any files matching pattern(s): " + patterns);
     }
     filenames.forEach(function(filename) {
-        var sourceCode = getSourceCodeOfFile(filename, opts);
+        let sourceCode = getSourceCodeOfFile(filename, opts);
 
         if (sourceCode) {
             debug("got sourceCode of", filename);

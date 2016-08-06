@@ -32,7 +32,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options[0] || {},
+        let options = context.options[0] || {},
             checkLoops = options.checkLoops !== false;
 
         //--------------------------------------------------------------------------
@@ -85,13 +85,16 @@ module.exports = {
                     return isConstant(node.left, false) &&
                             isConstant(node.right, false) &&
                             node.operator !== "in";
-                case "LogicalExpression":
-                    var isLeftConstant = isConstant(node.left, inBooleanPosition);
-                    var isRightConstant = isConstant(node.right, inBooleanPosition);
-                    var isLeftShortCircuit = (isLeftConstant && isLogicalIdentity(node.left, node.operator));
-                    var isRightShortCircuit = (isRightConstant && isLogicalIdentity(node.right, node.operator));
+
+                case "LogicalExpression": {
+                    const isLeftConstant = isConstant(node.left, inBooleanPosition);
+                    const isRightConstant = isConstant(node.right, inBooleanPosition);
+                    const isLeftShortCircuit = (isLeftConstant && isLogicalIdentity(node.left, node.operator));
+                    const isRightShortCircuit = (isRightConstant && isLogicalIdentity(node.right, node.operator));
 
                     return (isLeftConstant && isRightConstant) || isLeftShortCircuit || isRightShortCircuit;
+                }
+
                 case "AssignmentExpression":
                     return (node.operator === "=") && isConstant(node.right, inBooleanPosition);
 

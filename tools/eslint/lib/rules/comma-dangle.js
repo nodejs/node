@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
+let lodash = require("lodash");
 
 /**
  * Checks whether or not a trailing comma is allowed in a given node.
@@ -45,9 +45,9 @@ module.exports = {
     },
 
     create: function(context) {
-        var mode = context.options[0];
-        var UNEXPECTED_MESSAGE = "Unexpected trailing comma.";
-        var MISSING_MESSAGE = "Missing trailing comma.";
+        let mode = context.options[0];
+        let UNEXPECTED_MESSAGE = "Unexpected trailing comma.";
+        let MISSING_MESSAGE = "Missing trailing comma.";
 
         /**
          * Checks whether or not a given node is multiline.
@@ -58,13 +58,13 @@ module.exports = {
          * @returns {boolean} `true` if the node is multiline.
          */
         function isMultiline(node) {
-            var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+            let lastItem = lodash.last(node.properties || node.elements || node.specifiers);
 
             if (!lastItem) {
                 return false;
             }
 
-            var sourceCode = context.getSourceCode(),
+            let sourceCode = context.getSourceCode(),
                 penultimateToken = sourceCode.getLastToken(lastItem),
                 lastToken = sourceCode.getTokenAfter(penultimateToken);
 
@@ -91,13 +91,13 @@ module.exports = {
          * @returns {void}
          */
         function forbidTrailingComma(node) {
-            var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+            let lastItem = lodash.last(node.properties || node.elements || node.specifiers);
 
             if (!lastItem || (node.type === "ImportDeclaration" && lastItem.type !== "ImportSpecifier")) {
                 return;
             }
 
-            var sourceCode = context.getSourceCode(),
+            let sourceCode = context.getSourceCode(),
                 trailingToken;
 
             // last item can be surrounded by parentheses for object and array literals
@@ -132,7 +132,7 @@ module.exports = {
          * @returns {void}
          */
         function forceTrailingComma(node) {
-            var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+            let lastItem = lodash.last(node.properties || node.elements || node.specifiers);
 
             if (!lastItem || (node.type === "ImportDeclaration" && lastItem.type !== "ImportSpecifier")) {
                 return;
@@ -142,7 +142,7 @@ module.exports = {
                 return;
             }
 
-            var sourceCode = context.getSourceCode(),
+            let sourceCode = context.getSourceCode(),
                 penultimateToken = lastItem,
                 trailingToken = sourceCode.getTokenAfter(lastItem);
 
@@ -199,7 +199,7 @@ module.exports = {
         }
 
         // Chooses a checking function.
-        var checkForTrailingComma;
+        let checkForTrailingComma;
 
         if (mode === "always") {
             checkForTrailingComma = forceTrailingComma;

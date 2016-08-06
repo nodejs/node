@@ -24,7 +24,7 @@ module.exports = {
         return {
 
             MemberExpression: function(node) {
-                var objectName = node.object.name,
+                let objectName = node.object.name,
                     propertyName = node.property.name;
 
                 if (objectName === "process" && !node.computed && propertyName && propertyName === "env") {

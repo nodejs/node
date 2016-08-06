@@ -9,13 +9,13 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-var INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/;
-var ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
+let INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/;
+let ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
 
 /**
  * Parses and normalizes an option object.
- * @param {object} options - An option object to parse.
- * @returns {object} The parsed and normalized option object.
+ * @param {Object} options - An option object to parse.
+ * @returns {Object} The parsed and normalized option object.
  */
 function parseOptions(options) {
     options = options || {};
@@ -91,7 +91,7 @@ function isNumeric(node) {
  * @returns {ASTNode|null} The first non-numeric item in the BinaryExpression tree or null
  */
 function getNonNumericOperand(node) {
-    var left = node.left,
+    let left = node.left,
         right = node.right;
 
     if (right.type !== "BinaryExpression" && !isNumeric(right)) {
@@ -176,10 +176,10 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = parseOptions(context.options[0]),
+        let options = parseOptions(context.options[0]),
             operatorAllowed = false;
 
-        var sourceCode = context.getSourceCode();
+        let sourceCode = context.getSourceCode();
 
         return {
             UnaryExpression: function(node) {
@@ -220,7 +220,7 @@ module.exports = {
 
                 // 1 * foo
                 operatorAllowed = options.allow.indexOf("*") >= 0;
-                var nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
+                let nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
 
                 if (nonNumericOperand) {
                     context.report(

@@ -50,11 +50,11 @@ module.exports = {
     },
 
     create: function(context) {
-        var options = context.options;
-        var always = options[0] === "always";
-        var asNeeded = !options[0] || options[0] === "as-needed";
-        var never = options[0] === "never";
-        var requireReturnForObjectLiteral = options[1] && options[1].requireReturnForObjectLiteral;
+        let options = context.options;
+        let always = options[0] === "always";
+        let asNeeded = !options[0] || options[0] === "as-needed";
+        let never = options[0] === "never";
+        let requireReturnForObjectLiteral = options[1] && options[1].requireReturnForObjectLiteral;
 
         /**
          * Determines whether a arrow function body needs braces
@@ -62,7 +62,7 @@ module.exports = {
          * @returns {void}
          */
         function validate(node) {
-            var arrowBody = node.body;
+            let arrowBody = node.body;
 
             if (arrowBody.type === "BlockStatement") {
                 if (never) {
@@ -72,7 +72,7 @@ module.exports = {
                         message: "Unexpected block statement surrounding arrow body."
                     });
                 } else {
-                    var blockBody = arrowBody.body;
+                    let blockBody = arrowBody.body;
 
                     if (blockBody.length !== 1) {
                         return;

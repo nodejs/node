@@ -25,8 +25,8 @@ module.exports = {
 
     create: function(context) {
 
-        var ERROR_MESSAGE = "Expected variable declaration to be on a new line.";
-        var always = context.options[0] === "always";
+        let ERROR_MESSAGE = "Expected variable declaration to be on a new line.";
+        let always = context.options[0] === "always";
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -54,8 +54,8 @@ module.exports = {
                 return;
             }
 
-            var declarations = node.declarations;
-            var prev;
+            let declarations = node.declarations;
+            let prev;
 
             declarations.forEach(function(current) {
                 if (prev && prev.loc.end.line === current.loc.start.line) {

@@ -9,27 +9,26 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var Map = require("es6-map"),
-    Traverser = require("../util/traverser"),
+let Traverser = require("../util/traverser"),
     astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var pushAll = Function.apply.bind(Array.prototype.push);
-var SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
-var LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/;
-var GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
-var SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/;
-var DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
+let pushAll = Function.apply.bind(Array.prototype.push);
+let SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
+let LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/;  // for-in/of statements don't have `test` property.
+let GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
+let SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/;
+let DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
 
 /**
- * @typedef {object} LoopConditionInfo
+ * @typedef {Object} LoopConditionInfo
  * @property {escope.Reference} reference - The reference.
  * @property {ASTNode} group - BinaryExpression or ConditionalExpression nodes
  *      that the reference is belonging to.
- * @property {function} isInLoop - The predicate which checks a given reference
+ * @property {Function} isInLoop - The predicate which checks a given reference
  *      is in this loop.
  * @property {boolean} modified - The flag that the reference is modified in
  *      this loop.
@@ -43,7 +42,7 @@ var DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
  */
 function isWriteReference(reference) {
     if (reference.init) {
-        var def = reference.resolved && reference.resolved.defs[0];
+        let def = reference.resolved && reference.resolved.defs[0];
 
         if (!def || def.type !== "Variable" || def.parent.kind !== "var") {
             return false;
@@ -82,8 +81,8 @@ function isUnmodifiedAndNotBelongToGroup(condition) {
  * @returns {boolean} `true` if the reference is inside of the node.
  */
 function isInRange(node, reference) {
-    var or = node.range;
-    var ir = reference.identifier.range;
+    let or = node.range;
+    let ir = reference.identifier.range;
 
     return or[0] <= ir[0] && ir[1] <= or[1];
 }
@@ -96,7 +95,7 @@ function isInRange(node, reference) {
  * @returns {boolean} `true` if the reference is inside of the loop node's
  *      condition.
  */
-var isInLoop = {
+let isInLoop = {
     WhileStatement: isInRange,
     DoWhileStatement: isInRange,
     ForStatement: function(node, reference) {
@@ -115,7 +114,7 @@ var isInLoop = {
  * @returns {boolean} `true` if the node is dynamic.
  */
 function hasDynamicExpressions(root) {
-    var retv = false,
+    let retv = false,
         traverser = new Traverser();
 
     traverser.traverse(root, {
@@ -143,9 +142,9 @@ function toLoopCondition(reference) {
         return null;
     }
 
-    var group = null;
-    var child = reference.identifier;
-    var node = child.parent;
+    let group = null;
+    let child = reference.identifier;
+    let node = child.parent;
 
     while (node) {
         if (SENTINEL_PATTERN.test(node.type)) {
@@ -193,7 +192,7 @@ function toLoopCondition(reference) {
  * @returns {ASTNode|null} The function node or null.
  */
 function getEncloseFunctionDeclaration(reference) {
-    var node = reference.identifier;
+    let node = reference.identifier;
 
     while (node) {
         if (node.type === "FunctionDeclaration") {
@@ -214,13 +213,13 @@ function getEncloseFunctionDeclaration(reference) {
  * @returns {void}
  */
 function updateModifiedFlag(conditions, modifiers) {
-    var funcNode, funcVar;
+    let funcNode, funcVar;
 
-    for (var i = 0; i < conditions.length; ++i) {
-        var condition = conditions[i];
+    for (let i = 0; i < conditions.length; ++i) {
+        let condition = conditions[i];
 
-        for (var j = 0; !condition.modified && j < modifiers.length; ++j) {
-            var modifier = modifiers[j],
+        for (let j = 0; !condition.modified && j < modifiers.length; ++j) {
+            let modifier = modifiers[j],
                 inLoop;
 
             /*
@@ -255,7 +254,7 @@ module.exports = {
     },
 
     create: function(context) {
-        var groupMap = null;
+        let groupMap = null;
 
         /**
          * Reports a given condition info.
@@ -264,7 +263,7 @@ module.exports = {
          * @returns {void}
          */
         function report(condition) {
-            var node = condition.reference.identifier;
+            let node = condition.reference.identifier;
 
             context.report({
                 node: node,
@@ -281,11 +280,11 @@ module.exports = {
          * @returns {void}
          */
         function registerConditionsToGroup(conditions) {
-            for (var i = 0; i < conditions.length; ++i) {
-                var condition = conditions[i];
+            for (let i = 0; i < conditions.length; ++i) {
+                let condition = conditions[i];
 
                 if (condition.group) {
-                    var group = groupMap.get(condition.group);
+                    let group = groupMap.get(condition.group);
 
                     if (!group) {
                         group = [];
@@ -318,7 +317,7 @@ module.exports = {
         function checkReferences(variable) {
 
             // Gets references that exist in loop conditions.
-            var conditions = variable
+            let conditions = variable
                 .references
                 .map(toLoopCondition)
                 .filter(Boolean);
@@ -331,7 +330,7 @@ module.exports = {
             registerConditionsToGroup(conditions);
 
             // Check the conditions are modified.
-            var modifiers = variable.references.filter(isWriteReference);
+            let modifiers = variable.references.filter(isWriteReference);
 
             if (modifiers.length > 0) {
                 updateModifiedFlag(conditions, modifiers);
@@ -348,11 +347,11 @@ module.exports = {
 
         return {
             "Program:exit": function() {
-                var queue = [context.getScope()];
+                let queue = [context.getScope()];
 
                 groupMap = new Map();
 
-                var scope;
+                let scope;
 
                 while ((scope = queue.pop())) {
                     pushAll(queue, scope.childScopes);

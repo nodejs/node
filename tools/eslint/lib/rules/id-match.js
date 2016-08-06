@@ -38,16 +38,16 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        var pattern = context.options[0] || "^.+$",
+        let pattern = context.options[0] || "^.+$",
             regexp = new RegExp(pattern);
 
-        var options = context.options[1] || {},
+        let options = context.options[1] || {},
             properties = !!options.properties,
             onlyDeclarations = !!options.onlyDeclarations;
 
         /**
          * Checks if a string matches the provided pattern
-         * @param {String} name The string to check.
+         * @param {string} name The string to check.
          * @returns {boolean} if the string is a match
          * @private
          */
@@ -59,7 +59,7 @@ module.exports = {
          * Verifies if we should report an error or not based on the effective
          * parent node and the identifier name.
          * @param {ASTNode} effectiveParent The effective parent node of the node to be reported
-         * @param {String} name The identifier name of the identifier node
+         * @param {string} name The identifier name of the identifier node
          * @returns {boolean} whether an error should be reported or not
          */
         function shouldReport(effectiveParent, name) {
@@ -84,7 +84,7 @@ module.exports = {
         return {
 
             Identifier: function(node) {
-                var name = node.name,
+                let name = node.name,
                     parent = node.parent,
                     effectiveParent = (parent.type === "MemberExpression") ? parent.parent : parent;
 
@@ -122,7 +122,7 @@ module.exports = {
                     }
 
                 } else {
-                    var isDeclaration = effectiveParent.type === "FunctionDeclaration" || effectiveParent.type === "VariableDeclarator";
+                    let isDeclaration = effectiveParent.type === "FunctionDeclaration" || effectiveParent.type === "VariableDeclarator";
 
                     if (onlyDeclarations && !isDeclaration) {
                         return;

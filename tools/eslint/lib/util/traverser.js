@@ -8,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var estraverse = require("estraverse");
+let estraverse = require("estraverse");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var KEY_BLACKLIST = [
+let KEY_BLACKLIST = [
     "parent",
     "leadingComments",
     "trailingComments"
@@ -27,7 +27,7 @@ var KEY_BLACKLIST = [
  */
 function Traverser() {
 
-    var controller = Object.create(new estraverse.Controller()),
+    let controller = Object.create(new estraverse.Controller()),
         originalTraverse = controller.traverse;
 
     // intercept call to traverse() and add the fallback key to the visitor

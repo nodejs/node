@@ -39,23 +39,23 @@ function alignRight(str, len, ch) {
 // Module definition
 //------------------------------------------------------------------------------
 
-var enabled = !!process.env.TIMING;
+let enabled = !!process.env.TIMING;
 
-var HEADERS = ["Rule", "Time (ms)", "Relative"];
-var ALIGN = [alignLeft, alignRight, alignRight];
+let HEADERS = ["Rule", "Time (ms)", "Relative"];
+let ALIGN = [alignLeft, alignRight, alignRight];
 
 /* istanbul ignore next */
 /**
  * display the data
- * @param {object} data Data object to be displayed
+ * @param {Object} data Data object to be displayed
  * @returns {string} modified string
  * @private
  */
 function display(data) {
-    var total = 0;
-    var rows = Object.keys(data)
+    let total = 0;
+    let rows = Object.keys(data)
         .map(function(key) {
-            var time = data[key];
+            let time = data[key];
 
             total += time;
             return [key, time];
@@ -72,10 +72,10 @@ function display(data) {
 
     rows.unshift(HEADERS);
 
-    var widths = [];
+    let widths = [];
 
     rows.forEach(function(row) {
-        var len = row.length,
+        let len = row.length,
             i,
             n;
 
@@ -87,7 +87,7 @@ function display(data) {
         }
     });
 
-    var table = rows.map(function(row) {
+    let table = rows.map(function(row) {
         return row.map(function(cell, index) {
             return ALIGN[index](cell, widths[index]);
         }).join(" | ");
@@ -107,7 +107,7 @@ function display(data) {
 /* istanbul ignore next */
 module.exports = (function() {
 
-    var data = Object.create(null);
+    let data = Object.create(null);
 
     /**
      * Time the run
@@ -122,7 +122,7 @@ module.exports = (function() {
         }
 
         return function() {
-            var t = process.hrtime();
+            let t = process.hrtime();
 
             fn.apply(null, Array.prototype.slice.call(arguments));
             t = process.hrtime(t);
