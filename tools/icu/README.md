@@ -1,13 +1,11 @@
-Notes about the icu directory.
-===
+# Notes about the icu directory.
 
-How to upgrade ICU
----
+## How to upgrade ICU
 
 - Make sure your node workspace is clean (clean `git status`) should be sufficient.
 - Configure Node with the specific [ICU version](http://icu-project.org/download) you want to upgrade to, for example:
 
-```
+```shell
 ./configure \
     --with-intl=small-icu \
     --with-icu-source=http://download.icu-project.org/files/icu4c/56.1/icu4c-56_1-src.zip
@@ -21,7 +19,7 @@ version specific stuff)
 
 - Verify the node build works
 
-```
+```shell
 make test-ci
 ```
 
@@ -36,7 +34,7 @@ Also running
 
 - Now, copy `deps/icu` over to `deps/icu-small`
 
-```
+```shell
 python tools/icu/shrink-icu-src.py
 ```
 
@@ -44,7 +42,7 @@ python tools/icu/shrink-icu-src.py
 
 (TODO: fix this when these options become default)
 
-```
+```shell
 ./configure --with-intl=small-icu --with-icu-source=deps/icu-small
 make
 ```
@@ -64,7 +62,7 @@ This is a big commit, so make this a separate commit from other changes.
 the `configure_intl()` function. It should match the ICU URL used in the
 first step.  When this is done, the following should build with full ICU.
 
-```
+```shell
 # clean up
 rm -rf out deps/icu deps/icu4c*
 ./configure --with-intl=full-icu --download=all
@@ -76,8 +74,7 @@ make test-ci
 
 -----
 
-Notes about these tools
----
+## Notes about these tools
 
 The files in this directory were written for the node.js effort. It's
 the intent of their author (Steven R. Loomis / srl295) to merge them
