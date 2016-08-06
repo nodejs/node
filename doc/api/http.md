@@ -1521,7 +1521,7 @@ There are a few special headers that should be noted.
 [`response.writeContinue()`]: #http_response_writecontinue
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
-[`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
+[`socket.setNoDelay()`]: net.html#net_socket_setnodelay_enable
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
 [`TypeError`]: errors.html#errors_class_typeerror
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
