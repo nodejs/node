@@ -1,0 +1,113 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "remark-cli",
+        "scope": null,
+        "escapedName": "remark-cli",
+        "name": "remark-cli",
+        "rawSpec": "",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/home/chalker/repo/node/tools/remark-cli"
+    ]
+  ],
+  "_from": "remark-cli@latest",
+  "_id": "remark-cli@2.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/remark-cli",
+  "_nodeVersion": "6.3.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/remark-cli-2.0.0.tgz_1471804628129_0.35986613971181214"
+  },
+  "_npmUser": {
+    "name": "wooorm",
+    "email": "tituswormer@gmail.com"
+  },
+  "_npmVersion": "3.10.3",
+  "_phantomChildren": {
+    "load-plugin": "2.0.0",
+    "remark-parse": "2.0.1",
+    "remark-stringify": "2.0.0",
+    "unified": "5.0.0"
+  },
+  "_requested": {
+    "raw": "remark-cli",
+    "scope": null,
+    "escapedName": "remark-cli",
+    "name": "remark-cli",
+    "rawSpec": "",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER"
+  ],
+  "_resolved": "https://registry.npmjs.org/remark-cli/-/remark-cli-2.0.0.tgz",
+  "_shasum": "04dd4a766052a1162a397de9fa648369d919b1e2",
+  "_shrinkwrap": null,
+  "_spec": "remark-cli",
+  "_where": "/home/chalker/repo/node/tools/remark-cli",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bin": {
+    "remark": "cli.js"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/remark/issues"
+  },
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {
+    "markdown-extensions": "^1.1.0",
+    "remark": "^6.0.0",
+    "unified-args": "^2.0.0"
+  },
+  "description": "CLI to process markdown with remark using plugins",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "04dd4a766052a1162a397de9fa648369d919b1e2",
+    "tarball": "https://registry.npmjs.org/remark-cli/-/remark-cli-2.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.11.0"
+  },
+  "files": [
+    "cli.js"
+  ],
+  "homepage": "http://remark.js.org",
+  "keywords": [
+    "markdown",
+    "remark",
+    "cli",
+    "bin"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "wooorm",
+      "email": "tituswormer@gmail.com"
+    }
+  ],
+  "name": "remark-cli",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wooorm/remark/tree/master/packages/remark-cli"
+  },
+  "scripts": {},
+  "version": "2.0.0"
+}

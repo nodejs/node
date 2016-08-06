@@ -5,4 +5,5 @@ test/fixtures
 test/disabled
 test/tmp*/
 tools/eslint
+tools/remark-cli
 node_modules
