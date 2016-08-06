@@ -23,7 +23,6 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
-using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -41,7 +40,6 @@ using v8::String;
 using v8::TryCatch;
 using v8::Uint8Array;
 using v8::UnboundScript;
-using v8::V8;
 using v8::Value;
 using v8::WeakCallbackInfo;
 

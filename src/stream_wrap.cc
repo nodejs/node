@@ -30,7 +30,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::True;
 using v8::Value;
 
 
