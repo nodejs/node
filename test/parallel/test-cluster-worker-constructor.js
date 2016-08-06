@@ -9,6 +9,7 @@ var worker;
 
 worker = new cluster.Worker();
 assert.equal(worker.suicide, undefined);
+assert.equal(worker.exitedAfterDisconnect, undefined);
 assert.equal(worker.state, 'none');
 assert.equal(worker.id, 0);
 assert.equal(worker.process, undefined);
@@ -19,6 +20,7 @@ worker = new cluster.Worker({
   process: process
 });
 assert.equal(worker.suicide, undefined);
+assert.equal(worker.exitedAfterDisconnect, undefined);
 assert.equal(worker.state, 'online');
 assert.equal(worker.id, 3);
 assert.equal(worker.process, process);
