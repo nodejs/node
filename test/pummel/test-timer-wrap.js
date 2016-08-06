@@ -6,7 +6,7 @@ var kOnTimeout = Timer.kOnTimeout;
 
 var t = new Timer();
 
-t.start(1000, 0);
+t.start(1000);
 
 t[kOnTimeout] = common.mustCall(function() {
   console.log('timeout');
