@@ -37,7 +37,7 @@ var server = module.exports = http.createServer(function(req, res) {
   var status = 200;
 
   var n, i;
-  if (command == 'bytes') {
+  if (command === 'bytes') {
     n = ~~arg;
     if (n <= 0)
       throw new Error('bytes called with n <= 0');
@@ -46,7 +46,7 @@ var server = module.exports = http.createServer(function(req, res) {
     }
     body = storedBytes[n];
 
-  } else if (command == 'buffer') {
+  } else if (command === 'buffer') {
     n = ~~arg;
     if (n <= 0)
       throw new Error('buffer called with n <= 0');
@@ -58,7 +58,7 @@ var server = module.exports = http.createServer(function(req, res) {
     }
     body = storedBuffer[n];
 
-  } else if (command == 'unicode') {
+  } else if (command === 'unicode') {
     n = ~~arg;
     if (n <= 0)
       throw new Error('unicode called with n <= 0');
@@ -67,14 +67,14 @@ var server = module.exports = http.createServer(function(req, res) {
     }
     body = storedUnicode[n];
 
-  } else if (command == 'quit') {
+  } else if (command === 'quit') {
     res.connection.server.close();
     body = 'quitting';
 
-  } else if (command == 'fixed') {
+  } else if (command === 'fixed') {
     body = fixed;
 
-  } else if (command == 'echo') {
+  } else if (command === 'echo') {
     res.writeHead(200, { 'Content-Type': 'text/plain',
                          'Transfer-Encoding': 'chunked' });
     req.pipe(res);

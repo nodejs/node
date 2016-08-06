@@ -50,7 +50,7 @@ function main(conf) {
 }
 
 function buildString(str, times) {
-  if (times == 1) return str;
+  if (times === 1) return str;
 
   return str + buildString(str, times - 1);
 }

@@ -37,7 +37,7 @@ function server() {
   var socket = dgram.createSocket('udp4');
 
   function onsend() {
-    if (sent++ % num == 0)
+    if (sent++ % num === 0)
       for (var i = 0; i < num; i++)
         socket.send(chunk, PORT, '127.0.0.1', onsend);
   }
