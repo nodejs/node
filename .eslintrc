@@ -58,7 +58,7 @@ rules:
   brace-style: [2, 1tbs, {allowSingleLine: true}]
   comma-spacing: 2
   eol-last: 2
-  indent: [2, 2, {SwitchCase: 1}]
+  indent: [2, 2, {SwitchCase: 1, MemberExpression: 1}]
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
   linebreak-style: [2, unix]
