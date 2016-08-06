@@ -74,8 +74,7 @@ class TimerWrap : public HandleWrap {
     CHECK(HandleWrap::IsAlive(wrap));
 
     int64_t timeout = args[0]->IntegerValue();
-    int64_t repeat = args[1]->IntegerValue();
-    int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
+    int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, 0);
     args.GetReturnValue().Set(err);
   }
 
