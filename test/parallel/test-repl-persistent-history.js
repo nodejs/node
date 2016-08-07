@@ -189,7 +189,6 @@ const tests = [
 ];
 const numtests = tests.length;
 
-
 var testsNotRan = tests.length;
 
 process.on('beforeExit', () =>
@@ -209,7 +208,8 @@ function cleanupTmpFile() {
 
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
-  .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+  .pipe(fs.createWriteStream(historyPath)).on('unpipe',
+  common.mustCall(runTest));
 
 function runTest(assertCleaned) {
   const opts = tests.shift();
@@ -247,7 +247,7 @@ function runTest(assertCleaned) {
         try {
           assert.strictEqual(output, expected.shift());
         } catch (err) {
-          console.error(`Failed test # ${numtests - tests.length}`);
+          console.error(`Failed test # ${numtests - tests.length}. ${err}`);
           throw err;
         }
         next();
@@ -262,16 +262,9 @@ function runTest(assertCleaned) {
       throw err;
     }
 
-    repl.once('close', () => {
-      if (repl._flushing) {
-        repl.once('flushHistory', onClose);
-        return;
-      }
+    repl.once('exit', common.mustCall(onExit));
 
-      onClose();
-    });
-
-    function onClose() {
+    function onExit() {
       const cleaned = after ? after() : cleanupTmpFile();
 
       try {
