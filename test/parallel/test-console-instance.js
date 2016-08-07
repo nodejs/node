@@ -64,3 +64,8 @@ out.write = function(d) {
 };
 [1, 2, 3].forEach(c.log);
 assert.equal(3, called);
+
+// Console() detects if it is called without `new` keyword
+assert.doesNotThrow(function() {
+  Console(out, err);
+});
