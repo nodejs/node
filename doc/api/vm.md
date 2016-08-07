@@ -321,7 +321,7 @@ added: v0.3.1
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
 
-The `vm.runInContext()` first contextifies the given `sandbox` object (or
+The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
 creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
 within the context of the created context, then returns the result. Running code
 does not have access to the local scope.
