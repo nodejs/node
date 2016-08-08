@@ -27,9 +27,18 @@ assert.equal(net.isIP('::2001:252:1:255.255.255.255.76'), 0);
 assert.equal(net.isIP('::anything'), 0);
 assert.equal(net.isIP('::1'), 6);
 assert.equal(net.isIP('::'), 6);
+assert.equal(net.isIP('::%anything'), 6);
+assert.equal(net.isIP('0.0.0.0%anything'), 0);
+assert.equal(net.isIP('0.0.0.0%1'), 0);
+assert.equal(net.isIP('::1%anything'), 6);
+assert.equal(net.isIP('::1%1'), 6);
+assert.equal(net.isIP('::%0'), 6);
+
 assert.equal(net.isIP('0000:0000:0000:0000:0000:0000:12345:0000'), 0);
 assert.equal(net.isIP('0'), 0);
 assert.equal(net.isIP(), 0);
+assert.equal(net.isIP('1st arg', '2nd arg'), 0);
+assert.equal(net.isIP('::', '2nd arg'), 6);
 assert.equal(net.isIP(''), 0);
 assert.equal(net.isIP(null), 0);
 assert.equal(net.isIP(123), 0);
