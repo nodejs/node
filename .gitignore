@@ -1,3 +1,19 @@
+# Whitelist dotfiles
+.*
+!deps/**/.*
+!test/fixtures/**/.*
+!tools/eslint/**/.*
+!tools/doc/node_modules/**/.*
+!.editorconfig
+!.eslintignore
+!.eslintrc
+!.gitattributes
+!.github
+!.gitignore
+!.gitkeep
+!.mailmap
+!.remarkrc
+
 core
 vgcore.*
 v8*.log
@@ -16,8 +32,6 @@ node
 node_g
 *.swp
 .benchmark_reports
-/.project
-/.cproject
 icu_config.gypi
 .eslintcache
 
