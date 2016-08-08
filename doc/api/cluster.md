@@ -516,7 +516,7 @@ The `addressType` is one of:
 * `message` {Object}
 * `handle` {undefined|Object}
 
-Emitted when any worker receives a message.
+Emitted when the cluster master receives a message from any worker.
 
 See [child_process event: 'message'][].
 
