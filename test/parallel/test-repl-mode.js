@@ -21,14 +21,14 @@ function testSloppyMode() {
 
   cli.input.emit('data', `
     x = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), '> 3\n> ');
+  `.trim() + '\r\n');
+  assert.equal(cli.output.accumulator.join(''), '> 3\r\n> ');
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', `
     let y = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), 'undefined\n> ');
+  `.trim() + '\r\n');
+  assert.equal(cli.output.accumulator.join(''), 'undefined\r\n> ');
 }
 
 function testStrictMode() {
@@ -36,15 +36,15 @@ function testStrictMode() {
 
   cli.input.emit('data', `
     x = 3
-  `.trim() + '\n');
+  `.trim() + '\r\n');
   assert.ok(/ReferenceError: x is not defined/.test(
       cli.output.accumulator.join('')));
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', `
     let y = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), 'undefined\n> ');
+  `.trim() + '\r\n');
+  assert.equal(cli.output.accumulator.join(''), 'undefined\r\n> ');
 }
 
 function testAutoMode() {
@@ -52,14 +52,14 @@ function testAutoMode() {
 
   cli.input.emit('data', `
     x = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), '> 3\n> ');
+  `.trim() + '\r\n');
+  assert.equal(cli.output.accumulator.join(''), '> 3\r\n> ');
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', `
     let y = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), 'undefined\n> ');
+  `.trim() + '\r\n');
+  assert.equal(cli.output.accumulator.join(''), 'undefined\r\n> ');
 }
 
 function initRepl(mode) {
