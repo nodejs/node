@@ -305,6 +305,7 @@ class V8NodeInspector : public blink::V8InspectorClient {
       return;
     terminated_ = false;
     running_nested_loop_ = true;
+    agent_->DispatchMessages();
     do {
       {
         Mutex::ScopedLock scoped_lock(agent_->pause_lock_);
