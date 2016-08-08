@@ -30,7 +30,6 @@
 October 2016.
 
 <a id="6.3.1"></a>
-
 ## 2016-07-21, Version 6.3.1 (Current), @evanlucas
 
 ### Notable changes
