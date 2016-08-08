@@ -731,8 +731,11 @@ TEST_F(InspectorSocketTest, GetThenHandshake) {
   manual_inspector_socket_cleanup();
 }
 
-static void WriteBeforeHandshake_close_cb(uv_handle_t* handle) {
-  *(static_cast<bool *>(handle->data)) = true;
+static void WriteBeforeHandshake_inspector_delegate(inspector_handshake_event e,
+                                                    const std::string& path,
+                                                    bool* cont) {
+  if (e == kInspectorHandshakeFailed)
+    inspector_closed = 1;
 }
 
 TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
@@ -743,11 +746,10 @@ TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
   inspector_write(&inspector, MESSAGE1, sizeof(MESSAGE1) - 1);
   inspector_write(&inspector, MESSAGE2, sizeof(MESSAGE2) - 1);
   expect_on_client(EXPECTED, sizeof(EXPECTED) - 1);
-  bool flag = false;
-  client_socket.data = &flag;
-  uv_close(reinterpret_cast<uv_handle_t*>(&client_socket),
-           WriteBeforeHandshake_close_cb);
-  SPIN_WHILE(!flag);
+  inspector_closed = 0;
+  handshake_delegate = WriteBeforeHandshake_inspector_delegate;
+  really_close(reinterpret_cast<uv_handle_t*>(&client_socket));
+  SPIN_WHILE(inspector_closed == 0);
 }
 
 static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
