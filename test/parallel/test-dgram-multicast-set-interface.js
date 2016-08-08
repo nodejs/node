@@ -8,7 +8,6 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // Explicitly request default system selection
     socket.setMulticastInterface('0.0.0.0');
 
@@ -21,7 +20,6 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     socket.close(common.mustCall(() => {
       assert.throws(() => { socket.setMulticastInterface('0.0.0.0'); },
                     /Not running/);
@@ -34,11 +32,10 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // Try to set with an invalid interfaceAddress (wrong address class)
-    assert.throws(common.mustCall(() => {
+    assert.throws(() => {
       socket.setMulticastInterface('::');
-    }));
+    });
 
     socket.close();
   }));
@@ -49,12 +46,10 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // Try to set with an invalid interfaceAddress (wrong Type)
-    assert.throws(common.mustCall(() => {
+    assert.throws(() => {
       socket.setMulticastInterface(1);
-    }),
-    /TypeError/);
+    }, /TypeError/);
 
     socket.close();
   }));
@@ -65,11 +60,10 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // Try to set with an invalid interfaceAddress (non-unicast)
-    assert.throws(common.mustCall(() => {
+    assert.throws(() => {
       socket.setMulticastInterface('224.0.0.2');
-    }));
+    });
 
     socket.close();
   }));
@@ -80,12 +74,10 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // Try to set with an invalid interfaceAddress ('undefined')
-    assert.throws(common.mustCall(() => {
+    assert.throws(() => {
       socket.setMulticastInterface(String(undefined));
-    }),
-    /EINVAL/);
+    }, /EINVAL/);
 
     socket.close();
   }));
@@ -96,12 +88,10 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // Try to set with an invalid interfaceAddress ('')
-    assert.throws(common.mustCall(() => {
+    assert.throws(() => {
       socket.setMulticastInterface('');
-    }),
-    /EINVAL/);
+    }, /EINVAL/);
 
     socket.close();
   }));
@@ -112,7 +102,6 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-
     // An invalid Scope gets turned into #0 (default selection)
     socket.setMulticastInterface('::%%');
 

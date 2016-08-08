@@ -252,8 +252,7 @@ void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
 
   const char* iface_cstr = *iface;
 
-  int err = uv_udp_set_multicast_interface(&wrap->handle_,
-                                           iface_cstr);
+  int err = uv_udp_set_multicast_interface(&wrap->handle_, iface_cstr);
   args.GetReturnValue().Set(err);
 }
 

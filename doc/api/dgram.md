@@ -377,14 +377,29 @@ added: REPLACEME
 
 * `multicastInterface` {String}
 
-Sets the default outgoing multicast interface of the socket to a chosen interface or back to system interface selection. The `multicastInterface` must be a valid string representation of an IP from the socket's family.
+*Note- All references to scope in this section are refering to
+[IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
+with a scope index is written as `'IP%scope'` where scope is an interface name or
+interface number.*
 
-For IPv4 sockets, this should be the IP configured for the desired physical interface. All packets sent to multicast on the socket will be sent on the interface determined by the most recent successful use of this call.
+Sets the default outgoing multicast interface of the socket to a chosen
+interface or back to system interface selection. The `multicastInterface` must
+be a valid string representation of an IP from the socket's family.
 
-For IPv6 sockets, `multicastInterface` should include a Scope ("IP%Scope") to indicate the interface as in the examples that follow. In IPv6, individual send calls can also use explicit Scope in addresses, so only packets sent to a multicast address without specifying an explicit Scope are affected by the most recent successful use of this call.
+For IPv4 sockets, this should be the IP configured for the desired physical
+interface. All packets sent to multicast on the socket will be sent on the
+interface determined by the most recent successful use of this call.
+
+For IPv6 sockets, `multicastInterface` should include a scope to indicate the
+interface as in the examples that follow. In IPv6, individual `send` calls can
+also use explicit scope in addresses, so only packets sent to a multicast
+address without specifying an explicit scope are affected by the most recent
+successful use of this call.
  
 #### Examples: IPv6 Outgoing Multicast Interface
-On most systems, where Scope format uses the interface name:
+
+On most systems, where scope format uses the interface name:
+
 ```js
 const socket = dgram.createSocket('udp6');
 
@@ -393,7 +408,7 @@ socket.bind(1234, () => {
 });
 ```
 
-On windows, where Scope format uses an interface number:
+On Windows, where scope format uses an interface number:
 
 ```js
 const socket = dgram.createSocket('udp6');
@@ -415,15 +430,22 @@ socket.bind(1234, () => {
 
 #### Call Results
 
-A call on a socket that is not ready to send or no longer open may cause a *Not running* Error Exception.
+A call on a socket that is not ready to send or no longer open may throw a *Not
+running* [`Error`][].
 
-If `multicastInterface` can not be parsed into an IP then an *EINVAL* Error Exception is thrown.
+If `multicastInterface` can not be parsed into an IP then an *EINVAL*
+[`System Error`][] is thrown.
 
-On IPv4, if `multicastInterface` is a valid Address but does not match any interface, or if the address does not match the family then system provided errors such as *EADDRNOTAVAIL* or *EPROTONOSUP* are indicated in the Error Exception.
+On IPv4, if `multicastInterface` is a valid address but does not match any
+interface, or if the address does not match the family then
+a [`System Error`][] such as `EADDRNOTAVAIL` or `EPROTONOSUP` is thrown.
 
-On IPv6 most errors with specifying or omiting Scope will result in the socket continuing to use (or returning to) the system's default interface selection. 
+On IPv6, most errors with specifying or omiting scope will result in the socket
+continuing to use (or returning to) the system's default interface selection. 
 
-A socket's Address Families' ANY address (IPv4 "0.0.0.0" or IPv6 "::") can be used to return control of the sockets default outgoing interface to the system for future multicast packets.
+A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`) can be
+used to return control of the sockets default outgoing interface to the system
+for future multicast packets.
 
 
 ### socket.setMulticastLoopback(flag)
@@ -568,4 +590,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`]: #dgram_socket_address
 [`socket.address().port`]: #dgram_socket_address
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback
+[`System Error`]: errors.html#errors_class_system_error
 [byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
+[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Link-local_addresses_and_zone_indices
+[RFC 4007]: https://tools.ietf.org/html/rfc4007 
