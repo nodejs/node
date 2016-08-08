@@ -89,6 +89,10 @@ tools/faketime
 icu_config.gypi
 test.tap
 
+# JetBrains IDEs: IntelliJ, AppCode, CLion, Android Studio, Webstorm and others
+# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+.idea/
+
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
