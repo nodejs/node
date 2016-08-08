@@ -17,9 +17,10 @@ assert.strictEqual(
 
 assert.strictEqual(
     inspect(SIMD.Bool8x16()),
-    'Bool8x16 [\n  false,\n  false,\n  false,\n  false,\n  false,\n' +
-    '  false,\n  false,\n  false,\n  false,\n  false,\n  false,\n' +
-    '  false,\n  false,\n  false,\n  false,\n  false ]');
+    'Bool8x16 [\r\n  false,\r\n  false,\r\n  false,\r\n  false,\r\n' +
+    '  false,\r\n  false,\r\n  false,\r\n  false,\r\n  false,\r\n' +
+    '  false,\r\n  false,\r\n  false,\r\n  false,\r\n  false,\r\n' +
+    '  false,\r\n  false ]');
 
 assert.strictEqual(
     inspect(SIMD.Bool32x4()),
