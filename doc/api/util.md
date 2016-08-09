@@ -271,6 +271,23 @@ util.inspect(obj);
   // "{ bar: 'baz' }"
 ```
 
+### util.inspect.defaultOptions
+
+The `defaultOptions` value allows customization of the default options used by
+`util.inspect`. This is useful for functions like `console.log` or
+`util.format` which implicitly call into `util.inspect`. It shall be set to an
+object containing one or more valid [`util.inspect()`][] options. Setting
+option properties directly is also supported.
+
+```js
+const util = require('util');
+const arr = Array(101);
+
+console.log(arr); // logs the truncated array
+util.inspect.defaultOptions.maxArrayLength = null;
+console.log(arr); // logs the full array
+```
+
 ## Deprecated APIs
 
 The following APIs have been deprecated and should no longer be used. Existing
@@ -662,6 +679,7 @@ similar built-in functionality through [`Object.assign()`].
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
+[`util.inspect()`]: #util_util_inspect_object_options
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [`Error`]: errors.html#errors_class_error
 [`console.log()`]: console.html#console_console_log_data
