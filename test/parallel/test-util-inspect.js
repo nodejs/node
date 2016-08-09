@@ -43,6 +43,13 @@ assert.equal(util.inspect(Object.create({},
   '{ visible: 1 }'
 );
 
+assert(/Object/.test(
+  util.inspect({a: {a: {a: {a: {}}}}}, undefined, undefined, true)
+));
+assert(!/Object/.test(
+  util.inspect({a: {a: {a: {a: {}}}}}, undefined, null, true)
+));
+
 for (const showHidden of [true, false]) {
   const ab = new ArrayBuffer(4);
   const dv = new DataView(ab, 1, 2);
@@ -722,4 +729,38 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
   assert.strictEqual(oneLine, '{ foo: \'abc\', bar: \'xyz\' }');
   assert.strictEqual(oneLine, util.inspect(obj, {breakLength: breakpoint + 1}));
   assert.strictEqual(twoLines, '{ foo: \'abc\',\n  bar: \'xyz\' }');
+}
+
+// util.inspect.defaultOptions tests
+{
+  const arr = Array(101);
+  const obj = {a: {a: {a: {a: 1}}}};
+
+  const oldOptions = Object.assign({}, util.inspect.defaultOptions);
+
+  // Set single option through property assignment
+  util.inspect.defaultOptions.maxArrayLength = null;
+  assert(!/1 more item/.test(util.inspect(arr)));
+  util.inspect.defaultOptions.maxArrayLength = oldOptions.maxArrayLength;
+  assert(/1 more item/.test(util.inspect(arr)));
+  util.inspect.defaultOptions.depth = null;
+  assert(!/Object/.test(util.inspect(obj)));
+  util.inspect.defaultOptions.depth = oldOptions.depth;
+  assert(/Object/.test(util.inspect(obj)));
+  assert.strictEqual(
+    JSON.stringify(util.inspect.defaultOptions),
+    JSON.stringify(oldOptions)
+  );
+
+  // Set multiple options through object assignment
+  util.inspect.defaultOptions = {maxArrayLength: null, depth: null};
+  assert(!/1 more item/.test(util.inspect(arr)));
+  assert(!/Object/.test(util.inspect(obj)));
+  util.inspect.defaultOptions = oldOptions;
+  assert(/1 more item/.test(util.inspect(arr)));
+  assert(/Object/.test(util.inspect(obj)));
+  assert.strictEqual(
+    JSON.stringify(util.inspect.defaultOptions),
+    JSON.stringify(oldOptions)
+  );
 }
