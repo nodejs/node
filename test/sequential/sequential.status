@@ -6,6 +6,11 @@ prefix sequential
 
 [true] # This section applies to all platforms
 
+# crypto.timingSafeEqual contains a statistical timing test to verify that the
+# function is timing-safe. As a result, the test sometimes fails due to random
+# timing fluctuations.
+test-crypto-timing-safe-equal           : PASS,FLAKY
+
 [$system==win32]
 
 [$system==linux]
