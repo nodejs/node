@@ -444,6 +444,28 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
+## Timeout limitation with asynchronous operations
+
+There is a known limitation when using Promises with the `vm` methods that
+allow for `timeout` option. Specifically: the `timeout` is only effective on
+code run *within* the VM context; Promises, and other kinds of asynchronous
+operations that execute outside of that scope are not limited by the callback.
+
+For instance, given the following script:
+
+```js
+vm.runInNewContext(
+  'Promise.resolve().then(()=>{while(1)console.log("foo", Date.now());});' +
+  'while(1)console.log(Date.now())',
+  {console:{log(){console.log.apply(console,arguments);}}},
+  {timeout:5}
+);
+```
+
+The synchronous `while()` loop outside of the Promise is terminated by the
+`timeout`, but the loop within the `Promise` continues to fire forever.
+
+
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [global object]: https://es5.github.io/#x15.1
 [`Error`]: errors.html#errors_class_error
