@@ -93,6 +93,7 @@
       'lib/internal/v8_prof_processor.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
+      'lib/internal/streams/legacy.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
       'deps/v8/tools/consarray.js',
