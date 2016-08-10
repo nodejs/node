@@ -192,6 +192,7 @@ test-ci-js:
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 
 test-ci: | build-addons
+	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)
 
