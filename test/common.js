@@ -241,7 +241,7 @@ exports.spawnPwd = function(options) {
   var spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
-    return spawn('cmd.exe', ['/c', 'cd'], options);
+    return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
   }
@@ -252,7 +252,7 @@ exports.spawnSyncPwd = function(options) {
   const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
-    return spawnSync('cmd.exe', ['/c', 'cd'], options);
+    return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawnSync('pwd', [], options);
   }
