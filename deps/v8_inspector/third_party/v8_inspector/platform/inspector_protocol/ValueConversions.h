@@ -13,42 +13,26 @@
 namespace blink {
 namespace protocol {
 
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(int value);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(double value);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(bool value);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(const String16& param);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(const String& param);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(protocol::Value* param);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(protocol::DictionaryValue* param);
-
-PLATFORM_EXPORT std::unique_ptr<protocol::Value> toValue(protocol::ListValue* param);
-
-template<typename T> std::unique_ptr<protocol::Value> toValue(T* param)
-{
-    return param->serialize();
-}
-
-template<typename T> std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<T>& param)
-{
-    return toValue(param.get());
-}
-
 template<typename T>
-struct FromValue {
+struct ValueConversions {
     static std::unique_ptr<T> parse(protocol::Value* value, ErrorSupport* errors)
     {
         return T::parse(value, errors);
     }
+
+    static std::unique_ptr<protocol::Value> serialize(T* value)
+    {
+        return value->serialize();
+    }
+
+    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<T>& value)
+    {
+        return value->serialize();
+    }
 };
 
 template<>
-struct FromValue<bool> {
+struct ValueConversions<bool> {
     static bool parse(protocol::Value* value, ErrorSupport* errors)
     {
         bool result = false;
@@ -57,10 +41,15 @@ struct FromValue<bool> {
             errors->addError("boolean value expected");
         return result;
     }
+
+    static std::unique_ptr<protocol::Value> serialize(bool value)
+    {
+        return FundamentalValue::create(value);
+    }
 };
 
 template<>
-struct FromValue<int> {
+struct ValueConversions<int> {
     static int parse(protocol::Value* value, ErrorSupport* errors)
     {
         int result = 0;
@@ -69,10 +58,15 @@ struct FromValue<int> {
             errors->addError("integer value expected");
         return result;
     }
+
+    static std::unique_ptr<protocol::Value> serialize(int value)
+    {
+        return FundamentalValue::create(value);
+    }
 };
 
 template<>
-struct FromValue<double> {
+struct ValueConversions<double> {
     static double parse(protocol::Value* value, ErrorSupport* errors)
     {
         double result = 0;
@@ -81,10 +75,15 @@ struct FromValue<double> {
             errors->addError("double value expected");
         return result;
     }
+
+    static std::unique_ptr<protocol::Value> serialize(double value)
+    {
+        return FundamentalValue::create(value);
+    }
 };
 
 template<>
-struct FromValue<String> {
+struct ValueConversions<String> {
     static String parse(protocol::Value* value, ErrorSupport* errors)
     {
         String16 result;
@@ -93,10 +92,15 @@ struct FromValue<String> {
             errors->addError("string value expected");
         return result;
     }
+
+    static std::unique_ptr<protocol::Value> serialize(const String& value)
+    {
+        return StringValue::create(value);
+    }
 };
 
 template<>
-struct FromValue<String16> {
+struct ValueConversions<String16> {
     static String16 parse(protocol::Value* value, ErrorSupport* errors)
     {
         String16 result;
@@ -105,10 +109,15 @@ struct FromValue<String16> {
             errors->addError("string value expected");
         return result;
     }
+
+    static std::unique_ptr<protocol::Value> serialize(const String16& value)
+    {
+        return StringValue::create(value);
+    }
 };
 
 template<>
-struct FromValue<Value> {
+struct ValueConversions<Value> {
     static std::unique_ptr<Value> parse(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = !!value;
@@ -118,10 +127,20 @@ struct FromValue<Value> {
         }
         return value->clone();
     }
+
+    static std::unique_ptr<protocol::Value> serialize(Value* value)
+    {
+        return value->clone();
+    }
+
+    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<Value>& value)
+    {
+        return value->clone();
+    }
 };
 
 template<>
-struct FromValue<DictionaryValue> {
+struct ValueConversions<DictionaryValue> {
     static std::unique_ptr<DictionaryValue> parse(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = value && value->type() == protocol::Value::TypeObject;
@@ -129,10 +148,20 @@ struct FromValue<DictionaryValue> {
             errors->addError("object expected");
         return DictionaryValue::cast(value->clone());
     }
+
+    static std::unique_ptr<protocol::Value> serialize(DictionaryValue* value)
+    {
+        return value->clone();
+    }
+
+    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<DictionaryValue>& value)
+    {
+        return value->clone();
+    }
 };
 
 template<>
-struct FromValue<ListValue> {
+struct ValueConversions<ListValue> {
     static std::unique_ptr<ListValue> parse(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = value && value->type() == protocol::Value::TypeArray;
@@ -140,15 +169,15 @@ struct FromValue<ListValue> {
             errors->addError("list expected");
         return ListValue::cast(value->clone());
     }
-};
 
-template<typename T> class Array;
-
-template<typename T>
-struct FromValue<protocol::Array<T>> {
-    static std::unique_ptr<protocol::Array<T>> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<protocol::Value> serialize(ListValue* value)
     {
-        return protocol::Array<T>::parse(value, errors);
+        return value->clone();
+    }
+
+    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<ListValue>& value)
+    {
+        return value->clone();
     }
 };
 

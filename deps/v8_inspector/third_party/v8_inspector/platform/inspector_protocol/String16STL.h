@@ -5,6 +5,7 @@
 #ifndef String16STL_h
 #define String16STL_h
 
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <stdint.h>
@@ -141,7 +142,7 @@ private:
 
 static inline bool isSpaceOrNewline(UChar c)
 {
-    return false;
+    return std::isspace(c);  // NOLINT
 }
 
 class String16Builder {

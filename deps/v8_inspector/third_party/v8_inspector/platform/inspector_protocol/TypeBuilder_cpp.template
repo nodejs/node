@@ -7,6 +7,7 @@
 #include "{{output_package}}/{{domain.domain}}.h"
 
 #include "platform/inspector_protocol/DispatcherBase.h"
+#include "platform/inspector_protocol/Parser.h"
 
 namespace blink {
 namespace protocol {
@@ -15,6 +16,7 @@ namespace {{domain.domain}} {
 // ------------- Enum values from types.
 
 const char Metainfo::domainName[] = "{{domain.domain}}";
+const char Metainfo::commandPrefix[] = "{{domain.domain}}.";
   {% for type in domain.types %}
     {% if "enum" in type %}
 
@@ -22,7 +24,17 @@ namespace {{type.id}}Enum {
       {% for literal in type.enum %}
 const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
       {% endfor %}
-} // {{type.id}}Enum
+} // namespace {{type.id}}Enum
+      {% if type.exported %}
+
+namespace API {
+namespace {{type.id}}Enum {
+        {% for literal in type.enum %}
+const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
+        {% endfor %}
+} // namespace {{type.id}}Enum
+} // namespace API
+      {% endif %}
     {% endif %}
     {% for property in type.properties %}
       {% if "enum" in property %}
@@ -49,11 +61,11 @@ std::unique_ptr<{{type.id}}> {{type.id}}::parse(protocol::Value* value, ErrorSup
       {% if property.optional %}
     if ({{property.name}}Value) {
         errors->setName("{{property.name}}");
-        result->m_{{property.name}} = FromValue<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+        result->m_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
     }
       {% else %}
     errors->setName("{{property.name}}");
-    result->m_{{property.name}} = FromValue<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+    result->m_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
       {% endif %}
     {% endfor %}
     errors->pop();
@@ -68,9 +80,9 @@ std::unique_ptr<protocol::DictionaryValue> {{type.id}}::serialize() const
     {% for property in type.properties %}
       {% if property.optional %}
     if (m_{{property.name}}.isJust())
-        result->setValue("{{property.name}}", toValue(m_{{property.name}}.fromJust()));
+        result->setValue("{{property.name}}", ValueConversions<{{resolve_type(property).raw_type}}>::serialize(m_{{property.name}}.fromJust()));
       {% else %}
-    result->setValue("{{property.name}}", toValue({{resolve_type(property).to_raw_type % ("m_" + property.name)}}));
+    result->setValue("{{property.name}}", ValueConversions<{{resolve_type(property).raw_type}}>::serialize({{resolve_type(property).to_raw_type % ("m_" + property.name)}}));
       {% endif %}
     {% endfor %}
     return result;
@@ -81,6 +93,23 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
     ErrorSupport errors;
     return parse(serialize().get(), &errors);
 }
+    {% if type.exported %}
+
+String16 {{type.id}}::toJSONString() const
+{
+    return serialize()->toJSONString();
+}
+
+// static
+std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const String16& json)
+{
+    ErrorSupport errors;
+    std::unique_ptr<Value> value = parseJSON(json);
+    if (!value)
+        return nullptr;
+    return protocol::{{domain.domain}}::{{type.id}}::parse(value.get(), &errors);
+}
+    {% endif %}
   {% endfor %}
 
 // ------------- Enum values from params.
@@ -94,8 +123,20 @@ namespace {{param.name | to_title_case}}Enum {
         {% for literal in param.enum %}
 const char* {{ literal | to_title_case}} = "{{literal}}";
         {% endfor %}
-} // {{param.name | to_title_case}}Enum
-} // {{command.name | to_title_case }}
+} // namespace {{param.name | to_title_case}}Enum
+} // namespace {{command.name | to_title_case }}
+        {% if param.exported %}
+
+namespace API {
+namespace {{command.name | to_title_case}} {
+namespace {{param.name | to_title_case}}Enum {
+        {% for literal in param.enum %}
+const char* {{ literal | to_title_case}} = "{{literal}}";
+        {% endfor %}
+} // namespace {{param.name | to_title_case}}Enum
+} // namespace {{command.name | to_title_case }}
+} // namespace API
+        {% endif %}
       {% endif %}
     {% endfor %}
   {% endfor %}
@@ -119,9 +160,9 @@ void Frontend::{{event.name}}(
     {% for parameter in event.parameters %}
       {% if "optional" in parameter %}
     if ({{parameter.name}}.isJust())
-        paramsObject->setValue("{{parameter.name}}", toValue({{parameter.name}}.fromJust()));
+        paramsObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{parameter.name}}.fromJust()));
       {% else %}
-    paramsObject->setValue("{{parameter.name}}", toValue({{resolve_type(parameter).to_raw_type % parameter.name}}));
+    paramsObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
       {% endif %}
     {% endfor %}
     jsonMessage->setObject("params", std::move(paramsObject));
@@ -196,9 +237,9 @@ public:
           {% for parameter in command.returns %}
             {% if "optional" in parameter %}
         if ({{parameter.name}}.isJust())
-            resultObject->setValue("{{parameter.name}}", toValue({{parameter.name}}.fromJust()));
+            resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{parameter.name}}.fromJust()));
            {% else %}
-        resultObject->setValue("{{parameter.name}}", toValue({{resolve_type(parameter).to_raw_type % parameter.name}}));
+        resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
             {% endif %}
           {% endfor %}
         sendIfActive(std::move(resultObject), ErrorString());
@@ -225,11 +266,11 @@ void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValu
     Maybe<{{resolve_type(property).raw_type}}> in_{{property.name}};
     if ({{property.name}}Value) {
         errors->setName("{{property.name}}");
-        in_{{property.name}} = FromValue<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+        in_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
     }
         {% else %}
     errors->setName("{{property.name}}");
-    {{resolve_type(property).type}} in_{{property.name}} = FromValue<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+    {{resolve_type(property).type}} in_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
         {% endif %}
       {% endfor %}
     errors->pop();
@@ -253,6 +294,7 @@ void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValu
     {% endif %}
 
     std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
+    {% if not("async" in command) %}
     ErrorString error;
     m_backend->{{command.name}}(&error
       {%- for property in command.parameters -%}
@@ -262,29 +304,38 @@ void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValu
         , {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
         {%- endif -%}
       {%- endfor %}
-      {%- if "async" in command -%}
-        , std::move(callback)
-      {%- elif "returns" in command %}
+      {%- if "returns" in command %}
         {%- for property in command.returns -%}
           , &out_{{property.name}}
         {%- endfor %}
       {% endif %});
-    {% if "returns" in command and not("async" in command) %}
+      {% if "returns" in command and not("async" in command) %}
     if (!error.length()) {
-      {% for parameter in command.returns %}
-        {% if "optional" in parameter %}
+        {% for parameter in command.returns %}
+          {% if "optional" in parameter %}
         if (out_{{parameter.name}}.isJust())
-            result->setValue("{{parameter.name}}", toValue(out_{{parameter.name}}.fromJust()));
-        {% else %}
-        result->setValue("{{parameter.name}}", toValue({{resolve_type(parameter).to_raw_type % ("out_" + parameter.name)}}));
-        {% endif %}
-      {% endfor %}
+            result->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize(out_{{parameter.name}}.fromJust()));
+          {% else %}
+        result->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % ("out_" + parameter.name)}}));
+          {% endif %}
+        {% endfor %}
     }
     if (weak->get())
         weak->get()->sendResponse(callId, error, std::move(result));
-    {% elif not("async" in command) %}
+      {% else %}
     if (weak->get())
         weak->get()->sendResponse(callId, error);
+      {% endif %}
+    {%- else %}
+    m_backend->{{command.name}}(
+      {%- for property in command.parameters -%}
+        {%- if "optional" in property -%}
+        in_{{property.name}},
+        {%- else -%}
+        {{resolve_type(property).to_pass_type % ("in_" + property.name)}},
+        {%- endif -%}
+      {%- endfor -%}
+        std::move(callback));
     {% endif %}
 }
   {% endfor %}

@@ -5,20 +5,20 @@
 #include "platform/v8_inspector/V8Regex.h"
 
 #include "platform/v8_inspector/V8Compat.h"
-#include "platform/v8_inspector/V8DebuggerImpl.h"
+#include "platform/v8_inspector/V8InspectorImpl.h"
 #include "platform/v8_inspector/V8StringUtil.h"
-#include "platform/v8_inspector/public/V8DebuggerClient.h"
+#include "platform/v8_inspector/public/V8InspectorClient.h"
 
 #include <limits.h>
 
 namespace blink {
 
-V8Regex::V8Regex(V8DebuggerImpl* debugger, const String16& pattern, bool caseSensitive, bool multiline)
-    : m_debugger(debugger)
+V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern, bool caseSensitive, bool multiline)
+    : m_inspector(inspector)
 {
-    v8::Isolate* isolate = m_debugger->isolate();
+    v8::Isolate* isolate = m_inspector->isolate();
     v8::HandleScope handleScope(isolate);
-    v8::Local<v8::Context> context = m_debugger->regexContext();
+    v8::Local<v8::Context> context = m_inspector->regexContext();
     v8::Context::Scope contextScope(context);
     v8::TryCatch tryCatch(isolate);
 
@@ -49,9 +49,9 @@ int V8Regex::match(const String16& string, int startFrom, int* matchLength) cons
     if (string.length() > INT_MAX)
         return -1;
 
-    v8::Isolate* isolate = m_debugger->isolate();
+    v8::Isolate* isolate = m_inspector->isolate();
     v8::HandleScope handleScope(isolate);
-    v8::Local<v8::Context> context = m_debugger->regexContext();
+    v8::Local<v8::Context> context = m_inspector->regexContext();
     v8::MicrotasksScope microtasks(isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(isolate);
 

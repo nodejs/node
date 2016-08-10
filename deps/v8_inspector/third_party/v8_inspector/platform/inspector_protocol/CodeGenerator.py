@@ -24,11 +24,18 @@ templates_dir = module_path
 # In Blink, jinja2 is in chromium's third_party directory.
 # Insert at 1 so at front to override system libraries, and
 # after path[0] == invoking script dir
-third_party_dir = os.path.normpath(os.path.join(
+blink_third_party_dir = os.path.normpath(os.path.join(
     module_path, os.pardir, os.pardir, os.pardir, os.pardir, os.pardir,
     "third_party"))
-if os.path.isdir(third_party_dir):
-    sys.path.insert(1, third_party_dir)
+if os.path.isdir(blink_third_party_dir):
+    sys.path.insert(1, blink_third_party_dir)
+
+# In V8, it is in third_party folder
+v8_third_party_dir = os.path.normpath(os.path.join(
+    module_path, os.pardir, os.pardir, "third_party"))
+
+if os.path.isdir(v8_third_party_dir):
+    sys.path.insert(1, v8_third_party_dir)
 
 # In Node, it is in deps folder
 deps_dir = os.path.normpath(os.path.join(
@@ -43,10 +50,13 @@ import jinja2
 cmdline_parser = optparse.OptionParser()
 cmdline_parser.add_option("--protocol")
 cmdline_parser.add_option("--include")
+cmdline_parser.add_option("--include_package")
 cmdline_parser.add_option("--string_type")
 cmdline_parser.add_option("--export_macro")
 cmdline_parser.add_option("--output_dir")
 cmdline_parser.add_option("--output_package")
+cmdline_parser.add_option("--exported_dir")
+cmdline_parser.add_option("--exported_package")
 
 try:
     arg_options, arg_values = cmdline_parser.parse_args()
@@ -54,12 +64,23 @@ try:
     if not protocol_file:
         raise Exception("Protocol directory must be specified")
     include_file = arg_options.include
+    include_package = arg_options.include_package
+    if include_file and not include_package:
+        raise Exception("Include package must be specified when using include file")
+    if include_package and not include_file:
+        raise Exception("Include file must be specified when using include package")
     output_dirname = arg_options.output_dir
     if not output_dirname:
         raise Exception("Output directory must be specified")
     output_package = arg_options.output_package
     if not output_package:
         raise Exception("Output package must be specified")
+    exported_dirname = arg_options.exported_dir
+    if not exported_dirname:
+        exported_dirname = os.path.join(output_dirname, "exported")
+    exported_package = arg_options.exported_package
+    if not exported_package:
+        exported_package = os.path.join(output_package, "exported")
     string_type = arg_options.string_type
     if not string_type:
         raise Exception("String type must be specified")
@@ -84,22 +105,26 @@ def up_to_date():
         os.path.getmtime(__file__),
         os.path.getmtime(os.path.join(templates_dir, "TypeBuilder_h.template")),
         os.path.getmtime(os.path.join(templates_dir, "TypeBuilder_cpp.template")),
+        os.path.getmtime(os.path.join(templates_dir, "Exported_h.template")),
+        os.path.getmtime(os.path.join(templates_dir, "Imported_h.template")),
         os.path.getmtime(protocol_file))
 
     for domain in parsed_json["domains"]:
         name = domain["domain"]
-        h_path = os.path.join(output_dirname, name + ".h")
-        cpp_path = os.path.join(output_dirname, name + ".cpp")
-        if not os.path.exists(h_path) or not os.path.exists(cpp_path):
-            return False
-        generated_ts = max(os.path.getmtime(h_path), os.path.getmtime(cpp_path))
-        if generated_ts < template_ts:
-            return False
+        paths = []
+        if name in generate_domains:
+            paths = [os.path.join(output_dirname, name + ".h"), os.path.join(output_dirname, name + ".cpp")]
+            if domain["has_exports"]:
+                paths.append(os.path.join(exported_dirname, name + ".h"))
+        if name in include_domains and domain["has_exports"]:
+            paths = [os.path.join(output_dirname, name + '.h')]
+        for path in paths:
+            if not os.path.exists(path):
+                return False
+            generated_ts = os.path.getmtime(path)
+            if generated_ts < template_ts:
+                return False
     return True
-
-
-if up_to_date():
-    sys.exit()
 
 
 def to_title_case(name):
@@ -107,7 +132,11 @@ def to_title_case(name):
 
 
 def dash_to_camelcase(word):
-    return "".join(to_title_case(x) or "-" for x in word.split("-"))
+    prefix = ""
+    if word[0] == "-":
+        prefix = "Negative"
+        word = word[1:]
+    return prefix + "".join(to_title_case(x) or "-" for x in word.split("-"))
 
 
 def initialize_jinja_env(cache_dir):
@@ -144,12 +173,47 @@ def patch_full_qualified_refs():
                 continue
             if json["$ref"].find(".") == -1:
                 json["$ref"] = domain_name + "." + json["$ref"]
+        return
 
     for domain in json_api["domains"]:
         patch_full_qualified_refs_in_domain(domain, domain["domain"])
 
 
+def calculate_exports():
+    def calculate_exports_in_json(json_value):
+        has_exports = False
+        if isinstance(json_value, list):
+            for item in json_value:
+                has_exports = calculate_exports_in_json(item) or has_exports
+        if isinstance(json_value, dict):
+            has_exports = ("exported" in json_value and json_value["exported"]) or has_exports
+            for key in json_value:
+                has_exports = calculate_exports_in_json(json_value[key]) or has_exports
+        return has_exports
+
+    json_api["has_exports"] = False
+    for domain_json in json_api["domains"]:
+        domain_json["has_exports"] = calculate_exports_in_json(domain_json)
+        json_api["has_exports"] = json_api["has_exports"] or domain_json["has_exports"]
+
+
+def create_include_type_definition(domain_name, type):
+    # pylint: disable=W0622
+    return {
+        "return_type": "std::unique_ptr<protocol::%s::API::%s>" % (domain_name, type["id"]),
+        "pass_type": "std::unique_ptr<protocol::%s::API::%s>" % (domain_name, type["id"]),
+        "to_raw_type": "%s.get()",
+        "to_pass_type": "std::move(%s)",
+        "to_rvalue": "std::move(%s)",
+        "type": "std::unique_ptr<protocol::%s::API::%s>" % (domain_name, type["id"]),
+        "raw_type": "protocol::%s::API::%s" % (domain_name, type["id"]),
+        "raw_pass_type": "protocol::%s::API::%s*" % (domain_name, type["id"]),
+        "raw_return_type": "protocol::%s::API::%s*" % (domain_name, type["id"]),
+    }
+
+
 def create_user_type_definition(domain_name, type):
+    # pylint: disable=W0622
     return {
         "return_type": "std::unique_ptr<protocol::%s::%s>" % (domain_name, type["id"]),
         "pass_type": "std::unique_ptr<protocol::%s::%s>" % (domain_name, type["id"]),
@@ -164,6 +228,7 @@ def create_user_type_definition(domain_name, type):
 
 
 def create_object_type_definition():
+    # pylint: disable=W0622
     return {
         "return_type": "std::unique_ptr<protocol::DictionaryValue>",
         "pass_type": "std::unique_ptr<protocol::DictionaryValue>",
@@ -178,6 +243,7 @@ def create_object_type_definition():
 
 
 def create_any_type_definition():
+    # pylint: disable=W0622
     return {
         "return_type": "std::unique_ptr<protocol::Value>",
         "pass_type": "std::unique_ptr<protocol::Value>",
@@ -192,6 +258,7 @@ def create_any_type_definition():
 
 
 def create_string_type_definition(domain):
+    # pylint: disable=W0622
     return {
         "return_type": string_type,
         "pass_type": ("const %s&" % string_type),
@@ -206,6 +273,7 @@ def create_string_type_definition(domain):
 
 
 def create_primitive_type_definition(type):
+    # pylint: disable=W0622
     typedefs = {
         "number": "double",
         "integer": "int",
@@ -244,6 +312,7 @@ type_definitions["any"] = create_any_type_definition()
 
 
 def wrap_array_definition(type):
+    # pylint: disable=W0622
     return {
         "return_type": "std::unique_ptr<protocol::Array<%s>>" % type["raw_type"],
         "pass_type": "std::unique_ptr<protocol::Array<%s>>" % type["raw_type"],
@@ -265,15 +334,18 @@ def create_type_definitions():
         if not ("types" in domain):
             continue
         for type in domain["types"]:
-            if type["type"] == "object":
-                type_definitions[domain["domain"] + "." + type["id"]] = create_user_type_definition(domain["domain"], type)
+            type_name = domain["domain"] + "." + type["id"]
+            if type["type"] == "object" and domain["domain"] in include_domains:
+                type_definitions[type_name] = create_include_type_definition(domain["domain"], type)
+            elif type["type"] == "object":
+                type_definitions[type_name] = create_user_type_definition(domain["domain"], type)
             elif type["type"] == "array":
                 items_type = type["items"]["type"]
-                type_definitions[domain["domain"] + "." + type["id"]] = wrap_array_definition(type_definitions[items_type])
+                type_definitions[type_name] = wrap_array_definition(type_definitions[items_type])
             elif type["type"] == domain["domain"] + ".string":
-                type_definitions[domain["domain"] + "." + type["id"]] = create_string_type_definition(domain["domain"])
+                type_definitions[type_name] = create_string_type_definition(domain["domain"])
             else:
-                type_definitions[domain["domain"] + "." + type["id"]] = create_primitive_type_definition(type["type"])
+                type_definitions[type_name] = create_primitive_type_definition(type["type"])
 
 
 def type_definition(name):
@@ -303,7 +375,25 @@ def has_disable(commands):
     return False
 
 
+def generate(domain_object, template, file_name):
+    template_context = {
+        "domain": domain_object,
+        "join_arrays": join_arrays,
+        "resolve_type": resolve_type,
+        "type_definition": type_definition,
+        "has_disable": has_disable,
+        "export_macro": export_macro,
+        "output_package": output_package,
+        "exported_package": exported_package,
+        "include_package": include_package
+    }
+    out_file = output_file(file_name)
+    out_file.write(template.render(template_context))
+    out_file.close()
+
+
 generate_domains = []
+include_domains = []
 json_api = {}
 json_api["domains"] = parsed_json["domains"]
 
@@ -314,44 +404,33 @@ if include_file:
     input_file = open(include_file, "r")
     json_string = input_file.read()
     parsed_json = json.loads(json_string)
+    for domain in parsed_json["domains"]:
+        include_domains.append(domain["domain"])
     json_api["domains"] += parsed_json["domains"]
 
-
 patch_full_qualified_refs()
+calculate_exports()
 create_type_definitions()
 
+if up_to_date():
+    sys.exit()
 if not os.path.exists(output_dirname):
     os.mkdir(output_dirname)
+if json_api["has_exports"] and not os.path.exists(exported_dirname):
+    os.mkdir(exported_dirname)
+
 jinja_env = initialize_jinja_env(output_dirname)
-
-h_template_name = "/TypeBuilder_h.template"
-cpp_template_name = "/TypeBuilder_cpp.template"
-h_template = jinja_env.get_template(h_template_name)
-cpp_template = jinja_env.get_template(cpp_template_name)
-
-
-def generate(domain):
-    class_name = domain["domain"]
-    h_file_name = output_dirname + "/" + class_name + ".h"
-    cpp_file_name = output_dirname + "/" + class_name + ".cpp"
-
-    template_context = {
-        "domain": domain,
-        "join_arrays": join_arrays,
-        "resolve_type": resolve_type,
-        "type_definition": type_definition,
-        "has_disable": has_disable,
-        "export_macro": export_macro,
-        "output_package": output_package,
-    }
-    h_file = output_file(h_file_name)
-    cpp_file = output_file(cpp_file_name)
-    h_file.write(h_template.render(template_context))
-    cpp_file.write(cpp_template.render(template_context))
-    h_file.close()
-    cpp_file.close()
-
+h_template = jinja_env.get_template("/TypeBuilder_h.template")
+cpp_template = jinja_env.get_template("/TypeBuilder_cpp.template")
+exported_template = jinja_env.get_template("/Exported_h.template")
+imported_template = jinja_env.get_template("/Imported_h.template")
 
 for domain in json_api["domains"]:
+    class_name = domain["domain"]
     if domain["domain"] in generate_domains:
-        generate(domain)
+        generate(domain, h_template, output_dirname + "/" + class_name + ".h")
+        generate(domain, cpp_template, output_dirname + "/" + class_name + ".cpp")
+        if domain["has_exports"]:
+            generate(domain, exported_template, exported_dirname + "/" + class_name + ".h")
+    if domain["domain"] in include_domains and domain["has_exports"]:
+        generate(domain, imported_template, output_dirname + "/" + class_name + ".h")

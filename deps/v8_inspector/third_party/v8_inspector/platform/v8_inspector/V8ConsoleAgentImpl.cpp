@@ -5,7 +5,7 @@
 #include "platform/v8_inspector/V8ConsoleAgentImpl.h"
 
 #include "platform/v8_inspector/V8ConsoleMessage.h"
-#include "platform/v8_inspector/V8DebuggerImpl.h"
+#include "platform/v8_inspector/V8InspectorImpl.h"
 #include "platform/v8_inspector/V8InspectorSessionImpl.h"
 #include "platform/v8_inspector/V8StackTraceImpl.h"
 
@@ -33,7 +33,7 @@ void V8ConsoleAgentImpl::enable(ErrorString* errorString)
         return;
     m_state->setBoolean(ConsoleAgentState::consoleEnabled, true);
     m_enabled = true;
-    m_session->debugger()->enableStackCapturingIfNeeded();
+    m_session->inspector()->enableStackCapturingIfNeeded();
     reportAllMessages();
 }
 
@@ -41,7 +41,7 @@ void V8ConsoleAgentImpl::disable(ErrorString* errorString)
 {
     if (!m_enabled)
         return;
-    m_session->debugger()->disableStackCapturingIfNeeded();
+    m_session->inspector()->disableStackCapturingIfNeeded();
     m_state->setBoolean(ConsoleAgentState::consoleEnabled, false);
     m_enabled = false;
 }
@@ -71,7 +71,7 @@ bool V8ConsoleAgentImpl::enabled()
 
 void V8ConsoleAgentImpl::reportAllMessages()
 {
-    V8ConsoleMessageStorage* storage = m_session->debugger()->ensureConsoleMessageStorage(m_session->contextGroupId());
+    V8ConsoleMessageStorage* storage = m_session->inspector()->ensureConsoleMessageStorage(m_session->contextGroupId());
     for (const auto& message : storage->messages()) {
         if (message->origin() == V8MessageOrigin::kConsole)
             reportMessage(message.get(), false);

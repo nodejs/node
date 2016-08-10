@@ -13,14 +13,11 @@ namespace blink {
 
 class V8ContextInfo {
 public:
-    V8ContextInfo(v8::Local<v8::Context> context, int contextGroupId, bool isDefault, const String16& origin, const String16& humanReadableName, const String16& frameId, bool hasMemoryOnConsole)
+    V8ContextInfo(v8::Local<v8::Context> context, int contextGroupId, const String16& humanReadableName)
         : context(context)
         , contextGroupId(contextGroupId)
-        , isDefault(isDefault)
-        , origin(origin)
         , humanReadableName(humanReadableName)
-        , frameId(frameId)
-        , hasMemoryOnConsole(hasMemoryOnConsole)
+        , hasMemoryOnConsole(false)
     {
     }
 
@@ -29,11 +26,9 @@ public:
     // V8DebuggerAgent to notify about events in the context.
     // |contextGroupId| must be non-0.
     int contextGroupId;
-    bool isDefault;
-    const String16 origin;
-    const String16 humanReadableName;
-    // TODO(dgozman): aux data?
-    const String16 frameId;
+    String16 humanReadableName;
+    String16 origin;
+    String16 auxData;
     bool hasMemoryOnConsole;
 };
 

@@ -141,14 +141,22 @@ DebuggerScript._executionContextId = function(contextData)
 {
     if (!contextData)
         return 0;
-    var firstComma = contextData.indexOf(",");
-    if (firstComma === -1)
+    var match = contextData.match(/^[^,]*,([^,]*),.*$/);
+    if (!match)
         return 0;
-    var secondComma = contextData.indexOf(",", firstComma + 1);
-    if (secondComma === -1)
-        return 0;
+    return parseInt(match[1], 10) || 0;
+}
 
-    return parseInt(contextData.substring(firstComma + 1, secondComma), 10) || 0;
+/**
+ * @param {string|undefined} contextData
+ * @return {string}
+ */
+DebuggerScript._executionContextAuxData = function(contextData)
+{
+    if (!contextData)
+        return "";
+    var match = contextData.match(/^[^,]*,[^,]*,(.*)$/);
+    return match ? match[1] : "";
 }
 
 /**
@@ -168,7 +176,7 @@ DebuggerScript.getScripts = function(contextGroupId)
             if (!script.context_data)
                 continue;
             // Context data is a string in the following format:
-            // <contextGroupId>,<contextId>,("default"|"nondefault")
+            // <contextGroupId>,<contextId>,<auxData>
             if (script.context_data.indexOf(contextDataPrefix) !== 0)
                 continue;
         }
@@ -208,7 +216,8 @@ DebuggerScript._formatScript = function(script)
         endLine: endLine,
         endColumn: endColumn,
         executionContextId: DebuggerScript._executionContextId(script.context_data),
-        isContentScript: !!script.context_data && script.context_data.endsWith(",nondefault"),
+        // Note that we cannot derive aux data from context id because of compilation cache.
+        executionContextAuxData: DebuggerScript._executionContextAuxData(script.context_data),
         isInternalScript: script.is_debugger_script
     };
 }
