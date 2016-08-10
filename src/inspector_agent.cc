@@ -13,6 +13,7 @@
 #include "platform/v8_inspector/public/V8Inspector.h"
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 #include "platform/v8_inspector/public/V8InspectorSession.h"
+#include "platform/v8_inspector/public/V8StackTrace.h"
 #include "platform/inspector_protocol/FrontendChannel.h"
 #include "platform/inspector_protocol/String16.h"
 #include "platform/inspector_protocol/Values.h"
@@ -175,6 +176,9 @@ class AgentImpl {
   bool IsConnected() {  return state_ == State::kConnected; }
   void WaitForDisconnect();
 
+  void FatalException(v8::Local<v8::Value> error,
+                      v8::Local<v8::Message> message);
+
  private:
   using MessageQueue = std::vector<std::pair<int, String16>>;
   enum class State { kNew, kAccepting, kConnected, kDone, kError };
@@ -332,6 +336,10 @@ class V8NodeInspector : public blink::V8InspectorClient {
   void dispatchMessageFromFrontend(const String16& message) {
     CHECK(session_);
     session_->dispatchProtocolMessage(message);
+  }
+
+  blink::V8Inspector* inspector() {
+    return inspector_.get();
   }
 
  private:
@@ -493,6 +501,46 @@ void AgentImpl::InstallInspectorOnProcess() {
   v8::Local<v8::Object> inspector = v8::Object::New(env->isolate());
   READONLY_PROPERTY(process, "inspector", inspector);
   env->SetMethod(inspector, "wrapConsoleCall", InspectorWrapConsoleCall);
+}
+
+String16 ToProtocolString(v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || value->IsNull() || value->IsUndefined() ||
+      !value->IsString()) {
+    return String16();
+  }
+  v8::Local<v8::String> string_value = v8::Local<v8::String>::Cast(value);
+  wstring buffer(string_value->Length(), '\0');
+  string_value->Write(&buffer[0], 0, string_value->Length());
+  return String16(buffer);
+}
+
+void AgentImpl::FatalException(v8::Local<v8::Value> error,
+                               v8::Local<v8::Message> message) {
+  if (!IsStarted())
+    return;
+  auto env = parent_env_;
+  v8::Local<v8::Context> context = env->context();
+
+  int script_id = message->GetScriptOrigin().ScriptID()->Value();
+  std::unique_ptr<blink::V8StackTrace> stack_trace =
+      inspector_->inspector()->createStackTrace(message->GetStackTrace());
+
+  if (stack_trace && !stack_trace->isEmpty() &&
+      String16::fromInteger(script_id) == stack_trace->topScriptId()) {
+    script_id = 0;
+  }
+
+  inspector_->inspector()->exceptionThrown(
+      context,
+      "Uncaught",
+      error,
+      ToProtocolString(message->Get()),
+      ToProtocolString(message->GetScriptResourceName()),
+      message->GetLineNumber(context).FromMaybe(0),
+      message->GetStartColumn(context).FromMaybe(0),
+      std::move(stack_trace),
+      script_id);
+  WaitForDisconnect();
 }
 
 // static
@@ -713,6 +761,12 @@ bool Agent::IsConnected() {
 void Agent::WaitForDisconnect() {
   impl->WaitForDisconnect();
 }
+
+void Agent::FatalException(v8::Local<v8::Value> error,
+                           v8::Local<v8::Message> message) {
+  impl->FatalException(error, message);
+}
+
 
 }  // namespace inspector
 }  // namespace node
