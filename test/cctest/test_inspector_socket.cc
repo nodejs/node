@@ -131,7 +131,7 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
     c = expectation->expected[expectation->pos++];
     actual = buf->base[i];
     if (c != actual) {
-      fprintf(stderr, "Unexpected character at position %ld\n",
+      fprintf(stderr, "Unexpected character at position %zd\n",
               expectation->pos - 1);
       GTEST_ASSERT_EQ(c, actual);
     }
@@ -171,7 +171,7 @@ static void fail_callback(uv_stream_t* stream, ssize_t nread,
   if (nread < 0) {
     fprintf(stderr, "IO error: %s\n", uv_strerror(nread));
   } else {
-    fprintf(stderr, "Read %ld bytes\n", nread);
+    fprintf(stderr, "Read %zd bytes\n", nread);
   }
   ASSERT_TRUE(false); // Shouldn't have been called
 }
@@ -262,7 +262,7 @@ static void expect_on_server(const char* data, size_t len) {
       char actual = expects->actual_data[expects->actual_offset++];
       char expected = data[i];
       if (expected != actual) {
-        fprintf(stderr, "Character %ld:\n", i);
+        fprintf(stderr, "Character %zu:\n", i);
         GTEST_ASSERT_EQ(expected, actual);
       }
     }
