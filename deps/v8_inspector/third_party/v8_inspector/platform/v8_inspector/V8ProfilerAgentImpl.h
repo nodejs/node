@@ -12,6 +12,7 @@
 #include <vector>
 
 namespace v8 {
+class CpuProfiler;
 class Isolate;
 }
 
@@ -39,6 +40,7 @@ public:
 
 private:
     String16 nextProfileId();
+    v8::CpuProfiler* profiler();
 
     void startProfiling(const String16& title);
     std::unique_ptr<protocol::Profiler::CPUProfile> stopProfiling(const String16& title, bool serialize);
@@ -47,6 +49,7 @@ private:
 
     V8InspectorSessionImpl* m_session;
     v8::Isolate* m_isolate;
+    v8::CpuProfiler* m_profiler;
     protocol::DictionaryValue* m_state;
     protocol::Profiler::Frontend m_frontend;
     bool m_enabled;
@@ -57,6 +60,5 @@ private:
 };
 
 } // namespace blink
-
 
 #endif // !defined(V8ProfilerAgentImpl_h)

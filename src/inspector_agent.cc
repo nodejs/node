@@ -9,7 +9,10 @@
 #include "v8-platform.h"
 #include "util.h"
 
+#include "platform/v8_inspector/public/InspectorVersion.h"
 #include "platform/v8_inspector/public/V8Inspector.h"
+#include "platform/v8_inspector/public/V8InspectorClient.h"
+#include "platform/v8_inspector/public/V8InspectorSession.h"
 #include "platform/inspector_protocol/FrontendChannel.h"
 #include "platform/inspector_protocol/String16.h"
 #include "platform/inspector_protocol/Values.h"
@@ -36,7 +39,7 @@ const char TAG_CONNECT[] = "#connect";
 const char TAG_DISCONNECT[] = "#disconnect";
 
 const char DEVTOOLS_PATH[] = "/node";
-const char DEVTOOLS_HASH[] = "851972d6da7463c353d712d2cb6c1ec23fa6c4fe";
+const char DEVTOOLS_HASH[] = V8_INSPECTOR_REVISION;
 
 void PrintDebuggerReadyMessage(int port) {
   fprintf(stderr, "Debugger listening on port %d.\n"
@@ -156,6 +159,8 @@ bool RespondToGet(inspector_socket_t* socket, const std::string& path,
 namespace inspector {
 
 
+class V8NodeInspector;
+
 class AgentImpl {
  public:
   explicit AgentImpl(node::Environment* env);
@@ -211,7 +216,7 @@ class AgentImpl {
   uv_async_t* data_written_;
   uv_async_t io_thread_req_;
   inspector_socket_t* client_socket_;
-  blink::V8Inspector* inspector_;
+  V8NodeInspector* inspector_;
   v8::Platform* platform_;
   MessageQueue incoming_message_queue_;
   MessageQueue outgoing_message_queue_;
@@ -271,16 +276,20 @@ class ChannelImpl final : public blink::protocol::FrontendChannel {
   AgentImpl* const agent_;
 };
 
-class V8NodeInspector : public blink::V8Inspector {
+class V8NodeInspector : public blink::V8InspectorClient {
  public:
   V8NodeInspector(AgentImpl* agent, node::Environment* env,
                   v8::Platform* platform)
-                  : blink::V8Inspector(env->isolate(), env->context()),
-                    agent_(agent),
+                  : agent_(agent),
                     isolate_(env->isolate()),
                     platform_(platform),
                     terminated_(false),
-                    running_nested_loop_(false) {}
+                    running_nested_loop_(false),
+                    inspector_(
+                        blink::V8Inspector::create(env->isolate(), this)) {
+    inspector_->contextCreated(
+        blink::V8ContextInfo(env->context(), 1, "NodeJS Main Context"));
+  }
 
   void runMessageLoopOnPause(int context_group_id) override {
     if (running_nested_loop_)
@@ -303,12 +312,27 @@ class V8NodeInspector : public blink::V8Inspector {
     terminated_ = true;
   }
 
+  void connectFrontend() {
+    session_ = inspector_->connect(1, new ChannelImpl(agent_), nullptr);
+  }
+
+  void disconnectFrontend() {
+    session_.reset();
+  }
+
+  void dispatchMessageFromFrontend(const String16& message) {
+    CHECK(session_);
+    session_->dispatchProtocolMessage(message);
+  }
+
  private:
   AgentImpl* agent_;
   v8::Isolate* isolate_;
   v8::Platform* platform_;
   bool terminated_;
   bool running_nested_loop_;
+  std::unique_ptr<blink::V8Inspector> inspector_;
+  std::unique_ptr<blink::V8InspectorSession> session_;
 };
 
 AgentImpl::AgentImpl(Environment* env) : port_(0),
@@ -546,7 +570,7 @@ void AgentImpl::DispatchMessages() {
       backend_session_id_++;
       state_ = State::kConnected;
       fprintf(stderr, "Debugger attached.\n");
-      inspector_->connectFrontend(new ChannelImpl(this));
+      inspector_->connectFrontend();
     } else if (message == TAG_DISCONNECT) {
       CHECK_EQ(State::kConnected, state_);
       if (shutting_down_) {

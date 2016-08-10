@@ -34,7 +34,7 @@ void DispatcherBase::Callback::dispose()
 
 void DispatcherBase::Callback::sendIfActive(std::unique_ptr<protocol::DictionaryValue> partialMessage, const ErrorString& invocationError)
 {
-    if (!m_backendImpl->get())
+    if (!m_backendImpl || !m_backendImpl->get())
         return;
     m_backendImpl->get()->sendResponse(m_callId, invocationError, nullptr, std::move(partialMessage));
     m_backendImpl = nullptr;

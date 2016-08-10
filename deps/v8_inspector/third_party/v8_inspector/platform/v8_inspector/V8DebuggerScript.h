@@ -42,19 +42,19 @@ public:
     V8DebuggerScript(v8::Isolate*, v8::Local<v8::Object>, bool isLiveEdit);
     ~V8DebuggerScript();
 
-    String16 scriptId() const { return m_id; }
-    String16 url() const { return m_url; }
+    const String16& scriptId() const { return m_id; }
+    const String16& url() const { return m_url; }
     bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
-    String16 sourceURL() const;
-    String16 sourceMappingURL() const { return m_sourceMappingURL; }
+    const String16& sourceURL() const;
+    const String16& sourceMappingURL() const { return m_sourceMappingURL; }
     v8::Local<v8::String> source(v8::Isolate*) const;
-    String16 hash() const { return m_hash; }
+    const String16& hash() const { return m_hash; }
     int startLine() const { return m_startLine; }
     int startColumn() const { return m_startColumn; }
     int endLine() const { return m_endLine; }
     int endColumn() const { return m_endColumn; }
     int executionContextId() const { return m_executionContextId; }
-    bool isContentScript() const { return m_isContentScript; }
+    const String16& executionContextAuxData() const { return m_executionContextAuxData; }
     bool isInternalScript() const { return m_isInternalScript; }
     bool isLiveEdit() const { return m_isLiveEdit; }
 
@@ -74,7 +74,7 @@ private:
     int m_endLine;
     int m_endColumn;
     int m_executionContextId;
-    bool m_isContentScript;
+    String16 m_executionContextAuxData;
     bool m_isInternalScript;
     bool m_isLiveEdit;
 };

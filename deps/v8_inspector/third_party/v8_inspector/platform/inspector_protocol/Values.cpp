@@ -92,6 +92,11 @@ bool Value::asString(String16*) const
     return false;
 }
 
+bool Value::asSerialized(String16*) const
+{
+    return false;
+}
+
 String16 Value::toJSONString() const
 {
     String16Builder result;
@@ -186,6 +191,23 @@ void StringValue::writeJSON(String16Builder* output) const
 std::unique_ptr<Value> StringValue::clone() const
 {
     return StringValue::create(m_stringValue);
+}
+
+bool SerializedValue::asSerialized(String16* output) const
+{
+    *output = m_serializedValue;
+    return true;
+}
+
+void SerializedValue::writeJSON(String16Builder* output) const
+{
+    DCHECK(type() == TypeSerialized);
+    output->append(m_serializedValue);
+}
+
+std::unique_ptr<Value> SerializedValue::clone() const
+{
+    return SerializedValue::create(m_serializedValue);
 }
 
 DictionaryValue::~DictionaryValue()

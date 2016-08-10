@@ -38,7 +38,8 @@ public:
         TypeDouble,
         TypeString,
         TypeObject,
-        TypeArray
+        TypeArray,
+        TypeSerialized
     };
 
     ValueType type() const { return m_type; }
@@ -49,6 +50,7 @@ public:
     virtual bool asDouble(double* output) const;
     virtual bool asInteger(int* output) const;
     virtual bool asString(String16* output) const;
+    virtual bool asSerialized(String16* output) const;
 
     String16 toJSONString() const;
     virtual void writeJSON(String16Builder* output) const;
@@ -121,6 +123,24 @@ private:
     explicit StringValue(const char* value) : Value(TypeString), m_stringValue(value) { }
 
     String16 m_stringValue;
+};
+
+class PLATFORM_EXPORT SerializedValue : public Value {
+public:
+    static std::unique_ptr<SerializedValue> create(const String16& value)
+    {
+        return wrapUnique(new SerializedValue(value));
+    }
+
+    bool asSerialized(String16* output) const override;
+    void writeJSON(String16Builder* output) const override;
+    std::unique_ptr<Value> clone() const override;
+
+private:
+    explicit SerializedValue(const String16& value) : Value(TypeSerialized), m_serializedValue(value) { }
+    explicit SerializedValue(const char* value) : Value(TypeSerialized), m_serializedValue(value) { }
+
+    String16 m_serializedValue;
 };
 
 class PLATFORM_EXPORT DictionaryValue : public Value {

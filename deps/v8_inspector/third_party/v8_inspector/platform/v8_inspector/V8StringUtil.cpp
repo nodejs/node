@@ -5,10 +5,9 @@
 #include "platform/v8_inspector/V8StringUtil.h"
 
 #include "platform/inspector_protocol/String16.h"
-#include "platform/v8_inspector/V8DebuggerImpl.h"
+#include "platform/v8_inspector/V8InspectorImpl.h"
 #include "platform/v8_inspector/V8InspectorSessionImpl.h"
 #include "platform/v8_inspector/V8Regex.h"
-#include "platform/v8_inspector/public/V8ContentSearchUtil.h"
 
 namespace blink {
 
@@ -144,10 +143,10 @@ std::unique_ptr<protocol::Debugger::SearchMatch> buildObjectForSearchMatch(int l
         .build();
 }
 
-std::unique_ptr<V8Regex> createSearchRegex(V8DebuggerImpl* debugger, const String16& query, bool caseSensitive, bool isRegex)
+std::unique_ptr<V8Regex> createSearchRegex(V8InspectorImpl* inspector, const String16& query, bool caseSensitive, bool isRegex)
 {
     String16 regexSource = isRegex ? query : createSearchRegexSource(query);
-    return wrapUnique(new V8Regex(debugger, regexSource, caseSensitive));
+    return wrapUnique(new V8Regex(inspector, regexSource, caseSensitive));
 }
 
 } // namespace
@@ -166,6 +165,11 @@ v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate, const String1
     return v8::String::NewFromTwoByte(isolate, reinterpret_cast<const uint16_t*>(string.characters16()), v8::NewStringType::kInternalized, string.length()).ToLocalChecked();
 }
 
+v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate, const char* str)
+{
+    return v8::String::NewFromUtf8(isolate, str, v8::NewStringType::kInternalized).ToLocalChecked();
+}
+
 String16 toProtocolString(v8::Local<v8::String> value)
 {
     if (value.IsEmpty() || value->IsNull() || value->IsUndefined())
@@ -182,7 +186,16 @@ String16 toProtocolStringWithTypeCheck(v8::Local<v8::Value> value)
     return toProtocolString(value.As<v8::String>());
 }
 
-namespace V8ContentSearchUtil {
+std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> searchInTextByLinesImpl(V8InspectorSession* session, const String16& text, const String16& query, const bool caseSensitive, const bool isRegex)
+{
+    std::unique_ptr<V8Regex> regex = createSearchRegex(static_cast<V8InspectorSessionImpl*>(session)->inspector(), query, caseSensitive, isRegex);
+    std::vector<std::pair<int, String16>> matches = scriptRegexpMatchesByLines(*regex.get(), text);
+
+    std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> result;
+    for (const auto& match : matches)
+        result.push_back(buildObjectForSearchMatch(match.first, match.second));
+    return result;
+}
 
 String16 findSourceURL(const String16& content, bool multiline, bool* deprecated)
 {
@@ -193,20 +206,6 @@ String16 findSourceMapURL(const String16& content, bool multiline, bool* depreca
 {
     return findMagicComment(content, "sourceMappingURL", multiline, deprecated);
 }
-
-std::unique_ptr<protocol::Array<protocol::Debugger::SearchMatch>> searchInTextByLines(V8InspectorSession* session, const String16& text, const String16& query, const bool caseSensitive, const bool isRegex)
-{
-    std::unique_ptr<protocol::Array<protocol::Debugger::SearchMatch>> result = protocol::Array<protocol::Debugger::SearchMatch>::create();
-    std::unique_ptr<V8Regex> regex = createSearchRegex(static_cast<V8InspectorSessionImpl*>(session)->debugger(), query, caseSensitive, isRegex);
-    std::vector<std::pair<int, String16>> matches = scriptRegexpMatchesByLines(*regex.get(), text);
-
-    for (const auto& match : matches)
-        result->addItem(buildObjectForSearchMatch(match.first, match.second));
-
-    return result;
-}
-
-} // namespace V8ContentSearchUtil
 
 std::unique_ptr<protocol::Value> toProtocolValue(v8::Local<v8::Context> context, v8::Local<v8::Value> value, int maxDepth)
 {

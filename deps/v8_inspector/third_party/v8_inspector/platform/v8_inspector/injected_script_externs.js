@@ -39,12 +39,11 @@ InjectedScriptHostClass.prototype.isTypedArray = function(obj) {}
 InjectedScriptHostClass.prototype.getInternalProperties = function(obj) {}
 
 /**
- * @param {!Function} fn
- * @param {*} receiver
- * @param {!Array.<*>=} argv
- * @return {*}
+ * @param {!Object} object
+ * @param {string} propertyName
+ * @return {boolean}
  */
-InjectedScriptHostClass.prototype.suppressWarningsAndCallFunction = function(fn, receiver, argv) {}
+InjectedScriptHostClass.prototype.objectHasOwnProperty = function(object, propertyName) {}
 
 /**
  * @param {*} value
@@ -58,12 +57,6 @@ InjectedScriptHostClass.prototype.bind = function(value, groupName) {}
  * @return {!Object}
  */
 InjectedScriptHostClass.prototype.proxyTargetValue = function(object) {}
-
-/**
- * @param {!Object} object
- * @return {Object|undefined}
- */
-InjectedScriptHostClass.prototype.prototype = function(object) {}
 
 /** @type {!InjectedScriptHostClass} */
 var InjectedScriptHost;

@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,76 +6,55 @@
 #define V8Inspector_h
 
 #include "platform/inspector_protocol/Platform.h"
-#include "platform/v8_inspector/public/V8DebuggerClient.h"
-#include "platform/v8_inspector/public/V8InspectorSession.h"
-#include "platform/v8_inspector/public/V8InspectorSessionClient.h"
+#include "platform/inspector_protocol/String16.h"
+#include "platform/v8_inspector/public/V8ContextInfo.h"
 
 #include <v8.h>
 
 namespace blink {
 
+class V8InspectorClient;
+class V8InspectorSession;
+class V8StackTrace;
+
 namespace protocol {
-class Dispatcher;
-class Frontend;
 class FrontendChannel;
 }
 
-class V8Debugger;
-class V8HeapProfilerAgent;
-class V8ProfilerAgent;
-
-class V8Inspector : public V8DebuggerClient, V8InspectorSessionClient {
+class PLATFORM_EXPORT V8Inspector {
 public:
-    V8Inspector(v8::Isolate*, v8::Local<v8::Context>);
-    ~V8Inspector();
+    static std::unique_ptr<V8Inspector> create(v8::Isolate*, V8InspectorClient*);
+    virtual ~V8Inspector() { }
 
-    // Transport interface.
-    void connectFrontend(protocol::FrontendChannel*);
-    void disconnectFrontend();
-    void dispatchMessageFromFrontend(const String16& message);
+    // Contexts instrumentation.
+    virtual void contextCreated(const V8ContextInfo&) = 0;
+    virtual void contextDestroyed(v8::Local<v8::Context>) = 0;
+    virtual void resetContextGroup(int contextGroupId) = 0;
 
-private:
-    bool callingContextCanAccessContext(v8::Local<v8::Context> calling, v8::Local<v8::Context> target) override;
-    String16 valueSubtype(v8::Local<v8::Value>) override;
-    bool formatAccessorsAsProperties(v8::Local<v8::Value>) override;
-    void muteWarningsAndDeprecations(int) override { }
-    void unmuteWarningsAndDeprecations(int) override { }
-    double currentTimeMS() override { return 0; };
+    // Various instrumentation.
+    virtual void willExecuteScript(v8::Local<v8::Context>, int scriptId) = 0;
+    virtual void didExecuteScript(v8::Local<v8::Context>) = 0;
+    virtual void idleStarted() = 0;
+    virtual void idleFinished() = 0;
 
-    bool isExecutionAllowed() override;
-    v8::Local<v8::Context> ensureDefaultContextInGroup(int contextGroupId) override;
-    void beginUserGesture() override { }
-    void endUserGesture() override { }
-    bool isInspectableHeapObject(v8::Local<v8::Object>) override { return true; }
-    void consoleTime(const String16& title) override { }
-    void consoleTimeEnd(const String16& title) override { }
-    void consoleTimeStamp(const String16& title) override { }
-    void consoleAPIMessage(int contextGroupId, MessageLevel, const String16& message, const String16& url, unsigned lineNumber, unsigned columnNumber, V8StackTrace*) override { }
-    v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate*, v8::Local<v8::Context>) override
-    {
-        return v8::MaybeLocal<v8::Value>();
-    }
-    void installAdditionalCommandLineAPI(v8::Local<v8::Context>, v8::Local<v8::Object>) override { }
-    void enableAsyncInstrumentation() override { }
-    void disableAsyncInstrumentation() override { }
-    void startRepeatingTimer(double, TimerCallback, void* data) override { }
-    void cancelTimer(void* data) override { }
+    // Async stack traces instrumentation.
+    virtual void asyncTaskScheduled(const String16& taskName, void* task, bool recurring) = 0;
+    virtual void asyncTaskCanceled(void* task) = 0;
+    virtual void asyncTaskStarted(void* task) = 0;
+    virtual void asyncTaskFinished(void* task) = 0;
+    virtual void allAsyncTasksCanceled() = 0;
 
-    // V8InspectorSessionClient
-    void runtimeEnabled() override { };
-    void runtimeDisabled() override { };
-    void resumeStartup() override { };
-    bool canExecuteScripts() override;
-    void profilingStarted() override { };
-    void profilingStopped() override { };
-    void consoleCleared() override { };
+    // Exceptions instrumentation.
+    virtual unsigned exceptionThrown(v8::Local<v8::Context>, const String16& message, v8::Local<v8::Value> exception, const String16& detailedMessage, const String16& url, unsigned lineNumber, unsigned columnNumber, std::unique_ptr<V8StackTrace>, int scriptId) = 0;
+    virtual void exceptionRevoked(v8::Local<v8::Context>, unsigned exceptionId, const String16& message) = 0;
 
-    std::unique_ptr<V8Debugger> m_debugger;
-    std::unique_ptr<V8InspectorSession> m_session;
-    String16 m_state;
-    v8::Local<v8::Context> m_context;
+    // API methods.
+    virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId, protocol::FrontendChannel*, const String16* state) = 0;
+    virtual std::unique_ptr<V8StackTrace> createStackTrace(v8::Local<v8::StackTrace>) = 0;
+    virtual std::unique_ptr<V8StackTrace> captureStackTrace(bool fullStack) = 0;
 };
 
-}
+} // namespace blink
+
 
 #endif // V8Inspector_h

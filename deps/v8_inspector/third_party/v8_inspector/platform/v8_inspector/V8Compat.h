@@ -22,7 +22,11 @@ public:
 };
 
 } // namespace v8
-
+#define V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, callback, data, length) \
+    v8::Function::New((context), (callback), (data), (length))
+#else
+#define V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, callback, data, length) \
+    v8::Function::New((context), (callback), (data), (length), v8::ConstructorBehavior::kThrow)
 #endif // V8_MAJOR_VERSION < 5 || (V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION < 1)
 
 #endif // V8Compat_h
