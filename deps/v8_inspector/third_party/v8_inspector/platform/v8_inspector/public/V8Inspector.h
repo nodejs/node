@@ -33,6 +33,7 @@ public:
     void connectFrontend(protocol::FrontendChannel*);
     void disconnectFrontend();
     void dispatchMessageFromFrontend(const String16& message);
+    void notifyContextDestroyed();
 
 private:
     bool callingContextCanAccessContext(v8::Local<v8::Context> calling, v8::Local<v8::Context> target) override;
