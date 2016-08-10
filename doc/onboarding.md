@@ -3,7 +3,7 @@
 This document is an outline of the things we tell new Collaborators at their
 onboarding session.
 
-* Prior to the onbaording session, add the new Collaborators to
+* Prior to the onboarding session, add the new Collaborators to
 [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
 
 ## **thank you** for doing this
