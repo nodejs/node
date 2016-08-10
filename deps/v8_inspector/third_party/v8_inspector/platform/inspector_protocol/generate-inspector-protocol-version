@@ -60,7 +60,7 @@ except ImportError:
 def list_to_map(items, key):
     result = {}
     for item in items:
-        if not "hidden" in item:
+        if not "experimental" in item and not "hidden" in item:
             result[item[key]] = item
     return result
 
@@ -287,7 +287,7 @@ def self_test():
                 {
                     "name": "requestWillBeSent",
                     "parameters": [
-                        { "name": "frameId", "type": "string", "hidden": True },
+                        { "name": "frameId", "type": "string", "experimental": True },
                         { "name": "request", "$ref": "Request" },
                         { "name": "becameOptional", "type": "string" },
                         { "name": "removedRequired", "type": "string" },
@@ -451,7 +451,8 @@ def main():
         load_domains_and_baselines(arg_values[1], domains, baseline_domains)
 
     expected_errors = [
-        "Debugger.globalObjectCleared: event has been removed"
+        "Debugger.globalObjectCleared: event has been removed",
+        "Runtime.executionContextCreated.context parameter->Runtime.ExecutionContextDescription.frameId: required property has been removed"
     ]
 
     errors = compare_schemas(baseline_domains, domains, False)

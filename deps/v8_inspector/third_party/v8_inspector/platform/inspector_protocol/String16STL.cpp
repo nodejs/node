@@ -113,14 +113,6 @@ inline char upperNibbleToASCIIHexDigit(char c)
     return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
 }
 
-template<typename CharType> inline bool isASCIIAlphaCaselessEqual(CharType cssCharacter, char character)
-{
-    // This function compares a (preferrably) constant ASCII
-    // lowercase letter to any input character.
-    DCHECK(character >= 'a' && character <= 'z');
-    return LIKELY(toASCIILowerUnchecked(cssCharacter) == character);
-}
-
 inline int inlineUTF8SequenceLengthNonASCII(char b0)
 {
     if ((b0 & 0xC0) != 0xC0)

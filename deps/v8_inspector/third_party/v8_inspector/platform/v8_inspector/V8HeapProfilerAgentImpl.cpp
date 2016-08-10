@@ -5,10 +5,11 @@
 #include "platform/v8_inspector/V8HeapProfilerAgentImpl.h"
 
 #include "platform/v8_inspector/InjectedScript.h"
-#include "platform/v8_inspector/V8DebuggerImpl.h"
+#include "platform/v8_inspector/V8Debugger.h"
+#include "platform/v8_inspector/V8InspectorImpl.h"
 #include "platform/v8_inspector/V8InspectorSessionImpl.h"
 #include "platform/v8_inspector/V8StringUtil.h"
-#include "platform/v8_inspector/public/V8DebuggerClient.h"
+#include "platform/v8_inspector/public/V8InspectorClient.h"
 #include <v8-profiler.h>
 #include <v8-version.h>
 
@@ -50,14 +51,10 @@ public:
 
     const char* GetName(v8::Local<v8::Object> object) override
     {
-        int contextId = V8DebuggerImpl::contextId(object->CreationContext());
-        if (!contextId)
+        InspectedContext* context = m_session->inspector()->getContext(m_session->contextGroupId(), V8Debugger::contextId(object->CreationContext()));
+        if (!context)
             return "";
-        ErrorString errorString;
-        InjectedScript* injectedScript = m_session->findInjectedScript(&errorString, contextId);
-        if (!injectedScript)
-            return "";
-        String16 name = injectedScript->context()->origin();
+        String16 name = context->origin();
         size_t length = name.length();
         if (m_offset + length + 1 >= m_strings.size())
             return "";
@@ -149,7 +146,7 @@ private:
 
 V8HeapProfilerAgentImpl::V8HeapProfilerAgentImpl(V8InspectorSessionImpl* session, protocol::FrontendChannel* frontendChannel, protocol::DictionaryValue* state)
     : m_session(session)
-    , m_isolate(session->debugger()->isolate())
+    , m_isolate(session->inspector()->isolate())
     , m_frontend(frontendChannel)
     , m_state(state)
     , m_hasTimer(false)
@@ -253,7 +250,7 @@ void V8HeapProfilerAgentImpl::getObjectByHeapObjectId(ErrorString* error, const 
         return;
     }
 
-    if (!m_session->debugger()->client()->isInspectableHeapObject(heapObject)) {
+    if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject)) {
         *error = "Object is not available";
         return;
     }
@@ -279,7 +276,7 @@ void V8HeapProfilerAgentImpl::addInspectedHeapObject(ErrorString* errorString, c
         return;
     }
 
-    if (!m_session->debugger()->client()->isInspectableHeapObject(heapObject)) {
+    if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject)) {
         *errorString = "Object is not available";
         return;
     }
@@ -290,8 +287,10 @@ void V8HeapProfilerAgentImpl::addInspectedHeapObject(ErrorString* errorString, c
 void V8HeapProfilerAgentImpl::getHeapObjectId(ErrorString* errorString, const String16& objectId, String16* heapSnapshotObjectId)
 {
     v8::HandleScope handles(m_isolate);
-    v8::Local<v8::Value> value = m_session->findObject(errorString, objectId);
-    if (value.IsEmpty() || value->IsUndefined())
+    v8::Local<v8::Value> value;
+    v8::Local<v8::Context> context;
+    String16 objectGroup;
+    if (!m_session->unwrapObject(errorString, objectId, &value, &context, &objectGroup) || value->IsUndefined())
         return;
 
     v8::SnapshotObjectId id = m_isolate->GetHeapProfiler()->GetObjectId(value);
@@ -302,7 +301,7 @@ void V8HeapProfilerAgentImpl::requestHeapStatsUpdate()
 {
     HeapStatsStream stream(&m_frontend);
     v8::SnapshotObjectId lastSeenObjectId = m_isolate->GetHeapProfiler()->GetHeapStats(&stream);
-    m_frontend.lastSeenObjectId(lastSeenObjectId, m_session->debugger()->client()->currentTimeMS());
+    m_frontend.lastSeenObjectId(lastSeenObjectId, m_session->inspector()->client()->currentTimeMS());
 }
 
 // static
@@ -316,14 +315,14 @@ void V8HeapProfilerAgentImpl::startTrackingHeapObjectsInternal(bool trackAllocat
     m_isolate->GetHeapProfiler()->StartTrackingHeapObjects(trackAllocations);
     if (!m_hasTimer) {
         m_hasTimer = true;
-        m_session->debugger()->client()->startRepeatingTimer(0.05, &V8HeapProfilerAgentImpl::onTimer, reinterpret_cast<void*>(this));
+        m_session->inspector()->client()->startRepeatingTimer(0.05, &V8HeapProfilerAgentImpl::onTimer, reinterpret_cast<void*>(this));
     }
 }
 
 void V8HeapProfilerAgentImpl::stopTrackingHeapObjectsInternal()
 {
     if (m_hasTimer) {
-        m_session->debugger()->client()->cancelTimer(reinterpret_cast<void*>(this));
+        m_session->inspector()->client()->cancelTimer(reinterpret_cast<void*>(this));
         m_hasTimer = false;
     }
     m_isolate->GetHeapProfiler()->StopTrackingHeapObjects();

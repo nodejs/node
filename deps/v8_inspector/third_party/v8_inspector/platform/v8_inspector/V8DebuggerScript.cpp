@@ -78,7 +78,7 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, v8::Local<v8::Object> o
     m_startColumn = object->Get(toV8StringInternalized(isolate, "startColumn"))->ToInteger(isolate)->Value();
     m_endLine = object->Get(toV8StringInternalized(isolate, "endLine"))->ToInteger(isolate)->Value();
     m_endColumn = object->Get(toV8StringInternalized(isolate, "endColumn"))->ToInteger(isolate)->Value();
-    m_isContentScript = object->Get(toV8StringInternalized(isolate, "isContentScript"))->ToBoolean(isolate)->Value();
+    m_executionContextAuxData = toProtocolStringWithTypeCheck(object->Get(toV8StringInternalized(isolate, "executionContextAuxData")));
     m_isInternalScript = object->Get(toV8StringInternalized(isolate, "isInternalScript"))->ToBoolean(isolate)->Value();
     m_executionContextId = object->Get(toV8StringInternalized(isolate, "executionContextId"))->ToInteger(isolate)->Value();
     m_isLiveEdit = isLiveEdit;
@@ -92,7 +92,7 @@ V8DebuggerScript::~V8DebuggerScript()
 {
 }
 
-String16 V8DebuggerScript::sourceURL() const
+const String16& V8DebuggerScript::sourceURL() const
 {
     return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
 }

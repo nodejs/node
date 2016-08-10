@@ -9,17 +9,15 @@
 #include "platform/inspector_protocol/String16.h"
 #include "platform/v8_inspector/protocol/Console.h"
 #include "platform/v8_inspector/protocol/Runtime.h"
-#include "platform/v8_inspector/public/V8ConsoleTypes.h"
-#include "platform/v8_inspector/public/V8StackTrace.h"
 #include <deque>
 #include <v8.h>
 
 namespace blink {
 
 class InspectedContext;
-class V8DebuggerImpl;
+class V8InspectorImpl;
 class V8InspectorSessionImpl;
-class V8StackTrace;
+class V8StackTraceImpl;
 
 enum class V8MessageOrigin { kConsole, kException, kRevokedException };
 
@@ -33,18 +31,19 @@ public:
         double timestamp,
         ConsoleAPIType,
         const std::vector<v8::Local<v8::Value>>& arguments,
-        std::unique_ptr<V8StackTrace>,
+        std::unique_ptr<V8StackTraceImpl>,
         InspectedContext*);
 
     static std::unique_ptr<V8ConsoleMessage> createForException(
         double timestamp,
-        const String16& message,
+        const String16& detailedMessage,
         const String16& url,
         unsigned lineNumber,
         unsigned columnNumber,
-        std::unique_ptr<V8StackTrace>,
+        std::unique_ptr<V8StackTraceImpl>,
         int scriptId,
         v8::Isolate*,
+        const String16& message,
         int contextId,
         v8::Local<v8::Value> exception,
         unsigned exceptionId);
@@ -66,7 +65,7 @@ private:
     using Arguments = std::vector<std::unique_ptr<v8::Global<v8::Value>>>;
     std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>> wrapArguments(V8InspectorSessionImpl*, bool generatePreview) const;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapException(V8InspectorSessionImpl*, bool generatePreview) const;
-    void setLocation(const String16& url, unsigned lineNumber, unsigned columnNumber, std::unique_ptr<V8StackTrace>, int scriptId);
+    void setLocation(const String16& url, unsigned lineNumber, unsigned columnNumber, std::unique_ptr<V8StackTraceImpl>, int scriptId);
 
     V8MessageOrigin m_origin;
     double m_timestamp;
@@ -74,18 +73,19 @@ private:
     String16 m_url;
     unsigned m_lineNumber;
     unsigned m_columnNumber;
-    std::unique_ptr<V8StackTrace> m_stackTrace;
+    std::unique_ptr<V8StackTraceImpl> m_stackTrace;
     int m_scriptId;
     int m_contextId;
     ConsoleAPIType m_type;
     unsigned m_exceptionId;
     unsigned m_revokedExceptionId;
     Arguments m_arguments;
+    String16 m_detailedMessage;
 };
 
 class V8ConsoleMessageStorage {
 public:
-    V8ConsoleMessageStorage(V8DebuggerImpl*, int contextGroupId);
+    V8ConsoleMessageStorage(V8InspectorImpl*, int contextGroupId);
     ~V8ConsoleMessageStorage();
 
     int contextGroupId() { return m_contextGroupId; }
@@ -97,9 +97,7 @@ public:
     void clear();
 
 private:
-    void notifyClear();
-
-    V8DebuggerImpl* m_debugger;
+    V8InspectorImpl* m_inspector;
     int m_contextGroupId;
     int m_expiredCount;
     std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;

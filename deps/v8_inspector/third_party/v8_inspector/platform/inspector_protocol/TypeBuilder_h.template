@@ -23,9 +23,14 @@
 #include "platform/inspector_protocol/String16.h"
 #include "platform/inspector_protocol/Values.h"
 #include "platform/inspector_protocol/ValueConversions.h"
+// For each imported domain we generate a ValueConversions struct instead of a full domain definition
+// and include Domain::API version from there.
 {% for name in domain.dependencies %}
 #include "{{output_package}}/{{name}}.h"
 {% endfor %}
+{% if domain["has_exports"] %}
+#include "{{exported_package}}/{{domain.domain}}.h"
+{% endif %}
 
 namespace blink {
 namespace protocol {
@@ -53,7 +58,7 @@ namespace {{type.id}}Enum {
       {% for literal in type.enum %}
 {{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
       {% endfor %}
-} // {{type.id}}Enum
+} // namespace {{type.id}}Enum
     {% endif %}
   {% endfor %}
   {% for command in join_arrays(domain, ["commands", "events"]) %}
@@ -77,7 +82,8 @@ namespace {{param.name | to_title_case}}Enum {
     {% set type_def = type_definition(domain.domain + "." + type.id)%}
 
 // {{type.description}}
-class {{export_macro}} {{type.id}} {
+class {{export_macro}} {{type.id}} {% if type.exported %}: public API::{{type.id}} {% endif %}{
+    PROTOCOL_DISALLOW_COPY({{type.id}});
 public:
     static std::unique_ptr<{{type.id}}> parse(protocol::Value* value, ErrorSupport* errors);
 
@@ -103,6 +109,9 @@ public:
 
     std::unique_ptr<protocol::DictionaryValue> serialize() const;
     std::unique_ptr<{{type.id}}> clone() const;
+    {% if type.exported %}
+    String16 toJSONString() const override;
+    {% endif %}
 
     template<int STATE>
     class {{type.id}}Builder {
@@ -205,16 +214,21 @@ public:
         ) = 0;
     };
     {% endif %}
-    virtual void {{command.name}}(ErrorString*
+    virtual void {{command.name}}(
+    {%- if not("async" in command) -%}
+        ErrorString*
+    {%- endif -%}
     {%- for parameter in command.parameters -%}
+        {%- if (not loop.first) or not("async" in command) -%}, {% endif -%}
         {%- if "optional" in parameter -%}
-        , const Maybe<{{resolve_type(parameter).raw_type}}>& in_{{parameter.name}}
+        const Maybe<{{resolve_type(parameter).raw_type}}>& in_{{parameter.name}}
         {%- else -%}
-        , {{resolve_type(parameter).pass_type}} in_{{parameter.name}}
+        {{resolve_type(parameter).pass_type}} in_{{parameter.name}}
         {%- endif -%}
     {%- endfor -%}
     {%- if "async" in command -%}
-        , std::unique_ptr<{{command.name | to_title_case}}Callback> callback
+        {%- if command.parameters -%}, {% endif -%}
+        std::unique_ptr<{{command.name | to_title_case}}Callback> callback
     {%- else -%}
       {%- for parameter in command.returns -%}
         {%- if "optional" in parameter -%}
@@ -276,6 +290,7 @@ public:
     using FrontendClass = Frontend;
     using DispatcherClass = Dispatcher;
     static const char domainName[];
+    static const char commandPrefix[];
 };
 
 } // namespace {{domain.domain}}
