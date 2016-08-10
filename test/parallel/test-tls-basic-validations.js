@@ -17,3 +17,12 @@ const tls = require('tls');
   assert(buffer.equals(Buffer.from('abcd')));
   assert(out.NPNProtocols.equals(Buffer.from('efgh')));
 }
+
+{
+  const buffer = Buffer.from('abcd');
+  const out = {};
+  tls.convertALPNProtocols(buffer, out);
+  out.ALPNProtocols.write('efgh');
+  assert(buffer.equals(Buffer.from('abcd')));
+  assert(out.ALPNProtocols.equals(Buffer.from('efgh')));
+}
