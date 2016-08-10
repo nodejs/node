@@ -12,6 +12,10 @@ class Environment;
 
 namespace v8 {
 class Platform;
+template<typename T>
+class Local;
+class Value;
+class Message;
 }  // namespace v8
 
 namespace node {
@@ -32,6 +36,9 @@ class Agent {
   bool IsStarted();
   bool IsConnected();
   void WaitForDisconnect();
+
+  void FatalException(v8::Local<v8::Value> error,
+                      v8::Local<v8::Message> message);
  private:
   AgentImpl* impl;
 };
