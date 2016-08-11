@@ -99,29 +99,8 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
-#ifdef _WIN32
-// emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
-// on overflow...
-// VS 2015 added a standard conform snprintf
-#if defined( _MSC_VER ) && (_MSC_VER < 1900)
-#include <stdarg.h>
-inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
-  va_list argp;
-  va_start(argp, format);
-  int ret = _vscprintf(format, argp);
-  vsnprintf_s(buffer, n, _TRUNCATE, format, argp);
-  va_end(argp);
-  return ret;
-}
-#endif
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define arraysize(a) (sizeof(a) / sizeof(*a))  // Workaround for VS 2013.
-#else
 template <typename T, size_t N>
 constexpr size_t arraysize(const T(&)[N]) { return N; }
-#endif
 
 #ifndef ROUND_UP
 # define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))

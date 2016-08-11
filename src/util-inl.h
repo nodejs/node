@@ -28,33 +28,33 @@ bool ListNode<T>::IsEmpty() const {
   return prev_ == this;
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 ListHead<T, M>::Iterator::Iterator(ListNode<T>* node) : node_(node) {}
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 T* ListHead<T, M>::Iterator::operator*() const {
   return ContainerOf(M, node_);
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 const typename ListHead<T, M>::Iterator&
 ListHead<T, M>::Iterator::operator++() {
   node_ = node_->next_;
   return *this;
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 bool ListHead<T, M>::Iterator::operator!=(const Iterator& that) const {
   return node_ != that.node_;
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 ListHead<T, M>::~ListHead() {
   while (IsEmpty() == false)
     head_.next_->Remove();
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 void ListHead<T, M>::MoveBack(ListHead* that) {
   if (IsEmpty())
     return;
@@ -67,7 +67,7 @@ void ListHead<T, M>::MoveBack(ListHead* that) {
   head_.next_ = &head_;
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 void ListHead<T, M>::PushBack(T* element) {
   ListNode<T>* that = &(element->*M);
   head_.prev_->next_ = that;
@@ -76,7 +76,7 @@ void ListHead<T, M>::PushBack(T* element) {
   head_.prev_ = that;
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 void ListHead<T, M>::PushFront(T* element) {
   ListNode<T>* that = &(element->*M);
   head_.next_->prev_ = that;
@@ -85,12 +85,12 @@ void ListHead<T, M>::PushFront(T* element) {
   head_.next_ = that;
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 bool ListHead<T, M>::IsEmpty() const {
   return head_.IsEmpty();
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 T* ListHead<T, M>::PopFront() {
   if (IsEmpty())
     return nullptr;
@@ -99,12 +99,12 @@ T* ListHead<T, M>::PopFront() {
   return ContainerOf(M, node);
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 typename ListHead<T, M>::Iterator ListHead<T, M>::begin() const {
   return Iterator(head_.next_);
 }
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
   return Iterator(const_cast<ListNode<T>*>(&head_));
 }

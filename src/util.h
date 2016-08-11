@@ -122,18 +122,8 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 template <typename T>
 class ListNode;
 
-template <typename T>
-using ListNodeMember = ListNode<T> T::*;
-
-// VS 2013 doesn't understand dependent templates.
-#ifdef _MSC_VER
-#define ListNodeMember(T) ListNodeMember
-#else
-#define ListNodeMember(T) ListNodeMember<T>
-#endif
-
 // TAILQ-style intrusive list head.
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 class ListHead;
 
 template <typename T>
@@ -145,13 +135,13 @@ class ListNode {
   inline bool IsEmpty() const;
 
  private:
-  template <typename U, ListNodeMember(U) M> friend class ListHead;
+  template <typename U, ListNode<U> (U::*M)> friend class ListHead;
   ListNode* prev_;
   ListNode* next_;
   DISALLOW_COPY_AND_ASSIGN(ListNode);
 };
 
-template <typename T, ListNodeMember(T) M>
+template <typename T, ListNode<T> (T::*M)>
 class ListHead {
  public:
   class Iterator {
