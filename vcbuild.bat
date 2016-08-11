@@ -126,6 +126,8 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 
 call :getnodeversion || exit /b 1
 
+if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+
 @rem Set environment for msbuild
 
 if defined target_env if "%target_env%" NEQ "vc2015" goto vc-set-2013
@@ -242,6 +244,16 @@ copy /Y ..\deps\npm\bin\npm node-v%FULLVERSION%-win-%target_arch%\ > nul
 if errorlevel 1 echo Cannot copy npm && goto package_error
 copy /Y ..\deps\npm\bin\npm.cmd node-v%FULLVERSION%-win-%target_arch%\ > nul
 if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
+copy /Y ..\tools\msvs\nodevars.bat node-v%FULLVERSION%-win-%target_arch%\ > nul
+if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
+if not defined noetw (
+    copy /Y ..\src\res\node_etw_provider.man node-v%FULLVERSION%-win-%target_arch%\ > nul
+    if errorlevel 1 echo Cannot copy node_etw_provider.man && goto package_error
+)
+if not defined noperfctr (
+    copy /Y ..\src\res\node_perfctr_provider.man node-v%FULLVERSION%-win-%target_arch%\ > nul
+    if errorlevel 1 echo Cannot copy node_perfctr_provider.man && goto package_error
+)
 
 echo Creating node-v%FULLVERSION%-win-%target_arch%.7z
 del node-v%FULLVERSION%-win-%target_arch%.7z > nul 2> nul
