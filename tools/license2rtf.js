@@ -104,7 +104,7 @@ function ParagraphParser() {
       if (block_has_c_style_comment) {
         var prev = line;
         line = line.replace(/^(\s*?)(?:\s?\*\/|\/\*\s|\s\*\s?)/, '$1');
-        if (prev == line)
+        if (prev === line)
           line = line.replace(/^\s{2}/, '');
         if (/\*\//.test(prev))
           block_has_c_style_comment = false;
@@ -142,8 +142,8 @@ function ParagraphParser() {
     var line_li = result[2];
 
     // Flush the paragraph when there is a li or an indentation jump
-    if (line_li || (line_indent != paragraph_line_indent &&
-                    paragraph_line_indent != -1)) {
+    if (line_li || (line_indent !== paragraph_line_indent &&
+                    paragraph_line_indent !== -1)) {
       flushParagraph();
       paragraph.li = line_li;
     }
@@ -151,7 +151,7 @@ function ParagraphParser() {
     // Set the paragraph indent that we use to detect indentation jumps. When
     // we just detected a list indicator, wait
     // for the next line to arrive before setting this.
-    if (!line_li && paragraph_line_indent != -1) {
+    if (!line_li && paragraph_line_indent !== -1) {
       paragraph_line_indent = line_indent;
     }
 
