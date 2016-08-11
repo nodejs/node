@@ -1165,6 +1165,19 @@ var formatTests = {
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
     pathname: '/fooA100%mBr',
+  },
+
+  // multiple `#` in search
+  'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag': {
+    href: 'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag',
+    protocol: 'http:',
+    slashes: true,
+    host: 'example.com',
+    hostname: 'example.com',
+    hash: '#frag',
+    search: '?foo=bar#1#2#3&abc=#4##5',
+    query: {},
+    pathname: '/'
   }
 };
 for (const u in formatTests) {
