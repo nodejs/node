@@ -31,3 +31,14 @@ test-tls-connect-address-family : PASS,FLAKY
 # regressions until this work is complete
 [$system==aix]
 test-fs-watch-enoent                 : FAIL, PASS
+# Disable so we don't get failures now that AIX has been
+# added to regular CI runs
+test-regress-GH-1899                 : FAIL, PASS
+test-stdio-closed                    : FAIL, PASS
+
+# Flaky until https://github.com/nodejs/build/issues/415 is resolved.
+# On some of the buildbots, AAAA queries for localhost don't resolve
+# to an address and neither do any of the alternatives from the
+# localIPv6Hosts list from test/common.js.
+test-https-connect-address-family : PASS,FLAKY
+test-tls-connect-address-family : PASS,FLAKY
