@@ -87,6 +87,7 @@ rules:
   no-new-symbol: 2
   no-this-before-super: 2
   prefer-const: 2
+  rest-spread-spacing: 2
   template-curly-spacing: 2
 
   # Custom rules in tools/eslint-rules
