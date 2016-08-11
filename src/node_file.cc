@@ -360,16 +360,19 @@ class fs_req_wrap {
 #define ASYNC_CALL(func, req, encoding, ...)                                  \
   ASYNC_DEST_CALL(func, req, nullptr, encoding, __VA_ARGS__)                  \
 
-#define SYNC_DEST_CALL(func, path, dest, ...)                                 \
-  fs_req_wrap req_wrap;                                                       \
+#define SYNC_CALL_NO_THROW(req_wrap, func, dest, ...)                         \
   env->PrintSyncTrace();                                                      \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
-                         &req_wrap.req,                                       \
+                         &(req_wrap).req,                                     \
                          __VA_ARGS__,                                         \
-                         nullptr);                                            \
-  if (err < 0) {                                                              \
-    return env->ThrowUVException(err, #func, nullptr, path, dest);            \
-  }                                                                           \
+                         nullptr);
+
+#define SYNC_DEST_CALL(func, path, dest, ...)                                 \
+  fs_req_wrap req_wrap;                                                       \
+  SYNC_CALL_NO_THROW(req_wrap, func, dest, __VA_ARGS__)                       \
+  if (SYNC_RESULT < 0) {                                                      \
+    return env->ThrowUVException(SYNC_RESULT, #func, nullptr, path, dest);    \
+  }
 
 #define SYNC_CALL(func, path, ...)                                            \
   SYNC_DEST_CALL(func, path, nullptr, __VA_ARGS__)                            \
@@ -881,6 +884,77 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+
+static size_t CountSlashes(const char* str, size_t len) {
+  size_t cntr = 0;
+  for (size_t i = 0; i < len; i++) {
+    if (str[i] == '/') cntr++;
+  }
+  return cntr;
+}
+
+
+static int ResolveRealPathSync(Environment* env,
+                               std::string* ret_str,
+                               const char* path,
+                               size_t call_depth) {
+  fs_req_wrap req_wrap;
+  SYNC_CALL_NO_THROW(req_wrap, realpath, path, path);
+
+  call_depth++;
+  if (SYNC_RESULT != UV_ELOOP) {
+    if (SYNC_RESULT) return SYNC_RESULT;
+    *ret_str = std::string(static_cast<const char*>(SYNC_REQ.ptr));
+    return SYNC_RESULT;
+  // TODO(trevnorris): Instead of simply not allowing too many recursive
+  // calls, would it instead be a viable solution to attempt detection of
+  // recursive symlinks? Thus preventing false negatives.
+  } else if (SYNC_RESULT == UV_ELOOP && call_depth > 100) {
+    return UV_ELOOP;
+  }
+
+#ifdef _WIN32
+  const char separator = '\\';
+#else
+  const char separator = '/';
+#endif
+  std::string str_path(path);
+  size_t offset = 0;
+  size_t current = 0;
+  size_t slash_count = 0;
+
+  // Can assume '/' because uv_fs_realpath() cannot return UV_ELOOP on win.
+  while ((offset = str_path.find(separator, offset + 1)) != std::string::npos) {
+    // OSX libc bails with ELOOP when encountering more than MAXSYMLINKS,
+    // which is hard coded to in the kernel header to 32.
+    if (++slash_count < 32) {
+      continue;
+    }
+
+    std::string partial = *ret_str + str_path.substr(current, offset - current);
+    int err2 = ResolveRealPathSync(env, ret_str, partial.c_str(), call_depth);
+    // No need to handle an error that was returned by a recursive call.
+    if (err2) {
+      *ret_str = std::string();
+      return err2;
+    }
+
+    current = offset;
+    slash_count = CountSlashes(ret_str->c_str(), ret_str->length());
+  }
+
+  if (offset == std::string::npos) {
+    offset = str_path.length();
+  }
+  if (current >= offset) {
+    return 0;
+  }
+
+  std::string pass(*ret_str + str_path.substr(current, offset - current));
+  return ResolveRealPathSync(env, ret_str, pass.c_str(), call_depth);
+}
+
+
 static void RealPath(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -901,10 +975,14 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   if (callback->IsObject()) {
     ASYNC_CALL(realpath, callback, encoding, *path);
   } else {
-    SYNC_CALL(realpath, *path, *path);
-    const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
+    std::string rc_string;
+    // Resolve the symlink attempting simple amount of deep path resolution.
+    int err = ResolveRealPathSync(env, &rc_string, *path, 0);
+    if (err) {
+      return env->ThrowUVException(err, "realpath", nullptr, *path, *path);
+    }
     Local<Value> rc = StringBytes::Encode(env->isolate(),
-                                          link_path,
+                                          rc_string.c_str(),
                                           encoding);
     if (rc.IsEmpty()) {
       return env->ThrowUVException(UV_EINVAL,
