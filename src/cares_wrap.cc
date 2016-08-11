@@ -1077,14 +1077,14 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
 
 
 static void IsIP(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in6_addr)];
-
   int rc = 0;
+
   if (args.Length() < 1) {
     args.GetReturnValue().Set(rc);
     return;
   }
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
   if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
     rc = 4;
   else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
@@ -1094,25 +1094,25 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void IsIPv4(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in_addr)];
 
-  if (args.Length() && uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
-    args.GetReturnValue().Set(true);
-  } else {
-    args.GetReturnValue().Set(false);
+  if (args.Length() > 0) {
+    node::Utf8Value ip(args.GetIsolate(), args[0]);
+    if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
+      return args.GetReturnValue().Set(true);
   }
+  args.GetReturnValue().Set(false);
 }
 
 static void IsIPv6(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
-  if (args.Length() && uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
-    args.GetReturnValue().Set(true);
-  } else {
-    args.GetReturnValue().Set(false);
+  if (args.Length() > 0) {
+    node::Utf8Value ip(args.GetIsolate(), args[0]);
+    if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
+      return args.GetReturnValue().Set(true);
   }
+  args.GetReturnValue().Set(false);
 }
 
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
