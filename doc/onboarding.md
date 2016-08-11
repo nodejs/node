@@ -14,7 +14,7 @@ onboarding session.
     * issues, labels, and reviewing code
     * merging code
 
-## setup:
+## setup
 
   * notifications setup
     * use https://github.com/notifications or set up email
@@ -110,7 +110,7 @@ onboarding session.
       * The remaining elements on the form are typically unchanged with the exception of `POST_STATUS_TO_PR`. Check that if you want a CI status indicator to be automatically inserted into the PR.
 
 
-## process for getting code in:
+## process for getting code in
 
   * the collaborator guide is a great resource: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#technical-howto
 
@@ -171,7 +171,7 @@ Landing a PR
     * close the original PR with "Landed in `<commit hash>`".
 
 
-## exercise: make PRs adding yourselves to the README.
+## exercise: make PRs adding yourselves to the README
 
   * Example: https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732
     * to see full URL: `git log 7b09aade8468e1c930f36b9c81e6ac2ed5bc8732 -1`
@@ -181,7 +181,7 @@ Landing a PR
   * Make sure to added the `PR-URL: <full-pr-url>`!
 
 
-## final notes:
+## final notes
 
   * don't worry about making mistakes: everybody makes them, there's a lot to internalize and that takes time (and we recognize that!)
   * very few (no?) mistakes are unrecoverable
