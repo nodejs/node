@@ -47,7 +47,6 @@ if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
-if /i "%1"=="vc2013"        set target_env=vc2013&goto arg-ok
 if /i "%1"=="vc2015"        set target_env=vc2015&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
@@ -133,51 +132,26 @@ if defined noprojgen if defined nobuild if defined nosign if not defined msi got
 
 @rem Set environment for msbuild
 
-if defined target_env if "%target_env%" NEQ "vc2015" goto vc-set-2013
 @rem Look for Visual Studio 2015
 echo Looking for Visual Studio 2015
-if not defined VS140COMNTOOLS goto vc-set-2013
-if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2013
+if not defined VS140COMNTOOLS goto msbuild-not-found
+if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
 echo Found Visual Studio 2015
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2015...
   if not exist "%WIX%\SDK\VS2015" (
     echo Failed to find WiX install for Visual Studio 2015
     echo VS2015 support for WiX is only present starting at version 3.10
-    goto vc-set-2013
+    goto wix-not-found
   )
 )
 if "%VCVARS_VER%" NEQ "140" (
   call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=140
 )
-if not defined VCINSTALLDIR goto vc-set-2013
+if not defined VCINSTALLDIR goto msbuild-not-found
 set GYP_MSVS_VERSION=2015
 set PLATFORM_TOOLSET=v140
-goto msbuild-found
-
-:vc-set-2013
-if defined target_env if "%target_env%" NEQ "vc2013" goto msbuild-not-found
-@rem Look for Visual Studio 2013
-echo Looking for Visual Studio 2013
-if not defined VS120COMNTOOLS goto msbuild-not-found
-if not exist "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
-echo Found Visual Studio 2013
-if defined msi (
-  echo Looking for WiX installation for Visual Studio 2013...
-  if not exist "%WIX%\SDK\VS2013" (
-    echo Failed to find WiX install for Visual Studio 2013
-    echo VS2013 support for WiX is only present starting at version 3.8
-    goto wix-not-found
-  )
-)
-if "%VCVARS_VER%" NEQ "120" (
-  call "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat"
-  SET VCVARS_VER=120
-)
-if not defined VCINSTALLDIR goto msbuild-not-found
-set GYP_MSVS_VERSION=2013
-set PLATFORM_TOOLSET=v120
 goto msbuild-found
 
 :msbuild-not-found
@@ -388,7 +362,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosign] [x86/x64] [vc2013/vc2015] [download-all] [enable-vtune]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosign] [x86/x64] [vc2015] [download-all] [enable-vtune]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
