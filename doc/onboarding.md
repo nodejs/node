@@ -67,6 +67,8 @@ onboarding session.
   * Reviewing:
     * The primary goal is for the codebase to improve.
     * Secondary (but not far off) is for the person submitting code to succeed.
+      A pull request from a new contributor is an opportunity to grow the
+      community.
     * Review a bit at a time. Do not overwhelm new contributors.
       * It is tempting to micro-optimize and make everything about relative
         performance. Don't succumb to that temptation. We change V8 often.
@@ -74,19 +76,25 @@ onboarding session.
         the future.
     * Be aware: Your opinion carries a lot of weight!
     * Nits (requests for small changes that are not essential) are fine, but try
-      to avoid stalling the PR.
+      to avoid stalling the pull request.
       * Note that they are nits when you comment: `Nit: change foo() to bar().`
-      * If they are stalling the PR, fix them yourself on merge.
+      * If they are stalling the pull request, fix them yourself on merge.
     * Minimum wait for comments time
       * There is a minimum waiting time which we try to respect for non-trivial
         changes, so that people who may have important input in such a
         distributed project are able to respond.
-      * For non-trivial changes, leave the PR open for at least 48 hours (72
-        hours on a weekend).
-      * If a PR is abandoned, check if they'd mind if you took it over
+      * For non-trivial changes, leave the pull request open for at least 48
+        hours (72 hours on a weekend).
+      * If a pull request is abandoned, check if they'd mind if you took it over
         (especially if it just has nits left).
+    * Approving a change
+      * Collaborators indicate that they have reviewed and approve of the
+        the changes in a pull request by commenting with `LGTM`, which stands
+        for "looks good to me".
       * You have the power to `LGTM` another collaborator's (including TSC/CTC
         members) work.
+      * You may not `LGTM` your own pull requests.
+      * You have the power to `LGTM` anyone else's pull requests.
 
 
   * what belongs in node:
