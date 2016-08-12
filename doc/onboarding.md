@@ -64,31 +64,37 @@ onboarding session.
     * will also come more naturally over time
 
 
-  * reviewing:
-    * primary goal is for the codebase to improve
-    * secondary (but not far off) is for the person submitting code to succeed
-      * helps grow the community
-      * and draws new people into the project
-    * Review a bit at a time. It is **very important** to not overwhelm newer people.
-      * it is tempting to micro-optimize / make everything about relative perf,
-        don't succumb to that temptation. we change v8 a lot more often now, contortions
-        that are zippy today may be unnecessary in the future
-    * be aware: your opinion carries a lot of weight!
-    * nits are fine, but try to avoid stalling the PR
-      * note that they are nits when you comment
-      * if they really are stalling nits, fix them yourself on merge (but try to let PR authors know they can fix these)
-      * improvement doesn't have to come all at once
-    * minimum wait for comments time
-      * There is a minimum waiting time which we try to respect for non-trivial changes, so that people who may have important input in such a distributed project are able to respond.
-        * It may help to set time limits and expectations:
-          * the collaborators are very distributed so it is unlikely that they will be looking at stuff the same time as you are.
-          * before merging code: give folks at least one working day to respond: "If no one objects, tomorrow at <time> I'll merge this in."
-            * please always either specify your timezone, or use UTC time
-            * set reminders
-          * check in on the code every once in a while (set reminders!)
-      * 48 hours for non-trivial changes, and 72 hours on weekends.
-      * if a PR is abandoned, check if they'd mind if you took it over (especially if it just has nits left)
-      * you have the power to `LGTM` another collaborator or TSC / CTC members' work
+  * Reviewing:
+    * The primary goal is for the codebase to improve.
+    * Secondary (but not far off) is for the person submitting code to succeed.
+      A pull request from a new contributor is an opportunity to grow the
+      community.
+    * Review a bit at a time. Do not overwhelm new contributors.
+      * It is tempting to micro-optimize and make everything about relative
+        performance. Don't succumb to that temptation. We change V8 often.
+        Techniques that provide improved performance today may be unnecessary in
+        the future.
+    * Be aware: Your opinion carries a lot of weight!
+    * Nits (requests for small changes that are not essential) are fine, but try
+      to avoid stalling the pull request.
+      * Note that they are nits when you comment: `Nit: change foo() to bar().`
+      * If they are stalling the pull request, fix them yourself on merge.
+    * Minimum wait for comments time
+      * There is a minimum waiting time which we try to respect for non-trivial
+        changes, so that people who may have important input in such a
+        distributed project are able to respond.
+      * For non-trivial changes, leave the pull request open for at least 48
+        hours (72 hours on a weekend).
+      * If a pull request is abandoned, check if they'd mind if you took it over
+        (especially if it just has nits left).
+    * Approving a change
+      * Collaborators indicate that they have reviewed and approve of the
+        the changes in a pull request by commenting with `LGTM`, which stands
+        for "looks good to me".
+      * You have the power to `LGTM` another collaborator's (including TSC/CTC
+        members) work.
+      * You may not `LGTM` your own pull requests.
+      * You have the power to `LGTM` anyone else's pull requests.
 
 
   * what belongs in node:
