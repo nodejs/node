@@ -11,16 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// OSX 10.9 defaults to libc++ which provides a C++11 <type_traits> header.
-#if defined(__APPLE__) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1090
-#define USE_TR1_TYPE_TRAITS
-#endif
-
-#ifdef USE_TR1_TYPE_TRAITS
-#include <tr1/type_traits>  // NOLINT(build/c++tr1)
-#else
 #include <type_traits>  // std::remove_reference
-#endif
 
 namespace node {
 
@@ -47,11 +38,7 @@ NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
-#ifdef USE_TR1_TYPE_TRAITS
-template <typename T> using remove_reference = std::tr1::remove_reference<T>;
-#else
 template <typename T> using remove_reference = std::remove_reference<T>;
-#endif
 
 #define FIXED_ONE_BYTE_STRING(isolate, string)                                \
   (node::OneByteString((isolate), (string), sizeof(string) - 1))
