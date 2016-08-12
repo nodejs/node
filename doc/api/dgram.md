@@ -377,7 +377,7 @@ added: REPLACEME
 
 * `multicastInterface` {String}
 
-*Note- All references to scope in this section are refering to
+*Note: All references to scope in this section are refering to
 [IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
 with a scope index is written as `'IP%scope'` where scope is an interface name or
 interface number.*

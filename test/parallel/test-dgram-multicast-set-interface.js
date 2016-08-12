@@ -33,9 +33,12 @@ const dgram = require('dgram');
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
     // Try to set with an invalid interfaceAddress (wrong address class)
-    assert.throws(() => {
+    try {
       socket.setMulticastInterface('::');
-    });
+      throw ('Not detected.');
+    } catch (e) {
+      console.error(`setMulticastInterface: wrong family error is: ${e}`);
+    }
 
     socket.close();
   }));
@@ -102,8 +105,9 @@ const dgram = require('dgram');
 
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
-    // An invalid Scope gets turned into #0 (default selection)
-    socket.setMulticastInterface('::%%');
+    // Using lo0 for OsX, on all other OSes, an invalid Scope gets
+    // turned into #0 (default selection) which is also acceptable.
+    socket.setMulticastInterface('::%lo0');
 
     socket.close();
   }));

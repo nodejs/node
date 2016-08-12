@@ -3,12 +3,18 @@ const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 const util = require('util');
+
+if (common.inFreeBSDJail) {
+  common.skip('in a FreeBSD jail');
+  return;
+}
+
 const networkInterfaces = require('os').networkInterfaces();
 const Buffer = require('buffer').Buffer;
 const fork = require('child_process').fork;
 const MULTICASTS = {
-  IPv4: [ '224.0.0.115', '224.0.0.116'],
-  IPv6: [ 'ff02::1:115', 'ff02::1:116']
+  IPv4: ['224.0.0.115', '224.0.0.116', '224.0.0.117'],
+  IPv6: ['ff02::1:115', 'ff02::1:116', 'ff02::1:117']
 };
 const LOOPBACK = {IPv4: '127.0.0.1', IPv6: '::1'};
 const ANY = {IPv4: '0.0.0.0', IPv6: '::'};
@@ -16,48 +22,47 @@ const FAM = 'IPv4';
 const UDP = {IPv4: 'udp4', IPv6: 'udp6'};
 
 const TIMEOUT = common.platformTimeout(5000);
-const NOW = +new Date();
+const NOW = Date.now();
 const TMPL = (tail) => `${NOW} - ${tail}`;
+
+// Take the first non-internal interface as the other interfacei to isolate
+// from loopback. Ideally, this should check for whether or not this interface
+// and the loopback have the MULTICAST flag.
+const interfaceAddress = ((networkInterfaces) => {
+  for (const name in networkInterfaces) {
+    for (const localInterface of networkInterfaces[name]) {
+      if (!localInterface.internal && localInterface.family === FAM) {
+        let interfaceAddress = localInterface.address;
+        // On Windows, IPv6 would need: `%${localInterface.scopeid}`
+        if (FAM === 'IPv6')
+          interfaceAddress += `${interfaceAddress}%${name}`;
+        return interfaceAddress;
+      }}}})(networkInterfaces);
+
+assert.ok(interfaceAddress);
+
 const messages = [
   {tail: 'First message to send', mcast: MULTICASTS[FAM][0], rcv: true},
-  {tail: 'Second message to send', mcast: MULTICASTS[FAM][1]},
-  {tail: 'Third message to send', mcast: MULTICASTS[FAM][0], rcv: true},
-  {tail: 'Fourth message to send', mcast: MULTICASTS[FAM][1], rcv: true,
+  {tail: 'Second message to send', mcast: MULTICASTS[FAM][0], rcv: true},
+  {tail: 'Third message to send', mcast: MULTICASTS[FAM][1], rcv: true,
+   newAddr: interfaceAddress},
+  {tail: 'Fourth message to send', mcast: MULTICASTS[FAM][2]},
+  {tail: 'Fifth message to send', mcast: MULTICASTS[FAM][1], rcv: true},
+  {tail: 'Sixth message to send', mcast: MULTICASTS[FAM][2], rcv: true,
    newAddr: LOOPBACK[FAM]}
 ];
 
-if (common.inFreeBSDJail) {
-  common.skip('in a FreeBSD jail');
-  return;
-}
-
-// Take the first non-internal interface as the address for interfaceing.
-// Ideally, this should check for whether or not an interface is set up for
-// BROADCAST and favor internal/private interfaces.
-get_interfaceAddress: for (var name in networkInterfaces) {
-  var interfaces = networkInterfaces[name];
-  for (var i = 0; i < interfaces.length; i++) {
-    var localInterface = interfaces[i];
-    if (!localInterface.internal && localInterface.family === FAM) {
-      var interfaceAddress = localInterface.address;
-      if (FAM === 'IPv6')
-        interfaceAddress += `%${name}`; // Windows `%${localInterface.scopeid}`
-      break get_interfaceAddress;
-    }
-  }
-}
-assert.ok(interfaceAddress);
 
 if (process.argv[2] !== 'child') {
-  const IFACES = [interfaceAddress, LOOPBACK[FAM]];
+  const IFACES = [ANY[FAM], interfaceAddress, LOOPBACK[FAM]];
   const workers = {};
-  const listeners = MULTICASTS[FAM].length * 2;
+  const listeners = MULTICASTS[FAM].length * 3;
   let listening = 0;
   let dead = 0;
   let i = 0;
   let done = 0;
   let timer = null;
-  //exit the test if it doesn't succeed within TIMEOUT
+  // Exit the test if it doesn't succeed within the TIMEOUT.
   timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
@@ -68,116 +73,112 @@ if (process.argv[2] !== 'child') {
     process.exit(1);
   }, TIMEOUT);
 
-  //launch child processes
-  for (var x = 0; x < listeners; x++) {
-    (function() {
-      const IFACE = IFACES[x % IFACES.length];
-      const MULTICAST = MULTICASTS[FAM][x % MULTICASTS[FAM].length];
+  // Launch the child processes.
+  for (let i = 0; i < listeners; i++) {
+    const IFACE = IFACES[i % IFACES.length];
+    const MULTICAST = MULTICASTS[FAM][i % MULTICASTS[FAM].length];
 
-      const messagesNeeded = messages.filter((m) => m.rcv &&
-                                                    m.mcast === MULTICAST)
-                                     .map((m) => TMPL(m.tail));
-      var worker = fork(process.argv[1],
-                       ['child',
-                        IFACE,
-                        MULTICAST,
-                        messagesNeeded.length,
-                        NOW]);
-      workers[worker.pid] = worker;
+    const messagesNeeded = messages.filter((m) => m.rcv &&
+                                                  m.mcast === MULTICAST)
+                                   .map((m) => TMPL(m.tail));
+    const worker = fork(process.argv[1],
+                     ['child',
+                      IFACE,
+                      MULTICAST,
+                      messagesNeeded.length,
+                      NOW]);
+    workers[worker.pid] = worker;
 
-      worker.messagesReceived = [];
-      worker.messagesNeeded = messagesNeeded;
+    worker.messagesReceived = [];
+    worker.messagesNeeded = messagesNeeded;
 
-      //handle the death of workers
-      worker.on('exit', function(code, signal) {
-        // don't consider this the true death if the worker
-        // has finished successfully
-        // or if the exit code is 0
-        if (worker.isDone || code == 0) {
-          return;
+    // Handle the death of workers.
+    worker.on('exit', function(code, signal) {
+      // Don't consider this a true death if the worker has finished
+      // successfully or if the exit code is 0.
+      if (worker.isDone || code == 0) {
+        return;
+      }
+
+      dead += 1;
+      console.error('[PARENT] Worker %d died. %d dead of %d',
+                    worker.pid,
+                    dead,
+                    listeners);
+
+      if (dead === listeners) {
+        console.error('[PARENT] All workers have died.');
+        console.error('[PARENT] Fail');
+
+        killChildren(workers);
+
+        process.exit(1);
+      }
+    });
+
+    worker.on('message', function(msg) {
+      if (msg.listening) {
+        listening += 1;
+
+        if (listening === listeners) {
+          // All child process are listening, so start sending.
+          sendSocket.sendNext();
+        }
+      } else if (msg.message) {
+        worker.messagesReceived.push(msg.message);
+
+        if (worker.messagesReceived.length === worker.messagesNeeded.length) {
+          done += 1;
+          worker.isDone = true;
+          console.error('[PARENT] %d received %d messages total.',
+                        worker.pid,
+                        worker.messagesReceived.length);
         }
 
-        dead += 1;
-        console.error('[PARENT] Worker %d died. %d dead of %d',
-                      worker.pid,
-                      dead,
-                      listeners);
+        if (done === listeners) {
+          console.error('[PARENT] All workers have received the ' +
+                        'required number of ' +
+                        'messages. Will now compare.');
 
-        if (dead === listeners) {
-          console.error('[PARENT] All workers have died.');
-          console.error('[PARENT] Fail');
+          Object.keys(workers).forEach(function(pid) {
+            const worker = workers[pid];
 
-          killChildren(workers);
+            let count = 0;
 
-          process.exit(1);
-        }
-      });
-
-      worker.on('message', function(msg) {
-        if (msg.listening) {
-          listening += 1;
-
-          if (listening === listeners) {
-            //all child process are listening, so start sending
-            sendSocket.sendNext();
-          }
-        } else if (msg.message) {
-          worker.messagesReceived.push(msg.message);
-
-          if (worker.messagesReceived.length === worker.messagesNeeded.length) {
-            done += 1;
-            worker.isDone = true;
-            console.error('[PARENT] %d received %d messages total.',
-                          worker.pid,
-                          worker.messagesReceived.length);
-          }
-
-          if (done === listeners) {
-            console.error('[PARENT] All workers have received the ' +
-                          'required number of ' +
-                          'messages. Will now compare.');
-
-            Object.keys(workers).forEach(function(pid) {
-              var worker = workers[pid];
-
-              var count = 0;
-
-              worker.messagesReceived.forEach(function(buf) {
-                for (var i = 0; i < worker.messagesNeeded.length; ++i) {
-                  if (buf.toString() === worker.messagesNeeded[i]) {
-                    count++;
-                    break;
-                  }
+            worker.messagesReceived.forEach(function(buf) {
+              for (let i = 0; i < worker.messagesNeeded.length; ++i) {
+                if (buf.toString() === worker.messagesNeeded[i]) {
+                  count++;
+                  break;
                 }
-              });
-
-              console.error('[PARENT] %d received %d matching messages.',
-                            worker.pid,
-                            count);
-
-              assert.equal(count, worker.messagesNeeded.length,
-                           'A worker received an invalid multicast message');
+              }
             });
 
-            clearTimeout(timer);
-            console.error('[PARENT] Success');
-            killChildren(workers);
-          }
+            console.error('[PARENT] %d received %d matching messages.',
+                          worker.pid,
+                          count);
+
+            assert.equal(count, worker.messagesNeeded.length,
+                         'A worker received an invalid multicast message');
+          });
+
+          clearTimeout(timer);
+          console.error('[PARENT] Success');
+          killChildren(workers);
         }
-      });
-    })(x);
+      }
+    });
   }
 
-  var sendSocket = dgram.createSocket({
+  const sendSocket = dgram.createSocket({
     type: UDP[FAM],
     reuseAddr: true
   });
 
-  // don't bind the address explicitly for sending
+  // Don't bind the address explicitly when sending and start with
+  // the OSes default multicast interface selection.
   sendSocket.bind(common.PORT, ANY[FAM]);
   sendSocket.on('listening', function() {
-    // but explicitly set the outgoing interface
-    sendSocket.setMulticastInterface(interfaceAddress);
     console.error(`outgoing iface ${interfaceAddress}`);
   });
 
@@ -189,7 +190,7 @@ if (process.argv[2] !== 'child') {
     const msg = messages[i++];
 
     if (!msg) {
-      try { sendSocket.close(); } catch (e) {}
+      sendSocket.close();
       return;
     }
     console.error(TMPL(NOW, msg.tail));
@@ -217,10 +218,8 @@ if (process.argv[2] !== 'child') {
   };
 
   function killChildren(children) {
-    Object.keys(children).forEach(function(key) {
-      var child = children[key];
-      child.kill();
-    });
+    for (const i in children)
+      children[i].kill();
   }
 }
 
@@ -232,13 +231,13 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
 
   console.error(`pid ${process.pid} iface ${IFACE} MULTICAST ${MULTICAST}`);
-  var listenSocket = dgram.createSocket({
+  const listenSocket = dgram.createSocket({
     type: UDP[FAM],
     reuseAddr: true
   });
 
   listenSocket.on('message', function(buf, rinfo) {
-    // receive udp messages only sent from parent
+    // Examine udp messages only when they were sent by the parent.
     if (!buf.toString().startsWith(SESSION)) return;
 
     console.error('[CHILD] %s received %s from %j',
@@ -248,23 +247,16 @@ if (process.argv[2] === 'child') {
 
     receivedMessages.push(buf);
 
-    process.send({message: buf.toString()});
+    let closecb;
 
     if (receivedMessages.length == NEEDEDMSGS) {
-      process.nextTick(function() {
-        listenSocket.close();
-      });
+      listenSocket.close();
+      closecb = () => process.exit();
     }
+
+    process.send({message: buf.toString()}, closecb);
   });
 
-  listenSocket.on('close', function() {
-    //HACK: Wait to exit the process to ensure that the parent
-    //process has had time to receive all messages via process.send()
-    //This may be indicitave of some other issue.
-    setTimeout(function() {
-      process.exit();
-    }, 1000);
-  });
 
   listenSocket.on('listening', function() {
     listenSocket.addMembership(MULTICAST, IFACE);
