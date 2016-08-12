@@ -782,13 +782,15 @@ function FormatErrorString(error) {
 
 
 function GetStackFrames(raw_stack) {
+  var internal_raw_stack = new InternalArray();
+  %MoveArrayContents(raw_stack, internal_raw_stack);
   var frames = new InternalArray();
-  var sloppy_frames = raw_stack[0];
-  for (var i = 1; i < raw_stack.length; i += 4) {
-    var recv = raw_stack[i];
-    var fun = raw_stack[i + 1];
-    var code = raw_stack[i + 2];
-    var pc = raw_stack[i + 3];
+  var sloppy_frames = internal_raw_stack[0];
+  for (var i = 1; i < internal_raw_stack.length; i += 4) {
+    var recv = internal_raw_stack[i];
+    var fun = internal_raw_stack[i + 1];
+    var code = internal_raw_stack[i + 2];
+    var pc = internal_raw_stack[i + 3];
     var pos = %_IsSmi(code) ? code : %FunctionGetPositionForOffset(code, pc);
     sloppy_frames--;
     frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
