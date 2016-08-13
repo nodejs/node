@@ -3374,9 +3374,8 @@ void LoadEnvironment(Environment* env) {
   // assigning things to their places.
 
   // We start the process this way in order to be more modular. Developers
-  // who do not like how 'lib/internal/bootstrap_node.js' setups the module
-  // system but do like Node's I/O bindings may want to replace 'f' with
-  // their own function.
+  // who do not like how bootstrap_node.js setups the module system but do
+  // like Node's I/O bindings may want to replace 'f' with their own function.
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
