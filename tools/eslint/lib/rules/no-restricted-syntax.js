@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-let nodeTypes = require("espree").Syntax;
+const nodeTypes = require("espree").Syntax;
 
 module.exports = {
     meta: {

@@ -28,7 +28,7 @@ module.exports = {
     create: function(context) {
 
         // trim restricted module names
-        let restrictedModules = context.options;
+        const restrictedModules = context.options;
 
         // if no modules are restricted we don't need to check the CallExpressions
         if (restrictedModules.length === 0) {
@@ -63,7 +63,7 @@ module.exports = {
 
             // node has arguments and first argument is string
             if (node.arguments.length && isString(node.arguments[0])) {
-                let argumentValue = node.arguments[0].value.trim();
+                const argumentValue = node.arguments[0].value.trim();
 
                 // check if argument value is in restricted modules array
                 if (restrictedModules.indexOf(argumentValue) !== -1) {
@@ -77,7 +77,7 @@ module.exports = {
         return {
             CallExpression: function(node) {
                 if (isRequireCall(node)) {
-                    let restrictedModuleName = getRestrictedModuleName(node);
+                    const restrictedModuleName = getRestrictedModuleName(node);
 
                     if (restrictedModuleName) {
                         context.report(node, "'{{moduleName}}' module is restricted from being used.", {

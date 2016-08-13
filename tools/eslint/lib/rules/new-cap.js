@@ -9,13 +9,11 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash");
-
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let CAPS_ALLOWED = [
+const CAPS_ALLOWED = [
     "Array",
     "Boolean",
     "Date",
@@ -98,11 +96,17 @@ module.exports = {
                             type: "string"
                         }
                     },
+                    newIsCapExceptionPattern: {
+                        type: "string"
+                    },
                     capIsNewExceptions: {
                         type: "array",
                         items: {
                             type: "string"
                         }
+                    },
+                    capIsNewExceptionPattern: {
+                        type: "string"
                     },
                     properties: {
                         type: "boolean"
@@ -115,19 +119,21 @@ module.exports = {
 
     create: function(context) {
 
-        let config = context.options[0] ? lodash.assign({}, context.options[0]) : {};
+        const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
 
         config.newIsCap = config.newIsCap !== false;
         config.capIsNew = config.capIsNew !== false;
-        let skipProperties = config.properties === false;
+        const skipProperties = config.properties === false;
 
-        let newIsCapExceptions = checkArray(config, "newIsCapExceptions", []).reduce(invert, {});
+        const newIsCapExceptions = checkArray(config, "newIsCapExceptions", []).reduce(invert, {});
+        const newIsCapExceptionPattern = config.newIsCapExceptionPattern ? new RegExp(config.newIsCapExceptionPattern) : null;
 
-        let capIsNewExceptions = calculateCapIsNewExceptions(config);
+        const capIsNewExceptions = calculateCapIsNewExceptions(config);
+        const capIsNewExceptionPattern = config.capIsNewExceptionPattern ? new RegExp(config.capIsNewExceptionPattern) : null;
 
-        let listeners = {};
+        const listeners = {};
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -140,11 +146,10 @@ module.exports = {
          */
         function extractNameFromExpression(node) {
 
-            let name = "",
-                property;
+            let name = "";
 
             if (node.callee.type === "MemberExpression") {
-                property = node.callee.property;
+                const property = node.callee.property;
 
                 if (property.type === "Literal" && (typeof property.value === "string")) {
                     name = property.value;
@@ -164,10 +169,10 @@ module.exports = {
          * @returns {string} capitalization state: "non-alpha", "lower", or "upper"
          */
         function getCap(str) {
-            let firstChar = str.charAt(0);
+            const firstChar = str.charAt(0);
 
-            let firstCharLower = firstChar.toLowerCase();
-            let firstCharUpper = firstChar.toUpperCase();
+            const firstCharLower = firstChar.toLowerCase();
+            const firstCharUpper = firstChar.toUpperCase();
 
             if (firstCharLower === firstCharUpper) {
 
@@ -185,10 +190,17 @@ module.exports = {
          * @param {Object} allowedMap Object mapping calleeName to a Boolean
          * @param {ASTNode} node CallExpression node
          * @param {string} calleeName Capitalized callee name from a CallExpression
+         * @param {Object} pattern RegExp object from options pattern
          * @returns {boolean} Returns true if the callee may be capitalized
          */
-        function isCapAllowed(allowedMap, node, calleeName) {
-            if (allowedMap[calleeName] || allowedMap[sourceCode.getText(node.callee)]) {
+        function isCapAllowed(allowedMap, node, calleeName, pattern) {
+            const sourceText = sourceCode.getText(node.callee);
+
+            if (allowedMap[calleeName] || allowedMap[sourceText]) {
+                return true;
+            }
+
+            if (pattern && pattern.test(sourceText)) {
                 return true;
             }
 
@@ -225,11 +237,11 @@ module.exports = {
         if (config.newIsCap) {
             listeners.NewExpression = function(node) {
 
-                let constructorName = extractNameFromExpression(node);
+                const constructorName = extractNameFromExpression(node);
 
                 if (constructorName) {
-                    let capitalization = getCap(constructorName);
-                    let isAllowed = capitalization !== "lower" || isCapAllowed(newIsCapExceptions, node, constructorName);
+                    const capitalization = getCap(constructorName);
+                    const isAllowed = capitalization !== "lower" || isCapAllowed(newIsCapExceptions, node, constructorName, newIsCapExceptionPattern);
 
                     if (!isAllowed) {
                         report(node, "A constructor name should not start with a lowercase letter.");
@@ -241,11 +253,11 @@ module.exports = {
         if (config.capIsNew) {
             listeners.CallExpression = function(node) {
 
-                let calleeName = extractNameFromExpression(node);
+                const calleeName = extractNameFromExpression(node);
 
                 if (calleeName) {
-                    let capitalization = getCap(calleeName);
-                    let isAllowed = capitalization !== "upper" || isCapAllowed(capIsNewExceptions, node, calleeName);
+                    const capitalization = getCap(calleeName);
+                    const isAllowed = capitalization !== "upper" || isCapAllowed(capIsNewExceptions, node, calleeName, capIsNewExceptionPattern);
 
                     if (!isAllowed) {
                         report(node, "A function with a name starting with an uppercase letter should only be used as a constructor.");

@@ -5,7 +5,7 @@
 
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -48,9 +48,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let config = context.options[0],
-            sourceCode = context.getSourceCode(),
-            checkFunctions = true,
+        const config = context.options[0],
+            sourceCode = context.getSourceCode();
+        let checkFunctions = true,
             checkKeywords = true,
             checkClasses = true;
 
@@ -81,14 +81,13 @@ module.exports = {
          * @returns {void} undefined.
          */
         function checkPrecedingSpace(node) {
-            let precedingToken = sourceCode.getTokenBefore(node),
-                hasSpace,
-                parent,
-                requireSpace;
+            const precedingToken = sourceCode.getTokenBefore(node);
+            let requireSpace;
 
             if (precedingToken && !isConflicted(precedingToken) && astUtils.isTokenOnSameLine(precedingToken, node)) {
-                hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
-                parent = context.getAncestors().pop();
+                const hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
+                const parent = context.getAncestors().pop();
+
                 if (parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
                     requireSpace = checkFunctions;
                 } else if (node.type === "ClassBody") {
@@ -127,13 +126,11 @@ module.exports = {
          * @returns {void} undefined.
          */
         function checkSpaceBeforeCaseBlock(node) {
-            let cases = node.cases,
-                firstCase,
-                openingBrace;
+            const cases = node.cases;
+            let openingBrace;
 
             if (cases.length > 0) {
-                firstCase = cases[0];
-                openingBrace = sourceCode.getTokenBefore(firstCase);
+                openingBrace = sourceCode.getTokenBefore(cases[0]);
             } else {
                 openingBrace = sourceCode.getLastToken(node, 1);
             }

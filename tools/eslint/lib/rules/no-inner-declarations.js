@@ -31,8 +31,8 @@ module.exports = {
          * @returns {Object} Ancestor's type and distance from node.
          */
         function nearestBody() {
-            let ancestors = context.getAncestors(),
-                ancestor = ancestors.pop(),
+            const ancestors = context.getAncestors();
+            let ancestor = ancestors.pop(),
                 generation = 1;
 
             while (ancestor && ["Program", "FunctionDeclaration",
@@ -58,7 +58,7 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            let body = nearestBody(node),
+            const body = nearestBody(node),
                 valid = ((body.type === "Program" && body.distance === 1) ||
                     body.distance === 2);
 

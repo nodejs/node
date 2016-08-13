@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to disallow assignments to native objects or read-only global variables
  * @author Ilya Volodin
+ * @deprecated in ESLint v3.3.0
  */
 
 "use strict";
@@ -14,8 +15,11 @@ module.exports = {
         docs: {
             description: "disallow assignments to native objects or read-only global variables",
             category: "Best Practices",
-            recommended: true
+            recommended: true,
+            replacedBy: ["no-global-assign"]
         },
+
+        deprecated: true,
 
         schema: [
             {
@@ -33,8 +37,8 @@ module.exports = {
     },
 
     create: function(context) {
-        let config = context.options[0];
-        let exceptions = (config && config.exceptions) || [];
+        const config = context.options[0];
+        const exceptions = (config && config.exceptions) || [];
 
         /**
          * Reports write references.
@@ -44,7 +48,7 @@ module.exports = {
          * @returns {void}
          */
         function checkReference(reference, index, references) {
-            let identifier = reference.identifier;
+            const identifier = reference.identifier;
 
             if (reference.init === false &&
                 reference.isWrite() &&
@@ -74,7 +78,7 @@ module.exports = {
 
         return {
             Program: function() {
-                let globalScope = context.getScope();
+                const globalScope = context.getScope();
 
                 globalScope.variables.forEach(checkVariable);
             }

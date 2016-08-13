@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -23,7 +23,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -53,7 +53,7 @@ module.exports = {
          * @private
          */
         function reportError(node, leftToken, rightToken) {
-            let replacementText = node.computed ? "" : ".";
+            const replacementText = node.computed ? "" : ".";
 
             context.report({
                 node: node,

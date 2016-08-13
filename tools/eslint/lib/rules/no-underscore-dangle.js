@@ -41,10 +41,10 @@ module.exports = {
 
     create: function(context) {
 
-        let options = context.options[0] || {};
-        let ALLOWED_VARIABLES = options.allow ? options.allow : [];
-        let allowAfterThis = typeof options.allowAfterThis !== "undefined" ? options.allowAfterThis : false;
-        let allowAfterSuper = typeof options.allowAfterSuper !== "undefined" ? options.allowAfterSuper : false;
+        const options = context.options[0] || {};
+        const ALLOWED_VARIABLES = options.allow ? options.allow : [];
+        const allowAfterThis = typeof options.allowAfterThis !== "undefined" ? options.allowAfterThis : false;
+        const allowAfterSuper = typeof options.allowAfterSuper !== "undefined" ? options.allowAfterSuper : false;
 
         //-------------------------------------------------------------------------
         // Helpers
@@ -69,7 +69,7 @@ module.exports = {
          * @private
          */
         function hasTrailingUnderscore(identifier) {
-            let len = identifier.length;
+            const len = identifier.length;
 
             return identifier !== "_" && (identifier[0] === "_" || identifier[len - 1] === "_");
         }
@@ -104,7 +104,7 @@ module.exports = {
          */
         function checkForTrailingUnderscoreInFunctionDeclaration(node) {
             if (node.id) {
-                let identifier = node.id.name;
+                const identifier = node.id.name;
 
                 if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
                     context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
@@ -119,7 +119,7 @@ module.exports = {
          * @private
          */
         function checkForTrailingUnderscoreInVariableExpression(node) {
-            let identifier = node.id.name;
+            const identifier = node.id.name;
 
             if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
                 !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
@@ -134,7 +134,7 @@ module.exports = {
          * @private
          */
         function checkForTrailingUnderscoreInMemberExpression(node) {
-            let identifier = node.property.name,
+            const identifier = node.property.name,
                 isMemberOfThis = node.object.type === "ThisExpression",
                 isMemberOfSuper = node.object.type === "Super";
 

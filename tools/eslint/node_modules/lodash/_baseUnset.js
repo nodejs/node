@@ -1,9 +1,14 @@
-var baseHas = require('./_baseHas'),
-    castPath = require('./_castPath'),
+var castPath = require('./_castPath'),
     isKey = require('./_isKey'),
     last = require('./last'),
     parent = require('./_parent'),
     toKey = require('./_toKey');
+
+/** Used for built-in method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
 
 /**
  * The base implementation of `_.unset`.
@@ -18,7 +23,7 @@ function baseUnset(object, path) {
   object = parent(object, path);
 
   var key = toKey(last(path));
-  return !(object != null && baseHas(object, key)) || delete object[key];
+  return !(object != null && hasOwnProperty.call(object, key)) || delete object[key];
 }
 
 module.exports = baseUnset;

@@ -4,8 +4,6 @@
  */
 "use strict";
 
-let lodash = require("lodash");
-
 module.exports = {
     meta: {
         docs: {
@@ -40,13 +38,13 @@ module.exports = {
     },
 
     create: function(context) {
-        let source = context.getSourceCode();
-        let DEFAULT_OPTIONS = {
+        const source = context.getSourceCode();
+        const DEFAULT_OPTIONS = {
             FunctionDeclaration: true,
             MethodDefinition: false,
             ClassDeclaration: false
         };
-        let options = lodash.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
+        const options = Object.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
 
         /**
          * Report the error message
@@ -64,7 +62,7 @@ module.exports = {
          */
         function checkClassMethodJsDoc(node) {
             if (node.parent.type === "MethodDefinition") {
-                let jsdocComment = source.getJSDocComment(node);
+                const jsdocComment = source.getJSDocComment(node);
 
                 if (!jsdocComment) {
                     report(node);
@@ -78,7 +76,7 @@ module.exports = {
          * @returns {void}
          */
         function checkJsDoc(node) {
-            let jsdocComment = source.getJSDocComment(node);
+            const jsdocComment = source.getJSDocComment(node);
 
             if (!jsdocComment) {
                 report(node);

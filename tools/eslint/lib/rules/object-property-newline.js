@@ -31,21 +31,19 @@ module.exports = {
     },
 
     create: function(context) {
-        let allowSameLine = context.options[0] && Boolean(context.options[0].allowMultiplePropertiesPerLine);
-        let errorMessage = allowSameLine ?
+        const allowSameLine = context.options[0] && Boolean(context.options[0].allowMultiplePropertiesPerLine);
+        const errorMessage = allowSameLine ?
             "Object properties must go on a new line if they aren't all on the same line." :
             "Object properties must go on a new line.";
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         return {
             ObjectExpression: function(node) {
-                let lastTokenOfPreviousProperty, firstTokenOfCurrentProperty;
-
                 if (allowSameLine) {
                     if (node.properties.length > 1) {
-                        let firstTokenOfFirstProperty = sourceCode.getFirstToken(node.properties[0]);
-                        let lastTokenOfLastProperty = sourceCode.getLastToken(node.properties[node.properties.length - 1]);
+                        const firstTokenOfFirstProperty = sourceCode.getFirstToken(node.properties[0]);
+                        const lastTokenOfLastProperty = sourceCode.getLastToken(node.properties[node.properties.length - 1]);
 
                         if (firstTokenOfFirstProperty.loc.end.line === lastTokenOfLastProperty.loc.start.line) {
 
@@ -56,8 +54,8 @@ module.exports = {
                 }
 
                 for (let i = 1; i < node.properties.length; i++) {
-                    lastTokenOfPreviousProperty = sourceCode.getLastToken(node.properties[i - 1]);
-                    firstTokenOfCurrentProperty = sourceCode.getFirstToken(node.properties[i]);
+                    const lastTokenOfPreviousProperty = sourceCode.getLastToken(node.properties[i - 1]);
+                    const firstTokenOfCurrentProperty = sourceCode.getFirstToken(node.properties[i]);
 
                     if (lastTokenOfPreviousProperty.loc.end.line === firstTokenOfCurrentProperty.loc.start.line) {
                         context.report({

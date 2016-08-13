@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/;
-let TARGET_METHODS = /^(?:every|filter|find(?:Index)?|map|reduce(?:Right)?|some|sort)$/;
+const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/;
+const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|map|reduce(?:Right)?|some|sort)$/;
 
 /**
  * Checks a given code path segment is reachable.
@@ -46,38 +46,6 @@ function getLocation(node, sourceCode) {
 }
 
 /**
- * Gets the name of a given node if the node is a Identifier node.
- *
- * @param {ASTNode} node - A node to get.
- * @returns {string} The name of the node, or an empty string.
- */
-function getIdentifierName(node) {
-    return node.type === "Identifier" ? node.name : "";
-}
-
-/**
- * Gets the value of a given node if the node is a Literal node or a
- * TemplateLiteral node.
- *
- * @param {ASTNode} node - A node to get.
- * @returns {string} The value of the node, or an empty string.
- */
-function getConstantStringValue(node) {
-    switch (node.type) {
-        case "Literal":
-            return String(node.value);
-
-        case "TemplateLiteral":
-            return node.expressions.length === 0
-                ? node.quasis[0].value.cooked
-                : "";
-
-        default:
-            return "";
-    }
-}
-
-/**
  * Checks a given node is a MemberExpression node which has the specified name's
  * property.
  *
@@ -88,9 +56,7 @@ function getConstantStringValue(node) {
 function isTargetMethod(node) {
     return (
         node.type === "MemberExpression" &&
-        TARGET_METHODS.test(
-            (node.computed ? getConstantStringValue : getIdentifierName)(node.property)
-        )
+        TARGET_METHODS.test(astUtils.getStaticPropertyName(node) || "")
     );
 }
 
@@ -104,7 +70,7 @@ function isTargetMethod(node) {
  */
 function isCallbackOfArrayMethod(node) {
     while (node) {
-        let parent = node.parent;
+        const parent = node.parent;
 
         switch (parent.type) {
 

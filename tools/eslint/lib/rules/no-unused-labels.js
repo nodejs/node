@@ -68,7 +68,7 @@ module.exports = {
                 return;
             }
 
-            let label = node.label.name;
+            const label = node.label.name;
             let info = scopeInfo;
 
             while (info) {

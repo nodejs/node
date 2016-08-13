@@ -60,7 +60,7 @@ function checkAndReport(context, node, value, array, message) {
  */
 function handleImports(context, includeExports, importsInFile, exportsInFile) {
     return function(node) {
-        let value = getValue(node);
+        const value = getValue(node);
 
         if (value) {
             checkAndReport(context, node, value, importsInFile, "import is duplicated.");
@@ -85,7 +85,7 @@ function handleImports(context, includeExports, importsInFile, exportsInFile) {
  */
 function handleExports(context, importsInFile, exportsInFile) {
     return function(node) {
-        let value = getValue(node);
+        const value = getValue(node);
 
         if (value) {
             checkAndReport(context, node, value, exportsInFile, "export is duplicated.");
@@ -116,11 +116,11 @@ module.exports = {
     },
 
     create: function(context) {
-        let includeExports = (context.options[0] || {}).includeExports,
+        const includeExports = (context.options[0] || {}).includeExports,
             importsInFile = [],
             exportsInFile = [];
 
-        let handlers = {
+        const handlers = {
             ImportDeclaration: handleImports(context, includeExports, importsInFile, exportsInFile)
         };
 

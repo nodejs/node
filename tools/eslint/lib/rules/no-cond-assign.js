@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let NODE_DESCRIPTIONS = {
+const NODE_DESCRIPTIONS = {
     DoWhileStatement: "a 'do...while' statement",
     ForStatement: "a 'for' statement",
     IfStatement: "an 'if' statement",
@@ -32,9 +32,9 @@ module.exports = {
 
     create: function(context) {
 
-        let prohibitAssign = (context.options[0] || "except-parens");
+        const prohibitAssign = (context.options[0] || "except-parens");
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Check whether an AST node is the test expression for a conditional statement.
@@ -70,7 +70,7 @@ module.exports = {
          * @returns {boolean} `true` if the code is enclosed in parentheses; otherwise, `false`.
          */
         function isParenthesised(node) {
-            let previousToken = sourceCode.getTokenBefore(node),
+            const previousToken = sourceCode.getTokenBefore(node),
                 nextToken = sourceCode.getTokenAfter(node);
 
             return previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
@@ -83,7 +83,7 @@ module.exports = {
          * @returns {boolean} `true` if the code is enclosed in two sets of parentheses; otherwise, `false`.
          */
         function isParenthesisedTwice(node) {
-            let previousToken = sourceCode.getTokenBefore(node, 1),
+            const previousToken = sourceCode.getTokenBefore(node, 1),
                 nextToken = sourceCode.getTokenAfter(node, 1);
 
             return isParenthesised(node) &&
@@ -120,7 +120,7 @@ module.exports = {
          * @returns {void}
          */
         function testForConditionalAncestor(node) {
-            let ancestor = findConditionalAncestor(node);
+            const ancestor = findConditionalAncestor(node);
 
             if (ancestor) {
                 context.report(ancestor, "Unexpected assignment within {{type}}.", {

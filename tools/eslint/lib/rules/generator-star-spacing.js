@@ -40,7 +40,7 @@ module.exports = {
 
     create: function(context) {
 
-        let mode = (function(option) {
+        const mode = (function(option) {
             if (!option || typeof option === "string") {
                 return {
                     before: { before: true, after: false },
@@ -52,7 +52,7 @@ module.exports = {
             return option;
         }(context.options[0]));
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Gets `*` token from a given node.
@@ -83,11 +83,11 @@ module.exports = {
          */
         function checkSpacing(side, leftToken, rightToken) {
             if (!!(rightToken.range[0] - leftToken.range[1]) !== mode[side]) {
-                let after = leftToken.value === "*";
-                let spaceRequired = mode[side];
-                let node = after ? leftToken : rightToken;
-                let type = spaceRequired ? "Missing" : "Unexpected";
-                let message = type + " space " + side + " *.";
+                const after = leftToken.value === "*";
+                const spaceRequired = mode[side];
+                const node = after ? leftToken : rightToken;
+                const type = spaceRequired ? "Missing" : "Unexpected";
+                const message = type + " space " + side + " *.";
 
                 context.report({
                     node: node,
@@ -111,7 +111,7 @@ module.exports = {
          * @returns {void}
          */
         function checkFunction(node) {
-            let prevToken, starToken, nextToken;
+            let starToken;
 
             if (!node.generator) {
                 return;
@@ -124,12 +124,14 @@ module.exports = {
             }
 
             // Only check before when preceded by `function`|`static` keyword
-            prevToken = sourceCode.getTokenBefore(starToken);
+            const prevToken = sourceCode.getTokenBefore(starToken);
+
             if (prevToken.value === "function" || prevToken.value === "static") {
                 checkSpacing("before", prevToken, starToken);
             }
 
-            nextToken = sourceCode.getTokenAfter(starToken);
+            const nextToken = sourceCode.getTokenAfter(starToken);
+
             checkSpacing("after", starToken, nextToken);
         }
 

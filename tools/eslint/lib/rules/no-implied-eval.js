@@ -21,13 +21,13 @@ module.exports = {
     },
 
     create: function(context) {
-        let CALLEE_RE = /set(?:Timeout|Interval)|execScript/;
+        const CALLEE_RE = /set(?:Timeout|Interval)|execScript/;
 
         /*
          * Figures out if we should inspect a given binary expression. Is a stack
          * of stacks, where the first element in each substack is a CallExpression.
          */
-        let impliedEvalAncestorsStack = [];
+        const impliedEvalAncestorsStack = [];
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -50,7 +50,7 @@ module.exports = {
          * @private
          */
         function isImpliedEvalMemberExpression(node) {
-            let object = node.object,
+            const object = node.object,
                 property = node.property,
                 hasImpliedEvalName = CALLEE_RE.test(property.name) || CALLEE_RE.test(property.value);
 
@@ -67,7 +67,7 @@ module.exports = {
          * @private
          */
         function isImpliedEvalCallExpression(node) {
-            let isMemberExpression = (node.callee.type === "MemberExpression"),
+            const isMemberExpression = (node.callee.type === "MemberExpression"),
                 isIdentifier = (node.callee.type === "Identifier"),
                 isImpliedEvalCallee =
                     (isIdentifier && CALLEE_RE.test(node.callee.name)) ||
@@ -103,7 +103,7 @@ module.exports = {
             if (hasImpliedEvalParent(node)) {
 
                 // remove the entire substack, to avoid duplicate reports
-                let substack = impliedEvalAncestorsStack.pop();
+                const substack = impliedEvalAncestorsStack.pop();
 
                 context.report(substack[0], "Implied eval. Consider passing a function instead of a string.");
             }

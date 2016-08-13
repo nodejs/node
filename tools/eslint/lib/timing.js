@@ -39,10 +39,10 @@ function alignRight(str, len, ch) {
 // Module definition
 //------------------------------------------------------------------------------
 
-let enabled = !!process.env.TIMING;
+const enabled = !!process.env.TIMING;
 
-let HEADERS = ["Rule", "Time (ms)", "Relative"];
-let ALIGN = [alignLeft, alignRight, alignRight];
+const HEADERS = ["Rule", "Time (ms)", "Relative"];
+const ALIGN = [alignLeft, alignRight, alignRight];
 
 /* istanbul ignore next */
 /**
@@ -53,9 +53,9 @@ let ALIGN = [alignLeft, alignRight, alignRight];
  */
 function display(data) {
     let total = 0;
-    let rows = Object.keys(data)
+    const rows = Object.keys(data)
         .map(function(key) {
-            let time = data[key];
+            const time = data[key];
 
             total += time;
             return [key, time];
@@ -72,22 +72,21 @@ function display(data) {
 
     rows.unshift(HEADERS);
 
-    let widths = [];
+    const widths = [];
 
     rows.forEach(function(row) {
-        let len = row.length,
-            i,
-            n;
+        const len = row.length;
 
-        for (i = 0; i < len; i++) {
-            n = row[i].length;
+        for (let i = 0; i < len; i++) {
+            const n = row[i].length;
+
             if (!widths[i] || n > widths[i]) {
                 widths[i] = n;
             }
         }
     });
 
-    let table = rows.map(function(row) {
+    const table = rows.map(function(row) {
         return row.map(function(cell, index) {
             return ALIGN[index](cell, widths[index]);
         }).join(" | ");
@@ -107,7 +106,7 @@ function display(data) {
 /* istanbul ignore next */
 module.exports = (function() {
 
-    let data = Object.create(null);
+    const data = Object.create(null);
 
     /**
      * Time the run

@@ -26,7 +26,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let restrictedImports = context.options;
+        const restrictedImports = context.options;
 
         // if no imports are restricted we don"t need to check
         if (restrictedImports.length === 0) {
@@ -37,7 +37,7 @@ module.exports = {
             ImportDeclaration: function(node) {
                 if (node && node.source && node.source.value) {
 
-                    let value = node.source.value.trim();
+                    const value = node.source.value.trim();
 
                     if (restrictedImports.indexOf(value) !== -1) {
                         context.report(node, "'{{importName}}' import is restricted from being used.", {

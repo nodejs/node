@@ -39,7 +39,7 @@ module.exports = {
         return {
 
             Literal: function(node) {
-                let lineBreak = /\n/;
+                const lineBreak = /\n/;
 
                 if (lineBreak.test(node.raw) && !isJSXElement(node.parent)) {
                     context.report(node, "Multiline support is limited to browsers supporting ES5 only.");

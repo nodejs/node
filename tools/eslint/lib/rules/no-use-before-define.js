@@ -9,8 +9,8 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-let SENTINEL_TYPE = /^(?:(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|CatchClause|ImportDeclaration|ExportNamedDeclaration)$/;
-let FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/;
+const SENTINEL_TYPE = /^(?:(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|CatchClause|ImportDeclaration|ExportNamedDeclaration)$/;
+const FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/;
 
 /**
  * Parses a given value as options.
@@ -106,7 +106,7 @@ function isInInitializer(variable, reference) {
     }
 
     let node = variable.identifiers[0].parent;
-    let location = reference.identifier.range[1];
+    const location = reference.identifier.range[1];
 
     while (node) {
         if (node.type === "VariableDeclarator") {
@@ -165,7 +165,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = parseOptions(context.options[0]);
+        const options = parseOptions(context.options[0]);
 
         // Defines a function which checks whether or not a reference is allowed according to the option.
         let isAllowed;
@@ -188,7 +188,7 @@ module.exports = {
          */
         function findVariablesInScope(scope) {
             scope.references.forEach(function(reference) {
-                let variable = reference.resolved;
+                const variable = reference.resolved;
 
                 // Skips when the reference is:
                 // - initialization's.
@@ -221,14 +221,14 @@ module.exports = {
          * @private
          */
         function findVariables() {
-            let scope = context.getScope();
+            const scope = context.getScope();
 
             findVariablesInScope(scope);
         }
 
-        let ruleDefinition = {
+        const ruleDefinition = {
             "Program:exit": function(node) {
-                let scope = context.getScope(),
+                const scope = context.getScope(),
                     ecmaFeatures = context.parserOptions.ecmaFeatures || {};
 
                 findVariablesInScope(scope);

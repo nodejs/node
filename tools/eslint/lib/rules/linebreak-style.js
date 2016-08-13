@@ -28,10 +28,10 @@ module.exports = {
 
     create: function(context) {
 
-        let EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
+        const EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
             EXPECTED_CRLF_MSG = "Expected linebreaks to be 'CRLF' but found 'LF'.";
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -56,14 +56,12 @@ module.exports = {
 
         return {
             Program: function checkForlinebreakStyle(node) {
-                let linebreakStyle = context.options[0] || "unix",
+                const linebreakStyle = context.options[0] || "unix",
                     expectedLF = linebreakStyle === "unix",
                     expectedLFChars = expectedLF ? "\n" : "\r\n",
                     source = sourceCode.getText(),
-                    pattern = /\r\n|\r|\n|\u2028|\u2029/g,
-                    match,
-                    index,
-                    range;
+                    pattern = /\r\n|\r|\n|\u2028|\u2029/g;
+                let match;
 
                 let i = 0;
 
@@ -73,8 +71,9 @@ module.exports = {
                         continue;
                     }
 
-                    index = match.index;
-                    range = [index, index + match[0].length];
+                    const index = match.index;
+                    const range = [index, index + match[0].length];
+
                     context.report({
                         node: node,
                         loc: {

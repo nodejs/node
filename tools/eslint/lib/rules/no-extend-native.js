@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let globals = require("globals");
+const globals = require("globals");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -42,8 +42,8 @@ module.exports = {
 
     create: function(context) {
 
-        let config = context.options[0] || {};
-        let exceptions = config.exceptions || [];
+        const config = context.options[0] || {};
+        const exceptions = config.exceptions || [];
         let modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
             return builtin[0].toUpperCase() === builtin[0];
         });
@@ -58,14 +58,13 @@ module.exports = {
 
             // handle the Array.prototype.extra style case
             AssignmentExpression: function(node) {
-                let lhs = node.left,
-                    affectsProto;
+                const lhs = node.left;
 
                 if (lhs.type !== "MemberExpression" || lhs.object.type !== "MemberExpression") {
                     return;
                 }
 
-                affectsProto = lhs.object.computed ?
+                const affectsProto = lhs.object.computed ?
                     lhs.object.property.type === "Literal" && lhs.object.property.value === "prototype" :
                     lhs.object.property.name === "prototype";
 
@@ -83,9 +82,7 @@ module.exports = {
             // handle the Object.definePropert[y|ies](Array.prototype) case
             CallExpression: function(node) {
 
-                let callee = node.callee,
-                    subject,
-                    object;
+                const callee = node.callee;
 
                 // only worry about Object.definePropert[y|ies]
                 if (callee.type === "MemberExpression" &&
@@ -93,8 +90,9 @@ module.exports = {
                     (callee.property.name === "defineProperty" || callee.property.name === "defineProperties")) {
 
                     // verify the object being added to is a native prototype
-                    subject = node.arguments[0];
-                    object = subject && subject.object;
+                    const subject = node.arguments[0];
+                    const object = subject && subject.object;
+
                     if (object &&
                         object.type === "Identifier" &&
                         (modifiedBuiltins.indexOf(object.name) > -1) &&

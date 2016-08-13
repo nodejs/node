@@ -9,12 +9,12 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let rules = require("../rules"),
+const rules = require("../rules"),
     Environments = require("./environments"),
     schemaValidator = require("is-my-json-valid"),
     util = require("util");
 
-let validators = {
+const validators = {
     rules: Object.create(null)
 };
 
@@ -28,7 +28,7 @@ let validators = {
  * @returns {Object} JSON Schema for the rule's options.
  */
 function getRuleOptionsSchema(id) {
-    let rule = rules.get(id),
+    const rule = rules.get(id),
         schema = rule && rule.schema || rule && rule.meta && rule.meta.schema;
 
     // Given a tuple of schemas, insert warning level at the beginning
@@ -61,11 +61,10 @@ function getRuleOptionsSchema(id) {
  * @returns {void}
  */
 function validateRuleOptions(id, options, source) {
+    const schema = getRuleOptionsSchema(id);
     let validateRule = validators.rules[id],
-        message,
         severity,
         localOptions,
-        schema = getRuleOptionsSchema(id),
         validSeverity = true;
 
     if (!validateRule && schema) {
@@ -92,7 +91,7 @@ function validateRuleOptions(id, options, source) {
     }
 
     if ((validateRule && validateRule.errors) || !validSeverity) {
-        message = [
+        const message = [
             source, ":\n",
             "\tConfiguration for rule \"", id, "\" is invalid:\n"
         ];
@@ -137,7 +136,7 @@ function validateEnvironment(environment, source) {
     if (typeof environment === "object") {
         Object.keys(environment).forEach(function(env) {
             if (!Environments.get(env)) {
-                let message = [
+                const message = [
                     source, ":\n",
                     "\tEnvironment key \"", env, "\" is unknown\n"
                 ];

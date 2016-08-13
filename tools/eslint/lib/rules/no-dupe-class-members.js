@@ -33,8 +33,8 @@ module.exports = {
          *   - retv.set {boolean} A flag which shows the name is declared as setter.
          */
         function getState(name, isStatic) {
-            let stateMap = stack[stack.length - 1];
-            let key = "$" + name; // to avoid "__proto__".
+            const stateMap = stack[stack.length - 1];
+            const key = "$" + name; // to avoid "__proto__".
 
             if (!stateMap[key]) {
                 stateMap[key] = {
@@ -85,8 +85,8 @@ module.exports = {
                     return;
                 }
 
-                let name = getName(node.key);
-                let state = getState(name, node.static);
+                const name = getName(node.key);
+                const state = getState(name, node.static);
                 let isDuplicate = false;
 
                 if (node.kind === "get") {

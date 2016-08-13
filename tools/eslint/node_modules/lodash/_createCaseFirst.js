@@ -1,5 +1,5 @@
 var castSlice = require('./_castSlice'),
-    reHasComplexSymbol = require('./_reHasComplexSymbol'),
+    hasUnicode = require('./_hasUnicode'),
     stringToArray = require('./_stringToArray'),
     toString = require('./toString');
 
@@ -14,7 +14,7 @@ function createCaseFirst(methodName) {
   return function(string) {
     string = toString(string);
 
-    var strSymbols = reHasComplexSymbol.test(string)
+    var strSymbols = hasUnicode(string)
       ? stringToArray(string)
       : undefined;
 

@@ -26,7 +26,7 @@ module.exports = {
         return {
 
             BinaryExpression: function(node) {
-                let operators = ["===", "==", "!==", "!=", ">", "<", ">=", "<="];
+                const operators = ["===", "==", "!==", "!=", ">", "<", ">=", "<="];
 
                 if (operators.indexOf(node.operator) > -1 &&
                     (node.left.type === "Identifier" && node.right.type === "Identifier" && node.left.name === node.right.name ||

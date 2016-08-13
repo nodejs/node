@@ -45,18 +45,18 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let minLength = typeof options.min !== "undefined" ? options.min : 2;
-        let maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
-        let properties = options.properties !== "never";
-        let exceptions = (options.exceptions ? options.exceptions : [])
+        const options = context.options[0] || {};
+        const minLength = typeof options.min !== "undefined" ? options.min : 2;
+        const maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
+        const properties = options.properties !== "never";
+        const exceptions = (options.exceptions ? options.exceptions : [])
             .reduce(function(obj, item) {
                 obj[item] = true;
 
                 return obj;
             }, {});
 
-        let SUPPORTED_EXPRESSIONS = {
+        const SUPPORTED_EXPRESSIONS = {
             MemberExpression: properties && function(parent) {
                 return !parent.computed && (
 
@@ -87,17 +87,17 @@ module.exports = {
 
         return {
             Identifier: function(node) {
-                let name = node.name;
-                let parent = node.parent;
+                const name = node.name;
+                const parent = node.parent;
 
-                let isShort = name.length < minLength;
-                let isLong = name.length > maxLength;
+                const isShort = name.length < minLength;
+                const isLong = name.length > maxLength;
 
                 if (!(isShort || isLong) || exceptions[name]) {
                     return;  // Nothing to report
                 }
 
-                let isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
+                const isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
 
                 if (isValidExpression && (isValidExpression === true || isValidExpression(parent, node))) {
                     context.report(

@@ -21,13 +21,13 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         return {
 
             NewExpression: function(node) {
-                let tokens = sourceCode.getTokens(node);
-                let prenticesTokens = tokens.filter(function(token) {
+                const tokens = sourceCode.getTokens(node);
+                const prenticesTokens = tokens.filter(function(token) {
                     return token.value === "(" || token.value === ")";
                 });
 

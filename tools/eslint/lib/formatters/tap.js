@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let yaml = require("js-yaml");
+const yaml = require("js-yaml");
 
 //------------------------------------------------------------------------------
 // Helper Functions
@@ -29,7 +29,7 @@ function getMessageType(message) {
  * @returns {string} diagnostics string with YAML embedded - TAP version 13 compliant
  */
 function outputDiagnostics(diagnostic) {
-    let prefix = "  ";
+    const prefix = "  ";
     let output = prefix + "---\n";
 
     output += prefix + yaml.safeDump(diagnostic).split("\n").join("\n" + prefix);
@@ -45,7 +45,7 @@ module.exports = function(results) {
     let output = "TAP version 13\n1.." + results.length + "\n";
 
     results.forEach(function(result, id) {
-        let messages = result.messages;
+        const messages = result.messages;
         let testResult = "ok";
         let diagnostics = {};
 
@@ -53,7 +53,7 @@ module.exports = function(results) {
             testResult = "not ok";
 
             messages.forEach(function(message) {
-                let diagnostic = {
+                const diagnostic = {
                     message: message.message,
                     severity: getMessageType(message),
                     data: {

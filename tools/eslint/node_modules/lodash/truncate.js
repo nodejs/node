@@ -1,8 +1,8 @@
 var baseToString = require('./_baseToString'),
     castSlice = require('./_castSlice'),
+    hasUnicode = require('./_hasUnicode'),
     isObject = require('./isObject'),
     isRegExp = require('./isRegExp'),
-    reHasComplexSymbol = require('./_reHasComplexSymbol'),
     stringSize = require('./_stringSize'),
     stringToArray = require('./_stringToArray'),
     toInteger = require('./toInteger'),
@@ -64,7 +64,7 @@ function truncate(string, options) {
   string = toString(string);
 
   var strLength = string.length;
-  if (reHasComplexSymbol.test(string)) {
+  if (hasUnicode(string)) {
     var strSymbols = stringToArray(string);
     strLength = strSymbols.length;
   }

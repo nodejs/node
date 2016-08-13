@@ -9,26 +9,25 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash"),
-    fs = require("fs"),
+const fs = require("fs"),
     path = require("path"),
-    debug = require("debug"),
     ignore = require("ignore"),
+    shell = require("shelljs"),
     pathUtil = require("./util/path-util");
 
-debug = debug("eslint:ignored-paths");
+const debug = require("debug")("eslint:ignored-paths");
 
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-let ESLINT_IGNORE_FILENAME = ".eslintignore";
-let DEFAULT_IGNORE_DIRS = [
+const ESLINT_IGNORE_FILENAME = ".eslintignore";
+const DEFAULT_IGNORE_DIRS = [
     "node_modules/",
     "bower_components/"
 ];
-let DEFAULT_OPTIONS = {
+const DEFAULT_OPTIONS = {
     dotfiles: false,
     cwd: process.cwd()
 };
@@ -47,9 +46,9 @@ let DEFAULT_OPTIONS = {
 function findIgnoreFile(cwd) {
     cwd = cwd || DEFAULT_OPTIONS.cwd;
 
-    let ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
+    const ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
 
-    return fs.existsSync(ignoreFilePath) ? ignoreFilePath : "";
+    return shell.test("-f", ignoreFilePath) ? ignoreFilePath : "";
 }
 
 /**
@@ -59,7 +58,7 @@ function findIgnoreFile(cwd) {
  */
 function mergeDefaultOptions(options) {
     options = (options || {});
-    return lodash.assign({}, DEFAULT_OPTIONS, options);
+    return Object.assign({}, DEFAULT_OPTIONS, options);
 }
 
 //------------------------------------------------------------------------------
@@ -175,8 +174,8 @@ function IgnoredPaths(options) {
 IgnoredPaths.prototype.contains = function(filepath, category) {
 
     let result = false;
-    let absolutePath = path.resolve(this.options.cwd, filepath);
-    let relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
+    const absolutePath = path.resolve(this.options.cwd, filepath);
+    const relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
 
     if ((typeof category === "undefined") || (category === "default")) {
         result = result || (this.ig.default.filter([relativePath]).length === 0);
@@ -201,7 +200,7 @@ IgnoredPaths.prototype.getIgnoredFoldersGlobPatterns = function() {
 
         /* eslint-disable no-underscore-dangle */
 
-        let patterns = this.ig.custom._rules.filter(function(rule) {
+        const patterns = this.ig.custom._rules.filter(function(rule) {
             return rule.negative;
         }).map(function(rule) {
             return rule.origin;

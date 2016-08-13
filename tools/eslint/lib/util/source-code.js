@@ -8,8 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash"),
-    createTokenStore = require("../token-store.js"),
+const createTokenStore = require("../token-store.js"),
     Traverser = require("./traverser");
 
 //------------------------------------------------------------------------------
@@ -123,13 +122,13 @@ function SourceCode(text, ast) {
     });
 
     // create token store methods
-    let tokenStore = createTokenStore(ast.tokens);
+    const tokenStore = createTokenStore(ast.tokens);
 
     Object.keys(tokenStore).forEach(function(methodName) {
         this[methodName] = tokenStore[methodName];
     }, this);
 
-    let tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
+    const tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
 
     this.getTokenOrCommentBefore = tokensAndCommentsStore.getTokenBefore;
     this.getTokenOrCommentAfter = tokensAndCommentsStore.getTokenAfter;
@@ -193,8 +192,8 @@ SourceCode.prototype = {
      */
     getComments: function(node) {
 
-        let leadingComments = node.leadingComments || [],
-            trailingComments = node.trailingComments || [];
+        let leadingComments = node.leadingComments || [];
+        const trailingComments = node.trailingComments || [];
 
         /*
          * espree adds a "comments" array on Program nodes rather than
@@ -262,8 +261,8 @@ SourceCode.prototype = {
      */
     getNodeByRangeIndex: function(index) {
         let result = null,
-            resultParent = null,
-            traverser = new Traverser();
+            resultParent = null;
+        const traverser = new Traverser();
 
         traverser.traverse(this.ast, {
             enter: function(node, parent) {
@@ -281,7 +280,7 @@ SourceCode.prototype = {
             }
         });
 
-        return result ? lodash.assign({parent: resultParent}, result) : null;
+        return result ? Object.assign({parent: resultParent}, result) : null;
     },
 
     /**
@@ -294,7 +293,7 @@ SourceCode.prototype = {
      *  if there is anything other than whitespace between tokens.
      */
     isSpaceBetweenTokens: function(first, second) {
-        let text = this.text.slice(first.range[1], second.range[0]);
+        const text = this.text.slice(first.range[1], second.range[0]);
 
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
     }

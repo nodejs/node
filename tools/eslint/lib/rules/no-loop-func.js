@@ -74,7 +74,7 @@ function getContainingLoopNode(node) {
  */
 function getTopLoopNode(node, excludedNode) {
     let retv = node;
-    let border = excludedNode ? excludedNode.range[1] : 0;
+    const border = excludedNode ? excludedNode.range[1] : 0;
 
     while (node && node.range[0] >= border) {
         retv = node;
@@ -94,10 +94,10 @@ function getTopLoopNode(node, excludedNode) {
  * @returns {boolean} `true` if the reference is safe or not.
  */
 function isSafe(funcNode, loopNode, reference) {
-    let variable = reference.resolved;
-    let definition = variable && variable.defs[0];
-    let declaration = definition && definition.parent;
-    let kind = (declaration && declaration.type === "VariableDeclaration")
+    const variable = reference.resolved;
+    const definition = variable && variable.defs[0];
+    const declaration = definition && definition.parent;
+    const kind = (declaration && declaration.type === "VariableDeclaration")
         ? declaration.kind
         : "";
 
@@ -117,7 +117,7 @@ function isSafe(funcNode, loopNode, reference) {
 
     // WriteReferences which exist after this border are unsafe because those
     // can modify the variable.
-    let border = getTopLoopNode(
+    const border = getTopLoopNode(
         loopNode,
         (kind === "let") ? declaration : null
     ).range[0];
@@ -135,7 +135,7 @@ function isSafe(funcNode, loopNode, reference) {
      * @returns {boolean} `true` if the reference is safe.
      */
     function isSafeReference(upperRef) {
-        let id = upperRef.identifier;
+        const id = upperRef.identifier;
 
         return (
             !upperRef.isWrite() ||
@@ -174,13 +174,13 @@ module.exports = {
          * @returns {boolean} Whether or not the node is within a loop.
          */
         function checkForLoops(node) {
-            let loopNode = getContainingLoopNode(node);
+            const loopNode = getContainingLoopNode(node);
 
             if (!loopNode) {
                 return;
             }
 
-            let references = context.getScope().through;
+            const references = context.getScope().through;
 
             if (references.length > 0 &&
                 !references.every(isSafe.bind(null, node, loopNode))

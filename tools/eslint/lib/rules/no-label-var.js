@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -52,7 +52,7 @@ module.exports = {
             LabeledStatement: function(node) {
 
                 // Fetch the innermost scope.
-                let scope = context.getScope();
+                const scope = context.getScope();
 
                 // Recursively find the identifier walking up the scope, starting
                 // with the innermost scope.

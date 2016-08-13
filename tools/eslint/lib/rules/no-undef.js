@@ -14,7 +14,7 @@
  * @returns {boolean} Whether or not the node is the argument of a typeof operator.
  */
 function hasTypeOfOperator(node) {
-    let parent = node.parent;
+    const parent = node.parent;
 
     return parent.type === "UnaryExpression" && parent.operator === "typeof";
 }
@@ -45,15 +45,15 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0];
-        let considerTypeOf = options && options.typeof === true || false;
+        const options = context.options[0];
+        const considerTypeOf = options && options.typeof === true || false;
 
         return {
             "Program:exit": function(/* node */) {
-                let globalScope = context.getScope();
+                const globalScope = context.getScope();
 
                 globalScope.through.forEach(function(ref) {
-                    let identifier = ref.identifier;
+                    const identifier = ref.identifier;
 
                     if (!considerTypeOf && hasTypeOfOperator(identifier)) {
                         return;

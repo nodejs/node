@@ -50,7 +50,7 @@ module.exports = {
             maxBOF;
 
         // store lines that appear empty but really aren't
-        let notEmpty = [];
+        const notEmpty = [];
 
         if (context.options.length) {
             max = context.options[0].max;
@@ -58,7 +58,7 @@ module.exports = {
             maxBOF = typeof context.options[0].maxBOF !== "undefined" ? context.options[0].maxBOF : max;
         }
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Public
@@ -68,7 +68,7 @@ module.exports = {
 
             TemplateLiteral: function(node) {
                 let start = node.loc.start.line;
-                let end = node.loc.end.line;
+                const end = node.loc.end.line;
 
                 while (start <= end) {
                     notEmpty.push(start);
@@ -77,28 +77,31 @@ module.exports = {
             },
 
             "Program:exit": function checkBlankLines(node) {
-                let lines = sourceCode.lines,
+                const lines = sourceCode.lines,
                     fullLines = sourceCode.text.match(/.*(\r\n|\r|\n|\u2028|\u2029)/g) || [],
-                    firstNonBlankLine = -1,
+                    linesRangeStart = [];
+                let firstNonBlankLine = -1,
                     trimmedLines = [],
-                    linesRangeStart = [],
                     blankCounter = 0,
                     currentLocation,
                     lastLocation,
-                    location,
                     firstOfEndingBlankLines,
                     diff,
-                    fix,
                     rangeStart,
                     rangeEnd;
 
-                fix = function(fixer) {
+                /**
+                 * Fix code.
+                 * @param {RuleFixer} fixer - The fixer of this context.
+                 * @returns {Object} The fixing information.
+                 */
+                function fix(fixer) {
                     return fixer.removeRange([rangeStart, rangeEnd]);
-                };
+                }
 
                 linesRangeStart.push(0);
                 lines.forEach(function(str, i) {
-                    let length = i < fullLines.length ? fullLines[i].length : 0,
+                    const length = i < fullLines.length ? fullLines[i].length : 0,
                         trimmed = str.trim();
 
                     if ((firstNonBlankLine === -1) && (trimmed !== "")) {
@@ -157,7 +160,7 @@ module.exports = {
                     if (lastLocation === currentLocation - 1) {
                         blankCounter++;
                     } else {
-                        location = {
+                        const location = {
                             line: lastLocation + 1,
                             column: 1
                         };

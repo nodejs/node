@@ -6,7 +6,9 @@ var baseClone = require('./_baseClone'),
  * value at `path` of a given object to `srcValue`, returning `true` if the
  * object value is equivalent, else `false`.
  *
- * **Note:** This method supports comparing the same values as `_.isEqual`.
+ * **Note:** Partial comparisons will match empty array and empty object
+ * `srcValue` values against any array or object value, respectively. See
+ * `_.isEqual` for a list of supported value comparisons.
  *
  * @static
  * @memberOf _
