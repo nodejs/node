@@ -3,7 +3,7 @@
 
 require('../common');
 const assert = require('assert');
-const zlib = require ('zlib');
+const zlib = require('zlib');
 
 const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli' +
                     't. Morbi faucibus, purus at gravida dictum, libero arcu ' +
