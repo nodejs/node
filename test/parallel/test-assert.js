@@ -55,6 +55,9 @@ assert.throws(makeBlock(a.strictEqual, 2, '2'),
 assert.throws(makeBlock(a.strictEqual, null, undefined),
               a.AssertionError, 'strictEqual(null, undefined)');
 
+assert.throws(makeBlock(a.notStrictEqual, 2, 2),
+              a.AssertionError, 'notStrictEqual(2, 2)');
+
 assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
                     'notStrictEqual(2, \'2\')');
 
