@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check that spaced function application
  * @author Matt DuVall <http://www.mattduvall.com>
+ * @deprecated in ESLint v3.3.0
  */
 
 "use strict";
@@ -12,10 +13,13 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow spacing between `function` identifiers and their applications",
+            description: "disallow spacing between `function` identifiers and their applications (deprecated)",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            replacedBy: ["func-call-spacing"]
         },
+
+        deprecated: true,
 
         fixable: "whitespace",
         schema: []
@@ -23,7 +27,7 @@ module.exports = {
 
     create: function(context) {
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Check if open space is present in a function name
@@ -32,8 +36,8 @@ module.exports = {
          * @private
          */
         function detectOpenSpaces(node) {
-            let lastCalleeToken = sourceCode.getLastToken(node.callee),
-                prevToken = lastCalleeToken,
+            const lastCalleeToken = sourceCode.getLastToken(node.callee);
+            let prevToken = lastCalleeToken,
                 parenToken = sourceCode.getTokenAfter(lastCalleeToken);
 
             // advances to an open parenthesis.

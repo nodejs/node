@@ -5,7 +5,7 @@
 
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -50,8 +50,8 @@ module.exports = {
 
         return {
             ConditionalExpression: function(node) {
-                let areTestAndConsequentOnSameLine = astUtils.isTokenOnSameLine(node.test, node.consequent);
-                let areConsequentAndAlternateOnSameLine = astUtils.isTokenOnSameLine(node.consequent, node.alternate);
+                const areTestAndConsequentOnSameLine = astUtils.isTokenOnSameLine(node.test, node.consequent);
+                const areConsequentAndAlternateOnSameLine = astUtils.isTokenOnSameLine(node.consequent, node.alternate);
 
                 if (areTestAndConsequentOnSameLine) {
                     reportError(node.test, node);

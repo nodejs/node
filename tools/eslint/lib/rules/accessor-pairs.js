@@ -28,7 +28,7 @@ function isIdentifier(node, name) {
  * @returns {boolean} `true` if the node is an argument of the specified method call.
  */
 function isArgumentOfMethodCall(node, index, object, property) {
-    let parent = node.parent;
+    const parent = node.parent;
 
     return (
         parent.type === "CallExpression" &&
@@ -91,9 +91,9 @@ module.exports = {
         }]
     },
     create: function(context) {
-        let config = context.options[0] || {};
-        let checkGetWithoutSet = config.getWithoutSet === true;
-        let checkSetWithoutGet = config.setWithoutGet !== false;
+        const config = context.options[0] || {};
+        const checkGetWithoutSet = config.getWithoutSet === true;
+        const checkSetWithoutGet = config.setWithoutGet !== false;
 
         /**
          * Checks a object expression to see if it has setter and getter both present or none.
@@ -104,10 +104,10 @@ module.exports = {
         function checkLonelySetGet(node) {
             let isSetPresent = false;
             let isGetPresent = false;
-            let isDescriptor = isPropertyDescriptor(node);
+            const isDescriptor = isPropertyDescriptor(node);
 
             for (let i = 0, end = node.properties.length; i < end; i++) {
-                let property = node.properties[i];
+                const property = node.properties[i];
 
                 let propToCheck = "";
 

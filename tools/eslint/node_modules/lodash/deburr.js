@@ -1,8 +1,8 @@
 var deburrLetter = require('./_deburrLetter'),
     toString = require('./toString');
 
-/** Used to match latin-1 supplementary letters (excluding mathematical operators). */
-var reLatin1 = /[\xc0-\xd6\xd8-\xde\xdf-\xf6\xf8-\xff]/g;
+/** Used to match Latin Unicode letters (excluding mathematical operators). */
+var reLatin = /[\xc0-\xd6\xd8-\xf6\xf8-\xff\u0100-\u017f]/g;
 
 /** Used to compose unicode character classes. */
 var rsComboMarksRange = '\\u0300-\\u036f\\ufe20-\\ufe23',
@@ -19,8 +19,9 @@ var reComboMark = RegExp(rsCombo, 'g');
 
 /**
  * Deburrs `string` by converting
- * [latin-1 supplementary letters](https://en.wikipedia.org/wiki/Latin-1_Supplement_(Unicode_block)#Character_table)
- * to basic latin letters and removing
+ * [Latin-1 Supplement](https://en.wikipedia.org/wiki/Latin-1_Supplement_(Unicode_block)#Character_table)
+ * and [Latin Extended-A](https://en.wikipedia.org/wiki/Latin_Extended-A)
+ * letters to basic Latin letters and removing
  * [combining diacritical marks](https://en.wikipedia.org/wiki/Combining_Diacritical_Marks).
  *
  * @static
@@ -36,7 +37,7 @@ var reComboMark = RegExp(rsCombo, 'g');
  */
 function deburr(string) {
   string = toString(string);
-  return string && string.replace(reLatin1, deburrLetter).replace(reComboMark, '');
+  return string && string.replace(reLatin, deburrLetter).replace(reComboMark, '');
 }
 
 module.exports = deburr;

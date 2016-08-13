@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let assert = require("assert"),
+const assert = require("assert"),
     CodePath = require("./code-path"),
     CodePathSegment = require("./code-path-segment"),
     IdGenerator = require("./id-generator"),
@@ -38,7 +38,7 @@ function isCaseNode(node) {
  * @returns {boolean} `true` if the node is a test of a choice statement.
  */
 function isForkingByTrueOrFalse(node) {
-    let parent = node.parent;
+    const parent = node.parent;
 
     switch (parent.type) {
         case "ConditionalExpression":
@@ -83,7 +83,7 @@ function getBooleanValueIfSimpleConstant(node) {
  * @returns {boolean} `true` if the node is a reference.
  */
 function isIdentifierReference(node) {
-    let parent = node.parent;
+    const parent = node.parent;
 
     switch (parent.type) {
         case "LabeledStatement":
@@ -135,11 +135,11 @@ function isIdentifierReference(node) {
  * @returns {void}
  */
 function forwardCurrentToHead(analyzer, node) {
-    let codePath = analyzer.codePath;
-    let state = CodePath.getState(codePath);
-    let currentSegments = state.currentSegments;
-    let headSegments = state.headSegments;
-    let end = Math.max(currentSegments.length, headSegments.length);
+    const codePath = analyzer.codePath;
+    const state = CodePath.getState(codePath);
+    const currentSegments = state.currentSegments;
+    const headSegments = state.headSegments;
+    const end = Math.max(currentSegments.length, headSegments.length);
     let i, currentSegment, headSegment;
 
     // Fires leaving events.
@@ -191,11 +191,11 @@ function forwardCurrentToHead(analyzer, node) {
  * @returns {void}
  */
 function leaveFromCurrentSegment(analyzer, node) {
-    let state = CodePath.getState(analyzer.codePath);
-    let currentSegments = state.currentSegments;
+    const state = CodePath.getState(analyzer.codePath);
+    const currentSegments = state.currentSegments;
 
     for (let i = 0; i < currentSegments.length; ++i) {
-        let currentSegment = currentSegments[i];
+        const currentSegment = currentSegments[i];
 
         debug.dump("onCodePathSegmentEnd " + currentSegment.id);
         if (currentSegment.reachable) {
@@ -221,9 +221,9 @@ function leaveFromCurrentSegment(analyzer, node) {
  * @returns {void}
  */
 function preprocess(analyzer, node) {
-    let codePath = analyzer.codePath;
-    let state = CodePath.getState(codePath);
-    let parent = node.parent;
+    const codePath = analyzer.codePath;
+    const state = CodePath.getState(codePath);
+    const parent = node.parent;
 
     switch (parent.type) {
         case "LogicalExpression":
@@ -330,7 +330,7 @@ function preprocess(analyzer, node) {
 function processCodePathToEnter(analyzer, node) {
     let codePath = analyzer.codePath;
     let state = codePath && CodePath.getState(codePath);
-    let parent = node.parent;
+    const parent = node.parent;
 
     switch (node.type) {
         case "Program":
@@ -419,8 +419,8 @@ function processCodePathToEnter(analyzer, node) {
  * @returns {void}
  */
 function processCodePathToExit(analyzer, node) {
-    let codePath = analyzer.codePath;
-    let state = CodePath.getState(codePath);
+    const codePath = analyzer.codePath;
+    const state = CodePath.getState(codePath);
     let dontForward = false;
 
     switch (node.type) {

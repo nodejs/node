@@ -23,7 +23,7 @@ module.exports = {
     create: function(context) {
 
         // Node types which have a test which will coerce values to booleans.
-        let BOOLEAN_NODE_TYPES = [
+        const BOOLEAN_NODE_TYPES = [
             "IfStatement",
             "DoWhileStatement",
             "WhileStatement",
@@ -52,7 +52,7 @@ module.exports = {
 
         return {
             UnaryExpression: function(node) {
-                let ancestors = context.getAncestors(),
+                const ancestors = context.getAncestors(),
                     parent = ancestors.pop(),
                     grandparent = ancestors.pop();
 
@@ -74,7 +74,7 @@ module.exports = {
                 }
             },
             CallExpression: function(node) {
-                let parent = node.parent;
+                const parent = node.parent;
 
                 if (node.callee.type !== "Identifier" || node.callee.name !== "Boolean") {
                     return;

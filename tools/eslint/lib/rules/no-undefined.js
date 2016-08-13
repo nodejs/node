@@ -25,7 +25,7 @@ module.exports = {
 
             Identifier: function(node) {
                 if (node.name === "undefined") {
-                    let parent = context.getAncestors().pop();
+                    const parent = context.getAncestors().pop();
 
                     if (!parent || parent.type !== "MemberExpression" || node !== parent.property || parent.computed) {
                         context.report(node, "Unexpected use of undefined.");

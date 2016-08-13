@@ -5,8 +5,7 @@
 
 "use strict";
 
-let lodash = require("lodash"),
-    astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -44,10 +43,10 @@ module.exports = {
 
     create: function(context) {
 
-        let usedDefaultGlobal = !context.options[0];
-        let globalStyle = context.options[0] || "after";
-        let options = context.options[1] || {};
-        let styleOverrides = options.overrides ? lodash.assign({}, options.overrides) : {};
+        const usedDefaultGlobal = !context.options[0];
+        const globalStyle = context.options[0] || "after";
+        const options = context.options[1] || {};
+        const styleOverrides = options.overrides ? Object.assign({}, options.overrides) : {};
 
         if (usedDefaultGlobal && !styleOverrides["?"]) {
             styleOverrides["?"] = "before";
@@ -57,7 +56,7 @@ module.exports = {
             styleOverrides[":"] = "before";
         }
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -84,10 +83,10 @@ module.exports = {
                 operatorToken = sourceCode.getTokenAfter(operatorToken);
             }
 
-            let rightToken = sourceCode.getTokenAfter(operatorToken);
-            let operator = operatorToken.value;
-            let operatorStyleOverride = styleOverrides[operator];
-            let style = operatorStyleOverride || globalStyle;
+            const rightToken = sourceCode.getTokenAfter(operatorToken);
+            const operator = operatorToken.value;
+            const operatorStyleOverride = styleOverrides[operator];
+            const style = operatorStyleOverride || globalStyle;
 
             // if single line
             if (astUtils.isTokenOnSameLine(leftToken, operatorToken) &&

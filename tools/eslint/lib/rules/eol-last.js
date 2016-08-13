@@ -35,7 +35,7 @@ module.exports = {
 
             Program: function checkBadEOF(node) {
 
-                let sourceCode = context.getSourceCode(),
+                const sourceCode = context.getSourceCode(),
                     src = sourceCode.getText(),
                     location = {column: 1},
                     linebreakStyle = context.options[0] || "unix",

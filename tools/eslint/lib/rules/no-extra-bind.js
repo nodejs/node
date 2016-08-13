@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const getPropertyName = require("../ast-utils").getStaticPropertyName;
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -38,31 +44,6 @@ module.exports = {
         }
 
         /**
-         * Gets the property name of a given node.
-         * If the property name is dynamic, this returns an empty string.
-         *
-         * @param {ASTNode} node - A node to check. This is a MemberExpression.
-         * @returns {string} The property name of the node.
-         */
-        function getPropertyName(node) {
-            if (node.computed) {
-                switch (node.property.type) {
-                    case "Literal":
-                        return String(node.property.value);
-                    case "TemplateLiteral":
-                        if (node.property.expressions.length === 0) {
-                            return node.property.quasis[0].value.cooked;
-                        }
-
-                        // fallthrough
-                    default:
-                        return false;
-                }
-            }
-            return node.property.name;
-        }
-
-        /**
          * Checks whether or not a given function node is the callee of `.bind()`
          * method.
          *
@@ -73,8 +54,8 @@ module.exports = {
          * @returns {boolean} `true` if the node is the callee of `.bind()` method.
          */
         function isCalleeOfBindMethod(node) {
-            let parent = node.parent;
-            let grandparent = parent.parent;
+            const parent = node.parent;
+            const grandparent = parent.parent;
 
             return (
                 grandparent &&

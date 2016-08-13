@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let xmlEscape = require("../util/xml-escape");
+const xmlEscape = require("../util/xml-escape");
 
 //------------------------------------------------------------------------------
 // Helper Functions
@@ -37,14 +37,14 @@ module.exports = function(results) {
 
     results.forEach(function(result) {
 
-        let messages = result.messages;
+        const messages = result.messages;
 
         if (messages.length) {
             output += "<testsuite package=\"org.eslint\" time=\"0\" tests=\"" + messages.length + "\" errors=\"" + messages.length + "\" name=\"" + result.filePath + "\">\n";
         }
 
         messages.forEach(function(message) {
-            let type = message.fatal ? "error" : "failure";
+            const type = message.fatal ? "error" : "failure";
 
             output += "<testcase time=\"0\" name=\"org.eslint." + (message.ruleId || "unknown") + "\">";
             output += "<" + type + " message=\"" + xmlEscape(message.message || "") + "\">";

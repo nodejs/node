@@ -11,9 +11,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let debug = require("debug"),
-    fs = require("fs"),
+const fs = require("fs"),
     path = require("path"),
+    shell = require("shelljs"),
     ConfigOps = require("./config-ops"),
     validator = require("./config-validator"),
     Plugins = require("./plugins"),
@@ -26,6 +26,7 @@ let debug = require("debug"),
     defaultOptions = require("../../conf/eslint.json"),
     requireUncached = require("require-uncached");
 
+const debug = require("debug")("eslint:config-file");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -48,7 +49,7 @@ function sortByKey(a, b) {
 // Private
 //------------------------------------------------------------------------------
 
-let CONFIG_FILES = [
+const CONFIG_FILES = [
     ".eslintrc.js",
     ".eslintrc.yaml",
     ".eslintrc.yml",
@@ -57,9 +58,7 @@ let CONFIG_FILES = [
     "package.json"
 ];
 
-let resolver = new ModuleResolver();
-
-debug = debug("eslint:config-file");
+const resolver = new ModuleResolver();
 
 /**
  * Convenience wrapper for synchronously reading file contents.
@@ -94,7 +93,7 @@ function loadYAMLConfigFile(filePath) {
     debug("Loading YAML config file: " + filePath);
 
     // lazy load YAML to improve performance when not used
-    let yaml = require("js-yaml");
+    const yaml = require("js-yaml");
 
     try {
 
@@ -137,7 +136,7 @@ function loadLegacyConfigFile(filePath) {
     debug("Loading config file: " + filePath);
 
     // lazy load YAML to improve performance when not used
-    let yaml = require("js-yaml");
+    const yaml = require("js-yaml");
 
     try {
         return yaml.safeLoad(stripComments(readFile(filePath))) || /* istanbul ignore next */ {};
@@ -192,8 +191,8 @@ function loadPackageJSONConfigFile(filePath) {
  * @private
  */
 function loadConfigFile(file) {
-    let config,
-        filePath = file.filePath;
+    const filePath = file.filePath;
+    let config;
 
     switch (path.extname(filePath)) {
         case ".js":
@@ -236,7 +235,7 @@ function loadConfigFile(file) {
 function writeJSONConfigFile(config, filePath) {
     debug("Writing JSON config file: " + filePath);
 
-    let content = stringify(config, {cmp: sortByKey, space: 4});
+    const content = stringify(config, {cmp: sortByKey, space: 4});
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -252,9 +251,9 @@ function writeYAMLConfigFile(config, filePath) {
     debug("Writing YAML config file: " + filePath);
 
     // lazy load YAML to improve performance when not used
-    let yaml = require("js-yaml");
+    const yaml = require("js-yaml");
 
-    let content = yaml.safeDump(config, {sortKeys: true});
+    const content = yaml.safeDump(config, {sortKeys: true});
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -269,7 +268,7 @@ function writeYAMLConfigFile(config, filePath) {
 function writeJSConfigFile(config, filePath) {
     debug("Writing JS config file: " + filePath);
 
-    let content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
+    const content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -313,7 +312,7 @@ function write(config, filePath) {
 function getBaseDir(configFilePath) {
 
     // calculates the path of the project including ESLint as dependency
-    let projectPath = path.resolve(__dirname, "../../../");
+    const projectPath = path.resolve(__dirname, "../../../");
 
     if (configFilePath && pathIsInside(configFilePath, projectPath)) {
 
@@ -336,7 +335,7 @@ function getBaseDir(configFilePath) {
  * @private
  */
 function getLookupPath(configFilePath) {
-    let basedir = getBaseDir(configFilePath);
+    const basedir = getBaseDir(configFilePath);
 
     return path.join(basedir, "node_modules");
 }
@@ -431,7 +430,7 @@ function normalizePackageName(name, prefix) {
          * it's a scoped package
          * package name is "eslint-config", or just a username
          */
-        let scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
+        const scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
             scopedPackageNameRegex = new RegExp("^" + prefix + "(-|$)");
 
         if (scopedPackageShortcutRegex.test(name)) {
@@ -466,8 +465,8 @@ function resolve(filePath, relativeTo) {
         let normalizedPackageName;
 
         if (filePath.indexOf("plugin:") === 0) {
-            let packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
-            let configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
+            const packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
+            const configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
 
             normalizedPackageName = normalizePackageName(packagePath, "eslint-plugin");
             debug("Attempting to resolve " + normalizedPackageName);
@@ -493,10 +492,10 @@ function resolve(filePath, relativeTo) {
  * @private
  */
 function load(filePath, applyEnvironments, relativeTo) {
-    let resolvedPath = resolve(filePath, relativeTo),
+    const resolvedPath = resolve(filePath, relativeTo),
         dirname = path.dirname(resolvedPath.filePath),
-        lookupPath = getLookupPath(dirname),
-        config = loadConfigFile(resolvedPath);
+        lookupPath = getLookupPath(dirname);
+    let config = loadConfigFile(resolvedPath);
 
     if (config) {
 
@@ -564,12 +563,10 @@ module.exports = {
      *      or null if there is no configuration file in the directory.
      */
     getFilenameForDirectory: function(directory) {
-
-        let filename;
-
         for (let i = 0, len = CONFIG_FILES.length; i < len; i++) {
-            filename = path.join(directory, CONFIG_FILES[i]);
-            if (fs.existsSync(filename)) {
+            const filename = path.join(directory, CONFIG_FILES[i]);
+
+            if (shell.test("-f", filename)) {
                 return filename;
             }
         }

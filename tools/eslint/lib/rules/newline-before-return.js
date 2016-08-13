@@ -20,7 +20,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -34,7 +34,7 @@ module.exports = {
          * @private
          */
         function isPrecededByTokens(node, testTokens) {
-            let tokenBefore = sourceCode.getTokenBefore(node);
+            const tokenBefore = sourceCode.getTokenBefore(node);
 
             return testTokens.some(function(token) {
                 return tokenBefore.value === token;
@@ -48,7 +48,7 @@ module.exports = {
          * @private
          */
         function isFirstNode(node) {
-            let parentType = node.parent.type;
+            const parentType = node.parent.type;
 
             if (node.parent.body) {
                 return Array.isArray(node.parent.body)
@@ -75,8 +75,8 @@ module.exports = {
          * @private
          */
         function calcCommentLines(node, lineNumTokenBefore) {
-            let comments = sourceCode.getComments(node).leading,
-                numLinesComments = 0;
+            const comments = sourceCode.getComments(node).leading;
+            let numLinesComments = 0;
 
             if (!comments.length) {
                 return numLinesComments;
@@ -109,10 +109,9 @@ module.exports = {
          * @private
          */
         function hasNewlineBefore(node) {
-            let tokenBefore = sourceCode.getTokenBefore(node),
-                lineNumNode = node.loc.start.line,
-                lineNumTokenBefore,
-                commentLines;
+            const tokenBefore = sourceCode.getTokenBefore(node),
+                lineNumNode = node.loc.start.line;
+            let lineNumTokenBefore;
 
             /**
              * Global return (at the beginning of a script) is a special case.
@@ -128,7 +127,7 @@ module.exports = {
                 lineNumTokenBefore = 0;     // global return at beginning of script
             }
 
-            commentLines = calcCommentLines(node, lineNumTokenBefore);
+            const commentLines = calcCommentLines(node, lineNumTokenBefore);
 
             return (lineNumNode - lineNumTokenBefore - commentLines) > 1;
         }

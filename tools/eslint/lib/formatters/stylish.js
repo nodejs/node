@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let chalk = require("chalk"),
+const chalk = require("chalk"),
     table = require("text-table");
 
 //------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ module.exports = function(results) {
         summaryColor = "yellow";
 
     results.forEach(function(result) {
-        let messages = result.messages;
+        const messages = result.messages;
 
         if (messages.length === 0) {
             return;

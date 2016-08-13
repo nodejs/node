@@ -9,13 +9,11 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash");
-
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let messages = {
+const messages = {
     function: "Use the function form of 'use strict'.",
     global: "Use the global form of 'use strict'.",
     multiple: "Multiple 'use strict' directives.",
@@ -35,11 +33,10 @@ let messages = {
  * @returns {ASTNode[]} All of the Use Strict Directives.
  */
 function getUseStrictDirectives(statements) {
-    let directives = [],
-        i, statement;
+    const directives = [];
 
-    for (i = 0; i < statements.length; i++) {
-        statement = statements[i];
+    for (let i = 0; i < statements.length; i++) {
+        const statement = statements[i];
 
         if (
             statement.type === "ExpressionStatement" &&
@@ -96,11 +93,10 @@ module.exports = {
 
     create: function(context) {
 
-        let mode = context.options[0] || "safe",
-            ecmaFeatures = context.parserOptions.ecmaFeatures || {},
+        const ecmaFeatures = context.parserOptions.ecmaFeatures || {},
             scopes = [],
-            classScopes = [],
-            rule;
+            classScopes = [];
+        let mode = context.options[0] || "safe";
 
         if (ecmaFeatures.impliedStrict) {
             mode = "implied";
@@ -152,7 +148,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunctionInFunctionMode(node, useStrictDirectives) {
-            let isInClass = classScopes.length > 0,
+            const isInClass = classScopes.length > 0,
                 isParentGlobal = scopes.length === 0 && classScopes.length === 0,
                 isParentStrict = scopes.length > 0 && scopes[scopes.length - 1],
                 isStrict = useStrictDirectives.length > 0;
@@ -194,7 +190,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunction(node) {
-            let isBlock = node.body.type === "BlockStatement",
+            const isBlock = node.body.type === "BlockStatement",
                 useStrictDirectives = isBlock ?
                     getUseStrictDirectives(node.body.body) : [];
 
@@ -210,9 +206,9 @@ module.exports = {
             }
         }
 
-        rule = {
+        const rule = {
             Program: function(node) {
-                let useStrictDirectives = getUseStrictDirectives(node.body);
+                const useStrictDirectives = getUseStrictDirectives(node.body);
 
                 if (node.sourceType === "module") {
                     mode = "module";
@@ -233,7 +229,7 @@ module.exports = {
         };
 
         if (mode === "function") {
-            lodash.assign(rule, {
+            Object.assign(rule, {
 
                 // Inside of class bodies are always strict mode.
                 ClassBody: function() {

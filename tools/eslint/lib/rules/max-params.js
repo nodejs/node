@@ -45,8 +45,8 @@ module.exports = {
 
     create: function(context) {
 
-        let option = context.options[0],
-            numParams = 3;
+        const option = context.options[0];
+        let numParams = 3;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
             numParams = option.maximum;

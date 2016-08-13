@@ -29,11 +29,10 @@ module.exports = {
                     return;
                 }
 
-                let match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/),
-                    octalDigit;
+                const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/);
 
                 if (match) {
-                    octalDigit = match[2];
+                    const octalDigit = match[2];
 
                     // \0 is actually not considered an octal
                     if (match[2] !== "0" || typeof match[3] !== "undefined") {

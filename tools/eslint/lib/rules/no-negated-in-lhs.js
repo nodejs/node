@@ -1,6 +1,7 @@
 /**
  * @fileoverview A rule to disallow negated left operands of the `in` operator
  * @author Michael Ficarra
+ * @deprecated in ESLint v3.3.0
  */
 
 "use strict";
@@ -14,8 +15,10 @@ module.exports = {
         docs: {
             description: "disallow negating the left operand in `in` expressions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            replacedBy: ["no-unsafe-negation"]
         },
+        deprecated: true,
 
         schema: []
     },

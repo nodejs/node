@@ -13,7 +13,7 @@
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.14.1';
+  var VERSION = '4.15.0';
 
   /** Used as the `TypeError` message for "Functions" methods. */
   var FUNC_ERROR_TEXT = 'Expected a function';
@@ -92,7 +92,7 @@
    * support for iteratee shorthands.
    *
    * @private
-   * @param {Array} array The array to search.
+   * @param {Array} array The array to inspect.
    * @param {Function} predicate The function invoked per iteration.
    * @param {number} fromIndex The index to search from.
    * @param {boolean} [fromRight] Specify iterating from right to left.
@@ -195,7 +195,7 @@
   }
 
   /**
-   * Creates a function that invokes `func` with its first argument transformed.
+   * Creates a unary function that invokes `func` with its argument transformed.
    *
    * @private
    * @param {Function} func The function to wrap.
@@ -222,7 +222,7 @@
 
   /**
    * Used to resolve the
-   * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+   * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
    * of values.
    */
   var objectToString = objectProto.toString;
@@ -236,7 +236,7 @@
 
   /* Built-in method references for those with the same name as other `lodash` methods. */
   var nativeIsFinite = root.isFinite,
-      nativeKeys = Object.keys,
+      nativeKeys = overArg(Object.keys, Object),
       nativeMax = Math.max;
 
   /*------------------------------------------------------------------------*/
@@ -402,7 +402,7 @@
 
   /**
    * Assigns `value` to `key` of `object` if the existing value is not equivalent
-   * using [`SameValueZero`](http://ecma-international.org/ecma-262/6.0/#sec-samevaluezero)
+   * using [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
    * for equality comparisons.
    *
    * @private
@@ -438,7 +438,7 @@
    * @param {Function} func The function to delay.
    * @param {number} wait The number of milliseconds to delay invocation.
    * @param {Array} args The arguments to provide to `func`.
-   * @returns {number} Returns the timer id.
+   * @returns {number|Object} Returns the timer id or timeout object.
    */
   function baseDelay(func, wait, args) {
     if (typeof func != 'function') {
@@ -747,34 +747,6 @@
   }
 
   /**
-   * The base implementation of `_.keys` which doesn't skip the constructor
-   * property of prototypes or treat sparse arrays as dense.
-   *
-   * @private
-   * @param {Object} object The object to query.
-   * @returns {Array} Returns the array of property names.
-   */
-  var baseKeys = overArg(nativeKeys, Object);
-
-  /**
-   * The base implementation of `_.keysIn` which doesn't skip the constructor
-   * property of prototypes or treat sparse arrays as dense.
-   *
-   * @private
-   * @param {Object} object The object to query.
-   * @returns {Array} Returns the array of property names.
-   */
-  function baseKeysIn(object) {
-    object = object == null ? object : Object(object);
-
-    var result = [];
-    for (var key in object) {
-      result.push(key);
-    }
-    return result;
-  }
-
-  /**
    * The base implementation of `_.lt` which doesn't coerce arguments.
    *
    * @private
@@ -813,7 +785,7 @@
    * @returns {Function} Returns the new spec function.
    */
   function baseMatches(source) {
-    var props = keys(source);
+    var props = nativeKeys(source);
     return function(object) {
       var length = props.length;
       if (object == null) {
@@ -1116,7 +1088,7 @@
   function createCtor(Ctor) {
     return function() {
       // Use a `switch` statement to work with class constructors. See
-      // http://ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
+      // http://ecma-international.org/ecma-262/7.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
       // for more details.
       var args = arguments;
       var thisBinding = baseCreate(Ctor.prototype),
@@ -1281,7 +1253,7 @@
       case regexpTag:
       case stringTag:
         // Coerce regexes to strings and treat strings, primitives and objects,
-        // as equal. See http://www.ecma-international.org/ecma-262/6.0/#sec-regexp.prototype.tostring
+        // as equal. See http://www.ecma-international.org/ecma-262/7.0/#sec-regexp.prototype.tostring
         // for more details.
         return object == (other + '');
 
@@ -1355,19 +1327,6 @@
   }
 
   /**
-   * Gets the "length" property value of `object`.
-   *
-   * **Note:** This function is used to avoid a
-   * [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792) that affects
-   * Safari on at least iOS 8.1-8.3 ARM64.
-   *
-   * @private
-   * @param {Object} object The object to query.
-   * @returns {*} Returns the "length" value.
-   */
-  var getLength = baseProperty('length');
-
-  /**
    * Checks if `value` is a flattenable `arguments` object or array.
    *
    * @private
@@ -1376,6 +1335,25 @@
    */
   function isFlattenable(value) {
     return isArray(value) || isArguments(value);
+  }
+
+  /**
+   * This function is like
+   * [`Object.keys`](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
+   * except that it includes inherited enumerable properties.
+   *
+   * @private
+   * @param {Object} object The object to query.
+   * @returns {Array} Returns the array of property names.
+   */
+  function nativeKeysIn(object) {
+    var result = [];
+    if (object != null) {
+      for (var key in Object(object)) {
+        result.push(key);
+      }
+    }
+    return result;
   }
 
   /**
@@ -1452,7 +1430,7 @@
    * @memberOf _
    * @since 1.1.0
    * @category Array
-   * @param {Array} array The array to search.
+   * @param {Array} array The array to inspect.
    * @param {Function} [predicate=_.identity]
    *  The function invoked per iteration.
    * @param {number} [fromIndex=0] The index to search from.
@@ -1554,7 +1532,7 @@
 
   /**
    * Gets the index at which the first occurrence of `value` is found in `array`
-   * using [`SameValueZero`](http://ecma-international.org/ecma-262/6.0/#sec-samevaluezero)
+   * using [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
    * for equality comparisons. If `fromIndex` is negative, it's used as the
    * offset from the end of `array`.
    *
@@ -1562,7 +1540,7 @@
    * @memberOf _
    * @since 0.1.0
    * @category Array
-   * @param {Array} array The array to search.
+   * @param {Array} array The array to inspect.
    * @param {*} value The value to search for.
    * @param {number} [fromIndex=0] The index to search from.
    * @returns {number} Returns the index of the matched value, else `-1`.
@@ -1784,6 +1762,11 @@
    * Iteration is stopped once `predicate` returns falsey. The predicate is
    * invoked with three arguments: (value, index|key, collection).
    *
+   * **Note:** This method returns `true` for
+   * [empty collections](https://en.wikipedia.org/wiki/Empty_set) because
+   * [everything is true](https://en.wikipedia.org/wiki/Vacuous_truth) of
+   * elements of empty collections.
+   *
    * @static
    * @memberOf _
    * @since 0.1.0
@@ -1872,7 +1855,7 @@
    * @memberOf _
    * @since 0.1.0
    * @category Collection
-   * @param {Array|Object} collection The collection to search.
+   * @param {Array|Object} collection The collection to inspect.
    * @param {Function} [predicate=_.identity]
    *  The function invoked per iteration.
    * @param {number} [fromIndex=0] The index to search from.
@@ -2031,7 +2014,7 @@
    * @memberOf _
    * @since 0.1.0
    * @category Collection
-   * @param {Array|Object} collection The collection to inspect.
+   * @param {Array|Object|string} collection The collection to inspect.
    * @returns {number} Returns the collection size.
    * @example
    *
@@ -2048,7 +2031,7 @@
     if (collection == null) {
       return 0;
     }
-    collection = isArrayLike(collection) ? collection : keys(collection);
+    collection = isArrayLike(collection) ? collection : nativeKeys(collection);
     return collection.length;
   }
 
@@ -2342,12 +2325,12 @@
     if (!isObject(value)) {
       return value;
     }
-    return isArray(value) ? copyArray(value) : copyObject(value, keys(value));
+    return isArray(value) ? copyArray(value) : copyObject(value, nativeKeys(value));
   }
 
   /**
    * Performs a
-   * [`SameValueZero`](http://ecma-international.org/ecma-262/6.0/#sec-samevaluezero)
+   * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
    * comparison between two values to determine if they are equivalent.
    *
    * @static
@@ -2400,7 +2383,7 @@
    * // => false
    */
   function isArguments(value) {
-    // Safari 8.1 incorrectly makes `arguments.callee` enumerable in strict mode.
+    // Safari 8.1 makes `arguments.callee` enumerable in strict mode.
     return isArrayLikeObject(value) && hasOwnProperty.call(value, 'callee') &&
       (!propertyIsEnumerable.call(value, 'callee') || objectToString.call(value) == argsTag);
   }
@@ -2456,7 +2439,7 @@
    * // => false
    */
   function isArrayLike(value) {
-    return value != null && isLength(getLength(value)) && !isFunction(value);
+    return value != null && isLength(value.length) && !isFunction(value);
   }
 
   /**
@@ -2568,7 +2551,7 @@
           isFunction(value.splice) || isArguments(value))) {
       return !value.length;
     }
-    return !keys(value).length;
+    return !nativeKeys(value).length;
   }
 
   /**
@@ -2587,8 +2570,7 @@
    * @category Lang
    * @param {*} value The value to compare.
    * @param {*} other The other value to compare.
-   * @returns {boolean} Returns `true` if the values are equivalent,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
    * @example
    *
    * var object = { 'a': 1 };
@@ -2615,8 +2597,7 @@
    * @since 0.1.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is a finite number,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a finite number, else `false`.
    * @example
    *
    * _.isFinite(3);
@@ -2654,8 +2635,7 @@
    */
   function isFunction(value) {
     // The use of `Object#toString` avoids issues with the `typeof` operator
-    // in Safari 8 which returns 'object' for typed array and weak map constructors,
-    // and PhantomJS 1.9 which returns 'function' for `NodeList` instances.
+    // in Safari 8-9 which returns 'object' for typed array and other constructors.
     var tag = isObject(value) ? objectToString.call(value) : '';
     return tag == funcTag || tag == genTag;
   }
@@ -2663,16 +2643,15 @@
   /**
    * Checks if `value` is a valid array-like length.
    *
-   * **Note:** This function is loosely based on
-   * [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
+   * **Note:** This method is loosely based on
+   * [`ToLength`](http://ecma-international.org/ecma-262/7.0/#sec-tolength).
    *
    * @static
    * @memberOf _
    * @since 4.0.0
    * @category Lang
    * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is a valid length,
-   *  else `false`.
+   * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
    * @example
    *
    * _.isLength(3);
@@ -2694,7 +2673,7 @@
 
   /**
    * Checks if `value` is the
-   * [language type](http://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-language-types)
+   * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
    * of `Object`. (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
    *
    * @static
@@ -2933,7 +2912,7 @@
    * Converts `value` to an integer.
    *
    * **Note:** This method is loosely based on
-   * [`ToInteger`](http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger).
+   * [`ToInteger`](http://www.ecma-international.org/ecma-262/7.0/#sec-tointeger).
    *
    * @static
    * @memberOf _
@@ -3045,7 +3024,7 @@
    * // => { 'a': 1, 'c': 3 }
    */
   var assign = createAssigner(function(object, source) {
-    copyObject(source, keys(source), object);
+    copyObject(source, nativeKeys(source), object);
   });
 
   /**
@@ -3080,7 +3059,7 @@
    * // => { 'a': 1, 'b': 2, 'c': 3, 'd': 4 }
    */
   var assignIn = createAssigner(function(object, source) {
-    copyObject(source, keysIn(source), object);
+    copyObject(source, nativeKeysIn(source), object);
   });
 
   /**
@@ -3216,7 +3195,7 @@
    * Creates an array of the own enumerable property names of `object`.
    *
    * **Note:** Non-object values are coerced to objects. See the
-   * [ES spec](http://ecma-international.org/ecma-262/6.0/#sec-object.keys)
+   * [ES spec](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
    * for more details.
    *
    * @static
@@ -3240,7 +3219,7 @@
    * _.keys('hi');
    * // => ['0', '1']
    */
-  var keys = baseKeys;
+  var keys = nativeKeys;
 
   /**
    * Creates an array of the own and inherited enumerable property names of `object`.
@@ -3265,7 +3244,7 @@
    * _.keysIn(new Foo);
    * // => ['a', 'b', 'c'] (iteration order is not guaranteed)
    */
-  var keysIn = baseKeysIn;
+  var keysIn = nativeKeysIn;
 
   /**
    * Creates an object composed of the picked `object` properties.
@@ -3469,8 +3448,12 @@
    * object and `source`, returning `true` if the given object has equivalent
    * property values, else `false`.
    *
-   * **Note:** The created function supports comparing the same values as
-   * `_.isEqual` is equivalent to `_.isMatch` with `source` partially applied.
+   * **Note:** The created function is equivalent to `_.isMatch` with `source`
+   * partially applied.
+   *
+   * Partial comparisons will match empty array and empty object `source`
+   * values against any array or object value, respectively. See `_.isEqual`
+   * for a list of supported value comparisons.
    *
    * @static
    * @memberOf _

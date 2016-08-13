@@ -9,21 +9,21 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils"),
+const astUtils = require("../ast-utils"),
     keywords = require("../util/keywords");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-let PREV_TOKEN = /^[\)\]\}>]$/;
-let NEXT_TOKEN = /^(?:[\(\[\{<~!]|\+\+?|--?)$/;
-let PREV_TOKEN_M = /^[\)\]\}>*]$/;
-let NEXT_TOKEN_M = /^[\{*]$/;
-let TEMPLATE_OPEN_PAREN = /\$\{$/;
-let TEMPLATE_CLOSE_PAREN = /^\}/;
-let CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/;
-let KEYS = keywords.concat(["as", "await", "from", "get", "let", "of", "set", "yield"]);
+const PREV_TOKEN = /^[\)\]\}>]$/;
+const NEXT_TOKEN = /^(?:[\(\[\{<~!]|\+\+?|--?)$/;
+const PREV_TOKEN_M = /^[\)\]\}>*]$/;
+const NEXT_TOKEN_M = /^[\{*]$/;
+const TEMPLATE_OPEN_PAREN = /\$\{$/;
+const TEMPLATE_CLOSE_PAREN = /^\}/;
+const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/;
+const KEYS = keywords.concat(["as", "await", "from", "get", "let", "of", "set", "yield"]);
 
 // check duplications.
 (function() {
@@ -101,7 +101,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports a given token if there are not space(s) before the token.
@@ -114,7 +114,7 @@ module.exports = {
         function expectSpaceBefore(token, pattern) {
             pattern = pattern || PREV_TOKEN;
 
-            let prevToken = sourceCode.getTokenBefore(token);
+            const prevToken = sourceCode.getTokenBefore(token);
 
             if (prevToken &&
                 (CHECK_TYPE.test(prevToken.type) || pattern.test(prevToken.value)) &&
@@ -144,7 +144,7 @@ module.exports = {
         function unexpectSpaceBefore(token, pattern) {
             pattern = pattern || PREV_TOKEN;
 
-            let prevToken = sourceCode.getTokenBefore(token);
+            const prevToken = sourceCode.getTokenBefore(token);
 
             if (prevToken &&
                 (CHECK_TYPE.test(prevToken.type) || pattern.test(prevToken.value)) &&
@@ -174,7 +174,7 @@ module.exports = {
         function expectSpaceAfter(token, pattern) {
             pattern = pattern || NEXT_TOKEN;
 
-            let nextToken = sourceCode.getTokenAfter(token);
+            const nextToken = sourceCode.getTokenAfter(token);
 
             if (nextToken &&
                 (CHECK_TYPE.test(nextToken.type) || pattern.test(nextToken.value)) &&
@@ -204,7 +204,7 @@ module.exports = {
         function unexpectSpaceAfter(token, pattern) {
             pattern = pattern || NEXT_TOKEN;
 
-            let nextToken = sourceCode.getTokenAfter(token);
+            const nextToken = sourceCode.getTokenAfter(token);
 
             if (nextToken &&
                 (CHECK_TYPE.test(nextToken.type) || pattern.test(nextToken.value)) &&
@@ -232,22 +232,22 @@ module.exports = {
          *      Values are instances of `{"before": function, "after": function}`.
          */
         function parseOptions(options) {
-            let before = !options || options.before !== false;
-            let after = !options || options.after !== false;
-            let defaultValue = {
+            const before = !options || options.before !== false;
+            const after = !options || options.after !== false;
+            const defaultValue = {
                 before: before ? expectSpaceBefore : unexpectSpaceBefore,
                 after: after ? expectSpaceAfter : unexpectSpaceAfter
             };
-            let overrides = (options && options.overrides) || {};
-            let retv = Object.create(null);
+            const overrides = (options && options.overrides) || {};
+            const retv = Object.create(null);
 
             for (let i = 0; i < KEYS.length; ++i) {
-                let key = KEYS[i];
-                let override = overrides[key];
+                const key = KEYS[i];
+                const override = overrides[key];
 
                 if (override) {
-                    let thisBefore = ("before" in override) ? override.before : before;
-                    let thisAfter = ("after" in override) ? override.after : after;
+                    const thisBefore = ("before" in override) ? override.before : before;
+                    const thisAfter = ("after" in override) ? override.after : after;
 
                     retv[key] = {
                         before: thisBefore ? expectSpaceBefore : unexpectSpaceBefore,
@@ -261,7 +261,7 @@ module.exports = {
             return retv;
         }
 
-        let checkMethodMap = parseOptions(context.options[0]);
+        const checkMethodMap = parseOptions(context.options[0]);
 
         /**
          * Reports a given token if usage of spacing followed by the token is
@@ -308,7 +308,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingAroundFirstToken(node) {
-            let firstToken = node && sourceCode.getFirstToken(node);
+            const firstToken = node && sourceCode.getFirstToken(node);
 
             if (firstToken && firstToken.type === "Keyword") {
                 checkSpacingAround(firstToken);
@@ -326,7 +326,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingBeforeFirstToken(node) {
-            let firstToken = node && sourceCode.getFirstToken(node);
+            const firstToken = node && sourceCode.getFirstToken(node);
 
             if (firstToken && firstToken.type === "Keyword") {
                 checkSpacingBefore(firstToken);
@@ -445,13 +445,13 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingForModuleDeclaration(node) {
-            let firstToken = sourceCode.getFirstToken(node);
+            const firstToken = sourceCode.getFirstToken(node);
 
             checkSpacingBefore(firstToken, PREV_TOKEN_M);
             checkSpacingAfter(firstToken, NEXT_TOKEN_M);
 
             if (node.source) {
-                let fromToken = sourceCode.getTokenBefore(node.source);
+                const fromToken = sourceCode.getTokenBefore(node.source);
 
                 checkSpacingBefore(fromToken, PREV_TOKEN_M);
                 checkSpacingAfter(fromToken, NEXT_TOKEN_M);
@@ -466,7 +466,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingForImportNamespaceSpecifier(node) {
-            let asToken = sourceCode.getFirstToken(node, 1);
+            const asToken = sourceCode.getFirstToken(node, 1);
 
             checkSpacingBefore(asToken, PREV_TOKEN_M);
         }
@@ -483,7 +483,7 @@ module.exports = {
                 checkSpacingAroundFirstToken(node);
             }
             if (node.kind === "get" || node.kind === "set") {
-                let token = sourceCode.getFirstToken(
+                const token = sourceCode.getFirstToken(
                     node,
                     node.static ? 1 : 0
                 );

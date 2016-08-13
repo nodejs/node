@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -28,8 +28,8 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
-        let propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
+        const sourceCode = context.getSourceCode();
+        const propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -117,9 +117,9 @@ module.exports = {
                     return;
                 }
 
-                let property = node[propertyName];
+                const property = node[propertyName];
 
-                let before = sourceCode.getTokenBefore(property),
+                const before = sourceCode.getTokenBefore(property),
                     first = sourceCode.getFirstToken(property),
                     last = sourceCode.getLastToken(property),
                     after = sourceCode.getTokenAfter(property);

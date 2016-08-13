@@ -43,9 +43,9 @@ module.exports = {
 
     create: function(context) {
 
-        let configuration = context.options[0],
-            sourceCode = context.getSourceCode(),
-            requireAnonymousFunctionSpacing = true,
+        const configuration = context.options[0],
+            sourceCode = context.getSourceCode();
+        let requireAnonymousFunctionSpacing = true,
             forbidAnonymousFunctionSpacing = false,
             requireNamedFunctionSpacing = true,
             forbidNamedFunctionSpacing = false;
@@ -70,13 +70,12 @@ module.exports = {
          * @returns {boolean} Whether the function has a name.
          */
         function isNamedFunction(node) {
-            let parent;
-
             if (node.id) {
                 return true;
             }
 
-            parent = node.parent;
+            const parent = node.parent;
+
             return parent.type === "MethodDefinition" ||
                 (parent.type === "Property" &&
                     (
@@ -93,10 +92,8 @@ module.exports = {
          * @returns {void}
          */
         function validateSpacingBeforeParentheses(node) {
-            let isNamed = isNamedFunction(node),
-                leftToken,
-                rightToken,
-                location;
+            const isNamed = isNamedFunction(node);
+            let rightToken;
 
             if (node.generator && !isNamed) {
                 return;
@@ -106,8 +103,8 @@ module.exports = {
             while (rightToken.value !== "(") {
                 rightToken = sourceCode.getTokenAfter(rightToken);
             }
-            leftToken = sourceCode.getTokenBefore(rightToken);
-            location = leftToken.loc.end;
+            const leftToken = sourceCode.getTokenBefore(rightToken);
+            const location = leftToken.loc.end;
 
             if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {
                 if ((isNamed && forbidNamedFunctionSpacing) || (!isNamed && forbidAnonymousFunctionSpacing)) {

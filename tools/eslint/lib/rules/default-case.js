@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let DEFAULT_COMMENT_PATTERN = /^no default$/;
+const DEFAULT_COMMENT_PATTERN = /^no default$/;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -30,12 +30,12 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let commentPattern = options.commentPattern ?
+        const options = context.options[0] || {};
+        const commentPattern = options.commentPattern ?
             new RegExp(options.commentPattern) :
             DEFAULT_COMMENT_PATTERN;
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -67,18 +67,16 @@ module.exports = {
                     return;
                 }
 
-                let hasDefault = node.cases.some(function(v) {
+                const hasDefault = node.cases.some(function(v) {
                     return v.test === null;
                 });
 
                 if (!hasDefault) {
 
                     let comment;
-                    let comments;
 
-                    let lastCase = last(node.cases);
-
-                    comments = sourceCode.getComments(lastCase).trailing;
+                    const lastCase = last(node.cases);
+                    const comments = sourceCode.getComments(lastCase).trailing;
 
                     if (comments.length) {
                         comment = last(comments);

@@ -4,6 +4,12 @@
 
 Pretty much [rimraf](https://github.com/isaacs/rimraf) with a Promise API and support for multiple files and globbing. It also protects you against deleting the current working directory and above.
 
+---
+
+<p align="center"><b>🔥 Want to strengthen your core JavaScript skills and master ES6?</b><br>I would personally recommend this awesome <a href="https://ES6.io/friend/AWESOME">ES6 course</a> by Wes Bos.</p>
+
+---
+
 
 ## Install
 

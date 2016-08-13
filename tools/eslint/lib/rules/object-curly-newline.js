@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 // Schema objects.
-let OPTION_VALUE = {
+const OPTION_VALUE = {
     oneOf: [
         {
             enum: ["always", "never"]
@@ -78,7 +78,7 @@ function normalizeOptions(options) {
         };
     }
 
-    let value = normalizeOptionValue(options);
+    const value = normalizeOptionValue(options);
 
     return {ObjectExpression: value, ObjectPattern: value};
 }
@@ -114,8 +114,8 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
-        let normalizedOptions = normalizeOptions(context.options[0]);
+        const sourceCode = context.getSourceCode();
+        const normalizedOptions = normalizeOptions(context.options[0]);
 
         /**
          * Reports a given node if it violated this rule.
@@ -125,12 +125,12 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            let options = normalizedOptions[node.type];
-            let openBrace = sourceCode.getFirstToken(node);
-            let closeBrace = sourceCode.getLastToken(node);
+            const options = normalizedOptions[node.type];
+            const openBrace = sourceCode.getFirstToken(node);
+            const closeBrace = sourceCode.getLastToken(node);
             let first = sourceCode.getTokenOrCommentAfter(openBrace);
             let last = sourceCode.getTokenOrCommentBefore(closeBrace);
-            let needsLinebreaks = (
+            const needsLinebreaks = (
                 node.properties.length >= options.minProperties ||
                 (
                     options.multiline &&

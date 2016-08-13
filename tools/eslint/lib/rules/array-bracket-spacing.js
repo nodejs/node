@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
     create: function(context) {
-        let spaced = context.options[0] === "always",
+        const spaced = context.options[0] === "always",
             sourceCode = context.getSourceCode();
 
         /**
@@ -54,7 +54,7 @@ module.exports = {
             return context.options[1] ? context.options[1][option] === !spaced : false;
         }
 
-        let options = {
+        const options = {
             spaced: spaced,
             singleElementException: isOptionSet("singleValue"),
             objectsInArraysException: isOptionSet("objectsInArrays"),
@@ -77,7 +77,7 @@ module.exports = {
                 loc: token.loc.start,
                 message: "There should be no space after '" + token.value + "'.",
                 fix: function(fixer) {
-                    let nextToken = sourceCode.getTokenAfter(token);
+                    const nextToken = sourceCode.getTokenAfter(token);
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
@@ -96,7 +96,7 @@ module.exports = {
                 loc: token.loc.start,
                 message: "There should be no space before '" + token.value + "'.",
                 fix: function(fixer) {
-                    let previousToken = sourceCode.getTokenBefore(token);
+                    const previousToken = sourceCode.getTokenBefore(token);
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
@@ -165,20 +165,20 @@ module.exports = {
                 return;
             }
 
-            let first = sourceCode.getFirstToken(node),
+            const first = sourceCode.getFirstToken(node),
                 second = sourceCode.getFirstToken(node, 1),
                 penultimate = sourceCode.getLastToken(node, 1),
                 last = sourceCode.getLastToken(node),
                 firstElement = node.elements[0],
                 lastElement = node.elements[node.elements.length - 1];
 
-            let openingBracketMustBeSpaced =
+            const openingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(firstElement) ||
                 options.arraysInArraysException && isArrayType(firstElement) ||
                 options.singleElementException && node.elements.length === 1
                     ? !options.spaced : options.spaced;
 
-            let closingBracketMustBeSpaced =
+            const closingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(lastElement) ||
                 options.arraysInArraysException && isArrayType(lastElement) ||
                 options.singleElementException && node.elements.length === 1

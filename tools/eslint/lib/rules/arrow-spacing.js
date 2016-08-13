@@ -37,13 +37,13 @@ module.exports = {
     create: function(context) {
 
         // merge rules with default
-        let rule = { before: true, after: true },
+        const rule = { before: true, after: true },
             option = context.options[0] || {};
 
         rule.before = option.before !== false;
         rule.after = option.after !== false;
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Get tokens of arrow(`=>`) and before/after arrow.
@@ -58,7 +58,7 @@ module.exports = {
                 before = t;
                 t = sourceCode.getTokenAfter(t);
             }
-            let after = sourceCode.getTokenAfter(t);
+            const after = sourceCode.getTokenAfter(t);
 
             return { before: before, arrow: t, after: after };
         }
@@ -69,8 +69,8 @@ module.exports = {
          * @returns {Object} count of space before/after arrow.
          */
         function countSpaces(tokens) {
-            let before = tokens.arrow.range[0] - tokens.before.range[1];
-            let after = tokens.after.range[0] - tokens.arrow.range[1];
+            const before = tokens.arrow.range[0] - tokens.before.range[1];
+            const after = tokens.after.range[0] - tokens.arrow.range[1];
 
             return { before: before, after: after };
         }
@@ -83,8 +83,8 @@ module.exports = {
          * @returns {void}
          */
         function spaces(node) {
-            let tokens = getTokens(node);
-            let countSpace = countSpaces(tokens);
+            const tokens = getTokens(node);
+            const countSpace = countSpaces(tokens);
 
             if (rule.before) {
 

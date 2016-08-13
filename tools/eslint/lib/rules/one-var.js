@@ -57,12 +57,12 @@ module.exports = {
 
     create: function(context) {
 
-        let MODE_ALWAYS = "always",
+        const MODE_ALWAYS = "always",
             MODE_NEVER = "never";
 
-        let mode = context.options[0] || MODE_ALWAYS;
+        const mode = context.options[0] || MODE_ALWAYS;
 
-        let options = {
+        const options = {
         };
 
         if (typeof mode === "string") { // simple options configuration with just a string
@@ -113,8 +113,8 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        let functionStack = [];
-        let blockStack = [];
+        const functionStack = [];
+        const blockStack = [];
 
         /**
          * Increments the blockStack counter.
@@ -204,7 +204,7 @@ module.exports = {
          * @private
          */
         function countDeclarations(declarations) {
-            let counts = { uninitialized: 0, initialized: 0 };
+            const counts = { uninitialized: 0, initialized: 0 };
 
             for (let i = 0; i < declarations.length; i++) {
                 if (declarations[i].init === null) {
@@ -225,9 +225,9 @@ module.exports = {
          */
         function hasOnlyOneStatement(statementType, declarations) {
 
-            let declarationCounts = countDeclarations(declarations);
-            let currentOptions = options[statementType] || {};
-            let currentScope = getCurrentScope(statementType);
+            const declarationCounts = countDeclarations(declarations);
+            const currentOptions = options[statementType] || {};
+            const currentScope = getCurrentScope(statementType);
 
             if (currentOptions.uninitialized === MODE_ALWAYS && currentOptions.initialized === MODE_ALWAYS) {
                 if (currentScope.uninitialized || currentScope.initialized) {
@@ -266,16 +266,15 @@ module.exports = {
             SwitchStatement: startBlock,
 
             VariableDeclaration: function(node) {
-                let parent = node.parent,
-                    type, declarations, declarationCounts;
+                const parent = node.parent;
+                const type = node.kind;
 
-                type = node.kind;
                 if (!options[type]) {
                     return;
                 }
 
-                declarations = node.declarations;
-                declarationCounts = countDeclarations(declarations);
+                const declarations = node.declarations;
+                const declarationCounts = countDeclarations(declarations);
 
                 // always
                 if (!hasOnlyOneStatement(type, declarations)) {
@@ -296,7 +295,7 @@ module.exports = {
 
                 // never
                 if (parent.type !== "ForStatement" || parent.init !== node) {
-                    let totalDeclarations = declarationCounts.uninitialized + declarationCounts.initialized;
+                    const totalDeclarations = declarationCounts.uninitialized + declarationCounts.initialized;
 
                     if (totalDeclarations > 1) {
 

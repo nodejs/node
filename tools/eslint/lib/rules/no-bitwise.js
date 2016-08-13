@@ -8,7 +8,7 @@
 //
 // Set of bitwise operators.
 //
-let BITWISE_OPERATORS = [
+const BITWISE_OPERATORS = [
     "^", "|", "&", "<<", ">>", ">>>",
     "^=", "|=", "&=", "<<=", ">>=", ">>>=",
     "~"
@@ -47,9 +47,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let allowed = options.allow || [];
-        let int32Hint = options.int32Hint === true;
+        const options = context.options[0] || {};
+        const allowed = options.allow || [];
+        const int32Hint = options.int32Hint === true;
 
         /**
          * Reports an unexpected use of a bitwise operator.

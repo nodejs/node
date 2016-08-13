@@ -20,11 +20,11 @@ module.exports = {
 
     create: function(context) {
 
-        let FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
-        let PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
-        let TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
+        const FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
+        const PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
+        const TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Check to see if there is a newline between the node and the following open bracket

@@ -22,7 +22,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports an unnecessary semicolon error.
@@ -65,7 +65,7 @@ module.exports = {
              * @returns {void}
              */
             EmptyStatement: function(node) {
-                let parent = node.parent,
+                const parent = node.parent,
                     allowedParentTypes = [
                         "ForStatement",
                         "ForInStatement",

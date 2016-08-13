@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash");
-let astUtils = require("../ast-utils");
+const lodash = require("lodash");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -60,15 +60,15 @@ module.exports = {
 
     create: function(context) {
 
-        let MESSAGE = "'{{name}}' is defined but never used.";
+        const MESSAGE = "'{{name}}' is defined but never used.";
 
-        let config = {
+        const config = {
             vars: "all",
             args: "after-used",
             caughtErrors: "none"
         };
 
-        let firstOption = context.options[0];
+        const firstOption = context.options[0];
 
         if (firstOption) {
             if (typeof firstOption === "string") {
@@ -96,7 +96,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        let STATEMENT_TYPE = /(?:Statement|Declaration)$/;
+        const STATEMENT_TYPE = /(?:Statement|Declaration)$/;
 
         /**
          * Determines if a given variable is being exported from a module.
@@ -106,7 +106,7 @@ module.exports = {
          */
         function isExported(variable) {
 
-            let definition = variable.defs[0];
+            const definition = variable.defs[0];
 
             if (definition) {
 
@@ -209,12 +209,12 @@ module.exports = {
          * @private
          */
         function getRhsNode(ref, prevRhsNode) {
-            let id = ref.identifier;
-            let parent = id.parent;
-            let granpa = parent.parent;
-            let refScope = ref.from.variableScope;
-            let varScope = ref.resolved.scope.variableScope;
-            let canBeUsedLater = refScope !== varScope || isInsideOfLoop(id);
+            const id = ref.identifier;
+            const parent = id.parent;
+            const granpa = parent.parent;
+            const refScope = ref.from.variableScope;
+            const varScope = ref.resolved.scope.variableScope;
+            const canBeUsedLater = refScope !== varScope || isInsideOfLoop(id);
 
             /*
              * Inherits the previous node if this reference is in the node.
@@ -301,7 +301,7 @@ module.exports = {
          * @private
          */
         function isInsideOfStorableFunction(id, rhsNode) {
-            let funcNode = astUtils.getUpperFunction(id);
+            const funcNode = astUtils.getUpperFunction(id);
 
             return (
                 funcNode &&
@@ -319,9 +319,9 @@ module.exports = {
          * @private
          */
         function isReadForItself(ref, rhsNode) {
-            let id = ref.identifier;
-            let parent = id.parent;
-            let granpa = parent.parent;
+            const id = ref.identifier;
+            const parent = id.parent;
+            const granpa = parent.parent;
 
             return ref.isRead() && (
 
@@ -389,20 +389,20 @@ module.exports = {
          * @private
          */
         function isUsedVariable(variable) {
-            let functionNodes = variable.defs.filter(function(def) {
+            const functionNodes = variable.defs.filter(function(def) {
                     return def.type === "FunctionName";
                 }).map(function(def) {
                     return def.node;
                 }),
-                isFunctionDefinition = functionNodes.length > 0,
-                rhsNode = null;
+                isFunctionDefinition = functionNodes.length > 0;
+            let rhsNode = null;
 
             return variable.references.some(function(ref) {
                 if (isForInRef(ref)) {
                     return true;
                 }
 
-                let forItself = isReadForItself(ref, rhsNode);
+                const forItself = isReadForItself(ref, rhsNode);
 
                 rhsNode = getRhsNode(ref, rhsNode);
 
@@ -422,13 +422,13 @@ module.exports = {
          * @private
          */
         function collectUnusedVariables(scope, unusedVars) {
-            let variables = scope.variables;
-            let childScopes = scope.childScopes;
+            const variables = scope.variables;
+            const childScopes = scope.childScopes;
             let i, l;
 
             if (scope.type !== "TDZ" && (scope.type !== "global" || config.vars === "all")) {
                 for (i = 0, l = variables.length; i < l; ++i) {
-                    let variable = variables[i];
+                    const variable = variables[i];
 
                     // skip a variable of class itself name in the class scope
                     if (scope.type === "class" && scope.block.id === variable.identifiers[0]) {
@@ -446,10 +446,10 @@ module.exports = {
                     }
 
                     // explicit global variables don't have definitions.
-                    let def = variable.defs[0];
+                    const def = variable.defs[0];
 
                     if (def) {
-                        let type = def.type;
+                        const type = def.type;
 
                         // skip catch variables
                         if (type === "CatchClause") {
@@ -514,13 +514,13 @@ module.exports = {
          * @private
          */
         function getColumnInComment(variable, comment) {
-            let namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
+            const namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
 
             // To ignore the first text "global".
             namePattern.lastIndex = comment.value.indexOf("global") + 6;
 
             // Search a given variable name.
-            let match = namePattern.exec(comment.value);
+            const match = namePattern.exec(comment.value);
 
             return match ? match.index + 1 : 0;
         }
@@ -534,11 +534,11 @@ module.exports = {
          * @private
          */
         function getLocation(variable) {
-            let comment = variable.eslintExplicitGlobalComment;
-            let baseLoc = comment.loc.start;
+            const comment = variable.eslintExplicitGlobalComment;
+            const baseLoc = comment.loc.start;
             let column = getColumnInComment(variable, comment);
-            let prefix = comment.value.slice(0, column);
-            let lineInComment = (prefix.match(/\n/g) || []).length;
+            const prefix = comment.value.slice(0, column);
+            const lineInComment = (prefix.match(/\n/g) || []).length;
 
             if (lineInComment > 0) {
                 column -= 1 + prefix.lastIndexOf("\n");
@@ -560,10 +560,10 @@ module.exports = {
 
         return {
             "Program:exit": function(programNode) {
-                let unusedVars = collectUnusedVariables(context.getScope(), []);
+                const unusedVars = collectUnusedVariables(context.getScope(), []);
 
                 for (let i = 0, l = unusedVars.length; i < l; ++i) {
-                    let unusedVar = unusedVars[i];
+                    const unusedVar = unusedVars[i];
 
                     if (unusedVar.eslintExplicitGlobal) {
                         context.report({

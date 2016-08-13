@@ -8,8 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let debug = require("debug"),
-    fs = require("fs"),
+const fs = require("fs"),
     path = require("path"),
     glob = require("glob"),
     shell = require("shelljs"),
@@ -17,7 +16,7 @@ let debug = require("debug"),
     pathUtil = require("./path-util"),
     IgnoredPaths = require("../ignored-paths");
 
-debug = debug("eslint:glob-util");
+const debug = require("debug")("eslint:glob-util");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -41,7 +40,7 @@ debug = debug("eslint:glob-util");
  *                     pathname is a directory.
  */
 function processPath(options) {
-    let cwd = (options && options.cwd) || process.cwd();
+    const cwd = (options && options.cwd) || process.cwd();
     let extensions = (options && options.extensions) || [".js"];
 
     extensions = extensions.map(function(ext) {
@@ -65,7 +64,7 @@ function processPath(options) {
      */
     return function(pathname) {
         let newPath = pathname;
-        let resolvedPath = path.resolve(cwd, pathname);
+        const resolvedPath = path.resolve(cwd, pathname);
 
         if (shell.test("-d", resolvedPath)) {
             newPath = pathname.replace(/[\/\\]$/, "") + suffix;
@@ -87,7 +86,7 @@ function processPath(options) {
  */
 function resolveFileGlobPatterns(patterns, options) {
 
-    let processPathExtensions = processPath(options);
+    const processPathExtensions = processPath(options);
 
     return patterns.map(processPathExtensions);
 }
@@ -105,12 +104,18 @@ function resolveFileGlobPatterns(patterns, options) {
  * @returns {string[]} Resolved absolute filenames.
  */
 function listFilesToProcess(globPatterns, options) {
-    let ignoredPaths,
-        files = [],
-        added = {},
-        globOptions;
+    const files = [],
+        added = {};
 
-    let cwd = (options && options.cwd) || process.cwd();
+    const cwd = (options && options.cwd) || process.cwd();
+
+    options = options || { ignore: true, dotfiles: true };
+    const ignoredPaths = new IgnoredPaths(options);
+    const globOptions = {
+        nodir: true,
+        cwd: cwd,
+        ignore: ignoredPaths.getIgnoredFoldersGlobPatterns()
+    };
 
     /**
      * Executes the linter on a file defined by the `filename`. Skips
@@ -150,17 +155,9 @@ function listFilesToProcess(globPatterns, options) {
         added[filename] = true;
     }
 
-    options = options || { ignore: true, dotfiles: true };
-    ignoredPaths = new IgnoredPaths(options);
-    globOptions = {
-        nodir: true,
-        cwd: cwd,
-        ignore: ignoredPaths.getIgnoredFoldersGlobPatterns()
-    };
-
     debug("Creating list of files to process.");
     globPatterns.forEach(function(pattern) {
-        let file = path.resolve(cwd, pattern);
+        const file = path.resolve(cwd, pattern);
 
         if (shell.test("-f", file)) {
             addFile(fs.realpathSync(file), !shell.test("-d", file));

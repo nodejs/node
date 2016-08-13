@@ -26,8 +26,8 @@ function isForLoop(block) {
  * @returns {boolean} `true` when the node has its initializer.
  */
 function isInitialized(node) {
-    let declaration = node.parent;
-    let block = declaration.parent;
+    const declaration = node.parent;
+    const block = declaration.parent;
 
     if (isForLoop(block)) {
         if (block.type === "ForStatement") {
@@ -87,11 +87,11 @@ module.exports = {
 
     create: function(context) {
 
-        let MODE_ALWAYS = "always",
+        const MODE_ALWAYS = "always",
             MODE_NEVER = "never";
 
-        let mode = context.options[0] || MODE_ALWAYS;
-        let params = context.options[1] || {};
+        const mode = context.options[0] || MODE_ALWAYS;
+        const params = context.options[1] || {};
 
         //--------------------------------------------------------------------------
         // Public API
@@ -100,11 +100,11 @@ module.exports = {
         return {
             "VariableDeclaration:exit": function(node) {
 
-                let kind = node.kind,
+                const kind = node.kind,
                     declarations = node.declarations;
 
                 for (let i = 0; i < declarations.length; ++i) {
-                    let declaration = declarations[i],
+                    const declaration = declarations[i],
                         id = declaration.id,
                         initialized = isInitialized(declaration),
                         isIgnoredForLoop = params.ignoreForLoopInit && isForLoop(node.parent);

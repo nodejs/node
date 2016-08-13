@@ -9,15 +9,15 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash");
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let PATTERN_TYPE = /^(?:.+?Pattern|RestElement|Property)$/;
-let DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|SwitchCase)$/;
-let DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/;
+const PATTERN_TYPE = /^(?:.+?Pattern|RestElement|Property)$/;
+const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|SwitchCase)$/;
+const DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/;
 
 /**
  * Adds multiple items to the tail of an array.
@@ -26,7 +26,7 @@ let DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/;
  * @param {any[]} values - Items to be added.
  * @returns {void}
  */
-let pushAll = Function.apply.bind(Array.prototype.push);
+const pushAll = Function.apply.bind(Array.prototype.push);
 
 /**
  * Checks whether a given node is located at `ForStatement.init` or not.
@@ -89,13 +89,13 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
     // Finds the unique WriteReference.
     let writer = null;
     let isReadBeforeInit = false;
-    let references = variable.references;
+    const references = variable.references;
 
     for (let i = 0; i < references.length; ++i) {
-        let reference = references[i];
+        const reference = references[i];
 
         if (reference.isWrite()) {
-            let isReassigned = (
+            const isReassigned = (
                 writer !== null &&
                 writer.identifier !== reference.identifier
             );
@@ -115,7 +115,7 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
 
     // If the assignment is from a different scope, ignore it.
     // If the assignment cannot change to a declaration, ignore it.
-    let shouldBeConst = (
+    const shouldBeConst = (
         writer !== null &&
         writer.from === variable.scope &&
         canBecomeVariableDeclaration(writer.identifier)
@@ -168,17 +168,17 @@ function getDestructuringHost(reference) {
  * @returns {Map<ASTNode, ASTNode[]>} Grouped identifier nodes.
  */
 function groupByDestructuring(variables, ignoreReadBeforeAssign) {
-    let identifierMap = new Map();
+    const identifierMap = new Map();
 
     for (let i = 0; i < variables.length; ++i) {
-        let variable = variables[i];
-        let references = variable.references;
-        let identifier = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
+        const variable = variables[i];
+        const references = variable.references;
+        const identifier = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
         let prevId = null;
 
         for (let j = 0; j < references.length; ++j) {
-            let reference = references[j];
-            let id = reference.identifier;
+            const reference = references[j];
+            const id = reference.identifier;
 
             // Avoid counting a reference twice or more for default values of
             // destructuring.
@@ -188,7 +188,7 @@ function groupByDestructuring(variables, ignoreReadBeforeAssign) {
             prevId = id;
 
             // Add the identifier node into the destructuring group.
-            let group = getDestructuringHost(reference);
+            const group = getDestructuringHost(reference);
 
             if (group) {
                 if (identifierMap.has(group)) {
@@ -248,9 +248,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let checkingMixedDestructuring = options.destructuring !== "all";
-        let ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
+        const options = context.options[0] || {};
+        const checkingMixedDestructuring = options.destructuring !== "all";
+        const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         let variables = null;
 
         /**
@@ -260,7 +260,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            let reportArgs = {
+            const reportArgs = {
                     node: node,
                     message: "'{{name}}' is never reassigned. Use 'const' instead.",
                     data: node
@@ -317,7 +317,7 @@ module.exports = {
          * @returns {void}
          */
         function checkVariable(variable) {
-            let node = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
+            const node = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
 
             if (node) {
                 report(node);

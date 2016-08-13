@@ -9,7 +9,7 @@
 // Constants
 //------------------------------------------------------------------------------
 
-let OPTIONS_SCHEMA = {
+const OPTIONS_SCHEMA = {
     type: "object",
     properties: {
         code: {
@@ -40,7 +40,7 @@ let OPTIONS_SCHEMA = {
     additionalProperties: false
 };
 
-let OPTIONS_OR_INTEGER_SCHEMA = {
+const OPTIONS_OR_INTEGER_SCHEMA = {
     anyOf: [
         OPTIONS_SCHEMA,
         {
@@ -79,9 +79,9 @@ module.exports = {
          *   too many false positives
          * - We don't care about matching the entire URL, any small segment is fine
          */
-        let URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
+        const URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Computes the length of a line that may contain tabs. The width of each
@@ -95,7 +95,7 @@ module.exports = {
             let extraCharacterCount = 0;
 
             line.replace(/\t/g, function(match, offset) {
-                let totalOffset = offset + extraCharacterCount,
+                const totalOffset = offset + extraCharacterCount,
                     previousTabStopOffset = tabWidth ? totalOffset % tabWidth : 0,
                     spaceCount = tabWidth - previousTabStopOffset;
 
@@ -105,8 +105,8 @@ module.exports = {
         }
 
         // The options object must be the last option specified…
-        let lastOption = context.options[context.options.length - 1];
-        let options = typeof lastOption === "object" ? Object.create(lastOption) : {};
+        const lastOption = context.options[context.options.length - 1];
+        const options = typeof lastOption === "object" ? Object.create(lastOption) : {};
 
         // …but max code length…
         if (typeof context.options[0] === "number") {
@@ -118,13 +118,13 @@ module.exports = {
             options.tabWidth = context.options[1];
         }
 
-        let maxLength = options.code || 80,
+        const maxLength = options.code || 80,
             tabWidth = options.tabWidth || 4,
-            ignorePattern = options.ignorePattern || null,
             ignoreComments = options.ignoreComments || false,
             ignoreTrailingComments = options.ignoreTrailingComments || options.ignoreComments || false,
             ignoreUrls = options.ignoreUrls || false,
             maxCommentLength = options.comments;
+        let ignorePattern = options.ignorePattern || null;
 
         if (ignorePattern) {
             ignorePattern = new RegExp(ignorePattern);
@@ -156,7 +156,7 @@ module.exports = {
          * @returns {boolean} If the comment covers the entire line
          */
         function isFullLineComment(line, lineNumber, comment) {
-            let start = comment.loc.start,
+            const start = comment.loc.start,
                 end = comment.loc.end,
                 isFirstTokenOnLine = !line.slice(0, comment.loc.start.column).trim();
 
@@ -188,18 +188,18 @@ module.exports = {
         function checkProgramForMaxLength(node) {
 
             // split (honors line-ending)
-            let lines = sourceCode.lines,
+            const lines = sourceCode.lines,
 
                 // list of comments to ignore
-                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? sourceCode.getAllComments() : [],
+                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? sourceCode.getAllComments() : [];
 
                 // we iterate over comments in parallel with the lines
-                commentsIndex = 0;
+            let commentsIndex = 0;
 
             lines.forEach(function(line, i) {
 
                 // i is zero-indexed, line numbers are one-indexed
-                let lineNumber = i + 1;
+                const lineNumber = i + 1;
 
                 /*
                  * if we're checking comment length; we need to know whether this
@@ -235,7 +235,7 @@ module.exports = {
                     return;
                 }
 
-                let lineLength = computeLineLength(line, tabWidth);
+                const lineLength = computeLineLength(line, tabWidth);
 
                 if (lineIsComment && ignoreComments) {
                     return;

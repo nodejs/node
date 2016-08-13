@@ -35,7 +35,7 @@ module.exports = function(results) {
 
     results.forEach(function(result) {
 
-        let messages = result.messages;
+        const messages = result.messages;
 
         total += messages.length;
 

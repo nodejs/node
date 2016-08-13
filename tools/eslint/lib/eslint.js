@@ -9,11 +9,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let assert = require("assert"),
+const assert = require("assert"),
     EventEmitter = require("events").EventEmitter,
     escope = require("escope"),
     levn = require("levn"),
-    lodash = require("lodash"),
     blankScriptAST = require("../conf/blank-script.json"),
     DEFAULT_PARSER = require("../conf/eslint.json").parser,
     replacements = require("../conf/replacements.json"),
@@ -41,7 +40,7 @@ let assert = require("assert"),
  * @returns {Object} Result map object of names and boolean values
  */
 function parseBooleanConfig(string, comment) {
-    let items = {};
+    const items = {};
 
     // Collapse whitespace around `:` and `,` to make parsing easier
     string = string.replace(/\s*([:,])\s*/g, "$1");
@@ -50,8 +49,8 @@ function parseBooleanConfig(string, comment) {
         if (!name) {
             return;
         }
-        let pos = name.indexOf(":"),
-            value;
+        const pos = name.indexOf(":");
+        let value;
 
         if (pos !== -1) {
             value = name.substring(pos + 1, name.length);
@@ -122,7 +121,7 @@ function parseJsonConfig(string, location, messages) {
  * @returns {Object} Result map of values and true values
  */
 function parseListConfig(string) {
-    let items = {};
+    const items = {};
 
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
@@ -147,27 +146,27 @@ function parseListConfig(string) {
  * @returns {void}
  */
 function addDeclaredGlobals(program, globalScope, config) {
-    let declaredGlobals = {},
+    const declaredGlobals = {},
         exportedGlobals = {},
         explicitGlobals = {},
         builtin = Environments.get("builtin");
 
-    lodash.assign(declaredGlobals, builtin);
+    Object.assign(declaredGlobals, builtin);
 
     Object.keys(config.env).forEach(function(name) {
         if (config.env[name]) {
-            let env = Environments.get(name),
+            const env = Environments.get(name),
                 environmentGlobals = env && env.globals;
 
             if (environmentGlobals) {
-                lodash.assign(declaredGlobals, environmentGlobals);
+                Object.assign(declaredGlobals, environmentGlobals);
             }
         }
     });
 
-    lodash.assign(exportedGlobals, config.exported);
-    lodash.assign(declaredGlobals, config.globals);
-    lodash.assign(explicitGlobals, config.astGlobals);
+    Object.assign(exportedGlobals, config.exported);
+    Object.assign(declaredGlobals, config.globals);
+    Object.assign(explicitGlobals, config.astGlobals);
 
     Object.keys(declaredGlobals).forEach(function(name) {
         let variable = globalScope.set.get(name);
@@ -196,7 +195,7 @@ function addDeclaredGlobals(program, globalScope, config) {
 
     // mark all exported variables as such
     Object.keys(exportedGlobals).forEach(function(name) {
-        let variable = globalScope.set.get(name);
+        const variable = globalScope.set.get(name);
 
         if (variable) {
             variable.eslintUsed = true;
@@ -209,8 +208,8 @@ function addDeclaredGlobals(program, globalScope, config) {
      * references and remove the ones that were added by configuration.
      */
     globalScope.through = globalScope.through.filter(function(reference) {
-        let name = reference.identifier.name;
-        let variable = globalScope.set.get(name);
+        const name = reference.identifier.name;
+        const variable = globalScope.set.get(name);
 
         if (variable) {
 
@@ -312,12 +311,12 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
         rules: {},
         env: {}
     };
-    let commentRules = {};
+    const commentRules = {};
 
     ast.comments.forEach(function(comment) {
 
         let value = comment.value.trim();
-        let match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
+        const match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
             value = value.substring(match.index + match[1].length);
@@ -325,16 +324,16 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
             if (comment.type === "Block") {
                 switch (match[1]) {
                     case "exported":
-                        lodash.assign(commentConfig.exported, parseBooleanConfig(value, comment));
+                        Object.assign(commentConfig.exported, parseBooleanConfig(value, comment));
                         break;
 
                     case "globals":
                     case "global":
-                        lodash.assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
+                        Object.assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
                         break;
 
                     case "eslint-env":
-                        lodash.assign(commentConfig.env, parseListConfig(value));
+                        Object.assign(commentConfig.env, parseListConfig(value));
                         break;
 
                     case "eslint-disable":
@@ -349,7 +348,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
                         const items = parseJsonConfig(value, comment.loc, messages);
 
                         Object.keys(items).forEach(function(name) {
-                            let ruleValue = items[name];
+                            const ruleValue = items[name];
 
                             validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
                             commentRules[name] = ruleValue;
@@ -373,13 +372,13 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
     // apply environment configs
     Object.keys(commentConfig.env).forEach(function(name) {
-        let env = Environments.get(name);
+        const env = Environments.get(name);
 
         if (env) {
             commentConfig = ConfigOps.merge(commentConfig, env);
         }
     });
-    lodash.assign(commentConfig.rules, commentRules);
+    Object.assign(commentConfig.rules, commentRules);
 
     return ConfigOps.merge(config, commentConfig);
 }
@@ -395,7 +394,7 @@ function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
 
     for (let i = 0, c = reportingConfig.length; i < c; i++) {
 
-        let ignore = reportingConfig[i];
+        const ignore = reportingConfig[i];
 
         if ((!ignore.rule || ignore.rule === ruleId) &&
             (location.line > ignore.start.line || (location.line === ignore.start.line && location.column >= ignore.start.column)) &&
@@ -417,13 +416,12 @@ function prepareConfig(config) {
     config.globals = config.globals || config.global || {};
     delete config.global;
 
-    let copiedRules = {},
-        parserOptions = {},
-        preparedConfig;
+    const copiedRules = {};
+    let parserOptions = {};
 
     if (typeof config.rules === "object") {
         Object.keys(config.rules).forEach(function(k) {
-            let rule = config.rules[k];
+            const rule = config.rules[k];
 
             if (rule === null) {
                 throw new Error("Invalid config for rule '" + k + "'\.");
@@ -439,7 +437,7 @@ function prepareConfig(config) {
     // merge in environment parserOptions
     if (typeof config.env === "object") {
         Object.keys(config.env).forEach(function(envName) {
-            let env = Environments.get(envName);
+            const env = Environments.get(envName);
 
             if (config.env[envName] && env && env.parserOptions) {
                 parserOptions = ConfigOps.merge(parserOptions, env.parserOptions);
@@ -447,7 +445,7 @@ function prepareConfig(config) {
         });
     }
 
-    preparedConfig = {
+    const preparedConfig = {
         rules: copiedRules,
         parser: config.parser || DEFAULT_PARSER,
         globals: ConfigOps.merge({}, config.globals),
@@ -507,7 +505,7 @@ function createStubRule(message) {
  */
 function getRuleReplacementMessage(ruleId) {
     if (ruleId in replacements.rules) {
-        let newRules = replacements.rules[ruleId];
+        const newRules = replacements.rules[ruleId];
 
         return "Rule \'" + ruleId + "\' was removed and replaced by: " + newRules.join(", ");
     }
@@ -515,7 +513,7 @@ function getRuleReplacementMessage(ruleId) {
     return null;
 }
 
-let eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//g;
+const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//g;
 
 /**
  * Checks whether or not there is a comment which has "eslint-env *" in a given text.
@@ -528,7 +526,7 @@ function findEslintEnv(text) {
     eslintEnvPattern.lastIndex = 0;
 
     while ((match = eslintEnvPattern.exec(text))) {
-        retv = lodash.assign(retv || {}, parseListConfig(match[1]));
+        retv = Object.assign(retv || {}, parseListConfig(match[1]));
     }
 
     return retv;
@@ -563,8 +561,8 @@ function stripUnicodeBOM(text) {
  */
 module.exports = (function() {
 
-    let api = Object.create(new EventEmitter()),
-        messages = [],
+    const api = Object.create(new EventEmitter());
+    let messages = [],
         currentConfig = null,
         currentScopes = null,
         scopeMap = null,
@@ -613,7 +611,7 @@ module.exports = (function() {
 
         // merge in any additional parser options
         if (config.parserOptions) {
-            parserOptions = lodash.assign({}, config.parserOptions, parserOptions);
+            parserOptions = Object.assign({}, config.parserOptions, parserOptions);
         }
 
         /*
@@ -627,8 +625,8 @@ module.exports = (function() {
         } catch (ex) {
 
             // If the message includes a leading line number, strip it:
-            let message = ex.message.replace(/^line \d+:/i, "").trim();
-            let source = (ex.lineNumber) ? SourceCode.splitLines(text)[ex.lineNumber - 1] : null;
+            const message = ex.message.replace(/^line \d+:/i, "").trim();
+            const source = (ex.lineNumber) ? SourceCode.splitLines(text)[ex.lineNumber - 1] : null;
 
             messages.push({
                 ruleId: null,
@@ -718,13 +716,10 @@ module.exports = (function() {
      * @returns {Object[]} The results as an array of messages or null if no messages.
      */
     api.verify = function(textOrSourceCode, config, filenameOrOptions, saveState) {
-
+        const text = (typeof textOrSourceCode === "string") ? textOrSourceCode : null;
         let ast,
             shebang,
-            ecmaFeatures,
-            ecmaVersion,
-            allowInlineConfig,
-            text = (typeof textOrSourceCode === "string") ? textOrSourceCode : null;
+            allowInlineConfig;
 
         // evaluate arguments
         if (typeof filenameOrOptions === "object") {
@@ -740,14 +735,14 @@ module.exports = (function() {
         }
 
         // search and apply "eslint-env *".
-        let envInFile = findEslintEnv(text || textOrSourceCode.text);
+        const envInFile = findEslintEnv(text || textOrSourceCode.text);
 
         if (envInFile) {
             if (!config || !config.env) {
-                config = lodash.assign({}, config || {}, {env: envInFile});
+                config = Object.assign({}, config || {}, {env: envInFile});
             } else {
-                config = lodash.assign({}, config);
-                config.env = lodash.assign({}, config.env, envInFile);
+                config = Object.assign({}, config);
+                config.env = Object.assign({}, config.env, envInFile);
             }
         }
 
@@ -795,15 +790,12 @@ module.exports = (function() {
             Object.keys(config.rules).filter(function(key) {
                 return getRuleSeverity(config.rules[key]) > 0;
             }).forEach(function(key) {
-                let ruleCreator,
-                    severity,
-                    options,
-                    rule;
+                let ruleCreator;
 
                 ruleCreator = rules.get(key);
 
                 if (!ruleCreator) {
-                    let replacementMsg = getRuleReplacementMessage(key);
+                    const replacementMsg = getRuleReplacementMessage(key);
 
                     if (replacementMsg) {
                         ruleCreator = createStubRule(replacementMsg);
@@ -813,15 +805,15 @@ module.exports = (function() {
                     rules.define(key, ruleCreator);
                 }
 
-                severity = getRuleSeverity(config.rules[key]);
-                options = getRuleOptions(config.rules[key]);
+                const severity = getRuleSeverity(config.rules[key]);
+                const options = getRuleOptions(config.rules[key]);
 
                 try {
-                    let ruleContext = new RuleContext(
+                    const ruleContext = new RuleContext(
                         key, api, severity, options,
                         config.settings, config.parserOptions, config.parser, ruleCreator.meta);
 
-                    rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
+                    const rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
                         ruleCreator(ruleContext);
 
                     // add all the node types as listeners
@@ -841,8 +833,8 @@ module.exports = (function() {
             currentConfig = config;
             traverser = new Traverser();
 
-            ecmaFeatures = currentConfig.parserOptions.ecmaFeatures || {};
-            ecmaVersion = currentConfig.parserOptions.ecmaVersion || 5;
+            const ecmaFeatures = currentConfig.parserOptions.ecmaFeatures || {};
+            const ecmaVersion = currentConfig.parserOptions.ecmaVersion || 5;
 
             // gather scope data that may be needed by the rules
             scopeManager = escope.analyze(ast, {
@@ -863,7 +855,7 @@ module.exports = (function() {
             scopeMap = [];
 
             currentScopes.forEach(function(scope, index) {
-                let range = scope.block.range[0];
+                const range = scope.block.range[0];
 
                 /*
                  * Sometimes two scopes are returned for a given node. This is
@@ -910,7 +902,7 @@ module.exports = (function() {
 
         // sort by line and column
         messages.sort(function(a, b) {
-            let lineDiff = a.line - b.line;
+            const lineDiff = a.line - b.line;
 
             if (lineDiff === 0) {
                 return a.column - b.column;
@@ -953,7 +945,7 @@ module.exports = (function() {
         }
 
         // Store end location.
-        let endLocation = location.end;
+        const endLocation = location.end;
 
         location = location.start || location;
 
@@ -972,7 +964,7 @@ module.exports = (function() {
             });
         }
 
-        let problem = {
+        const problem = {
             ruleId: ruleId,
             severity: severity,
             message: message,
@@ -1011,7 +1003,7 @@ module.exports = (function() {
     };
 
     // methods that exist on SourceCode object
-    let externalMethods = {
+    const externalMethods = {
         getSource: "getText",
         getSourceLines: "getLines",
         getAllComments: "getAllComments",
@@ -1033,7 +1025,7 @@ module.exports = (function() {
 
     // copy over methods
     Object.keys(externalMethods).forEach(function(methodName) {
-        let exMethodName = externalMethods[methodName];
+        const exMethodName = externalMethods[methodName];
 
         // All functions expected to have less arguments than 5.
         api[methodName] = function(a, b, c, d, e) {
@@ -1057,14 +1049,13 @@ module.exports = (function() {
      * @returns {Object} An object representing the current node's scope.
      */
     api.getScope = function() {
-        let parents = traverser.parents(),
-            scope = currentScopes[0];
+        const parents = traverser.parents();
 
         // Don't do this for Program nodes - they have no parents
         if (parents.length) {
 
             // if current node introduces a scope, add it to the list
-            let current = traverser.current();
+            const current = traverser.current();
 
             if (currentConfig.parserOptions.ecmaVersion >= 6) {
                 if (["BlockStatement", "SwitchStatement", "CatchClause", "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
@@ -1080,7 +1071,8 @@ module.exports = (function() {
             for (let i = parents.length - 1; i >= 0; --i) {
 
                 // Get the innermost scope
-                scope = scopeManager.acquire(parents[i], true);
+                const scope = scopeManager.acquire(parents[i], true);
+
                 if (scope) {
                     if (scope.type === "function-expression-name") {
                         return scope.childScopes[0];
@@ -1103,10 +1095,9 @@ module.exports = (function() {
      *      false if not.
      */
     api.markVariableAsUsed = function(name) {
+        const hasGlobalReturn = currentConfig.parserOptions.ecmaFeatures && currentConfig.parserOptions.ecmaFeatures.globalReturn,
+            specialScope = hasGlobalReturn || currentConfig.parserOptions.sourceType === "module";
         let scope = this.getScope(),
-            hasGlobalReturn = currentConfig.parserOptions.ecmaFeatures && currentConfig.parserOptions.ecmaFeatures.globalReturn,
-            specialScope = hasGlobalReturn || currentConfig.parserOptions.sourceType === "module",
-            variables,
             i,
             len;
 
@@ -1116,7 +1107,8 @@ module.exports = (function() {
         }
 
         do {
-            variables = scope.variables;
+            const variables = scope.variables;
+
             for (i = 0, len = variables.length; i < len; i++) {
                 if (variables[i].name === name) {
                     variables[i].eslintUsed = true;
@@ -1147,7 +1139,7 @@ module.exports = (function() {
      * @param {Function} ruleModule Function from context to object mapping AST node types to event handlers
      * @returns {void}
      */
-    let defineRule = api.defineRule = function(ruleId, ruleModule) {
+    const defineRule = api.defineRule = function(ruleId, ruleModule) {
         rules.define(ruleId, ruleModule);
     };
 

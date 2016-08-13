@@ -42,9 +42,9 @@ module.exports = {
 
     create: function(context) {
 
+        const options = context.options[0];
         let grouping = false,
-            allowCall = false,
-            options = context.options[0];
+            allowCall = false;
 
         if (typeof options === "object") {
             grouping = options.grouping;
@@ -74,13 +74,13 @@ module.exports = {
             ];
         }
 
-        let BUILTIN_MODULES = getBuiltinModules();
+        const BUILTIN_MODULES = getBuiltinModules();
 
-        let DECL_REQUIRE = "require",
+        const DECL_REQUIRE = "require",
             DECL_UNINITIALIZED = "uninitialized",
             DECL_OTHER = "other";
 
-        let REQ_CORE = "core",
+        const REQ_CORE = "core",
             REQ_FILE = "file",
             REQ_MODULE = "module",
             REQ_COMPUTED = "computed";
@@ -137,7 +137,7 @@ module.exports = {
                 return REQ_COMPUTED;
             }
 
-            let arg = initExpression.arguments[0];
+            const arg = initExpression.arguments[0];
 
             if (arg.type !== "Literal" || typeof arg.value !== "string") {
 
@@ -167,10 +167,10 @@ module.exports = {
          * @returns {boolean} True if the declarations are mixed, false if not.
          */
         function isMixed(declarations) {
-            let contains = {};
+            const contains = {};
 
             declarations.forEach(function(declaration) {
-                let type = getDeclarationType(declaration.init);
+                const type = getDeclarationType(declaration.init);
 
                 contains[type] = true;
             });
@@ -188,7 +188,7 @@ module.exports = {
          * @returns {boolean} True if the declarations are grouped, false if not.
          */
         function isGrouped(declarations) {
-            let found = {};
+            const found = {};
 
             declarations.forEach(function(declaration) {
                 if (getDeclarationType(declaration.init) === DECL_REQUIRE) {
