@@ -5,7 +5,7 @@
 
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -39,9 +39,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let style = context.options[0] || "last",
-            exceptions = {},
+        const style = context.options[0] || "last",
             sourceCode = context.getSourceCode();
+        let exceptions = {};
 
         if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
             exceptions = context.options[1].exceptions;
@@ -108,17 +108,16 @@ module.exports = {
          * @returns {void}
          */
         function validateComma(node, property) {
-            let items = node[property],
-                arrayLiteral = (node.type === "ArrayExpression"),
-                previousItemToken;
+            const items = node[property],
+                arrayLiteral = (node.type === "ArrayExpression");
 
             if (items.length > 1 || arrayLiteral) {
 
                 // seed as opening [
-                previousItemToken = sourceCode.getFirstToken(node);
+                let previousItemToken = sourceCode.getFirstToken(node);
 
                 items.forEach(function(item) {
-                    let commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
+                    const commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
                         currentItemToken = item ? sourceCode.getFirstToken(item) : sourceCode.getTokenAfter(commaToken),
                         reportItem = item || currentItemToken,
                         tokenBeforeComma = sourceCode.getTokenBefore(commaToken);
@@ -158,7 +157,7 @@ module.exports = {
                  */
                 if (arrayLiteral) {
 
-                    let lastToken = sourceCode.getLastToken(node),
+                    const lastToken = sourceCode.getLastToken(node),
                         nextToLastToken = sourceCode.getTokenBefore(lastToken);
 
                     if (isComma(nextToLastToken)) {
@@ -177,7 +176,7 @@ module.exports = {
         // Public
         //--------------------------------------------------------------------------
 
-        let nodes = {};
+        const nodes = {};
 
         if (!exceptions.VariableDeclaration) {
             nodes.VariableDeclaration = function(node) {

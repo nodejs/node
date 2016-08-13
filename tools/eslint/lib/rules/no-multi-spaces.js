@@ -41,9 +41,9 @@ module.exports = {
     create: function(context) {
 
         // the index of the last comment that was checked
-        let exceptions = { Property: true },
-            hasExceptions = true,
-            options = context.options[0],
+        const exceptions = { Property: true },
+            options = context.options[0];
+        let hasExceptions = true,
             lastCommentIndex = 0;
 
         if (options && options.exceptions) {
@@ -68,12 +68,8 @@ module.exports = {
          * @private
          */
         function isIndexInComment(index, comments) {
-
-            let comment;
-
             while (lastCommentIndex < comments.length) {
-
-                comment = comments[lastCommentIndex];
+                const comment = comments[lastCommentIndex];
 
                 if (comment.range[0] <= index && index < comment.range[1]) {
                     return true;
@@ -82,7 +78,6 @@ module.exports = {
                 } else {
                     break;
                 }
-
             }
 
             return false;
@@ -95,13 +90,11 @@ module.exports = {
         return {
             Program: function() {
 
-                let sourceCode = context.getSourceCode(),
+                const sourceCode = context.getSourceCode(),
                     source = sourceCode.getText(),
                     allComments = sourceCode.getAllComments(),
-                    pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g,  // note: repeating space
-                    token,
-                    previousToken,
-                    parent;
+                    pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g;  // note: repeating space
+                let parent;
 
 
                 /**
@@ -122,9 +115,10 @@ module.exports = {
                     // do not flag anything inside of comments
                     if (!isIndexInComment(pattern.lastIndex, allComments)) {
 
-                        token = sourceCode.getTokenByRangeStart(pattern.lastIndex);
+                        const token = sourceCode.getTokenByRangeStart(pattern.lastIndex);
+
                         if (token) {
-                            previousToken = sourceCode.getTokenBefore(token);
+                            const previousToken = sourceCode.getTokenBefore(token);
 
                             if (hasExceptions) {
                                 parent = sourceCode.getNodeByRangeIndex(pattern.lastIndex - 1);

@@ -25,7 +25,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode(),
+        const sourceCode = context.getSourceCode(),
             alwaysSpace = context.options[0] === "always";
 
         //--------------------------------------------------------------------------
@@ -38,10 +38,10 @@ module.exports = {
          * @returns {void}
          */
         function checkWhiteSpace(node) {
-            let operator = sourceCode.getFirstToken(node),
+            const operator = sourceCode.getFirstToken(node),
                 nextToken = sourceCode.getTokenAfter(operator),
-                hasWhitespace = sourceCode.isSpaceBetweenTokens(operator, nextToken),
-                type;
+                hasWhitespace = sourceCode.isSpaceBetweenTokens(operator, nextToken);
+            let type;
 
             switch (node.type) {
                 case "SpreadElement":

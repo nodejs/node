@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -39,9 +39,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0];
-        let allowLoop = Boolean(options && options.allowLoop);
-        let allowSwitch = Boolean(options && options.allowSwitch);
+        const options = context.options[0];
+        const allowLoop = Boolean(options && options.allowLoop);
+        const allowSwitch = Boolean(options && options.allowSwitch);
         let scopeInfo = null;
 
         /**

@@ -14,8 +14,7 @@ var nativeIsFinite = root.isFinite;
  * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a finite number,
- *  else `false`.
+ * @returns {boolean} Returns `true` if `value` is a finite number, else `false`.
  * @example
  *
  * _.isFinite(3);

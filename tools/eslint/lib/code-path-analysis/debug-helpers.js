@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let debug = require("debug")("eslint:code-path");
+const debug = require("debug")("eslint:code-path");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -55,7 +55,7 @@ module.exports = {
      */
     dumpState: !debug.enabled ? debug : /* istanbul ignore next */ function(node, state, leaving) {
         for (let i = 0; i < state.currentSegments.length; ++i) {
-            let segInternal = state.currentSegments[i].internal;
+            const segInternal = state.currentSegments[i].internal;
 
             if (leaving) {
                 segInternal.exitNodes.push(node);
@@ -93,11 +93,11 @@ module.exports = {
             text += "thrown[label=\"✘\",shape=circle,width=0.3,height=0.3,fixedsize];\n";
         }
 
-        let traceMap = Object.create(null);
-        let arrows = this.makeDotArrows(codePath, traceMap);
+        const traceMap = Object.create(null);
+        const arrows = this.makeDotArrows(codePath, traceMap);
 
-        for (let id in traceMap) { // eslint-disable-line guard-for-in
-            let segment = traceMap[id];
+        for (const id in traceMap) { // eslint-disable-line guard-for-in
+            const segment = traceMap[id];
 
             text += id + "[";
 
@@ -144,22 +144,22 @@ module.exports = {
      * @returns {string} A DOT code of the code path.
      */
     makeDotArrows: function(codePath, traceMap) {
-        let stack = [[codePath.initialSegment, 0]];
-        let done = traceMap || Object.create(null);
+        const stack = [[codePath.initialSegment, 0]];
+        const done = traceMap || Object.create(null);
         let lastId = codePath.initialSegment.id;
         let text = "initial->" + codePath.initialSegment.id;
 
         while (stack.length > 0) {
-            let item = stack.pop();
-            let segment = item[0];
-            let index = item[1];
+            const item = stack.pop();
+            const segment = item[0];
+            const index = item[1];
 
             if (done[segment.id] && index === 0) {
                 continue;
             }
             done[segment.id] = segment;
 
-            let nextSegment = segment.allNextSegments[index];
+            const nextSegment = segment.allNextSegments[index];
 
             if (!nextSegment) {
                 continue;

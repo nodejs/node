@@ -37,7 +37,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
-        let reported = [];
+        const reported = [];
 
         /**
          * Checks if a string contains an underscore and isn't all upper-case
@@ -64,8 +64,8 @@ module.exports = {
             }
         }
 
-        let options = context.options[0] || {},
-            properties = options.properties || "";
+        const options = context.options[0] || {};
+        let properties = options.properties || "";
 
         if (properties !== "always" && properties !== "never") {
             properties = "always";
@@ -79,7 +79,7 @@ module.exports = {
                  * Leading and trailing underscores are commonly used to flag
                  * private/protected identifiers, strip them
                  */
-                let name = node.name.replace(/^_+|_+$/g, ""),
+                const name = node.name.replace(/^_+|_+$/g, ""),
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
                 // MemberExpressions get special rules
@@ -119,6 +119,14 @@ module.exports = {
                     }
 
                     if (isUnderscored(name) && effectiveParent.type !== "CallExpression") {
+                        report(node);
+                    }
+
+                // Check if it's an import specifier
+                } else if (["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"].indexOf(node.parent.type) >= 0) {
+
+                    // Report only if the local imported identifier is underscored
+                    if (node.parent.local && node.parent.local.name === node.name && isUnderscored(name)) {
                         report(node);
                     }
 

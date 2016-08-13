@@ -20,7 +20,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let DISALLOWED_PROPS = [
+        const DISALLOWED_PROPS = [
             "hasOwnProperty",
             "isPrototypeOf",
             "propertyIsEnumerable"
@@ -35,7 +35,7 @@ module.exports = {
             if (node.callee.type !== "MemberExpression" || node.callee.computed) {
                 return;
             }
-            let propName = node.callee.property.name;
+            const propName = node.callee.property.name;
 
             if (DISALLOWED_PROPS.indexOf(propName) > -1) {
                 context.report({

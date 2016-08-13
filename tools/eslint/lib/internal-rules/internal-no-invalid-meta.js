@@ -17,7 +17,7 @@
  * @returns {ASTNode} The Property node or null if not found.
  */
 function getPropertyFromObject(property, node) {
-    let properties = node.properties;
+    const properties = node.properties;
 
     for (let i = 0; i < properties.length; i++) {
         if (properties[i].key.name === property) {
@@ -55,7 +55,7 @@ function hasMetaDocs(metaPropertyNode) {
  * @returns {boolean} `true` if a `docs.description` property exists.
  */
 function hasMetaDocsDescription(metaPropertyNode) {
-    let metaDocs = getPropertyFromObject("docs", metaPropertyNode.value);
+    const metaDocs = getPropertyFromObject("docs", metaPropertyNode.value);
 
     return metaDocs && getPropertyFromObject("description", metaDocs.value);
 }
@@ -67,7 +67,7 @@ function hasMetaDocsDescription(metaPropertyNode) {
  * @returns {boolean} `true` if a `docs.category` property exists.
  */
 function hasMetaDocsCategory(metaPropertyNode) {
-    let metaDocs = getPropertyFromObject("docs", metaPropertyNode.value);
+    const metaDocs = getPropertyFromObject("docs", metaPropertyNode.value);
 
     return metaDocs && getPropertyFromObject("category", metaDocs.value);
 }
@@ -79,7 +79,7 @@ function hasMetaDocsCategory(metaPropertyNode) {
  * @returns {boolean} `true` if a `docs.recommended` property exists.
  */
 function hasMetaDocsRecommended(metaPropertyNode) {
-    let metaDocs = getPropertyFromObject("docs", metaPropertyNode.value);
+    const metaDocs = getPropertyFromObject("docs", metaPropertyNode.value);
 
     return metaDocs && getPropertyFromObject("recommended", metaDocs.value);
 }
@@ -113,7 +113,7 @@ function hasMetaFixable(metaPropertyNode) {
  * @returns {void}
  */
 function checkMetaValidity(context, exportsNode, ruleIsFixable) {
-    let metaProperty = getMetaPropertyFromExportsNode(exportsNode);
+    const metaProperty = getMetaPropertyFromExportsNode(exportsNode);
 
     if (!metaProperty) {
         context.report(exportsNode, "Rule is missing a meta property.");
@@ -151,6 +151,16 @@ function checkMetaValidity(context, exportsNode, ruleIsFixable) {
     }
 }
 
+/**
+ * Whether this node is the correct format for a rule definition or not.
+ *
+ * @param {ASTNode} node node that the rule exports.
+ * @returns {boolean} `true` if the exported node is the correct format for a rule definition
+ */
+function isCorrectExportsFormat(node) {
+    return node.type === "ObjectExpression";
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -167,7 +177,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let metaExportsValue;
+        let exportsNode;
         let ruleIsFixable = false;
 
         return {
@@ -178,7 +188,7 @@ module.exports = {
                     node.left.object.name === "module" &&
                     node.left.property.name === "exports") {
 
-                    metaExportsValue = node.right;
+                    exportsNode = node.right;
                 }
             },
 
@@ -205,7 +215,12 @@ module.exports = {
             },
 
             "Program:exit": function() {
-                checkMetaValidity(context, metaExportsValue, ruleIsFixable);
+                if (!isCorrectExportsFormat(exportsNode)) {
+                    context.report(exportsNode, "Rule does not export an Object. Make sure the rule follows the new rule format.");
+                    return;
+                }
+
+                checkMetaValidity(context, exportsNode, ruleIsFixable);
             }
         };
     }

@@ -33,7 +33,7 @@ module.exports = {
                 return node.value;
             } else if (typeof node.value === "string") {
 
-                let parent = context.getAncestors().pop();
+                const parent = context.getAncestors().pop();
 
                 if ((parent.type === "NewExpression" || parent.type === "CallExpression") &&
                     parent.callee.type === "Identifier" && parent.callee.name === "RegExp"
@@ -51,41 +51,70 @@ module.exports = {
             return null;
         }
 
+
+        const controlChar = /[\x00-\x1f]/g; // eslint-disable-line no-control-regex
+        const consecutiveSlashes = /\\+/g;
+        const consecutiveSlashesAtEnd = /\\+$/g;
+        const stringControlChar = /\\x[01][0-9a-f]/ig;
+        const stringControlCharWithoutSlash = /x[01][0-9a-f]/ig;
+
         /**
-         * Check if given regex string has control characters in it
+         * Return a list of the control characters in the given regex string
          * @param {string} regexStr regex as string to check
-         * @returns {boolean} returns true if finds control characters on given string
+         * @returns {array} returns a list of found control characters on given string
          * @private
          */
-        function hasControlCharacters(regexStr) {
+        function getControlCharacters(regexStr) {
 
             // check control characters, if RegExp object used
-            let hasControlChars = /[\x00-\x1f]/.test(regexStr); // eslint-disable-line no-control-regex
+            const controlChars = regexStr.match(controlChar) || [];
+
+            let stringControlChars = [];
 
             // check substr, if regex literal used
-            let subStrIndex = regexStr.search(/\\x[01][0-9a-f]/i);
+            const subStrIndex = regexStr.search(stringControlChar);
 
-            if (!hasControlChars && subStrIndex > -1) {
+            if (subStrIndex > -1) {
 
                 // is it escaped, check backslash count
-                let possibleEscapeCharacters = regexStr.substr(0, subStrIndex).match(/\\+$/gi);
+                const possibleEscapeCharacters = regexStr.slice(0, subStrIndex).match(consecutiveSlashesAtEnd);
 
-                hasControlChars = possibleEscapeCharacters === null || !(possibleEscapeCharacters[0].length % 2);
+                const hasControlChars = possibleEscapeCharacters === null || !(possibleEscapeCharacters[0].length % 2);
+
+                if (hasControlChars) {
+                    stringControlChars = regexStr.slice(subStrIndex, -1)
+                        .split(consecutiveSlashes)
+                        .filter(Boolean)
+                        .map(function(x) {
+                            const match = x.match(stringControlCharWithoutSlash) || [x];
+
+                            return "\\" + match[0];
+                        });
+                }
             }
 
-            return hasControlChars;
+            return controlChars.map(function(x) {
+                return "\\x" + ("0" + x.charCodeAt(0).toString(16)).slice(-2);
+            }).concat(stringControlChars);
         }
 
         return {
             Literal: function(node) {
-                let computedValue,
-                    regex = getRegExp(node);
+                const regex = getRegExp(node);
 
                 if (regex) {
-                    computedValue = regex.toString();
+                    const computedValue = regex.toString();
 
-                    if (hasControlCharacters(computedValue)) {
-                        context.report(node, "Unexpected control character in regular expression.");
+                    const controlCharacters = getControlCharacters(computedValue);
+
+                    if (controlCharacters.length > 0) {
+                        context.report({
+                            node,
+                            message: "Unexpected control character(s) in regular expression: {{controlChars}}.",
+                            data: {
+                                controlChars: controlCharacters.join(", ")
+                            }
+                        });
                     }
                 }
             }

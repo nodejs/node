@@ -8,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash");
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
+const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
 
 /**
  * Checks whether or not a given node has a fallthrough comment.
@@ -24,8 +24,8 @@ let DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
  * @returns {boolean} `true` if the node has a valid fallthrough comment.
  */
 function hasFallthroughComment(node, context, fallthroughCommentPattern) {
-    let sourceCode = context.getSourceCode();
-    let comment = lodash.last(sourceCode.getComments(node).leading);
+    const sourceCode = context.getSourceCode();
+    const comment = lodash.last(sourceCode.getComments(node).leading);
 
     return Boolean(comment && fallthroughCommentPattern.test(comment.value));
 }
@@ -75,9 +75,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
+        const options = context.options[0] || {};
         let currentCodePath = null;
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /*
          * We need to use leading comments of the next SwitchCase node because
@@ -117,7 +117,7 @@ module.exports = {
             },
 
             "SwitchCase:exit": function(node) {
-                let nextToken = sourceCode.getTokenAfter(node);
+                const nextToken = sourceCode.getTokenAfter(node);
 
                 /*
                  * `reachable` meant fall through because statements preceded by

@@ -32,7 +32,7 @@ module.exports = {
 
     create: function(context) {
 
-        let configuration = context.options[0] || {},
+        const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false;
 
         return {

@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let espree = require("espree"),
+const espree = require("espree"),
     keywords = require("../util/keywords");
 
 //------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ module.exports = {
 
     create: function(context) {
 
-        let MODE = context.options[0],
+        const MODE = context.options[0],
             KEYWORDS = context.options[1] && context.options[1].keywords,
             CHECK_UNNECESSARY = !context.options[1] || context.options[1].unnecessary !== false,
             NUMBERS = context.options[1] && context.options[1].numbers,
@@ -106,9 +106,8 @@ module.exports = {
          * @returns {void}
          */
         function checkUnnecessaryQuotes(node) {
-            let key = node.key,
-                isKeywordToken,
-                tokens;
+            const key = node.key;
+            let tokens;
 
             if (node.method || node.computed || node.shorthand) {
                 return;
@@ -125,7 +124,7 @@ module.exports = {
                     return;
                 }
 
-                isKeywordToken = isKeyword(tokens[0].value);
+                const isKeywordToken = isKeyword(tokens[0].value);
 
                 if (isKeywordToken && KEYWORDS) {
                     return;
@@ -147,7 +146,7 @@ module.exports = {
          * @returns {void}
          */
         function checkOmittedQuotes(node) {
-            let key = node.key;
+            const key = node.key;
 
             if (!node.method && !node.computed && !node.shorthand && !(key.type === "Literal" && typeof key.value === "string")) {
                 context.report(node, MESSAGE_UNQUOTED, {
@@ -168,8 +167,8 @@ module.exports = {
                 necessaryQuotes = false;
 
             node.properties.forEach(function(property) {
-                let key = property.key,
-                    tokens;
+                const key = property.key;
+                let tokens;
 
                 if (!key || property.method || property.computed || property.shorthand) {
                     return;

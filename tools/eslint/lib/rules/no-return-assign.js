@@ -8,7 +8,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-let SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExpression|ClassExpression)$/;
+const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExpression|ClassExpression)$/;
 
 /**
  * Checks whether or not a node is enclosed in parentheses.
@@ -17,8 +17,8 @@ let SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExp
  * @returns {boolean} Whether or not the node is enclosed in parentheses.
  */
 function isEnclosedInParens(node, sourceCode) {
-    let prevToken = sourceCode.getTokenBefore(node);
-    let nextToken = sourceCode.getTokenAfter(node);
+    const prevToken = sourceCode.getTokenBefore(node);
+    const nextToken = sourceCode.getTokenAfter(node);
 
     return prevToken && prevToken.value === "(" && nextToken && nextToken.value === ")";
 }
@@ -43,8 +43,8 @@ module.exports = {
     },
 
     create: function(context) {
-        let always = (context.options[0] || "except-parens") !== "except-parens";
-        let sourceCode = context.getSourceCode();
+        const always = (context.options[0] || "except-parens") !== "except-parens";
+        const sourceCode = context.getSourceCode();
 
         return {
             AssignmentExpression: function(node) {

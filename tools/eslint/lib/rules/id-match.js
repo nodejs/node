@@ -38,10 +38,10 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        let pattern = context.options[0] || "^.+$",
+        const pattern = context.options[0] || "^.+$",
             regexp = new RegExp(pattern);
 
-        let options = context.options[1] || {},
+        const options = context.options[1] || {},
             properties = !!options.properties,
             onlyDeclarations = !!options.onlyDeclarations;
 
@@ -84,7 +84,7 @@ module.exports = {
         return {
 
             Identifier: function(node) {
-                let name = node.name,
+                const name = node.name,
                     parent = node.parent,
                     effectiveParent = (parent.type === "MemberExpression") ? parent.parent : parent;
 
@@ -122,7 +122,7 @@ module.exports = {
                     }
 
                 } else {
-                    let isDeclaration = effectiveParent.type === "FunctionDeclaration" || effectiveParent.type === "VariableDeclarator";
+                    const isDeclaration = effectiveParent.type === "FunctionDeclaration" || effectiveParent.type === "VariableDeclarator";
 
                     if (onlyDeclarations && !isDeclaration) {
                         return;

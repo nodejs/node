@@ -5,11 +5,13 @@
 
 "use strict";
 
-let OPTIONS = {
+const OPTIONS = {
     always: "always",
     never: "never",
     methods: "methods",
-    properties: "properties"
+    properties: "properties",
+    consistent: "consistent",
+    consistentAsNeeded: "consistent-as-needed"
 };
 
 //------------------------------------------------------------------------------
@@ -31,7 +33,7 @@ module.exports = {
                     type: "array",
                     items: [
                         {
-                            enum: ["always", "methods", "properties", "never"]
+                            enum: ["always", "methods", "properties", "never", "consistent", "consistent-as-needed"]
                         }
                     ],
                     minItems: 0,
@@ -83,14 +85,16 @@ module.exports = {
     },
 
     create: function(context) {
-        let APPLY = context.options[0] || OPTIONS.always;
-        let APPLY_TO_METHODS = APPLY === OPTIONS.methods || APPLY === OPTIONS.always;
-        let APPLY_TO_PROPS = APPLY === OPTIONS.properties || APPLY === OPTIONS.always;
-        let APPLY_NEVER = APPLY === OPTIONS.never;
+        const APPLY = context.options[0] || OPTIONS.always;
+        const APPLY_TO_METHODS = APPLY === OPTIONS.methods || APPLY === OPTIONS.always;
+        const APPLY_TO_PROPS = APPLY === OPTIONS.properties || APPLY === OPTIONS.always;
+        const APPLY_NEVER = APPLY === OPTIONS.never;
+        const APPLY_CONSISTENT = APPLY === OPTIONS.consistent;
+        const APPLY_CONSISTENT_AS_NEEDED = APPLY === OPTIONS.consistentAsNeeded;
 
-        let PARAMS = context.options[1] || {};
-        let IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
-        let AVOID_QUOTES = PARAMS.avoidQuotes;
+        const PARAMS = context.options[1] || {};
+        const IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
+        const AVOID_QUOTES = PARAMS.avoidQuotes;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -103,9 +107,19 @@ module.exports = {
          * @private
          */
         function isConstructor(name) {
-            let firstChar = name.charAt(0);
+            const firstChar = name.charAt(0);
 
             return firstChar === firstChar.toUpperCase();
+        }
+
+        /**
+         * Determines if the property is not a getter and a setter.
+         * @param {ASTNode} property Property AST node
+         * @returns {boolean} True if the property is not a getter and a setter, false if it is.
+         * @private
+         **/
+        function isNotGetterOrSetter(property) {
+            return (property.kind !== "set" && property.kind !== "get");
         }
 
         /**
@@ -117,14 +131,86 @@ module.exports = {
             return node.type === "Literal" && typeof node.value === "string";
         }
 
+        /**
+         * Determines if the property is a shorthand or not.
+         * @param {ASTNode} property Property AST node
+         * @returns {boolean} True if the property is considered shorthand, false if not.
+         * @private
+         **/
+        function isShorthand(property) {
+
+            // property.method is true when `{a(){}}`.
+            return (property.shorthand || property.method);
+        }
+
+        /**
+         * Determines if the property's key and method or value are named equally.
+         * @param {ASTNode} property Property AST node
+         * @returns {boolean} True if the key and value are named equally, false if not.
+         * @private
+         **/
+        function isRedudant(property) {
+            return (property.key && (
+
+                // A function expression
+                property.value && property.value.id && property.value.id.name === property.key.name ||
+
+                // A property
+                property.value && property.value.name === property.key.name
+            ));
+        }
+
+        /**
+         * Ensures that an object's properties are consistently shorthand, or not shorthand at all.
+         * @param   {ASTNode} node Property AST node
+         * @param   {boolean} checkRedundancy Whether to check longform redundancy
+         * @returns {void}
+         **/
+        function checkConsistency(node, checkRedundancy) {
+
+            // We are excluding getters and setters as they are considered neither longform nor shorthand.
+            const properties = node.properties.filter(isNotGetterOrSetter);
+
+            // Do we still have properties left after filtering the getters and setters?
+            if (properties.length > 0) {
+                const shorthandProperties = properties.filter(isShorthand);
+
+                // If we do not have an equal number of longform properties as
+                // shorthand properties, we are using the annotations inconsistently
+                if (shorthandProperties.length !== properties.length) {
+
+                    // We have at least 1 shorthand property
+                    if (shorthandProperties.length > 0) {
+                        context.report(node, "Unexpected mix of shorthand and non-shorthand properties.");
+                    } else if (checkRedundancy) {
+
+                        // If all properties of the object contain a method or value with a name matching it's key,
+                        // all the keys are redudant.
+                        const canAlwaysUseShorthand = properties.every(isRedudant);
+
+                        if (canAlwaysUseShorthand) {
+                            context.report(node, "Expected shorthand for all properties.");
+                        }
+                    }
+                }
+            }
+        }
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
+            ObjectExpression: function(node) {
+                if (APPLY_CONSISTENT) {
+                    checkConsistency(node, false);
+                } else if (APPLY_CONSISTENT_AS_NEEDED) {
+                    checkConsistency(node, true);
+                }
+            },
+
             Property: function(node) {
-                let isConciseProperty = node.method || node.shorthand,
-                    type;
+                const isConciseProperty = node.method || node.shorthand;
 
                 // Ignore destructuring assignment
                 if (node.parent.type === "ObjectPattern") {
@@ -147,7 +233,8 @@ module.exports = {
 
                     // if we're "never" and concise we should warn now
                     if (APPLY_NEVER) {
-                        type = node.method ? "method" : "property";
+                        const type = node.method ? "method" : "property";
+
                         context.report({
                             node: node,
                             message: "Expected longform " + type + " syntax.",

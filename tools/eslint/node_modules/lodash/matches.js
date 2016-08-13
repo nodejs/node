@@ -6,8 +6,12 @@ var baseClone = require('./_baseClone'),
  * object and `source`, returning `true` if the given object has equivalent
  * property values, else `false`.
  *
- * **Note:** The created function supports comparing the same values as
- * `_.isEqual` is equivalent to `_.isMatch` with `source` partially applied.
+ * **Note:** The created function is equivalent to `_.isMatch` with `source`
+ * partially applied.
+ *
+ * Partial comparisons will match empty array and empty object `source`
+ * values against any array or object value, respectively. See `_.isEqual`
+ * for a list of supported value comparisons.
  *
  * @static
  * @memberOf _

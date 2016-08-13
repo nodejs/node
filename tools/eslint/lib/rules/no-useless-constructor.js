@@ -163,9 +163,9 @@ module.exports = {
                 return;
             }
 
-            let body = node.value.body.body;
-            let ctorParams = node.value.params;
-            let superClass = node.parent.parent.superClass;
+            const body = node.value.body.body;
+            const ctorParams = node.value.params;
+            const superClass = node.parent.parent.superClass;
 
             if (superClass ? isRedundantSuperCall(body, ctorParams) : (body.length === 0)) {
                 context.report({

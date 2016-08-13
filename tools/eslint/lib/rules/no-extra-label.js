@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -98,8 +98,8 @@ module.exports = {
                 return;
             }
 
-            let labelNode = node.label;
-            let label = labelNode.name;
+            const labelNode = node.label;
+            const label = labelNode.name;
             let info = scopeInfo;
 
             while (info) {

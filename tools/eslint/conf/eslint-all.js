@@ -9,17 +9,16 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let fs = require("fs"),
-    path = require("path");
+const load = require("../lib/load-rules"),
+    rules = require("../lib/rules");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let ruleFiles = fs.readdirSync(path.resolve(__dirname, "../lib/rules"));
-let enabledRules = ruleFiles.reduce(function(result, filename) {
-    if (path.extname(filename) === ".js") {
-        result[path.basename(filename, ".js")] = "error";
+const enabledRules = Object.keys(load()).reduce((result, ruleId) => {
+    if (!rules.get(ruleId).meta.deprecated) {
+        result[ruleId] = "error";
     }
     return result;
 }, {});

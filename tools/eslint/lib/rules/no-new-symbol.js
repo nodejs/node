@@ -24,12 +24,12 @@ module.exports = {
 
         return {
             "Program:exit": function() {
-                let globalScope = context.getScope();
-                let variable = globalScope.set.get("Symbol");
+                const globalScope = context.getScope();
+                const variable = globalScope.set.get("Symbol");
 
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(function(ref) {
-                        let node = ref.identifier;
+                        const node = ref.identifier;
 
                         if (node.parent && node.parent.type === "NewExpression") {
                             context.report(node, "`Symbol` cannot be called as a constructor.");

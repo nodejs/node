@@ -9,6 +9,14 @@ try {
 var GLOBSTAR = minimatch.GLOBSTAR = Minimatch.GLOBSTAR = {}
 var expand = require('brace-expansion')
 
+var plTypes = {
+  '!': { open: '(?:(?!(?:', close: '))[^/]*?)'},
+  '?': { open: '(?:', close: ')?' },
+  '+': { open: '(?:', close: ')+' },
+  '*': { open: '(?:', close: ')*' },
+  '@': { open: '(?:', close: ')' }
+}
+
 // any single thing other than /
 // don't need to escape / when using new RegExp()
 var qmark = '[^/]'
@@ -277,7 +285,6 @@ function parse (pattern, isSub) {
   // ? => one single character
   var patternListStack = []
   var negativeLists = []
-  var plType
   var stateChar
   var inClass = false
   var reClassStart = -1
@@ -376,11 +383,12 @@ function parse (pattern, isSub) {
           continue
         }
 
-        plType = stateChar
         patternListStack.push({
-          type: plType,
+          type: stateChar,
           start: i - 1,
-          reStart: re.length
+          reStart: re.length,
+          open: plTypes[stateChar].open,
+          close: plTypes[stateChar].close
         })
         // negation is (?:(?!js)[^/]*)
         re += stateChar === '!' ? '(?:(?!(?:' : '(?:'
@@ -396,24 +404,14 @@ function parse (pattern, isSub) {
 
         clearStateChar()
         hasMagic = true
-        re += ')'
         var pl = patternListStack.pop()
-        plType = pl.type
         // negation is (?:(?!js)[^/]*)
         // The others are (?:<pattern>)<type>
-        switch (plType) {
-          case '!':
-            negativeLists.push(pl)
-            re += ')[^/]*?)'
-            pl.reEnd = re.length
-            break
-          case '?':
-          case '+':
-          case '*':
-            re += plType
-            break
-          case '@': break // the default anyway
+        re += pl.close
+        if (pl.type === '!') {
+          negativeLists.push(pl)
         }
+        pl.reEnd = re.length
       continue
 
       case '|':
@@ -520,7 +518,8 @@ function parse (pattern, isSub) {
   // Go through and escape them, taking care not to double-escape any
   // | chars that were already escaped.
   for (pl = patternListStack.pop(); pl; pl = patternListStack.pop()) {
-    var tail = re.slice(pl.reStart + 3)
+    var tail = re.slice(pl.reStart + pl.open.length)
+    this.debug('setting tail', re, pl)
     // maybe some even number of \, then maybe 1 \, followed by a |
     tail = tail.replace(/((?:\\{2}){0,64})(\\?)\|/g, function (_, $1, $2) {
       if (!$2) {
@@ -537,7 +536,7 @@ function parse (pattern, isSub) {
       return $1 + $1 + $2 + '|'
     })
 
-    this.debug('tail=%j\n   %s', tail, tail)
+    this.debug('tail=%j\n   %s', tail, tail, pl, re)
     var t = pl.type === '*' ? star
       : pl.type === '?' ? qmark
       : '\\' + pl.type

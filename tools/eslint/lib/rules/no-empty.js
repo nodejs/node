@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -36,10 +36,10 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {},
+        const options = context.options[0] || {},
             allowEmptyCatch = options.allowEmptyCatch || false;
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         return {
             BlockStatement: function(node) {

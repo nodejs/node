@@ -9,17 +9,15 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash"),
-    debug = require("debug"),
-    Environments = require("./environments");
+const Environments = require("./environments");
+
+const debug = require("debug")("eslint:config-ops");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-debug = debug("eslint:config-ops");
-
-let RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
+const RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
     RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
         map[value] = index;
         return map;
@@ -53,7 +51,7 @@ module.exports = {
      */
     createEnvironmentConfig: function(env) {
 
-        let envConfig = this.createEmptyConfig();
+        const envConfig = this.createEmptyConfig();
 
         if (env) {
 
@@ -62,16 +60,16 @@ module.exports = {
             Object.keys(env).filter(function(name) {
                 return env[name];
             }).forEach(function(name) {
-                let environment = Environments.get(name);
+                const environment = Environments.get(name);
 
                 if (environment) {
                     debug("Creating config for environment " + name);
                     if (environment.globals) {
-                        lodash.assign(envConfig.globals, environment.globals);
+                        Object.assign(envConfig.globals, environment.globals);
                     }
 
                     if (environment.parserOptions) {
-                        lodash.assign(envConfig.parserOptions, environment.parserOptions);
+                        Object.assign(envConfig.parserOptions, environment.parserOptions);
                     }
                 }
             });
@@ -134,7 +132,7 @@ module.exports = {
          * (https://github.com/KyleAMathews/deepmerge)
          * and modified to meet our needs.
          */
-        let array = Array.isArray(src) || Array.isArray(target);
+        const array = Array.isArray(src) || Array.isArray(target);
         let dst = array && [] || {};
 
         combine = !!combine;
@@ -202,7 +200,7 @@ module.exports = {
 
         if (config.rules) {
             Object.keys(config.rules).forEach(function(ruleId) {
-                let ruleConfig = config.rules[ruleId];
+                const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "string") {
                     config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
@@ -224,7 +222,7 @@ module.exports = {
 
         if (config.rules) {
             Object.keys(config.rules).forEach(function(ruleId) {
-                let ruleConfig = config.rules[ruleId];
+                const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "number") {
                     config.rules[ruleId] = RULE_SEVERITY_STRINGS[ruleConfig] || RULE_SEVERITY_STRINGS[0];

@@ -12,7 +12,7 @@ var baseCreate = require('./_baseCreate'),
 function createCtor(Ctor) {
   return function() {
     // Use a `switch` statement to work with class constructors. See
-    // http://ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
+    // http://ecma-international.org/ecma-262/7.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     // for more details.
     var args = arguments;
     switch (args.length) {

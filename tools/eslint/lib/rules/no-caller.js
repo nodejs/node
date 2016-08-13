@@ -25,7 +25,7 @@ module.exports = {
         return {
 
             MemberExpression: function(node) {
-                let objectName = node.object.name,
+                const objectName = node.object.name,
                     propertyName = node.property.name;
 
                 if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/)) {

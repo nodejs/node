@@ -11,14 +11,13 @@ function baseConformsTo(object, source, props) {
   if (object == null) {
     return !length;
   }
-  var index = length;
-  while (index--) {
-    var key = props[index],
+  object = Object(object);
+  while (length--) {
+    var key = props[length],
         predicate = source[key],
         value = object[key];
 
-    if ((value === undefined &&
-        !(key in Object(object))) || !predicate(value)) {
+    if ((value === undefined && !(key in object)) || !predicate(value)) {
       return false;
     }
   }

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let xmlEscape = require("../util/xml-escape");
+const xmlEscape = require("../util/xml-escape");
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -18,7 +18,7 @@ module.exports = function(results) {
     output += "<jslint>";
 
     results.forEach(function(result) {
-        let messages = result.messages;
+        const messages = result.messages;
 
         output += "<file name=\"" + result.filePath + "\">";
 

@@ -28,7 +28,7 @@ module.exports = {
         return {
 
             CallExpression: function(node) {
-                let callee = node.callee;
+                const callee = node.callee;
 
                 if (callee.type === "MemberExpression" && callee.object.name === "process" &&
                     callee.property.name === "exit"

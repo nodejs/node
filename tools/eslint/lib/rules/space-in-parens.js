@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -42,13 +42,13 @@ module.exports = {
 
     create: function(context) {
 
-        let MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
+        const MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
             REJECTED_SPACE_MESSAGE = "There should be no spaces inside this paren.",
             ALWAYS = context.options[0] === "always",
 
             exceptionsArrayOptions = (context.options.length === 2) ? context.options[1].exceptions : [],
-            options = {},
-            exceptions;
+            options = {};
+        let exceptions;
 
         if (exceptionsArrayOptions.length) {
             options.braceException = exceptionsArrayOptions.indexOf("{}") !== -1;
@@ -64,7 +64,7 @@ module.exports = {
          * @private
          */
         function getExceptions() {
-            let openers = [],
+            const openers = [],
                 closers = [];
 
             if (options.braceException) {
@@ -96,7 +96,7 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Determines if a token is one of the exceptions for the opener paren
@@ -217,14 +217,12 @@ module.exports = {
 
         return {
             Program: function checkParenSpaces(node) {
-                let tokens, prevToken, nextToken;
-
                 exceptions = getExceptions();
-                tokens = sourceCode.tokensAndComments;
+                const tokens = sourceCode.tokensAndComments;
 
                 tokens.forEach(function(token, i) {
-                    prevToken = tokens[i - 1];
-                    nextToken = tokens[i + 1];
+                    const prevToken = tokens[i - 1];
+                    const nextToken = tokens[i + 1];
 
                     if (token.type !== "Punctuator") {
                         return;

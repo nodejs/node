@@ -42,7 +42,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let config = context.options[0] || {},
+        const config = context.options[0] || {},
             detectObjects = !!config.detectObjects,
             enforceConst = !!config.enforceConst,
             ignore = config.ignore || [],
@@ -102,8 +102,8 @@ module.exports = {
             Literal: function(node) {
                 let parent = node.parent,
                     value = node.value,
-                    raw = node.raw,
-                    okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
+                    raw = node.raw;
+                const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
                 if (!isNumber(node)) {
                     return;

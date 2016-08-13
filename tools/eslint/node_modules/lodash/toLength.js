@@ -9,7 +9,7 @@ var MAX_ARRAY_LENGTH = 4294967295;
  * array-like object.
  *
  * **Note:** This method is based on
- * [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
+ * [`ToLength`](http://ecma-international.org/ecma-262/7.0/#sec-tolength).
  *
  * @static
  * @memberOf _

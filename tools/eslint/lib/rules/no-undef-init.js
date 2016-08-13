@@ -25,7 +25,7 @@ module.exports = {
         return {
 
             VariableDeclarator: function(node) {
-                let name = node.id.name,
+                const name = node.id.name,
                     init = node.init && node.init.name;
 
                 if (init === "undefined" && node.parent.kind !== "const") {

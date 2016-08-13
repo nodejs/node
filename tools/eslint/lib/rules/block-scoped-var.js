@@ -45,7 +45,7 @@ module.exports = {
          * @returns {void}
          */
         function report(reference) {
-            let identifier = reference.identifier;
+            const identifier = reference.identifier;
 
             context.report(
                 identifier,
@@ -64,7 +64,7 @@ module.exports = {
             }
 
             // Defines a predicate to check whether or not a given reference is outside of valid scope.
-            let scopeRange = stack[stack.length - 1];
+            const scopeRange = stack[stack.length - 1];
 
             /**
              * Check if a reference is out of scope
@@ -73,13 +73,13 @@ module.exports = {
              * @private
              */
             function isOutsideOfScope(reference) {
-                let idRange = reference.identifier.range;
+                const idRange = reference.identifier.range;
 
                 return idRange[0] < scopeRange[0] || idRange[1] > scopeRange[1];
             }
 
             // Gets declared variables, and checks its references.
-            let variables = context.getDeclaredVariables(node);
+            const variables = context.getDeclaredVariables(node);
 
             for (let i = 0; i < variables.length; ++i) {
 

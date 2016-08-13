@@ -15,21 +15,19 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let fs = require("fs"),
+const fs = require("fs"),
     path = require("path"),
-
-    debug = require("debug"),
-
+    shell = require("shelljs"),
     options = require("./options"),
     CLIEngine = require("./cli-engine"),
     mkdirp = require("mkdirp"),
     log = require("./logging");
 
+const debug = require("debug")("eslint:cli");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-
-debug = debug("eslint:cli");
 
 /**
  * Translates the CLI options into the options expected by the CLIEngine.
@@ -70,9 +68,7 @@ function translateOptions(cliOptions) {
  * @private
  */
 function printResults(engine, results, format, outputFile) {
-    let formatter,
-        output,
-        filePath;
+    let formatter;
 
     try {
         formatter = engine.getFormatter(format);
@@ -81,13 +77,13 @@ function printResults(engine, results, format, outputFile) {
         return false;
     }
 
-    output = formatter(results);
+    const output = formatter(results);
 
     if (output) {
         if (outputFile) {
-            filePath = path.resolve(process.cwd(), outputFile);
+            const filePath = path.resolve(process.cwd(), outputFile);
 
-            if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            if (shell.test("-d", filePath)) {
                 log.error("Cannot write to output file path, it is a directory: %s", outputFile);
                 return false;
             }
@@ -116,7 +112,7 @@ function printResults(engine, results, format, outputFile) {
  * Encapsulates all CLI behavior for eslint. Makes it easier to test as well as
  * for other Node.js programs to effectively run the CLI.
  */
-let cli = {
+const cli = {
 
     /**
      * Executes the CLI based on an array of arguments that is passed in.
@@ -126,11 +122,7 @@ let cli = {
      */
     execute: function(args, text) {
 
-        let currentOptions,
-            files,
-            report,
-            engine,
-            tooManyWarnings;
+        let currentOptions;
 
         try {
             currentOptions = options.parse(args);
@@ -139,7 +131,7 @@ let cli = {
             return 1;
         }
 
-        files = currentOptions._;
+        const files = currentOptions._;
 
         if (currentOptions.version) { // version from package.json
 
@@ -159,7 +151,8 @@ let cli = {
                 return 1;
             }
 
-            engine = new CLIEngine(translateOptions(currentOptions));
+            const engine = new CLIEngine(translateOptions(currentOptions));
+
             if (currentOptions.printConfig) {
                 if (files.length !== 1) {
                     log.error("The --print-config option requires a " +
@@ -172,13 +165,14 @@ let cli = {
                     return 1;
                 }
 
-                let fileConfig = engine.getConfigForFile(files[0]);
+                const fileConfig = engine.getConfigForFile(files[0]);
 
                 log.info(JSON.stringify(fileConfig, null, "  "));
                 return 0;
             }
 
-            report = text ? engine.executeOnText(text, currentOptions.stdinFilename, true) : engine.executeOnFiles(files);
+            const report = text ? engine.executeOnText(text, currentOptions.stdinFilename, true) : engine.executeOnFiles(files);
+
             if (currentOptions.fix) {
                 debug("Fix mode enabled - applying fixes");
                 CLIEngine.outputFixes(report);
@@ -190,7 +184,7 @@ let cli = {
             }
 
             if (printResults(engine, report.results, currentOptions.format, currentOptions.outputFile)) {
-                tooManyWarnings = currentOptions.maxWarnings >= 0 && report.warningCount > currentOptions.maxWarnings;
+                const tooManyWarnings = currentOptions.maxWarnings >= 0 && report.warningCount > currentOptions.maxWarnings;
 
                 if (!report.errorCount && tooManyWarnings) {
                     log.error("ESLint found too many warnings (maximum: %s).", currentOptions.maxWarnings);
