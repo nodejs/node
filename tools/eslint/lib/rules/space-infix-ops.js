@@ -32,16 +32,16 @@ module.exports = {
     },
 
     create: function(context) {
-        let int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
+        const int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
 
-        let OPERATORS = [
+        const OPERATORS = [
             "*", "/", "%", "+", "-", "<<", ">>", ">>>", "<", "<=", ">", ">=", "in",
             "instanceof", "==", "!=", "===", "!==", "&", "^", "|", "&&", "||", "=",
             "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "^=", "|=",
             "?", ":", ",", "**"
         ];
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Returns the first token which violates the rule
@@ -51,11 +51,11 @@ module.exports = {
          * @private
          */
         function getFirstNonSpacedToken(left, right) {
-            let op,
-                tokens = sourceCode.getTokensBetween(left, right, 1);
+            const tokens = sourceCode.getTokensBetween(left, right, 1);
 
             for (let i = 1, l = tokens.length - 1; i < l; ++i) {
-                op = tokens[i];
+                const op = tokens[i];
+
                 if (
                     op.type === "Punctuator" &&
                     OPERATORS.indexOf(op.value) >= 0 &&
@@ -80,8 +80,8 @@ module.exports = {
                 loc: culpritToken.loc.start,
                 message: "Infix operators must be spaced.",
                 fix: function(fixer) {
-                    let previousToken = sourceCode.getTokenBefore(culpritToken);
-                    let afterToken = sourceCode.getTokenAfter(culpritToken);
+                    const previousToken = sourceCode.getTokenBefore(culpritToken);
+                    const afterToken = sourceCode.getTokenAfter(culpritToken);
                     let fixString = "";
 
                     if (culpritToken.range[0] - previousToken.range[1] === 0) {
@@ -110,7 +110,7 @@ module.exports = {
                 return;
             }
 
-            let nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
+            const nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
 
             if (nonSpacedNode) {
                 if (!(int32Hint && sourceCode.getText(node).substr(-2) === "|0")) {
@@ -126,8 +126,8 @@ module.exports = {
          * @private
          */
         function checkConditional(node) {
-            let nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent);
-            let nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate);
+            const nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent);
+            const nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate);
 
             if (nonSpacedConsequesntNode) {
                 report(node, nonSpacedConsequesntNode);
@@ -143,10 +143,9 @@ module.exports = {
          * @private
          */
         function checkVar(node) {
-            let nonSpacedNode;
-
             if (node.init) {
-                nonSpacedNode = getFirstNonSpacedToken(node.id, node.init);
+                const nonSpacedNode = getFirstNonSpacedToken(node.id, node.init);
+
                 if (nonSpacedNode) {
                     report(node, nonSpacedNode);
                 }

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let lodash = require("lodash");
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -16,7 +16,7 @@ let lodash = require("lodash");
  * @returns {string} An escaped string.
  */
 function escape(s) {
-    let isOneChar = s.length === 1;
+    const isOneChar = s.length === 1;
 
     s = lodash.escapeRegExp(s);
     return isOneChar ? s : "(?:" + s + ")";
@@ -144,7 +144,7 @@ function createAlwaysStylePattern(markers, exceptions) {
  * @returns {RegExp} A RegExp object for `never` mode.
  */
 function createNeverStylePattern(markers) {
-    let pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]+";
+    const pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]+";
 
     return new RegExp(pattern);
 }
@@ -230,20 +230,20 @@ module.exports = {
     create: function(context) {
 
         // Unless the first option is never, require a space
-        let requireSpace = context.options[0] !== "never";
+        const requireSpace = context.options[0] !== "never";
 
         /*
          * Parse the second options.
          * If markers don't include `"*"`, it's added automatically for JSDoc
          * comments.
          */
-        let config = context.options[1] || {};
-        let balanced = config.block && config.block.balanced;
+        const config = context.options[1] || {};
+        const balanced = config.block && config.block.balanced;
 
-        let styleRules = ["block", "line"].reduce(function(rule, type) {
-            let markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
-            let exceptions = config[type] && config[type].exceptions || config.exceptions || [];
-            let endNeverPattern = "[ \t]+$";
+        const styleRules = ["block", "line"].reduce(function(rule, type) {
+            const markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
+            const exceptions = config[type] && config[type].exceptions || config.exceptions || [];
+            const endNeverPattern = "[ \t]+$";
 
             // Create RegExp object for valid patterns.
             rule[type] = {
@@ -264,14 +264,14 @@ module.exports = {
          * @returns {void}
          */
         function reportBegin(node, message, match) {
-            let type = node.type.toLowerCase(),
+            const type = node.type.toLowerCase(),
                 commentIdentifier = type === "block" ? "/*" : "//";
 
             context.report({
                 node: node,
                 fix: function(fixer) {
-                    let start = node.range[0],
-                        end = start + 2;
+                    const start = node.range[0];
+                    let end = start + 2;
 
                     if (requireSpace) {
                         if (match) {
@@ -301,7 +301,7 @@ module.exports = {
                     if (requireSpace) {
                         return fixer.insertTextAfterRange([node.start, node.end - 2], " ");
                     } else {
-                        let end = node.end - 2,
+                        const end = node.end - 2,
                             start = end - match[0].length;
 
                         return fixer.replaceTextRange([start, end], "");
@@ -317,7 +317,7 @@ module.exports = {
          * @returns {void}
          */
         function checkCommentForSpace(node) {
-            let type = node.type.toLowerCase(),
+            const type = node.type.toLowerCase(),
                 rule = styleRules[type],
                 commentIdentifier = type === "block" ? "/*" : "//";
 
@@ -326,14 +326,14 @@ module.exports = {
                 return;
             }
 
-            let beginMatch = rule.beginRegex.exec(node.value);
-            let endMatch = rule.endRegex.exec(node.value);
+            const beginMatch = rule.beginRegex.exec(node.value);
+            const endMatch = rule.endRegex.exec(node.value);
 
             // Checks.
             if (requireSpace) {
                 if (!beginMatch) {
-                    let hasMarker = rule.markers.exec(node.value);
-                    let marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
+                    const hasMarker = rule.markers.exec(node.value);
+                    const marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
 
                     if (rule.hasExceptions) {
                         reportBegin(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);

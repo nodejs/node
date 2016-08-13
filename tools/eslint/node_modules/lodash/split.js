@@ -1,19 +1,13 @@
 var baseToString = require('./_baseToString'),
     castSlice = require('./_castSlice'),
+    hasUnicode = require('./_hasUnicode'),
     isIterateeCall = require('./_isIterateeCall'),
     isRegExp = require('./isRegExp'),
-    reHasComplexSymbol = require('./_reHasComplexSymbol'),
     stringToArray = require('./_stringToArray'),
     toString = require('./toString');
 
 /** Used as references for the maximum length and index of an array. */
 var MAX_ARRAY_LENGTH = 4294967295;
-
-/** Used for built-in method references. */
-var stringProto = String.prototype;
-
-/* Built-in method references for those with the same name as other `lodash` methods. */
-var nativeSplit = stringProto.split;
 
 /**
  * Splits `string` by `separator`.
@@ -48,11 +42,11 @@ function split(string, separator, limit) {
         (separator != null && !isRegExp(separator))
       )) {
     separator = baseToString(separator);
-    if (separator == '' && reHasComplexSymbol.test(string)) {
+    if (!separator && hasUnicode(string)) {
       return castSlice(stringToArray(string), 0, limit);
     }
   }
-  return nativeSplit.call(string, separator, limit);
+  return string.split(separator, limit);
 }
 
 module.exports = split;

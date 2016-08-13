@@ -10,10 +10,10 @@
 // Constants
 //------------------------------------------------------------------------------
 
-let ALL_IRREGULARS = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]/;
-let IRREGULAR_WHITESPACE = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+/mg;
-let IRREGULAR_LINE_TERMINATORS = /[\u2028\u2029]/mg;
-let LINE_BREAK = /\r\n|\r|\n|\u2028|\u2029/g;
+const ALL_IRREGULARS = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]/;
+const IRREGULAR_WHITESPACE = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+/mg;
+const IRREGULAR_LINE_TERMINATORS = /[\u2028\u2029]/mg;
+const LINE_BREAK = /\r\n|\r|\n|\u2028|\u2029/g;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -55,16 +55,16 @@ module.exports = {
         let errors = [];
 
         // Comment nodes.  We accumulate these as we go, so we can be sure to trigger them after the whole `Program` entity is parsed, even for top-of-file comments.
-        let commentNodes = [];
+        const commentNodes = [];
 
         // Lookup the `skipComments` option, which defaults to `false`.
-        let options = context.options[0] || {};
-        let skipComments = !!options.skipComments;
-        let skipStrings = options.skipStrings !== false;
-        let skipRegExps = !!options.skipRegExps;
-        let skipTemplates = !!options.skipTemplates;
+        const options = context.options[0] || {};
+        const skipComments = !!options.skipComments;
+        const skipStrings = options.skipStrings !== false;
+        const skipRegExps = !!options.skipRegExps;
+        const skipTemplates = !!options.skipTemplates;
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Removes errors that occur inside a string node
@@ -73,11 +73,11 @@ module.exports = {
          * @private
          */
         function removeWhitespaceError(node) {
-            let locStart = node.loc.start;
-            let locEnd = node.loc.end;
+            const locStart = node.loc.start;
+            const locEnd = node.loc.end;
 
             errors = errors.filter(function(error) {
-                let errorLoc = error[1];
+                const errorLoc = error[1];
 
                 if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
                     if (errorLoc.column >= locStart.column && (errorLoc.column <= locEnd.column || errorLoc.line < locEnd.line)) {
@@ -95,8 +95,8 @@ module.exports = {
          * @private
          */
         function removeInvalidNodeErrorsInIdentifierOrLiteral(node) {
-            let shouldCheckStrings = skipStrings && (typeof node.value === "string");
-            let shouldCheckRegExps = skipRegExps && (node.value instanceof RegExp);
+            const shouldCheckStrings = skipStrings && (typeof node.value === "string");
+            const shouldCheckRegExps = skipRegExps && (node.value instanceof RegExp);
 
             if (shouldCheckStrings || shouldCheckRegExps) {
 
@@ -140,15 +140,14 @@ module.exports = {
          * @private
          */
         function checkForIrregularWhitespace(node) {
-            let sourceLines = sourceCode.lines;
+            const sourceLines = sourceCode.lines;
 
             sourceLines.forEach(function(sourceLine, lineIndex) {
-                let lineNumber = lineIndex + 1,
-                    location,
-                    match;
+                const lineNumber = lineIndex + 1;
+                let match;
 
                 while ((match = IRREGULAR_WHITESPACE.exec(sourceLine)) !== null) {
-                    location = {
+                    const location = {
                         line: lineNumber,
                         column: match.index
                     };
@@ -165,18 +164,15 @@ module.exports = {
          * @private
          */
         function checkForIrregularLineTerminators(node) {
-            let source = sourceCode.getText(),
+            const source = sourceCode.getText(),
                 sourceLines = sourceCode.lines,
-                linebreaks = source.match(LINE_BREAK),
-                lastLineIndex = -1,
-                lineIndex,
-                location,
+                linebreaks = source.match(LINE_BREAK);
+            let lastLineIndex = -1,
                 match;
 
             while ((match = IRREGULAR_LINE_TERMINATORS.exec(source)) !== null) {
-                lineIndex = linebreaks.indexOf(match[0], lastLineIndex + 1) || 0;
-
-                location = {
+                const lineIndex = linebreaks.indexOf(match[0], lastLineIndex + 1) || 0;
+                const location = {
                     line: lineIndex + 1,
                     column: sourceLines[lineIndex].length
                 };
@@ -203,7 +199,7 @@ module.exports = {
          */
         function noop() {}
 
-        let nodes = {};
+        const nodes = {};
 
         if (ALL_IRREGULARS.test(sourceCode.getText())) {
             nodes.Program = function(node) {

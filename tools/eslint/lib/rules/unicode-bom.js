@@ -35,7 +35,7 @@ module.exports = {
 
             Program: function checkUnicodeBOM(node) {
 
-                let sourceCode = context.getSourceCode(),
+                const sourceCode = context.getSourceCode(),
                     location = {column: 0, line: 1},
                     requireBOM = context.options[0] || "never";
 

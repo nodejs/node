@@ -4,7 +4,7 @@
  */
 "use strict";
 
-let xmlEscape = require("../util/xml-escape");
+const xmlEscape = require("../util/xml-escape");
 
 //------------------------------------------------------------------------------
 // Helper Functions
@@ -36,7 +36,7 @@ module.exports = function(results) {
     output += "<checkstyle version=\"4.3\">";
 
     results.forEach(function(result) {
-        let messages = result.messages;
+        const messages = result.messages;
 
         output += "<file name=\"" + xmlEscape(result.filePath) + "\">";
 

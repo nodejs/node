@@ -44,11 +44,11 @@ module.exports = {
 
     create: function(context) {
 
-        let configuration = context.options[0] || {},
+        const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false,
             ignoreMemberSort = configuration.ignoreMemberSort || false,
-            memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"],
-            previousDeclaration = null;
+            memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"];
+        let previousDeclaration = null;
 
         /**
          * Gets the used member syntax style.
@@ -98,10 +98,10 @@ module.exports = {
         return {
             ImportDeclaration: function(node) {
                 if (previousDeclaration) {
-                    let currentLocalMemberName = getFirstLocalMemberName(node),
-                        currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
-                        previousLocalMemberName = getFirstLocalMemberName(previousDeclaration),
+                    const currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
                         previousMemberSyntaxGroupIndex = getMemberParameterGroupIndex(previousDeclaration);
+                    let currentLocalMemberName = getFirstLocalMemberName(node),
+                        previousLocalMemberName = getFirstLocalMemberName(previousDeclaration);
 
                     if (ignoreCase) {
                         previousLocalMemberName = previousLocalMemberName && previousLocalMemberName.toLowerCase();
@@ -141,7 +141,7 @@ module.exports = {
                     let previousSpecifierName = null;
 
                     for (let i = 0; i < node.specifiers.length; ++i) {
-                        let currentSpecifier = node.specifiers[i];
+                        const currentSpecifier = node.specifiers[i];
 
                         if (currentSpecifier.type !== "ImportSpecifier") {
                             continue;

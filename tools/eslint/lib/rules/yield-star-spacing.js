@@ -39,9 +39,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
-        let mode = (function(option) {
+        const mode = (function(option) {
             if (!option || typeof option === "string") {
                 return {
                     before: { before: true, after: false },
@@ -64,11 +64,11 @@ module.exports = {
          */
         function checkSpacing(side, leftToken, rightToken) {
             if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken) !== mode[side]) {
-                let after = leftToken.value === "*";
-                let spaceRequired = mode[side];
-                let node = after ? leftToken : rightToken;
-                let type = spaceRequired ? "Missing" : "Unexpected";
-                let message = type + " space " + side + " *.";
+                const after = leftToken.value === "*";
+                const spaceRequired = mode[side];
+                const node = after ? leftToken : rightToken;
+                const type = spaceRequired ? "Missing" : "Unexpected";
+                const message = type + " space " + side + " *.";
 
                 context.report({
                     node: node,
@@ -96,10 +96,10 @@ module.exports = {
                 return;
             }
 
-            let tokens = sourceCode.getFirstTokens(node, 3);
-            let yieldToken = tokens[0];
-            let starToken = tokens[1];
-            let nextToken = tokens[2];
+            const tokens = sourceCode.getFirstTokens(node, 3);
+            const yieldToken = tokens[0];
+            const starToken = tokens[1];
+            const nextToken = tokens[2];
 
             checkSpacing("before", yieldToken, starToken);
             checkSpacing("after", starToken, nextToken);

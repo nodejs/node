@@ -58,11 +58,11 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        let functionStack = [],
+        const functionStack = [],
             option = context.options[0],
-            maxStatements = 10,
             ignoreTopLevelFunctions = context.options[1] && context.options[1].ignoreTopLevelFunctions || false,
             topLevelFunctions = [];
+        let maxStatements = 10;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
             maxStatements = option.maximum;
@@ -107,7 +107,7 @@ module.exports = {
          * @private
          */
         function endFunction(node) {
-            let count = functionStack.pop();
+            const count = functionStack.pop();
 
             if (ignoreTopLevelFunctions && functionStack.length === 0) {
                 topLevelFunctions.push({ node: node, count: count});
@@ -147,8 +147,8 @@ module.exports = {
                 }
 
                 topLevelFunctions.forEach(function(element) {
-                    let count = element.count;
-                    let node = element.node;
+                    const count = element.count;
+                    const node = element.node;
 
                     reportIfTooManyStatements(node, count, maxStatements);
                 });

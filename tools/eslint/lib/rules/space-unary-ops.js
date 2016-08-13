@@ -41,9 +41,9 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options && Array.isArray(context.options) && context.options[0] || { words: true, nonwords: false };
+        const options = context.options && Array.isArray(context.options) && context.options[0] || { words: true, nonwords: false };
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -160,7 +160,7 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpacesAfterYield(node) {
-            let tokens = sourceCode.getFirstTokens(node, 3),
+            const tokens = sourceCode.getFirstTokens(node, 3),
                 word = "yield";
 
             if (!node.argument || node.delegate) {
@@ -241,7 +241,7 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpaces(node) {
-            let tokens = sourceCode.getFirstTokens(node, 2),
+            const tokens = sourceCode.getFirstTokens(node, 2),
                 firstToken = tokens[0],
                 secondToken = tokens[1];
 
@@ -250,7 +250,7 @@ module.exports = {
                 return;
             }
 
-            let operator = node.prefix ? tokens[0].value : tokens[1].value;
+            const operator = node.prefix ? tokens[0].value : tokens[1].value;
 
             if (overrideExistsForOperator(node, operator)) {
                 if (overrideEnforcesSpaces(node, operator)) {

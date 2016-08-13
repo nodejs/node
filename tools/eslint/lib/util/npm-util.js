@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let fs = require("fs"),
+const fs = require("fs"),
     path = require("path"),
     shell = require("shelljs"),
     log = require("../logging");
@@ -29,9 +29,9 @@ function findPackageJson(startDir) {
     let dir = path.resolve(startDir || process.cwd());
 
     do {
-        let pkgfile = path.join(dir, "package.json");
+        const pkgfile = path.join(dir, "package.json");
 
-        if (!fs.existsSync(pkgfile)) {
+        if (!shell.test("-f", pkgfile)) {
             dir = path.join(dir, "..");
             continue;
         }
@@ -69,7 +69,7 @@ function installSyncSaveDev(packages) {
  */
 function check(packages, opt) {
     let deps = [];
-    let pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
+    const pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
     let fileJson;
 
     if (!pkgJson) {

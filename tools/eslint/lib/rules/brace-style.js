@@ -34,11 +34,11 @@ module.exports = {
     },
 
     create: function(context) {
-        let style = context.options[0] || "1tbs",
+        const style = context.options[0] || "1tbs",
             params = context.options[1] || {},
             sourceCode = context.getSourceCode();
 
-        let OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
+        const OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
             OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
             BODY_MESSAGE = "Statement inside of curly braces should be on next line.",
             CLOSE_MESSAGE = "Closing curly brace does not appear on the same line as the subsequent block.",
@@ -78,24 +78,20 @@ module.exports = {
          * @private
          */
         function checkBlock() {
-            let blockProperties = arguments;
+            const blockProperties = arguments;
 
             return function(node) {
                 Array.prototype.forEach.call(blockProperties, function(blockProp) {
-                    let block = node[blockProp],
-                        previousToken,
-                        curlyToken,
-                        curlyTokenEnd,
-                        allOnSameLine;
+                    const block = node[blockProp];
 
                     if (!isBlock(block)) {
                         return;
                     }
 
-                    previousToken = sourceCode.getTokenBefore(block);
-                    curlyToken = sourceCode.getFirstToken(block);
-                    curlyTokenEnd = sourceCode.getLastToken(block);
-                    allOnSameLine = previousToken.loc.start.line === curlyTokenEnd.loc.start.line;
+                    const previousToken = sourceCode.getTokenBefore(block);
+                    const curlyToken = sourceCode.getFirstToken(block);
+                    const curlyTokenEnd = sourceCode.getLastToken(block);
+                    const allOnSameLine = previousToken.loc.start.line === curlyTokenEnd.loc.start.line;
 
                     if (allOnSameLine && params.allowSingleLine) {
                         return;
@@ -129,13 +125,11 @@ module.exports = {
          * @private
          */
         function checkIfStatement(node) {
-            let tokens;
-
             checkBlock("consequent", "alternate")(node);
 
             if (node.alternate) {
 
-                tokens = sourceCode.getTokensBefore(node.alternate, 2);
+                const tokens = sourceCode.getTokensBefore(node.alternate, 2);
 
                 if (style === "1tbs") {
                     if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
@@ -157,12 +151,11 @@ module.exports = {
          * @private
          */
         function checkTryStatement(node) {
-            let tokens;
-
             checkBlock("block", "finalizer")(node);
 
             if (isBlock(node.finalizer)) {
-                tokens = sourceCode.getTokensBefore(node.finalizer, 2);
+                const tokens = sourceCode.getTokensBefore(node.finalizer, 2);
+
                 if (style === "1tbs") {
                     if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
                         context.report(node.finalizer, CLOSE_MESSAGE);
@@ -180,7 +173,7 @@ module.exports = {
          * @private
          */
         function checkCatchClause(node) {
-            let previousToken = sourceCode.getTokenBefore(node),
+            const previousToken = sourceCode.getTokenBefore(node),
                 firstToken = sourceCode.getFirstToken(node);
 
             checkBlock("body")(node);

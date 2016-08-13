@@ -40,7 +40,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash"),
+const lodash = require("lodash"),
     assert = require("assert"),
     util = require("util"),
     validator = require("../config/config-validator"),
@@ -58,14 +58,14 @@ let lodash = require("lodash"),
  * testerDefaultConfig must not be modified as it allows to reset the tester to
  * the initial default configuration
  */
-let testerDefaultConfig = { rules: {} };
+const testerDefaultConfig = { rules: {} };
 let defaultConfig = { rules: {} };
 
 /*
  * List every parameters possible on a test case that are not related to eslint
  * configuration
  */
-let RuleTesterParameters = [
+const RuleTesterParameters = [
     "code",
     "filename",
     "options",
@@ -73,9 +73,9 @@ let RuleTesterParameters = [
     "errors"
 ];
 
-let validateSchema = validate(metaSchema, { verbose: true });
+const validateSchema = validate(metaSchema, { verbose: true });
 
-let hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
+const hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
 
 /**
  * Clones a given value deeply.
@@ -90,9 +90,9 @@ function cloneDeeplyExcludesParent(x) {
             return x.map(cloneDeeplyExcludesParent);
         }
 
-        let retv = {};
+        const retv = {};
 
-        for (let key in x) {
+        for (const key in x) {
             if (key !== "parent" && hasOwnProperty(x, key)) {
                 retv[key] = cloneDeeplyExcludesParent(x[key]);
             }
@@ -115,7 +115,7 @@ function freezeDeeply(x) {
         if (Array.isArray(x)) {
             x.forEach(freezeDeeply);
         } else {
-            for (let key in x) {
+            for (const key in x) {
                 if (key !== "parent" && hasOwnProperty(x, key)) {
                     freezeDeeply(x[key]);
                 }
@@ -211,7 +211,7 @@ RuleTester.prototype = {
      */
     run: function(ruleName, rule, test) {
 
-        let testerConfig = this.testerConfig,
+        const testerConfig = this.testerConfig,
             result = {};
 
         /* eslint-disable no-shadow */
@@ -225,7 +225,7 @@ RuleTester.prototype = {
          */
         function runRuleForItem(ruleName, item) {
             let config = lodash.cloneDeep(testerConfig),
-                code, filename, schema, beforeAST, afterAST;
+                code, filename, beforeAST, afterAST;
 
             if (typeof item === "string") {
                 code = item;
@@ -234,7 +234,7 @@ RuleTester.prototype = {
 
                 // Assumes everything on the item is a config except for the
                 // parameters used by this tester
-                let itemConfig = lodash.omit(item, RuleTesterParameters);
+                const itemConfig = lodash.omit(item, RuleTesterParameters);
 
                 // Create the config object from the tester config and this item
                 // specific configurations.
@@ -249,7 +249,7 @@ RuleTester.prototype = {
             }
 
             if (item.options) {
-                let options = item.options.concat();
+                const options = item.options.concat();
 
                 options.unshift(1);
                 config.rules[ruleName] = options;
@@ -259,7 +259,7 @@ RuleTester.prototype = {
 
             eslint.defineRule(ruleName, rule);
 
-            schema = validator.getRuleOptionsSchema(ruleName);
+            const schema = validator.getRuleOptionsSchema(ruleName);
 
             if (schema) {
                 validateSchema(schema);
@@ -290,11 +290,11 @@ RuleTester.prototype = {
             });
 
             // Freezes rule-context properties.
-            let originalGet = rules.get;
+            const originalGet = rules.get;
 
             try {
                 rules.get = function(ruleId) {
-                    let rule = originalGet(ruleId);
+                    const rule = originalGet(ruleId);
 
                     if (typeof rule === "function") {
                         return function(context) {
@@ -354,8 +354,8 @@ RuleTester.prototype = {
          * @private
          */
         function testValidTemplate(ruleName, item) {
-            let result = runRuleForItem(ruleName, item);
-            let messages = result.messages;
+            const result = runRuleForItem(ruleName, item);
+            const messages = result.messages;
 
             assert.equal(messages.length, 0, util.format("Should have no errors but had %d: %s",
                         messages.length, util.inspect(messages)));
@@ -375,8 +375,8 @@ RuleTester.prototype = {
             assert.ok(item.errors || item.errors === 0,
                 "Did not specify errors for an invalid test of " + ruleName);
 
-            let result = runRuleForItem(ruleName, item);
-            let messages = result.messages;
+            const result = runRuleForItem(ruleName, item);
+            const messages = result.messages;
 
 
 
@@ -434,7 +434,7 @@ RuleTester.prototype = {
                 }
 
                 if (item.hasOwnProperty("output")) {
-                    let fixResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
+                    const fixResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
 
                     assert.equal(fixResult.output, item.output, "Output is incorrect.");
                 }

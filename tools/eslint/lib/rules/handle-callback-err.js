@@ -26,7 +26,7 @@ module.exports = {
 
     create: function(context) {
 
-        let errorArgument = context.options[0] || "err";
+        const errorArgument = context.options[0] || "err";
 
         /**
          * Checks if the given argument should be interpreted as a regexp pattern.
@@ -34,7 +34,7 @@ module.exports = {
          * @returns {boolean} Whether or not the string should be interpreted as a pattern.
          */
         function isPattern(stringToCheck) {
-            let firstChar = stringToCheck[0];
+            const firstChar = stringToCheck[0];
 
             return firstChar === "^";
         }
@@ -46,7 +46,7 @@ module.exports = {
          */
         function matchesConfiguredErrorName(name) {
             if (isPattern(errorArgument)) {
-                let regexp = new RegExp(errorArgument);
+                const regexp = new RegExp(errorArgument);
 
                 return regexp.test(name);
             }
@@ -70,7 +70,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForError(node) {
-            let scope = context.getScope(),
+            const scope = context.getScope(),
                 parameters = getParameters(scope),
                 firstParameter = parameters[0];
 

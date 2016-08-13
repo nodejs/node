@@ -45,7 +45,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let existingNames = {
+        const existingNames = {
             apply: "Function.prototype.apply",
             call: "Function.prototype.call",
             defineProperty: "Object.defineProperty",
@@ -57,7 +57,7 @@ module.exports = {
             preventExtensions: "Object.preventExtensions"
         };
 
-        let reflectSubsitutes = {
+        const reflectSubsitutes = {
             apply: "Reflect.apply",
             call: "Reflect.apply",
             defineProperty: "Reflect.defineProperty",
@@ -69,7 +69,7 @@ module.exports = {
             preventExtensions: "Reflect.preventExtensions"
         };
 
-        let exceptions = (context.options[0] || {}).exceptions || [];
+        const exceptions = (context.options[0] || {}).exceptions || [];
 
         /**
          * Reports the Reflect violation based on the `existing` and `substitute`
@@ -87,19 +87,19 @@ module.exports = {
 
         return {
             CallExpression: function(node) {
-                let methodName = (node.callee.property || {}).name;
-                let isReflectCall = (node.callee.object || {}).name === "Reflect";
-                let hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
-                let userConfiguredException = exceptions.indexOf(methodName) !== -1;
+                const methodName = (node.callee.property || {}).name;
+                const isReflectCall = (node.callee.object || {}).name === "Reflect";
+                const hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
+                const userConfiguredException = exceptions.indexOf(methodName) !== -1;
 
                 if (hasReflectSubsitute && !isReflectCall && !userConfiguredException) {
                     report(node, existingNames[methodName], reflectSubsitutes[methodName]);
                 }
             },
             UnaryExpression: function(node) {
-                let isDeleteOperator = node.operator === "delete";
-                let targetsIdentifier = node.argument.type === "Identifier";
-                let userConfiguredException = exceptions.indexOf("delete") !== -1;
+                const isDeleteOperator = node.operator === "delete";
+                const targetsIdentifier = node.argument.type === "Identifier";
+                const userConfiguredException = exceptions.indexOf("delete") !== -1;
 
                 if (isDeleteOperator && !targetsIdentifier && !userConfiguredException) {
                     report(node, "the delete keyword", "Reflect.deleteProperty");

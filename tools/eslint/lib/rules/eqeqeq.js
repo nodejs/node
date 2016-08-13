@@ -17,15 +17,49 @@ module.exports = {
             recommended: false
         },
 
-        schema: [
-            {
-                enum: ["always", "smart", "allow-null"]
-            }
-        ]
+        schema: {
+            anyOf: [
+                {
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["always"]
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                null: {
+                                    enum: ["always", "never", "ignore"]
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    ],
+                    additionalItems: false
+                },
+                {
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["smart", "allow-null"]
+                        }
+                    ],
+                    additionalItems: false
+                }
+            ]
+        }
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const config = context.options[0] || "always";
+        const options = context.options[1] || {};
+        const sourceCode = context.getSourceCode();
+
+        const nullOption = (config === "always") ?
+            options.null || "always" :
+            "ignore";
+        const enforceRuleForNull = (nullOption === "always");
+        const enforceInverseRuleForNull = (nullOption === "never");
 
         /**
          * Checks if an expression is a typeof expression
@@ -76,33 +110,48 @@ module.exports = {
          * @private
          */
         function getOperatorLocation(node) {
-            let opToken = sourceCode.getTokenAfter(node.left);
+            const opToken = sourceCode.getTokenAfter(node.left);
 
             return {line: opToken.loc.start.line, column: opToken.loc.start.column};
         }
 
+        /**
+         * Reports a message for this rule.
+         * @param {ASTNode} node The binary expression node that was checked
+         * @param {string} message The message to report
+         * @returns {void}
+         * @private
+         */
+        function report(node, message) {
+            context.report({
+                node: node,
+                loc: getOperatorLocation(node),
+                message: message,
+                data: { op: node.operator.charAt(0) }
+            });
+        }
+
         return {
             BinaryExpression: function(node) {
+                const isNull = isNullCheck(node);
+
                 if (node.operator !== "==" && node.operator !== "!=") {
+                    if (enforceInverseRuleForNull && isNull) {
+                        report(node, "Expected '{{op}}=' and instead saw '{{op}}=='.");
+                    }
                     return;
                 }
 
-                if (context.options[0] === "smart" && (isTypeOfBinary(node) ||
-                        areLiteralsAndSameType(node) || isNullCheck(node))) {
+                if (config === "smart" && (isTypeOfBinary(node) ||
+                        areLiteralsAndSameType(node) || isNull)) {
                     return;
                 }
 
-                if (context.options[0] === "allow-null" && isNullCheck(node)) {
+                if (!enforceRuleForNull && isNull) {
                     return;
                 }
 
-                context.report({
-                    node: node,
-                    loc: getOperatorLocation(node),
-                    message: "Expected '{{op}}=' and instead saw '{{op}}'.",
-                    data: { op: node.operator }
-                });
-
+                report(node, "Expected '{{op}}==' and instead saw '{{op}}='.");
             }
         };
 

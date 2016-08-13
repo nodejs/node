@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -101,10 +101,10 @@ module.exports = {
          * @returns {void}
          */
         function setInvalid(node) {
-            let segments = funcInfo.codePath.currentSegments;
+            const segments = funcInfo.codePath.currentSegments;
 
             for (let i = 0; i < segments.length; ++i) {
-                let segment = segments[i];
+                const segment = segments[i];
 
                 if (segment.reachable) {
                     segInfoMap[segment.id].invalidNodes.push(node);
@@ -117,10 +117,10 @@ module.exports = {
          * @returns {void}
          */
         function setSuperCalled() {
-            let segments = funcInfo.codePath.currentSegments;
+            const segments = funcInfo.codePath.currentSegments;
 
             for (let i = 0; i < segments.length; ++i) {
-                let segment = segments[i];
+                const segment = segments[i];
 
                 if (segment.reachable) {
                     segInfoMap[segment.id].superCalled = true;
@@ -140,7 +140,7 @@ module.exports = {
                 if (isConstructorFunction(node)) {
 
                     // Class > ClassBody > MethodDefinition > FunctionExpression
-                    let classNode = node.parent.parent.parent;
+                    const classNode = node.parent.parent.parent;
 
                     funcInfo = {
                         upper: funcInfo,
@@ -172,7 +172,7 @@ module.exports = {
              * @returns {void}
              */
             onCodePathEnd: function(codePath) {
-                let isDerivedClass = funcInfo.hasExtends;
+                const isDerivedClass = funcInfo.hasExtends;
 
                 funcInfo = funcInfo.upper;
                 if (!isDerivedClass) {
@@ -180,10 +180,10 @@ module.exports = {
                 }
 
                 codePath.traverseSegments(function(segment, controller) {
-                    let info = segInfoMap[segment.id];
+                    const info = segInfoMap[segment.id];
 
                     for (let i = 0; i < info.invalidNodes.length; ++i) {
-                        let invalidNode = info.invalidNodes[i];
+                        const invalidNode = info.invalidNodes[i];
 
                         context.report({
                             message: "'{{kind}}' is not allowed before 'super()'.",
@@ -238,7 +238,7 @@ module.exports = {
                 funcInfo.codePath.traverseSegments(
                     {first: toSegment, last: fromSegment},
                     function(segment, controller) {
-                        let info = segInfoMap[segment.id];
+                        const info = segInfoMap[segment.id];
 
                         if (info.superCalled) {
                             info.invalidNodes = [];

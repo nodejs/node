@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let loadRules = require("./load-rules");
+const loadRules = require("./load-rules");
 
 //------------------------------------------------------------------------------
 // Privates
@@ -38,7 +38,7 @@ function define(ruleId, ruleModule) {
  * @returns {void}
  */
 function load(rulesDir, cwd) {
-    let newRules = loadRules(rulesDir, cwd);
+    const newRules = loadRules(rulesDir, cwd);
 
     Object.keys(newRules).forEach(function(ruleId) {
         define(ruleId, newRules[ruleId]);
@@ -53,7 +53,7 @@ function load(rulesDir, cwd) {
  */
 function importPlugin(pluginRules, pluginName) {
     Object.keys(pluginRules).forEach(function(ruleId) {
-        let qualifiedRuleId = pluginName + "/" + ruleId,
+        const qualifiedRuleId = pluginName + "/" + ruleId,
             rule = pluginRules[ruleId];
 
         define(qualifiedRuleId, rule);

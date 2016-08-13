@@ -9,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-let ALLOW_OPTIONS = Object.freeze([
+const ALLOW_OPTIONS = Object.freeze([
     "functions",
     "arrowFunctions",
     "generatorFunctions",
@@ -19,7 +19,7 @@ let ALLOW_OPTIONS = Object.freeze([
     "setters",
     "constructors"
 ]);
-let SHOW_KIND = Object.freeze({
+const SHOW_KIND = Object.freeze({
     functions: "function",
     arrowFunctions: "arrow function",
     generatorFunctions: "generator function",
@@ -44,7 +44,7 @@ let SHOW_KIND = Object.freeze({
  *      "constructors".
  */
 function getKind(node) {
-    let parent = node.parent;
+    const parent = node.parent;
     let kind = "";
 
     if (node.type === "ArrowFunctionExpression") {
@@ -118,10 +118,10 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let allowed = options.allow || [];
+        const options = context.options[0] || {};
+        const allowed = options.allow || [];
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports a given function node if the node matches the following patterns.
@@ -136,7 +136,7 @@ module.exports = {
          * @returns {void}
          */
         function reportIfEmpty(node) {
-            let kind = getKind(node);
+            const kind = getKind(node);
 
             if (allowed.indexOf(kind) === -1 &&
                 node.body.type === "BlockStatement" &&

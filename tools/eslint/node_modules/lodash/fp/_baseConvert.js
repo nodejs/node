@@ -143,6 +143,7 @@ function baseConvert(util, name, func, options) {
     'keys': util.keys,
     'rearg': util.rearg,
     'spread': util.spread,
+    'toInteger': util.toInteger,
     'toPath': util.toPath
   };
 
@@ -156,6 +157,7 @@ function baseConvert(util, name, func, options) {
       keys = helpers.keys,
       rearg = helpers.rearg,
       spread = helpers.spread,
+      toInteger = helpers.toInteger,
       toPath = helpers.toPath;
 
   var aryMethodKeys = keys(mapping.aryMethod);
@@ -209,10 +211,16 @@ function baseConvert(util, name, func, options) {
         return func;
       };
     },
+    'nthArg': function(nthArg) {
+      return function(n) {
+        var arity = n < 0 ? 1 : (toInteger(n) + 1);
+        return curry(nthArg(n), arity);
+      };
+    },
     'rearg': function(rearg) {
       return function(func, indexes) {
-        var n = indexes ? indexes.length : 0;
-        return curry(rearg(func, indexes), n);
+        var arity = indexes ? indexes.length : 0;
+        return curry(rearg(func, indexes), arity);
       };
     },
     'runInContext': function(runInContext) {

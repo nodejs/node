@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let path = require("path");
+const path = require("path");
 
 //------------------------------------------------------------------------------
 // Private
@@ -21,8 +21,8 @@ let path = require("path");
  * @returns {string}          Converted filepath
  */
 function convertPathToPosix(filepath) {
-    let normalizedFilepath = path.normalize(filepath);
-    let posixFilepath = normalizedFilepath.replace(/\\/g, "/");
+    const normalizedFilepath = path.normalize(filepath);
+    const posixFilepath = normalizedFilepath.replace(/\\/g, "/");
 
     return posixFilepath;
 }

@@ -24,7 +24,7 @@ module.exports = {
 
     create: function(context) {
 
-        let callbacks = context.options[0] || ["callback", "cb", "next"],
+        const callbacks = context.options[0] || ["callback", "cb", "next"],
             sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
@@ -118,8 +118,7 @@ module.exports = {
                 }
 
                 // find the closest block, return or loop
-                let closestBlock = findClosestParentOfType(node, ["BlockStatement", "ReturnStatement", "ArrowFunctionExpression"]) || {},
-                    lastItem, parentType;
+                const closestBlock = findClosestParentOfType(node, ["BlockStatement", "ReturnStatement", "ArrowFunctionExpression"]) || {};
 
                 // if our parent is a return we know we're ok
                 if (closestBlock.type === "ReturnStatement") {
@@ -135,12 +134,12 @@ module.exports = {
                 if (closestBlock.type === "BlockStatement") {
 
                     // find the last item in the block
-                    lastItem = closestBlock.body[closestBlock.body.length - 1];
+                    const lastItem = closestBlock.body[closestBlock.body.length - 1];
 
                     // if the callback is the last thing in a block that might be ok
                     if (isCallbackExpression(node, lastItem)) {
 
-                        parentType = closestBlock.parent.type;
+                        const parentType = closestBlock.parent.type;
 
                         // but only if the block is part of a function
                         if (parentType === "FunctionExpression" ||

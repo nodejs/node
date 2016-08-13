@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-let candidatesOfGlobalObject = Object.freeze([
+const candidatesOfGlobalObject = Object.freeze([
     "global",
     "window"
 ]);
@@ -94,11 +94,11 @@ module.exports = {
     },
 
     create: function(context) {
-        let allowIndirect = Boolean(
+        const allowIndirect = Boolean(
             context.options[0] &&
             context.options[0].allowIndirect
         );
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
         let funcInfo = null;
 
         /**
@@ -112,7 +112,7 @@ module.exports = {
          * @returns {void}
          */
         function enterVarScope(node) {
-            let strict = context.getScope().isStrict;
+            const strict = context.getScope().isStrict;
 
             funcInfo = {
                 upper: funcInfo,
@@ -147,7 +147,7 @@ module.exports = {
          */
         function report(node) {
             let locationNode = node;
-            let parent = node.parent;
+            const parent = node.parent;
 
             if (node.type === "MemberExpression") {
                 locationNode = node.property;
@@ -171,17 +171,17 @@ module.exports = {
          */
         function reportAccessingEvalViaGlobalObject(globalScope) {
             for (let i = 0; i < candidatesOfGlobalObject.length; ++i) {
-                let name = candidatesOfGlobalObject[i];
-                let variable = astUtils.getVariableByName(globalScope, name);
+                const name = candidatesOfGlobalObject[i];
+                const variable = astUtils.getVariableByName(globalScope, name);
 
                 if (!variable) {
                     continue;
                 }
 
-                let references = variable.references;
+                const references = variable.references;
 
                 for (let j = 0; j < references.length; ++j) {
-                    let identifier = references[j].identifier;
+                    const identifier = references[j].identifier;
                     let node = identifier.parent;
 
                     // To detect code like `window.window.eval`.
@@ -204,17 +204,17 @@ module.exports = {
          * @returns {void}
          */
         function reportAccessingEval(globalScope) {
-            let variable = astUtils.getVariableByName(globalScope, "eval");
+            const variable = astUtils.getVariableByName(globalScope, "eval");
 
             if (!variable) {
                 return;
             }
 
-            let references = variable.references;
+            const references = variable.references;
 
             for (let i = 0; i < references.length; ++i) {
-                let reference = references[i];
-                let id = reference.identifier;
+                const reference = references[i];
+                const id = reference.identifier;
 
                 if (id.name === "eval" && !astUtils.isCallee(id)) {
 
@@ -229,7 +229,7 @@ module.exports = {
             // Checks only direct calls to eval. It's simple!
             return {
                 "CallExpression:exit": function(node) {
-                    let callee = node.callee;
+                    const callee = node.callee;
 
                     if (isIdentifier(callee, "eval")) {
                         report(callee);
@@ -240,7 +240,7 @@ module.exports = {
 
         return {
             "CallExpression:exit": function(node) {
-                let callee = node.callee;
+                const callee = node.callee;
 
                 if (isIdentifier(callee, "eval")) {
                     report(callee);
@@ -248,7 +248,7 @@ module.exports = {
             },
 
             Program: function(node) {
-                let scope = context.getScope(),
+                const scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {},
                     strict =
                         scope.isStrict ||
@@ -265,7 +265,7 @@ module.exports = {
             },
 
             "Program:exit": function() {
-                let globalScope = context.getScope();
+                const globalScope = context.getScope();
 
                 exitVarScope();
                 reportAccessingEval(globalScope);

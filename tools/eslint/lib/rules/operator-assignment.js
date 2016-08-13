@@ -93,15 +93,13 @@ module.exports = {
          * @returns {void}
          */
         function verify(node) {
-            let expr, left, operator;
-
             if (node.operator !== "=" || node.right.type !== "BinaryExpression") {
                 return;
             }
 
-            left = node.left;
-            expr = node.right;
-            operator = expr.operator;
+            const left = node.left;
+            const expr = node.right;
+            const operator = expr.operator;
 
             if (isCommutativeOperatorWithShorthand(operator)) {
                 if (same(left, expr.left) || same(left, expr.right)) {

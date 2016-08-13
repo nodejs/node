@@ -9,27 +9,26 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let path = require("path"),
+const path = require("path"),
     ConfigOps = require("./config/config-ops"),
     ConfigFile = require("./config/config-file"),
     Plugins = require("./config/plugins"),
     FileFinder = require("./file-finder"),
-    debug = require("debug"),
     userHome = require("user-home"),
     isResolvable = require("is-resolvable"),
     pathIsInside = require("path-is-inside");
+
+const debug = require("debug")("eslint:config");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-let PERSONAL_CONFIG_DIR = userHome || null;
+const PERSONAL_CONFIG_DIR = userHome || null;
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-
-debug = debug("eslint:config");
 
 /**
  * Check if item is an javascript object
@@ -75,11 +74,10 @@ function loadConfig(configToLoad) {
  * @private
  */
 function getPersonalConfig() {
-    let config,
-        filename;
+    let config;
 
     if (PERSONAL_CONFIG_DIR) {
-        filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
+        const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
 
         if (filename) {
             debug("Using personal config");
@@ -106,20 +104,16 @@ function hasRules(options) {
  * @returns {Object} The local config object, or an empty object if there is no local config.
  */
 function getLocalConfig(thisConfig, directory) {
-    let found,
-        i,
-        localConfig,
-        localConfigFile,
-        config = {},
-        localConfigFiles = thisConfig.findLocalConfigFiles(directory),
+    const localConfigFiles = thisConfig.findLocalConfigFiles(directory),
         numFiles = localConfigFiles.length,
-        rootPath,
-        projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd),
-        personalConfig;
+        projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd);
+    let found,
+        config = {},
+        rootPath;
 
-    for (i = 0; i < numFiles; i++) {
+    for (let i = 0; i < numFiles; i++) {
 
-        localConfigFile = localConfigFiles[i];
+        const localConfigFile = localConfigFiles[i];
 
         // Don't consider the personal config file in the home directory,
         // except if the home directory is the same as the current working directory
@@ -133,7 +127,7 @@ function getLocalConfig(thisConfig, directory) {
         }
 
         debug("Loading " + localConfigFile);
-        localConfig = loadConfig(localConfigFile);
+        const localConfig = loadConfig(localConfigFile);
 
         // Don't consider a local config file found if the config is null
         if (!localConfig) {
@@ -158,14 +152,14 @@ function getLocalConfig(thisConfig, directory) {
          * - Otherwise, if no rules were manually passed in, throw and error.
          * - Note: This function is not called if useEslintrc is false.
          */
-        personalConfig = getPersonalConfig();
+        const personalConfig = getPersonalConfig();
 
         if (personalConfig) {
             config = ConfigOps.merge(config, personalConfig);
         } else if (!hasRules(thisConfig.options) && !thisConfig.options.baseConfig) {
 
             // No config file, no manual configuration, and no rules, so error.
-            let noConfigError = new Error("No ESLint configuration found.");
+            const noConfigError = new Error("No ESLint configuration found.");
 
             noConfigError.messageTemplate = "no-config-found";
             noConfigError.messageData = {
@@ -191,8 +185,6 @@ function getLocalConfig(thisConfig, directory) {
  * @param {Object} options Options to be passed in
  */
 function Config(options) {
-    let useConfig;
-
     options = options || {};
 
     this.ignore = options.ignore;
@@ -217,14 +209,15 @@ function Config(options) {
      * If user declares "foo", convert to "foo:false".
      */
     this.globals = (options.globals || []).reduce(function(globals, def) {
-        let parts = def.split(":");
+        const parts = def.split(":");
 
         globals[parts[0]] = (parts.length > 1 && parts[1] === "true");
 
         return globals;
     }, {});
 
-    useConfig = options.configFile;
+    const useConfig = options.configFile;
+
     this.options = options;
 
     if (useConfig) {
@@ -244,9 +237,9 @@ function Config(options) {
  * @returns {Object} config object
  */
 Config.prototype.getConfig = function(filePath) {
+    const directory = filePath ? path.dirname(filePath) : this.options.cwd;
     let config,
-        userConfig,
-        directory = filePath ? path.dirname(filePath) : this.options.cwd;
+        userConfig;
 
     debug("Constructing config for " + (filePath ? filePath : "text"));
 

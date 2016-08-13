@@ -73,10 +73,10 @@ exports.aryMethod = {
   '1': [
     'assignAll', 'assignInAll', 'attempt', 'castArray', 'ceil', 'create',
     'curry', 'curryRight', 'defaultsAll', 'defaultsDeepAll', 'floor', 'flow',
-    'flowRight', 'fromPairs', 'invert', 'iteratee', 'memoize', 'method',
-    'mergeAll', 'methodOf', 'mixin', 'over', 'overEvery', 'overSome', 'rest',
-    'reverse', 'round', 'runInContext', 'spread', 'template', 'trim', 'trimEnd',
-    'trimStart', 'uniqueId', 'words', 'zipAll'
+    'flowRight', 'fromPairs', 'invert', 'iteratee', 'memoize', 'method', 'mergeAll',
+    'methodOf', 'mixin', 'nthArg', 'over', 'overEvery', 'overSome','rest', 'reverse',
+    'round', 'runInContext', 'spread', 'template', 'trim', 'trimEnd', 'trimStart',
+    'uniqueId', 'words', 'zipAll'
   ],
   '2': [
     'add', 'after', 'ary', 'assign', 'assignAllWith', 'assignIn', 'assignInAllWith',

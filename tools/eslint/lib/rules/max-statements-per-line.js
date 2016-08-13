@@ -32,18 +32,18 @@ module.exports = {
 
     create: function(context) {
 
-        let sourceCode = context.getSourceCode(),
+        const sourceCode = context.getSourceCode(),
             options = context.options[0] || {},
-            lastStatementLine = 0,
-            numberOfStatementsOnThisLine = 0,
             maxStatementsPerLine = typeof options.max !== "undefined" ? options.max : 1,
             message = "This line has too many statements. Maximum allowed is " + maxStatementsPerLine + ".";
+        let lastStatementLine = 0,
+            numberOfStatementsOnThisLine = 0;
 
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
 
-        let SINGLE_CHILD_ALLOWED = /^(?:(?:DoWhile|For|ForIn|ForOf|If|Labeled|While)Statement|Export(?:Default|Named)Declaration)$/;
+        const SINGLE_CHILD_ALLOWED = /^(?:(?:DoWhile|For|ForIn|ForOf|If|Labeled|While)Statement|Export(?:Default|Named)Declaration)$/;
 
         /**
          * Gets the actual last token of a given node.
@@ -68,7 +68,7 @@ module.exports = {
          * @returns {void}
          */
         function enterStatement(node) {
-            let line = node.loc.start.line;
+            const line = node.loc.start.line;
 
             // Skip to allow non-block statements if this is direct child of control statements.
             // `if (a) foo();` is counted as 1.
@@ -100,7 +100,7 @@ module.exports = {
          * @returns {void}
          */
         function leaveStatement(node) {
-            let line = getActualLastToken(node).loc.end.line;
+            const line = getActualLastToken(node).loc.end.line;
 
             // Update state.
             if (line !== lastStatementLine) {

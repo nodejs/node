@@ -29,7 +29,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = {
+        const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals)
         };
 
@@ -41,8 +41,8 @@ module.exports = {
          */
         function findVariablesInScope(scope) {
             scope.variables.forEach(function(variable) {
-                let hasBuiltin = options.builtinGlobals && "writeable" in variable;
-                let count = (hasBuiltin ? 1 : 0) + variable.identifiers.length;
+                const hasBuiltin = options.builtinGlobals && "writeable" in variable;
+                const count = (hasBuiltin ? 1 : 0) + variable.identifiers.length;
 
                 if (count >= 2) {
                     variable.identifiers.sort(function(a, b) {
@@ -67,7 +67,7 @@ module.exports = {
          * @private
          */
         function checkForGlobal(node) {
-            let scope = context.getScope(),
+            const scope = context.getScope(),
                 parserOptions = context.parserOptions,
                 ecmaFeatures = parserOptions.ecmaFeatures || {};
 

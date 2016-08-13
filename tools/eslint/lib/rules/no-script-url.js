@@ -27,11 +27,8 @@ module.exports = {
         return {
 
             Literal: function(node) {
-
-                let value;
-
                 if (node.value && typeof node.value === "string") {
-                    value = node.value.toLowerCase();
+                    const value = node.value.toLowerCase();
 
                     if (value.indexOf("javascript:") === 0) {
                         context.report(node, "Script URL is a form of eval.");

@@ -10,7 +10,7 @@ var baseClamp = require('./_baseClamp'),
  * @memberOf _
  * @since 3.0.0
  * @category String
- * @param {string} [string=''] The string to search.
+ * @param {string} [string=''] The string to inspect.
  * @param {string} [target] The string to search for.
  * @param {number} [position=string.length] The position to search up to.
  * @returns {boolean} Returns `true` if `string` ends with `target`,

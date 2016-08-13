@@ -31,8 +31,8 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let defaultAssignment = options.defaultAssignment !== false;
+        const options = context.options[0] || {};
+        const defaultAssignment = options.defaultAssignment !== false;
 
         /**
          * Test if the node is a boolean literal

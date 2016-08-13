@@ -9,14 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let lodash = require("lodash"),
-    Module = require("module");
+const Module = require("module");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-let DEFAULT_OPTIONS = {
+const DEFAULT_OPTIONS = {
 
     /*
      * module.paths is an array of paths to search for resolving things relative
@@ -39,7 +38,7 @@ let DEFAULT_OPTIONS = {
 function ModuleResolver(options) {
     options = options || {};
 
-    this.options = lodash.assign({}, DEFAULT_OPTIONS, options);
+    this.options = Object.assign({}, DEFAULT_OPTIONS, options);
 }
 
 ModuleResolver.prototype = {
@@ -60,7 +59,7 @@ ModuleResolver.prototype = {
          * subsequent calls to this function. Then, move the extraLookupPath to the
          * top of the lookup paths list so it will be searched first.
          */
-        let lookupPaths = this.options.lookupPaths.concat();
+        const lookupPaths = this.options.lookupPaths.concat();
 
         lookupPaths.unshift(extraLookupPath);
 
@@ -69,7 +68,7 @@ ModuleResolver.prototype = {
          * lookup file paths when require() is called. So, we are hooking into the
          * exact same logic that Node.js uses.
          */
-        let result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
+        const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
 
         if (!result) {
             throw new Error("Cannot find module '" + name + "'");

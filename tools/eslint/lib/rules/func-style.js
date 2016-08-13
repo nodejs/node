@@ -34,16 +34,12 @@ module.exports = {
 
     create: function(context) {
 
-        let style = context.options[0],
+        const style = context.options[0],
             allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions === true,
             enforceDeclarations = (style === "declaration"),
             stack = [];
 
-        let nodesToCheck = {
-            Program: function() {
-                stack = [];
-            },
-
+        const nodesToCheck = {
             FunctionDeclaration: function(node) {
                 stack.push(false);
 
@@ -79,7 +75,7 @@ module.exports = {
             };
 
             nodesToCheck["ArrowFunctionExpression:exit"] = function(node) {
-                let hasThisExpr = stack.pop();
+                const hasThisExpr = stack.pop();
 
                 if (enforceDeclarations && !hasThisExpr && node.parent.type === "VariableDeclarator") {
                     context.report(node.parent, "Expected a function declaration.");

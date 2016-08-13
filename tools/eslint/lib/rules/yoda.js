@@ -147,11 +147,11 @@ module.exports = {
     create: function(context) {
 
         // Default to "never" (!always) if no option
-        let always = (context.options[0] === "always");
-        let exceptRange = (context.options[1] && context.options[1].exceptRange);
-        let onlyEquality = (context.options[1] && context.options[1].onlyEquality);
+        const always = (context.options[0] === "always");
+        const exceptRange = (context.options[1] && context.options[1].exceptRange);
+        const onlyEquality = (context.options[1] && context.options[1].onlyEquality);
 
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Determines whether node represents a range test.
@@ -164,7 +164,7 @@ module.exports = {
          * @returns {boolean} Whether node is a range test.
          */
         function isRangeTest(node) {
-            let left = node.left,
+            const left = node.left,
                 right = node.right;
 
             /**

@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-let MESSAGE_UNNECESSARY_COMPUTED = "Unnecessarily computed property [{{property}}] found.";
+const MESSAGE_UNNECESSARY_COMPUTED = "Unnecessarily computed property [{{property}}] found.";
 
 module.exports = {
     meta: {
@@ -21,7 +21,7 @@ module.exports = {
         schema: []
     },
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         return {
             Property: function(node) {
@@ -29,7 +29,7 @@ module.exports = {
                     return;
                 }
 
-                let key = node.key,
+                const key = node.key,
                     nodeType = typeof key.value;
 
                 if (key.type === "Literal" && (nodeType === "string" || nodeType === "number")) {

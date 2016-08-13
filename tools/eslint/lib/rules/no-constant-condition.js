@@ -32,7 +32,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {},
+        const options = context.options[0] || {},
             checkLoops = options.checkLoops !== false;
 
         //--------------------------------------------------------------------------
@@ -51,11 +51,15 @@ module.exports = {
                 case "Literal":
                     return (operator === "||" && node.value === true) ||
                            (operator === "&&" && node.value === false);
+
+                case "UnaryExpression":
+                    return (operator === "&&" && node.operator === "void");
+
                 case "LogicalExpression":
                     return isLogicalIdentity(node.left, node.operator) ||
                              isLogicalIdentity(node.right, node.operator);
 
-                     // no default
+                // no default
             }
             return false;
         }
@@ -78,6 +82,10 @@ module.exports = {
                     return true;
 
                 case "UnaryExpression":
+                    if (node.operator === "void") {
+                        return true;
+                    }
+
                     return (node.operator === "typeof" && inBooleanPosition) ||
                         isConstant(node.argument, true);
 

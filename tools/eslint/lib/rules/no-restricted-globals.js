@@ -26,7 +26,7 @@ module.exports = {
     },
 
     create: function(context) {
-        let restrictedGlobals = context.options;
+        const restrictedGlobals = context.options;
 
         // if no globals are restricted we don't need to check
         if (restrictedGlobals.length === 0) {
@@ -57,7 +57,7 @@ module.exports = {
 
         return {
             Program: function() {
-                let scope = context.getScope();
+                const scope = context.getScope();
 
                 // Report variables declared elsewhere (ex: variables defined as "global" by eslint)
                 scope.variables.forEach(function(variable) {

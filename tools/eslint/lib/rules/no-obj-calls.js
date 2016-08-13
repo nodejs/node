@@ -26,7 +26,7 @@ module.exports = {
             CallExpression: function(node) {
 
                 if (node.callee.type === "Identifier") {
-                    let name = node.callee.name;
+                    const name = node.callee.name;
 
                     if (name === "Math" || name === "JSON") {
                         context.report(node, "'{{name}}' is not a function.", { name: name });

@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-let astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -57,8 +57,8 @@ module.exports = {
     },
 
     create: function(context) {
-        let options = context.options[0] || {};
-        let treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
+        const options = context.options[0] || {};
+        const treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
         let funcInfo = null;
 
         /**
@@ -135,7 +135,7 @@ module.exports = {
 
             // Reports a given return statement if it's inconsistent.
             ReturnStatement: function(node) {
-                let argument = node.argument;
+                const argument = node.argument;
                 let hasReturnValue = Boolean(argument);
 
                 if (treatUndefinedAsUnspecified && hasReturnValue) {

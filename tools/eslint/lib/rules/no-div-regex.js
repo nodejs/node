@@ -21,12 +21,12 @@ module.exports = {
     },
 
     create: function(context) {
-        let sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         return {
 
             Literal: function(node) {
-                let token = sourceCode.getFirstToken(node);
+                const token = sourceCode.getFirstToken(node);
 
                 if (token.type === "RegularExpression" && token.value[1] === "=") {
                     context.report(node, "A regular expression literal can be confused with '/='.");
