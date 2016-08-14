@@ -8185,3 +8185,36 @@ TEST(DebugStepNextTailCallEliminiation) {
   ExpectString("JSON.stringify(log)",
                "[\"a4\",\"b2\",\"c4\",\"e0\",\"e0\",\"e0\",\"e0\",\"f0\"]");
 }
+
+size_t current_action = 0;
+StepAction actions[] = {StepNext, StepNext};
+static void DebugStepOverFunctionWithCaughtExceptionListener(
+    const v8::Debug::EventDetails& event_details) {
+  v8::DebugEvent event = event_details.GetEvent();
+  if (event != v8::Break) return;
+  ++break_point_hit_count;
+  if (current_action >= 2) return;
+  PrepareStep(actions[current_action]);
+}
+
+TEST(DebugStepOverFunctionWithCaughtException) {
+  i::FLAG_allow_natives_syntax = true;
+
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Debug::SetDebugEventListener(
+      isolate, DebugStepOverFunctionWithCaughtExceptionListener);
+
+  break_point_hit_count = 0;
+  CompileRun(
+      "function foo() {\n"
+      "  try { throw new Error(); } catch (e) {}\n"
+      "}\n"
+      "debugger;\n"
+      "foo();\n"
+      "foo();\n");
+
+  v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
+  CHECK_EQ(break_point_hit_count, 4);
+}
