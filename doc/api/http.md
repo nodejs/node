@@ -1336,17 +1336,6 @@ A collection of all the standard HTTP response status codes, and the
 short description of each.  For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
-## http.createClient([port][, host])
-<!-- YAML
-added: v0.1.13
-deprecated: v0.3.6
--->
-
-> Stability: 0 - Deprecated: Use [`http.request()`][] instead.
-
-Constructs a new HTTP client. `port` and `host` refer to the server to be
-connected to.
-
 ## http.createServer([requestListener])
 <!-- YAML
 added: v0.1.13
