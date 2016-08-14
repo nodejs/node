@@ -38,6 +38,7 @@ var server = http.createServer(function(req, res) {
 
 server.listen(0, common.mustCall(function() {
   var client = http.createClient(this.address().port);
+  assert(client instanceof http.Client);
   var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
   setTimeout(function() {
     req.end();
