@@ -962,6 +962,14 @@ void Debug::PrepareStepOnThrow() {
     it.Advance();
   }
 
+  if (last_step_action() == StepNext) {
+    while (!it.done()) {
+      Address current_fp = it.frame()->UnpaddedFP();
+      if (current_fp >= thread_local_.target_fp_) break;
+      it.Advance();
+    }
+  }
+
   // Find the closest Javascript frame we can flood with one-shots.
   while (!it.done() &&
          !it.frame()->function()->shared()->IsSubjectToDebugging()) {
