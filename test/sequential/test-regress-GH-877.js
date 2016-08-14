@@ -25,7 +25,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
     };
 
     var req = http.get(options, function(res) {
-      if (++responses == N) {
+      if (++responses === N) {
         server.close();
       }
       res.resume();
@@ -47,6 +47,6 @@ server.listen(common.PORT, '127.0.0.1', function() {
 });
 
 process.on('exit', function() {
-  assert.ok(responses == N);
+  assert.strictEqual(responses, N);
   assert.ok(maxQueued <= 10);
 });
