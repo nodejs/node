@@ -22,7 +22,7 @@ var filepathTwo = filenameTwo;
 var filepathTwoAbs = path.join(testDir, filenameTwo);
 
 var filenameThree = 'newfile.txt';
-var testsubdir = path.join(testDir, 'testsubdir');
+var testsubdir = fs.mkdtempSync(testDir + path.sep);
 var filepathThree = path.join(testsubdir, filenameThree);
 
 

@@ -13,14 +13,12 @@ const fs = require('fs');
 
 const testDir = common.tmpDir;
 const filenameOne = 'watch.txt';
-const testsubdirName = 'testsubdir';
-const testsubdir = path.join(testDir, testsubdirName);
-const relativePathOne = path.join('testsubdir', filenameOne);
-const filepathOne = path.join(testsubdir, filenameOne);
 
 common.refreshTmpDir();
 
-fs.mkdirSync(testsubdir, 0o700);
+const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
+const filepathOne = path.join(testsubdir, filenameOne);
 
 const watcher = fs.watch(testDir, {recursive: true});
 
