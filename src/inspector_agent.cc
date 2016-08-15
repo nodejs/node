@@ -14,9 +14,7 @@
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 #include "platform/v8_inspector/public/V8InspectorSession.h"
 #include "platform/v8_inspector/public/V8StackTrace.h"
-#include "platform/inspector_protocol/FrontendChannel.h"
-#include "platform/inspector_protocol/String16.h"
-#include "platform/inspector_protocol/Values.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 
 #include "libplatform/libplatform.h"
 
@@ -196,7 +194,6 @@ class AgentImpl {
   void OnInspectorConnectionIO(inspector_socket_t* socket);
   void OnRemoteDataIO(inspector_socket_t* stream, ssize_t read,
                       const uv_buf_t* b);
-  void PostMessages();
   void SetConnected(bool connected);
   void DispatchMessages();
   void Write(int session_id, const String16& message);
@@ -285,7 +282,9 @@ class ChannelImpl final : public blink::protocol::FrontendChannel {
 // Used in V8NodeInspector::currentTimeMS() below.
 #define NANOS_PER_MSEC 1000000
 
-class V8NodeInspector : public blink::V8InspectorClient {
+using V8Inspector = v8_inspector::V8Inspector;
+
+class V8NodeInspector : public v8_inspector::V8InspectorClient {
  public:
   V8NodeInspector(AgentImpl* agent, node::Environment* env,
                   v8::Platform* platform)
@@ -294,10 +293,9 @@ class V8NodeInspector : public blink::V8InspectorClient {
                     platform_(platform),
                     terminated_(false),
                     running_nested_loop_(false),
-                    inspector_(
-                        blink::V8Inspector::create(env->isolate(), this)) {
+                    inspector_(V8Inspector::create(env->isolate(), this)) {
     inspector_->contextCreated(
-        blink::V8ContextInfo(env->context(), 1, "NodeJS Main Context"));
+        v8_inspector::V8ContextInfo(env->context(), 1, "NodeJS Main Context"));
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -339,7 +337,7 @@ class V8NodeInspector : public blink::V8InspectorClient {
     session_->dispatchProtocolMessage(message);
   }
 
-  blink::V8Inspector* inspector() {
+  V8Inspector* inspector() {
     return inspector_.get();
   }
 
@@ -349,8 +347,8 @@ class V8NodeInspector : public blink::V8InspectorClient {
   v8::Platform* platform_;
   bool terminated_;
   bool running_nested_loop_;
-  std::unique_ptr<blink::V8Inspector> inspector_;
-  std::unique_ptr<blink::V8InspectorSession> session_;
+  std::unique_ptr<V8Inspector> inspector_;
+  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
 };
 
 AgentImpl::AgentImpl(Environment* env) : port_(0),
@@ -417,10 +415,10 @@ void InspectorConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   v8::TryCatch try_catch(info.GetIsolate());
-  node_method.As<v8::Function>()->Call(context,
-                                       info.Holder(),
-                                       call_args.size(),
-                                       call_args.data());
+  static_cast<void>(node_method.As<v8::Function>()->Call(context,
+                                                         info.Holder(),
+                                                         call_args.size(),
+                                                         call_args.data()));
   CHECK(config_object->Delete(context, in_call_key).FromJust());
   if (try_catch.HasCaught())
     try_catch.ReThrow();
@@ -510,7 +508,7 @@ String16 ToProtocolString(v8::Local<v8::Value> value) {
     return String16();
   }
   v8::Local<v8::String> string_value = v8::Local<v8::String>::Cast(value);
-  wstring buffer(string_value->Length(), '\0');
+  std::basic_string<uint16_t> buffer(string_value->Length(), '\0');
   string_value->Write(&buffer[0], 0, string_value->Length());
   return String16(buffer);
 }
@@ -523,7 +521,7 @@ void AgentImpl::FatalException(v8::Local<v8::Value> error,
   v8::Local<v8::Context> context = env->context();
 
   int script_id = message->GetScriptOrigin().ScriptID()->Value();
-  std::unique_ptr<blink::V8StackTrace> stack_trace =
+  std::unique_ptr<v8_inspector::V8StackTrace> stack_trace =
       inspector_->inspector()->createStackTrace(message->GetStackTrace());
 
   if (stack_trace && !stack_trace->isEmpty() &&
@@ -592,7 +590,8 @@ void AgentImpl::OnRemoteDataIO(inspector_socket_t* socket,
     // engages, node should wait for the run callback from the remote client
     // and initiate its startup. This is a change to node.cc that should be
     // upstreamed separately.
-    if (wait_ && str.find("\"Runtime.run\"") != std::string::npos) {
+    if (wait_&& str.find("\"Runtime.runIfWaitingForDebugger\"")
+        != std::string::npos) {
       wait_ = false;
       uv_sem_post(&start_sem_);
     }
