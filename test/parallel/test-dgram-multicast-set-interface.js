@@ -73,6 +73,20 @@ const dgram = require('dgram');
 }
 
 {
+  try {
+    const socket = dgram.createSocket('udp6');
+
+    socket.bind(0);
+    socket.on('listening', common.mustCall(() => {
+      socket.close();
+    }));
+  } catch (e) {
+    common.skip(`IPv6 sockets are missing or incompatible: ${e}`);
+    return;
+  }
+}
+
+{
   const socket = dgram.createSocket('udp6');
 
   socket.bind(0);

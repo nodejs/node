@@ -9,6 +9,18 @@ if (common.inFreeBSDJail) {
   return;
 }
 
+// All SunOS systems must be able to pass this manual test before the
+//   following barrier can be removed:
+// $ socat UDP-RECVFROM:12356,ip-add-membership=224.0.0.115:127.0.0.1,fork \
+//   EXEC:hostname &
+// $ echo hi |socat STDIO \
+//   UDP4-DATAGRAM:224.0.0.115:12356,ip-multicast-if=127.0.0.1
+
+if (common.isSunOS) {
+  common.skip('SunOs is not correctly delivering to loopback multicast.');
+  return;
+}
+
 const networkInterfaces = require('os').networkInterfaces();
 const Buffer = require('buffer').Buffer;
 const fork = require('child_process').fork;
@@ -19,13 +31,20 @@ const MULTICASTS = {
 const LOOPBACK = {IPv4: '127.0.0.1', IPv6: '::1'};
 const ANY = {IPv4: '0.0.0.0', IPv6: '::'};
 const FAM = 'IPv4';
+
+// Windows wont bind on multicasts so its filtering is by port.
+const PORTS = {};
+for (let i = 0; i < MULTICASTS[FAM].length; i++) {
+  PORTS[MULTICASTS[FAM][i]] = common.PORT + (common.isWindows ? i : 0);
+}
+
 const UDP = {IPv4: 'udp4', IPv6: 'udp6'};
 
 const TIMEOUT = common.platformTimeout(5000);
 const NOW = Date.now();
 const TMPL = (tail) => `${NOW} - ${tail}`;
 
-// Take the first non-internal interface as the other interfacei to isolate
+// Take the first non-internal interface as the other interface to isolate
 // from loopback. Ideally, this should check for whether or not this interface
 // and the loopback have the MULTICAST flag.
 const interfaceAddress = ((networkInterfaces) => {
@@ -56,7 +75,7 @@ const messages = [
 if (process.argv[2] !== 'child') {
   const IFACES = [ANY[FAM], interfaceAddress, LOOPBACK[FAM]];
   const workers = {};
-  const listeners = MULTICASTS[FAM].length * 3;
+  const listeners = MULTICASTS[FAM].length * 2;
   let listening = 0;
   let dead = 0;
   let i = 0;
@@ -199,18 +218,17 @@ if (process.argv[2] !== 'child') {
       console.error(`changing outgoing multicast ${msg.newAddr}`);
       sendSocket.setMulticastInterface(msg.newAddr);
     }
-
     sendSocket.send(
       buf,
       0,
       buf.length,
-      common.PORT,
+      PORTS[msg.mcast],
       msg.mcast,
       function(err) {
         if (err) throw err;
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
-                      msg.mcast, common.PORT);
+                      msg.mcast, PORTS[msg.mcast]);
 
         process.nextTick(sendSocket.sendNext);
       }
@@ -263,5 +281,8 @@ if (process.argv[2] === 'child') {
     process.send({listening: true});
   });
 
-  listenSocket.bind(common.PORT, MULTICAST);
+  if (common.isWindows)
+    listenSocket.bind(PORTS[MULTICAST], ANY[FAM]);
+  else
+    listenSocket.bind(common.PORT, MULTICAST);
 }
