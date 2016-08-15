@@ -361,6 +361,10 @@ added: v0.1.98
     only if `terminal` is set to `true` by the user or by an internal `output`
     check, otherwise the history caching mechanism is not initialized at all.
   * `prompt` - the prompt string to use. Default: `'> '`
+  * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
+    `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
+    end-of-line input. Default to `100` milliseconds.
+    `crlfDelay` will be coerced to `[100, 2000]` range.
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
