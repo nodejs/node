@@ -201,7 +201,7 @@ function isWarned(emitter) {
 
   // Emit two line events where there is a delay
   //   between \r and \n
-  (() => {
+  {
     const fi = new FakeInput();
     const rli = new readline.Interface({
       input: fi,
@@ -218,7 +218,7 @@ function isWarned(emitter) {
       assert.equal(callCount, 2);
       rli.close();
     }, 200);
-  })();
+  }
 
   // \t when there is no completer function should behave like an ordinary
   //   character
