@@ -199,6 +199,27 @@ function isWarned(emitter) {
   assert.equal(callCount, expectedLines.length);
   rli.close();
 
+  // Emit two line events where there is a delay
+  //   between \r and \n
+  (() => {
+    const fi = new FakeInput();
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      terminal: terminal
+    });
+    let callCount = 0;
+    rli.on('line', function(line) {
+      callCount++;
+    });
+    fi.emit('data', '\r');
+    setTimeout(() => {
+      fi.emit('data', '\n');
+      assert.equal(callCount, 2);
+      rli.close();
+    }, 200);
+  })();
+
   // \t when there is no completer function should behave like an ordinary
   //   character
   fi = new FakeInput();
