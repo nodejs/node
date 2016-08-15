@@ -290,7 +290,7 @@ to an empty string (`""` or `" "`) disables persistent REPL history.
 
 ### `NODE_TTY_UNSAFE_ASYNC=1`
 <!-- YAML
-added: REPLACEME
+added: 6.4.0
 -->
 
 When set to `1`, writes to `stdout` and `stderr` will be non-blocking and
