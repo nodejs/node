@@ -43,6 +43,7 @@ function tmp(p) {
 
 var targetsAbsDir = path.join(common.tmpDir, 'targets');
 var tmpAbsDir = common.tmpDir;
+assert(fixturesAbsDir !== tmpAbsDir);
 
 // Set up targetsAbsDir and expected subdirectories
 fs.mkdirSync(targetsAbsDir);
