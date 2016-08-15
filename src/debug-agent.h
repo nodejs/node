@@ -76,7 +76,7 @@ class Agent {
   typedef void (*DispatchHandler)(node::Environment* env);
 
   // Start the debugger agent thread
-  bool Start(const std::string& host, int port, bool wait);
+  bool Start(const char* host, int port, bool wait);
   // Listen for debug events
   void Enable();
   // Stop the debugger agent

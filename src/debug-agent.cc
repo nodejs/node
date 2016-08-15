@@ -69,7 +69,7 @@ Agent::~Agent() {
 }
 
 
-bool Agent::Start(const std::string& host, int port, bool wait) {
+bool Agent::Start(const char* host, int port, bool wait) {
   int err;
 
   if (state_ == kRunning)
