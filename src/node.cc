@@ -221,8 +221,9 @@ static struct {
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
   void Dispose() {}
-  void StartInspector(Environment *env, int port, bool wait) {
+  bool StartInspector(Environment *env, int port, bool wait) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
+    return false;  // make compiler happy
   }
 #endif  // !NODE_USE_V8_PLATFORM
 } v8_platform;
