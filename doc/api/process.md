@@ -489,7 +489,7 @@ Would generate the output:
 
 ## process.argv0
 <!-- YAML
-added: REPLACEME
+added: 6.4.0
 -->
 
 The `process.argv0` property stores a read-only copy of the original value of
