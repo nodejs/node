@@ -46,6 +46,11 @@ function isWarned(emitter) {
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
   assert.strictEqual(rli.historySize, 30);
 
+  // default crLfDelay is 100ms
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
+  assert.strictEqual(rli.crLfDelay, 100);
+
   fi.emit('data', 'asdf\n');
   assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
   rli.close();
@@ -199,14 +204,16 @@ function isWarned(emitter) {
   assert.equal(callCount, expectedLines.length);
   rli.close();
 
-  // Emit two line events where there is a delay
-  //   between \r and \n
+  // Emit two line events when the delay
+  //   between \r and \n exceeds crLFDelay
   {
     const fi = new FakeInput();
+    const delay = 200;
     const rli = new readline.Interface({
       input: fi,
       output: fi,
-      terminal: terminal
+      terminal: terminal,
+      crLfDelay: delay
     });
     let callCount = 0;
     rli.on('line', function(line) {
@@ -217,7 +224,7 @@ function isWarned(emitter) {
       fi.emit('data', '\n');
       assert.equal(callCount, 2);
       rli.close();
-    }, 200);
+    }, delay * 2);
   }
 
   // \t when there is no completer function should behave like an ordinary
