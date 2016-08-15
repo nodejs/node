@@ -15,7 +15,7 @@ var waitingForDebuggers = false;
 var pids = null;
 
 child.stderr.on('data', function(data) {
-  var lines = data.toString().replace(/\r/g, '').trim().split('\n');
+  var lines = data.toString().trim().split('\n');
 
   lines.forEach(function(line) {
     console.log('> ' + line);
