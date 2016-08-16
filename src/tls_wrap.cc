@@ -602,6 +602,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   int written = 0;
   for (i = 0; i < count; i++) {
     written = SSL_write(ssl_, bufs[i].base, bufs[i].len);
