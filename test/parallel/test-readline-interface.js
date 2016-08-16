@@ -46,10 +46,10 @@ function isWarned(emitter) {
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
   assert.strictEqual(rli.historySize, 30);
 
-  // default crLfDelay is 100ms
+  // default crlfDelay is 100ms
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
-  assert.strictEqual(rli.crLfDelay, 100);
+  assert.strictEqual(rli.crlfDelay, 100);
 
   fi.emit('data', 'asdf\n');
   assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
@@ -205,7 +205,7 @@ function isWarned(emitter) {
   rli.close();
 
   // Emit two line events when the delay
-  //   between \r and \n exceeds crLFDelay
+  //   between \r and \n exceeds crlfDelay
   {
     const fi = new FakeInput();
     const delay = 200;
@@ -213,7 +213,7 @@ function isWarned(emitter) {
       input: fi,
       output: fi,
       terminal: terminal,
-      crLfDelay: delay
+      crlfDelay: delay
     });
     let callCount = 0;
     rli.on('line', function(line) {
