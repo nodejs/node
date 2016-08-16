@@ -671,11 +671,11 @@ bench: bench-net bench-http bench-fs bench-tls
 bench-ci: bench
 
 jslint:
-	$(NODE) tools/jslint.js -J benchmark lib src test tools
+	$(NODE) tools/jslint.js -J benchmark lib test tools
 
 jslint-ci:
 	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		benchmark lib src test tools
+		benchmark lib test tools
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_root_certs.h
