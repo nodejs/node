@@ -73,9 +73,9 @@ setImmediate(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
 });
 
-var filenameThree = 'newfile.txt';
-var testsubdir = fs.mkdtempSync(testDir + path.sep);
-var filepathThree = path.join(testsubdir, filenameThree);
+const filenameThree = 'newfile.txt';
+const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const filepathThree = path.join(testsubdir, filenameThree);
 
 assert.doesNotThrow(
     function() {
