@@ -1071,6 +1071,7 @@
             'cflags': [ '-fno-strict-aliasing' ],
           }],
         ],  # conditions
+        'cflags': [ '-fno-delete-null-pointer-checks' ]
       }],
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
