@@ -272,9 +272,11 @@ Create a new blog post by running the [nodejs.org release-post.js script](https:
 
 ### 15. Announce
 
-The nodejs.org website will automatically rebuild and include the new version. You simply need to announce the build, preferably via Twitter with a message such as:
+The nodejs.org website will automatically rebuild and include the new version. To announce the build on Twitter through the official @nodejs account, email [pr@nodejs.org](pr@nodejs.org) with a message such as:
 
 > v5.8.0 of @nodejs is out: https://nodejs.org/en/blog/release/v5.8.0/ … something here about notable changes
+
+To ensure communication goes out with the timing of the blog post, please allow 24 hour prior notice. If known, please include the date and time the release will be shared with the community in the email to coordinate these announcements.
 
 ### 16. Cleanup
 
