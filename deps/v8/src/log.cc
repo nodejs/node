@@ -654,7 +654,8 @@ void Profiler::Engage() {
       base::OS::GetSharedLibraryAddresses();
   for (size_t i = 0; i < addresses.size(); ++i) {
     LOG(isolate_, SharedLibraryEvent(
-        addresses[i].library_path, addresses[i].start, addresses[i].end));
+        addresses[i].library_path, addresses[i].start, addresses[i].end,
+            addresses[i].slide));
   }
 
   // Start thread processing the profiler buffer.
@@ -816,11 +817,13 @@ void Logger::ApiSecurityCheck() {
 
 void Logger::SharedLibraryEvent(const std::string& library_path,
                                 uintptr_t start,
-                                uintptr_t end) {
+                                uintptr_t end,
+                                uintptr_t slide) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
   Log::MessageBuilder msg(log_);
-  msg.Append("shared-library,\"%s\",0x%08" V8PRIxPTR ",0x%08" V8PRIxPTR,
-             library_path.c_str(), start, end);
+  msg.Append("shared-library,\"%s\",0x%08" V8PRIxPTR ",0x%08" V8PRIxPTR
+                 ",0x%08" V8PRIxPTR,
+             library_path.c_str(), start, end, slide);
   msg.WriteToLogFile();
 }
 

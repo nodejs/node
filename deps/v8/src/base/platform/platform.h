@@ -236,11 +236,16 @@ class OS {
   struct SharedLibraryAddress {
     SharedLibraryAddress(
         const std::string& library_path, uintptr_t start, uintptr_t end)
-        : library_path(library_path), start(start), end(end) {}
+        : library_path(library_path), start(start), end(end), slide(0) {}
+    SharedLibraryAddress(
+        const std::string& library_path, uintptr_t start, uintptr_t end,
+            uintptr_t slide)
+        : library_path(library_path), start(start), end(end), slide(slide) {}
 
     std::string library_path;
     uintptr_t start;
     uintptr_t end;
+    uintptr_t slide;
   };
 
   static std::vector<SharedLibraryAddress> GetSharedLibraryAddresses();

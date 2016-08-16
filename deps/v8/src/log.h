@@ -276,7 +276,8 @@ class Logger {
 
   void SharedLibraryEvent(const std::string& library_path,
                           uintptr_t start,
-                          uintptr_t end);
+                          uintptr_t end,
+                          uintptr_t slide);
 
   void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
   void CurrentTimeEvent();
