@@ -21,11 +21,6 @@ var filenameTwo = 'hasOwnProperty';
 var filepathTwo = filenameTwo;
 var filepathTwoAbs = path.join(testDir, filenameTwo);
 
-var filenameThree = 'newfile.txt';
-var testsubdir = fs.mkdtempSync(testDir + path.sep);
-var filepathThree = path.join(testsubdir, filenameThree);
-
-
 process.on('exit', function() {
   assert.ok(watchSeenOne > 0);
   assert.ok(watchSeenTwo > 0);
@@ -78,7 +73,9 @@ setImmediate(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
 });
 
-fs.mkdirSync(testsubdir, 0o700);
+var filenameThree = 'newfile.txt';
+var testsubdir = fs.mkdtempSync(testDir + path.sep);
+var filepathThree = path.join(testsubdir, filenameThree);
 
 assert.doesNotThrow(
     function() {
