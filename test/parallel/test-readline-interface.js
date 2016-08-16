@@ -26,6 +26,24 @@ function isWarned(emitter) {
   return false;
 }
 
+{
+  // Default crlfDelay is 100ms
+  const fi = new FakeInput();
+  let rli = new readline.Interface({ input: fi, output: fi });
+  assert.strictEqual(rli.crlfDelay, 100);
+  rli.close();
+
+  // Minimum crlfDelay is 100ms
+  rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
+  assert.strictEqual(rli.crlfDelay, 100);
+  rli.close();
+
+  // Maximum crlfDelay is 2000ms
+  rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 1 << 30});
+  assert.strictEqual(rli.crlfDelay, 2000);
+  rli.close();
+}
+
 [ true, false ].forEach(function(terminal) {
   var fi;
   var rli;
@@ -45,11 +63,6 @@ function isWarned(emitter) {
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
   assert.strictEqual(rli.historySize, 30);
-
-  // default crlfDelay is 100ms
-  fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
-  assert.strictEqual(rli.crlfDelay, 100);
 
   fi.emit('data', 'asdf\n');
   assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
