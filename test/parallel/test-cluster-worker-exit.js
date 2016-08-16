@@ -84,6 +84,7 @@ if (cluster.isWorker) {
     if (results.worker_emitDisconnect > 0) {
       process.nextTick(function() { finish_test(); });
     }
+    assert.equal(worker.listenerCount('message'), 0);
   });
 
   var finish_test = function() {
