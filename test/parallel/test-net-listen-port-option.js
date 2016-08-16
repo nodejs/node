@@ -19,7 +19,7 @@ const listenVariants = [
 
 listenVariants.forEach((listenVariant, i) => {
   listenVariant(undefined, common.mustCall(close));
-  listenVariant('' + (common.PORT + i), common.mustCall(close));
+  listenVariant(`${common.PORT + i}`, common.mustCall(close));
 
   [
     'nan',
