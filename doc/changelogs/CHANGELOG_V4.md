@@ -45,8 +45,8 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-  
-**Note:** Node.js v4 is covered by the 
+
+**Note:** Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
 
@@ -1558,7 +1558,7 @@ Maintenance update.
 * [[`1e1173fc5c`](https://github.com/nodejs/node/commit/1e1173fc5c)] - **configure**: respect CC_host in host arch detection (João Reis) [#4117](https://github.com/nodejs/node/pull/4117)
 * [[`2e9b886fbf`](https://github.com/nodejs/node/commit/2e9b886fbf)] - **crypto**: DSA parameter validation in FIPS mode (Stefan Budeanu) [#3756](https://github.com/nodejs/node/pull/3756)
 * [[`00b77d9e84`](https://github.com/nodejs/node/commit/00b77d9e84)] - **crypto**: Improve error checking and reporting (Stefan Budeanu) [#3753](https://github.com/nodejs/node/pull/3753)
-* [[`3dd90ddc73`](https://github.com/nodejs/node/commit/3dd90ddc73)] - **deps**: upgrade to npm 2.14.12 (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
+* [[`810f76e440`](https://github.com/nodejs/node/commit/810f76e440)] - **deps**: upgrade to npm 2.14.12 (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
 * [[`51ae8d10b3`](https://github.com/nodejs/node/commit/51ae8d10b3)] - **deps**: Updated node LICENSE file with new npm license (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
 * [[`9e1edead22`](https://github.com/nodejs/node/commit/9e1edead22)] - **deps**: backport 819b40a from V8 upstream (Michaël Zasso) [#3938](https://github.com/nodejs/node/pull/3938)
 * [[`a2ce3843cc`](https://github.com/nodejs/node/commit/a2ce3843cc)] - **deps**: upgrade npm to 2.14.9 (Forrest L Norvell) [#3686](https://github.com/nodejs/node/pull/3686)
