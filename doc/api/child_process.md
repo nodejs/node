@@ -305,8 +305,11 @@ added: v0.1.90
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
-    specified as a string. The shell should understand the `-c` switch on UNIX,
+    `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. If `'auto'`, tries to
+    detect if a shell is required. On Windows, this means that the `command`
+    has an extension other than `.exe` or `.com`; on UNIX, it is equivalent to
+    `false` (no shell). A different shell can also be specified as a string
+    other than `'auto'`. The shell should understand the `-c` switch on UNIX,
     or `/s /c` on Windows. Defaults to `false` (no shell).
 * return: {ChildProcess}
 
