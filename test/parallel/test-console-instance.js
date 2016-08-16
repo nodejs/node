@@ -21,14 +21,14 @@ assert.equal('function', typeof Console);
 // when not given a writable stream instance
 assert.throws(function() {
   new Console();
-}, /Console expects a writable stream/);
+}, /Console expects a writable stream instance/);
 
-// Console constructor should throw if stderr exists but is not writable
+// Console constructor should throw if stderr is passed but is not writable
 assert.throws(function() {
   out.write = function() {};
   err.write = undefined;
   new Console(out, err);
-}, /Console expects writable stream instances/);
+}, /Console expects stderr to be a writable stream instance when passed/);
 
 out.write = err.write = function(d) {};
 
