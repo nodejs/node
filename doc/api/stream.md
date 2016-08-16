@@ -67,16 +67,15 @@ var server = http.createServer( (req, res) => {
   // the end event tells you that you have entire body
   req.on('end', () => {
     try {
-      var data = JSON.parse(body);
+      const data = JSON.parse(body);
+      // write back something interesting to the user:
+      res.write(typeof data);
+      res.end();
     } catch (er) {
       // uh oh!  bad json!
       res.statusCode = 400;
       return res.end(`error: ${er.message}`);
     }
-
-    // write back something interesting to the user:
-    res.write(typeof data);
-    res.end();
   });
 });
 
