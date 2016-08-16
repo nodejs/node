@@ -100,6 +100,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
                          void* ctx);
 
   uv_stream_t* const stream_;
+  bool allocated_;
 };
 
 

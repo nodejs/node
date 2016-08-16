@@ -148,13 +148,26 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 
 void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  buf->base = static_cast<char*>(malloc(size));
-  buf->len = size;
+  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
+  Environment* env = wrap->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
-  if (buf->base == nullptr && size > 0) {
-    FatalError(
-        "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
-        "Out Of Memory");
+  Local<Value> prealloc = wrap->object()->Get(0);
+  if (Buffer::HasInstance(prealloc)) {
+    buf->base = Buffer::Data(prealloc);
+    buf->len = Buffer::Length(prealloc);
+    wrap->allocated_ = false;
+  } else {
+    buf->base = static_cast<char*>(malloc(size));
+    buf->len = size;
+    wrap->allocated_ = true;
+
+    if (buf->base == nullptr && size > 0) {
+      FatalError(
+          "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
+          "Out Of Memory");
+    }
   }
 }
 
@@ -192,19 +205,25 @@ void StreamWrap::OnReadImpl(ssize_t nread,
   Local<Object> pending_obj;
 
   if (nread < 0)  {
-    if (buf->base != nullptr)
+    if (buf->base != nullptr && wrap->allocated_)
       free(buf->base);
+    wrap->allocated_ = false;
     wrap->EmitData(nread, Local<Object>(), pending_obj);
     return;
   }
 
   if (nread == 0) {
-    if (buf->base != nullptr)
+    if (buf->base != nullptr && wrap->allocated_)
       free(buf->base);
+    wrap->allocated_ = false;
     return;
   }
 
-  char* base = static_cast<char*>(realloc(buf->base, nread));
+  char* base;
+  if (wrap->allocated_)
+    base = static_cast<char*>(realloc(buf->base, nread));
+  else
+    base = buf->base;
   CHECK_LE(static_cast<size_t>(nread), buf->len);
 
   if (pending == UV_TCP) {
@@ -217,8 +236,14 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
   }
 
-  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
+  Local<Object> obj;
+  if (!wrap->allocated_) {
+    obj = wrap->object()->Get(0).As<Object>();
+  } else {
+    obj = Buffer::New(env, base, nread).ToLocalChecked();
+  }
   wrap->EmitData(nread, obj, pending_obj);
+  wrap->allocated_ = false;
 }
 
 
