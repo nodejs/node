@@ -31,6 +31,9 @@
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
 
+    # Make --trace_maps debug flag available in release builds.
+    'v8_trace_maps': 1,
+
     'conditions': [
       ['OS == "win"', {
         'os_posix': 0,
