@@ -41,7 +41,7 @@ setInterval(function() {
   assert.equal(true, t - WINDOW < diff && diff < t + WINDOW);
 
   assert.equal(true, interval_count <= 3);
-  if (interval_count == 3)
+  if (interval_count === 3)
     clearInterval(this);
 }, 1000);
 
@@ -56,7 +56,7 @@ setInterval(function(param) {
   ++interval_count2;
   assert.equal('test param', param);
 
-  if (interval_count2 == 3)
+  if (interval_count2 === 3)
     clearInterval(this);
 }, 1000, 'test param');
 
@@ -73,7 +73,7 @@ setInterval(function(param1, param2) {
   assert.equal('param1', param1);
   assert.equal('param2', param2);
 
-  if (interval_count3 == 3)
+  if (interval_count3 === 3)
     clearInterval(this);
 }, 1000, 'param1', 'param2');
 
