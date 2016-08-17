@@ -29,7 +29,7 @@ server.listen(0, function() {
         res.on('end', function() {
           count++;
 
-          if (count == 11) {
+          if (count === 11) {
             server.close();
           }
         });

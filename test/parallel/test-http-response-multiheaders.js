@@ -30,12 +30,12 @@ const norepeat = [
 
 const server = http.createServer(function(req, res) {
   var num = req.headers['x-num'];
-  if (num == 1) {
+  if (num === '1') {
     for (const name of norepeat) {
       res.setHeader(name, ['A', 'B']);
     }
     res.setHeader('X-A', ['A', 'B']);
-  } else if (num == 2) {
+  } else if (num === '2') {
     const headers = {};
     for (const name of norepeat) {
       headers[name] = ['A', 'B'];

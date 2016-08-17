@@ -20,6 +20,6 @@ var exception_count = 0;
 process.on('uncaughtException', function(err) {
   console.log('Caught an exception: ' + err);
   if (err.name === 'AssertionError') throw err;
-  if (++exception_count == 4) process.exit(0);
+  if (++exception_count === 4) process.exit(0);
 });
 

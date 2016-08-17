@@ -38,7 +38,7 @@ function testServer() {
 
     socket.on('data', function(d) {
       var data = d.toString('utf8');
-      if (data == 'kill') {
+      if (data === 'kill') {
         socket.end();
       } else {
         socket.write(data, 'utf8');
@@ -78,11 +78,11 @@ function test_upgrade_with_listener() {
 
     assert.equal('string', typeof data);
 
-    if (state == 1) {
+    if (state === 1) {
       assert.equal('HTTP/1.1 101', data.substr(0, 12));
       assert.equal('WjN}|M(6', request_upgradeHead.toString('utf8'));
       conn.write('test', 'utf8');
-    } else if (state == 2) {
+    } else if (state === 2) {
       assert.equal('test', data);
       conn.write('kill', 'utf8');
     }
