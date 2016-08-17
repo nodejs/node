@@ -234,6 +234,8 @@ more information about the governance of the Node.js project, see
 **Yuval Brik** &lt;yuval@brik.org.il&gt;
 * [joaocgreis](https://github.com/joaocgreis) -
 **João Reis** &lt;reis@janeasystems.com&gt;
+* [joshgav](https://github.com/joshgav) -
+**Josh Gavant** &lt;josh.gavant@outlook.com&gt;
 * [julianduque](https://github.com/julianduque) -
 **Julian Duque** &lt;julianduquej@gmail.com&gt;
 * [JungMinu](https://github.com/JungMinu) -
