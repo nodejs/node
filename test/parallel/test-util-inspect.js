@@ -11,12 +11,12 @@ assert.equal(util.inspect('hello'), "'hello'");
 assert.equal(util.inspect(function() {}), '[Function]');
 assert.equal(util.inspect(undefined), 'undefined');
 assert.equal(util.inspect(null), 'null');
-assert.equal(util.inspect(/foo(bar\r\n)?/gi), '/foo(bar\\r\\n)?/gi');
+assert.equal(util.inspect(/foo(bar\n)?/gi), '/foo(bar\\n)?/gi');
 assert.strictEqual(util.inspect(new Date('Sun, 14 Feb 2010 11:48:40 GMT')),
   new Date('2010-02-14T12:48:40+01:00').toISOString());
 assert.strictEqual(util.inspect(new Date('')), (new Date('')).toString());
 
-assert.equal(util.inspect('\r\n\u0001'), "'\\r\\n\\u0001'");
+assert.equal(util.inspect('\n\u0001'), "'\\n\\u0001'");
 
 assert.equal(util.inspect([]), '[]');
 assert.equal(util.inspect(Object.create([])), 'Array {}');
@@ -55,25 +55,25 @@ for (const showHidden of [true, false]) {
   const dv = new DataView(ab, 1, 2);
   assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
   assert.equal(util.inspect(new DataView(ab, 1, 2), showHidden),
-               'DataView {\r\n' +
-               '  byteLength: 2,\r\n' +
-               '  byteOffset: 1,\r\n' +
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
                '  buffer: ArrayBuffer { byteLength: 4 } }');
   assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
   assert.equal(util.inspect(dv, showHidden),
-               'DataView {\r\n' +
-               '  byteLength: 2,\r\n' +
-               '  byteOffset: 1,\r\n' +
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
                '  buffer: ArrayBuffer { byteLength: 4 } }');
   ab.x = 42;
   dv.y = 1337;
   assert.equal(util.inspect(ab, showHidden),
                'ArrayBuffer { byteLength: 4, x: 42 }');
   assert.equal(util.inspect(dv, showHidden),
-               'DataView {\r\n' +
-               '  byteLength: 2,\r\n' +
-               '  byteOffset: 1,\r\n' +
-               '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\r\n' +
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
                '  y: 1337 }');
 }
 
@@ -83,25 +83,25 @@ for (const showHidden of [true, false]) {
   const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab: ab });
   assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
   assert.equal(util.inspect(new DataView(ab, 1, 2), showHidden),
-               'DataView {\r\n' +
-               '  byteLength: 2,\r\n' +
-               '  byteOffset: 1,\r\n' +
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
                '  buffer: ArrayBuffer { byteLength: 4 } }');
   assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
   assert.equal(util.inspect(dv, showHidden),
-               'DataView {\r\n' +
-               '  byteLength: 2,\r\n' +
-               '  byteOffset: 1,\r\n' +
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
                '  buffer: ArrayBuffer { byteLength: 4 } }');
   ab.x = 42;
   dv.y = 1337;
   assert.equal(util.inspect(ab, showHidden),
                'ArrayBuffer { byteLength: 4, x: 42 }');
   assert.equal(util.inspect(dv, showHidden),
-               'DataView {\r\n' +
-               '  byteLength: 2,\r\n' +
-               '  byteOffset: 1,\r\n' +
-               '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\r\n' +
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
                '  y: 1337 }');
 }
 
@@ -121,13 +121,13 @@ for (const showHidden of [true, false]) {
     array[0] = 65;
     array[1] = 97;
     assert.equal(util.inspect(array, true),
-                 `${constructor.name} [\r\n` +
-                 `  65,\r\n` +
-                 `  97,\r\n` +
-                 `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT}` +
-                 `,\r\n  [length]: ${length},\r\n` +
-                 `  [byteLength]: ${byteLength},\r\n` +
-                 `  [byteOffset]: 0,\r\n` +
+                 `${constructor.name} [\n` +
+                 `  65,\n` +
+                 `  97,\n` +
+                 `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
+                 `  [length]: ${length},\n` +
+                 `  [byteLength]: ${byteLength},\n` +
+                 `  [byteOffset]: 0,\n` +
                  `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
     assert.equal(util.inspect(array, false), `${constructor.name} [ 65, 97 ]`);
   });
@@ -153,13 +153,13 @@ for (const showHidden of [true, false]) {
     array[0] = 65;
     array[1] = 97;
     assert.equal(util.inspect(array, true),
-                 `${constructor.name} [\r\n` +
-                 `  65,\r\n` +
-                 `  97,\r\n` +
-                 `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT}` +
-                 `,\r\n  [length]: ${length},\r\n` +
-                 `  [byteLength]: ${byteLength},\r\n` +
-                 `  [byteOffset]: 0,\r\n` +
+                 `${constructor.name} [\n` +
+                 `  65,\n` +
+                 `  97,\n` +
+                 `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
+                 `  [length]: ${length},\n` +
+                 `  [byteLength]: ${byteLength},\n` +
+                 `  [byteOffset]: 0,\n` +
                  `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
     assert.equal(util.inspect(array, false), `${constructor.name} [ 65, 97 ]`);
   });
@@ -454,7 +454,7 @@ assert.doesNotThrow(function() {
 // util.inspect with "colors" option should produce as many lines as without it
 function test_lines(input) {
   var count_lines = function(str) {
-    return (str.match(/\r\n/g) || []).length;
+    return (str.match(/\n/g) || []).length;
   };
 
   var without_color = util.inspect(input);
@@ -585,7 +585,7 @@ assert.strictEqual(util.inspect(keys), 'SetIterator { 1, 3 }');
 // Assumes that the first numeric character is the start of an item.
 
 function checkAlignment(container) {
-  var lines = util.inspect(container).split('\r\n');
+  var lines = util.inspect(container).split('\n');
   var pos;
   lines.forEach(function(line) {
     var npos = line.search(/\d/);
@@ -728,7 +728,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
   assert.strictEqual(oneLine, '{ foo: \'abc\', bar: \'xyz\' }');
   assert.strictEqual(oneLine, util.inspect(obj, {breakLength: breakpoint + 1}));
-  assert.strictEqual(twoLines, '{ foo: \'abc\',\r\n  bar: \'xyz\' }');
+  assert.strictEqual(twoLines, '{ foo: \'abc\',\n  bar: \'xyz\' }');
 }
 
 // util.inspect.defaultOptions tests

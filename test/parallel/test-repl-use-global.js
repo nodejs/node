@@ -24,7 +24,7 @@ const globalTest = (useGlobal, cb, output) => (err, repl) => {
   let str = '';
   output.on('data', (data) => (str += data));
   global.lunch = 'tacos';
-  repl.write('global.lunch;\r\n');
+  repl.write('global.lunch;\n');
   repl.close();
   delete global.lunch;
   cb(null, str.trim());
@@ -54,8 +54,8 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
   output.on('data', (data) => (str += data));
 
   // if useGlobal is false, then `let process` should work
-  repl.write('let process;\r\n');
-  repl.write('21 * 2;\r\n');
+  repl.write('let process;\n');
+  repl.write('21 * 2;\n');
   repl.close();
   cb(null, str.trim());
 };
@@ -63,7 +63,7 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
 for (const option of processTestCases) {
   runRepl(option, processTest, common.mustCall((err, output) => {
     assert.ifError(err);
-    assert.strictEqual(output, 'undefined\r\n42');
+    assert.strictEqual(output, 'undefined\n42');
   }));
 }
 
