@@ -58,7 +58,7 @@ server.on('listening', function() {
       assert.equal(body, test_res_body, 'Response body doesn\'t match.');
       assert.ok('abcd' in res.headers, 'Response headers missing.');
       outstanding_reqs--;
-      if (outstanding_reqs == 0) {
+      if (outstanding_reqs === 0) {
         server.close();
         process.exit();
       }
