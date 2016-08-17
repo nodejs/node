@@ -165,6 +165,9 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}),
 assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
                     a.AssertionError);
 
+// same number of keys but different key names
+assert.throws(makeBlock(a.deepEqual, {a: 1}, {b: 1}), a.AssertionError);
+
 //deepStrictEqual
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
                     new Date(2000, 3, 14)),
