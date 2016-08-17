@@ -21,7 +21,7 @@ putIn.write = function(msg) {
     recovered = true;
   }
 
-  if (msg === 'true\r\n') {
+  if (msg === 'true\n') {
     rendered = true;
   }
 };
@@ -30,8 +30,8 @@ repl.start('', putIn, customEval);
 
 // https://github.com/nodejs/node/issues/2939
 // Expose recoverable errors to the consumer.
-putIn.emit('data', '1\r\n');
-putIn.emit('data', '2\r\n');
+putIn.emit('data', '1\n');
+putIn.emit('data', '2\n');
 
 process.on('exit', function() {
   assert(recovered, 'REPL never recovered');

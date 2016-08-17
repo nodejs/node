@@ -27,8 +27,7 @@ putIn.run(testFile);
 putIn.run(['.save ' + saveFileName]);
 
 // the file should have what I wrote
-assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\r\n')
-             + '\r\n');
+assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') + '\n');
 
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good
@@ -55,7 +54,7 @@ var loadFile = join(common.tmpDir, 'file.does.not.exist');
 // should not break
 putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
-  assert.equal(data, 'Failed to load:' + loadFile + '\r\n');
+  assert.equal(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
   putIn.write = function() {};
 };
@@ -64,7 +63,7 @@ putIn.run(['.load ' + loadFile]);
 // throw error on loading directory
 loadFile = common.tmpDir;
 putIn.write = function(data) {
-  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\r\n');
+  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\n');
   putIn.write = function() {};
 };
 putIn.run(['.load ' + loadFile]);
@@ -79,7 +78,7 @@ const invalidFileName = join(common.tmpDir, '\0\0\0\0\0');
 // should not break
 putIn.write = function(data) {
   // make sure I get a failed to save message and not some other error
-  assert.equal(data, 'Failed to save:' + invalidFileName + '\r\n');
+  assert.equal(data, 'Failed to save:' + invalidFileName + '\n');
   // reset to no-op
   putIn.write = function() {};
 };

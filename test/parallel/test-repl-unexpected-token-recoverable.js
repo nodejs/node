@@ -10,9 +10,9 @@ var spawn = require('child_process').spawn;
 var args = [ '-i' ];
 var child = spawn(process.execPath, args);
 
-var input = 'var foo = "bar\\\r\nbaz"';
+var input = 'var foo = "bar\\\nbaz"';
 // Match '...' as well since it marks a multi-line statement
-var expectOut = /^> ... undefined\r\n/;
+var expectOut = /^> ... undefined\n/;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(c) {

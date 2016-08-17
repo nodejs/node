@@ -19,7 +19,7 @@ function test1() {
     if (data.length) {
 
       // inspect output matches repl output
-      assert.equal(data, util.inspect(require('fs'), null, 2, false) + '\r\n');
+      assert.equal(data, util.inspect(require('fs'), null, 2, false) + '\n');
       // globally added lib matches required lib
       assert.equal(global.fs, require('fs'));
       test2();
@@ -36,7 +36,7 @@ function test2() {
     gotWrite = true;
     if (data.length) {
       // repl response error message
-      assert.equal(data, '{}\r\n');
+      assert.equal(data, '{}\n');
       // original value wasn't overwritten
       assert.equal(val, global.url);
     }
