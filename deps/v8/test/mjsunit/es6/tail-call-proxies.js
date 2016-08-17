@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-tailcalls --harmony-proxies
+// Flags: --allow-natives-syntax --harmony-tailcalls
 "use strict";
 
 Error.prepareStackTrace = (e,s) => s;

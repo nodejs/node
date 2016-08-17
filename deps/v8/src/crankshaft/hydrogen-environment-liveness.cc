@@ -37,9 +37,9 @@ void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlot(
     int index, HSimulate* simulate) {
   int operand_index = simulate->ToOperandIndex(index);
   if (operand_index == -1) {
-    simulate->AddAssignedValue(index, graph()->GetConstantUndefined());
+    simulate->AddAssignedValue(index, graph()->GetConstantOptimizedOut());
   } else {
-    simulate->SetOperandAt(operand_index, graph()->GetConstantUndefined());
+    simulate->SetOperandAt(operand_index, graph()->GetConstantOptimizedOut());
   }
 }
 

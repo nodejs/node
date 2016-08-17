@@ -5,6 +5,7 @@
 // Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertTraps(code, msg) {
   var threwException = true;
@@ -29,38 +30,18 @@ function assertTraps(code, msg) {
 }
 
 
-function makeDivRem(opcode) {
-  var kBodySize = 5;
-  var kNameMainOffset = 6 + 11 + kBodySize + 1;
+function makeBinop(opcode) {
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes(
-    // signatures
-    kDeclSignatures, 1,
-    2, kAstI32, kAstI32, kAstI32, // (int,int) -> int
-    // -- main function
-    kDeclFunctions, 1,
-    kDeclFunctionName | kDeclFunctionExport,
-    0, 0,
-    kNameMainOffset, 0, 0, 0,   // name offset
-    kBodySize, 0,
-    // main body
-    opcode,                     // --
-    kExprGetLocal, 0,           // --
-    kExprGetLocal, 1,           // --
-    // names
-    kDeclEnd,
-    'm', 'a', 'i', 'n', 0       //  --
-  );
+  builder.addFunction("main", [kAstI32, kAstI32, kAstI32])
+    .addBody([opcode, kExprGetLocal, 0, kExprGetLocal, 1])
+    .exportFunc();
 
-  var module = _WASMEXP_.instantiateModule(data);
-
-  assertEquals("function", typeof module.main);
-
-  return module.main;
+  return builder.instantiate().exports.main;
 }
 
-var divs = makeDivRem(kExprI32DivS);
-var divu = makeDivRem(kExprI32DivU);
+var divs = makeBinop(kExprI32DivS);
+var divu = makeBinop(kExprI32DivU);
 
 assertEquals( 33, divs( 333, 10));
 assertEquals(-33, divs(-336, 10));
@@ -78,8 +59,8 @@ assertTraps(kTrapDivUnrepresentable, "divs(0x80000000, -1)");
 assertEquals(0, divu(0x80000000, -1));
 
 
-var rems = makeDivRem(kExprI32RemS);
-var remu = makeDivRem(kExprI32RemU);
+var rems = makeBinop(kExprI32RemS);
+var remu = makeBinop(kExprI32RemU);
 
 assertEquals( 3, rems( 333, 10));
 assertEquals(-6, rems(-336, 10));

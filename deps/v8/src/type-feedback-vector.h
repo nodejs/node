@@ -231,17 +231,17 @@ class TypeFeedbackVector : public FixedArray {
   void ClearKeyedStoreICs(SharedFunctionInfo* shared);
 
   // The object that indicates an uninitialized cache.
-  static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
+  static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
 
   // The object that indicates a megamorphic state.
-  static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
+  static inline Handle<Symbol> MegamorphicSentinel(Isolate* isolate);
 
   // The object that indicates a premonomorphic state.
-  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
+  static inline Handle<Symbol> PremonomorphicSentinel(Isolate* isolate);
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
-  static inline Object* RawUninitializedSentinel(Isolate* isolate);
+  static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
 
   static const int kDummyLoadICSlot = 0;
   static const int kDummyKeyedLoadICSlot = 2;

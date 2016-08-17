@@ -85,6 +85,8 @@ TEST_MAP = {
   "ignition": [
     "mjsunit",
     "cctest",
+    "webkit",
+    "message",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
@@ -173,6 +175,8 @@ SUPPORTED_ARCHS = ["android_arm",
                    "mips64el",
                    "nacl_ia32",
                    "nacl_x64",
+                   "s390",
+                   "s390x",
                    "ppc",
                    "ppc64",
                    "x64",
@@ -208,6 +212,8 @@ def BuildOptions():
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
+  result.add_option("--sancov-dir",
+                    help="Directory where to collect coverage data")
   result.add_option("--cfi-vptr",
                     help="Run tests with UBSAN cfi_vptr option.",
                     default=False, action="store_true")
@@ -222,9 +228,6 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
                     default=False, action="store_true")
-  result.add_option("--flaky-tests",
-                    help="Regard tests marked as flaky (run|skip|dontcare)",
-                    default="dontcare")
   result.add_option("--slow-tests",
                     help="Regard slow tests (run|skip|dontcare)",
                     default="dontcare")
@@ -298,7 +301,7 @@ def BuildOptions():
                           " (verbose, dots, color, mono)"),
                     choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
   result.add_option("--quickcheck", default=False, action="store_true",
-                    help=("Quick check mode (skip slow/flaky tests)"))
+                    help=("Quick check mode (skip slow tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
                     default=False, action="store_true")
   result.add_option("--json-test-results",
@@ -384,6 +387,14 @@ def SetupEnvironment(options):
 
   if options.asan:
     os.environ['ASAN_OPTIONS'] = symbolizer
+
+  if options.sancov_dir:
+    assert os.path.exists(options.sancov_dir)
+    os.environ['ASAN_OPTIONS'] = ":".join([
+      'coverage=1',
+      'coverage_dir=%s' % options.sancov_dir,
+      symbolizer,
+    ])
 
   if options.cfi_vptr:
     os.environ['UBSAN_OPTIONS'] = ":".join([
@@ -490,7 +501,6 @@ def ProcessOptions(options):
     return False
   if options.quickcheck:
     VARIANTS = ["default", "stress"]
-    options.flaky_tests = "skip"
     options.slow_tests = "skip"
     options.pass_fail_tests = "skip"
   if options.no_stress:
@@ -524,8 +534,6 @@ def ProcessOptions(options):
       print "Unknown %s mode %s" % (name, option)
       return False
     return True
-  if not CheckTestMode("flaky test", options.flaky_tests):
-    return False
   if not CheckTestMode("slow test", options.slow_tests):
     return False
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
@@ -616,7 +624,6 @@ def Main():
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(BASE_DIR, "test", root))
     if suite:
-      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data or options.download_data_only:
@@ -688,7 +695,8 @@ def Execute(arch, mode, args, options, suites):
                         options.rerun_failures_max,
                         options.predictable,
                         options.no_harness,
-                        use_perf_data=not options.swarming)
+                        use_perf_data=not options.swarming,
+                        sancov_dir=options.sancov_dir)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
@@ -725,8 +733,8 @@ def Execute(arch, mode, args, options, suites):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
-    s.FilterTestCasesByStatus(options.warn_unused, options.flaky_tests,
-                              options.slow_tests, options.pass_fail_tests)
+    s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
+                              options.pass_fail_tests)
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
@@ -814,6 +822,18 @@ def Execute(arch, mode, args, options, suites):
     print("Force exit code 0 after failures. Json test results file generated "
           "with failure information.")
     exit_code = 0
+
+  if options.sancov_dir:
+    # If tests ran with sanitizer coverage, merge coverage files in the end.
+    try:
+      print "Merging sancov files."
+      subprocess.check_call([
+        sys.executable,
+        join(BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
+        "--coverage-dir=%s" % options.sancov_dir])
+    except:
+      print >> sys.stderr, "Error: Merging sancov files failed."
+      exit_code = 1
 
   return exit_code
 

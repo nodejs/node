@@ -100,7 +100,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
               function_kind);
   // The outermost scope must be a script scope.
   DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != NULL);
-  DCHECK(!HasIllegalRedeclaration());
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
@@ -169,9 +168,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   function_ = nullptr;
   arguments_ = nullptr;
   this_function_ = nullptr;
-  illegal_redecl_ = nullptr;
   scope_inside_with_ = false;
-  scope_contains_with_ = false;
   scope_calls_eval_ = false;
   scope_uses_arguments_ = false;
   scope_uses_super_property_ = false;
@@ -210,15 +207,14 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
-  bool contains_with = false;
   while (!context->IsNativeContext()) {
-    if (context->IsWithContext()) {
+    if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
+      // For scope analysis, debug-evaluate is equivalent to a with scope.
       Scope* with_scope = new (zone)
           Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null(),
                 script_scope->ast_value_factory_);
       current_scope = with_scope;
       // All the inner scopes are inside a with.
-      contains_with = true;
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
@@ -252,13 +248,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
           script_scope->ast_value_factory_->GetString(Handle<String>(name)),
           script_scope->ast_value_factory_);
     }
-    if (contains_with) current_scope->RecordWithStatement();
     if (innermost_scope == NULL) innermost_scope = current_scope;
-
-    // Forget about a with when we move to a context for a different function.
-    if (context->previous()->closure() != context->closure()) {
-      contains_with = false;
-    }
     context = context->previous();
   }
 
@@ -392,7 +382,6 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   if (uses_arguments()) other->RecordArgumentsUsage();
   if (uses_super_property()) other->RecordSuperPropertyUsage();
   if (calls_eval()) other->RecordEvalCall();
-  if (scope_contains_with_) other->RecordWithStatement();
 }
 
 
@@ -580,21 +569,6 @@ bool Scope::RemoveTemporary(Variable* var) {
 
 void Scope::AddDeclaration(Declaration* declaration) {
   decls_.Add(declaration, zone());
-}
-
-
-void Scope::SetIllegalRedeclaration(Expression* expression) {
-  // Record only the first illegal redeclaration.
-  if (!HasIllegalRedeclaration()) {
-    illegal_redecl_ = expression;
-  }
-  DCHECK(HasIllegalRedeclaration());
-}
-
-
-Expression* Scope::GetIllegalRedeclaration() {
-  DCHECK(HasIllegalRedeclaration());
-  return illegal_redecl_;
 }
 
 
@@ -817,25 +791,7 @@ Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {
   return scope_info_;
 }
 
-
-void Scope::GetNestedScopeChain(Isolate* isolate,
-                                List<Handle<ScopeInfo> >* chain, int position) {
-  if (!is_eval_scope()) chain->Add(Handle<ScopeInfo>(GetScopeInfo(isolate)));
-
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    Scope* scope = inner_scopes_[i];
-    int beg_pos = scope->start_position();
-    int end_pos = scope->end_position();
-    DCHECK(beg_pos >= 0 && end_pos >= 0);
-    if (beg_pos <= position && position < end_pos) {
-      scope->GetNestedScopeChain(isolate, chain, position);
-      return;
-    }
-  }
-}
-
-
-void Scope::CollectNonLocals(HashMap* non_locals) {
+Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
   // Collect non-local variables referenced in the scope.
   // TODO(yangguo): store non-local variables explicitly if we can no longer
   //                rely on unresolved_ to find them.
@@ -843,13 +799,12 @@ void Scope::CollectNonLocals(HashMap* non_locals) {
     VariableProxy* proxy = unresolved_[i];
     if (proxy->is_resolved() && proxy->var()->IsStackAllocated()) continue;
     Handle<String> name = proxy->name();
-    void* key = reinterpret_cast<void*>(name.location());
-    HashMap::Entry* entry = non_locals->LookupOrInsert(key, name->Hash());
-    entry->value = key;
+    non_locals = StringSet::Add(non_locals, name);
   }
   for (int i = 0; i < inner_scopes_.length(); i++) {
-    inner_scopes_[i]->CollectNonLocals(non_locals);
+    non_locals = inner_scopes_[i]->CollectNonLocals(non_locals);
   }
+  return non_locals;
 }
 
 
@@ -999,7 +954,6 @@ void Scope::Print(int n) {
     Indent(n1, "// strict mode scope\n");
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
-  if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
@@ -1271,8 +1225,8 @@ bool Scope::MustAllocate(Variable* var) {
   // visible name.
   if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
       (var->has_forced_context_allocation() || scope_calls_eval_ ||
-       inner_scope_calls_eval_ || scope_contains_with_ || is_catch_scope() ||
-       is_block_scope() || is_module_scope() || is_script_scope())) {
+       inner_scope_calls_eval_ || is_catch_scope() || is_block_scope() ||
+       is_module_scope() || is_script_scope())) {
     var->set_is_used();
     if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }
@@ -1295,10 +1249,8 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope() || is_module_scope()) return true;
   if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
-  return var->has_forced_context_allocation() ||
-      scope_calls_eval_ ||
-      inner_scope_calls_eval_ ||
-      scope_contains_with_;
+  return var->has_forced_context_allocation() || scope_calls_eval_ ||
+         inner_scope_calls_eval_;
 }
 
 

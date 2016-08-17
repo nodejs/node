@@ -10,7 +10,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
-#include "src/interpreter/register-translator.h"
 #include "src/interpreter/source-position-table.h"
 #include "src/zone-containers.h"
 
@@ -24,10 +23,11 @@ namespace interpreter {
 class BytecodeLabel;
 class Register;
 
-class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
+class BytecodeArrayBuilder final : public ZoneObject {
  public:
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
-                       int context_count, int locals_count);
+                       int context_count, int locals_count,
+                       FunctionLiteral* literal = nullptr);
   ~BytecodeArrayBuilder();
 
   Handle<BytecodeArray> ToBytecodeArray();
@@ -65,13 +65,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
     return temporary_register_allocator()->allocation_count();
   }
 
-  // Returns the number of registers used for translating wide
-  // register operands into byte sized register operands.
-  int translation_register_count() const {
-    return RegisterTranslator::RegisterCountAdjustment(
-        fixed_and_temporary_register_count(), parameter_count());
-  }
-
   Register Parameter(int parameter_index) const;
 
   // Return true if the register |reg| represents a parameter or a
@@ -89,7 +82,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& LoadTheHole();
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
-  BytecodeArrayBuilder& LoadBooleanConstant(bool value);
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
@@ -245,7 +237,8 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& ForInPrepare(Register cache_info_triple);
   BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
-                                  Register cache_type_array_pair);
+                                  Register cache_type_array_pair,
+                                  int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
 
   // Exception handling.
@@ -257,8 +250,11 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
 
+  void InitializeReturnPosition(FunctionLiteral* literal);
+
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr);
+  void SetExpressionAsStatementPosition(Expression* expr);
 
   // Accessors
   Zone* zone() const { return zone_; }
@@ -269,7 +265,23 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
     return &temporary_allocator_;
   }
 
-  void EnsureReturn(FunctionLiteral* literal);
+  void EnsureReturn();
+
+  static OperandScale OperandSizesToScale(
+      OperandSize size0, OperandSize size1 = OperandSize::kByte,
+      OperandSize size2 = OperandSize::kByte,
+      OperandSize size3 = OperandSize::kByte);
+
+  static OperandSize SizeForRegisterOperand(Register reg);
+  static OperandSize SizeForSignedOperand(int value);
+  static OperandSize SizeForUnsignedOperand(int value);
+  static OperandSize SizeForUnsignedOperand(size_t value);
+
+  static uint32_t RegisterOperand(Register reg);
+  static Register RegisterFromOperand(uint32_t operand);
+  static uint32_t SignedOperand(int value, OperandSize size);
+  static uint32_t UnsignedOperand(int value);
+  static uint32_t UnsignedOperand(size_t value);
 
  private:
   class PreviousBytecodeHelper;
@@ -278,7 +290,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static Bytecode BytecodeForCountOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
-  static Bytecode BytecodeForWideOperands(Bytecode bytecode);
   static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
   static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
   static Bytecode BytecodeForLoadGlobal(TypeofMode typeof_mode);
@@ -288,32 +299,22 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   static Bytecode BytecodeForDelete(LanguageMode language_mode);
   static Bytecode BytecodeForCall(TailCallMode tail_call_mode);
 
-  static bool FitsInIdx8Operand(int value);
-  static bool FitsInIdx8Operand(size_t value);
-  static bool FitsInImm8Operand(int value);
-  static bool FitsInIdx16Operand(int value);
-  static bool FitsInIdx16Operand(size_t value);
-  static bool FitsInReg8Operand(Register value);
-  static bool FitsInReg8OperandUntranslated(Register value);
-  static bool FitsInReg16Operand(Register value);
-  static bool FitsInReg16OperandUntranslated(Register value);
-
-  // RegisterMover interface.
-  void MoveRegisterUntranslated(Register from, Register to) override;
-
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_smi8_operand);
-  static Bytecode GetJumpWithConstantWideOperand(Bytecode jump_smi8_operand);
   static Bytecode GetJumpWithToBoolean(Bytecode jump_smi8_operand);
 
   template <size_t N>
-  INLINE(void Output(Bytecode bytecode, uint32_t(&operands)[N]));
-  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-              uint32_t operand2, uint32_t operand3);
-  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-              uint32_t operand2);
-  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1);
-  void Output(Bytecode bytecode, uint32_t operand0);
+  INLINE(void Output(Bytecode bytecode, uint32_t (&operands)[N],
+                     OperandScale operand_scale = OperandScale::kSingle));
   void Output(Bytecode bytecode);
+  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
+                    uint32_t operand0, uint32_t operand1, uint32_t operand2,
+                    uint32_t operand3);
+  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
+                    uint32_t operand0, uint32_t operand1, uint32_t operand2);
+  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
+                    uint32_t operand0, uint32_t operand1);
+  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
+                    uint32_t operand0);
 
   BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
                                    BytecodeLabel* label);
@@ -323,19 +324,21 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
       const ZoneVector<uint8_t>::iterator& jump_location, int delta);
   void PatchIndirectJumpWith16BitOperand(
       const ZoneVector<uint8_t>::iterator& jump_location, int delta);
+  void PatchIndirectJumpWith32BitOperand(
+      const ZoneVector<uint8_t>::iterator& jump_location, int delta);
 
   void LeaveBasicBlock();
 
-  bool OperandIsValid(Bytecode bytecode, int operand_index,
-                      uint32_t operand_value) const;
-  bool RegisterIsValid(Register reg, OperandType reg_type) const;
+  bool OperandIsValid(Bytecode bytecode, OperandScale operand_scale,
+                      int operand_index, uint32_t operand_value) const;
+  bool RegisterIsValid(Register reg, OperandSize reg_size) const;
 
   bool LastBytecodeInSameBlock() const;
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
 
-  // Set position for implicit return.
-  void SetReturnPosition(FunctionLiteral* fun);
+  // Set position for return.
+  void SetReturnPosition();
 
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
@@ -355,7 +358,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   SourcePositionTableBuilder* source_position_table_builder() {
     return &source_position_table_builder_;
   }
-  RegisterTranslator* register_translator() { return &register_translator_; }
 
   Isolate* isolate_;
   Zone* zone_;
@@ -371,8 +373,8 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   int parameter_count_;
   int local_register_count_;
   int context_register_count_;
+  int return_position_;
   TemporaryRegisterAllocator temporary_allocator_;
-  RegisterTranslator register_translator_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };

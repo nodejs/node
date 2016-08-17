@@ -69,9 +69,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     }
     __ Push(Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
 
-    if (mode == SAVE_RESULT_REGISTER) __ Push(rax);
-
-    __ Set(rax, 0);  // No arguments (argc == 0).
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ Push(rax);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ Set(rax, 1);
     __ Move(rbx, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
                                    masm->isolate()));
 
@@ -81,11 +87,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        __ Set(reg, kDebugZapValue);
+        // Do not clobber rax if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function.
+        if (!(reg.is(rax) && (mode == SAVE_RESULT_REGISTER))) {
+          __ Set(reg, kDebugZapValue);
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ Pop(rax);
 
     // Read current padding counter and skip corresponding number of words.
     __ Pop(kScratchRegister);
@@ -111,9 +119,12 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set rsp based on rbp.
-  __ leap(rsp, Operand(rbp, -1 * kPointerSize));
-
+  __ leap(rsp, Operand(rbp, FrameDropperFrameConstants::kFunctionOffset));
   __ Pop(rdi);  // Function.
+  __ addp(rsp,
+          Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
+                                                                 // frame marker
+                                                                 // and code
   __ popq(rbp);
 
   ParameterCount dummy(0);

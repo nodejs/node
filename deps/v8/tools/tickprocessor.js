@@ -70,88 +70,12 @@ function parseState(s) {
 }
 
 
-function SnapshotLogProcessor() {
-  LogReader.call(this, {
-      'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
-          processor: this.processCodeCreation },
-      'code-move': { parsers: [parseInt, parseInt],
-          processor: this.processCodeMove },
-      'code-delete': { parsers: [parseInt],
-          processor: this.processCodeDelete },
-      'function-creation': null,
-      'function-move': null,
-      'function-delete': null,
-      'sfi-move': null,
-      'snapshot-pos': { parsers: [parseInt, parseInt],
-          processor: this.processSnapshotPosition }});
-
-  V8Profile.prototype.handleUnknownCode = function(operation, addr) {
-    var op = Profile.Operation;
-    switch (operation) {
-      case op.MOVE:
-        print('Snapshot: Code move event for unknown code: 0x' +
-              addr.toString(16));
-        break;
-      case op.DELETE:
-        print('Snapshot: Code delete event for unknown code: 0x' +
-              addr.toString(16));
-        break;
-    }
-  };
-
-  this.profile_ = new V8Profile();
-  this.serializedEntries_ = [];
-}
-inherits(SnapshotLogProcessor, LogReader);
-
-
-SnapshotLogProcessor.prototype.processCodeCreation = function(
-    type, kind, start, size, name, maybe_func) {
-  if (maybe_func.length) {
-    var funcAddr = parseInt(maybe_func[0]);
-    var state = parseState(maybe_func[1]);
-    this.profile_.addFuncCode(type, name, start, size, funcAddr, state);
-  } else {
-    this.profile_.addCode(type, name, start, size);
-  }
-};
-
-
-SnapshotLogProcessor.prototype.processCodeMove = function(from, to) {
-  this.profile_.moveCode(from, to);
-};
-
-
-SnapshotLogProcessor.prototype.processCodeDelete = function(start) {
-  this.profile_.deleteCode(start);
-};
-
-
-SnapshotLogProcessor.prototype.processSnapshotPosition = function(addr, pos) {
-  this.serializedEntries_[pos] = this.profile_.findEntry(addr);
-};
-
-
-SnapshotLogProcessor.prototype.processLogFile = function(fileName) {
-  var contents = readFile(fileName);
-  this.processLogChunk(contents);
-};
-
-
-SnapshotLogProcessor.prototype.getSerializedEntryName = function(pos) {
-  var entry = this.serializedEntries_[pos];
-  return entry ? entry.getRawName() : null;
-};
-
-
 function TickProcessor(
     cppEntriesProvider,
     separateIc,
     callGraphSize,
     ignoreUnknown,
     stateFilter,
-    snapshotLogProcessor,
     distortion,
     range,
     sourceMap,
@@ -170,8 +94,6 @@ function TickProcessor(
           processor: this.processCodeDelete },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
-      'snapshot-pos': { parsers: [parseInt, parseInt],
-          processor: this.processSnapshotPosition },
       'tick': {
           parsers: [parseInt, parseInt, parseInt,
                     parseInt, parseInt, 'var-args'],
@@ -202,7 +124,6 @@ function TickProcessor(
   this.callGraphSize_ = callGraphSize;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
-  this.snapshotLogProcessor_ = snapshotLogProcessor;
   this.sourceMap = sourceMap;
   this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
@@ -359,14 +280,6 @@ TickProcessor.prototype.processCodeDelete = function(start) {
 
 TickProcessor.prototype.processFunctionMove = function(from, to) {
   this.profile_.moveFunc(from, to);
-};
-
-
-TickProcessor.prototype.processSnapshotPosition = function(addr, pos) {
-  if (this.snapshotLogProcessor_) {
-    this.deserializedEntriesNames_[addr] =
-      this.snapshotLogProcessor_.getSerializedEntryName(pos);
-  }
 };
 
 
@@ -883,8 +796,6 @@ function ArgumentsProcessor(args) {
         'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
     '--target': ['targetRootFS', '',
         'Specify the target root directory for cross environment'],
-    '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
-        'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)'],
     '--range': ['range', 'auto,auto',
         'Specify the range limit as [start],[end]'],
     '--distortion': ['distortion', 0,
@@ -909,7 +820,6 @@ function ArgumentsProcessor(args) {
 
 ArgumentsProcessor.DEFAULTS = {
   logFileName: 'v8.log',
-  snapshotLogFileName: null,
   platform: 'unix',
   stateFilter: null,
   callGraphSize: 5,

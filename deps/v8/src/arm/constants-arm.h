@@ -654,7 +654,7 @@ class Instruction {
   inline bool HasH()    const { return HValue() == 1; }
   inline bool HasLink() const { return LinkValue() == 1; }
 
-  // Decoding the double immediate in the vmov instruction.
+  // Decode the double immediate from a vmov instruction.
   double DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a

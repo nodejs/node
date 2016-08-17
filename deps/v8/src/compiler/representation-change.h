@@ -121,7 +121,7 @@ class RepresentationChanger final {
                                     MachineRepresentation output_rep,
                                     Type* output_type, Truncation truncation);
   Node* GetWord32RepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type);
+                                   Type* output_type, Truncation truncation);
   Node* GetBitRepresentationFor(Node* node, MachineRepresentation output_rep,
                                 Type* output_type);
   Node* GetWord64RepresentationFor(Node* node, MachineRepresentation output_rep,

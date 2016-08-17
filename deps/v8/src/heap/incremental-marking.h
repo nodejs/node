@@ -29,7 +29,7 @@ class IncrementalMarking {
 
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
 
-  enum GCRequestType { COMPLETE_MARKING, FINALIZATION };
+  enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
   struct StepActions {
     StepActions(CompletionAction complete_action_,
@@ -80,6 +80,8 @@ class IncrementalMarking {
 
   GCRequestType request_type() const { return request_type_; }
 
+  void reset_request_type() { request_type_ = NONE; }
+
   bool CanBeActivated();
 
   bool ShouldActivateEvenWithoutIdleNotification();
@@ -104,13 +106,10 @@ class IncrementalMarking {
 
   void Epilogue();
 
-  // Performs incremental marking steps of step_size_in_bytes as long as
-  // deadline_ins_ms is not reached. step_size_in_bytes can be 0 to compute
-  // an estimate increment. Returns the remaining time that cannot be used
-  // for incremental marking anymore because a single step would exceed the
-  // deadline.
-  double AdvanceIncrementalMarking(intptr_t step_size_in_bytes,
-                                   double deadline_in_ms,
+  // Performs incremental marking steps until deadline_in_ms is reached. It
+  // returns the remaining time that cannot be used for incremental marking
+  // anymore because a single step would exceed the deadline.
+  double AdvanceIncrementalMarking(double deadline_in_ms,
                                    StepActions step_actions);
 
   // It's hard to know how much work the incremental marker should do to make
@@ -165,22 +164,16 @@ class IncrementalMarking {
   // the incremental cycle (stays white).
   INLINE(bool BaseRecordWrite(HeapObject* obj, Object* value));
   INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
-  INLINE(void RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
-                                  Object* value));
+  INLINE(void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value));
   INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                      Code* value));
 
 
   void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
-  void RecordWriteIntoCodeSlow(HeapObject* obj, RelocInfo* rinfo,
-                               Object* value);
+  void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
   void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
-
-  void RecordWrites(HeapObject* obj);
-
-  void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);
 
   void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
@@ -198,10 +191,6 @@ class IncrementalMarking {
 
   void NotifyOfHighPromotionRate();
 
-  void EnterNoMarkingScope() { no_marking_scope_depth_++; }
-
-  void LeaveNoMarkingScope() { no_marking_scope_depth_--; }
-
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
   }
@@ -210,13 +199,17 @@ class IncrementalMarking {
 
   bool IsIdleMarkingDelayCounterLimitReached();
 
-  INLINE(static void MarkObject(Heap* heap, HeapObject* object));
+  static void MarkObject(Heap* heap, HeapObject* object);
+
+  void IterateBlackObject(HeapObject* object);
 
   Heap* heap() const { return heap_; }
 
   IncrementalMarkingJob* incremental_marking_job() {
     return &incremental_marking_job_;
   }
+
+  bool black_allocation() { return black_allocation_; }
 
  private:
   class Observer : public AllocationObserver {
@@ -241,6 +234,9 @@ class IncrementalMarking {
   void ResetStepCounters();
 
   void StartMarking();
+
+  void StartBlackAllocation();
+  void FinishBlackAllocation();
 
   void MarkRoots();
   void MarkObjectGroups();
@@ -288,11 +284,11 @@ class IncrementalMarking {
   intptr_t write_barriers_invoked_since_last_step_;
   size_t idle_marking_delay_counter_;
 
-  int no_marking_scope_depth_;
-
   int unscanned_bytes_of_large_object_;
 
   bool was_activated_;
+
+  bool black_allocation_;
 
   bool finalize_marking_completed_;
 

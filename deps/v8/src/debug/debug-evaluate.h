@@ -53,51 +53,30 @@ class DebugEvaluate : public AllStatic {
 
     void UpdateValues();
 
-    Handle<Context> innermost_context() const { return innermost_context_; }
-    Handle<Context> native_context() const { return native_context_; }
+    Handle<Context> evaluation_context() const { return evaluation_context_; }
     Handle<SharedFunctionInfo> outer_info() const { return outer_info_; }
 
    private:
     struct ContextChainElement {
-      Handle<Context> original_context;
-      Handle<Context> cloned_context;
-      Handle<JSObject> materialized_object;
       Handle<ScopeInfo> scope_info;
+      Handle<Context> wrapped_context;
+      Handle<JSObject> materialized_object;
+      Handle<StringSet> whitelist;
     };
-
-    void RecordContextsInChain(Handle<Context>* inner_context,
-                               Handle<Context> first, Handle<Context> last);
-
-    Handle<JSObject> NewJSObjectWithNullProto();
 
     // Helper function to find or create the arguments object for
     // Runtime_DebugEvaluate.
     void MaterializeArgumentsObject(Handle<JSObject> target,
                                     Handle<JSFunction> function);
 
-    void MaterializeContextChain(Handle<JSObject> target,
-                                 Handle<Context> context);
-
-    void UpdateContextChainFromMaterializedObject(Handle<JSObject> source,
-                                                  Handle<Context> context);
-
-    Handle<Context> MaterializeReceiver(Handle<Context> parent_context,
-                                        Handle<Context> lookup_context,
-                                        Handle<JSFunction> local_function,
-                                        Handle<JSFunction> global_function,
-                                        bool this_is_non_local);
-
-    MaybeHandle<Object> LoadFromContext(Handle<Context> context,
-                                        Handle<String> name, bool* global);
-
-    void StoreToContext(Handle<Context> context, Handle<String> name,
-                        Handle<Object> value);
+    void MaterializeReceiver(Handle<JSObject> target,
+                             Handle<Context> local_context,
+                             Handle<JSFunction> local_function,
+                             Handle<StringSet> non_locals);
 
     Handle<SharedFunctionInfo> outer_info_;
-    Handle<Context> innermost_context_;
-    Handle<Context> native_context_;
+    Handle<Context> evaluation_context_;
     List<ContextChainElement> context_chain_;
-    List<Handle<String> > non_locals_;
     Isolate* isolate_;
     JavaScriptFrame* frame_;
     int inlined_jsframe_index_;

@@ -1383,9 +1383,9 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "debug_info", shared->debug_info(),
                        SharedFunctionInfo::kDebugInfoOffset);
-  SetInternalReference(obj, entry,
-                       "inferred_name", shared->inferred_name(),
-                       SharedFunctionInfo::kInferredNameOffset);
+  SetInternalReference(obj, entry, "function_identifier",
+                       shared->function_identifier(),
+                       SharedFunctionInfo::kFunctionIdentifierOffset);
   SetInternalReference(obj, entry,
                        "optimized_code_map", shared->optimized_code_map(),
                        SharedFunctionInfo::kOptimizedCodeMapOffset);

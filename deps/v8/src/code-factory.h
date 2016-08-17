@@ -54,6 +54,8 @@ class CodeFactory final {
       Isolate* isolate, LanguageMode mode,
       InlineCacheState initialization_state);
 
+  static Callable StoreInterceptor(Isolate* isolate);
+
   static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
@@ -66,8 +68,11 @@ class CodeFactory final {
   static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
+  static Callable NonNumberToNumber(Isolate* isolate);
+  static Callable StringToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);
   static Callable ToName(Isolate* isolate);
+  static Callable ToInteger(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
   static Callable ToObject(Isolate* isolate);
   static Callable NumberToString(Isolate* isolate);
@@ -75,9 +80,29 @@ class CodeFactory final {
   static Callable RegExpConstructResult(Isolate* isolate);
   static Callable RegExpExec(Isolate* isolate);
 
+  static Callable Add(Isolate* isolate);
+  static Callable Subtract(Isolate* isolate);
+  static Callable BitwiseAnd(Isolate* isolate);
+  static Callable BitwiseOr(Isolate* isolate);
+  static Callable BitwiseXor(Isolate* isolate);
+  static Callable LessThan(Isolate* isolate);
+  static Callable LessThanOrEqual(Isolate* isolate);
+  static Callable GreaterThan(Isolate* isolate);
+  static Callable GreaterThanOrEqual(Isolate* isolate);
+  static Callable Equal(Isolate* isolate);
+  static Callable NotEqual(Isolate* isolate);
+  static Callable StrictEqual(Isolate* isolate);
+  static Callable StrictNotEqual(Isolate* isolate);
+
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
-  static Callable StringCompare(Isolate* isolate);
+  static Callable StringCompare(Isolate* isolate, Token::Value token);
+  static Callable StringEqual(Isolate* isolate);
+  static Callable StringNotEqual(Isolate* isolate);
+  static Callable StringLessThan(Isolate* isolate);
+  static Callable StringLessThanOrEqual(Isolate* isolate);
+  static Callable StringGreaterThan(Isolate* isolate);
+  static Callable StringGreaterThanOrEqual(Isolate* isolate);
   static Callable SubString(Isolate* isolate);
 
   static Callable Typeof(Isolate* isolate);
@@ -96,11 +121,16 @@ class CodeFactory final {
 
   static Callable AllocateHeapNumber(Isolate* isolate);
   static Callable AllocateMutableHeapNumber(Isolate* isolate);
+#define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
+  static Callable Allocate##Type(Isolate* isolate);
+  SIMD128_TYPES(SIMD128_ALLOC)
+#undef SIMD128_ALLOC
   static Callable AllocateInNewSpace(Isolate* isolate);
 
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
-                       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+                       ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Construct(Isolate* isolate);

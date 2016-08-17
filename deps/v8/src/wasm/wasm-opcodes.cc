@@ -66,6 +66,7 @@ static void InitSigTable() {
 #define SET_SIG_TABLE(name, opcode, sig) \
   kSimpleExprSigTable[opcode] = static_cast<int>(kSigEnum_##sig) + 1;
   FOREACH_SIMPLE_OPCODE(SET_SIG_TABLE);
+  FOREACH_ASMJS_COMPAT_OPCODE(SET_SIG_TABLE);
 #undef SET_SIG_TABLE
 }
 
@@ -103,6 +104,8 @@ bool WasmOpcodes::IsSupported(WasmOpcode opcode) {
     case kExprI64Shl:
     case kExprI64ShrU:
     case kExprI64ShrS:
+    case kExprI64Ror:
+    case kExprI64Rol:
     case kExprI64Eq:
     case kExprI64Ne:
     case kExprI64LtS:

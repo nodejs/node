@@ -520,14 +520,6 @@ bool TimeTicks::IsHighResolutionClockWorking() {
   return high_res_tick_clock.Pointer()->IsHighResolution();
 }
 
-
-// static
-TimeTicks TimeTicks::KernelTimestampNow() { return TimeTicks(0); }
-
-
-// static
-bool TimeTicks::KernelTimestampAvailable() { return false; }
-
 #else  // V8_OS_WIN
 
 TimeTicks TimeTicks::Now() {
@@ -564,82 +556,6 @@ TimeTicks TimeTicks::HighResolutionNow() {
 // static
 bool TimeTicks::IsHighResolutionClockWorking() {
   return true;
-}
-
-
-#if V8_OS_LINUX
-
-class KernelTimestampClock {
- public:
-  KernelTimestampClock() : clock_fd_(-1), clock_id_(kClockInvalid) {
-    clock_fd_ = open(kTraceClockDevice, O_RDONLY);
-    if (clock_fd_ == -1) {
-      return;
-    }
-    clock_id_ = get_clockid(clock_fd_);
-  }
-
-  virtual ~KernelTimestampClock() {
-    if (clock_fd_ != -1) {
-      close(clock_fd_);
-    }
-  }
-
-  int64_t Now() {
-    if (clock_id_ == kClockInvalid) {
-      return 0;
-    }
-
-    struct timespec ts;
-
-    clock_gettime(clock_id_, &ts);
-    return ((int64_t)ts.tv_sec * kNsecPerSec) + ts.tv_nsec;
-  }
-
-  bool Available() { return clock_id_ != kClockInvalid; }
-
- private:
-  static const clockid_t kClockInvalid = -1;
-  static const char kTraceClockDevice[];
-  static const uint64_t kNsecPerSec = 1000000000;
-
-  int clock_fd_;
-  clockid_t clock_id_;
-
-  static int get_clockid(int fd) { return ((~(clockid_t)(fd) << 3) | 3); }
-};
-
-
-// Timestamp module name
-const char KernelTimestampClock::kTraceClockDevice[] = "/dev/trace_clock";
-
-#else
-
-class KernelTimestampClock {
- public:
-  KernelTimestampClock() {}
-
-  int64_t Now() { return 0; }
-  bool Available() { return false; }
-};
-
-#endif  // V8_OS_LINUX
-
-static LazyStaticInstance<KernelTimestampClock,
-                          DefaultConstructTrait<KernelTimestampClock>,
-                          ThreadSafeInitOnceTrait>::type kernel_tick_clock =
-    LAZY_STATIC_INSTANCE_INITIALIZER;
-
-
-// static
-TimeTicks TimeTicks::KernelTimestampNow() {
-  return TimeTicks(kernel_tick_clock.Pointer()->Now());
-}
-
-
-// static
-bool TimeTicks::KernelTimestampAvailable() {
-  return kernel_tick_clock.Pointer()->Available();
 }
 
 #endif  // V8_OS_WIN

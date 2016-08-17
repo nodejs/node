@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-function-name
-// Flags: --harmony-destructuring-bind --harmony-destructuring-assignment
 
 (function testVariableDeclarationsFunction() {
   'use strict';

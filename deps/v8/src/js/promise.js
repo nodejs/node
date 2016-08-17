@@ -61,13 +61,13 @@ function CreateResolvingFunctions(promise) {
 
 var GlobalPromise = function Promise(resolver) {
   if (resolver === promiseRawSymbol) {
-    return %NewObject(GlobalPromise, new.target);
+    return %_NewObject(GlobalPromise, new.target);
   }
   if (IS_UNDEFINED(new.target)) throw MakeTypeError(kNotAPromise, this);
   if (!IS_CALLABLE(resolver))
     throw MakeTypeError(kResolverNotAFunction, resolver);
 
-  var promise = PromiseInit(%NewObject(GlobalPromise, new.target));
+  var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
   var callbacks = CreateResolvingFunctions(promise);
 
   try {
@@ -89,9 +89,6 @@ function PromiseSet(promise, status, value, onResolve, onReject) {
   SET_PRIVATE(promise, promiseValueSymbol, value);
   SET_PRIVATE(promise, promiseOnResolveSymbol, onResolve);
   SET_PRIVATE(promise, promiseOnRejectSymbol, onReject);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: promise, status: status, value: value });
-  }
   return promise;
 }
 
@@ -217,8 +214,6 @@ function PromiseReject(promise, r) {
   PromiseDone(promise, -1, r, promiseOnRejectSymbol)
 }
 
-// Convenience.
-
 function NewPromiseCapability(C) {
   if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
@@ -238,6 +233,9 @@ function NewPromiseCapability(C) {
     result.resolve = resolve;
     result.reject = reject;
   });
+
+  if (!IS_CALLABLE(result.resolve) || !IS_CALLABLE(result.reject))
+      throw MakeTypeError(kPromiseNonCallable);
 
   return result;
 }
@@ -305,9 +303,6 @@ function PromiseThen(onResolve, onReject) {
   }
   // Mark this promise as having handler.
   SET_PRIVATE(this, promiseHasHandlerSymbol, true);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
-  }
   return deferred.promise;
 }
 

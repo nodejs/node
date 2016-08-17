@@ -21,7 +21,4 @@ specific_include_rules = {
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
   ],
-  "api-experimental\.cc": [
-    "+src/compiler/fast-accessor-assembler.h",
-  ],
 }

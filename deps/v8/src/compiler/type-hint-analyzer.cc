@@ -48,10 +48,10 @@ bool TypeHintAnalysis::GetToBooleanHints(TypeFeedbackId id,
   if (i == infos_.end()) return false;
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::TO_BOOLEAN_IC, code->kind());
-  ToBooleanStub stub(code->GetIsolate(), code->extra_ic_state());
-// TODO(bmeurer): Replace ToBooleanStub::Types with ToBooleanHints.
-#define ASSERT_COMPATIBLE(NAME, Name)       \
-  STATIC_ASSERT(1 << ToBooleanStub::NAME == \
+  ToBooleanICStub stub(code->GetIsolate(), code->extra_ic_state());
+// TODO(bmeurer): Replace ToBooleanICStub::Types with ToBooleanHints.
+#define ASSERT_COMPATIBLE(NAME, Name)         \
+  STATIC_ASSERT(1 << ToBooleanICStub::NAME == \
                 static_cast<int>(ToBooleanHint::k##Name))
   ASSERT_COMPATIBLE(UNDEFINED, Undefined);
   ASSERT_COMPATIBLE(BOOLEAN, Boolean);

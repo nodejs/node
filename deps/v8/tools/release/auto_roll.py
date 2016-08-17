@@ -155,6 +155,7 @@ class UploadCL(Step):
     if not self._options.dry_run:
       self.GitUpload(author=self._options.author,
                      force=True,
+                     bypass_hooks=True,
                      cq=self._options.use_commit_queue,
                      cwd=cwd)
       print "CL uploaded."

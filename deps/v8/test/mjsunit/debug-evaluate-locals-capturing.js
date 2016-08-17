@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --debug-eval-readonly-locals
+// Flags: --expose-debug-as debug
 
 Debug = debug.Debug
 var exception = null;
@@ -35,7 +35,7 @@ Debug.setListener(listener);
   } catch (e) {
     assertEquals(0, i);
     debugger;
-    assertEquals(0, i);
+    assertEquals(5, i);
   }
 }());
 

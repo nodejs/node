@@ -24,6 +24,8 @@
 #include "src/mips/frames-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/mips64/frames-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/frames-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/frames-x87.h"  // NOLINT
 #else
@@ -114,7 +116,9 @@ inline void StandardFrame::SetExpression(int index, Object* value) {
 
 inline Object* StandardFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
-  return Memory::Object_at(fp() + offset);
+  Object* maybe_result = Memory::Object_at(fp() + offset);
+  DCHECK(!maybe_result->IsSmi());
+  return maybe_result;
 }
 
 
@@ -139,23 +143,20 @@ inline Address StandardFrame::ComputeConstantPoolAddress(Address fp) {
 
 
 inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
-  Object* marker =
-      Memory::Object_at(fp + StandardFrameConstants::kContextOffset);
-  return marker == Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR);
+  Object* frame_type =
+      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  return frame_type == Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR);
 }
 
 
 inline bool StandardFrame::IsConstructFrame(Address fp) {
-  Object* marker =
-      Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset);
-  return marker == Smi::FromInt(StackFrame::CONSTRUCT);
+  Object* frame_type =
+      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  return frame_type == Smi::FromInt(StackFrame::CONSTRUCT);
 }
-
 
 inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
-    : StandardFrame(iterator) {
-}
-
+    : StandardFrame(iterator) {}
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
@@ -242,6 +243,14 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
     StackFrameIteratorBase* iterator) : JavaScriptFrame(iterator) {
 }
 
+inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
+    : StandardFrame(iterator) {}
+
+inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
+    : StubFrame(iterator) {}
+
+inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
+    : StubFrame(iterator) {}
 
 inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
@@ -257,20 +266,17 @@ inline ConstructFrame::ConstructFrame(StackFrameIteratorBase* iterator)
     : InternalFrame(iterator) {
 }
 
-
 inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)
     : iterator_(isolate) {
   if (!done()) Advance();
 }
 
-
 inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate, ThreadLocalTop* top)
     : iterator_(isolate, top) {
   if (!done()) Advance();
 }
-
 
 inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's

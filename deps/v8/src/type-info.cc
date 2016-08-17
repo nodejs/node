@@ -214,10 +214,6 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     *left_type = CompareICState::StateToType(zone(), stub.left());
     *right_type = CompareICState::StateToType(zone(), stub.right());
     *combined_type = CompareICState::StateToType(zone(), stub.state(), map);
-  } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub stub(isolate(), code->extra_ic_state());
-    *combined_type = stub.GetType(zone(), map);
-    *left_type = *right_type = stub.GetInputType(zone(), map);
   }
 }
 
@@ -457,7 +453,6 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
       case Code::BINARY_OP_IC:
       case Code::COMPARE_IC:
       case Code::TO_BOOLEAN_IC:
-      case Code::COMPARE_NIL_IC:
         SetInfo(ast_id, target);
         break;
 

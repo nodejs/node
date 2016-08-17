@@ -6,6 +6,7 @@
 
 #include "src/ic/handler-compiler.h"
 
+#include "src/api-arguments.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
@@ -160,7 +161,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   DCHECK(optimization.is_simple_api_call());
 
-  // Abi for CallApiFunctionStub.
+  // Abi for CallApiCallbackStub.
   Register callee = x0;
   Register data = x4;
   Register holder = x2;
@@ -229,7 +230,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ Mov(api_function_address, ref);
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
@@ -245,6 +246,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ Push(cp);
     // Save value register, so we can restore it later.
     __ Push(value());
 
@@ -260,11 +263,11 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
         receiver = scratch;
       }
       __ Push(receiver, value());
-      ParameterCount actual(1);
-      ParameterCount expected(expected_arguments);
       __ LoadAccessor(x1, holder, accessor_index, ACCESSOR_SETTER);
-      __ InvokeFunction(x1, expected, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ Mov(x0, 1);
+      __ Call(masm->isolate()->builtins()->CallFunction(
+                  ConvertReceiverMode::kNotNullOrUndefined),
+              RelocInfo::CODE_TARGET);
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -275,7 +278,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ Pop(x0);
 
     // Restore context register.
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Pop(cp);
   }
   __ Ret();
 }
@@ -286,6 +289,9 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     int accessor_index, int expected_arguments, Register scratch) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save context register
+    __ Push(cp);
 
     if (accessor_index >= 0) {
       DCHECK(!AreAliased(holder, scratch));
@@ -298,11 +304,11 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
         receiver = scratch;
       }
       __ Push(receiver);
-      ParameterCount actual(0);
-      ParameterCount expected(expected_arguments);
       __ LoadAccessor(x1, holder, accessor_index, ACCESSOR_GETTER);
-      __ InvokeFunction(x1, expected, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ Mov(x0, 0);
+      __ Call(masm->isolate()->builtins()->CallFunction(
+                  ConvertReceiverMode::kNotNullOrUndefined),
+              RelocInfo::CODE_TARGET);
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -310,7 +316,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     }
 
     // Restore context register.
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Pop(cp);
   }
   __ Ret();
 }
@@ -377,22 +383,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
   // Return the generated code.
   return GetCode(kind(), Code::NORMAL, name);
-}
-
-
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
-    Handle<Name> name) {
-  Label miss;
-
-  ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreInterceptor");
-
-  __ Push(receiver(), this->name(), value());
-
-  // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
 }
 
 

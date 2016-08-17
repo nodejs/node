@@ -51,11 +51,13 @@ v8::base::Atomic32 CcTest::isolate_used_ = 0;
 v8::ArrayBuffer::Allocator* CcTest::allocator_ = NULL;
 v8::Isolate* CcTest::isolate_ = NULL;
 
-
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               const char* dependency, bool enabled, bool initialize)
-    : callback_(callback), name_(name), dependency_(dependency),
-      enabled_(enabled), initialize_(initialize), prev_(last_) {
+               bool enabled, bool initialize)
+    : callback_(callback),
+      name_(name),
+      enabled_(enabled),
+      initialize_(initialize),
+      prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -128,21 +130,18 @@ void CcTest::DisableAutomaticDispose() {
 static void PrintTestList(CcTest* current) {
   if (current == NULL) return;
   PrintTestList(current->prev());
-  if (current->dependency() != NULL) {
-    printf("%s/%s<%s\n",
-           current->file(), current->name(), current->dependency());
-  } else {
-    printf("%s/%s<\n", current->file(), current->name());
-  }
+  printf("%s/%s\n", current->file(), current->name());
 }
 
 
 class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
+    void* data = AllocateUninitialized(length == 0 ? 1 : length);
     return data == NULL ? data : memset(data, 0, length);
   }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void* AllocateUninitialized(size_t length) {
+    return malloc(length == 0 ? 1 : length);
+  }
   virtual void Free(void* data, size_t length) { free(data); }
   // TODO(dslomov): Remove when v8:2823 is fixed.
   virtual void Free(void* data) { UNREACHABLE(); }

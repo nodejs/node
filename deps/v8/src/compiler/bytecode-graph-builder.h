@@ -111,9 +111,6 @@ class BytecodeGraphBuilder {
                                     size_t arity);
 
   void BuildCreateLiteral(const Operator* op);
-  void BuildCreateRegExpLiteral();
-  void BuildCreateArrayLiteral();
-  void BuildCreateObjectLiteral();
   void BuildCreateArguments(CreateArgumentsType type);
   void BuildLoadGlobal(TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
@@ -124,10 +121,6 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall(TailCallMode tail_call_mode);
-  void BuildCallJSRuntime();
-  void BuildCallRuntime();
-  void BuildCallRuntimeForPair();
-  void BuildCallConstruct();
   void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildCompareOp(const Operator* op);
@@ -135,6 +128,7 @@ class BytecodeGraphBuilder {
   void BuildCastOperator(const Operator* op);
   void BuildForInPrepare();
   void BuildForInNext();
+  void BuildInvokeIntrinsic();
 
   // Control flow plumbing.
   void BuildJump();

@@ -52,7 +52,8 @@ class EncoderTest : public TestWithZone {
 
 
 TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
@@ -86,14 +87,12 @@ TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
   byte* header = buffer;
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);
-  for (size_t i = 0; i < 7; i++) {
-    CHECK_EQ(i, static_cast<size_t>(*(buffer + 2 * i + f->HeaderSize() + 1)));
-  }
 }
 
 
 TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
@@ -109,17 +108,85 @@ TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);
   body = buffer + f->HeaderSize();
-  for (size_t i = 0; i < 127; i++) {
-    CHECK_EQ(kExprGetLocal, static_cast<size_t>(*(body + 2 * i)));
-    CHECK_EQ(i + 1, static_cast<size_t>(*(body + 2 * i + 1)));
-  }
-  CHECK_EQ(kExprGetLocal, static_cast<size_t>(*(body + 2 * 127)));
-  CHECK_EQ(0x80, static_cast<size_t>(*(body + 2 * 127 + 1)));
-  CHECK_EQ(0x01, static_cast<size_t>(*(body + 2 * 127 + 2)));
-  CHECK_EQ(kExprGetLocal, static_cast<size_t>(*(body + 2 * 127 + 3)));
-  CHECK_EQ(0x00, static_cast<size_t>(*(body + 2 * 127 + 4)));
 }
 
+TEST_F(EncoderTest, Function_Builder_Block_Variable_Width) {
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* function = builder->FunctionAt(f_index);
+  function->EmitWithVarInt(kExprBlock, 200);
+  for (int i = 0; i < 200; ++i) {
+    function->Emit(kExprNop);
+  }
+
+  WasmFunctionEncoder* f = function->Build(&zone, builder);
+  CHECK_EQ(f->BodySize(), 204);
+}
+
+TEST_F(EncoderTest, Function_Builder_EmitEditableVarIntImmediate) {
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* function = builder->FunctionAt(f_index);
+  function->Emit(kExprLoop);
+  uint32_t offset = function->EmitEditableVarIntImmediate();
+  for (int i = 0; i < 200; ++i) {
+    function->Emit(kExprNop);
+  }
+  function->EditVarIntImmediate(offset, 200);
+
+  WasmFunctionEncoder* f = function->Build(&zone, builder);
+  CHECK_EQ(f->BodySize(), 204);
+}
+
+TEST_F(EncoderTest, Function_Builder_EmitEditableVarIntImmediate_Locals) {
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* function = builder->FunctionAt(f_index);
+  function->Emit(kExprBlock);
+  uint32_t offset = function->EmitEditableVarIntImmediate();
+  for (int i = 0; i < 200; ++i) {
+    AddLocal(function, kAstI32);
+  }
+  function->EditVarIntImmediate(offset, 200);
+
+  WasmFunctionEncoder* f = function->Build(&zone, builder);
+  ZoneVector<uint8_t> buffer_vector(f->HeaderSize() + f->BodySize(), &zone);
+  byte* buffer = &buffer_vector[0];
+  byte* header = buffer;
+  byte* body = buffer + f->HeaderSize();
+  f->Serialize(buffer, &header, &body);
+  body = buffer + f->HeaderSize();
+
+  CHECK_EQ(f->BodySize(), 479);
+  const uint8_t varint200_low = (200 & 0x7f) | 0x80;
+  const uint8_t varint200_high = (200 >> 7) & 0x7f;
+  offset = 0;
+  CHECK_EQ(body[offset++], 1);  // Local decl count.
+  CHECK_EQ(body[offset++], varint200_low);
+  CHECK_EQ(body[offset++], varint200_high);
+  CHECK_EQ(body[offset++], kLocalI32);
+  CHECK_EQ(body[offset++], kExprBlock);
+  CHECK_EQ(body[offset++], varint200_low);
+  CHECK_EQ(body[offset++], varint200_high);
+  // GetLocal with one-byte indices.
+  for (int i = 0; i <= 127; ++i) {
+    CHECK_EQ(body[offset++], kExprGetLocal);
+    CHECK_EQ(body[offset++], i);
+  }
+  // GetLocal with two-byte indices.
+  for (int i = 128; i < 200; ++i) {
+    CHECK_EQ(body[offset++], kExprGetLocal);
+    CHECK_EQ(body[offset++], (i & 0x7f) | 0x80);
+    CHECK_EQ(body[offset++], (i >> 7) & 0x7f);
+  }
+  CHECK_EQ(offset, 479);
+}
 
 TEST_F(EncoderTest, LEB_Functions) {
   byte leb_value[5] = {0, 0, 0, 0, 0};

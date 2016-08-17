@@ -336,6 +336,14 @@ class SimulatorHelper {
         reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
     state->fp =
         reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
+#elif V8_TARGET_ARCH_S390
+    if (!simulator_->has_bad_pc()) {
+      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    }
+    state->sp =
+        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
+    state->fp =
+        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
 #endif
   }
 
@@ -441,7 +449,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-#if !(V8_OS_OPENBSD || (V8_OS_LINUX && V8_HOST_ARCH_PPC))
+#if !(V8_OS_OPENBSD || (V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_S390)))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
 #if V8_OS_LINUX
@@ -482,6 +490,17 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->nip);
   state.sp = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
   state.fp = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+#elif V8_HOST_ARCH_S390
+#if V8_TARGET_ARCH_32_BIT
+  // 31-bit target will have bit 0 (MSB) of the PSW set to denote addressing
+  // mode.  This bit needs to be masked out to resolve actual address.
+  state.pc =
+      reinterpret_cast<Address>(ucontext->uc_mcontext.psw.addr & 0x7FFFFFFF);
+#else
+  state.pc = reinterpret_cast<Address>(ucontext->uc_mcontext.psw.addr);
+#endif  // V8_TARGET_ARCH_32_BIT
+  state.sp = reinterpret_cast<Address>(ucontext->uc_mcontext.gregs[15]);
+  state.fp = reinterpret_cast<Address>(ucontext->uc_mcontext.gregs[11]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_MACOSX
 #if V8_HOST_ARCH_X64
@@ -731,7 +750,18 @@ void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
     frames[i++] = isolate->c_function();
   }
   while (!it.done() && i < frames_limit) {
-    frames[i++] = it.frame()->pc();
+    if (it.frame()->is_interpreted()) {
+      // For interpreted frames use the bytecode array pointer as the pc.
+      InterpretedFrame* frame = static_cast<InterpretedFrame*>(it.frame());
+      // Since the sampler can interrupt execution at any point the
+      // bytecode_array might be garbage, so don't dereference it.
+      Address bytecode_array =
+          reinterpret_cast<Address>(frame->GetBytecodeArray()) - kHeapObjectTag;
+      frames[i++] = bytecode_array + BytecodeArray::kHeaderSize +
+                    frame->GetBytecodeOffset();
+    } else {
+      frames[i++] = it.frame()->pc();
+    }
     it.Advance();
   }
   sample_info->frames_count = i;

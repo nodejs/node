@@ -45,7 +45,6 @@
   V(dot_string, ".")                                               \
   V(entries_string, "entries")                                     \
   V(enumerable_string, "enumerable")                               \
-  V(enumerate_string, "enumerate")                                 \
   V(Error_string, "Error")                                         \
   V(eval_string, "eval")                                           \
   V(false_string, "false")                                         \
@@ -178,7 +177,6 @@
   V(strict_function_transition_symbol)      \
   V(string_iterator_iterated_string_symbol) \
   V(string_iterator_next_index_symbol)      \
-  V(strong_function_transition_symbol)      \
   V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                \

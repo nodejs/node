@@ -105,6 +105,10 @@ bool Context::IsWithContext() {
   return map == map->GetHeap()->with_context_map();
 }
 
+bool Context::IsDebugEvaluateContext() {
+  Map* map = this->map();
+  return map == map->GetHeap()->debug_evaluate_context_map();
+}
 
 bool Context::IsBlockContext() {
   Map* map = this->map();

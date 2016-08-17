@@ -133,6 +133,8 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* IfDefault();
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind);
+  const Operator* DeoptimizeIf();
+  const Operator* DeoptimizeUnless();
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 

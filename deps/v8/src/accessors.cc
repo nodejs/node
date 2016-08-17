@@ -32,6 +32,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_all_can_read(false);
   info->set_all_can_write(false);
   info->set_is_special_data_property(true);
+  info->set_is_sloppy(false);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -817,7 +818,7 @@ void Accessors::FunctionLengthGetter(
   } else {
     // If the function isn't compiled yet, the length is not computed
     // correctly yet. Compile it now and return the right length.
-    if (Compiler::Compile(function, KEEP_EXCEPTION)) {
+    if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
       length = function->shared()->length();
     }
     if (isolate->has_pending_exception()) {

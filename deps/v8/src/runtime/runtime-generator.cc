@@ -43,6 +43,8 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   JavaScriptFrame* frame = stack_iterator.frame();
   RUNTIME_ASSERT(frame->function()->shared()->is_generator());
   DCHECK_EQ(frame->function(), generator_object->function());
+  DCHECK(frame->function()->shared()->is_compiled());
+  DCHECK(!frame->function()->IsOptimized());
 
   // The caller should have saved the context and continuation already.
   DCHECK_EQ(generator_object->context(), Context::cast(frame->context()));
@@ -88,18 +90,18 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   JavaScriptFrame* frame = stack_iterator.frame();
 
   DCHECK_EQ(frame->function(), generator_object->function());
-  DCHECK(frame->function()->is_compiled());
+  DCHECK(frame->function()->shared()->is_compiled());
+  DCHECK(!frame->function()->IsOptimized());
 
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
 
-  Address pc = generator_object->function()->code()->instruction_start();
+  Code* code = generator_object->function()->shared()->code();
   int offset = generator_object->continuation();
-  DCHECK(offset > 0);
-  frame->set_pc(pc + offset);
+  DCHECK_GT(offset, 0);
+  frame->set_pc(code->instruction_start() + offset);
   if (FLAG_enable_embedded_constant_pool) {
-    frame->set_constant_pool(
-        generator_object->function()->code()->constant_pool());
+    frame->set_constant_pool(code->constant_pool());
   }
   generator_object->set_continuation(JSGeneratorObject::kGeneratorExecuting);
 
@@ -148,16 +150,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
 }
 
 
-// Returns context of generator activation.
-RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->context();
-}
-
-
 // Returns receiver of generator activation.
 RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
   HandleScope scope(isolate);
@@ -203,26 +195,23 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   return isolate->heap()->undefined_value();
 }
 
-
-// Optimization for the following three functions is disabled in
-// js/generator.js and compiler/ast-graph-builder.cc.
-
+// Optimization for builtins calling any of the following three functions is
+// disabled in js/generator.js and compiler.cc, hence they are unreachable.
 
 RUNTIME_FUNCTION(Runtime_GeneratorNext) {
   UNREACHABLE();
   return nullptr;
 }
 
-
 RUNTIME_FUNCTION(Runtime_GeneratorReturn) {
   UNREACHABLE();
   return nullptr;
 }
 
-
 RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
   UNREACHABLE();
   return nullptr;
 }
+
 }  // namespace internal
 }  // namespace v8

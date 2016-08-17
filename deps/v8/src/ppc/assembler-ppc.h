@@ -808,18 +808,21 @@ class Assembler : public AssemblerBase {
   void sub(Register dst, Register src1, Register src2, OEBit s = LeaveOE,
            RCBit r = LeaveRC);
 
-  void subfic(Register dst, Register src, const Operand& imm);
+  void subc(Register dst, Register src1, Register src2, OEBit s = LeaveOE,
+            RCBit r = LeaveRC);
+  void sube(Register dst, Register src1, Register src2, OEBit s = LeaveOE,
+            RCBit r = LeaveRC);
 
-  void subfc(Register dst, Register src1, Register src2, OEBit s = LeaveOE,
-             RCBit r = LeaveRC);
+  void subfic(Register dst, Register src, const Operand& imm);
 
   void add(Register dst, Register src1, Register src2, OEBit s = LeaveOE,
            RCBit r = LeaveRC);
 
   void addc(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
             RCBit r = LeaveRC);
-
-  void addze(Register dst, Register src1, OEBit o, RCBit r);
+  void adde(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
+            RCBit r = LeaveRC);
+  void addze(Register dst, Register src1, OEBit o = LeaveOE, RCBit r = LeaveRC);
 
   void mullw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
@@ -1216,7 +1219,9 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data);
 
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
+  AssemblerPositionsRecorder* positions_recorder() {
+    return &positions_recorder_;
+  }
 
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
@@ -1463,8 +1468,8 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
+  AssemblerPositionsRecorder positions_recorder_;
+  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

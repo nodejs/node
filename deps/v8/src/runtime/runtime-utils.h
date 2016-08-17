@@ -5,19 +5,49 @@
 #ifndef V8_RUNTIME_RUNTIME_UTILS_H_
 #define V8_RUNTIME_RUNTIME_UTILS_H_
 
+#include "src/base/logging.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
 
-#define RUNTIME_ASSERT(value) \
-  if (!(value)) return isolate->ThrowIllegalOperation();
+#ifdef DEBUG
+
+#define RUNTIME_ASSERT(value)                      \
+  do {                                             \
+    if (!(value)) {                                \
+      V8_RuntimeError(__FILE__, __LINE__, #value); \
+      return isolate->ThrowIllegalOperation();     \
+    }                                              \
+  } while (0)
+
+#define RUNTIME_ASSERT_HANDLIFIED(value, T)        \
+  do {                                             \
+    if (!(value)) {                                \
+      V8_RuntimeError(__FILE__, __LINE__, #value); \
+      isolate->ThrowIllegalOperation();            \
+      return MaybeHandle<T>();                     \
+    }                                              \
+  } while (0)
+
+#else
+
+#define RUNTIME_ASSERT(value)                  \
+  do {                                         \
+    if (!(value)) {                            \
+      return isolate->ThrowIllegalOperation(); \
+    }                                          \
+  } while (0)
 
 #define RUNTIME_ASSERT_HANDLIFIED(value, T) \
-  if (!(value)) {                           \
-    isolate->ThrowIllegalOperation();       \
-    return MaybeHandle<T>();                \
-  }
+  do {                                      \
+    if (!(value)) {                         \
+      isolate->ThrowIllegalOperation();     \
+      return MaybeHandle<T>();              \
+    }                                       \
+  } while (0)
+
+#endif
 
 // Cast the given object to a value of the specified type and store
 // it in a variable with the given name.  If the object is not of the

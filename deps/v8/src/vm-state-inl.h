@@ -40,11 +40,8 @@ inline const char* StateToString(StateTag state) {
 template <StateTag Tag>
 VMState<Tag>::VMState(Isolate* isolate)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
-  if (previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    if (FLAG_log_timer_events) {
-      LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
-    }
-    TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
+  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
   }
   isolate_->set_current_vm_state(Tag);
 }
@@ -52,11 +49,8 @@ VMState<Tag>::VMState(Isolate* isolate)
 
 template <StateTag Tag>
 VMState<Tag>::~VMState() {
-  if (previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    if (FLAG_log_timer_events) {
-      LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
-    }
-    TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
+  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
   }
   isolate_->set_current_vm_state(previous_tag_);
 }
@@ -64,16 +58,18 @@ VMState<Tag>::~VMState() {
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     : isolate_(isolate),
       callback_(callback),
-      previous_scope_(isolate->external_callback_scope()),
-      timer_(&isolate->counters()->runtime_call_stats()->ExternalCallback,
-             isolate->counters()->runtime_call_stats()->current_timer()) {
+      previous_scope_(isolate->external_callback_scope()) {
 #ifdef USE_SIMULATOR
   scope_address_ = Simulator::current(isolate)->get_sp();
 #endif
   isolate_->set_external_callback_scope(this);
   if (FLAG_runtime_call_stats) {
-    isolate_->counters()->runtime_call_stats()->Enter(&timer_);
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+    timer_.Initialize(&stats->ExternalCallback, stats->current_timer());
+    stats->Enter(&timer_);
   }
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                     "V8.ExternalCallback");
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
@@ -81,6 +77,8 @@ ExternalCallbackScope::~ExternalCallbackScope() {
     isolate_->counters()->runtime_call_stats()->Leave(&timer_);
   }
   isolate_->set_external_callback_scope(previous_scope_);
+  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                   "V8.ExternalCallback");
 }
 
 Address ExternalCallbackScope::scope_address() {

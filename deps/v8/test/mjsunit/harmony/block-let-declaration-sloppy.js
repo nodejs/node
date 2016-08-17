@@ -27,7 +27,7 @@
 
 // Test let declarations in various settings.
 
-// Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let
+// Flags: --harmony-sloppy --harmony-sloppy-let
 
 // Global
 let x;

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_INT64_REDUCER_H_
-#define V8_COMPILER_INT64_REDUCER_H_
+#ifndef V8_COMPILER_INT64_LOWERING_H_
+#define V8_COMPILER_INT64_LOWERING_H_
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -24,7 +24,7 @@ class Int64Lowering {
   void LowerGraph();
 
  private:
-  enum class State : uint8_t { kUnvisited, kOnStack, kInputsPushed, kVisited };
+  enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
   struct Replacement {
     Node* low;
@@ -37,27 +37,39 @@ class Int64Lowering {
   CommonOperatorBuilder* common() const { return common_; }
   Signature<MachineRepresentation>* signature() const { return signature_; }
 
+  void PrepareReplacements(Node* node);
+  void PushNode(Node* node);
   void LowerNode(Node* node);
   bool DefaultLowering(Node* node);
+  void LowerComparison(Node* node, const Operator* signed_op,
+                       const Operator* unsigned_op);
+  void PrepareProjectionReplacements(Node* node);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);
   Node* GetReplacementLow(Node* node);
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
+  void PreparePhiReplacement(Node* phi);
+
+  struct NodeState {
+    Node* node;
+    int input_index;
+  };
 
   Zone* zone_;
   Graph* const graph_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   NodeMarker<State> state_;
-  ZoneStack<Node*> stack_;
+  ZoneDeque<NodeState> stack_;
   Replacement* replacements_;
   Signature<MachineRepresentation>* signature_;
+  Node* placeholder_;
 };
 
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_INT64_REDUCER_H_
+#endif  // V8_COMPILER_INT64_LOWERING_H_

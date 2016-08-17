@@ -89,6 +89,10 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) ||
@@ -179,6 +183,18 @@ Address Assembler::return_address_from_call_start(Address pc) {
   return pc + (len + 2) * kInstrSize;
 }
 
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, size_t old_size, size_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  DCHECK(old_base <= wasm_memory_reference() &&
+         wasm_memory_reference() < old_base + old_size);
+  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
+  DCHECK(new_base <= updated_reference &&
+         updated_reference < new_base + new_size);
+  Assembler::set_target_address_at(isolate_, pc_, host_, updated_reference,
+                                   icache_flush_mode);
+}
 
 Object* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);

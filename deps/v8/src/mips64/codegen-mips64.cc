@@ -1194,12 +1194,10 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
                       young_sequence_.length() / Assembler::kInstrSize,
                       CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
-  patcher->masm()->Push(ra, fp, cp, a1);
+  patcher->masm()->PushStandardFrame(a1);
   patcher->masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);
   patcher->masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);
   patcher->masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-  patcher->masm()->Daddu(
-      fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 }
 
 

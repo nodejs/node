@@ -111,6 +111,7 @@ local function MakeClangCommandLine(
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -DV8_I18N_SUPPORT"
       .. " -I./"
+      .. " -Iinclude/"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
       .. " " .. arch_options

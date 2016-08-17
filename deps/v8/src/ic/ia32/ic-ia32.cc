@@ -150,8 +150,9 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ mov(map, FieldOperand(receiver, HeapObject::kMapOffset));
 
   // Check bit field.
-  __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-            (1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit));
+  __ test_b(
+      FieldOperand(map, Map::kBitFieldOffset),
+      Immediate((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
   __ j(not_zero, slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type. In
   // the case that the object is a value-wrapper object, we enter the runtime
@@ -202,9 +203,9 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   // scratch2: map of current prototype
   __ CmpInstanceType(scratch2, JS_OBJECT_TYPE);
   __ j(below, slow);
-  __ test_b(
-      FieldOperand(scratch2, Map::kBitFieldOffset),
-      (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor));
+  __ test_b(FieldOperand(scratch2, Map::kBitFieldOffset),
+            Immediate((1 << Map::kIsAccessCheckNeeded) |
+                      (1 << Map::kHasIndexedInterceptor)));
   __ j(not_zero, slow);
   __ cmp(scratch, masm->isolate()->factory()->empty_fixed_array());
   __ j(not_equal, slow);
@@ -251,7 +252,7 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
   // bit test is enough.
   STATIC_ASSERT(kNotInternalizedTag != 0);
   __ test_b(FieldOperand(map, Map::kInstanceTypeOffset),
-            kIsNotInternalizedMask);
+            Immediate(kIsNotInternalizedMask));
   __ j(not_zero, not_unique);
 
   __ bind(&unique);
@@ -521,7 +522,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   // Check that the receiver does not require access checks and is not observed.
   // The generic stub does not perform map checks or handle observed objects.
   __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved);
+            Immediate(1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved));
   __ j(not_zero, &slow);
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &maybe_name_key);
