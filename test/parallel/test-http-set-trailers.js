@@ -35,7 +35,7 @@ server.on('listening', function() {
     c.end();
     assert.ok(!/x-foo/.test(res_buffer), 'Trailer in HTTP/1.0 response.');
     outstanding_reqs--;
-    if (outstanding_reqs == 0) {
+    if (outstanding_reqs === 0) {
       server.close();
       process.exit();
     }
@@ -66,7 +66,7 @@ server.on('listening', function() {
           /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
           'No trailer in HTTP/1.1 response.'
       );
-      if (outstanding_reqs == 0) {
+      if (outstanding_reqs === 0) {
         server.close();
         process.exit();
       }
@@ -85,7 +85,7 @@ server.on('listening', function() {
       //console.log(res.trailers);
       assert.ok('x-foo' in res.trailers, 'Client doesn\'t see trailers.');
       outstanding_reqs--;
-      if (outstanding_reqs == 0) {
+      if (outstanding_reqs === 0) {
         server.close();
         process.exit();
       }

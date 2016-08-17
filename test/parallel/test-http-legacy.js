@@ -9,7 +9,7 @@ var body0 = '';
 var body1 = '';
 
 var server = http.createServer(function(req, res) {
-  if (responses_sent == 0) {
+  if (responses_sent === 0) {
     assert.equal('GET', req.method);
     assert.equal('/hello', url.parse(req.url).pathname);
 
@@ -21,7 +21,7 @@ var server = http.createServer(function(req, res) {
     assert.equal('bar', req.headers['foo']);
   }
 
-  if (responses_sent == 1) {
+  if (responses_sent === 1) {
     assert.equal('POST', req.method);
     assert.equal('/world', url.parse(req.url).pathname);
     this.close();
