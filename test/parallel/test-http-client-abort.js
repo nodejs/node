@@ -43,7 +43,7 @@ server.listen(0, function() {
       console.log('Client response code ' + res.statusCode);
 
       res.resume();
-      if (++responses == N) {
+      if (++responses === N) {
         console.log('All clients connected, destroying.');
         requests.forEach(function(outReq) {
           console.log('abort');

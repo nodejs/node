@@ -52,7 +52,7 @@ server.listen(0, function() {
   var client = net.connect({ port: this.address().port });
   var done = 0;
   server.on('requestDone', function() {
-    if (++done == seeds.length) {
+    if (++done === seeds.length) {
       server.close();
     }
   });
