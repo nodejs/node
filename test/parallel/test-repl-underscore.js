@@ -151,6 +151,6 @@ function initRepl(mode) {
 }
 
 function assertOutput(output, expected) {
-  const lines = output.accum.trim().split('\r\n');
+  const lines = output.accum.trim().split('\n');
   assert.deepStrictEqual(lines, expected);
 }

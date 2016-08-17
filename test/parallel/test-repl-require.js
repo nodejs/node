@@ -24,11 +24,11 @@ server.listen(options, function() {
   const conn = net.connect(options);
   conn.setEncoding('utf8');
   conn.on('data', (data) => answer += data);
-  conn.write('require("baz")\r\nrequire("./baz")\r\n.exit\r\n');
+  conn.write('require("baz")\nrequire("./baz")\n.exit\n');
 });
 
 process.on('exit', function() {
   assert.strictEqual(false, /Cannot find module/.test(answer));
   assert.strictEqual(false, /Error/.test(answer));
-  assert.strictEqual(answer, '\'eye catcher\'\r\n\'perhaps I work\'\r\n');
+  assert.strictEqual(answer, '\'eye catcher\'\n\'perhaps I work\'\n');
 });
