@@ -14,7 +14,7 @@ var server = net.createServer(function(socket) {
   var interval = setInterval(function() {
     counter++;
 
-    if (counter == seconds) {
+    if (counter === seconds) {
       clearInterval(interval);
       server.close();
       socket.destroy();

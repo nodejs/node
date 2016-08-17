@@ -19,7 +19,7 @@ function pummel() {
     net.createConnection(common.PORT).on('error', function(err) {
       assert.equal(err.code, 'ECONNREFUSED');
       if (--pending > 0) return;
-      if (rounds == ROUNDS) return check();
+      if (rounds === ROUNDS) return check();
       rounds++;
       pummel();
     });
