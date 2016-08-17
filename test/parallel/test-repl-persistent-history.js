@@ -37,7 +37,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         self.emit('keypress', '', action);
       } else {
-        self.emit('data', action + '\r\n');
+        self.emit('data', action + '\n');
       }
       setImmediate(doAction);
     }
@@ -138,7 +138,7 @@ const tests = [
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR, '\'42\'', ENTER],
     expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
-               '4', '2', '\'', '\'42\'\r\n', prompt, prompt],
+               '4', '2', '\'', '\'42\'\n', prompt, prompt],
     after: function ensureHistoryFixture() {
       // XXX(Fishrock123) Make sure nothing weird happened to our fixture
       //  or it's temporary copy.
@@ -154,7 +154,7 @@ const tests = [
   { // Requires the above testcase
     env: {},
     test: [UP, UP, ENTER],
-    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\r\n',
+    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
                prompt]
   },
   {

@@ -30,7 +30,7 @@ execFile(node, noDep, function(er, stdout, stderr) {
   console.error('--no-deprecation: silence deprecations');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  assert.equal(stderr, 'DEBUG: This is deprecated\r\n');
+  assert.equal(stderr, 'DEBUG: This is deprecated\n');
   console.log('silent ok');
 });
 
@@ -38,7 +38,7 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   console.error('--trace-deprecation: show stack');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  var stack = stderr.trim().split('\r\n');
+  var stack = stderr.trim().split('\n');
   // just check the top and bottom.
   assert(/util.debug is deprecated. Use console.error instead./.test(stack[1]));
   assert(/DEBUG: This is deprecated/.test(stack[0]));

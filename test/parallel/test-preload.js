@@ -123,7 +123,7 @@ const interactive = childProcess.exec(nodeBinary + ' '
   + '-i',
   common.mustCall(function(err, stdout, stderr) {
     assert.ifError(err);
-    assert.strictEqual(stdout, `> 'test'\r\n> `);
+    assert.strictEqual(stdout, `> 'test'\n> `);
   }));
 
 interactive.stdin.write('a\n');
