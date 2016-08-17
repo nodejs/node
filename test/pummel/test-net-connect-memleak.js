@@ -17,7 +17,7 @@ var before = 0;
   before = process.memoryUsage().rss;
 
   net.createConnection(common.PORT, '127.0.0.1', function() {
-    assert(junk.length != 0);  // keep reference alive
+    assert.notStrictEqual(junk.length, 0);  // keep reference alive
     setTimeout(done, 10);
     global.gc();
   });
