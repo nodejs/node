@@ -528,4 +528,9 @@ testBlockTypeError(assert.doesNotThrow, undefined);
 assert.throws(() => { throw 'error'; }, (err) => err === 'error');
 assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
 
+// Long values should be truncated for display.
+assert.throws(() => {
+  assert.strictEqual('A'.repeat(1000), '');
+}, new RegExp(`^AssertionError: '${'A'.repeat(127)} === ''$`));
+
 console.log('All OK');
