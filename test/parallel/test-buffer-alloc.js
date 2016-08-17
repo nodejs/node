@@ -1502,3 +1502,9 @@ assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
               /"size" argument must be a number/);
 assert.throws(() => Buffer.alloc({ valueOf: () => -1 }),
               /"size" argument must be a number/);
+
+assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);
+{
+  const buf = Buffer.from('test');
+  assert.strictEqual(buf.toLocaleString(), buf.toString());
+}
