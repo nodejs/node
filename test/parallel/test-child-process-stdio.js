@@ -16,4 +16,8 @@ assert.equal(child.stderr, null);
 
 options = {stdio: 'ignore'};
 child = common.spawnSyncCat(options);
-assert.deepEqual(options, {stdio: 'ignore'});
+assert.deepStrictEqual(options, {stdio: 'ignore'});
+
+assert.throws(() => {
+  common.spawnPwd({stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc']});
+}, /^Error: Child process can have only one IPC pipe$/);
