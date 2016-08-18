@@ -1,6 +1,7 @@
 'use strict';
 
 const child_process = require('child_process');
+const HTTPBenchmarkers = require('./http-benchmarkers.js').HTTPBenchmarkers;
 
 // The port used by servers and wrk
 exports.PORT = process.env.PORT || 12346;
@@ -88,71 +89,6 @@ Benchmark.prototype._queue = function(options) {
   return queue;
 };
 
-function AutocannonBenchmarker() {
-  const autocannon_exe = process.platform === 'win32'
-                         ? 'autocannon.cmd'
-                         : 'autocannon';
-  this.present = function() {
-    var result = child_process.spawnSync(autocannon_exe, ['-h']);
-    if (result.error && result.error.code === 'ENOENT')
-      return false;
-    else
-      return true;
-  };
-  this.create = function(path, duration, connections) {
-    const args = ['-d', duration, '-c', connections, '-j', '-n',
-                  'http://127.0.0.1:' + exports.PORT + path ];
-    var child = child_process.spawn(autocannon_exe, args);
-    child.stdout.setEncoding('utf8');
-    return child;
-  };
-  this.processResults = function(output) {
-    let result;
-    try {
-      result = JSON.parse(output);
-    } catch (err) {
-      // Do nothing, let next line handle this
-    }
-    if (!result || !result.requests || !result.requests.average) {
-      return undefined;
-    } else {
-      return result.requests.average;
-    }
-  };
-}
-
-function WrkBenchmarker() {
-  this.present = function() {
-    var result = child_process.spawnSync('wrk', ['-h']);
-    if (result.error && result.error.code === 'ENOENT')
-      return false;
-    else
-      return true;
-  };
-  this.create = function(path, duration, connections) {
-    const args = ['-d', duration, '-c', connections, '-t', 8,
-                  'http://127.0.0.1:' + exports.PORT + path ];
-    var child = child_process.spawn('wrk', args);
-    child.stdout.setEncoding('utf8');
-    child.stderr.pipe(process.stderr);
-    return child;
-  };
-  const regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
-  this.processResults = function(output) {
-    const match = output.match(regexp);
-    const result = match && +match[1];
-    if (!result)
-      return undefined;
-    else
-      return result;
-  };
-}
-
-const HTTPBenchmarkers = {
-  autocannon: new AutocannonBenchmarker(),
-  wrk: new WrkBenchmarker()
-};
-
 // Benchmark an http server.
 Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
   const self = this;
@@ -171,7 +107,7 @@ Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
     const benchmarker = benchmarkers[i];
     const http_benchmarker = HTTPBenchmarkers[benchmarker];
     if (http_benchmarker === undefined) {
-      console.error('Unknown http benchmarker: ', benchmarker);
+      console.error(`Unknown http benchmarker: ${benchmarker}`);
       process.exit(1);
     }
     if (http_benchmarker.present()) {
@@ -179,8 +115,8 @@ Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
     }
   }
   if (!any_available) {
-    console.error('Couldn\'t locate any of the required http benchmarkers ' +
-                  '(' + benchmarkers.join(', ') + '). Check ' +
+    console.error('Could not locate any of the required http benchmarkers' +
+                  `(${benchmarkers.join(', ')}). Check ` +
                   'benchmark/README.md for further instructions.');
     process.exit(1);
   }
@@ -202,7 +138,8 @@ Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
     const http_benchmarker = HTTPBenchmarkers[benchmarker];
     if (http_benchmarker.present()) {
       const child_start = process.hrtime();
-      var child = http_benchmarker.create(urlPath, duration, connections);
+      var child = http_benchmarker.create(exports.PORT, urlPath, duration,
+                                          connections);
 
       // Collect stdout
       let stdout = '';
@@ -212,9 +149,9 @@ Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
         const elapsed = process.hrtime(child_start);
         if (code) {
           if (stdout === '') {
-            console.error(benchmarker + ' failed with ' + code);
+            console.error(`${benchmarker} failed with ${code}`);
           } else {
-            console.error(benchmarker + ' failed with ' + code + '. Output: ');
+            console.error(`${benchmarker} failed with ${code}. Output:`);
             console.error(stdout);
           }
           runHttpBenchmarker(index + 1, code);
@@ -223,7 +160,7 @@ Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
 
         var result = http_benchmarker.processResults(stdout);
         if (!result) {
-          console.error(benchmarker + ' produced strange output');
+          console.error(`${benchmarker} produced strange output`);
           console.error(stdout);
           runHttpBenchmarker(index + 1, 1);
           return;
