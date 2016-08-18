@@ -62,7 +62,7 @@ var wikipedia = [
 for (let i = 0, l = wikipedia.length; i < l; i++) {
   for (const hash in wikipedia[i]['hmac']) {
     // FIPS does not support MD5.
-    if (common.hasFipsCrypto && hash == 'md5')
+    if (common.hasFipsCrypto && hash === 'md5')
       continue;
     const result = crypto.createHmac(hash, wikipedia[i]['key'])
                          .update(wikipedia[i]['data'])
