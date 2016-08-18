@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose_internals --no-warnings
+// Flags: --no-warnings
 
 // The --no-warnings flag only supresses writing the warning to stderr, not the
 // emission of the corresponding event. This test file can be run without it.
@@ -15,8 +15,7 @@ function listener() {
 
 process.addListener('warning', listener);
 
-const internalUtil = require('internal/util');
-internalUtil.printDeprecationMessage('Something is deprecated.');
+process.emitWarning('Something is deprecated.', 'DeprecationWarning');
 
 // The warning would be emitted in the next tick, so continue after that.
 process.nextTick(common.mustCall(() => {
@@ -29,5 +28,5 @@ process.nextTick(common.mustCall(() => {
     assert.strictEqual(warning.message, 'Something else is deprecated.');
   }));
 
-  internalUtil.printDeprecationMessage('Something else is deprecated.');
+  process.emitWarning('Something else is deprecated.', 'DeprecationWarning');
 }));
