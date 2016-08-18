@@ -3,7 +3,7 @@ const common = require('../common');
 var assert = require('assert');
 var os = require('os');
 
-if (os.type() != 'SunOS') {
+if (!common.isSunOS) {
   common.skip('no DTRACE support');
   return;
 }
@@ -52,7 +52,7 @@ dtrace.stdout.on('data', function(data) {
 });
 
 dtrace.on('exit', function(code) {
-  if (code != 0) {
+  if (code !== 0) {
     console.error('dtrace exited with code ' + code);
     process.exit(code);
   }
@@ -65,7 +65,7 @@ dtrace.on('exit', function(code) {
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
 
-    if (line.indexOf(sentinel) == -1 || frames.length === 0)
+    if (line.indexOf(sentinel) === -1 || frames.length === 0)
       continue;
 
     var frame = line.substr(line.indexOf(sentinel) + sentinel.length);
