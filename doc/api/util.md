@@ -234,18 +234,19 @@ Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 
-### Custom `inspect()` function on Objects
+### Custom inspection functions on Objects
 
 <!-- type=misc -->
 
-Objects also may define their own `inspect(depth)` function which `util.inspect()`
-will invoke and use the result of when inspecting the object:
+Objects may also define their own `[util.inspect.custom](depth, opts)`
+(or, equivalently `inspect(depth, opts)`) function that `util.inspect()` will
+invoke and use the result of when inspecting the object:
 
 ```js
 const util = require('util');
 
-var obj = { name: 'nate' };
-obj.inspect = function(depth) {
+const obj = { name: 'nate' };
+obj[util.inspect.custom] = function(depth) {
   return `{${this.name}}`;
 };
 
@@ -253,12 +254,29 @@ util.inspect(obj);
   // "{nate}"
 ```
 
-You may also return another Object entirely, and the returned String will be
-formatted according to the returned Object. This is similar to how
-`JSON.stringify()` works:
+Custom `[util.inspect.custom](depth, opts)` functions typically return a string
+but may return a value of any type that will be formatted accordingly by
+`util.inspect()`.
 
 ```js
-var obj = { foo: 'this will not show up in the inspect() output' };
+const util = require('util');
+
+const obj = { foo: 'this will not show up in the inspect() output' };
+obj[util.inspect.custom] = function(depth) {
+  return { bar: 'baz' };
+};
+
+util.inspect(obj);
+  // "{ bar: 'baz' }"
+```
+
+A custom inspection method can alternatively be provided by exposing
+an `inspect(depth, opts)` method on the object:
+
+```js
+const util = require('util');
+
+const obj = { foo: 'this will not show up in the inspect() output' };
 obj.inspect = function(depth) {
   return { bar: 'baz' };
 };
@@ -266,6 +284,14 @@ obj.inspect = function(depth) {
 util.inspect(obj);
   // "{ bar: 'baz' }"
 ```
+
+### util.inspect.custom
+<!-- YAML
+added: REPLACEME
+-->
+
+A Symbol that can be used to declare custom inspect functions, see
+[Custom inspection functions on Objects][].
 
 ## util.isArray(object)
 <!-- YAML
@@ -656,6 +682,7 @@ Deprecated predecessor of `console.log`.
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [here]: #util_customizing_util_inspect_colors
+[Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
 [`Error`]: errors.html#errors_class_error
 [`console.log()`]: console.html#console_console_log_data
 [`console.error()`]: console.html#console_console_error_data

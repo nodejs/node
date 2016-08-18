@@ -279,19 +279,42 @@ assert.doesNotThrow(function() {
 
 // new API, accepts an "options" object
 {
-  let subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
+  const subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
   Object.defineProperty(subject, 'hidden', { enumerable: false, value: null });
 
-  assert(util.inspect(subject, { showHidden: false }).indexOf('hidden') === -1);
-  assert(util.inspect(subject, { showHidden: true }).indexOf('hidden') !== -1);
-  assert(util.inspect(subject, { colors: false }).indexOf('\u001b[32m') === -1);
-  assert(util.inspect(subject, { colors: true }).indexOf('\u001b[32m') !== -1);
-  assert(util.inspect(subject, { depth: 2 }).indexOf('c: [Object]') !== -1);
-  assert(util.inspect(subject, { depth: 0 }).indexOf('a: [Object]') !== -1);
-  assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
+  assert.strictEqual(
+    util.inspect(subject, { showHidden: false }).includes('hidden'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { showHidden: true }).includes('hidden'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { colors: false }).includes('\u001b[32m'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { colors: true }).includes('\u001b[32m'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { depth: 2 }).includes('c: [Object]'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { depth: 0 }).includes('a: [Object]'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { depth: null }).includes('{ d: 0 }'),
+    true
+  );
+}
 
+{
   // "customInspect" option can enable/disable calling inspect() on objects
-  subject = { inspect: function() { return 123; } };
+  const subject = { inspect: function() { return 123; } };
 
   assert(util.inspect(subject,
                       { customInspect: true }).indexOf('123') !== -1);
@@ -312,6 +335,56 @@ assert.doesNotThrow(function() {
   };
 
   util.inspect(subject, { customInspectOptions: true });
+}
+
+{
+  // "customInspect" option can enable/disable calling [util.inspect.custom]()
+  const subject = { [util.inspect.custom]: function() { return 123; } };
+
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: true }).includes('123'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: false }).includes('123'),
+    false
+  );
+
+  // a custom [util.inspect.custom]() should be able to return other Objects
+  subject[util.inspect.custom] = function() { return { foo: 'bar' }; };
+
+  assert.strictEqual(util.inspect(subject), '{ foo: \'bar\' }');
+
+  subject[util.inspect.custom] = function(depth, opts) {
+    assert.strictEqual(opts.customInspectOptions, true);
+  };
+
+  util.inspect(subject, { customInspectOptions: true });
+}
+
+{
+  // [util.inspect.custom] takes precedence over inspect
+  const subject = {
+    [util.inspect.custom]() { return 123; },
+    inspect() { return 456; }
+  };
+
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: true }).includes('123'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: false }).includes('123'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: true }).includes('456'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: false }).includes('456'),
+    false
+  );
 }
 
 // util.inspect with "colors" option should produce as many lines as without it
