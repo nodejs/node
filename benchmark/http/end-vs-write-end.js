@@ -49,7 +49,9 @@ function main(conf) {
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', 10, conf.c, function() {
+    bench.http({
+      connections: conf.c
+    }, function() {
       server.close();
     });
   });

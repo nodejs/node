@@ -16,7 +16,10 @@ function main(conf) {
   setTimeout(function() {
     var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks;
 
-    bench.http(path, 10, conf.c, function() {
+    bench.http({
+      path: path,
+      connections: conf.c
+    }, function() {
       server.close();
     });
   }, 2000);

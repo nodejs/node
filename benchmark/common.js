@@ -1,7 +1,7 @@
 'use strict';
 
 const child_process = require('child_process');
-const HTTPBenchmarkers = require('./http-benchmarkers.js').HTTPBenchmarkers;
+const http_benchmarkers = require('./http-benchmarkers.js');
 
 // The port used by servers and wrk
 exports.PORT = process.env.PORT || 12346;
@@ -90,92 +90,28 @@ Benchmark.prototype._queue = function(options) {
 };
 
 // Benchmark an http server.
-Benchmark.prototype.http = function(urlPath, duration, connections, cb) {
+exports.default_http_benchmarker =
+  http_benchmarkers.default_http_benchmarker;
+exports.supported_http_benchmarkers =
+  http_benchmarkers.supported_http_benchmarkers;
+exports.installed_http_benchmarkers =
+  http_benchmarkers.installed_http_benchmarkers;
+
+Benchmark.prototype.http = function(options, cb) {
   const self = this;
-  duration = 1;
-
-  const picked_benchmarker = process.env.NODE_HTTP_BENCHMARKER ||
-                             this.config.benchmarker || 'all';
-  const benchmarkers = picked_benchmarker === 'all'
-                     ? Object.keys(HTTPBenchmarkers)
-                     : [picked_benchmarker];
-
-  // See if any benchmarker is available. Also test if all used benchmarkers
-  // are defined
-  var any_available = false;
-  for (var i = 0; i < benchmarkers.length; ++i) {
-    const benchmarker = benchmarkers[i];
-    const http_benchmarker = HTTPBenchmarkers[benchmarker];
-    if (http_benchmarker === undefined) {
-      console.error(`Unknown http benchmarker: ${benchmarker}`);
-      process.exit(1);
-    }
-    if (http_benchmarker.present()) {
-      any_available = true;
-    }
-  }
-  if (!any_available) {
-    console.error('Could not locate any of the required http benchmarkers' +
-                  `(${benchmarkers.join(', ')}). Check ` +
-                  'benchmark/README.md for further instructions.');
-    process.exit(1);
+  if (!options.port) {
+    options.port = exports.PORT;
   }
 
-  function runHttpBenchmarker(index, collected_code) {
-    // All benchmarkers executed
-    if (index === benchmarkers.length) {
-      if (cb)
-        cb(collected_code);
-      if (collected_code !== 0)
-        process.exit(1);
-      return;
+  http_benchmarkers.run(options, function(benchmarker_name, result, elapsed) {
+    if (!self.config.benchmarker) {
+      self.config.benchmarker = benchmarker_name;
     }
-
-    // Run next benchmarker
-    const benchmarker = benchmarkers[index];
-    self.config.benchmarker = benchmarker;
-
-    const http_benchmarker = HTTPBenchmarkers[benchmarker];
-    if (http_benchmarker.present()) {
-      const child_start = process.hrtime();
-      var child = http_benchmarker.create(exports.PORT, urlPath, duration,
-                                          connections);
-
-      // Collect stdout
-      let stdout = '';
-      child.stdout.on('data', (chunk) => stdout += chunk.toString());
-
-      child.once('close', function(code) {
-        const elapsed = process.hrtime(child_start);
-        if (code) {
-          if (stdout === '') {
-            console.error(`${benchmarker} failed with ${code}`);
-          } else {
-            console.error(`${benchmarker} failed with ${code}. Output:`);
-            console.error(stdout);
-          }
-          runHttpBenchmarker(index + 1, code);
-          return;
-        }
-
-        var result = http_benchmarker.processResults(stdout);
-        if (!result) {
-          console.error(`${benchmarker} produced strange output`);
-          console.error(stdout);
-          runHttpBenchmarker(index + 1, 1);
-          return;
-        }
-
-        self.report(result, elapsed);
-        runHttpBenchmarker(index + 1, collected_code);
-      });
-    } else {
-      runHttpBenchmarker(index + 1, collected_code);
+    self.report(result, elapsed);
+    if (cb) {
+      cb(0);
     }
-  }
-
-  // Run with all benchmarkers
-  runHttpBenchmarker(0, 0);
+  });
 };
 
 Benchmark.prototype._run = function() {

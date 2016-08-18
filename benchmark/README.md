@@ -25,17 +25,10 @@ Node version in the path is not altered.
 `wrk` may be available through your preferred package manger. If not, you can
 easily build it [from source][wrk] via `make`.
 
-To select which tool will be used to run your HTTP benchmark you can:
-* When running the benchmakrs, set `NODE_HTTP_BENCHMARKER` environment variable
-to desired benchmarker.
-* To select the default benchmarker for a particular benchmark, specify it as
-`benchmarker` key (e.g. `benchmarker: 'wrk'`) in configuration passed to
-`createBenchmark`. This can be overridden by `NODE_HTTP_BENCHMARKER` in run
-time.
-
-If you do not specify which benchmarker to use, all of the installed tools will
-be used to run the benchmarks. This will also happen if you pass `all` as the
-desired benchmark tool.
+By default first found benchmark tool will be used to run HTTP benchmarks. You
+can overridde this by seting `NODE_HTTP_BENCHMARKER` environment variable to
+the desired benchmarker name. When creating a HTTP benchmark you can also
+specify which benchmarker should be used.
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
@@ -305,6 +298,59 @@ function main(conf) {
   bench.end(conf.n);
 }
 ```
+
+## Creating HTTP benchmark
+
+The `bench` object returned by `createBenchmark` implements
+`http(options, callback)` method. It can be used to run external tool to
+benchmark HTTP servers. This benchmarks simple HTTP server with all installed
+benchmarking tools.
+
+```js
+'use strict';
+
+var common = require('../common.js');
+
+var bench = common.createBenchmark(main, {
+  kb: [64, 128, 256, 1024],
+  connections: [100, 500],
+  benchmarker: common.installed_http_benchmarkers
+});
+
+function main(conf) {
+  const http = require('http');
+  const len = conf.kb * 1024;
+  const chunk = Buffer.alloc(len, 'x'); 
+  var server = http.createServer(function(req, res) {
+    res.end(chunk);
+  });
+
+  server.listen(common.PORT, function() {
+    bench.http({
+      connections: conf.connections,
+      benchmarker: conf.benchmarker
+    }, function() {
+      server.close();
+    });
+  });
+}
+```
+
+Supported options keys are:
+* `port` - defaults to `common.PORT`
+* `path` - defaults to `/`
+* `connections` - number of concurrent connections to use, defaults to 100
+* `duration` - duration of the benchmark in seconds, defaults to 10
+* `benchmarker` - benchmarker to use, defaults to
+`common.default_http_benchmarker`
+
+The `common.js` module defines 3 handy constants:
+* `supported_http_benchmarkers` - array with names of all supported
+benchmarkers
+* `installed_http_benchmarkers` - array with names of all supported
+benchmarkers that are currently  installed on this machine
+* `default_http_benchmarker` - first element from `installed_http_benchmarkers`
+or value of `process.env.NODE_HTTP_BENCHMARKER` if it is set
 
 [autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk
