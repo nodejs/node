@@ -358,8 +358,11 @@ writeTest.write('e', 3, 'ascii');
 writeTest.write('j', 4, 'ascii');
 assert.equal(writeTest.toString(), 'nodejs');
 
-// Does not throw (see https://github.com/nodejs/node/issues/8127).
-Buffer.alloc(1).write('', 1, 0);
+// Offset points to the end of the buffer
+// (see https://github.com/nodejs/node/issues/8127).
+assert.doesNotThrow(() => {
+  Buffer.alloc(1).write('', 1, 0);
+});
 
 // ASCII slice test
 {
