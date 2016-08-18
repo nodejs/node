@@ -72,6 +72,21 @@ assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
               'deepEqual(new Date(), new Date(2000, 3, 14))');
 
+assert.throws(makeBlock(
+  a.notDeepEqual,
+  new Date(2000, 3, 14),
+  new Date(2000, 3, 14)),
+  a.AssertionError,
+  'notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.doesNotThrow(makeBlock(
+  a.notDeepEqual,
+  new Date(),
+  new Date(2000, 3, 14)),
+  'notDeepEqual(new Date(), new Date(2000, 3, 14))'
+);
+
 // 7.3
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/, /a/));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/g, /a/g));
