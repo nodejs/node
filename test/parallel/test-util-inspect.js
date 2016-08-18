@@ -567,6 +567,16 @@ assert.doesNotThrow(function() {
   );
 }
 
+{
+  // Returning `this` from a custom inspection function works.
+  assert.strictEqual(util.inspect({ a: 123, inspect() { return this; } }),
+                     '{ a: 123, inspect: [Function: inspect] }');
+
+  const subject = { a: 123, [util.inspect.custom]() { return this; } };
+  assert.strictEqual(util.inspect(subject),
+                     '{ a: 123 }');
+}
+
 // util.inspect with "colors" option should produce as many lines as without it
 function test_lines(input) {
   var count_lines = function(str) {
