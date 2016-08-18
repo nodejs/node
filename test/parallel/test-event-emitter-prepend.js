@@ -17,6 +17,12 @@ myEE.prependOnceListener('foo', common.mustCall(() => assert.equal(m++, 0)));
 
 myEE.emit('foo');
 
+// Verify that the listener must be a function
+assert.throws(() => {
+  const ee = new EventEmitter();
+
+  ee.prependOnceListener('foo', null);
+}, /^TypeError: "listener" argument must be a function$/);
 
 // Test fallback if prependListener is undefined.
 const stream = require('stream');
