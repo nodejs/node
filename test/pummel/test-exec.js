@@ -26,7 +26,7 @@ exec(
       console.log('error!: ' + err.code);
       console.log('stdout: ' + JSON.stringify(stdout));
       console.log('stderr: ' + JSON.stringify(stderr));
-      assert.equal(false, err.killed);
+      assert.strictEqual(false, err.killed);
     } else {
       success_count++;
       console.dir(stdout);
@@ -38,9 +38,10 @@ exec(
 exec('thisisnotavalidcommand', function(err, stdout, stderr) {
   if (err) {
     error_count++;
-    assert.equal('', stdout);
-    assert.equal(true, err.code != 0);
-    assert.equal(false, err.killed);
+    assert.strictEqual('', stdout);
+    assert.strictEqual(typeof err.code, 'number');
+    assert.notStrictEqual(err.code, 0);
+    assert.strictEqual(false, err.killed);
     assert.strictEqual(null, err.signal);
     console.log('error code: ' + err.code);
     console.log('stdout: ' + JSON.stringify(stdout));
@@ -48,7 +49,8 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
   } else {
     success_count++;
     console.dir(stdout);
-    assert.equal(true, stdout != '');
+    assert.strictEqual(typeof stdout, 'string');
+    assert.notStrictEqual(stdout, '');
   }
 });
 
@@ -60,7 +62,7 @@ exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
   assert.ok(diff < 500);
   assert.ok(err);
   assert.ok(err.killed);
-  assert.equal(err.signal, 'SIGTERM');
+  assert.strictEqual(err.signal, 'SIGTERM');
 });
 
 
@@ -71,7 +73,7 @@ process.nextTick(function() {
   console.log('kill pid %d', killMeTwice.pid);
   // make sure there is no race condition in starting the process
   // the PID SHOULD exist directly following the exec() call.
-  assert.equal('number', typeof killMeTwice._handle.pid);
+  assert.strictEqual('number', typeof killMeTwice._handle.pid);
   // Kill the process
   killMeTwice.kill();
 });
@@ -82,7 +84,7 @@ function killMeTwiceCallback(err, stdout, stderr) {
   // works and that we are getting the proper callback parameters.
   assert.ok(err);
   assert.ok(err.killed);
-  assert.equal(err.signal, 'SIGTERM');
+  assert.strictEqual(err.signal, 'SIGTERM');
 
   // the timeout should still be in effect
   console.log('\'sleep 3\' was already killed. Took %d ms', diff);
@@ -98,6 +100,6 @@ exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
 
 
 process.on('exit', function() {
-  assert.equal(1, success_count);
-  assert.equal(1, error_count);
+  assert.strictEqual(1, success_count);
+  assert.strictEqual(1, error_count);
 });
