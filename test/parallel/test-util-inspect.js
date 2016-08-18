@@ -451,7 +451,7 @@ assert.doesNotThrow(function() {
 
 // new API, accepts an "options" object
 {
-  let subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
+  const subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
   Object.defineProperty(subject, 'hidden', { enumerable: false, value: null });
 
   assert.strictEqual(
@@ -482,9 +482,11 @@ assert.doesNotThrow(function() {
     util.inspect(subject, { depth: null }).includes('{ d: 0 }'),
     true
   );
+}
 
+{
   // "customInspect" option can enable/disable calling inspect() on objects
-  subject = { inspect: function() { return 123; } };
+  const subject = { inspect: function() { return 123; } };
 
   assert.strictEqual(
     util.inspect(subject, { customInspect: true }).includes('123'),
@@ -513,6 +515,56 @@ assert.doesNotThrow(function() {
   };
 
   util.inspect(subject, { customInspectOptions: true });
+}
+
+{
+  // "customInspect" option can enable/disable calling [util.inspect.custom]()
+  const subject = { [util.inspect.custom]: function() { return 123; } };
+
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: true }).includes('123'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: false }).includes('123'),
+    false
+  );
+
+  // a custom [util.inspect.custom]() should be able to return other Objects
+  subject[util.inspect.custom] = function() { return { foo: 'bar' }; };
+
+  assert.strictEqual(util.inspect(subject), '{ foo: \'bar\' }');
+
+  subject[util.inspect.custom] = function(depth, opts) {
+    assert.strictEqual(opts.customInspectOptions, true);
+  };
+
+  util.inspect(subject, { customInspectOptions: true });
+}
+
+{
+  // [util.inspect.custom] takes precedence over inspect
+  const subject = {
+    [util.inspect.custom]() { return 123; },
+    inspect() { return 456; }
+  };
+
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: true }).includes('123'),
+    true
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: false }).includes('123'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: true }).includes('456'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspect: false }).includes('456'),
+    false
+  );
 }
 
 // util.inspect with "colors" option should produce as many lines as without it
