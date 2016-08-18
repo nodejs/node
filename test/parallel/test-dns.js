@@ -177,3 +177,7 @@ assert.throws(function() {
 assert.throws(function() {
   dns.lookupService('0.0.0.0', 'test', noop);
 }, /"port" should be >= 0 and < 65536, got "test"/);
+
+assert.throws(() => {
+  dns.lookupService('0.0.0.0', 80, null);
+}, /^TypeError: "callback" argument must be a function$/);
