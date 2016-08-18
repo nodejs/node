@@ -586,7 +586,7 @@ over the IPC channel using `process.send()`.
 added: v6.1.0
 -->
 
-* `previousValue` {Array} A previous return value from calling
+* `previousValue` {Object} A previous return value from calling
   `process.cpuUsage()`
 
 The `process.cpuUsage()` method returns the user and system CPU time usage of
