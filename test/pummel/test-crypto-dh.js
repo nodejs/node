@@ -41,7 +41,7 @@ for (const name in hashes) {
 
 for (const name in hashes) {
   // modp1 is 768 bits, FIPS requires >= 1024
-  if (name == 'modp1' && common.hasFipsCrypto)
+  if (name === 'modp1' && common.hasFipsCrypto)
     continue;
   var group1 = crypto.getDiffieHellman(name);
   var group2 = crypto.getDiffieHellman(name);
