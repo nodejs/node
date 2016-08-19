@@ -1588,6 +1588,9 @@ var relativeTests2 = [
   ['mailto:another.host.com',
    'mailto:user@example.org',
    'mailto:another.host.com'],
+  ['https://example.com/foo',
+   'https://user:password@example.com',
+   'https://user:password@example.com/foo'],
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
