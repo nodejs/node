@@ -10,7 +10,7 @@ process.on('warning', common.mustCall((warning) => {
   assert(warning);
   assert(/^(Warning|CustomWarning)/.test(warning.name));
   assert(warning.message, 'A Warning');
-}, 3));
+}, 4));
 
 process.emitWarning('A Warning');
 process.emitWarning('A Warning', 'CustomWarning');
@@ -27,3 +27,11 @@ process.emitWarning(new CustomWarning());
 // TypeError is thrown on invalid output
 assert.throws(() => process.emitWarning(1), TypeError);
 assert.throws(() => process.emitWarning({}), TypeError);
+
+{
+  let warned = false;
+  warned = process.emitWarning('A Warning', warned);
+  assert.strictEqual(warned, true);
+  warned = process.emitWarning('A Warning', warned);
+  assert.strictEqual(warned, true);
+}
