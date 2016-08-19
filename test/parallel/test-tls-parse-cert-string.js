@@ -28,3 +28,7 @@ assert.deepStrictEqual(doublesOut, {
   OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
   CN: '*.nodejs.org'
 });
+
+const invalid = 'fhqwhgads';
+const invalidOut = tls.parseCertString(invalid);
+assert.deepStrictEqual(invalidOut, {});
