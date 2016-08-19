@@ -45,12 +45,10 @@ runTest(/RunInDebugContext/,
 
 function runTest(pattern, code) {
   cp.execFileSync(process.execPath, ['-prof', '-pe', code]);
-  var matches = fs.readdirSync(common.tmpDir).filter(function(file) {
-    return /^isolate-/.test(file);
-  });
-  if (matches.length != 1) {
-    common.fail('There should be a single log file.');
-  }
+  var matches = fs.readdirSync(common.tmpDir);
+
+  assert.strictEqual(matches.length, 1, 'There should be a single log file.');
+
   var log = matches[0];
   var out = cp.execSync(process.execPath +
                         ' --prof-process --call-graph-size=10 ' + log,
