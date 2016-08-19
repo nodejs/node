@@ -166,14 +166,27 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
                     a.AssertionError);
 
 //deepStrictEqual
-assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)),
-                    'deepStrictEqual(new Date(2000, 3, 14),\
-                    new Date(2000, 3, 14))');
+assert.doesNotThrow(
+  makeBlock(a.deepStrictEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  'deepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
 
-assert.throws(makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
-              a.AssertionError,
-              'deepStrictEqual(new Date(), new Date(2000, 3, 14))');
+assert.throws(
+  makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
+  a.AssertionError,
+  'deepStrictEqual(new Date(), new Date(2000, 3, 14))'
+);
+
+assert.throws(
+  makeBlock(a.notDeepStrictEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  a.AssertionError,
+  'notDeepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.doesNotThrow(
+  makeBlock(a.notDeepStrictEqual, new Date(), new Date(2000, 3, 14)),
+  'notDeepStrictEqual(new Date(), new Date(2000, 3, 14))'
+);
 
 // 7.3 - strict
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/, /a/));
