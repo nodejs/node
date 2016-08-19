@@ -165,6 +165,30 @@ stream.on('data', (data) => {
 stream.write('It works!'); // Received data: "It works!"
 ```
 
+ES6 example using `class` and `extends`
+
+```js
+const util = require('util');
+const EventEmitter = require('events');
+
+class MyStream extends EventEmitter {
+  constructor() {
+    super();
+  }
+  write(data) {
+    this.emit('data', data);
+  }
+}
+
+const stream = new MyStream();
+
+stream.on('data', (data) => {
+  console.log(`Received data: "${data}"`);
+});
+stream.write('With ES6');
+
+```
+
 ## util.inspect(object[, options])
 
 * `object` {any} Any JavaScript primitive or Object.
