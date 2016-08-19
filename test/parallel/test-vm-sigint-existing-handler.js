@@ -43,7 +43,7 @@ if (process.argv[2] === 'child') {
 
   process.on('SIGINT', common.mustCall(() => {
     // Handler attached _after_ execution.
-    if (afterHandlerCalled++ == 0) {
+    if (afterHandlerCalled++ === 0) {
       // The first time it just bounces back to check that the `once()`
       // handler is not called the second time.
       process.kill(parent, 'SIGUSR2');
