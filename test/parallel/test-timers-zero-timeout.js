@@ -23,7 +23,7 @@ const assert = require('assert');
     assert.strictEqual(a, 'foo');
     assert.strictEqual(b, 'bar');
     assert.strictEqual(c, 'baz');
-    if (++ncalled == 3) clearTimeout(iv);
+    if (++ncalled === 3) clearTimeout(iv);
   }
 
   process.on('exit', function() {
