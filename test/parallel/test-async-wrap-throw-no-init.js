@@ -4,10 +4,13 @@ require('../common');
 const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
 
-
 assert.throws(function() {
   async_wrap.setupHooks(null);
 }, /first argument must be an object/);
+
+assert.throws(function() {
+  async_wrap.setupHooks({});
+}, /init callback must be a function/);
 
 assert.throws(function() {
   async_wrap.enable();
