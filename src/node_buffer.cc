@@ -282,7 +282,13 @@ MaybeLocal<Object> New(Isolate* isolate,
       free(data);
       data = nullptr;
     } else if (actual < length) {
-      data = static_cast<char*>(realloc(data, actual));
+      char* new_data = static_cast<char*>(realloc(data, actual));
+      if (new_data == NULL) {
+        data = nullptr;
+      }
+      else {
+        data = new_data;
+      }
       CHECK_NE(data, nullptr);
     }
   }
