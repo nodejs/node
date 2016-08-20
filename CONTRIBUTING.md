@@ -74,10 +74,10 @@ does not align with the project team. Node.js has two IRC channels,
 
 ### Step 2: Branch
 
-Create a feature branch and start hacking:
+Create a branch and start hacking:
 
 ```text
-$ git checkout -b my-feature-branch -t origin/master
+$ git checkout -b my-branch -t origin/master
 ```
 
 ### Step 3: Commit
@@ -184,15 +184,15 @@ core modules.
 ### Step 6: Push
 
 ```text
-$ git push origin my-feature-branch
+$ git push origin my-branch
 ```
 
-Go to https://github.com/yourusername/node and select your feature branch.
+Go to https://github.com/yourusername/node and select your branch.
 Click the 'Pull Request' button and fill out the form.
 
 Pull requests are usually reviewed within a few days. If there are comments
 to address, apply your changes in a separate commit and push that to your
-feature branch. Post a comment in the pull request afterwards; GitHub does
+branch. Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 <a id="developers-certificate-of-origin"></a>
