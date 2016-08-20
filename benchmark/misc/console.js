@@ -103,16 +103,16 @@ function main(conf) {
   const n = +conf.n;
   switch (conf.method) {
     case 'restAndSpread':
-      runUsingRestAndSpread(n, conf.concat);
+      runUsingRestAndSpread(n, +conf.concat);
       break;
     case 'restAndApply':
-      runUsingRestAndApply(n, conf.concat);
+      runUsingRestAndApply(n, +conf.concat);
       break;
     case 'argumentsAndApply':
-      runUsingArgumentsAndApply(n, conf.concat);
+      runUsingArgumentsAndApply(n, +conf.concat);
       break;
     case 'restAndConcat':
-      if (conf.concat)
+      if (+conf.concat)
         runUsingRestAndConcat(n);
       break;
     default:

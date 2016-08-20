@@ -8,7 +8,7 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = conf.n;
+  var n = +conf.n;
   var poolSize = 1000;
   var list = new FreeList('test', poolSize, Object);
   var i;

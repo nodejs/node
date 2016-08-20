@@ -9,12 +9,12 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var message = Buffer.alloc(conf.len, 'b');
+  var message = Buffer.alloc(+conf.len, 'b');
   var key = crypto.randomBytes(keylen[conf.cipher]);
   var iv = crypto.randomBytes(12);
   var associate_data = Buffer.alloc(16, 'z');
   bench.start();
-  AEAD_Bench(conf.cipher, message, associate_data, key, iv, conf.n, conf.len);
+  AEAD_Bench(conf.cipher, message, associate_data, key, iv, +conf.n, +conf.len);
 }
 
 function AEAD_Bench(cipher, message, associate_data, key, iv, n, len) {
