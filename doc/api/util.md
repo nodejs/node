@@ -812,7 +812,7 @@ deprecated: v0.11.3
 
 Deprecated predecessor of `console.log`.
 
-### util.\_extend(obj)
+### util.\_extend(target, source)
 <!-- YAML
 added: v0.7.5
 deprecated: v6.0.0
