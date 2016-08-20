@@ -4,11 +4,12 @@ var assert = require('assert');
 var cluster = require('cluster');
 
 if (cluster.isWorker) {
-  cluster.worker.send({
+  const result = cluster.worker.send({
     prop: process.env['cluster_test_prop'],
     overwrite: process.env['cluster_test_overwrite']
   });
 
+  assert.strictEqual(result, true);
 } else if (cluster.isMaster) {
 
   var checks = {
