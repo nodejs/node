@@ -50,7 +50,7 @@ function runBenchmark(compareFunc, bufferA, bufferB, expectedResult) {
 }
 
 function getTValue(compareFunc) {
-  const numTrials = 10000;
+  const numTrials = 1000;
   const testBufferSize = 10000;
   // Perform benchmarks to verify that timingSafeEqual is actually timing-safe.
   const bufferA1 = Buffer.alloc(testBufferSize, 'A');
