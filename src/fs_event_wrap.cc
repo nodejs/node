@@ -65,14 +65,15 @@ void FSEventWrap::Initialize(Local<Object> target,
                              Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  auto fsevent_string = FIXED_ONE_BYTE_STRING(env->isolate(), "FSEvent");
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(env->fsevent_string());
+  t->SetClassName(fsevent_string);
 
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "close", Close);
 
-  target->Set(env->fsevent_string(), t->GetFunction());
+  target->Set(fsevent_string, t->GetFunction());
 }
 
 
