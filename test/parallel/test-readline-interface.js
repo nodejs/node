@@ -29,17 +29,27 @@ function isWarned(emitter) {
 {
   // Default crlfDelay is 100ms
   const fi = new FakeInput();
-  let rli = new readline.Interface({ input: fi, output: fi });
+  const rli = new readline.Interface({ input: fi, output: fi });
   assert.strictEqual(rli.crlfDelay, 100);
   rli.close();
+}
 
+{
   // Minimum crlfDelay is 100ms
-  rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
+  const fi = new FakeInput();
+  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
   assert.strictEqual(rli.crlfDelay, 100);
   rli.close();
+}
 
+{
   // Maximum crlfDelay is 2000ms
-  rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 1 << 30});
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    crlfDelay: 1 << 30
+  });
   assert.strictEqual(rli.crlfDelay, 2000);
   rli.close();
 }
