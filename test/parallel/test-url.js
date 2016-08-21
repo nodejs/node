@@ -1570,6 +1570,11 @@ var relativeTests2 = [
    'http://asdf:qwer@www.example.com',
    'http://diff:auth@www.example.com/'],
 
+  // changing port
+  ['https://example.com:81/',
+   'https://example.com:82/',
+   'https://example.com:81/'],
+
   // https://github.com/nodejs/node/issues/1435
   ['https://another.host.com/',
    'https://user:password@example.org/',
