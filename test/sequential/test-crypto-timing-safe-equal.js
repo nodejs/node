@@ -84,6 +84,23 @@ function getTValue(compareFunc) {
   const combinedStd = combinedStandardDeviation(equalBenches, unequalBenches);
   const standardErr = combinedStd * Math.sqrt(1 / equalLen + 1 / unequalLen);
 
+  if (Math.abs((equalMean - unequalMean) / standardErr) > T_THRESHOLD &&
+                compareFunc === crypto.timingSafeEqual) {
+    console.log({
+      equalMean,
+      unequalMean,
+      equalLen,
+      unequalLen,
+      equalStd: standardDeviation(equalBenches),
+      unequalStd: standardDeviation(unequalBenches),
+      combinedStd,
+      standardErr,
+      t: (equalMean - unequalMean) / standardErr,
+      rawEqualBenches: JSON.stringify(rawEqualBenches),
+      rawUnequalBenches: JSON.stringify(rawUnequalBenches)
+    });
+  }
+
   return (equalMean - unequalMean) / standardErr;
 }
 
