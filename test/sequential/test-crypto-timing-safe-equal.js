@@ -1,4 +1,4 @@
-// Flags: --allow_natives_syntax
+// Flags: --allow_natives_syntax --expose-gc
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -7,6 +7,8 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
+
+assert.equal(typeof global.gc, 'function', 'Run this test with --expose-gc');
 
 const crypto = require('crypto');
 
@@ -127,6 +129,8 @@ runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
 // significantly affect the threshold.
 const T_THRESHOLD = 3.291;
 
+// Make sure garbage collection does not interfere with timing
+global.gc();
 const t = getTValue(crypto.timingSafeEqual);
 assert(
   Math.abs(t) < T_THRESHOLD,
@@ -137,6 +141,7 @@ assert(
 // same benchmarks again, this time with an unsafe comparison function. In this
 // case the t-value should be above the threshold.
 const unsafeCompare = (bufA, bufB) => bufA.equals(bufB);
+global.gc();
 const t2 = getTValue(unsafeCompare);
 assert(
   Math.abs(t2) > T_THRESHOLD,
