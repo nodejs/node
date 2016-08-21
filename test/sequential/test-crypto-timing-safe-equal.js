@@ -37,6 +37,8 @@ assert.throws(function() {
 }, 'should throw if the second argument is not a buffer');
 
 function runBenchmark(compareFunc, bufferA, bufferB, expectedResult) {
+  // Make sure garbage collection does not interfere with timing
+  global.gc();
   const startTime = process.hrtime();
   const result = compareFunc(bufferA, bufferB);
   const endTime = process.hrtime(startTime);
@@ -129,8 +131,6 @@ runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
 // significantly affect the threshold.
 const T_THRESHOLD = 3.291;
 
-// Make sure garbage collection does not interfere with timing
-global.gc();
 const t = getTValue(crypto.timingSafeEqual);
 assert(
   Math.abs(t) < T_THRESHOLD,
@@ -141,7 +141,6 @@ assert(
 // same benchmarks again, this time with an unsafe comparison function. In this
 // case the t-value should be above the threshold.
 const unsafeCompare = (bufA, bufB) => bufA.equals(bufB);
-global.gc();
 const t2 = getTValue(unsafeCompare);
 assert(
   Math.abs(t2) > T_THRESHOLD,
