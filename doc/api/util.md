@@ -19,6 +19,9 @@ are unnecessary for Node.js's internal functionality.
 Deprecated predecessor of `console.error`.
 
 ## util.debuglog(section)
+<!-- YAML
+added: v0.11.3
+-->
 
 * `section` {String} The section of the program to be debugged
 * Returns: {Function} The logging function
@@ -52,6 +55,9 @@ You may separate multiple `NODE_DEBUG` environment variables with a
 comma.  For example, `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(function, string)
+<!-- YAML
+added: v0.8.0
+-->
 
 Marks that a method should not be used any more.
 
@@ -82,12 +88,19 @@ when the deprecated API is used.  Configurable at run-time through the
 `process.throwDeprecation` takes precedence over `process.traceDeprecation`.
 
 ## util.error([...])
+<!-- YAML
+added: v0.3.0
+deprecated: v0.11.3
+-->
 
 > Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 Deprecated predecessor of `console.error`.
 
 ## util.format(format[, ...])
+<!-- YAML
+added: v0.5.3
+-->
 
 Returns a formatted string using the first argument as a `printf`-like format.
 
@@ -125,6 +138,9 @@ util.format(1, 2, 3); // '1 2 3'
 ```
 
 ## util.inherits(constructor, superConstructor)
+<!-- YAML
+added: v0.3.0
+-->
 
 Inherit the prototype methods from one [constructor][] into another.  The
 prototype of `constructor` will be set to a new object created from
@@ -159,6 +175,9 @@ stream.write('It works!'); // Received data: "It works!"
 ```
 
 ## util.inspect(object[, options])
+<!-- YAML
+added: v0.3.0
+-->
 
 Return a string representation of `object`, which is useful for debugging.
 
@@ -249,6 +268,10 @@ util.inspect(obj);
 ```
 
 ## util.isArray(object)
+<!-- YAML
+added: v0.6.0
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -268,6 +291,10 @@ util.isArray({})
 ```
 
 ## util.isBoolean(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -285,6 +312,10 @@ util.isBoolean(false)
 ```
 
 ## util.isBuffer(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
@@ -302,6 +333,10 @@ util.isBuffer(new Buffer('hello world'))
 ```
 
 ## util.isDate(object)
+<!-- YAML
+added: v0.6.0
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -319,6 +354,10 @@ util.isDate({})
 ```
 
 ## util.isError(object)
+<!-- YAML
+added: v0.6.0
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -337,6 +376,10 @@ util.isError({ name: 'Error', message: 'an error occurred' })
 ```
 
 ## util.isFunction(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -358,6 +401,10 @@ util.isFunction(Bar)
 ```
 
 ## util.isNull(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -376,6 +423,10 @@ util.isNull(null)
 ```
 
 ## util.isNullOrUndefined(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -394,6 +445,10 @@ util.isNullOrUndefined(null)
 ```
 
 ## util.isNumber(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -413,6 +468,10 @@ util.isNumber(NaN)
 ```
 
 ## util.isObject(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -433,6 +492,10 @@ util.isObject(function(){})
 ```
 
 ## util.isPrimitive(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -463,6 +526,10 @@ util.isPrimitive(new Date())
 ```
 
 ## util.isRegExp(object)
+<!-- YAML
+added: v0.6.0
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -480,6 +547,10 @@ util.isRegExp({})
 ```
 
 ## util.isString(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -499,6 +570,10 @@ util.isString(5)
 ```
 
 ### util.isSymbol(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -516,6 +591,10 @@ util.isSymbol(Symbol('foo'))
 ```
 
 ## util.isUndefined(object)
+<!-- YAML
+added: v0.11.5
+deprecated: v4.0.0
+-->
 
 > Stability: 0 - Deprecated
 
@@ -534,24 +613,40 @@ util.isUndefined(null)
 ```
 
 ## util.log(string)
+<!-- YAML
+added: v0.3.0
+deprecated: v6.0.0
+-->
 
 Output with timestamp on `stdout`.
 
     require('util').log('Timestamped message.');
 
 ## util.print([...])
+<!-- YAML
+added: v0.3.0
+deprecated: v0.11.3
+-->
 
 > Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
 ## util.pump(readableStream, writableStream[, callback])
+<!-- YAML
+added: v0.3.0
+deprecated: v0.9.1
+-->
 
 > Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
 
 Deprecated predecessor of `stream.pipe()`.
 
 ## util.puts([...])
+<!-- YAML
+added: v0.3.0
+deprecated: v0.11.3
+-->
 
 > Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
