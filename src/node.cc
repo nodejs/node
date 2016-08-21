@@ -259,6 +259,7 @@ static void PrintErrorString(const char* format, ...) {
   MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
 
   // Don't include the null character in the output
+  CHECK_GT(n, 0);
   WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
 #else
   vfprintf(stderr, format, ap);
