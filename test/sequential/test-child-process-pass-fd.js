@@ -14,7 +14,7 @@ const N = 80;
 
 if (process.argv[2] !== 'child') {
   for (let i = 0; i < N; ++i) {
-    const worker = fork(__filename, ['child', common.PORT + i]);
+    const worker = fork(__filename, ['child']);
     worker.once('message', common.mustCall((msg, handle) => {
       assert.strictEqual(msg, 'handle');
       assert.ok(handle);
@@ -33,7 +33,6 @@ if (process.argv[2] !== 'child') {
   }
 } else {
   let socket;
-  const port = process.argv[3];
   let cbcalls = 0;
   function socketConnected() {
     if (++cbcalls === 2)
@@ -47,7 +46,8 @@ if (process.argv[2] !== 'child') {
     });
     socketConnected();
   });
-  server.listen(port, common.localhostIPv4, () => {
+  server.listen(0, common.localhostIPv4, () => {
+    const port = server.address().port;
     socket = net.connect(port, common.localhostIPv4, socketConnected);
   });
 }
