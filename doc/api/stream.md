@@ -963,10 +963,10 @@ function parseHeader(stream, callback) {
         header += split.shift();
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
-        if (buf.length)
-          stream.unshift(buf);
         stream.removeListener('error', callback);
         stream.removeListener('readable', onReadable);
+        if (buf.length)
+          stream.unshift(buf);
         // now the body of the message can be read from the stream.
         callback(null, header, stream);
       } else {
