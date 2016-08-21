@@ -67,7 +67,6 @@ namespace node {
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
-  V(argv_string, "argv")                                                      \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(bytes_string, "bytes")                                                    \
@@ -82,8 +81,6 @@ namespace node {
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
   V(cwd_string, "cwd")                                                        \
-  V(debug_port_string, "debugPort")                                           \
-  V(debug_string, "debug")                                                    \
   V(dest_string, "dest")                                                      \
   V(detached_string, "detached")                                              \
   V(disposed_string, "_disposed")                                             \
@@ -99,8 +96,6 @@ namespace node {
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
   V(events_string, "_events")                                                 \
-  V(exec_argv_string, "execArgv")                                             \
-  V(exec_path_string, "execPath")                                             \
   V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
@@ -115,7 +110,6 @@ namespace node {
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
   V(flags_string, "flags")                                                    \
-  V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
   V(heap_total_string, "heapTotal")                                           \
@@ -129,7 +123,6 @@ namespace node {
   V(input_string, "input")                                                    \
   V(internal_string, "internal")                                              \
   V(ipv4_string, "IPv4")                                                      \
-  V(ipv6_lc_string, "ipv6")                                                   \
   V(ipv6_string, "IPv6")                                                      \
   V(isalive_string, "isAlive")                                                \
   V(isclosing_string, "isClosing")                                            \
@@ -143,7 +136,6 @@ namespace node {
   V(model_string, "model")                                                    \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
-  V(need_imm_cb_string, "_needImmediateCallback")                             \
   V(netmask_string, "netmask")                                                \
   V(nice_string, "nice")                                                      \
   V(nsname_string, "nsname")                                                  \
@@ -215,19 +207,12 @@ namespace node {
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(times_string, "times")                                                    \
-  V(title_string, "title")                                                    \
-  V(tls_npn_string, "tls_npn")                                                \
-  V(tls_alpn_string, "tls_alpn")                                              \
-  V(tls_ocsp_string, "tls_ocsp")                                              \
-  V(tls_sni_string, "tls_sni")                                                \
-  V(tls_string, "tls")                                                        \
   V(tls_ticket_string, "tlsTicket")                                           \
   V(type_string, "type")                                                      \
   V(uid_string, "uid")                                                        \
   V(unknown_string, "<unknown>")                                              \
   V(user_string, "user")                                                      \
   V(username_string, "username")                                              \
-  V(uv_string, "uv")                                                          \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
   V(verify_error_string, "verifyError")                                       \
