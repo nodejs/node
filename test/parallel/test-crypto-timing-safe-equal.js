@@ -1,4 +1,3 @@
-// Flags: --allow_natives_syntax
 'use strict';
 const common = require('../common');
 const assert = require('assert');
