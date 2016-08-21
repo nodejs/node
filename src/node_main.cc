@@ -2,12 +2,13 @@
 
 #ifdef _WIN32
 #include <VersionHelpers.h>
+#include <WinError.h>
 
 int wmain(int argc, wchar_t *wargv[]) {
   if (!IsWindows7OrGreater()) {
     fprintf(stderr, "This application is only supported on Windows 7, "
                     "Windows Server 2008 R2, or higher.");
-    exit(1);
+    exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
 
   // Convert argv to to UTF8
