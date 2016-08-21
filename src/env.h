@@ -70,11 +70,6 @@ namespace node {
   V(argv_string, "argv")                                                      \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
-  V(atime_string, "atime")                                                    \
-  V(birthtime_string, "birthtime")                                            \
-  V(blksize_string, "blksize")                                                \
-  V(blocks_string, "blocks")                                                  \
-  V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(bytes_read_string, "bytesRead")                                           \
@@ -86,14 +81,11 @@ namespace node {
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
-  V(compare_string, "compare")                                                \
-  V(ctime_string, "ctime")                                                    \
   V(cwd_string, "cwd")                                                        \
   V(debug_port_string, "debugPort")                                           \
   V(debug_string, "debug")                                                    \
   V(dest_string, "dest")                                                      \
   V(detached_string, "detached")                                              \
-  V(dev_string, "dev")                                                        \
   V(disposed_string, "_disposed")                                             \
   V(domain_string, "domain")                                                  \
   V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
@@ -134,7 +126,6 @@ namespace node {
   V(immediate_callback_string, "_immediateCallback")                          \
   V(infoaccess_string, "infoAccess")                                          \
   V(inherit_string, "inherit")                                                \
-  V(ino_string, "ino")                                                        \
   V(input_string, "input")                                                    \
   V(internal_string, "internal")                                              \
   V(ipv4_string, "IPv4")                                                      \
@@ -146,22 +137,17 @@ namespace node {
   V(issuercert_string, "issuerCertificate")                                   \
   V(kill_signal_string, "killSignal")                                         \
   V(mac_string, "mac")                                                        \
-  V(mark_sweep_compact_string, "mark-sweep-compact")                          \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
   V(minttl_string, "minttl")                                                  \
-  V(mode_string, "mode")                                                      \
   V(model_string, "model")                                                    \
   V(modulus_string, "modulus")                                                \
-  V(mtime_string, "mtime")                                                    \
   V(name_string, "name")                                                      \
   V(need_imm_cb_string, "_needImmediateCallback")                             \
   V(netmask_string, "netmask")                                                \
   V(nice_string, "nice")                                                      \
-  V(nlink_string, "nlink")                                                    \
   V(nsname_string, "nsname")                                                  \
   V(ocsp_request_string, "OCSPRequest")                                       \
-  V(offset_string, "offset")                                                  \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
   V(oncomplete_string, "oncomplete")                                          \
@@ -195,9 +181,7 @@ namespace node {
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
-  V(prototype_string, "prototype")                                            \
   V(raw_string, "raw")                                                        \
-  V(rdev_string, "rdev")                                                      \
   V(readable_string, "readable")                                              \
   V(received_shutdown_string, "receivedShutdown")                             \
   V(refresh_string, "refresh")                                                \
@@ -207,7 +191,6 @@ namespace node {
   V(retry_string, "retry")                                                    \
   V(rss_string, "rss")                                                        \
   V(serial_string, "serial")                                                  \
-  V(scavenge_string, "scavenge")                                              \
   V(scopeid_string, "scopeid")                                                \
   V(sent_shutdown_string, "sentShutdown")                                     \
   V(serial_number_string, "serialNumber")                                     \
@@ -232,7 +215,6 @@ namespace node {
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(times_string, "times")                                                    \
-  V(timestamp_string, "timestamp")                                            \
   V(title_string, "title")                                                    \
   V(tls_npn_string, "tls_npn")                                                \
   V(tls_alpn_string, "tls_alpn")                                              \
