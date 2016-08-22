@@ -16,11 +16,14 @@ process.on('warning', common.mustCall((warning) => {
       assert(/Unhandled promise rejection/.test(warning.message));
       break;
     case 1:
+      assert.strictEqual(warning.name, 'DeprecationWarning');
+      break;
+    case 2:
       assert.strictEqual(warning.name, 'PromiseRejectionHandledWarning');
       assert(/Promise rejection was handled asynchronously/
         .test(warning.message));
   }
-}, 2));
+}, 3));
 
 const p = Promise.reject('This was rejected');
 setImmediate(common.mustCall(() => p.catch(() => {})));
