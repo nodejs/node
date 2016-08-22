@@ -5771,22 +5771,6 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(outString);
 }
 
-void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "First argument");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Second argument");
-
-  size_t buf_length = Buffer::Length(args[0]);
-  if (buf_length != Buffer::Length(args[1])) {
-    return env->ThrowTypeError("Input buffers must have the same length");
-  }
-
-  const char* buf1 = Buffer::Data(args[0]);
-  const char* buf2 = Buffer::Data(args[1]);
-
-  return args.GetReturnValue().Set(CRYPTO_memcmp(buf1, buf2, buf_length) == 0);
-}
 
 void InitCryptoOnce() {
   OPENSSL_config(NULL);
@@ -5919,7 +5903,6 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
   env->SetMethod(target, "PBKDF2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
-  env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
