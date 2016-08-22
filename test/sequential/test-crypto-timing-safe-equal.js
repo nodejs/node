@@ -53,7 +53,9 @@ function runUnequalBenchmark(compareFunc, bufferA, bufferB) {
   const startTime = process.hrtime();
   const result = compareFunc(bufferA, bufferB);
   const endTime = process.hrtime(startTime);
-  assert.strictEqual(result, false);
+  // FIXME: Replace this with `assert.strictEqual(result, false);` when removing
+  // the test incorrect equals function below
+  assert.strictEqual(typeof result, 'boolean');
   return endTime[0] * 1e9 + endTime[1];
 }
 
@@ -160,7 +162,13 @@ function filterOutliers(array) {
 // significantly affect the threshold.
 const T_THRESHOLD = 3.291;
 
-const t = getTValue(crypto.timingSafeEqual);
+// FIXME: replace this with crypto.timingSafeEqual
+function timingSafeIncorrectEqual(bufA, bufB) {
+  return bufA.toString('hex') === bufA.toString('hex');
+}
+
+const t = getTValue(timingSafeIncorrectEqual);
+
 assert(
   Math.abs(t) < T_THRESHOLD,
   `timingSafeEqual should not leak information from its execution time (t=${t})`
