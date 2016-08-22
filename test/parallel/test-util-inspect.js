@@ -343,9 +343,9 @@ try {
   assert.strictEqual(util.inspect(e), e.stack);
 }
 var ex = util.inspect(new Error('FAIL'), true);
-assert.strictEqual(ex.includes('Error: FAIL'), true);
-assert.strictEqual(ex.includes('[stack]'), true);
-assert.strictEqual(ex.includes('[message]'), true);
+assert(ex.includes('Error: FAIL'));
+assert(ex.includes('[stack]'));
+assert(ex.includes('[message]'));
 // Doesn't capture stack trace
 function BadCustomError(msg) {
   Error.call(this);
