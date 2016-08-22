@@ -34,19 +34,33 @@ assert.throws(function() {
   crypto.timingSafeEqual(Buffer.from([1, 2]), 'not a buffer');
 }, 'should throw if the second argument is not a buffer');
 
-function runBenchmark(compareFunc, bufferA, bufferB, expectedResult) {
+// The code that runs benchmarks is split into two separate functions that are
+// almost identical. This should help to prevent the functions from being
+// optimized for one specific set of buffer values by V8, which would cause
+// timing inconsistency.
+function runEqualBenchmark(compareFunc, bufferA, bufferB) {
   const startTime = process.hrtime();
   const result = compareFunc(bufferA, bufferB);
   const endTime = process.hrtime(startTime);
 
   // Ensure that the result of the function call gets used, so that it doesn't
   // get discarded due to engine optimizations.
-  assert.strictEqual(result, expectedResult);
+  assert.strictEqual(result, true);
+  return endTime[0] * 1e9 + endTime[1];
+}
+
+function runUnequalBenchmark(compareFunc, bufferA, bufferB) {
+  const startTime = process.hrtime();
+  const result = compareFunc(bufferA, bufferB);
+  const endTime = process.hrtime(startTime);
+  // FIXME: Replace this with `assert.strictEqual(result, false);` when removing
+  // the test incorrect equals function below
+  assert.strictEqual(typeof result, 'boolean');
   return endTime[0] * 1e9 + endTime[1];
 }
 
 function getTValue(compareFunc) {
-  const numTrials = 10000;
+  const numTrials = 1000;
   const testBufferSize = 10000;
   // Perform benchmarks to verify that timingSafeEqual is actually timing-safe.
   const bufferA1 = Buffer.alloc(testBufferSize, 'A');
@@ -54,14 +68,23 @@ function getTValue(compareFunc) {
   const bufferB = Buffer.alloc(testBufferSize, 'B');
   const bufferC = Buffer.alloc(testBufferSize, 'C');
 
+  // Force optimization before starting the benchmark
+  runEqualBenchmark(compareFunc, bufferA1, bufferA2);
+  eval('%OptimizeFunctionOnNextCall(runEqualBenchmark)');
+  runEqualBenchmark(compareFunc, bufferA1, bufferA2);
+
+  runUnequalBenchmark(compareFunc, bufferB, bufferC);
+  eval('%OptimizeFunctionOnNextCall(runUnequalBenchmark)');
+  runUnequalBenchmark(compareFunc, bufferB, bufferC);
+
   const rawEqualBenches = Array(numTrials);
   const rawUnequalBenches = Array(numTrials);
 
   for (let i = 0; i < numTrials; i++) {
     // First benchmark: comparing two equal buffers
-    rawEqualBenches[i] = runBenchmark(compareFunc, bufferA1, bufferA2, true);
+    rawEqualBenches[i] = runEqualBenchmark(compareFunc, bufferA1, bufferA2);
     // Second benchmark: comparing two unequal buffers
-    rawUnequalBenches[i] = runBenchmark(compareFunc, bufferB, bufferC, false);
+    rawUnequalBenches[i] = runUnequalBenchmark(compareFunc, bufferB, bufferC);
   }
 
   const equalBenches = filterOutliers(rawEqualBenches);
@@ -79,6 +102,23 @@ function getTValue(compareFunc) {
 
   const combinedStd = combinedStandardDeviation(equalBenches, unequalBenches);
   const standardErr = combinedStd * Math.sqrt(1 / equalLen + 1 / unequalLen);
+
+  if (Math.abs((equalMean - unequalMean) / standardErr) > T_THRESHOLD &&
+                compareFunc === crypto.timingSafeEqual) {
+    console.log({
+      equalMean,
+      unequalMean,
+      equalLen,
+      unequalLen,
+      equalStd: standardDeviation(equalBenches),
+      unequalStd: standardDeviation(unequalBenches),
+      combinedStd,
+      standardErr,
+      t: (equalMean - unequalMean) / standardErr,
+      rawEqualBenches: JSON.stringify(rawEqualBenches),
+      rawUnequalBenches: JSON.stringify(rawUnequalBenches)
+    });
+  }
 
   return (equalMean - unequalMean) / standardErr;
 }
@@ -111,11 +151,6 @@ function filterOutliers(array) {
   return array.filter((value) => value / arrMean < 50);
 }
 
-// Force optimization before starting the benchmark
-runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
-eval('%OptimizeFunctionOnNextCall(runBenchmark)');
-runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
-
 // t_(0.9995, ∞)
 // i.e. If a given comparison function is indeed timing-safe, the t-test result
 // has a 99.9% chance to be below this threshold. Unfortunately, this means that
@@ -127,7 +162,13 @@ runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
 // significantly affect the threshold.
 const T_THRESHOLD = 3.291;
 
-const t = getTValue(crypto.timingSafeEqual);
+// FIXME: replace this with crypto.timingSafeEqual
+function timingSafeIncorrectEqual(bufA, bufB) {
+  return bufA.toString('hex') === bufA.toString('hex');
+}
+
+const t = getTValue(timingSafeIncorrectEqual);
+
 assert(
   Math.abs(t) < T_THRESHOLD,
   `timingSafeEqual should not leak information from its execution time (t=${t})`
