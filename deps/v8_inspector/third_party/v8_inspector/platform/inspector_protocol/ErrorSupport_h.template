@@ -5,8 +5,9 @@
 #ifndef ErrorSupport_h
 #define ErrorSupport_h
 
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
+//#include "Platform.h"
+//#include "String16.h"
+#include "{{config.class_export.header}}"
 
 #include <vector>
 
@@ -15,7 +16,7 @@ namespace protocol {
 
 using ErrorString = String16;
 
-class PLATFORM_EXPORT ErrorSupport {
+class {{config.class_export.macro}} ErrorSupport {
 public:
     ErrorSupport();
     ErrorSupport(String16* errorString);

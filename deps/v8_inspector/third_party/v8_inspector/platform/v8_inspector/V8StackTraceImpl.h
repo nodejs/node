@@ -5,17 +5,18 @@
 #ifndef V8StackTraceImpl_h
 #define V8StackTraceImpl_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/protocol/Runtime.h"
 #include "platform/v8_inspector/public/V8StackTrace.h"
 
 #include <vector>
 
-namespace blink {
+namespace v8_inspector {
 
 class TracedValue;
 class V8Debugger;
+
+namespace protocol = blink::protocol;
 
 // Note: async stack trace may have empty top stack with non-empty tail to indicate
 // that current native-only state had some async story.
@@ -80,6 +81,6 @@ private:
     std::unique_ptr<V8StackTraceImpl> m_parent;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // V8StackTraceImpl_h

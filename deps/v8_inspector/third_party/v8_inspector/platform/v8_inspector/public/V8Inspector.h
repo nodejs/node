@@ -5,21 +5,16 @@
 #ifndef V8Inspector_h
 #define V8Inspector_h
 
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/public/V8ContextInfo.h"
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class V8InspectorClient;
 class V8InspectorSession;
 class V8StackTrace;
-
-namespace protocol {
-class FrontendChannel;
-}
 
 class PLATFORM_EXPORT V8Inspector {
 public:
@@ -49,12 +44,12 @@ public:
     virtual void exceptionRevoked(v8::Local<v8::Context>, unsigned exceptionId, const String16& message) = 0;
 
     // API methods.
-    virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId, protocol::FrontendChannel*, const String16* state) = 0;
+    virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId, blink::protocol::FrontendChannel*, const String16* state) = 0;
     virtual std::unique_ptr<V8StackTrace> createStackTrace(v8::Local<v8::StackTrace>) = 0;
     virtual std::unique_ptr<V8StackTrace> captureStackTrace(bool fullStack) = 0;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 
 #endif // V8Inspector_h

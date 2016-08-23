@@ -4,18 +4,17 @@
 
 #include "platform/v8_inspector/V8DebuggerScript.h"
 
-#include "platform/inspector_protocol/Collections.h"
-#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/V8StringUtil.h"
 
-namespace blink {
+namespace v8_inspector {
 
-static const LChar hexDigits[17] = "0123456789ABCDEF";
+static const char hexDigits[17] = "0123456789ABCDEF";
 
 static void appendUnsignedAsHex(unsigned number, String16Builder* destination)
 {
     for (size_t i = 0; i < 8; ++i) {
-        destination->append(hexDigits[number & 0xF]);
+        UChar c = hexDigits[number & 0xF];
+        destination->append(c);
         number >>= 4;
     }
 }
@@ -36,17 +35,18 @@ static String16 calculateHash(const String16& str)
 
     size_t current = 0;
     const uint32_t* data = nullptr;
+    size_t sizeInBytes = sizeof(UChar) * str.length();
     data = reinterpret_cast<const uint32_t*>(str.characters16());
-    for (size_t i = 0; i < str.sizeInBytes() / 4; i += 4) {
+    for (size_t i = 0; i < sizeInBytes / 4; i += 4) {
         uint32_t v = data[i];
         uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
         hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
         zi[current] = (zi[current] * random[current]) % prime[current];
         current = current == hashesSize - 1 ? 0 : current + 1;
     }
-    if (str.sizeInBytes() % 4) {
+    if (sizeInBytes % 4) {
         uint32_t v = 0;
-        for (size_t i = str.sizeInBytes() - str.sizeInBytes() % 4; i < str.sizeInBytes(); ++i) {
+        for (size_t i = sizeInBytes - sizeInBytes % 4; i < sizeInBytes; ++i) {
             v <<= 8;
             v |= reinterpret_cast<const uint8_t*>(data)[i];
         }
@@ -79,7 +79,6 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, v8::Local<v8::Object> o
     m_endLine = object->Get(toV8StringInternalized(isolate, "endLine"))->ToInteger(isolate)->Value();
     m_endColumn = object->Get(toV8StringInternalized(isolate, "endColumn"))->ToInteger(isolate)->Value();
     m_executionContextAuxData = toProtocolStringWithTypeCheck(object->Get(toV8StringInternalized(isolate, "executionContextAuxData")));
-    m_isInternalScript = object->Get(toV8StringInternalized(isolate, "isInternalScript"))->ToBoolean(isolate)->Value();
     m_executionContextId = object->Get(toV8StringInternalized(isolate, "executionContextId"))->ToInteger(isolate)->Value();
     m_isLiveEdit = isLiveEdit;
 
@@ -118,4 +117,4 @@ void V8DebuggerScript::setSource(v8::Isolate* isolate, v8::Local<v8::String> sou
     m_hash = calculateHash(toProtocolString(source));
 }
 
-} // namespace blink
+} // namespace v8_inspector

@@ -5,11 +5,11 @@
 #ifndef V8ContextInfo_h
 #define V8ContextInfo_h
 
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class V8ContextInfo {
 public:
@@ -32,6 +32,6 @@ public:
     bool hasMemoryOnConsole;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // V8ContextInfo_h

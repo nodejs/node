@@ -31,8 +31,7 @@
 #ifndef InjectedScript_h
 #define InjectedScript_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/InjectedScriptNative.h"
 #include "platform/v8_inspector/InspectedContext.h"
 #include "platform/v8_inspector/V8Console.h"
@@ -41,18 +40,15 @@
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class RemoteObjectId;
 class V8FunctionCall;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 
-namespace protocol {
-class DictionaryValue;
-}
-
-using protocol::Maybe;
+namespace protocol = blink::protocol;
+using blink::protocol::Maybe;
 
 class InjectedScript final {
     PROTOCOL_DISALLOW_COPY(InjectedScript);
@@ -77,7 +73,7 @@ public:
     void setCustomObjectFormatterEnabled(bool);
     v8::MaybeLocal<v8::Value> resolveCallArgument(ErrorString*, protocol::Runtime::CallArgument*);
 
-    std::unique_ptr<protocol::Runtime::ExceptionDetails> createExceptionDetails(v8::Local<v8::Message>);
+    std::unique_ptr<protocol::Runtime::ExceptionDetails> createExceptionDetails(ErrorString*, const v8::TryCatch&, const String16& groupName, bool generatePreview);
     void wrapEvaluateResult(ErrorString*,
         v8::MaybeLocal<v8::Value> maybeResultValue,
         const v8::TryCatch&,
@@ -85,7 +81,6 @@ public:
         bool returnByValue,
         bool generatePreview,
         std::unique_ptr<protocol::Runtime::RemoteObject>* result,
-        Maybe<bool>* wasThrown,
         Maybe<protocol::Runtime::ExceptionDetails>*);
     v8::Local<v8::Value> lastEvaluationResult() const;
 
@@ -171,6 +166,6 @@ private:
     v8::Global<v8::Object> m_commandLineAPI;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif

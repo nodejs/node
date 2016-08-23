@@ -5,14 +5,14 @@
 #ifndef InjectedScriptNative_h
 #define InjectedScriptNative_h
 
-#include "platform/inspector_protocol/Collections.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include <v8.h>
 
 #include <vector>
 
-namespace blink {
+namespace v8_inspector {
+
+namespace protocol = blink::protocol;
 
 class InjectedScriptNative final {
 public:
@@ -41,6 +41,6 @@ private:
     NameToObjectGroup m_nameToObjectGroup;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif

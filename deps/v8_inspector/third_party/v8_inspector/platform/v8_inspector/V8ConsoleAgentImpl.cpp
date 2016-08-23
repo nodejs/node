@@ -9,7 +9,7 @@
 #include "platform/v8_inspector/V8InspectorSessionImpl.h"
 #include "platform/v8_inspector/V8StackTraceImpl.h"
 
-namespace blink {
+namespace v8_inspector {
 
 namespace ConsoleAgentState {
 static const char consoleEnabled[] = "consoleEnabled";
@@ -85,4 +85,4 @@ void V8ConsoleAgentImpl::reportMessage(V8ConsoleMessage* message, bool generateP
     m_frontend.flush();
 }
 
-} // namespace blink
+} // namespace v8_inspector

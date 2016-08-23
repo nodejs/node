@@ -16,7 +16,7 @@
 #define ENSURE_V8_VERSION(major, minor) \
     (V8_MAJOR_VERSION * 1000 + V8_MINOR_VERSION >= (major) * 1000 + (minor))
 
-namespace blink {
+namespace v8_inspector {
 
 namespace ProfilerAgentState {
 static const char samplingInterval[] = "samplingInterval";
@@ -28,11 +28,10 @@ namespace {
 
 std::unique_ptr<protocol::Array<protocol::Profiler::PositionTickInfo>> buildInspectorObjectForPositionTicks(const v8::CpuProfileNode* node)
 {
-    std::unique_ptr<protocol::Array<protocol::Profiler::PositionTickInfo>> array = protocol::Array<protocol::Profiler::PositionTickInfo>::create();
     unsigned lineCount = node->GetHitLineCount();
     if (!lineCount)
-        return array;
-
+        return nullptr;
+    auto array = protocol::Array<protocol::Profiler::PositionTickInfo>::create();
     std::vector<v8::CpuProfileNode::LineTick> entries(lineCount);
     if (node->GetLineTicks(&entries[0], lineCount)) {
         for (unsigned i = 0; i < lineCount; i++) {
@@ -42,73 +41,91 @@ std::unique_ptr<protocol::Array<protocol::Profiler::PositionTickInfo>> buildInsp
             array->addItem(std::move(line));
         }
     }
-
     return array;
 }
 
 std::unique_ptr<protocol::Profiler::CPUProfileNode> buildInspectorObjectFor(v8::Isolate* isolate, const v8::CpuProfileNode* node)
 {
     v8::HandleScope handleScope(isolate);
-
-    std::unique_ptr<protocol::Array<protocol::Profiler::CPUProfileNode>> children = protocol::Array<protocol::Profiler::CPUProfileNode>::create();
-    const int childrenCount = node->GetChildrenCount();
-    for (int i = 0; i < childrenCount; i++) {
-        const v8::CpuProfileNode* child = node->GetChild(i);
-        children->addItem(buildInspectorObjectFor(isolate, child));
-    }
-
-    std::unique_ptr<protocol::Array<protocol::Profiler::PositionTickInfo>> positionTicks = buildInspectorObjectForPositionTicks(node);
-
-    std::unique_ptr<protocol::Runtime::CallFrame> callFrame = protocol::Runtime::CallFrame::create()
+    auto callFrame = protocol::Runtime::CallFrame::create()
         .setFunctionName(toProtocolString(node->GetFunctionName()))
         .setScriptId(String16::fromInteger(node->GetScriptId()))
         .setUrl(toProtocolString(node->GetScriptResourceName()))
         .setLineNumber(node->GetLineNumber() - 1)
         .setColumnNumber(node->GetColumnNumber() - 1)
         .build();
-    std::unique_ptr<protocol::Profiler::CPUProfileNode> result = protocol::Profiler::CPUProfileNode::create()
+    auto result = protocol::Profiler::CPUProfileNode::create()
         .setCallFrame(std::move(callFrame))
         .setHitCount(node->GetHitCount())
-        .setChildren(std::move(children))
-        .setPositionTicks(std::move(positionTicks))
-        .setDeoptReason(node->GetBailoutReason())
         .setId(node->GetNodeId()).build();
+
+    const int childrenCount = node->GetChildrenCount();
+    if (childrenCount) {
+        auto children = protocol::Array<int>::create();
+        for (int i = 0; i < childrenCount; i++)
+            children->addItem(node->GetChild(i)->GetNodeId());
+        result->setChildren(std::move(children));
+    }
+
+    const char* deoptReason = node->GetBailoutReason();
+    if (deoptReason && deoptReason[0] && strcmp(deoptReason, "no reason"))
+        result->setDeoptReason(deoptReason);
+
+    auto positionTicks = buildInspectorObjectForPositionTicks(node);
+    if (positionTicks)
+        result->setPositionTicks(std::move(positionTicks));
+
     return result;
 }
 
 std::unique_ptr<protocol::Array<int>> buildInspectorObjectForSamples(v8::CpuProfile* v8profile)
 {
-    std::unique_ptr<protocol::Array<int>> array = protocol::Array<int>::create();
+    auto array = protocol::Array<int>::create();
     int count = v8profile->GetSamplesCount();
     for (int i = 0; i < count; i++)
         array->addItem(v8profile->GetSample(i)->GetNodeId());
     return array;
 }
 
-std::unique_ptr<protocol::Array<double>> buildInspectorObjectForTimestamps(v8::CpuProfile* v8profile)
+std::unique_ptr<protocol::Array<int>> buildInspectorObjectForTimestamps(v8::CpuProfile* v8profile)
 {
-    std::unique_ptr<protocol::Array<double>> array = protocol::Array<double>::create();
+    auto array = protocol::Array<int>::create();
     int count = v8profile->GetSamplesCount();
-    for (int i = 0; i < count; i++)
-        array->addItem(v8profile->GetSampleTimestamp(i));
+    uint64_t lastTime = v8profile->GetStartTime();
+    for (int i = 0; i < count; i++) {
+        uint64_t ts = v8profile->GetSampleTimestamp(i);
+        array->addItem(static_cast<int>(ts - lastTime));
+        lastTime = ts;
+    }
     return array;
+}
+
+void flattenNodesTree(v8::Isolate* isolate, const v8::CpuProfileNode* node, protocol::Array<protocol::Profiler::CPUProfileNode>* list)
+{
+    list->addItem(buildInspectorObjectFor(isolate, node));
+    const int childrenCount = node->GetChildrenCount();
+    for (int i = 0; i < childrenCount; i++)
+        flattenNodesTree(isolate, node->GetChild(i), list);
 }
 
 std::unique_ptr<protocol::Profiler::CPUProfile> createCPUProfile(v8::Isolate* isolate, v8::CpuProfile* v8profile)
 {
-    std::unique_ptr<protocol::Profiler::CPUProfile> profile = protocol::Profiler::CPUProfile::create()
-        .setHead(buildInspectorObjectFor(isolate, v8profile->GetTopDownRoot()))
-        .setStartTime(static_cast<double>(v8profile->GetStartTime()) / 1000000)
-        .setEndTime(static_cast<double>(v8profile->GetEndTime()) / 1000000).build();
+    auto nodes = protocol::Array<protocol::Profiler::CPUProfileNode>::create();
+    flattenNodesTree(isolate, v8profile->GetTopDownRoot(), nodes.get());
+
+    auto profile = protocol::Profiler::CPUProfile::create()
+        .setNodes(std::move(nodes))
+        .setStartTime(static_cast<double>(v8profile->GetStartTime()))
+        .setEndTime(static_cast<double>(v8profile->GetEndTime())).build();
     profile->setSamples(buildInspectorObjectForSamples(v8profile));
-    profile->setTimestamps(buildInspectorObjectForTimestamps(v8profile));
+    profile->setTimestampDeltas(buildInspectorObjectForTimestamps(v8profile));
     return profile;
 }
 
 std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(V8InspectorImpl* inspector)
 {
     std::unique_ptr<V8StackTrace> callStack = inspector->captureStackTrace(1);
-    std::unique_ptr<protocol::Debugger::Location> location = protocol::Debugger::Location::create()
+    auto location = protocol::Debugger::Location::create()
         .setScriptId(callStack->topScriptId())
         .setLineNumber(callStack->topLineNumber()).build();
     location->setColumnNumber(callStack->topColumnNumber());
@@ -317,4 +334,4 @@ v8::CpuProfiler* V8ProfilerAgentImpl::profiler()
 #endif
 }
 
-} // namespace blink
+} // namespace v8_inspector

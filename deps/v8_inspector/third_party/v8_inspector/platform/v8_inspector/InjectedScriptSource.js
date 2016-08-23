@@ -171,7 +171,7 @@ function doesAttributeHaveObservableSideEffectOnGet(object, attribute)
 {
     for (var interfaceName in domAttributesWithObservableSideEffectOnGet) {
         var interfaceFunction = inspectedGlobalObject[interfaceName];
-        // instanceof call looks safe after typeof check.
+        // Call to instanceOf looks safe after typeof check.
         var isInstance = typeof interfaceFunction === "function" && /* suppressBlacklist */ object instanceof interfaceFunction;
         if (isInstance)
             return attribute in domAttributesWithObservableSideEffectOnGet[interfaceName];
