@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "platform/inspector_protocol/DispatcherBase.h"
-
-#include "platform/inspector_protocol/FrontendChannel.h"
-#include "platform/inspector_protocol/Parser.h"
-
 namespace blink {
 namespace protocol {
 
@@ -154,7 +149,7 @@ void UberDispatcher::dispatch(const String16& message)
         return;
 
     size_t dotIndex = method.find(".");
-    if (dotIndex == kNotFound) {
+    if (dotIndex == String16::kNotFound) {
         reportProtocolError(m_frontendChannel, callId, DispatcherBase::MethodNotFound, "'" + method + "' wasn't found", nullptr);
         return;
     }

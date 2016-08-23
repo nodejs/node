@@ -4,9 +4,7 @@
 
 #include "platform/v8_inspector/InjectedScriptNative.h"
 
-#include "platform/inspector_protocol/Values.h"
-
-namespace blink {
+namespace v8_inspector {
 
 InjectedScriptNative::InjectedScriptNative(v8::Isolate* isolate)
     : m_lastBoundObjectId(1)
@@ -90,5 +88,5 @@ String16 InjectedScriptNative::groupName(int objectId) const
     return iterator != m_idToObjectGroupName.end() ? iterator->second : String16();
 }
 
-} // namespace blink
+} // namespace v8_inspector
 

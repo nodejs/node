@@ -6,6 +6,85 @@
   'variables': {
     'blink_platform_output_dir': '<(SHARED_INTERMEDIATE_DIR)/blink/platform',
   },
+  'conditions': [
+    ['v8_inspector!="true"',
+      {
+        'targets': [
+          {
+            # GN version: //third_party/WebKit/Source/platform:inspector_protocol_sources
+            'target_name': 'protocol_sources',
+            'type': 'none',
+            'dependencies': ['protocol_version'],
+            'actions': [
+              {
+                'action_name': 'generateV8InspectorProtocolBackendSources',
+                'inputs': [
+                  # Source code templates.
+                  '../inspector_protocol/Allocator_h.template',
+                  '../inspector_protocol/Array_h.template',
+                  '../inspector_protocol/BackendCallback_h.template',
+                  '../inspector_protocol/CodeGenerator.py',
+                  '../inspector_protocol/Collections_h.template',
+                  '../inspector_protocol/DispatcherBase_cpp.template',
+                  '../inspector_protocol/DispatcherBase_h.template',
+                  '../inspector_protocol/ErrorSupport_cpp.template',
+                  '../inspector_protocol/ErrorSupport_h.template',
+                  '../inspector_protocol/Exported_h.template',
+                  '../inspector_protocol/FrontendChannel_h.template',
+                  '../inspector_protocol/Imported_h.template',
+                  '../inspector_protocol/InspectorProtocol_cpp.template',
+                  '../inspector_protocol/Maybe_h.template',
+                  '../inspector_protocol/Object_cpp.template',
+                  '../inspector_protocol/Object_h.template',
+                  '../inspector_protocol/Parser_cpp.template',
+                  '../inspector_protocol/Parser_h.template',
+                  '../inspector_protocol/Platform_h.template',
+                  '../inspector_protocol/String16_cpp.template',
+                  '../inspector_protocol/String16_h.template',
+                  '../inspector_protocol/TypeBuilder_cpp.template',
+                  '../inspector_protocol/TypeBuilder_h.template',
+                  '../inspector_protocol/ValueConversions_h.template',
+                  '../inspector_protocol/Values_cpp.template',
+                  '../inspector_protocol/Values_h.template',
+                  # Protocol definitions
+                  'js_protocol.json',
+                  # Config
+                  'inspector_protocol_config.json',
+                ],
+                'outputs': [
+                  '<(blink_platform_output_dir)/inspector_protocol/InspectorProtocol.cpp',
+                  '<(blink_platform_output_dir)/inspector_protocol/InspectorProtocol.h',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Console.cpp',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Console.h',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.cpp',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.h',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/HeapProfiler.cpp',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/HeapProfiler.h',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.cpp',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.h',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.cpp',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.h',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Schema.cpp',
+                  '<(blink_platform_output_dir)/v8_inspector/protocol/Schema.h',
+                  '<(blink_platform_output_dir)/v8_inspector/public/protocol/Debugger.h',
+                  '<(blink_platform_output_dir)/v8_inspector/public/protocol/Runtime.h',
+                  '<(blink_platform_output_dir)/v8_inspector/public/protocol/Schema.h',
+                ],
+                'action': [
+                  'python',
+                  '../inspector_protocol/CodeGenerator.py',
+                  '--output_base', '<(blink_platform_output_dir)',
+                  '--config', 'inspector_protocol_config.json',
+                ],
+                'message': 'Generating protocol backend sources from json definitions.',
+              },
+            ]
+          },
+        ],
+      },
+    ],
+  ],
+
   'targets': [
     {
       # GN version: //third_party/WebKit/Source/platform:inspector_injected_script
@@ -48,72 +127,6 @@
       'hard_dependency': 1,
     },
     {
-      # GN version: //third_party/WebKit/Source/platform:inspector_protocol_sources
-      'target_name': 'protocol_sources',
-      'type': 'none',
-      'dependencies': ['protocol_version'],
-      'variables': {
-        'conditions': [
-          ['debug_devtools=="node"', {
-              # Node build
-              'jinja_module_files': [
-                '../../../jinja2/jinja2/__init__.py',
-                '../../../markupsafe/markupsafe/__init__.py',  # jinja2 dep
-              ],
-            }, {
-              'jinja_module_files': [
-                '<(DEPTH)/third_party/jinja2/__init__.py',
-                '<(DEPTH)/third_party/markupsafe/__init__.py',  # jinja2 dep
-              ],
-            }
-          ],
-        ],
-      },
-      'actions': [
-        {
-          'action_name': 'generateV8InspectorProtocolBackendSources',
-          'inputs': [
-            '<@(jinja_module_files)',
-            # The python script in action below.
-            '../inspector_protocol/CodeGenerator.py',
-            # Source code templates.
-            '../inspector_protocol/TypeBuilder_h.template',
-            '../inspector_protocol/TypeBuilder_cpp.template',
-            '../inspector_protocol/Exported_h.template',
-            '../inspector_protocol/Imported_h.template',
-            # Protocol definitions
-            'js_protocol.json',
-          ],
-          'outputs': [
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Console.cpp',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Console.h',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.cpp',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.h',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/HeapProfiler.cpp',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/HeapProfiler.h',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.cpp',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.h',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.cpp',
-            '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.h',
-            '<(blink_platform_output_dir)/v8_inspector/public/protocol/Runtime.h',
-            '<(blink_platform_output_dir)/v8_inspector/public/protocol/Debugger.h',
-          ],
-          'action': [
-            'python',
-            '../inspector_protocol/CodeGenerator.py',
-            '--protocol', 'js_protocol.json',
-            '--string_type', 'String16',
-            '--export_macro', 'PLATFORM_EXPORT',
-            '--output_dir', '<(blink_platform_output_dir)/v8_inspector/protocol',
-            '--output_package', 'platform/v8_inspector/protocol',
-            '--exported_dir', '<(blink_platform_output_dir)/v8_inspector/public/protocol',
-            '--exported_package', 'platform/v8_inspector/public/protocol',
-          ],
-          'message': 'Generating protocol backend sources from json definitions.',
-        },
-      ]
-    },
-    {
       # GN version: //third_party/WebKit/Source/core/inspector:protocol_version
       'target_name': 'protocol_version',
       'type': 'none',
@@ -139,15 +152,81 @@
       ]
     },
     {
+      'target_name': 'protocol_sources_stl',
+      'type': 'none',
+      'dependencies': ['protocol_version'],
+      'actions': [
+        {
+          'action_name': 'generateV8InspectorProtocolBackendSourcesSTL',
+          'inputs': [
+            # Source code templates.
+            '../inspector_protocol/Allocator_h.template',
+            '../inspector_protocol/Array_h.template',
+            '../inspector_protocol/BackendCallback_h.template',
+            '../inspector_protocol/CodeGenerator.py',
+            '../inspector_protocol/Collections_h.template',
+            '../inspector_protocol/DispatcherBase_cpp.template',
+            '../inspector_protocol/DispatcherBase_h.template',
+            '../inspector_protocol/ErrorSupport_cpp.template',
+            '../inspector_protocol/ErrorSupport_h.template',
+            '../inspector_protocol/Exported_h.template',
+            '../inspector_protocol/FrontendChannel_h.template',
+            '../inspector_protocol/Imported_h.template',
+            '../inspector_protocol/InspectorProtocol_cpp.template',
+            '../inspector_protocol/Maybe_h.template',
+            '../inspector_protocol/Object_cpp.template',
+            '../inspector_protocol/Object_h.template',
+            '../inspector_protocol/Parser_cpp.template',
+            '../inspector_protocol/Parser_h.template',
+            '../inspector_protocol/Platform_h.template',
+            '../inspector_protocol/String16_cpp.template',
+            '../inspector_protocol/String16_h.template',
+            '../inspector_protocol/TypeBuilder_cpp.template',
+            '../inspector_protocol/TypeBuilder_h.template',
+            '../inspector_protocol/ValueConversions_h.template',
+            '../inspector_protocol/Values_cpp.template',
+            '../inspector_protocol/Values_h.template',
+            # Protocol definitions
+            'js_protocol.json',
+            # Config
+            'inspector_protocol_config_stl.json',
+          ],
+          'outputs': [
+            '<(blink_platform_output_dir)/inspector_protocol/InspectorProtocol.cpp',
+            '<(blink_platform_output_dir)/inspector_protocol/InspectorProtocol.h',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Console.cpp',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Console.h',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.cpp',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.h',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/HeapProfiler.cpp',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/HeapProfiler.h',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.cpp',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.h',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.cpp',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.h',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Schema.cpp',
+            '<(blink_platform_output_dir)/v8_inspector/protocol/Schema.h',
+            '<(blink_platform_output_dir)/v8_inspector/public/protocol/Debugger.h',
+            '<(blink_platform_output_dir)/v8_inspector/public/protocol/Runtime.h',
+            '<(blink_platform_output_dir)/v8_inspector/public/protocol/Schema.h',
+          ],
+          'action': [
+            'python',
+            '../inspector_protocol/CodeGenerator.py',
+            '--output_base', '<(blink_platform_output_dir)',
+            '--config', 'inspector_protocol_config_stl.json',
+          ],
+          'message': 'Generating protocol backend sources from json definitions.',
+        },
+      ]
+    },
+    {
       'target_name': 'v8_inspector_stl',
       'type': '<(component)',
       'dependencies': [
         ':inspector_injected_script',
         ':inspector_debugger_script',
-        ':protocol_sources',
-      ],
-      'defines': [
-        'V8_INSPECTOR_USE_STL=1'
+        ':protocol_sources_stl',
       ],
       'include_dirs': [
         '../..',
@@ -156,6 +235,8 @@
         '<(SHARED_INTERMEDIATE_DIR)/blink',
       ],
       'sources': [
+        '<(blink_platform_output_dir)/inspector_protocol/InspectorProtocol.cpp',
+        '<(blink_platform_output_dir)/inspector_protocol/InspectorProtocol.h',
         '<(blink_platform_output_dir)/v8_inspector/protocol/Console.cpp',
         '<(blink_platform_output_dir)/v8_inspector/protocol/Console.h',
         '<(blink_platform_output_dir)/v8_inspector/protocol/Debugger.cpp',
@@ -166,24 +247,11 @@
         '<(blink_platform_output_dir)/v8_inspector/protocol/Profiler.h',
         '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.cpp',
         '<(blink_platform_output_dir)/v8_inspector/protocol/Runtime.h',
-
-        '../inspector_protocol/Allocator.h',
-        '../inspector_protocol/Array.h',
-        '../inspector_protocol/Collections.h',
-        '../inspector_protocol/DispatcherBase.cpp',
-        '../inspector_protocol/DispatcherBase.h',
-        '../inspector_protocol/ErrorSupport.cpp',
-        '../inspector_protocol/ErrorSupport.h',
-        '../inspector_protocol/Maybe.h',
-        '../inspector_protocol/Parser.cpp',
-        '../inspector_protocol/Parser.h',
-        '../inspector_protocol/FrontendChannel.h',
-        '../inspector_protocol/String16.h',
-        '../inspector_protocol/String16STL.cpp',
-        '../inspector_protocol/String16STL.h',
-        '../inspector_protocol/Values.cpp',
-        '../inspector_protocol/Values.h',
-        '../inspector_protocol/ValueConversions.h',
+        '<(blink_platform_output_dir)/v8_inspector/protocol/Schema.cpp',
+        '<(blink_platform_output_dir)/v8_inspector/protocol/Schema.h',
+        '<(blink_platform_output_dir)/v8_inspector/public/protocol/Debugger.h',
+        '<(blink_platform_output_dir)/v8_inspector/public/protocol/Runtime.h',
+        '<(blink_platform_output_dir)/v8_inspector/public/protocol/Schema.h',
 
         'Atomics.h',
         'InjectedScript.cpp',
@@ -195,9 +263,12 @@
         'JavaScriptCallFrame.cpp',
         'JavaScriptCallFrame.h',
         'MuteConsoleScope.h',
-        'ScriptBreakpoint.h',
+        'PlatformSTL.h',
         'RemoteObjectId.cpp',
         'RemoteObjectId.h',
+        'ScriptBreakpoint.h',
+        'String16STL.cpp',
+        'String16STL.h',
         'V8Console.cpp',
         'V8Console.h',
         'V8ConsoleAgentImpl.cpp',
@@ -228,10 +299,14 @@
         'V8Regex.h',
         'V8RuntimeAgentImpl.cpp',
         'V8RuntimeAgentImpl.h',
+        'V8SchemaAgentImpl.cpp',
+        'V8SchemaAgentImpl.h',
         'V8StackTraceImpl.cpp',
         'V8StackTraceImpl.h',
         'V8StringUtil.cpp',
         'V8StringUtil.h',
+        'V8ValueCopier.cpp',
+        'V8ValueCopier.h',
         'public/V8EventListenerInfo.h',
         'public/V8ContextInfo.h',
         'public/V8Inspector.h',

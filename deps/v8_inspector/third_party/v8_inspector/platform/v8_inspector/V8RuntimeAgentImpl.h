@@ -31,13 +31,12 @@
 #ifndef V8RuntimeAgentImpl_h
 #define V8RuntimeAgentImpl_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/protocol/Runtime.h"
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class InjectedScript;
 class InspectedContext;
@@ -46,11 +45,8 @@ class V8ConsoleMessage;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 
-namespace protocol {
-class DictionaryValue;
-}
-
-using protocol::Maybe;
+namespace protocol = blink::protocol;
+using blink::protocol::Maybe;
 
 class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
     PROTOCOL_DISALLOW_COPY(V8RuntimeAgentImpl);
@@ -66,7 +62,7 @@ public:
         const String16& expression,
         const Maybe<String16>& objectGroup,
         const Maybe<bool>& includeCommandLineAPI,
-        const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+        const Maybe<bool>& silent,
         const Maybe<int>& executionContextId,
         const Maybe<bool>& returnByValue,
         const Maybe<bool>& generatePreview,
@@ -82,7 +78,7 @@ public:
         const String16& objectId,
         const String16& expression,
         const Maybe<protocol::Array<protocol::Runtime::CallArgument>>& optionalArguments,
-        const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+        const Maybe<bool>& silent,
         const Maybe<bool>& returnByValue,
         const Maybe<bool>& generatePreview,
         const Maybe<bool>& userGesture,
@@ -98,7 +94,7 @@ public:
         Maybe<protocol::Array<protocol::Runtime::InternalPropertyDescriptor>>* internalProperties,
         Maybe<protocol::Runtime::ExceptionDetails>*) override;
     void releaseObjectGroup(ErrorString*, const String16& objectGroup) override;
-    void run(ErrorString*) override;
+    void runIfWaitingForDebugger(ErrorString*) override;
     void setCustomObjectFormatterEnabled(ErrorString*, bool) override;
     void discardConsoleEntries(ErrorString*) override;
     void compileScript(ErrorString*,
@@ -112,7 +108,7 @@ public:
         const String16&,
         const Maybe<int>& executionContextId,
         const Maybe<String16>& objectGroup,
-        const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+        const Maybe<bool>& silent,
         const Maybe<bool>& includeCommandLineAPI,
         const Maybe<bool>& returnByValue,
         const Maybe<bool>& generatePreview,
@@ -137,6 +133,6 @@ private:
     protocol::HashMap<String16, std::unique_ptr<v8::Global<v8::Script>>> m_compiledScripts;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // V8RuntimeAgentImpl_h

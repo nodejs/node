@@ -7,29 +7,15 @@
 #ifndef protocol_{{domain.domain}}_h
 #define protocol_{{domain.domain}}_h
 
-{% if export_macro == "PLATFORM_EXPORT" %}
-#include "platform/inspector_protocol/Platform.h"
-{% else %}
-#include "core/CoreExport.h"
-{% endif %}
-#include "platform/inspector_protocol/Array.h"
-#include "platform/inspector_protocol/BackendCallback.h"
-#include "platform/inspector_protocol/DispatcherBase.h"
-#include "platform/inspector_protocol/ErrorSupport.h"
-#include "platform/inspector_protocol/FrontendChannel.h"
-#include "platform/inspector_protocol/Maybe.h"
-#include "platform/inspector_protocol/Object.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
-#include "platform/inspector_protocol/Values.h"
-#include "platform/inspector_protocol/ValueConversions.h"
+#include "{{config.class_export.header}}"
+#include "{{config.lib_package}}/InspectorProtocol.h"
 // For each imported domain we generate a ValueConversions struct instead of a full domain definition
 // and include Domain::API version from there.
 {% for name in domain.dependencies %}
-#include "{{output_package}}/{{name}}.h"
+#include "{{config.protocol.package}}/{{name}}.h"
 {% endfor %}
 {% if domain["has_exports"] %}
-#include "{{exported_package}}/{{domain.domain}}.h"
+#include "{{config.exported.package}}/{{domain.domain}}.h"
 {% endif %}
 
 namespace blink {
@@ -56,7 +42,7 @@ using {{type.id}} = {{resolve_type(type).type}};
 
 namespace {{type.id}}Enum {
       {% for literal in type.enum %}
-{{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+{{config.class_export.macro}} extern const char* {{ literal | dash_to_camelcase}};
       {% endfor %}
 } // namespace {{type.id}}Enum
     {% endif %}
@@ -68,7 +54,7 @@ namespace {{type.id}}Enum {
 namespace {{command.name | to_title_case}} {
 namespace {{param.name | to_title_case}}Enum {
         {% for literal in param.enum %}
-{{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+{{config.class_export.macro}} extern const char* {{literal | dash_to_camelcase}};
         {% endfor %}
 } // {{param.name | to_title_case}}Enum
 } // {{command.name | to_title_case }}
@@ -82,7 +68,7 @@ namespace {{param.name | to_title_case}}Enum {
     {% set type_def = type_definition(domain.domain + "." + type.id)%}
 
 // {{type.description}}
-class {{export_macro}} {{type.id}} {% if type.exported %}: public API::{{type.id}} {% endif %}{
+class {{config.class_export.macro}} {{type.id}} {% if type.exported %}: public API::{{type.id}} {% endif %}{
     PROTOCOL_DISALLOW_COPY({{type.id}});
 public:
     static std::unique_ptr<{{type.id}}> parse(protocol::Value* value, ErrorSupport* errors);
@@ -91,9 +77,9 @@ public:
     {% for property in type.properties %}
       {% if "enum" in property %}
 
-    struct {{export_macro}} {{property.name | to_title_case}}Enum {
+    struct {{config.class_export.macro}} {{property.name | to_title_case}}Enum {
         {% for literal in property.enum %}
-        static const char* {{ literal | dash_to_camelcase}};
+        static const char* {{literal | dash_to_camelcase}};
         {% endfor %}
     }; // {{property.name | to_title_case}}Enum
       {% endif %}
@@ -194,13 +180,13 @@ private:
 
 // ------------- Backend interface.
 
-class {{export_macro}} Backend {
+class {{config.class_export.macro}} Backend {
 public:
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
     {% if ("handlers" in command) and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
     {% if "async" in command %}
-    class {{export_macro}} {{command.name | to_title_case}}Callback : public BackendCallback {
+    class {{config.class_export.macro}} {{command.name | to_title_case}}Callback : public BackendCallback {
     public:
         virtual void sendSuccess(
             {%- for parameter in command.returns -%}
@@ -251,7 +237,7 @@ protected:
 
 // ------------- Frontend interface.
 
-class {{export_macro}} Frontend {
+class {{config.class_export.macro}} Frontend {
 public:
     Frontend(FrontendChannel* frontendChannel) : m_frontendChannel(frontendChannel) { }
   {% for event in domain.events %}
@@ -274,7 +260,7 @@ private:
 
 // ------------- Dispatcher.
 
-class {{export_macro}} Dispatcher {
+class {{config.class_export.macro}} Dispatcher {
 public:
     static void wire(UberDispatcher*, blink::protocol::{{domain.domain}}::Backend*);
 
@@ -284,13 +270,14 @@ private:
 
 // ------------- Metainfo.
 
-class {{export_macro}} Metainfo {
+class {{config.class_export.macro}} Metainfo {
 public:
     using BackendClass = Backend;
     using FrontendClass = Frontend;
     using DispatcherClass = Dispatcher;
     static const char domainName[];
     static const char commandPrefix[];
+    static const char version[];
 };
 
 } // namespace {{domain.domain}}

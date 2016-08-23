@@ -4,7 +4,6 @@
 
 #include "platform/v8_inspector/V8InspectorSessionImpl.h"
 
-#include "platform/inspector_protocol/Parser.h"
 #include "platform/v8_inspector/InjectedScript.h"
 #include "platform/v8_inspector/InspectedContext.h"
 #include "platform/v8_inspector/RemoteObjectId.h"
@@ -15,20 +14,22 @@
 #include "platform/v8_inspector/V8InspectorImpl.h"
 #include "platform/v8_inspector/V8ProfilerAgentImpl.h"
 #include "platform/v8_inspector/V8RuntimeAgentImpl.h"
+#include "platform/v8_inspector/V8SchemaAgentImpl.h"
 #include "platform/v8_inspector/V8StringUtil.h"
 #include "platform/v8_inspector/public/V8ContextInfo.h"
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 
-namespace blink {
+namespace v8_inspector {
 
 // static
 bool V8InspectorSession::canDispatchMethod(const String16& method)
 {
-    return method.startWith(protocol::Runtime::Metainfo::commandPrefix)
-        || method.startWith(protocol::Debugger::Metainfo::commandPrefix)
-        || method.startWith(protocol::Profiler::Metainfo::commandPrefix)
-        || method.startWith(protocol::HeapProfiler::Metainfo::commandPrefix)
-        || method.startWith(protocol::Console::Metainfo::commandPrefix);
+    return method.startsWith(protocol::Runtime::Metainfo::commandPrefix)
+        || method.startsWith(protocol::Debugger::Metainfo::commandPrefix)
+        || method.startsWith(protocol::Profiler::Metainfo::commandPrefix)
+        || method.startsWith(protocol::HeapProfiler::Metainfo::commandPrefix)
+        || method.startsWith(protocol::Console::Metainfo::commandPrefix)
+        || method.startsWith(protocol::Schema::Metainfo::commandPrefix);
 }
 
 std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(V8InspectorImpl* inspector, int contextGroupId, protocol::FrontendChannel* channel, const String16* state)
@@ -47,6 +48,7 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector, int c
     , m_heapProfilerAgent(nullptr)
     , m_profilerAgent(nullptr)
     , m_consoleAgent(nullptr)
+    , m_schemaAgent(nullptr)
 {
     if (savedState) {
         std::unique_ptr<protocol::Value> state = protocol::parseJSON(*savedState);
@@ -72,6 +74,9 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector, int c
 
     m_consoleAgent = wrapUnique(new V8ConsoleAgentImpl(this, channel, agentState(protocol::Console::Metainfo::domainName)));
     protocol::Console::Dispatcher::wire(&m_dispatcher, m_consoleAgent.get());
+
+    m_schemaAgent = wrapUnique(new V8SchemaAgentImpl(this, channel, agentState(protocol::Schema::Metainfo::domainName)));
+    protocol::Schema::Dispatcher::wire(&m_dispatcher, m_schemaAgent.get());
 
     if (savedState) {
         m_runtimeAgent->restore();
@@ -263,6 +268,26 @@ String16 V8InspectorSessionImpl::stateJSON()
     return m_state->toJSONString();
 }
 
+std::unique_ptr<protocol::Array<protocol::Schema::API::Domain>> V8InspectorSessionImpl::supportedDomains()
+{
+    std::vector<std::unique_ptr<protocol::Schema::Domain>> domains = supportedDomainsImpl();
+    std::unique_ptr<protocol::Array<protocol::Schema::API::Domain>> result = protocol::Array<protocol::Schema::API::Domain>::create();
+    for (size_t i = 0; i < domains.size(); ++i)
+        result->addItem(std::move(domains[i]));
+    return result;
+}
+
+std::vector<std::unique_ptr<protocol::Schema::Domain>> V8InspectorSessionImpl::supportedDomainsImpl()
+{
+    std::vector<std::unique_ptr<protocol::Schema::Domain>> result;
+    result.push_back(protocol::Schema::Domain::create().setName(protocol::Runtime::Metainfo::domainName).setVersion(protocol::Runtime::Metainfo::version).build());
+    result.push_back(protocol::Schema::Domain::create().setName(protocol::Debugger::Metainfo::domainName).setVersion(protocol::Debugger::Metainfo::version).build());
+    result.push_back(protocol::Schema::Domain::create().setName(protocol::Profiler::Metainfo::domainName).setVersion(protocol::Profiler::Metainfo::version).build());
+    result.push_back(protocol::Schema::Domain::create().setName(protocol::HeapProfiler::Metainfo::domainName).setVersion(protocol::HeapProfiler::Metainfo::version).build());
+    result.push_back(protocol::Schema::Domain::create().setName(protocol::Schema::Metainfo::domainName).setVersion(protocol::Schema::Metainfo::version).build());
+    return result;
+}
+
 void V8InspectorSessionImpl::addInspectedObject(std::unique_ptr<V8InspectorSession::Inspectable> inspectable)
 {
     m_inspectedObjects.insert(m_inspectedObjects.begin(), std::move(inspectable));
@@ -319,4 +344,4 @@ std::unique_ptr<protocol::Array<protocol::Debugger::API::SearchMatch>> V8Inspect
     return result;
 }
 
-} // namespace blink
+} // namespace v8_inspector

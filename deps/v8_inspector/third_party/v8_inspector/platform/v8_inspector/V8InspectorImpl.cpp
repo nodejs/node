@@ -43,7 +43,7 @@
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 #include <v8-profiler.h>
 
-namespace blink {
+namespace v8_inspector {
 
 std::unique_ptr<V8Inspector> V8Inspector::create(v8::Isolate* isolate, V8InspectorClient* client)
 {
@@ -105,7 +105,7 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(v8::Local<v8::Function> 
 
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(v8::Local<v8::Context> context, v8::Local<v8::String> source)
 {
-    v8::Local<v8::Script> script = compileScript(context, source, String(), true);
+    v8::Local<v8::Script> script = compileScript(context, source, String16(), true);
     if (script.IsEmpty())
         return v8::MaybeLocal<v8::Value>();
     v8::MicrotasksScope microtasksScope(m_isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
@@ -271,7 +271,7 @@ unsigned V8InspectorImpl::exceptionThrown(v8::Local<v8::Context> context, const 
     if (!contextGroupId || m_muteExceptionsMap[contextGroupId])
         return 0;
     std::unique_ptr<V8StackTraceImpl> stackTraceImpl = wrapUnique(static_cast<V8StackTraceImpl*>(stackTrace.release()));
-    unsigned exceptionId = ++m_lastExceptionId;
+    unsigned exceptionId = nextExceptionId();
     std::unique_ptr<V8ConsoleMessage> consoleMessage = V8ConsoleMessage::createForException(m_client->currentTimeMS(), detailedMessage, url, lineNumber, columnNumber, std::move(stackTraceImpl), scriptId, m_isolate, message, V8Debugger::contextId(context), exception, exceptionId);
     ensureConsoleMessageStorage(contextGroupId)->addMessage(std::move(consoleMessage));
     return exceptionId;
@@ -347,4 +347,4 @@ V8InspectorSessionImpl* V8InspectorImpl::sessionForContextGroup(int contextGroup
     return iter == m_sessions.end() ? nullptr : iter->second;
 }
 
-} // namespace blink
+} // namespace v8_inspector

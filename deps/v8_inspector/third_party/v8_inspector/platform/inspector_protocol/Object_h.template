@@ -5,14 +5,15 @@
 #ifndef Object_h
 #define Object_h
 
-#include "platform/inspector_protocol/ErrorSupport.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/Values.h"
+//#include "ErrorSupport.h"
+//#include "Platform.h"
+//#include "Values.h"
+#include "{{config.class_export.header}}"
 
 namespace blink {
 namespace protocol {
 
-class PLATFORM_EXPORT Object {
+class {{config.class_export.macro}} Object {
 public:
     static std::unique_ptr<Object> parse(protocol::Value*, ErrorSupport*);
     ~Object();

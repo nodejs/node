@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Google Inc. All rights reserved.
+ * Copyright (C) 2013 Google Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,39 +28,39 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef V8FunctionCall_h
-#define V8FunctionCall_h
 
-#include "platform/inspector_protocol/InspectorProtocol.h"
+#ifndef PlatformExport_h
+#define PlatformExport_h
 
-#include <v8.h>
+#if !defined(BLINK_PLATFORM_IMPLEMENTATION)
+#define BLINK_PLATFORM_IMPLEMENTATION 0
+#endif
 
-namespace v8_inspector {
+#if defined(COMPONENT_BUILD)
+#if defined(WIN32)
+#if BLINK_PLATFORM_IMPLEMENTATION
+#define PLATFORM_EXPORT __declspec(dllexport)
+#else
+#define PLATFORM_EXPORT __declspec(dllimport)
+#endif
+#else // defined(WIN32)
+#define PLATFORM_EXPORT __attribute__((visibility("default")))
+#endif
+#else // defined(COMPONENT_BUILD)
+#define PLATFORM_EXPORT
+#endif
 
-class V8InspectorImpl;
+#if defined(_MSC_VER)
+// MSVC Compiler warning C4275:
+// non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
+// Note that this is intended to be used only when no access to the base class'
+// static data is done through derived classes or inline methods. For more info,
+// see http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
+//
+// This pragma will allow exporting a class that inherits from a non-exported
+// base class, anywhere in the Blink platform component. This is only
+// a problem when using the MSVC compiler on Windows.
+#pragma warning(suppress:4275)
+#endif
 
-namespace protocol = blink::protocol;
-
-class V8FunctionCall {
-public:
-    V8FunctionCall(V8InspectorImpl*, v8::Local<v8::Context>, v8::Local<v8::Value>, const String16& name);
-
-    void appendArgument(v8::Local<v8::Value>);
-    void appendArgument(const String16&);
-    void appendArgument(int);
-    void appendArgument(bool);
-
-    v8::Local<v8::Value> call(bool& hadException, bool reportExceptions = true);
-    v8::Local<v8::Value> callWithoutExceptionHandling();
-
-protected:
-    V8InspectorImpl* m_inspector;
-    v8::Local<v8::Context> m_context;
-    std::vector<v8::Local<v8::Value>> m_arguments;
-    v8::Local<v8::String> m_name;
-    v8::Local<v8::Value> m_value;
-};
-
-} // namespace v8_inspector
-
-#endif // V8FunctionCall
+#endif // PlatformExport_h

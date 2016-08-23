@@ -4,10 +4,9 @@
 
 #include "platform/v8_inspector/V8InternalValueType.h"
 
-#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/V8StringUtil.h"
 
-namespace blink {
+namespace v8_inspector {
 
 namespace {
 
@@ -69,4 +68,4 @@ v8::Local<v8::Value> v8InternalValueTypeFrom(v8::Local<v8::Context> context, v8:
     return subtypeValue;
 }
 
-} // namespace blink
+} // namespace v8_inspector

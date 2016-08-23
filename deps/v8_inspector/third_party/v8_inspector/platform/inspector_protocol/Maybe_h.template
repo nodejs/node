@@ -5,15 +5,11 @@
 #ifndef Maybe_h
 #define Maybe_h
 
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
-
-#include <memory>
+//#include "Platform.h"
+//#include "String16.h"
 
 namespace blink {
 namespace protocol {
-
-class String16;
 
 template<typename T>
 class Maybe {
@@ -70,10 +66,10 @@ public:
 };
 
 template<>
-class Maybe<String> : public MaybeBase<String> {
+class Maybe<InspectorProtocolConvenienceStringType> : public MaybeBase<InspectorProtocolConvenienceStringType> {
 public:
     Maybe() { }
-    Maybe(const String& value) : MaybeBase(value) { }
+    Maybe(const InspectorProtocolConvenienceStringType& value) : MaybeBase(value) { }
     using MaybeBase::operator=;
 };
 

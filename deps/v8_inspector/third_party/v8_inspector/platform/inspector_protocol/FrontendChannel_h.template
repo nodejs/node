@@ -5,12 +5,13 @@
 #ifndef FrontendChannel_h
 #define FrontendChannel_h
 
-#include "platform/inspector_protocol/Values.h"
+//#include "String16.h"
+#include "{{config.class_export.header}}"
 
 namespace blink {
 namespace protocol {
 
-class PLATFORM_EXPORT FrontendChannel {
+class {{config.class_export.macro}} FrontendChannel {
 public:
     virtual ~FrontendChannel() { }
     virtual void sendProtocolResponse(int callId, const String16& message) = 0;
