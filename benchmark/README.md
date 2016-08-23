@@ -309,9 +309,9 @@ benchmarking tools.
 ```js
 'use strict';
 
-var common = require('../common.js');
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   kb: [64, 128, 256, 1024],
   connections: [100, 500],
   benchmarker: common.installed_http_benchmarkers
@@ -321,7 +321,7 @@ function main(conf) {
   const http = require('http');
   const len = conf.kb * 1024;
   const chunk = Buffer.alloc(len, 'x'); 
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     res.end(chunk);
   });
 

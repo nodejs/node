@@ -1,7 +1,7 @@
 'use strict';
 
 const child_process = require('child_process');
-const http_benchmarkers = require('./http-benchmarkers.js');
+const http_benchmarkers = require('./_http-benchmarkers.js');
 
 // The port used by servers and wrk
 exports.PORT = process.env.PORT || 12346;
@@ -30,7 +30,6 @@ function Benchmark(fn, options) {
 
 Benchmark.prototype._parseArgs = function(argv, options) {
   const cliOptions = Object.assign({}, options);
-
   // Parse configuration arguments
   for (const arg of argv) {
     const match = arg.match(/^(.+?)=([\s\S]*)$/);
@@ -99,17 +98,17 @@ exports.installed_http_benchmarkers =
 
 Benchmark.prototype.http = function(options, cb) {
   const self = this;
-  if (!options.port) {
-    options.port = exports.PORT;
-  }
-
-  http_benchmarkers.run(options, function(benchmarker_name, result, elapsed) {
-    if (!self.config.benchmarker) {
-      self.config.benchmarker = benchmarker_name;
+  const http_options = Object.assign({port: exports.PORT}, options);
+  http_benchmarkers.run(http_options, function(error, code, used_benchmarker,
+                                               result, elapsed) {
+    if (error) {
+      console.error(error);
+      process.exit(1);
     }
+    self.config.benchmarker = used_benchmarker;
     self.report(result, elapsed);
     if (cb) {
-      cb(0);
+      cb(code);
     }
   });
 };
