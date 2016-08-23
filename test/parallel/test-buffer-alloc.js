@@ -1381,44 +1381,6 @@ if (common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-// Test Compare
-{
-  const b = Buffer.alloc(1, 'a');
-  const c = Buffer.alloc(1, 'c');
-  const d = Buffer.alloc(2, 'aa');
-
-  assert.equal(b.compare(c), -1);
-  assert.equal(c.compare(d), 1);
-  assert.equal(d.compare(b), 1);
-  assert.equal(b.compare(d), -1);
-  assert.equal(b.compare(b), 0);
-
-  assert.equal(Buffer.compare(b, c), -1);
-  assert.equal(Buffer.compare(c, d), 1);
-  assert.equal(Buffer.compare(d, b), 1);
-  assert.equal(Buffer.compare(b, d), -1);
-  assert.equal(Buffer.compare(c, c), 0);
-
-  assert.equal(Buffer.compare(Buffer.alloc(0), Buffer.alloc(0)), 0);
-  assert.equal(Buffer.compare(Buffer.alloc(0), Buffer.alloc(1)), -1);
-  assert.equal(Buffer.compare(Buffer.alloc(1), Buffer.alloc(0)), 1);
-}
-
-assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
-  Buffer.compare(b, 'abc');
-});
-
-assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
-  Buffer.compare('abc', b);
-});
-
-assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
-  b.compare('abc');
-});
-
 // Test Equals
 {
   const b = Buffer.alloc(5, 'abcdf');

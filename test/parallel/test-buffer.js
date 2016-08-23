@@ -1401,44 +1401,6 @@ if (common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-// Test Compare
-{
-  const b = new Buffer(1).fill('a');
-  const c = new Buffer(1).fill('c');
-  const d = new Buffer(2).fill('aa');
-
-  assert.equal(b.compare(c), -1);
-  assert.equal(c.compare(d), 1);
-  assert.equal(d.compare(b), 1);
-  assert.equal(b.compare(d), -1);
-  assert.equal(b.compare(b), 0);
-
-  assert.equal(Buffer.compare(b, c), -1);
-  assert.equal(Buffer.compare(c, d), 1);
-  assert.equal(Buffer.compare(d, b), 1);
-  assert.equal(Buffer.compare(b, d), -1);
-  assert.equal(Buffer.compare(c, c), 0);
-
-  assert.equal(Buffer.compare(Buffer(0), Buffer(0)), 0);
-  assert.equal(Buffer.compare(Buffer(0), Buffer(1)), -1);
-  assert.equal(Buffer.compare(Buffer(1), Buffer(0)), 1);
-}
-
-assert.throws(function() {
-  var b = Buffer(1);
-  Buffer.compare(b, 'abc');
-});
-
-assert.throws(function() {
-  var b = Buffer(1);
-  Buffer.compare('abc', b);
-});
-
-assert.throws(function() {
-  var b = Buffer(1);
-  b.compare('abc');
-});
-
 // Test Equals
 {
   const b = new Buffer(5).fill('abcdf');
