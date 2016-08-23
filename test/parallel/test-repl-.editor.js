@@ -49,7 +49,54 @@ const tests = [
     input: 'var i = 1;\ni + 3',
     output: '\n4',
     event: {ctrl: true, name: 'd'}
+  },
+  {
+    input: '  var i = 1;\ni + 3',
+    output: '\n4',
+    event: {ctrl: true, name: 'd'}
   }
 ];
 
 tests.forEach(({input, output, event}) => run(input, output, event));
+
+// Auto code alignment for .editor mode
+function testCodeAligment({input, cursor = 0, line = ''}) {
+  const stream = new common.ArrayStream();
+
+  const replServer = repl.start({
+    prompt: '> ',
+    terminal: true,
+    input: stream,
+    output: stream,
+    useColors: false
+  });
+
+  stream.emit('data', '.editor\n');
+  input.split('').forEach((ch) => stream.emit('data', ch));
+  replServer.close();
+  assert.strictEqual(line, replServer.line);
+  assert.strictEqual(cursor, replServer.cursor);
+}
+
+const codeAlignmentTests = [
+  {
+    input: 'var i = 1;\n'
+  },
+  {
+    input: '  var i = 1;\n',
+    cursor: 2,
+    line: '  '
+  },
+  {
+    input: '     var i = 1;\n',
+    cursor: 5,
+    line: '     '
+  },
+  {
+    input: ' var i = 1;\n var j = 2\n',
+    cursor: 2,
+    line: '  '
+  }
+];
+
+codeAlignmentTests.forEach(testCodeAligment);
