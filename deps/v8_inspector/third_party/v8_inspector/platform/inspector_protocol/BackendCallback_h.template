@@ -5,13 +5,14 @@
 #ifndef BackendCallback_h
 #define BackendCallback_h
 
-#include "platform/inspector_protocol/ErrorSupport.h"
-#include "platform/inspector_protocol/Platform.h"
+//#include "ErrorSupport.h"
+//#include "Platform.h"
+#include "{{config.class_export.header}}"
 
 namespace blink {
 namespace protocol {
 
-class PLATFORM_EXPORT BackendCallback {
+class {{config.class_export.macro}} BackendCallback {
 public:
     virtual ~BackendCallback() { }
     virtual void sendFailure(const ErrorString&) = 0;

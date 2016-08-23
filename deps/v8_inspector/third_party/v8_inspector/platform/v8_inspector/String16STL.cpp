@@ -2,116 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "platform/inspector_protocol/String16STL.h"
-
-#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
-#include <functional>
 #include <locale>
 
 namespace blink {
 namespace protocol {
 
 const UChar replacementCharacter = 0xFFFD;
-
-template<typename CharType> inline bool isASCII(CharType c)
-{
-    return !(c & ~0x7F);
-}
-
-template<typename CharType> inline bool isASCIIAlpha(CharType c)
-{
-    return (c | 0x20) >= 'a' && (c | 0x20) <= 'z';
-}
-
-template<typename CharType> inline bool isASCIIDigit(CharType c)
-{
-    return c >= '0' && c <= '9';
-}
-
-template<typename CharType> inline bool isASCIIAlphanumeric(CharType c)
-{
-    return isASCIIDigit(c) || isASCIIAlpha(c);
-}
-
-template<typename CharType> inline bool isASCIIHexDigit(CharType c)
-{
-    return isASCIIDigit(c) || ((c | 0x20) >= 'a' && (c | 0x20) <= 'f');
-}
-
-template<typename CharType> inline bool isASCIIOctalDigit(CharType c)
-{
-    return (c >= '0') & (c <= '7');
-}
-
-template<typename CharType> inline bool isASCIIPrintable(CharType c)
-{
-    return c >= ' ' && c <= '~';
-}
-
-/*
- Statistics from a run of Apple's page load test for callers of isASCIISpace:
-
- character          count
- ---------          -----
- non-spaces         689383
- 20  space          294720
- 0A  \n             89059
- 09  \t             28320
- 0D  \r             0
- 0C  \f             0
- 0B  \v             0
- */
-template<typename CharType> inline bool isASCIISpace(CharType c)
-{
-    return c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
-}
-
-extern const LChar ASCIICaseFoldTable[256] = {
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
-    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
-    0x40, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-    0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
-    0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-    0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
-    0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
-    0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
-    0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
-    0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
-    0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
-    0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-    0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
-    0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
-};
-
-template<typename CharType> inline int toASCIIHexValue(CharType c)
-{
-    DCHECK(isASCIIHexDigit(c));
-    return c < 'A' ? c - '0' : (c - 'A' + 10) & 0xF;
-}
-
-template<typename CharType> inline int toASCIIHexValue(CharType upperValue, CharType lowerValue)
-{
-    DCHECK(isASCIIHexDigit(upperValue) && isASCIIHexDigit(lowerValue));
-    return ((toASCIIHexValue(upperValue) << 4) & 0xF0) | toASCIIHexValue(lowerValue);
-}
-
-inline char lowerNibbleToASCIIHexDigit(char c)
-{
-    char nibble = c & 0xF;
-    return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
-}
-
-inline char upperNibbleToASCIIHexDigit(char c)
-{
-    char nibble = (c >> 4) & 0xF;
-    return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
-}
+using UChar32 = uint32_t;
 
 inline int inlineUTF8SequenceLengthNonASCII(char b0)
 {
@@ -128,7 +30,7 @@ inline int inlineUTF8SequenceLengthNonASCII(char b0)
 
 inline int inlineUTF8SequenceLength(char b0)
 {
-    return isASCII(b0) ? 1 : inlineUTF8SequenceLengthNonASCII(b0);
+    return String16::isASCII(b0) ? 1 : inlineUTF8SequenceLengthNonASCII(b0);
 }
 
 // Once the bits are split out into bytes of UTF-8, this is a mask OR-ed
@@ -144,48 +46,6 @@ typedef enum {
     targetExhausted, // insuff. room in target for conversion
     sourceIllegal // source sequence is illegal/malformed
 } ConversionResult;
-
-ConversionResult convertLatin1ToUTF8(
-    const LChar** sourceStart, const LChar* sourceEnd,
-    char** targetStart, char* targetEnd)
-{
-    ConversionResult result = conversionOK;
-    const LChar* source = *sourceStart;
-    char* target = *targetStart;
-    while (source < sourceEnd) {
-        UChar32 ch;
-        unsigned short bytesToWrite = 0;
-        const UChar32 byteMask = 0xBF;
-        const UChar32 byteMark = 0x80;
-        const LChar* oldSource = source; // In case we have to back up because of target overflow.
-        ch = static_cast<unsigned short>(*source++);
-
-        // Figure out how many bytes the result will require
-        if (ch < (UChar32)0x80)
-            bytesToWrite = 1;
-        else
-            bytesToWrite = 2;
-
-        target += bytesToWrite;
-        if (target > targetEnd) {
-            source = oldSource; // Back up source pointer!
-            target -= bytesToWrite;
-            result = targetExhausted;
-            break;
-        }
-        switch (bytesToWrite) { // note: everything falls through.
-        case 2:
-            *--target = (char)((ch | byteMark) & byteMask);
-            ch >>= 6;
-        case 1:
-            *--target =  (char)(ch | firstByteMark[bytesToWrite]);
-        }
-        target += bytesToWrite;
-    }
-    *sourceStart = source;
-    *targetStart = target;
-    return result;
-}
 
 ConversionResult convertUTF16ToUTF8(
     const UChar** sourceStart, const UChar* sourceEnd,
@@ -495,42 +355,6 @@ String16 String16::fromUTF8(const char* stringStart, size_t length)
     return String16(bufferStart, utf16Length);
 }
 
-// trim from start
-static inline wstring &ltrim(wstring &s)
-{
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-        return s;
-}
-
-// trim from end
-static inline wstring &rtrim(wstring &s)
-{
-    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-        return s;
-}
-
-// trim from both ends
-static inline wstring &trim(wstring &s)
-{
-    return ltrim(rtrim(s));
-}
-
-// static
-std::string String16::intToString(int i)
-{
-    char buffer[50];
-    std::sprintf(buffer, "%d", i);
-    return std::string(buffer);
-}
-
-// static
-std::string String16::doubleToString(double d)
-{
-    char buffer[100];
-    std::sprintf(buffer, "%f", d);
-    return std::string(buffer);
-}
-
 std::string String16::utf8() const
 {
     unsigned length = this->length();
@@ -575,13 +399,6 @@ std::string String16::utf8() const
     }
 
     return std::string(bufferVector.data(), buffer - bufferVector.data());
-}
-
-String16 String16::stripWhiteSpace() const
-{
-    wstring result(m_impl);
-    trim(result);
-    return result;
 }
 
 } // namespace protocol

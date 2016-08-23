@@ -45,11 +45,14 @@ Debug.clearBreakOnException();
 Debug.clearBreakOnUncaughtException();
 
 /**
- * @param {!CompileEvent} eventData
+ * @param {?CompileEvent} eventData
  */
 DebuggerScript.getAfterCompileScript = function(eventData)
 {
-    return DebuggerScript._formatScript(eventData.script().value());
+    var script = eventData.script().value();
+    if (!script.is_debugger_script)
+        return DebuggerScript._formatScript(eventData.script().value());
+    return null;
 }
 
 /** @type {!Map<!ScopeType, string>} */
@@ -180,6 +183,8 @@ DebuggerScript.getScripts = function(contextGroupId)
             if (script.context_data.indexOf(contextDataPrefix) !== 0)
                 continue;
         }
+        if (script.is_debugger_script)
+            continue;
         result.push(DebuggerScript._formatScript(script));
     }
     return result;
@@ -217,8 +222,7 @@ DebuggerScript._formatScript = function(script)
         endColumn: endColumn,
         executionContextId: DebuggerScript._executionContextId(script.context_data),
         // Note that we cannot derive aux data from context id because of compilation cache.
-        executionContextAuxData: DebuggerScript._executionContextAuxData(script.context_data),
-        isInternalScript: script.is_debugger_script
+        executionContextAuxData: DebuggerScript._executionContextAuxData(script.context_data)
     };
 }
 
@@ -229,9 +233,7 @@ DebuggerScript._formatScript = function(script)
  */
 DebuggerScript.setBreakpoint = function(execState, info)
 {
-    var positionAlignment = info.interstatementLocation ? Debug.BreakPositionAlignment.BreakPosition : Debug.BreakPositionAlignment.Statement;
-    var breakId = Debug.setScriptBreakPointById(info.sourceID, info.lineNumber, info.columnNumber, info.condition, undefined, positionAlignment);
-
+    var breakId = Debug.setScriptBreakPointById(info.sourceID, info.lineNumber, info.columnNumber, info.condition, undefined, Debug.BreakPositionAlignment.Statement);
     var locations = Debug.findBreakPointActualLocations(breakId);
     if (!locations.length)
         return undefined;

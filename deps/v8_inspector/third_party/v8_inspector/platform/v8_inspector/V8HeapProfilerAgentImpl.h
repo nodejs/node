@@ -5,17 +5,17 @@
 #ifndef V8HeapProfilerAgentImpl_h
 #define V8HeapProfilerAgentImpl_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/protocol/HeapProfiler.h"
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class V8InspectorSessionImpl;
 
-using protocol::Maybe;
+namespace protocol = blink::protocol;
+using blink::protocol::Maybe;
 
 class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
     PROTOCOL_DISALLOW_COPY(V8HeapProfilerAgentImpl);
@@ -54,6 +54,6 @@ private:
     bool m_hasTimer;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // !defined(V8HeapProfilerAgentImpl_h)

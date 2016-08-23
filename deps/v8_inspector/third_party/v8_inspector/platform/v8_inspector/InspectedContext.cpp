@@ -11,7 +11,7 @@
 #include "platform/v8_inspector/public/V8ContextInfo.h"
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 
-namespace blink {
+namespace v8_inspector {
 
 void InspectedContext::weakCallback(const v8::WeakCallbackInfo<InspectedContext>& data)
 {
@@ -79,4 +79,4 @@ void InspectedContext::discardInjectedScript()
     m_injectedScript.reset();
 }
 
-} // namespace blink
+} // namespace v8_inspector

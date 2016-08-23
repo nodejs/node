@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "platform/inspector_protocol/Parser.h"
-
-#include "platform/inspector_protocol/String16.h"
-#include "platform/inspector_protocol/Values.h"
-
 namespace blink {
 namespace protocol {
 
@@ -200,7 +195,7 @@ bool skipComment(const UChar* start, const UChar* end, const UChar** commentEnd)
 void skipWhitespaceAndComments(const UChar* start, const UChar* end, const UChar** whitespaceEnd)
 {
     while (start < end) {
-        if (isSpaceOrNewline(*start)) {
+        if (String16::isSpaceOrNewLine(*start)) {
             ++start;
         } else if (*start == '/') {
             const UChar* commentEnd;
