@@ -1381,24 +1381,6 @@ if (common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-// Test Equals
-{
-  const b = Buffer.alloc(5, 'abcdf');
-  const c = Buffer.alloc(5, 'abcdf');
-  const d = Buffer.alloc(5, 'abcde');
-  const e = Buffer.alloc(6, 'abcdef');
-
-  assert.ok(b.equals(c));
-  assert.ok(!c.equals(d));
-  assert.ok(!d.equals(e));
-  assert.ok(d.equals(d));
-}
-
-assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
-  b.equals('abc');
-});
-
 var ps = Buffer.poolSize;
 Buffer.poolSize = 0;
 assert.equal(Buffer.allocUnsafe(1).parent, undefined);
