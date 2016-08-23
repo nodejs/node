@@ -4,9 +4,6 @@
 
 #include "platform/v8_inspector/V8DebuggerAgentImpl.h"
 
-#include "platform/inspector_protocol/Parser.h"
-#include "platform/inspector_protocol/String16.h"
-#include "platform/inspector_protocol/Values.h"
 #include "platform/v8_inspector/InjectedScript.h"
 #include "platform/v8_inspector/InspectedContext.h"
 #include "platform/v8_inspector/JavaScriptCallFrame.h"
@@ -33,7 +30,7 @@ using blink::protocol::Runtime::ScriptId;
 using blink::protocol::Runtime::StackTrace;
 using blink::protocol::Runtime::RemoteObject;
 
-namespace blink {
+namespace v8_inspector {
 
 namespace DebuggerAgentState {
 static const char javaScriptBreakpoints[] = "javaScriptBreakopints";
@@ -235,9 +232,9 @@ void V8DebuggerAgentImpl::setBreakpointsActive(ErrorString* errorString, bool ac
     m_debugger->setBreakpointsActivated(active);
 }
 
-void V8DebuggerAgentImpl::setSkipAllPauses(ErrorString*, bool skipped)
+void V8DebuggerAgentImpl::setSkipAllPauses(ErrorString*, bool skip)
 {
-    m_skipAllPauses = skipped;
+    m_skipAllPauses = skip;
     m_state->setBoolean(DebuggerAgentState::skipAllPauses, m_skipAllPauses);
 }
 
@@ -376,9 +373,7 @@ void V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId)
     m_breakpointIdToDebuggerBreakpointIds.erase(breakpointId);
 }
 
-void V8DebuggerAgentImpl::continueToLocation(ErrorString* errorString,
-    std::unique_ptr<protocol::Debugger::Location> location,
-    const protocol::Maybe<bool>& interstateLocationOpt)
+void V8DebuggerAgentImpl::continueToLocation(ErrorString* errorString, std::unique_ptr<protocol::Debugger::Location> location)
 {
     if (!checkEnabled(errorString))
         return;
@@ -395,20 +390,8 @@ void V8DebuggerAgentImpl::continueToLocation(ErrorString* errorString,
         return;
 
     ScriptBreakpoint breakpoint(lineNumber, columnNumber, "");
-    m_continueToLocationBreakpointId = m_debugger->setBreakpoint(scriptId, breakpoint, &lineNumber, &columnNumber, interstateLocationOpt.fromMaybe(false));
+    m_continueToLocationBreakpointId = m_debugger->setBreakpoint(scriptId, breakpoint, &lineNumber, &columnNumber);
     resume(errorString);
-}
-
-void V8DebuggerAgentImpl::getBacktrace(ErrorString* errorString, std::unique_ptr<Array<CallFrame>>* callFrames, Maybe<StackTrace>* asyncStackTrace)
-{
-    if (!assertPaused(errorString))
-        return;
-    JavaScriptCallFrames frames = m_debugger->currentCallFrames();
-    m_pausedCallFrames.swap(frames);
-    *callFrames = currentCallFrames(errorString);
-    if (!*callFrames)
-        return;
-    *asyncStackTrace = currentAsyncStackTrace();
 }
 
 bool V8DebuggerAgentImpl::isCurrentCallStackEmptyOrBlackboxed()
@@ -502,7 +485,7 @@ std::unique_ptr<protocol::Debugger::Location> V8DebuggerAgentImpl::resolveBreakp
 
     int actualLineNumber;
     int actualColumnNumber;
-    String16 debuggerBreakpointId = m_debugger->setBreakpoint(scriptId, breakpoint, &actualLineNumber, &actualColumnNumber, false);
+    String16 debuggerBreakpointId = m_debugger->setBreakpoint(scriptId, breakpoint, &actualLineNumber, &actualColumnNumber);
     if (debuggerBreakpointId.isEmpty())
         return nullptr;
 
@@ -534,7 +517,7 @@ void V8DebuggerAgentImpl::searchInContent(ErrorString* error, const String16& sc
 void V8DebuggerAgentImpl::setScriptSource(ErrorString* errorString,
     const String16& scriptId,
     const String16& newContent,
-    const Maybe<bool>& preview,
+    const Maybe<bool>& dryRun,
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
     Maybe<bool>* stackChanged,
     Maybe<StackTrace>* asyncStackTrace,
@@ -545,7 +528,7 @@ void V8DebuggerAgentImpl::setScriptSource(ErrorString* errorString,
 
     v8::HandleScope handles(m_isolate);
     v8::Local<v8::String> newSource = toV8String(m_isolate, newContent);
-    if (!m_debugger->setScriptSource(scriptId, newSource, preview.fromMaybe(false), errorString, optOutCompileError, &m_pausedCallFrames, stackChanged))
+    if (!m_debugger->setScriptSource(scriptId, newSource, dryRun.fromMaybe(false), errorString, optOutCompileError, &m_pausedCallFrames, stackChanged))
         return;
 
     ScriptsMap::iterator it = m_scripts.find(scriptId);
@@ -728,11 +711,10 @@ void V8DebuggerAgentImpl::evaluateOnCallFrame(ErrorString* errorString,
     const String16& expression,
     const Maybe<String16>& objectGroup,
     const Maybe<bool>& includeCommandLineAPI,
-    const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+    const Maybe<bool>& silent,
     const Maybe<bool>& returnByValue,
     const Maybe<bool>& generatePreview,
     std::unique_ptr<RemoteObject>* result,
-    Maybe<bool>* wasThrown,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails)
 {
     if (!assertPaused(errorString))
@@ -747,7 +729,7 @@ void V8DebuggerAgentImpl::evaluateOnCallFrame(ErrorString* errorString,
 
     if (includeCommandLineAPI.fromMaybe(false) && !scope.installCommandLineAPI())
         return;
-    if (doNotPauseOnExceptionsAndMuteConsole.fromMaybe(false))
+    if (silent.fromMaybe(false))
         scope.ignoreExceptionsAndMuteConsole();
 
     v8::MaybeLocal<v8::Value> maybeResultValue = m_pausedCallFrames[scope.frameOrdinal()]->evaluate(toV8String(m_isolate, expression));
@@ -762,7 +744,6 @@ void V8DebuggerAgentImpl::evaluateOnCallFrame(ErrorString* errorString,
         returnByValue.fromMaybe(false),
         generatePreview.fromMaybe(false),
         result,
-        wasThrown,
         exceptionDetails);
 }
 
@@ -996,38 +977,27 @@ void V8DebuggerAgentImpl::didParseSource(std::unique_ptr<V8DebuggerScript> scrip
 {
     v8::HandleScope handles(m_isolate);
     String16 scriptSource = toProtocolString(script->source(m_isolate));
-    bool isDeprecatedSourceURL = false;
     if (!success)
-        script->setSourceURL(findSourceURL(scriptSource, false, &isDeprecatedSourceURL));
-    else if (script->hasSourceURL())
-        findSourceURL(scriptSource, false, &isDeprecatedSourceURL);
-
-    bool isDeprecatedSourceMappingURL = false;
+        script->setSourceURL(findSourceURL(scriptSource, false));
     if (!success)
-        script->setSourceMappingURL(findSourceMapURL(scriptSource, false, &isDeprecatedSourceMappingURL));
-    else if (!script->sourceMappingURL().isEmpty())
-        findSourceMapURL(scriptSource, false, &isDeprecatedSourceMappingURL);
+        script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
 
     std::unique_ptr<protocol::DictionaryValue> executionContextAuxData;
     if (!script->executionContextAuxData().isEmpty())
         executionContextAuxData = protocol::DictionaryValue::cast(parseJSON(script->executionContextAuxData()));
-    bool isInternalScript = script->isInternalScript();
     bool isLiveEdit = script->isLiveEdit();
     bool hasSourceURL = script->hasSourceURL();
     String16 scriptId = script->scriptId();
     String16 scriptURL = script->sourceURL();
-    bool deprecatedCommentWasUsed = isDeprecatedSourceURL || isDeprecatedSourceMappingURL;
 
     const Maybe<String16>& sourceMapURLParam = script->sourceMappingURL();
     const Maybe<protocol::DictionaryValue>& executionContextAuxDataParam(std::move(executionContextAuxData));
-    const bool* isInternalScriptParam = isInternalScript ? &isInternalScript : nullptr;
     const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
     const bool* hasSourceURLParam = hasSourceURL ? &hasSourceURL : nullptr;
-    const bool* deprecatedCommentWasUsedParam = deprecatedCommentWasUsed ? &deprecatedCommentWasUsed : nullptr;
     if (success)
-        m_frontend.scriptParsed(scriptId, scriptURL, script->startLine(), script->startColumn(), script->endLine(), script->endColumn(), script->executionContextId(), script->hash(), executionContextAuxDataParam, isInternalScriptParam, isLiveEditParam, sourceMapURLParam, hasSourceURLParam, deprecatedCommentWasUsedParam);
+        m_frontend.scriptParsed(scriptId, scriptURL, script->startLine(), script->startColumn(), script->endLine(), script->endColumn(), script->executionContextId(), script->hash(), executionContextAuxDataParam, isLiveEditParam, sourceMapURLParam, hasSourceURLParam);
     else
-        m_frontend.scriptFailedToParse(scriptId, scriptURL, script->startLine(), script->startColumn(), script->endLine(), script->endColumn(), script->executionContextId(), script->hash(), executionContextAuxDataParam, isInternalScriptParam, sourceMapURLParam, hasSourceURLParam, deprecatedCommentWasUsedParam);
+        m_frontend.scriptFailedToParse(scriptId, scriptURL, script->startLine(), script->startColumn(), script->endLine(), script->endColumn(), script->executionContextId(), script->hash(), executionContextAuxDataParam, sourceMapURLParam, hasSourceURLParam);
 
     m_scripts[scriptId] = std::move(script);
 
@@ -1061,13 +1031,6 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(v8::Local<v8
 {
     JavaScriptCallFrames callFrames = m_debugger->currentCallFrames(1);
     JavaScriptCallFrame* topCallFrame = !callFrames.empty() ? callFrames.begin()->get() : nullptr;
-
-    // Skip pause in internal scripts (e.g. InjectedScriptSource.js).
-    if (topCallFrame) {
-        ScriptsMap::iterator it = m_scripts.find(String16::fromInteger(topCallFrame->sourceID()));
-        if (it != m_scripts.end() && it->second->isInternalScript())
-            return RequestStepFrame;
-    }
 
     V8DebuggerAgentImpl::SkipPauseRequest result;
     if (m_skipAllPauses)
@@ -1201,4 +1164,4 @@ void V8DebuggerAgentImpl::reset()
     m_breakpointIdToDebuggerBreakpointIds.clear();
 }
 
-} // namespace blink
+} // namespace v8_inspector

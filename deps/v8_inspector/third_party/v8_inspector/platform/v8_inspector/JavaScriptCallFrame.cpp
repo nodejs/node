@@ -35,7 +35,7 @@
 
 #include <v8-debug.h>
 
-namespace blink {
+namespace v8_inspector {
 
 JavaScriptCallFrame::JavaScriptCallFrame(v8::Local<v8::Context> debuggerContext, v8::Local<v8::Object> callFrame)
     : m_isolate(debuggerContext->GetIsolate())
@@ -130,4 +130,4 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::setVariableValue(int scopeNumber,
     return setVariableValueFunction->Call(m_debuggerContext.Get(m_isolate), callFrame, PROTOCOL_ARRAY_LENGTH(argv), argv);
 }
 
-} // namespace blink
+} // namespace v8_inspector

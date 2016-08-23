@@ -4,11 +4,7 @@
 
 #include "platform/v8_inspector/RemoteObjectId.h"
 
-#include "platform/inspector_protocol/Parser.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/Values.h"
-
-namespace blink {
+namespace v8_inspector {
 
 RemoteObjectIdBase::RemoteObjectIdBase() : m_injectedScriptId(0) { }
 
@@ -69,4 +65,4 @@ String16 RemoteCallFrameId::serialize(int injectedScriptId, int frameOrdinal)
     return "{\"ordinal\":" + String16::fromInteger(frameOrdinal) + ",\"injectedScriptId\":" + String16::fromInteger(injectedScriptId) + "}";
 }
 
-} // namespace blink
+} // namespace v8_inspector

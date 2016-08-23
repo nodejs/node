@@ -158,7 +158,7 @@ public:
 
     static T* hashTableDeletedValue() { return reinterpret_cast<T*>(-1); }
 
-    explicit unique_ptr(PtrType ptr) : m_ptr(ptr) {}
+    explicit unique_ptr(PtrType ptr) : m_ptr(ptr) {}  // NOLINT
 
 private:
     PtrType internalRelease() const
@@ -202,12 +202,12 @@ template <typename T> inline typename unique_ptr<T>::ValueType& unique_ptr<T>::o
     return m_ptr[i];
 }
 
-template <typename T> inline unique_ptr<T>::unique_ptr(const unique_ptr<T>& o)
+template <typename T> inline unique_ptr<T>::unique_ptr(const unique_ptr<T>& o)  // NOLINT
     : m_ptr(o.internalRelease())
 {
 }
 
-template <typename T> inline unique_ptr<T>::unique_ptr(unique_ptr<T>&& o)
+template <typename T> inline unique_ptr<T>::unique_ptr(unique_ptr<T>&& o)  // NOLINT
     : m_ptr(o.internalRelease())
 {
 }
@@ -288,5 +288,30 @@ std::unique_ptr<T> wrapUnique(T* ptr)
 {
     return std::unique_ptr<T>(ptr);
 }
+
+// emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
+// on overflow...
+// VS 2015 added a standard conform snprintf
+#if defined(_WIN32) && defined( _MSC_VER ) && (_MSC_VER < 1900)
+#include <stdarg.h>
+namespace std {
+
+inline static int snprintf(char *buffer, size_t n, const char *format, ...)
+{
+    va_list argp;
+    va_start(argp, format);
+    int ret = _vscprintf(format, argp);
+    vsnprintf_s(buffer, n, _TRUNCATE, format, argp);
+    va_end(argp);
+    return ret;
+}
+} // namespace std
+#endif // (_WIN32) && defined( _MSC_VER ) && (_MSC_VER < 1900)
+
+#ifdef __sun
+namespace std {
+using ::snprintf;
+} // namespace std
+#endif // __sun
 
 #endif // PlatformSTL_h

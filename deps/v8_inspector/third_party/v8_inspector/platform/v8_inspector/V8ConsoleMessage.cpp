@@ -13,7 +13,7 @@
 #include "platform/v8_inspector/V8StringUtil.h"
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 
-namespace blink {
+namespace v8_inspector {
 
 namespace {
 
@@ -84,7 +84,7 @@ private:
         if (value->IsSymbolObject())
             return append(v8::Local<v8::SymbolObject>::Cast(value)->ValueOf());
         if (value->IsNumberObject()) {
-            m_builder.appendNumber(v8::Local<v8::NumberObject>::Cast(value)->ValueOf());
+            m_builder.append(String16::fromDoublePrecision6(v8::Local<v8::NumberObject>::Cast(value)->ValueOf()));
             return true;
         }
         if (value->IsBooleanObject()) {
@@ -203,10 +203,19 @@ void V8ConsoleMessage::setLocation(const String16& url, unsigned lineNumber, uns
 void V8ConsoleMessage::reportToFrontend(protocol::Console::Frontend* frontend) const
 {
     DCHECK(m_origin == V8MessageOrigin::kConsole);
+    String16 level = protocol::Console::ConsoleMessage::LevelEnum::Log;
+    if (m_type == ConsoleAPIType::kDebug || m_type == ConsoleAPIType::kCount || m_type == ConsoleAPIType::kTimeEnd)
+        level = protocol::Console::ConsoleMessage::LevelEnum::Debug;
+    else if (m_type == ConsoleAPIType::kError || m_type == ConsoleAPIType::kAssert)
+        level = protocol::Console::ConsoleMessage::LevelEnum::Error;
+    else if (m_type == ConsoleAPIType::kWarning)
+        level = protocol::Console::ConsoleMessage::LevelEnum::Warning;
+    else if (m_type == ConsoleAPIType::kInfo)
+        level = protocol::Console::ConsoleMessage::LevelEnum::Info;
     std::unique_ptr<protocol::Console::ConsoleMessage> result =
         protocol::Console::ConsoleMessage::create()
         .setSource(protocol::Console::ConsoleMessage::SourceEnum::ConsoleApi)
-        .setLevel(protocol::Console::ConsoleMessage::LevelEnum::Log)
+        .setLevel(level)
         .setText(m_message)
         .build();
     result->setLine(static_cast<int>(m_lineNumber));
@@ -253,22 +262,23 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend, V
 {
     if (m_origin == V8MessageOrigin::kException) {
         std::unique_ptr<protocol::Runtime::RemoteObject> exception = wrapException(session, generatePreview);
-        // TODO(dgozman): unify with InjectedScript::createExceptionDetails.
-        std::unique_ptr<protocol::Runtime::ExceptionDetails> details = protocol::Runtime::ExceptionDetails::create()
+        std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails = protocol::Runtime::ExceptionDetails::create()
+            .setExceptionId(m_exceptionId)
             .setText(exception ? m_message : m_detailedMessage)
             .setLineNumber(m_lineNumber ? m_lineNumber - 1 : 0)
             .setColumnNumber(m_columnNumber ? m_columnNumber - 1 : 0)
-            .setScriptId(m_scriptId ? String16::fromInteger(m_scriptId) : String16())
             .build();
+        if (m_scriptId)
+            exceptionDetails->setScriptId(String16::fromInteger(m_scriptId));
         if (!m_url.isEmpty())
-            details->setUrl(m_url);
+            exceptionDetails->setUrl(m_url);
         if (m_stackTrace)
-            details->setStackTrace(m_stackTrace->buildInspectorObjectImpl());
-
+            exceptionDetails->setStackTrace(m_stackTrace->buildInspectorObjectImpl());
+        if (m_contextId)
+            exceptionDetails->setExecutionContextId(m_contextId);
         if (exception)
-            frontend->exceptionThrown(m_exceptionId, m_timestamp, std::move(details), std::move(exception), m_contextId);
-        else
-            frontend->exceptionThrown(m_exceptionId, m_timestamp, std::move(details));
+            exceptionDetails->setException(std::move(exception));
+        frontend->exceptionThrown(m_timestamp, std::move(exceptionDetails));
         return;
     }
     if (m_origin == V8MessageOrigin::kRevokedException) {
@@ -430,4 +440,4 @@ void V8ConsoleMessageStorage::contextDestroyed(int contextId)
         m_messages[i]->contextDestroyed(contextId);
 }
 
-} // namespace blink
+} // namespace v8_inspector

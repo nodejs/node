@@ -5,12 +5,14 @@
 #ifndef V8Console_h
 #define V8Console_h
 
-#include "platform/inspector_protocol/Allocator.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class InspectedContext;
+
+namespace protocol = blink::protocol;
 
 // Console API
 // https://console.spec.whatwg.org/#console-interface
@@ -84,6 +86,6 @@ private:
     static void inspectedObject4(const v8::FunctionCallbackInfo<v8::Value>& info) { inspectedObject(info, 4); }
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // V8Console_h

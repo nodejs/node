@@ -29,8 +29,7 @@ var RawLocation;
         startColumn: number,
         endColumn: number,
         executionContextId: number,
-        executionContextAuxData: string,
-        isInternalScript: boolean
+        executionContextAuxData: string
     }} */
 var FormattedScript;
 

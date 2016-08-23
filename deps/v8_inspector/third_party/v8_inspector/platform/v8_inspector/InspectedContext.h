@@ -5,17 +5,17 @@
 #ifndef InspectedContext_h
 #define InspectedContext_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class InjectedScript;
 class InjectedScriptHost;
 class V8ContextInfo;
 class V8InspectorImpl;
+
+namespace protocol = blink::protocol;
 
 class InspectedContext {
     PROTOCOL_DISALLOW_COPY(InspectedContext);
@@ -57,6 +57,6 @@ private:
     v8::Global<v8::Object> m_console;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif

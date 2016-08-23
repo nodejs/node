@@ -5,11 +5,11 @@
 #ifndef Array_h
 #define Array_h
 
-#include "platform/inspector_protocol/ErrorSupport.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
-#include "platform/inspector_protocol/ValueConversions.h"
-#include "platform/inspector_protocol/Values.h"
+//#include "ErrorSupport.h"
+//#include "Platform.h"
+//#include "String16.h"
+//#include "ValueConversions.h"
+//#include "Values.h"
 
 #include <vector>
 
@@ -126,7 +126,7 @@ private:
     std::vector<T> m_vector;
 };
 
-template<> class Array<String> : public ArrayBase<String> {};
+template<> class Array<InspectorProtocolConvenienceStringType> : public ArrayBase<InspectorProtocolConvenienceStringType> {};
 template<> class Array<String16> : public ArrayBase<String16> {};
 template<> class Array<int> : public ArrayBase<int> {};
 template<> class Array<double> : public ArrayBase<double> {};
