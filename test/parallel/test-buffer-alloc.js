@@ -36,59 +36,6 @@ for (const [index, value] of e.entries()) {
   assert.strictEqual(value, ui32[index]);
 }
 
-// First check Buffer#fill() works as expected.
-
-assert.throws(function() {
-  Buffer.allocUnsafe(8).fill('a', -1);
-});
-
-assert.throws(function() {
-  Buffer.allocUnsafe(8).fill('a', 0, 9);
-});
-
-// Make sure this doesn't hang indefinitely.
-Buffer.allocUnsafe(8).fill('');
-Buffer.alloc(8, '');
-
-{
-  const buf = Buffer.alloc(64, 10);
-  for (let i = 0; i < buf.length; i++)
-    assert.equal(buf[i], 10);
-
-  buf.fill(11, 0, buf.length >> 1);
-  for (let i = 0; i < buf.length >> 1; i++)
-    assert.equal(buf[i], 11);
-  for (let i = (buf.length >> 1) + 1; i < buf.length; i++)
-    assert.equal(buf[i], 10);
-
-  buf.fill('h');
-  for (let i = 0; i < buf.length; i++)
-    assert.equal('h'.charCodeAt(0), buf[i]);
-
-  buf.fill(0);
-  for (let i = 0; i < buf.length; i++)
-    assert.equal(0, buf[i]);
-
-  buf.fill(null);
-  for (let i = 0; i < buf.length; i++)
-    assert.equal(0, buf[i]);
-
-  buf.fill(1, 16, 32);
-  for (let i = 0; i < 16; i++)
-    assert.equal(0, buf[i]);
-  for (let i = 16; i < 32; i++)
-    assert.equal(1, buf[i]);
-  for (let i = 32; i < buf.length; i++)
-    assert.equal(0, buf[i]);
-}
-
-{
-  const buf = Buffer.alloc(10, 'abc');
-  assert.equal(buf.toString(), 'abcabcabca');
-  buf.fill('է');
-  assert.equal(buf.toString(), 'էէէէէ');
-}
-
 {
   // copy 512 bytes, from 0 to 512.
   b.fill(++cntr);
