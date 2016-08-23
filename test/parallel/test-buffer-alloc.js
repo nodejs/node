@@ -1485,19 +1485,6 @@ assert.doesNotThrow(() => {
   Buffer.from(new ArrayBuffer());
 });
 
-assert.throws(() => Buffer.alloc(-Buffer.poolSize),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer.alloc(-100),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer.allocUnsafe(-Buffer.poolSize),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer.allocUnsafe(-100),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer.allocUnsafeSlow(-Buffer.poolSize),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer.allocUnsafeSlow(-100),
-              '"size" argument must not be negative');
-
 assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
               /"size" argument must be a number/);
 assert.throws(() => Buffer.alloc({ valueOf: () => -1 }),

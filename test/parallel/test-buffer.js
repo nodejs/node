@@ -1521,11 +1521,3 @@ assert.equal(SlowBuffer.prototype.offset, undefined);
     }
   }
 }
-
-// Test that large negative Buffer length inputs throw errors.
-assert.throws(() => Buffer(-Buffer.poolSize),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer(-100),
-              '"size" argument must not be negative');
-assert.throws(() => Buffer(-1),
-              '"size" argument must not be negative');
