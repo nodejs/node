@@ -25,40 +25,52 @@ var srv = net.createServer(function(c) {
   });
 });
 
-var gotUpgrade = false;
-
-srv.listen(0, '127.0.0.1', function() {
-
-  var req = http.get({
-    port: this.address().port,
-    headers: {
+srv.listen(0, '127.0.0.1', common.mustCall(function() {
+  var port = this.address().port;
+  var headers = [
+    {
       connection: 'upgrade',
       upgrade: 'websocket'
-    }
-  });
-  req.on('upgrade', function(res, socket, upgradeHead) {
-    var recvData = upgradeHead;
-    socket.on('data', function(d) {
-      recvData += d;
+    },
+    [
+      ['Host', 'echo.websocket.org'],
+      ['Connection', 'Upgrade'],
+      ['Upgrade', 'websocket'],
+      ['Origin', 'http://www.websocket.org']
+    ]
+  ];
+  var left = headers.length;
+  headers.forEach(function(h) {
+    var req = http.get({
+      port: port,
+      headers: h
     });
+    var sawUpgrade = false;
+    req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
+      sawUpgrade = true;
+      var recvData = upgradeHead;
+      socket.on('data', function(d) {
+        recvData += d;
+      });
 
-    socket.on('close', common.mustCall(function() {
-      assert.equal(recvData, 'nurtzo');
+      socket.on('close', common.mustCall(function() {
+        assert.equal(recvData, 'nurtzo');
+      }));
+
+      console.log(res.headers);
+      var expectedHeaders = {
+        hello: 'world',
+        connection: 'upgrade',
+        upgrade: 'websocket'
+      };
+      assert.deepStrictEqual(expectedHeaders, res.headers);
+
+      socket.end();
+      if (--left == 0)
+        srv.close();
     }));
-
-    console.log(res.headers);
-    var expectedHeaders = {'hello': 'world',
-                            'connection': 'upgrade',
-                            'upgrade': 'websocket' };
-    assert.deepEqual(expectedHeaders, res.headers);
-
-    socket.end();
-    srv.close();
-
-    gotUpgrade = true;
+    req.on('close', common.mustCall(function() {
+      assert.strictEqual(sawUpgrade, true);
+    }));
   });
-});
-
-process.on('exit', function() {
-  assert.ok(gotUpgrade);
-});
+}));
