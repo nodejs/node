@@ -9,7 +9,7 @@ const repl = require('repl');
 // \u001b[3G - Moves the cursor to 3rd column
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 
-function run(input, output, event) {
+function run({input, output, event}) {
   const stream = new common.ArrayStream();
   let found = '';
 
@@ -49,7 +49,59 @@ const tests = [
     input: 'var i = 1;\ni + 3',
     output: '\n4',
     event: {ctrl: true, name: 'd'}
+  },
+  {
+    input: '  var i = 1;\ni + 3',
+    output: '\n4',
+    event: {ctrl: true, name: 'd'}
   }
 ];
 
-tests.forEach(({input, output, event}) => run(input, output, event));
+tests.forEach(run);
+
+// Auto code alignment for .editor mode
+function testCodeAligment({input, cursor = 0, line = ''}) {
+  const stream = new common.ArrayStream();
+
+  const replServer = repl.start({
+    prompt: '> ',
+    terminal: true,
+    input: stream,
+    output: stream,
+    useColors: false
+  });
+
+  stream.emit('data', '.editor\n');
+  input.split('').forEach((ch) => stream.emit('data', ch));
+  // Test the content of current line and the cursor position
+  assert.strictEqual(line, replServer.line);
+  assert.strictEqual(cursor, replServer.cursor);
+
+  replServer.write('', {ctrl: true, name: 'd'});
+  replServer.close();
+  // Ensure that empty lines are not saved in history
+  assert.notStrictEqual(replServer.history[0].trim(), '');
+}
+
+const codeAlignmentTests = [
+  {
+    input: 'var i = 1;\n'
+  },
+  {
+    input: '  var i = 1;\n',
+    cursor: 2,
+    line: '  '
+  },
+  {
+    input: '     var i = 1;\n',
+    cursor: 5,
+    line: '     '
+  },
+  {
+    input: ' var i = 1;\n var j = 2\n',
+    cursor: 2,
+    line: '  '
+  }
+];
+
+codeAlignmentTests.forEach(testCodeAligment);
