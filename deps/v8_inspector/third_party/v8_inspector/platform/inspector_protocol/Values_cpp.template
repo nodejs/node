@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "platform/inspector_protocol/Values.h"
-
-#include "platform/inspector_protocol/Parser.h"
-#include "platform/inspector_protocol/String16.h"
-
 #include <algorithm>
 #include <cmath>
 
@@ -15,9 +10,9 @@ namespace protocol {
 
 namespace {
 
-const char* const nullString = "null";
-const char* const trueString = "true";
-const char* const falseString = "false";
+const char* const nullValueString = "null";
+const char* const trueValueString = "true";
+const char* const falseValueString = "false";
 
 inline bool escapeChar(UChar c, String16Builder* dst)
 {
@@ -35,13 +30,14 @@ inline bool escapeChar(UChar c, String16Builder* dst)
     return true;
 }
 
-const LChar hexDigits[17] = "0123456789ABCDEF";
+const char hexDigits[17] = "0123456789ABCDEF";
 
 void appendUnsignedAsHex(UChar number, String16Builder* dst)
 {
     dst->append("\\u");
     for (size_t i = 0; i < 4; ++i) {
-        dst->append(hexDigits[(number & 0xF000) >> 12]);
+        UChar c = hexDigits[(number & 0xF000) >> 12];
+        dst->append(c);
         number <<= 4;
     }
 }
@@ -108,7 +104,7 @@ String16 Value::toJSONString() const
 void Value::writeJSON(String16Builder* output) const
 {
     DCHECK(m_type == TypeNull);
-    output->append(nullString, 4);
+    output->append(nullValueString, 4);
 }
 
 std::unique_ptr<Value> Value::clone() const
@@ -150,12 +146,12 @@ void FundamentalValue::writeJSON(String16Builder* output) const
     DCHECK(type() == TypeBoolean || type() == TypeInteger || type() == TypeDouble);
     if (type() == TypeBoolean) {
         if (m_boolValue)
-            output->append(trueString, 4);
+            output->append(trueValueString, 4);
         else
-            output->append(falseString, 5);
+            output->append(falseValueString, 5);
     } else if (type() == TypeDouble) {
         if (!std::isfinite(m_doubleValue)) {
-            output->append(nullString, 4);
+            output->append(nullValueString, 4);
             return;
         }
         output->append(String16::fromDouble(m_doubleValue));

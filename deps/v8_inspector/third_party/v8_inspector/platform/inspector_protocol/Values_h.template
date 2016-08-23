@@ -5,10 +5,11 @@
 #ifndef Values_h
 #define Values_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/Collections.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
+//#include "Allocator.h"
+//#include "Collections.h"
+//#include "Platform.h"
+//#include "String16.h"
+#include "{{config.class_export.header}}"
 
 #include <vector>
 
@@ -19,7 +20,7 @@ class ListValue;
 class DictionaryValue;
 class Value;
 
-class PLATFORM_EXPORT Value {
+class {{config.class_export.macro}} Value {
     PROTOCOL_DISALLOW_COPY(Value);
 public:
     static const int maxDepth = 1000;
@@ -67,7 +68,7 @@ private:
     ValueType m_type;
 };
 
-class PLATFORM_EXPORT FundamentalValue : public Value {
+class {{config.class_export.macro}} FundamentalValue : public Value {
 public:
     static std::unique_ptr<FundamentalValue> create(bool value)
     {
@@ -102,7 +103,7 @@ private:
     };
 };
 
-class PLATFORM_EXPORT StringValue : public Value {
+class {{config.class_export.macro}} StringValue : public Value {
 public:
     static std::unique_ptr<StringValue> create(const String16& value)
     {
@@ -125,7 +126,7 @@ private:
     String16 m_stringValue;
 };
 
-class PLATFORM_EXPORT SerializedValue : public Value {
+class {{config.class_export.macro}} SerializedValue : public Value {
 public:
     static std::unique_ptr<SerializedValue> create(const String16& value)
     {
@@ -143,7 +144,7 @@ private:
     String16 m_serializedValue;
 };
 
-class PLATFORM_EXPORT DictionaryValue : public Value {
+class {{config.class_export.macro}} DictionaryValue : public Value {
 public:
     using Entry = std::pair<String16, Value*>;
     static std::unique_ptr<DictionaryValue> create()
@@ -210,7 +211,7 @@ private:
     std::vector<String16> m_order;
 };
 
-class PLATFORM_EXPORT ListValue : public Value {
+class {{config.class_export.macro}} ListValue : public Value {
 public:
     static std::unique_ptr<ListValue> create()
     {

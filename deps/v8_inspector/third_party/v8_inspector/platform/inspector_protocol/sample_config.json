@@ -1,0 +1,34 @@
+{
+    "protocol": {
+        "path": "protocol/sample_protocol.json",
+        "package": "include/generated/files/like/this",
+        "output": "place/generated/files/here"
+    },
+
+    "imported": {
+        "path": "../relative/path/imported_protocol.json",
+        "package": "include/imported/files/like/this"
+    },
+
+    "exported": {
+        "package": "include/exported/files/like/this",
+        "output": "place/exported/files/here"
+    },
+
+    "string": {
+        "class_name": "String16"
+    },
+
+    "lib": {
+        "output": "place/generated/lib/files/here",
+        "string16_header": "sting16/implementation.h",
+        "platform_header": "platform/implementation.h"
+    },
+
+    "lib_package": "include/lib/files/like/this",
+
+    "class_export": {
+        "macro": "LIB_EXPORT",
+        "header": "lib/export.h"
+    }
+}

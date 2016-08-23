@@ -7,12 +7,8 @@
 #ifndef protocol_{{domain.domain}}_api_h
 #define protocol_{{domain.domain}}_api_h
 
-{% if export_macro == "PLATFORM_EXPORT" %}
-#include "platform/inspector_protocol/Platform.h"
-{% else %}
-#include "core/CoreExport.h"
-{% endif %}
-#include "platform/inspector_protocol/String16.h"
+#include "{{config.class_export.header}}"
+#include "{{config.lib_package}}/InspectorProtocol.h"
 
 namespace blink {
 namespace protocol {
@@ -25,7 +21,7 @@ namespace API {
 
 namespace {{type.id}}Enum {
       {% for literal in type.enum %}
-{{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+{{config.class_export.macro}} extern const char* {{ literal | dash_to_camelcase}};
       {% endfor %}
 } // {{type.id}}Enum
     {% endif %}
@@ -37,7 +33,7 @@ namespace {{type.id}}Enum {
 namespace {{command.name | to_title_case}} {
 namespace {{param.name | to_title_case}}Enum {
         {% for literal in param.enum %}
-{{export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+{{config.class_export.macro}} extern const char* {{ literal | dash_to_camelcase}};
         {% endfor %}
 } // {{param.name | to_title_case}}Enum
 } // {{command.name | to_title_case }}
@@ -49,7 +45,7 @@ namespace {{param.name | to_title_case}}Enum {
   {% for type in domain.types %}
     {% if not (type.type == "object") or not ("properties" in type) or not (type.exported) %}{% continue %}{% endif %}
 
-class {{export_macro}} {{type.id}} {
+class {{config.class_export.macro}} {{type.id}} {
 public:
     virtual String16 toJSONString() const = 0;
     virtual ~{{type.id}}() { }

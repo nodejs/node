@@ -5,12 +5,13 @@
 #ifndef DispatcherBase_h
 #define DispatcherBase_h
 
-#include "platform/inspector_protocol/BackendCallback.h"
-#include "platform/inspector_protocol/Collections.h"
-#include "platform/inspector_protocol/ErrorSupport.h"
-#include "platform/inspector_protocol/Platform.h"
-#include "platform/inspector_protocol/String16.h"
-#include "platform/inspector_protocol/Values.h"
+//#include "BackendCallback.h"
+//#include "Collections.h"
+//#include "ErrorSupport.h"
+//#include "Platform.h"
+//#include "String16.h"
+//#include "Values.h"
+#include "{{config.class_export.header}}"
 
 namespace blink {
 namespace protocol {
@@ -18,11 +19,11 @@ namespace protocol {
 class FrontendChannel;
 class WeakPtr;
 
-class PLATFORM_EXPORT DispatcherBase {
+class {{config.class_export.macro}} DispatcherBase {
     PROTOCOL_DISALLOW_COPY(DispatcherBase);
 public:
     static const char kInvalidRequest[];
-    class PLATFORM_EXPORT WeakPtr {
+    class {{config.class_export.macro}} WeakPtr {
     public:
         explicit WeakPtr(DispatcherBase*);
         ~WeakPtr();
@@ -33,7 +34,7 @@ public:
         DispatcherBase* m_dispatcher;
     };
 
-    class PLATFORM_EXPORT Callback : public protocol::BackendCallback {
+    class {{config.class_export.macro}} Callback : public protocol::BackendCallback {
     public:
         Callback(std::unique_ptr<WeakPtr> backendImpl, int callId);
         virtual ~Callback();
@@ -77,7 +78,7 @@ private:
     protocol::HashSet<WeakPtr*> m_weakPtrs;
 };
 
-class PLATFORM_EXPORT UberDispatcher {
+class {{config.class_export.macro}} UberDispatcher {
     PROTOCOL_DISALLOW_COPY(UberDispatcher);
 public:
     explicit UberDispatcher(FrontendChannel*);

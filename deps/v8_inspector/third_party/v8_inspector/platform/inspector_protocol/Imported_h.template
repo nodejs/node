@@ -7,10 +7,8 @@
 #ifndef protocol_{{domain.domain}}_imported_h
 #define protocol_{{domain.domain}}_imported_h
 
-#include "platform/inspector_protocol/ErrorSupport.h"
-#include "platform/inspector_protocol/ValueConversions.h"
-#include "platform/inspector_protocol/Values.h"
-#include "{{include_package}}/{{domain.domain}}.h"
+#include "{{config.lib_package}}/InspectorProtocol.h"
+#include "{{config.imported.package}}/{{domain.domain}}.h"
 
 namespace blink {
 namespace protocol {

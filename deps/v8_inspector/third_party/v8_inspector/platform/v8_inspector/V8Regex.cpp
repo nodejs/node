@@ -11,7 +11,7 @@
 
 #include <limits.h>
 
-namespace blink {
+namespace v8_inspector {
 
 V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern, bool caseSensitive, bool multiline)
     : m_inspector(inspector)
@@ -89,4 +89,4 @@ int V8Regex::match(const String16& string, int startFrom, int* matchLength) cons
     return matchOffset.As<v8::Int32>()->Value() + startFrom;
 }
 
-} // namespace blink
+} // namespace v8_inspector
