@@ -1437,9 +1437,6 @@ assert.throws(function() {
   b.equals('abc');
 });
 
-// Regression test for https://github.com/nodejs/node/issues/649.
-assert.throws(() => { Buffer.allocUnsafe(1422561062959).toString('utf8');});
-
 var ps = Buffer.poolSize;
 Buffer.poolSize = 0;
 assert.equal(Buffer.allocUnsafe(1).parent, undefined);
