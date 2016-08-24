@@ -451,6 +451,9 @@ to the module, such as:
   module's absolute filename and directory path.
 
 ## The `module` Object
+<!-- YAML
+added: v0.1.16
+-->
 
 <!-- type=var -->
 <!-- name=module -->
@@ -463,12 +466,18 @@ also accessible via the `exports` module-global. `module` isn't actually
 a global but rather local to each module.
 
 ### module.children
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Array}
 
 The module objects required by this one.
 
 ### module.exports
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Object}
 
@@ -521,6 +530,9 @@ console.log(x.a);
 ```
 
 #### exports alias
+<!-- YAML
+added: v0.1.16
+-->
 
 The `exports` variable that is available within a module starts as a reference
 to `module.exports`. As with any variable, if you assign a new value to it, it
@@ -546,12 +558,18 @@ As a guideline, if the relationship between `exports` and `module.exports`
 seems like magic to you, ignore `exports` and only use `module.exports`.
 
 ### module.filename
+<!-- YAML
+added: v0.1.16
+-->
 
 * {String}
 
 The fully resolved filename to the module.
 
 ### module.id
+<!-- YAML
+added: v0.1.16
+-->
 
 * {String}
 
@@ -559,6 +577,9 @@ The identifier for the module.  Typically this is the fully resolved
 filename.
 
 ### module.loaded
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Boolean}
 
@@ -566,12 +587,18 @@ Whether or not the module is done loading, or is in the process of
 loading.
 
 ### module.parent
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Object} Module object
 
 The module that first required this one.
 
 ### module.require(id)
+<!-- YAML
+added: v0.5.1
+-->
 
 * `id` {String}
 * Return: {Object} `module.exports` from the resolved module
