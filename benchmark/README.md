@@ -25,10 +25,11 @@ Node version in the path is not altered.
 `wrk` may be available through your preferred package manger. If not, you can
 easily build it [from source][wrk] via `make`.
 
-By default first found benchmark tool will be used to run HTTP benchmarks. You
-can overridde this by seting `NODE_HTTP_BENCHMARKER` environment variable to
-the desired benchmarker name. When creating a HTTP benchmark you can also
-specify which benchmarker should be used.
+By default `wrk` will be used as benchmarker. If it is not available
+`autocannon` will be used it its place. You can overridde this by seting
+`NODE_HTTP_BENCHMARKER` environment variable to the desired benchmarker name.
+When creating a HTTP benchmark you can also specify which benchmarker should be
+used.
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.

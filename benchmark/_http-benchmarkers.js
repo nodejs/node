@@ -21,7 +21,6 @@ AutocannonBenchmarker.prototype.create = function(options) {
   const args = ['-d', options.duration, '-c', options.connections, '-j', '-n',
                 `http://127.0.0.1:${options.port}${options.path}` ];
   const child = child_process.spawn(this.autocannon_exe, args);
-  child.stderr.pipe(process.stderr);
   return child;
 };
 
@@ -53,7 +52,6 @@ WrkBenchmarker.prototype.create = function(options) {
   const args = ['-d', options.duration, '-c', options.connections, '-t', 8,
                 `http://127.0.0.1:${options.port}${options.path}` ];
   const child = child_process.spawn('wrk', args);
-  child.stderr.pipe(process.stderr);
   return child;
 };
 
@@ -135,6 +133,8 @@ exports.run = function(options, callback) {
   const benchmarker_start = process.hrtime();
 
   var child = benchmarker.instance.create(options);
+
+  child.stderr.pipe(process.stderr);
 
   let stdout = '';
   child.stdout.on('data', (chunk) => stdout += chunk.toString());
