@@ -9,7 +9,7 @@ const repl = require('repl');
 // \u001b[3G - Moves the cursor to 3rd column
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 
-function run(input, output, event) {
+function run({input, output, event}) {
   const stream = new common.ArrayStream();
   let found = '';
 
@@ -57,7 +57,7 @@ const tests = [
   }
 ];
 
-tests.forEach(({input, output, event}) => run(input, output, event));
+tests.forEach(run);
 
 // Auto code alignment for .editor mode
 function testCodeAligment({input, cursor = 0, line = ''}) {
@@ -73,9 +73,14 @@ function testCodeAligment({input, cursor = 0, line = ''}) {
 
   stream.emit('data', '.editor\n');
   input.split('').forEach((ch) => stream.emit('data', ch));
-  replServer.close();
+  // Test the content of current line and the cursor position
   assert.strictEqual(line, replServer.line);
   assert.strictEqual(cursor, replServer.cursor);
+
+  replServer.write('', {ctrl: true, name: 'd'});
+  replServer.close();
+  // Ensure that empty lines are not saved in history
+  assert.notStrictEqual(replServer.history[0].trim(), '');
 }
 
 const codeAlignmentTests = [
