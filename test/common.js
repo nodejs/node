@@ -498,3 +498,12 @@ exports.busyLoop = function busyLoop(time) {
   var stopTime = startTime + time;
   while (Timer.now() < stopTime) {}
 };
+
+exports.isAlive = function isAlive(pid) {
+  try {
+    process.kill(pid, 'SIGCONT');
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
