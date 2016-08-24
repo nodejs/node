@@ -241,7 +241,7 @@ void InterruptCallback(v8::Isolate*, void* agent) {
 }
 
 void DataCallback(uv_stream_t* stream, ssize_t read, const uv_buf_t* buf) {
-  inspector_socket_t* socket = static_cast<inspector_socket_t*>(stream->data);
+  inspector_socket_t* socket = inspector_from_stream(stream);
   static_cast<AgentImpl*>(socket->data)->OnRemoteDataIO(socket, read, buf);
 }
 
