@@ -2,6 +2,8 @@
 #define SRC_INSPECTOR_SOCKET_H_
 
 #include "http_parser.h"
+#include "util.h"
+#include "util-inl.h"
 #include "uv.h"
 
 #include <string>
@@ -48,8 +50,6 @@ struct inspector_socket_s {
   struct http_parsing_state_s* http_parsing_state;
   struct ws_state_s* ws_state;
   std::vector<char> buffer;
-  size_t data_len;
-  size_t last_read_end;
   uv_tcp_t client;
   bool ws_mode;
   bool shutting_down;
@@ -64,12 +64,25 @@ int inspector_accept(uv_stream_t* server, struct inspector_socket_s* inspector,
 void inspector_close(struct inspector_socket_s* inspector,
                      inspector_cb callback);
 
-// Callbacks will receive handles that has inspector in data field...
+// Callbacks will receive stream handles. Use inspector_from_stream to get
+// inspector_socket_t* from the stream handle.
 int inspector_read_start(struct inspector_socket_s* inspector, uv_alloc_cb,
                           uv_read_cb);
 void inspector_read_stop(struct inspector_socket_s* inspector);
 void inspector_write(struct inspector_socket_s* inspector,
     const char* data, size_t len);
 bool inspector_is_active(const struct inspector_socket_s* inspector);
+
+inline inspector_socket_t* inspector_from_stream(uv_tcp_t* stream) {
+  return node::ContainerOf(&inspector_socket_t::client, stream);
+}
+
+inline inspector_socket_t* inspector_from_stream(uv_stream_t* stream) {
+  return inspector_from_stream(reinterpret_cast<uv_tcp_t*>(stream));
+}
+
+inline inspector_socket_t* inspector_from_stream(uv_handle_t* stream) {
+  return inspector_from_stream(reinterpret_cast<uv_tcp_t*>(stream));
+}
 
 #endif  // SRC_INSPECTOR_SOCKET_H_
