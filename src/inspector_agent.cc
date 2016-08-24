@@ -197,7 +197,7 @@ class AgentImpl {
   void SetConnected(bool connected);
   void DispatchMessages();
   void Write(int session_id, const String16& message);
-  void AppendMessage(MessageQueue* vector, int session_id,
+  bool AppendMessage(MessageQueue* vector, int session_id,
                      const String16& message);
   void SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2);
   void PostIncomingMessage(const String16& message);
@@ -666,10 +666,12 @@ void AgentImpl::WorkerRunIO() {
   CHECK_EQ(err, 0);
 }
 
-void AgentImpl::AppendMessage(MessageQueue* queue, int session_id,
+bool AgentImpl::AppendMessage(MessageQueue* queue, int session_id,
                               const String16& message) {
   Mutex::ScopedLock scoped_lock(queue_lock_);
+  bool trigger_pumping = queue->empty();
   queue->push_back(std::make_pair(session_id, message));
+  return trigger_pumping;
 }
 
 void AgentImpl::SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2) {
@@ -678,12 +680,13 @@ void AgentImpl::SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2) {
 }
 
 void AgentImpl::PostIncomingMessage(const String16& message) {
-  AppendMessage(&incoming_message_queue_, frontend_session_id_, message);
-  v8::Isolate* isolate = parent_env_->isolate();
-  platform_->CallOnForegroundThread(isolate,
-                                    new DispatchOnInspectorBackendTask(this));
-  isolate->RequestInterrupt(InterruptCallback, this);
-  uv_async_send(data_written_);
+  if (AppendMessage(&incoming_message_queue_, frontend_session_id_, message)) {
+    v8::Isolate* isolate = parent_env_->isolate();
+    platform_->CallOnForegroundThread(isolate,
+                                      new DispatchOnInspectorBackendTask(this));
+    isolate->RequestInterrupt(InterruptCallback, this);
+    uv_async_send(data_written_);
+  }
 }
 
 void AgentImpl::OnInspectorConnectionIO(inspector_socket_t* socket) {
@@ -698,33 +701,40 @@ void AgentImpl::OnInspectorConnectionIO(inspector_socket_t* socket) {
 }
 
 void AgentImpl::DispatchMessages() {
+  // This function can be reentered if there was an incoming message while
+  // V8 was processing another inspector request (e.g. if the user is
+  // evaluating a long-running JS code snippet). This can happen only at
+  // specific points (e.g. the lines that call inspector_ methods)
   if (dispatching_messages_)
     return;
   dispatching_messages_ = true;
   MessageQueue tasks;
-  SwapBehindLock(&incoming_message_queue_, &tasks);
-  for (const MessageQueue::value_type& pair : tasks) {
-    const String16& message = pair.second;
-    if (message == TAG_CONNECT) {
-      CHECK_EQ(State::kAccepting, state_);
-      backend_session_id_++;
-      state_ = State::kConnected;
-      fprintf(stderr, "Debugger attached.\n");
-      inspector_->connectFrontend();
-    } else if (message == TAG_DISCONNECT) {
-      CHECK_EQ(State::kConnected, state_);
-      if (shutting_down_) {
-        state_ = State::kDone;
+  do {
+    tasks.clear();
+    SwapBehindLock(&incoming_message_queue_, &tasks);
+    for (const MessageQueue::value_type& pair : tasks) {
+      const String16& message = pair.second;
+      if (message == TAG_CONNECT) {
+        CHECK_EQ(State::kAccepting, state_);
+        backend_session_id_++;
+        state_ = State::kConnected;
+        fprintf(stderr, "Debugger attached.\n");
+        inspector_->connectFrontend();
+      } else if (message == TAG_DISCONNECT) {
+        CHECK_EQ(State::kConnected, state_);
+        if (shutting_down_) {
+          state_ = State::kDone;
+        } else {
+          PrintDebuggerReadyMessage(port_);
+          state_ = State::kAccepting;
+        }
+        inspector_->quitMessageLoopOnPause();
+        inspector_->disconnectFrontend();
       } else {
-        PrintDebuggerReadyMessage(port_);
-        state_ = State::kAccepting;
+        inspector_->dispatchMessageFromFrontend(message);
       }
-      inspector_->quitMessageLoopOnPause();
-      inspector_->disconnectFrontend();
-    } else {
-      inspector_->dispatchMessageFromFrontend(message);
     }
-  }
+  } while (!tasks.empty());
   uv_async_send(data_written_);
   dispatching_messages_ = false;
 }
