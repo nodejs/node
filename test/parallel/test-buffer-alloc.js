@@ -764,36 +764,6 @@ assert.strictEqual(Buffer.from('13.37').length, 5);
 // issue GH-3416
 Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 
-[ 'hex',
-  'utf8',
-  'utf-8',
-  'ascii',
-  'latin1',
-  'binary',
-  'base64',
-  'ucs2',
-  'ucs-2',
-  'utf16le',
-  'utf-16le' ].forEach(function(enc) {
-    assert.strictEqual(Buffer.isEncoding(enc), true);
-  });
-
-[ 'utf9',
-  'utf-7',
-  'Unicode-FTW',
-  'new gnu gun',
-  false,
-  NaN,
-  {},
-  Infinity,
-  [],
-  1,
-  0,
-  -1 ].forEach(function(enc) {
-    assert.strictEqual(Buffer.isEncoding(enc), false);
-  });
-
-
 // GH-5110
 {
   const buffer = Buffer.from('test');
