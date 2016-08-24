@@ -3,9 +3,6 @@
 const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
-// The port used by servers and wrk
-exports.PORT = process.env.PORT || 12346;
-
 exports.createBenchmark = function(fn, options) {
   return new Benchmark(fn, options);
 };
@@ -95,21 +92,21 @@ exports.supported_http_benchmarkers =
   http_benchmarkers.supported_http_benchmarkers;
 exports.installed_http_benchmarkers =
   http_benchmarkers.installed_http_benchmarkers;
+exports.PORT = http_benchmarkers.PORT;
 
 Benchmark.prototype.http = function(options, cb) {
   const self = this;
-  const http_options = Object.assign({port: exports.PORT}, options);
-  http_benchmarkers.run(http_options, function(error, code, used_benchmarker,
-                                               result, elapsed) {
-    if (error) {
-      console.error(error);
-      process.exit(1);
-    }
-    self.config.benchmarker = used_benchmarker;
-    self.report(result, elapsed);
+  http_benchmarkers.run(options, function(error, code, used_benchmarker,
+                                          result, elapsed) {
     if (cb) {
       cb(code);
     }
+    if (error) {
+      console.error(error);
+      process.exit(code || 1);
+    }
+    self.config.benchmarker = used_benchmarker;
+    self.report(result, elapsed);
   });
 };
 

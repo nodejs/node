@@ -2,25 +2,26 @@
 
 const child_process = require('child_process');
 
+// The port used by servers and wrk
+exports.PORT = process.env.PORT || 12346;
+
 function AutocannonBenchmarker() {
   this.name = 'autocannon';
+  this.autocannon_exe = process.platform === 'win32'
+                      ? 'autocannon.cmd'
+                      : 'autocannon';
 }
-
-AutocannonBenchmarker.prototype.autocannon_exe = process.platform === 'win32'
-                                               ? 'autocannon.cmd'
-                                               : 'autocannon';
 
 AutocannonBenchmarker.prototype.present = function() {
   const result = child_process.spawnSync(this.autocannon_exe, ['-h']);
   return !(result.error && result.error.code === 'ENOENT');
 };
 
-AutocannonBenchmarker.prototype.create = function(port, path, duration,
-                                                  connections) {
-  const args = ['-d', duration, '-c', connections, '-j', '-n',
-                `http://127.0.0.1:${port}${path}` ];
+AutocannonBenchmarker.prototype.create = function(options) {
+  const args = ['-d', options.duration, '-c', options.connections, '-j', '-n',
+                `http://127.0.0.1:${options.port}${options.path}` ];
   const child = child_process.spawn(this.autocannon_exe, args);
-  child.stdout.setEncoding('utf8');
+  child.stderr.pipe(process.stderr);
   return child;
 };
 
@@ -48,11 +49,10 @@ WrkBenchmarker.prototype.present = function() {
   return !(result.error && result.error.code === 'ENOENT');
 };
 
-WrkBenchmarker.prototype.create = function(port, path, duration, connections) {
-  const args = ['-d', duration, '-c', connections, '-t', 8,
-                `http://127.0.0.1:${port}${path}` ];
+WrkBenchmarker.prototype.create = function(options) {
+  const args = ['-d', options.duration, '-c', options.connections, '-t', 8,
+                `http://127.0.0.1:${options.port}${options.path}` ];
   const child = child_process.spawn('wrk', args);
-  child.stdout.setEncoding('utf8');
   child.stderr.pipe(process.stderr);
   return child;
 };
@@ -72,7 +72,7 @@ const http_benchmarkers = [ new WrkBenchmarker(),
 
 const supported_http_benchmarkers = [];
 const installed_http_benchmarkers = [];
-var benchmarkers = {};
+const benchmarkers = {};
 
 http_benchmarkers.forEach((benchmarker) => {
   const name = benchmarker.name;
@@ -100,7 +100,7 @@ if (process.env.NODE_HTTP_BENCHMARKER) {
   }
   if (!benchmarkers[default_http_benchmarker].present) {
     throw new Error('Requested default benchmarker ' +
-                    `${default_http_benchmarker}' is not installed`);
+                    `'${default_http_benchmarker}' is not installed`);
   }
 } else {
   default_http_benchmarker = installed_http_benchmarkers[0];
@@ -108,32 +108,33 @@ if (process.env.NODE_HTTP_BENCHMARKER) {
 
 exports.run = function(options, callback) {
   options = Object.assign({
-    port: 1234,
+    port: exports.PORT,
     path: '/',
     connections: 100,
     duration: 10,
     benchmarker: default_http_benchmarker
   }, options);
   if (!options.benchmarker) {
-    callback('Could not locate any of the required http benchmarkers. ' +
-             'Check benchmark/README.md for further instructions.');
+    callback(new Error('Could not locate any of the required http' +
+                       'benchmarkers. Check benchmark/README.md for further ' +
+                       'instructions.'));
     return;
   }
   var benchmarker = benchmarkers[options.benchmarker];
   if (!benchmarker) {
-    callback(`Requested benchmarker '${options.benchmarker}' is not supported`);
+    callback(new Error(`Requested benchmarker '${options.benchmarker}' is ` +
+                      'not supported'));
     return;
   }
   if (!benchmarker.present) {
-    callback(`Requested benchmarker '${options.benchmarker}' is not installed`);
+    callback(new Error(`Requested benchmarker '${options.benchmarker}' is ` +
+                       'not installed'));
     return;
   }
 
   const benchmarker_start = process.hrtime();
 
-  var child = benchmarker.instance.create(options.port, options.path,
-                                          options.duration,
-                                          options.connections);
+  var child = benchmarker.instance.create(options);
 
   let stdout = '';
   child.stdout.on('data', (chunk) => stdout += chunk.toString());
@@ -145,18 +146,18 @@ exports.run = function(options, callback) {
       if (stdout !== '') {
         error_message += ` Output: ${stdout}`;
       }
-      callback(error_message, code);
+      callback(new Error(error_message), code);
       return;
     }
 
     const result = benchmarker.instance.processResults(stdout);
     if (!result) {
-      callback(`${options.benchmarker} produced strange output: ${stdout}.`,
-               code);
+      callback(new Error(`${options.benchmarker} produced strange output: ` +
+                         stdout, code));
       return;
     }
 
-    callback(undefined, code, options.benchmarker, result, elapsed);
+    callback(null, code, options.benchmarker, result, elapsed);
   });
 
 };
