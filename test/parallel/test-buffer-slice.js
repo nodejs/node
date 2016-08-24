@@ -3,6 +3,9 @@
 require('../common');
 const assert = require('assert');
 
+assert.strictEqual(0, Buffer.from('hello').slice(0, 0).length);
+assert.strictEqual(0, Buffer('hello').slice(0, 0).length);
+
 const buf = Buffer.from('0123456789');
 assert.equal(buf.slice(-10, 10), '0123456789');
 assert.equal(buf.slice(-20, 10), '0123456789');
@@ -50,3 +53,11 @@ assert.equal(buf.slice('0', '-111'), '');
 // try to slice a zero length Buffer
 // see https://github.com/joyent/node/issues/5881
 Buffer.alloc(0).slice(0, 1);
+
+{
+  // Single argument slice
+  assert.strictEqual('bcde', Buffer.from('abcde').slice(1).toString());
+}
+
+// slice(0,0).length === 0
+assert.strictEqual(0, Buffer.from('hello').slice(0, 0).length);
