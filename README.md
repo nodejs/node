@@ -183,6 +183,8 @@ more information about the governance of the Node.js project, see
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
+* [TheAlphaNerd](https://github.com/TheAlphaNerd) -
+**Myles Borins** &lt;myles.borins@gmail.com&gt;
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
