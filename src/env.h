@@ -69,6 +69,7 @@ namespace node {
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
+  V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(bytes_read_string, "bytesRead")                                           \

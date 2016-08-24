@@ -227,6 +227,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
   req_wrap_obj->Set(env->async(), True(env->isolate()));
+  req_wrap_obj->Set(env->buffer_string(), args[1]);
 
   if (err)
     req_wrap->Dispose();
