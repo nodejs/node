@@ -243,11 +243,11 @@ function isWarned(emitter) {
       callCount++;
     });
     fi.emit('data', '\r');
-    setTimeout(() => {
+    setTimeout(common.mustCall(() => {
       fi.emit('data', '\n');
       assert.equal(callCount, 2);
       rli.close();
-    }, delay * 2);
+    }), delay * 2);
   }
 
   // \t when there is no completer function should behave like an ordinary
