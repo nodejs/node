@@ -151,6 +151,10 @@ void SetupProcessObject(Environment* env,
                         int exec_argc,
                         const char* const* exec_argv);
 
+// Returns the script id of the top-most JS frame or v8::Message::kNoScriptId
+// if no such frame exists or if the frame cannot be mapped to a script.
+int GetCallerScriptId(v8::Isolate* isolate);
+
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
   kBigEndian

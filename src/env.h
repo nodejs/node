@@ -16,6 +16,7 @@
 #include "v8.h"
 
 #include <stdint.h>
+#include <vector>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -451,6 +452,9 @@ class Environment {
   inline node_ares_task_list* cares_task_list();
   inline IsolateData* isolate_data() const;
 
+  inline int bootstrap_script_id() const;
+  inline std::vector<int>* internal_script_ids();
+
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
 
@@ -578,6 +582,7 @@ class Environment {
   uint32_t* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
+  std::vector<int> internal_script_ids_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;

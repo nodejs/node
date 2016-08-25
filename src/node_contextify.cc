@@ -515,20 +515,18 @@ class ContextifyScript : public BaseObject {
     else if (produce_cached_data)
       compile_options = ScriptCompiler::kProduceCodeCache;
 
-    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
-        env->isolate(),
-        &source,
-        compile_options);
-
-    if (v8_script.IsEmpty()) {
+    Local<UnboundScript> script;
+    auto maybe_script =
+        ScriptCompiler::CompileUnboundScript(env->isolate(), &source,
+                                             compile_options);
+    if (!maybe_script.ToLocal(&script)) {
       if (display_errors) {
         DecorateErrorStack(env, try_catch);
       }
       try_catch.ReThrow();
       return;
     }
-    contextify_script->script_.Reset(env->isolate(),
-                                     v8_script.ToLocalChecked());
+    contextify_script->script_.Reset(env->isolate(), script);
 
     if (compile_options == ScriptCompiler::kConsumeCodeCache) {
       args.This()->Set(
@@ -547,6 +545,12 @@ class ContextifyScript : public BaseObject {
       args.This()->Set(
           env->cached_data_produced_string(),
           Boolean::New(env->isolate(), cached_data_produced));
+    }
+
+    auto caller_script_id = GetCallerScriptId(env->isolate());
+    if (caller_script_id == env->bootstrap_script_id()) {
+      // Called by NativeModule.require().
+      env->internal_script_ids()->push_back(script->GetId());
     }
   }
 

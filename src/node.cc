@@ -59,6 +59,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -123,6 +124,7 @@ using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
+using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
@@ -1659,35 +1661,6 @@ static void ReportException(Environment* env, const TryCatch& try_catch) {
 }
 
 
-// Executes a str within the current v8 context.
-static Local<Value> ExecuteString(Environment* env,
-                                  Local<String> source,
-                                  Local<String> filename) {
-  EscapableHandleScope scope(env->isolate());
-  TryCatch try_catch(env->isolate());
-
-  // try_catch must be nonverbose to disable FatalException() handler,
-  // we will handle exceptions ourself.
-  try_catch.SetVerbose(false);
-
-  ScriptOrigin origin(filename);
-  MaybeLocal<v8::Script> script =
-      v8::Script::Compile(env->context(), source, &origin);
-  if (script.IsEmpty()) {
-    ReportException(env, try_catch);
-    exit(3);
-  }
-
-  Local<Value> result = script.ToLocalChecked()->Run();
-  if (result.IsEmpty()) {
-    ReportException(env, try_catch);
-    exit(4);
-  }
-
-  return scope.Escape(result);
-}
-
-
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -2543,6 +2516,21 @@ void ClearFatalExceptionHandlers(Environment* env) {
 }
 
 
+int GetCallerScriptId(v8::Isolate* isolate) {
+  auto options = StackTrace::kScriptId;
+  auto stack_trace = StackTrace::CurrentStackTrace(isolate, 1, options);
+  if (stack_trace->GetFrameCount() > 0)
+    return stack_trace->GetFrame(0)->GetScriptId();
+  return Message::kNoScriptIdInfo;
+}
+
+
+inline bool IsInternalScriptId(Environment* env, int script_id) {
+  auto ids = env->internal_script_ids();
+  return ids->end() != std::find(ids->begin(), ids->end(), script_id);
+}
+
+
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -2580,8 +2568,9 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     exports = Object::New(env->isolate());
     DefineConstants(env->isolate(), exports);
     cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "$natives") || !strcmp(*module_v, "natives")) {
-    if (!strcmp(*module_v, "natives")) {
+  } else if (!strcmp(*module_v, "natives")) {
+    auto caller_script_id = GetCallerScriptId(env->isolate());
+    if (!IsInternalScriptId(env, caller_script_id)) {
       // graceful-fs < 4 evals process.binding('natives').fs, which prohibits
       // using internal modules in that module.  Encourage people to upgrade.
       auto pid = getpid();
@@ -2589,7 +2578,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
               "(node:%d) process.binding('natives') is deprecated.\n", pid);
       fprintf(stderr,
               "(node:%d) If you use graceful-fs < 4, please update.\n", pid);
-      auto stack_trace = v8::StackTrace::CurrentStackTrace(env->isolate(), 12);
+      auto stack_trace = StackTrace::CurrentStackTrace(env->isolate(), 12);
       for (int i = 0, n = stack_trace->GetFrameCount(); i < n; i += 1) {
         Local<v8::StackFrame> frame = stack_trace->GetFrame(i);
         node::Utf8Value name(env->isolate(), frame->GetScriptName());
@@ -2600,7 +2589,6 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     }
     exports = Object::New(env->isolate());
     DefineJavaScript(env, exports);
-    cache->Set(module, exports);
   } else {
     char errmsg[1024];
     snprintf(errmsg,
@@ -3394,14 +3382,32 @@ void LoadEnvironment(Environment* env) {
   // 'internal_bootstrap_node_native' is the string containing that source code.
   Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(),
                                                     "bootstrap_node.js");
-  Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
+  ScriptOrigin origin(script_name);
+  Local<v8::Script> script;
+  auto maybe_script =
+      v8::Script::Compile(env->context(), MainSource(env), &origin);
+  if (!maybe_script.ToLocal(&script)) {
+    ReportException(env, try_catch);
+    exit(3);
+  }
+
+  auto internal_script_ids = env->internal_script_ids();
+  CHECK(internal_script_ids->empty());
+  internal_script_ids->push_back(script->GetUnboundScript()->GetId());
+
+  Local<Value> result = script->Run();
+  if (result.IsEmpty()) {
+    ReportException(env, try_catch);
+    exit(4);
+  }
+
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
     exit(10);
   }
   // The bootstrap_node.js file returns a function 'f'
-  CHECK(f_value->IsFunction());
-  Local<Function> f = Local<Function>::Cast(f_value);
+  CHECK(result->IsFunction());
+  Local<Function> f = Local<Function>::Cast(result);
 
   // Now we call 'f' with the 'process' variable that we've built up with
   // all our bindings. Inside bootstrap_node.js we'll take care of
