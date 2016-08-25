@@ -760,6 +760,8 @@ def configure_node(o):
   want_snapshots = not options.without_snapshot
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
+  o['variables']['want_separate_host_toolset_mkpeephole'] = int(
+      cross_compiling)
 
   if target_arch == 'arm':
     configure_arm(o)
