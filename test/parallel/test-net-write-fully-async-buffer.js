@@ -7,7 +7,7 @@
 const common = require('../common');
 const net = require('net');
 
-const data = Buffer.allocUnsafe(1000000);
+const data = Buffer.alloc(1000000);
 
 const server = net.createServer(common.mustCall(function(conn) {
   conn.resume();
@@ -15,7 +15,7 @@ const server = net.createServer(common.mustCall(function(conn) {
   const conn = net.createConnection(this.address().port, common.mustCall(() => {
     let count = 0;
 
-    function write_loop() {
+    function writeLoop() {
       if (count++ === 200) {
         conn.destroy();
         server.close();
@@ -27,8 +27,8 @@ const server = net.createServer(common.mustCall(function(conn) {
       // The buffer allocated above should still be alive.
     }
 
-    conn.on('drain', write_loop);
+    conn.on('drain', writeLoop);
 
-    write_loop();
+    writeLoop();
   }));
 }));
