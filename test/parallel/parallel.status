@@ -38,3 +38,6 @@ test-stdio-closed                        : PASS, FLAKY
 #covered by  https://github.com/nodejs/node/issues/3796
 # but more frequent on AIX ?
 test-debug-signal-cluster                : PASS, FLAKY
+
+#covered by https://github.com/nodejs/node/issues/8271
+test-child-process-fork-dgram            : PASS, FLAKY
