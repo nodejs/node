@@ -2580,7 +2580,24 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     exports = Object::New(env->isolate());
     DefineConstants(env->isolate(), exports);
     cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "natives")) {
+  } else if (!strcmp(*module_v, "$natives") || !strcmp(*module_v, "natives")) {
+    if (!strcmp(*module_v, "natives")) {
+      // graceful-fs < 4 evals process.binding('natives').fs, which prohibits
+      // using internal modules in that module.  Encourage people to upgrade.
+      auto pid = getpid();
+      fprintf(stderr,
+              "(node:%d) process.binding('natives') is deprecated.\n", pid);
+      fprintf(stderr,
+              "(node:%d) If you use graceful-fs < 4, please update.\n", pid);
+      auto stack_trace = v8::StackTrace::CurrentStackTrace(env->isolate(), 12);
+      for (int i = 0, n = stack_trace->GetFrameCount(); i < n; i += 1) {
+        Local<v8::StackFrame> frame = stack_trace->GetFrame(i);
+        node::Utf8Value name(env->isolate(), frame->GetScriptName());
+        fprintf(stderr,
+                "(node:%d)    at %s:%d\n", pid, *name, frame->GetLineNumber());
+      }
+      fflush(stderr);
+    }
     exports = Object::New(env->isolate());
     DefineJavaScript(env, exports);
     cache->Set(module, exports);
