@@ -110,6 +110,32 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
+#define EMIT_WARNING(env, message)                                            \
+  do {                                                                        \
+    v8::Local<v8::Value> argv[] = {                                           \
+      v8::String::NewFromUtf8(env->isolate(), message,                        \
+                              v8::String::kNormalString))                     \
+    };                                                                        \
+    MakeCallback(env, env->process_object(),                                  \
+                 "emitWarning",                                               \
+                 arraysize(argv), argv);                                      \
+  } while (0)
+
+#define EMIT_WARNING(env, message, name)                                      \
+  do {                                                                        \
+    v8::Local<v8::Value> argv[] = {                                           \
+      v8::String::NewFromUtf8(env->isolate(), message,                        \
+                              v8::String::kNormalString),                     \
+      FIXED_ONE_BYTE_STRING(env->isolate(), name)                             \
+    };                                                                        \
+    MakeCallback(env, env->process_object(),                                  \
+                 "emitWarning",                                               \
+                 arraysize(argv), argv);                                      \
+  } while (0)
+
+#define EMIT_DEPRECATION_WARNING(env, message)                                \
+  EMIT_WARNING(env, message, "DeprecationWarning")
+
 #define UNREACHABLE() ABORT()
 
 #define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                \
