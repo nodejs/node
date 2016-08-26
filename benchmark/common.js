@@ -9,7 +9,9 @@ exports.createBenchmark = function(fn, options) {
 
 function Benchmark(fn, options) {
   this.name = require.main.filename.slice(__dirname.length + 1);
-  this.options = this._parseArgs(process.argv.slice(2), options);
+  const parsed_args = this._parseArgs(process.argv.slice(2), options);
+  this.options = parsed_args.cli;
+  this.extra_options = parsed_args.extra;
   this.queue = this._queue(this.options);
   this.config = this.queue[0];
 
@@ -27,6 +29,7 @@ function Benchmark(fn, options) {
 
 Benchmark.prototype._parseArgs = function(argv, options) {
   const cliOptions = Object.assign({}, options);
+  const extraOptions = {};
   // Parse configuration arguments
   for (const arg of argv) {
     const match = arg.match(/^(.+?)=([\s\S]*)$/);
@@ -35,14 +38,16 @@ Benchmark.prototype._parseArgs = function(argv, options) {
       process.exit(1);
     }
 
-    // Infer the type from the options object and parse accordingly
-    const isNumber = typeof options[match[1]][0] === 'number';
-    const value = isNumber ? +match[2] : match[2];
-
-    cliOptions[match[1]] = [value];
+    if (options[match[1]]) {
+      // Infer the type from the options object and parse accordingly
+      const isNumber = typeof options[match[1]][0] === 'number';
+      const value = isNumber ? +match[2] : match[2];
+      cliOptions[match[1]] = [value];
+    } else {
+      extraOptions[match[1]] = match[2];
+    }
   }
-
-  return cliOptions;
+  return { cli: cliOptions, extra: extraOptions };
 };
 
 Benchmark.prototype._queue = function(options) {
@@ -88,16 +93,17 @@ Benchmark.prototype._queue = function(options) {
 // Benchmark an http server.
 exports.default_http_benchmarker =
   http_benchmarkers.default_http_benchmarker;
-exports.supported_http_benchmarkers =
-  http_benchmarkers.supported_http_benchmarkers;
-exports.installed_http_benchmarkers =
-  http_benchmarkers.installed_http_benchmarkers;
 exports.PORT = http_benchmarkers.PORT;
 
 Benchmark.prototype.http = function(options, cb) {
   const self = this;
-  http_benchmarkers.run(options, function(error, code, used_benchmarker,
-                                          result, elapsed) {
+  const http_options = Object.assign({ }, options);
+  http_options.benchmarker = http_options.benchmarker ||
+                             self.config.benchmarker ||
+                             self.extra_options.benchmarker ||
+                             exports.default_http_benchmarker;
+  http_benchmarkers.run(http_options, function(error, code, used_benchmarker,
+                                               result, elapsed) {
     if (cb) {
       cb(code);
     }
@@ -125,6 +131,9 @@ Benchmark.prototype._run = function() {
     const childArgs = [];
     for (const key of Object.keys(config)) {
       childArgs.push(`${key}=${config[key]}`);
+    }
+    for (const key of Object.keys(self.extra_options)) {
+      childArgs.push(`${key}=${self.extra_options[key]}`);
     }
 
     const child = child_process.fork(require.main.filename, childArgs, {

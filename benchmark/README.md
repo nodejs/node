@@ -26,10 +26,13 @@ Node version in the path is not altered.
 easily build it [from source][wrk] via `make`.
 
 By default `wrk` will be used as benchmarker. If it is not available
-`autocannon` will be used it its place. You can overridde this by seting
-`NODE_HTTP_BENCHMARKER` environment variable to the desired benchmarker name.
-When creating a HTTP benchmark you can also specify which benchmarker should be
-used.
+`autocannon` will be used it its place. When creating a HTTP benchmark you can
+specify which benchmarker should be used. You can force a specific benchmarker
+to be used by providing it as argument, e. g.:
+
+`node benchmark/run.js --set benchmarker=autocannon http`
+
+`node benchmark/http/simple.js benchmarker=autocannon`
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
@@ -304,8 +307,7 @@ function main(conf) {
 
 The `bench` object returned by `createBenchmark` implements
 `http(options, callback)` method. It can be used to run external tool to
-benchmark HTTP servers. This benchmarks simple HTTP server with all installed
-benchmarking tools.
+benchmark HTTP servers.
 
 ```js
 'use strict';
@@ -314,8 +316,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   kb: [64, 128, 256, 1024],
-  connections: [100, 500],
-  benchmarker: common.installed_http_benchmarkers
+  connections: [100, 500]
 });
 
 function main(conf) {
@@ -329,7 +330,6 @@ function main(conf) {
   server.listen(common.PORT, function() {
     bench.http({
       connections: conf.connections,
-      benchmarker: conf.benchmarker
     }, function() {
       server.close();
     });
@@ -344,14 +344,6 @@ Supported options keys are:
 * `duration` - duration of the benchmark in seconds, defaults to 10
 * `benchmarker` - benchmarker to use, defaults to
 `common.default_http_benchmarker`
-
-The `common.js` module defines 3 handy constants:
-* `supported_http_benchmarkers` - array with names of all supported
-benchmarkers
-* `installed_http_benchmarkers` - array with names of all supported
-benchmarkers that are currently  installed on this machine
-* `default_http_benchmarker` - first element from `installed_http_benchmarkers`
-or value of `process.env.NODE_HTTP_BENCHMARKER` if it is set
 
 [autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk
