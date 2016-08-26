@@ -3,8 +3,8 @@
 require('../common');
 const assert = require('assert');
 
-var b = Buffer.allocUnsafe(1024);
-var c = Buffer.allocUnsafe(512);
+const b = Buffer.allocUnsafe(1024);
+const c = Buffer.allocUnsafe(512);
 var cntr = 0;
 
 {
@@ -88,7 +88,7 @@ var cntr = 0;
 }
 
 // copy string longer than buffer length (failure will segfault)
-var bb = Buffer.allocUnsafe(10);
+const bb = Buffer.allocUnsafe(10);
 bb.fill('hello crazy world');
 
 
