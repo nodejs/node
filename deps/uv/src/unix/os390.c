@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,25 +19,24 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_VERSION_H
-#define UV_VERSION_H
+#include "internal.h"
 
- /*
- * Versions with the same major number are ABI stable. API is allowed to
- * evolve between minor releases, but only in a backwards compatible way.
- * Make sure you update the -soname directives in configure.ac
- * and uv.gyp whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
- * not UV_VERSION_PATCH.)
- */
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct pollfd p[1];
+  int rv;
 
-#define UV_VERSION_MAJOR 1
-#define UV_VERSION_MINOR 9
-#define UV_VERSION_PATCH 2
-#define UV_VERSION_IS_RELEASE 0
-#define UV_VERSION_SUFFIX "dev"
+  p[0].fd = fd;
+  p[0].events = POLLIN;
 
-#define UV_VERSION_HEX  ((UV_VERSION_MAJOR << 16) | \
-                         (UV_VERSION_MINOR <<  8) | \
-                         (UV_VERSION_PATCH))
+  do
+    rv = poll(p, 1, 0);
+  while (rv == -1 && errno == EINTR);
 
-#endif /* UV_VERSION_H */
+  if (rv == -1)
+    abort();
+
+  if (p[0].revents & POLLNVAL)
+    return -1;
+
+  return 0;
+}

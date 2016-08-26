@@ -344,6 +344,22 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
 }
 
 
+static int file_info_cmp(WCHAR* str, WCHAR* file_name, int file_name_len) {
+  int str_len;
+
+  str_len = wcslen(str);
+
+  /*
+    Since we only care about equality, return early if the strings
+    aren't the same length
+  */
+  if (str_len != (file_name_len / sizeof(WCHAR)))
+    return -1;
+
+  return _wcsnicmp(str, file_name, str_len);
+}
+
+
 void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     uv_fs_event_t* handle) {
   FILE_NOTIFY_INFORMATION* file_info;
@@ -383,10 +399,12 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
          * or if the filename filter matches.
          */
         if (handle->dirw ||
-          _wcsnicmp(handle->filew, file_info->FileName,
-            file_info->FileNameLength / sizeof(WCHAR)) == 0 ||
-          _wcsnicmp(handle->short_filew, file_info->FileName,
-            file_info->FileNameLength / sizeof(WCHAR)) == 0) {
+            file_info_cmp(handle->filew,
+                          file_info->FileName,
+                          file_info->FileNameLength) == 0 ||
+            file_info_cmp(handle->short_filew,
+                          file_info->FileName,
+                          file_info->FileNameLength) == 0) {
 
           if (handle->dirw) {
             /*
@@ -407,7 +425,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
               }
 
               _snwprintf(filenamew, size, L"%s\\%.*s", handle->dirw,
-                file_info->FileNameLength / sizeof(WCHAR),
+                file_info->FileNameLength / (DWORD)sizeof(WCHAR),
                 file_info->FileName);
 
               filenamew[size - 1] = L'\0';

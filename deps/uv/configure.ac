@@ -24,10 +24,12 @@ AC_ENABLE_SHARED
 AC_ENABLE_STATIC
 AC_PROG_CC
 AM_PROG_CC_C_O
-CC_CHECK_CFLAGS_APPEND([-fvisibility=hidden])
+AS_IF([AS_CASE([$host_os],[openedition*],  [false], [true])], [
+  CC_CHECK_CFLAGS_APPEND([-pedantic])
+])
+CC_FLAG_VISIBILITY #[-fvisibility=hidden]
 CC_CHECK_CFLAGS_APPEND([-g])
 CC_CHECK_CFLAGS_APPEND([-std=gnu89])
-CC_CHECK_CFLAGS_APPEND([-pedantic])
 CC_CHECK_CFLAGS_APPEND([-Wall])
 CC_CHECK_CFLAGS_APPEND([-Wextra])
 CC_CHECK_CFLAGS_APPEND([-Wno-unused-parameter])
@@ -52,10 +54,11 @@ AM_CONDITIONAL([AIX],      [AS_CASE([$host_os],[aix*],          [true], [false])
 AM_CONDITIONAL([ANDROID],  [AS_CASE([$host_os],[linux-android*],[true], [false])])
 AM_CONDITIONAL([DARWIN],   [AS_CASE([$host_os],[darwin*],       [true], [false])])
 AM_CONDITIONAL([DRAGONFLY],[AS_CASE([$host_os],[dragonfly*],    [true], [false])])
-AM_CONDITIONAL([FREEBSD],  [AS_CASE([$host_os],[freebsd*],      [true], [false])])
+AM_CONDITIONAL([FREEBSD],  [AS_CASE([$host_os],[*freebsd*],     [true], [false])])
 AM_CONDITIONAL([LINUX],    [AS_CASE([$host_os],[linux*],        [true], [false])])
 AM_CONDITIONAL([NETBSD],   [AS_CASE([$host_os],[netbsd*],       [true], [false])])
 AM_CONDITIONAL([OPENBSD],  [AS_CASE([$host_os],[openbsd*],      [true], [false])])
+AM_CONDITIONAL([OS390],    [AS_CASE([$host_os],[openedition*],  [true], [false])])
 AM_CONDITIONAL([SUNOS],    [AS_CASE([$host_os],[solaris*],      [true], [false])])
 AM_CONDITIONAL([WINNT],    [AS_CASE([$host_os],[mingw*],        [true], [false])])
 AS_CASE([$host_os],[mingw*], [

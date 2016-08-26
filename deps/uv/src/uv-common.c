@@ -613,6 +613,7 @@ uv_loop_t* uv_loop_new(void) {
 int uv_loop_close(uv_loop_t* loop) {
   QUEUE* q;
   uv_handle_t* h;
+  void* saved_data;
 
   if (!QUEUE_EMPTY(&(loop)->active_reqs))
     return UV_EBUSY;
@@ -626,7 +627,9 @@ int uv_loop_close(uv_loop_t* loop) {
   uv__loop_close(loop);
 
 #ifndef NDEBUG
+  saved_data = loop->data;
   memset(loop, -1, sizeof(*loop));
+  loop->data = saved_data;
 #endif
   if (loop == default_loop_ptr)
     default_loop_ptr = NULL;

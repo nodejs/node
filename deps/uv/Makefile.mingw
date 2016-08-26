@@ -48,6 +48,7 @@ OBJS = src/fs-poll.o \
        src/version.o \
        src/win/async.o \
        src/win/core.o \
+       src/win/detect-wakeup.o \
        src/win/dl.o \
        src/win/error.o \
        src/win/fs-event.o \
