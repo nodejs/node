@@ -1,21 +1,23 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
 
-var port = common.PORT + 1;  // The fixture uses common.PORT.
-var args = ['--debug-port=' + port,
-            common.fixturesDir + '/clustered-server/app.js'];
-var options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
-var child = spawn(process.execPath, args, options);
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const path = require('path');
 
-var outputLines = [];
+const port = common.PORT;
+const serverPath = path.join(common.fixturesDir, 'clustered-server', 'app.js');
+const args = [`--debug-port=${port}`, serverPath];
+const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
+const child = spawn(process.execPath, args, options);
+
+const outputLines = [];
 var waitingForDebuggers = false;
 
-var pids = null;
+var pids;
 
 child.stderr.on('data', function(data) {
-  var lines = data.toString().replace(/\r/g, '').trim().split('\n');
+  const lines = data.toString().replace(/\r/g, '').trim().split('\n');
 
   lines.forEach(function(line) {
     console.log('> ' + line);
@@ -40,7 +42,7 @@ child.stderr.on('data', function(data) {
     }
 
   });
-  if (outputLines.length >= expectedLines.length)
+  if (outputLines.length === expectedLines.length)
     onNoMoreLines();
 });
 
@@ -50,7 +52,7 @@ function onNoMoreLines() {
 }
 
 setTimeout(function testTimedOut() {
-  assert(false, 'test timed out.');
+  common.fail('test timed out');
 }, common.platformTimeout(4000)).unref();
 
 process.on('exit', function onExit() {
@@ -61,7 +63,7 @@ process.on('exit', function onExit() {
   });
 });
 
-var expectedLines = [
+const expectedLines = [
   'Starting debugger agent.',
   'Debugger listening on 127.0.0.1:' + (port + 0),
   'Starting debugger agent.',
@@ -77,7 +79,5 @@ function assertOutputLines() {
   outputLines.sort();
   expectedLines.sort();
 
-  assert.equal(outputLines.length, expectedLines.length);
-  for (var i = 0; i < expectedLines.length; i++)
-    assert(expectedLines[i].includes(outputLines[i]));
+  assert.deepStrictEqual(outputLines, expectedLines);
 }
