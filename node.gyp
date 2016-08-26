@@ -906,7 +906,6 @@
         },
         {
           'target_name': 'node_exp',
-          'process_outputs_as_sources': 1,
           'type': 'none',
           'dependencies': [
             '<(node_core_target_name)',
