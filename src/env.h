@@ -16,6 +16,7 @@
 #include "v8.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <vector>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
@@ -510,6 +511,13 @@ class Environment {
                                 v8::FunctionCallback callback);
 
   inline v8::Local<v8::Object> NewInternalFieldObject();
+
+  bool IsInternalScriptId(int script_id) const;
+
+  enum PrintStackTraceMode { kInternalScripts, kNoInternalScripts };
+
+  void PrintStackTrace(FILE* stream, const char* prefix = "",
+                       PrintStackTraceMode mode = kInternalScripts) const;
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.

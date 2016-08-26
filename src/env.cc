@@ -11,6 +11,7 @@
 #endif
 
 #include <stdio.h>
+#include <algorithm>
 
 namespace node {
 
@@ -18,7 +19,6 @@ using v8::Context;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Local;
-using v8::Message;
 using v8::StackFrame;
 using v8::StackTrace;
 
@@ -108,47 +108,44 @@ void Environment::StopProfilerIdleNotifier() {
   uv_check_stop(&idle_check_handle_);
 }
 
+bool Environment::IsInternalScriptId(int script_id) const {
+  auto ids = internal_script_ids_;
+  return ids.end() != std::find(ids.begin(), ids.end(), script_id);
+}
+
+void Environment::PrintStackTrace(FILE* stream, const char* prefix,
+                                  PrintStackTraceMode mode) const {
+  HandleScope handle_scope(isolate());
+  // kExposeFramesAcrossSecurityOrigins is currently implied but let's be
+  // explicit so it won't break after a V8 upgrade.
+  // If you include kColumnOffset here, you should ensure that the offset of
+  // the first line for non-eval'd code compensates for the module wrapper.
+  using O = StackTrace::StackTraceOptions;
+  auto options = static_cast<O>(StackTrace::kExposeFramesAcrossSecurityOrigins |
+                                StackTrace::kFunctionName |
+                                StackTrace::kLineNumber |
+                                StackTrace::kScriptId |
+                                StackTrace::kScriptName);
+  auto stack_trace = StackTrace::CurrentStackTrace(isolate(), 12, options);
+  for (int i = 0, n = stack_trace->GetFrameCount(); i < n; i += 1) {
+    Local<v8::StackFrame> frame = stack_trace->GetFrame(i);
+    if (mode == kNoInternalScripts && IsInternalScriptId(frame->GetScriptId()))
+      continue;
+    node::Utf8Value function_name(isolate(), frame->GetFunctionName());
+    node::Utf8Value script_name(isolate(), frame->GetScriptName());
+    fprintf(stream, "%s   at %s (%s:%d)\n", prefix,
+            **function_name ? *function_name : "<anonymous>",
+            *script_name, frame->GetLineNumber());
+  }
+}
+
 void Environment::PrintSyncTrace() const {
   if (!trace_sync_io_)
     return;
-
-  HandleScope handle_scope(isolate());
-  Local<v8::StackTrace> stack =
-      StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
-
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
-
-  for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
-    Local<StackFrame> stack_frame = stack->GetFrame(i);
-    node::Utf8Value fn_name_s(isolate(), stack_frame->GetFunctionName());
-    node::Utf8Value script_name(isolate(), stack_frame->GetScriptName());
-    const int line_number = stack_frame->GetLineNumber();
-    const int column = stack_frame->GetColumn();
-
-    if (stack_frame->IsEval()) {
-      if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
-        fprintf(stderr, "    at [eval]:%i:%i\n", line_number, column);
-      } else {
-        fprintf(stderr,
-                "    at [eval] (%s:%i:%i)\n",
-                *script_name,
-                line_number,
-                column);
-      }
-      break;
-    }
-
-    if (fn_name_s.length() == 0) {
-      fprintf(stderr, "    at %s:%i:%i\n", *script_name, line_number, column);
-    } else {
-      fprintf(stderr,
-              "    at %s (%s:%i:%i)\n",
-              *fn_name_s,
-              *script_name,
-              line_number,
-              column);
-    }
-  }
+  char prefix[32];
+  snprintf(prefix, sizeof(prefix), "(node:%d) ", getpid());
+  fprintf(stderr, "%sWARNING: Detected use of sync API\n", prefix);
+  PrintStackTrace(stderr, prefix);
   fflush(stderr);
 }
 
