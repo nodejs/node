@@ -85,7 +85,7 @@ exports.run = function(options, callback) {
                        'instructions.'));
     return;
   }
-  var benchmarker = benchmarkers[options.benchmarker];
+  const benchmarker = benchmarkers[options.benchmarker];
   if (!benchmarker) {
     callback(new Error(`Requested benchmarker '${options.benchmarker}' is ` +
                        'not supported'));
@@ -99,7 +99,7 @@ exports.run = function(options, callback) {
 
   const benchmarker_start = process.hrtime();
 
-  var child = benchmarker.create(options);
+  const child = benchmarker.create(options);
 
   child.stderr.pipe(process.stderr);
 
@@ -109,7 +109,7 @@ exports.run = function(options, callback) {
   child.once('close', function(code) {
     const elapsed = process.hrtime(benchmarker_start);
     if (code) {
-      var error_message = `${options.benchmarker} failed with ${code}.`;
+      let error_message = `${options.benchmarker} failed with ${code}.`;
       if (stdout !== '') {
         error_message += ` Output: ${stdout}`;
       }
