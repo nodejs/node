@@ -87,7 +87,7 @@ uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 clean:
-	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
+	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) out/$(BUIDLTYPE)/node.exp
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
 	-rm -rf node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
@@ -134,10 +134,17 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.docbuildstamp: tools/doc/addon-verify.js doc/api/addons.md
+ifeq ($(OSTYPE),aix)
+  test/addons/.docbuildstamp: tools/doc/addon-verify.js doc/api/addons.md out/Release/node.exp
 	$(RM) -r test/addons/??_*/
 	$(NODE) $<
 	touch $@
+else
+  test/addons/.docbuildstamp: tools/doc/addon-verify.js doc/api/addons.md
+	$(RM) -r test/addons/??_*/
+	$(NODE) $<
+	touch $@
+endif
 
 ADDONS_BINDING_GYPS := \
 	$(filter-out test/addons/??_*/binding.gyp, \
