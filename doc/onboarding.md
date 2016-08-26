@@ -162,7 +162,7 @@ Landing a PR
 * if it all looks good, `curl -L 'url-of-pr.patch' | git am`
 * `git rebase -i upstream/master`
 * squash into logical commits if necessary
-* `./configure && make -j8 test` (`-j8` builds node in parallel with 8 threads. adjust to the number of cores (or processor-level threads) your processor has (or slightly more) for best results.)
+* `./configure && make -j test` (`-j` sets the number of jobs that run simultaneously for the make command. To adjust the number of simultaneous jobs, specify a number immediately after '-j' (e.g., '-j8' for 8 jobs, '-j4' for 4 simultaneous jobs)
 * Amend the commit description
   * commits should follow `subsystem[,subsystem]: small description\n\nbig description\n\n<metadata>`
   * first line 50 columns, all others 72
