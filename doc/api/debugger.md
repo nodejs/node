@@ -145,6 +145,7 @@ debug>
 ### Information
 
 * `backtrace`, `bt` - Print backtrace of current execution frame
+* `frame(3)`, `f(3)` - Select stack frame #3 visible in the backtrace
 * `list(5)` - List scripts source code with 5 line context (5 lines before and
 after)
 * `watch(expr)` - Add expression to watch list
