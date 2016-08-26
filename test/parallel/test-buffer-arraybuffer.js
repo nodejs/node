@@ -22,18 +22,18 @@ assert.equal(buf.length, ab.byteLength);
 
 buf.fill(0xC);
 for (let i = 0; i < LENGTH; i++) {
-  assert.equal(ui[i], 0xC);
+  assert.strictEqual(ui[i], 0xC);
   ui[i] = 0xF;
-  assert.equal(buf[i], 0xF);
+  assert.strictEqual(buf[i], 0xF);
 }
 
 buf.writeUInt32LE(0xF00, 0);
 buf.writeUInt32BE(0xB47, 4);
 buf.writeDoubleLE(3.1415, 8);
 
-assert.equal(dv.getUint32(0, true), 0xF00);
-assert.equal(dv.getUint32(4), 0xB47);
-assert.equal(dv.getFloat64(8, true), 3.1415);
+assert.strictEqual(dv.getUint32(0, true), 0xF00);
+assert.strictEqual(dv.getUint32(4), 0xB47);
+assert.strictEqual(dv.getFloat64(8, true), 3.1415);
 
 
 // Now test protecting users from doing stupid things
@@ -61,12 +61,12 @@ b.writeDoubleBE(11.11, 0, true);
   ab[3] = 4;
   ab[4] = 5;
   const buf = Buffer.from(ab.buffer, 1, 3);
-  assert.equal(buf.length, 3);
-  assert.equal(buf[0], 2);
-  assert.equal(buf[1], 3);
-  assert.equal(buf[2], 4);
+  assert.strictEqual(buf.length, 3);
+  assert.strictEqual(buf[0], 2);
+  assert.strictEqual(buf[1], 3);
+  assert.strictEqual(buf[2], 4);
   buf[0] = 9;
-  assert.equal(ab[1], 9);
+  assert.strictEqual(ab[1], 9);
 
   assert.throws(() => Buffer.from(ab.buffer, 6), (err) => {
     assert(err instanceof RangeError);
@@ -89,12 +89,12 @@ b.writeDoubleBE(11.11, 0, true);
   ab[3] = 4;
   ab[4] = 5;
   const buf = Buffer(ab.buffer, 1, 3);
-  assert.equal(buf.length, 3);
-  assert.equal(buf[0], 2);
-  assert.equal(buf[1], 3);
-  assert.equal(buf[2], 4);
+  assert.strictEqual(buf.length, 3);
+  assert.strictEqual(buf[0], 2);
+  assert.strictEqual(buf[1], 3);
+  assert.strictEqual(buf[2], 4);
   buf[0] = 9;
-  assert.equal(ab[1], 9);
+  assert.strictEqual(ab[1], 9);
 
   assert.throws(() => Buffer(ab.buffer, 6), (err) => {
     assert(err instanceof RangeError);
