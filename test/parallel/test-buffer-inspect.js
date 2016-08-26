@@ -1,10 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-
-var util = require('util');
-
-var buffer = require('buffer');
+const assert = require('assert');
+const util = require('util');
+const buffer = require('buffer');
 
 buffer.INSPECT_MAX_BYTES = 2;
 

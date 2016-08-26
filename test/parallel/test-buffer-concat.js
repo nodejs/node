@@ -1,24 +1,27 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var zero = [];
-var one = [ Buffer.from('asdf') ];
-var long = [];
+const zero = [];
+const one = [ Buffer.from('asdf') ];
+const long = [];
 for (var i = 0; i < 10; i++) long.push(Buffer.from('asdf'));
 
-var flatZero = Buffer.concat(zero);
-var flatOne = Buffer.concat(one);
-var flatLong = Buffer.concat(long);
-var flatLongLen = Buffer.concat(long, 40);
+const flatZero = Buffer.concat(zero);
+const flatOne = Buffer.concat(one);
+const flatLong = Buffer.concat(long);
+const flatLongLen = Buffer.concat(long, 40);
 
-assert(flatZero.length === 0);
-assert(flatOne.toString() === 'asdf');
+assert.strictEqual(flatZero.length, 0);
+assert.strictEqual(flatOne.toString(), 'asdf');
+
+const check = new Array(10 + 1).join('asdf');
+
 // A special case where concat used to return the first item,
 // if the length is one. This check is to make sure that we don't do that.
-assert(flatOne !== one[0]);
-assert(flatLong.toString() === (new Array(10 + 1).join('asdf')));
-assert(flatLongLen.toString() === (new Array(10 + 1).join('asdf')));
+assert.notStrictEqual(flatOne, one[0]);
+assert.strictEqual(flatLong.toString(), check);
+assert.strictEqual(flatLongLen.toString(), check);
 
 assertWrongList();
 assertWrongList(null);
@@ -28,7 +31,7 @@ assertWrongList(['hello', 'world']);
 assertWrongList(['hello', Buffer.from('world')]);
 
 function assertWrongList(value) {
-  assert.throws(function() {
+  assert.throws(() => {
     Buffer.concat(value);
   }, function(err) {
     return err instanceof TypeError &&
