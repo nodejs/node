@@ -751,7 +751,7 @@ the first `len` bytes will be retained in the file.
 For example, the following program retains only the first four bytes of the file
 
 ```js
-console.log(fs.readFileSync('temp.txt', 'utf8');
+console.log(fs.readFileSync('temp.txt', 'utf8'));
   // prints Node.js
 
 // get the file descriptor of the file to be truncated
@@ -769,7 +769,7 @@ If the file previously was shorter than `len` bytes, it is extended, and the
 extended part is filled with null bytes ('\0'). For example,
 
 ```js
-fs.readFileSync('temp.txt', 'utf-8');
+console.log(fs.readFileSync('temp.txt', 'utf-8'));
   // prints Node.js
 
 // get the file descriptor of the file to be truncated
@@ -781,9 +781,10 @@ fs.ftruncate(fd, 10, (err) => {
   console.log(fs.readFileSync('temp.txt'));
 });
   // prints <Buffer 4e 6f 64 65 2e 6a 73 00 00 00>
+  // ('Node.js\0\0\0' in UTF8)
 ```
 
-The last three bytes are zeroes, to compensate the over-truncation.
+The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 
 ## fs.ftruncateSync(fd, len)
 <!-- YAML
