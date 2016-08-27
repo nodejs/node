@@ -19,6 +19,7 @@ node_g
 /.project
 /.cproject
 icu_config.gypi
+.eslintcache
 
 /out
 
