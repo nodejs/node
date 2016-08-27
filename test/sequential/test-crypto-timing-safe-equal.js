@@ -1,4 +1,3 @@
-// Flags: --allow_natives_syntax
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -110,11 +109,6 @@ function filterOutliers(array) {
   const arrMean = mean(array);
   return array.filter((value) => value / arrMean < 50);
 }
-
-// Force optimization before starting the benchmark
-runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
-eval('%OptimizeFunctionOnNextCall(runBenchmark)');
-runBenchmark(crypto.timingSafeEqual, Buffer.from('A'), Buffer.from('A'), true);
 
 // t_(0.9995, ∞)
 // i.e. If a given comparison function is indeed timing-safe, the t-test result
