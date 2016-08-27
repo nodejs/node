@@ -263,6 +263,8 @@ added: v0.5.0
     [`stdio`][] for more details (Default: `false`)
   * `stdio` {Array} Supports the array version of [`child_process.spawn()`][]'s
     [`stdio`][] option. When this option is provided, it overrides `silent`.
+    The array must contain exactly one item with value `'ipc'` or an error will
+    be thrown. For instance `[0, 1, 2, 'ipc']`.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: {ChildProcess}
@@ -289,17 +291,6 @@ Node.js processes launched with a custom `execPath` will communicate with the
 parent process using the file descriptor (fd) identified using the
 environment variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
-
-When specifying the [`stdio`][] option, the value *must* be a JSON Array
-containing exactly one item with value `'ipc'` or an error will be
-thrown. For instance:
-
-```js
-const child_process = require('child_process');
-child_process.fork('my_script.js', [], {
-    stdio: [0, 1, 2, 'ipc']
-});
-```
 
 *Note: Unlike the fork(2) POSIX system call, `child_process.fork()` does
 not clone the current process.*
