@@ -315,6 +315,9 @@ rl.write('Delete this!');
 rl.write(null, {ctrl: true, name: 'u'});
 ```
 
+*Note*: The `rl.write()` method will write the data to the `readline`
+Interface's `input` *as if it were provided by the user*.
+
 ## readline.clearLine(stream, dir)
 <!-- YAML
 added: v0.7.7
