@@ -26,7 +26,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -48,7 +48,7 @@ module.exports = {
 
         return {
 
-            CatchClause: function(node) {
+            CatchClause(node) {
                 let scope = context.getScope();
 
                 // When blockBindings is enabled, CatchClause creates its own scope

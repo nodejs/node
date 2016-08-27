@@ -28,7 +28,7 @@ module.exports = {
 
         schema: []
     },
-    create: function(context) {
+    create(context) {
 
         /**
          * Checks if the node is the finalizer of a TryStatement
@@ -84,7 +84,7 @@ module.exports = {
             if (isInFinallyBlock(node, node.label)) {
                 context.report({
                     message: "Unsafe usage of " + node.type + ".",
-                    node: node,
+                    node,
                     line: node.loc.line,
                     column: node.loc.column
                 });

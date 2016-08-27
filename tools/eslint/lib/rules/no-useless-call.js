@@ -82,11 +82,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (!isCallOrNonVariadicApply(node)) {
                     return;
                 }

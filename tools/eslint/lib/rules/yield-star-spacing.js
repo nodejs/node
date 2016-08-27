@@ -38,7 +38,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         const mode = (function(option) {
@@ -71,9 +71,9 @@ module.exports = {
                 const message = type + " space " + side + " *.";
 
                 context.report({
-                    node: node,
-                    message: message,
-                    fix: function(fixer) {
+                    node,
+                    message,
+                    fix(fixer) {
                         if (spaceRequired) {
                             if (after) {
                                 return fixer.insertTextAfter(node, " ");

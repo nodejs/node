@@ -36,7 +36,7 @@ function getValue(node) {
 function checkAndReport(context, node, value, array, message) {
     if (array.indexOf(value) !== -1) {
         context.report({
-            node: node,
+            node,
             message: "'{{module}}' " + message,
             data: {module: value}
         });
@@ -115,7 +115,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
         const includeExports = (context.options[0] || {}).includeExports,
             importsInFile = [],
             exportsInFile = [];

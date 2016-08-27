@@ -41,7 +41,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const configuration = context.options[0],
             sourceCode = context.getSourceCode();
@@ -109,10 +109,10 @@ module.exports = {
             if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {
                 if ((isNamed && forbidNamedFunctionSpacing) || (!isNamed && forbidAnonymousFunctionSpacing)) {
                     context.report({
-                        node: node,
+                        node,
                         loc: location,
                         message: "Unexpected space before function parentheses.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.removeRange([leftToken.range[1], rightToken.range[0]]);
                         }
                     });
@@ -120,10 +120,10 @@ module.exports = {
             } else {
                 if ((isNamed && requireNamedFunctionSpacing) || (!isNamed && requireAnonymousFunctionSpacing)) {
                     context.report({
-                        node: node,
+                        node,
                         loc: location,
                         message: "Missing space before function parentheses.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextAfter(leftToken, " ");
                         }
                     });

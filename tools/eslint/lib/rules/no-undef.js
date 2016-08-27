@@ -44,12 +44,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0];
         const considerTypeOf = options && options.typeof === true || false;
 
         return {
-            "Program:exit": function(/* node */) {
+            "Program:exit"(/* node */) {
                 const globalScope = context.getScope();
 
                 globalScope.through.forEach(function(ref) {

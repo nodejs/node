@@ -20,9 +20,9 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         return {
-            Program: function() {
+            Program() {
                 const scope = context.getScope();
 
                 scope.variables.forEach(function(variable) {

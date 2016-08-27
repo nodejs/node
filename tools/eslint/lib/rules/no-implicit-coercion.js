@@ -175,12 +175,12 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
         const options = parseOptions(context.options[0]);
         const sourceCode = context.getSourceCode();
 
         return {
-            UnaryExpression: function(node) {
+            UnaryExpression(node) {
                 let operatorAllowed;
 
                 // !!foo
@@ -215,7 +215,7 @@ module.exports = {
             },
 
             // Use `:exit` to prevent double reporting
-            "BinaryExpression:exit": function(node) {
+            "BinaryExpression:exit"(node) {
                 let operatorAllowed;
 
                 // 1 * foo
@@ -241,7 +241,7 @@ module.exports = {
                 }
             },
 
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
 
                 // foo += ""
                 const operatorAllowed = options.allow.indexOf("+") >= 0;

@@ -106,13 +106,12 @@ var IgnoreBase = function () {
   }, {
     key: '_createRule',
     value: function _createRule(pattern) {
-      var rule_object = {
-        origin: pattern
-      };
+      var origin = pattern;
+      var negative = false;
 
       // > An optional prefix "!" which negates the pattern;
       if (pattern.indexOf('!') === 0) {
-        rule_object.negative = true;
+        negative = true;
         pattern = pattern.substr(1);
       }
 
@@ -122,10 +121,14 @@ var IgnoreBase = function () {
       // > Put a backslash ("\") in front of the first hash for patterns that begin with a hash.
       .replace(REGEX_LEADING_EXCAPED_HASH, '#');
 
-      rule_object.pattern = pattern;
-      rule_object.regex = regex(pattern);
+      var regex = make_regex(pattern, negative);
 
-      return rule_object;
+      return {
+        origin: origin,
+        pattern: pattern,
+        negative: negative,
+        regex: regex
+      };
     }
   }, {
     key: '_filter',
@@ -197,7 +200,7 @@ var IgnoreBase = function () {
 // '`foo/`' should not continue with the '`..`'
 
 
-var REPLACERS = [
+var DEFAULT_REPLACER_PREFIX = [
 
 // > Trailing spaces are ignored unless they are quoted with backslash ("\")
 [
@@ -209,7 +212,7 @@ var REPLACERS = [
 }],
 
 // replace (\ ) with ' '
-[/\\\s/g, function (match) {
+[/\\\s/g, function () {
   return ' ';
 }],
 
@@ -259,36 +262,14 @@ var REPLACERS = [
 // just remove it
 function () {
   return '^(?:.*\\/)?';
-}],
+}]];
 
-// 'f'
-// matches
-// - /f(end)
-// - /f/
-// - (start)f(end)
-// - (start)f/
-// doesn't match
-// - oof
-// - foo
-// pseudo:
-// -> (^|/)f(/|$)
-
-// ending
-[
-// 'js' will not match 'js.'
-// 'ab' will not match 'abc'
-/(?:[^*\/])$/, function (match) {
-  // 'js*' will not match 'a.js'
-  // 'js/' will not match 'a.js'
-  // 'js' will match 'a.js' and 'a.js/'
-  return match + '(?=$|\\/)';
-}],
-
+var DEFAULT_REPLACER_SUFFIX = [
 // starting
 [
 // there will be no leading '/' (which has been replaced by section "leading slash")
 // If starts with '**', adding a '^' to the regular expression also works
-/^(?=[^\^])/, function (match) {
+/^(?=[^\^])/, function () {
   return !/\/(?!$)/.test(this)
   // > If the pattern does not contain a slash /, Git treats it as a shell glob pattern
   // Actually, if there is only a trailing slash, git also treats it as a shell glob pattern
@@ -305,9 +286,9 @@ function () {
 
 // Zero, one or several directories
 // should not use '*', or it will be replaced by the next replacer
-function (m, index, str) {
 
-  // Check if it is not the last `'/**'`
+// Check if it is not the last `'/**'`
+function (match, index, str) {
   return index + 6 < str.length
 
   // case: /**/
@@ -330,19 +311,21 @@ function (m, index, str) {
 
 // 'abc.*/' -> go
 // 'abc.*'  -> skip this rule
-/(^|[^\\]+)\\\*(?=.+)/g, function (match, p1) {
-  // '*.js' matches '.js'
-  // '*.js' doesn't match 'abc'
+/(^|[^\\]+)\\\*(?=.+)/g,
+
+// '*.js' matches '.js'
+// '*.js' doesn't match 'abc'
+function (match, p1) {
   return p1 + '[^\\/]*';
 }],
 
 // trailing wildcard
-[/(\\\/)?\\\*$/, function (m, p1) {
+[/(\\\/)?\\\*$/, function (match, p1) {
   return p1 === '\\/'
   // 'a/*' does not match 'a/'
   // 'a/*' matches 'a/a'
   // 'a/'
-  ? '\\/[^/]+'
+  ? '\\/[^/]+(?=$|\\/$)'
 
   // or it will match everything after
   : '';
@@ -352,17 +335,60 @@ function (m, index, str) {
   return '\\';
 }]];
 
+var POSITIVE_REPLACERS = [].concat(DEFAULT_REPLACER_PREFIX, [
+
+// 'f'
+// matches
+// - /f(end)
+// - /f/
+// - (start)f(end)
+// - (start)f/
+// doesn't match
+// - oof
+// - foo
+// pseudo:
+// -> (^|/)f(/|$)
+
+// ending
+[
+// 'js' will not match 'js.'
+// 'ab' will not match 'abc'
+/(?:[^*\/])$/,
+
+// 'js*' will not match 'a.js'
+// 'js/' will not match 'a.js'
+// 'js' will match 'a.js' and 'a.js/'
+function (match) {
+  return match + '(?=$|\\/)';
+}]], DEFAULT_REPLACER_SUFFIX);
+
+var NEGATIVE_REPLACERS = [].concat(DEFAULT_REPLACER_PREFIX, [
+
+// #24
+// The MISSING rule of [gitignore docs](https://git-scm.com/docs/gitignore)
+// A negative pattern without a trailing wildcard should not
+// re-include the things inside that directory.
+
+// eg:
+// ['node_modules/*', '!node_modules']
+// should ignore `node_modules/a.js`
+[/(?:[^*\/])$/, function (match) {
+  return match + '(?=$|\\/$)';
+}]], DEFAULT_REPLACER_SUFFIX);
+
 // A simple cache, because an ignore rule only has only one certain meaning
 var cache = {};
 
 // @param {pattern}
-function regex(pattern) {
+function make_regex(pattern, negative) {
   var r = cache[pattern];
   if (r) {
     return r;
   }
 
-  var source = REPLACERS.reduce(function (prev, current) {
+  var replacers = negative ? NEGATIVE_REPLACERS : POSITIVE_REPLACERS;
+
+  var source = replacers.reduce(function (prev, current) {
     return prev.replace(current[0], current[1].bind(pattern));
   }, pattern);
 

@@ -38,7 +38,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const style = context.options[0] || "last",
             sourceCode = context.getSourceCode();
         let exceptions = {};

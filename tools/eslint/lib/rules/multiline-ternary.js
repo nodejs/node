@@ -18,10 +18,15 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-        schema: []
+        schema: [
+            {
+                enum: ["always", "never"]
+            }
+        ]
     },
 
-    create: function(context) {
+    create(context) {
+        const multiline = context.options[0] !== "never";
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -31,14 +36,16 @@ module.exports = {
          * Tests whether node is preceded by supplied tokens
          * @param {ASTNode} node - node to check
          * @param {ASTNode} parentNode - parent of node to report
+         * @param {boolean} expected - whether newline was expected or not
          * @returns {void}
          * @private
          */
-        function reportError(node, parentNode) {
+        function reportError(node, parentNode, expected) {
             context.report({
-                node: node,
-                message: "Expected newline between {{typeOfError}} of ternary expression.",
+                node,
+                message: "{{expected}} newline between {{typeOfError}} of ternary expression.",
                 data: {
+                    expected: expected ? "Expected" : "Unexpected",
                     typeOfError: node === parentNode.test ? "test and consequent" : "consequent and alternate"
                 }
             });
@@ -49,16 +56,26 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 const areTestAndConsequentOnSameLine = astUtils.isTokenOnSameLine(node.test, node.consequent);
                 const areConsequentAndAlternateOnSameLine = astUtils.isTokenOnSameLine(node.consequent, node.alternate);
 
-                if (areTestAndConsequentOnSameLine) {
-                    reportError(node.test, node);
-                }
+                if (!multiline) {
+                    if (!areTestAndConsequentOnSameLine) {
+                        reportError(node.test, node, false);
+                    }
 
-                if (areConsequentAndAlternateOnSameLine) {
-                    reportError(node.consequent, node);
+                    if (!areConsequentAndAlternateOnSameLine) {
+                        reportError(node.consequent, node, false);
+                    }
+                } else {
+                    if (areTestAndConsequentOnSameLine) {
+                        reportError(node.test, node, true);
+                    }
+
+                    if (areConsequentAndAlternateOnSameLine) {
+                        reportError(node.consequent, node, true);
+                    }
                 }
             }
         };

@@ -117,7 +117,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
 

@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            NewExpression: function(node) {
+            NewExpression(node) {
                 if (node.callee.name === "Object") {
                     context.report(node, "The object literal notation {} is preferrable.");
                 }

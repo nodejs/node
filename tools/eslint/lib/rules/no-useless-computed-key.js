@@ -20,11 +20,11 @@ module.exports = {
 
         schema: []
     },
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         return {
-            Property: function(node) {
+            Property(node) {
                 if (!node.computed) {
                     return;
                 }

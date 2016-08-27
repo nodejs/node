@@ -23,7 +23,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         let smartTabs;
@@ -74,11 +74,11 @@ module.exports = {
 
         return {
 
-            TemplateElement: function(node) {
+            TemplateElement(node) {
                 ignoredLocs.push(node.loc);
             },
 
-            "Program:exit": function(node) {
+            "Program:exit"(node) {
 
                 /*
                  * At least one space followed by a tab
@@ -132,7 +132,7 @@ module.exports = {
                             return;
                         }
 
-                        context.report(node, { line: lineNumber, column: column }, "Mixed spaces and tabs.");
+                        context.report(node, { line: lineNumber, column }, "Mixed spaces and tabs.");
                     }
                 });
             }

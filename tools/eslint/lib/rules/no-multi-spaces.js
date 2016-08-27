@@ -38,7 +38,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // the index of the last comment that was checked
         const exceptions = { Property: true },
@@ -88,7 +88,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            Program: function() {
+            Program() {
 
                 const sourceCode = context.getSourceCode(),
                     source = sourceCode.getText(),

@@ -35,7 +35,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const allowKeywords = options.allowKeywords === void 0 || !!options.allowKeywords;
 
@@ -46,7 +46,7 @@ module.exports = {
         }
 
         return {
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 if (
                     node.computed &&
                     node.property.type === "Literal" &&

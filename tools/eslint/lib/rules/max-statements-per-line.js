@@ -30,7 +30,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const sourceCode = context.getSourceCode(),
             options = context.options[0] || {},
@@ -89,7 +89,7 @@ module.exports = {
 
             // Reports if the node violated this rule.
             if (numberOfStatementsOnThisLine === maxStatementsPerLine + 1) {
-                context.report({node: node, message: message});
+                context.report({node, message});
             }
         }
 
@@ -166,7 +166,7 @@ module.exports = {
             // Empty blocks should be warned if `{max: 0}` was given.
             BlockStatement: function reportIfZero(node) {
                 if (maxStatementsPerLine === 0 && node.body.length === 0) {
-                    context.report({node: node, message: message});
+                    context.report({node, message});
                 }
             }
         };

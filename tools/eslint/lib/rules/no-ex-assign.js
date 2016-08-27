@@ -22,7 +22,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Finds and reports references that are non initializer and writable.
@@ -38,7 +38,7 @@ module.exports = {
         }
 
         return {
-            CatchClause: function(node) {
+            CatchClause(node) {
                 context.getDeclaredVariables(node).forEach(checkVariable);
             }
         };

@@ -84,7 +84,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
         const APPLY = context.options[0] || OPTIONS.always;
         const APPLY_TO_METHODS = APPLY === OPTIONS.methods || APPLY === OPTIONS.always;
         const APPLY_TO_PROPS = APPLY === OPTIONS.properties || APPLY === OPTIONS.always;
@@ -201,7 +201,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            ObjectExpression: function(node) {
+            ObjectExpression(node) {
                 if (APPLY_CONSISTENT) {
                     checkConsistency(node, false);
                 } else if (APPLY_CONSISTENT_AS_NEEDED) {
@@ -209,7 +209,7 @@ module.exports = {
                 }
             },
 
-            Property: function(node) {
+            Property(node) {
                 const isConciseProperty = node.method || node.shorthand;
 
                 // Ignore destructuring assignment
@@ -236,9 +236,9 @@ module.exports = {
                         const type = node.method ? "method" : "property";
 
                         context.report({
-                            node: node,
+                            node,
                             message: "Expected longform " + type + " syntax.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 if (node.method) {
                                     if (node.value.generator) {
                                         return fixer.replaceTextRange([node.range[0], node.key.range[1]], node.key.name + ": function*");
@@ -255,9 +255,9 @@ module.exports = {
                     // {'xyz'() {}} should be written as {'xyz': function() {}}
                     if (AVOID_QUOTES && isStringLiteral(node.key)) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Expected longform method syntax for string literal keys.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 if (node.computed) {
                                     return fixer.insertTextAfterRange([node.key.range[0], node.key.range[1] + 1], ": function");
                                 }
@@ -283,9 +283,9 @@ module.exports = {
                     // {[x]: function(){}} should be written as {[x]() {}}
                     if (node.computed) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Expected method shorthand.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 if (node.value.generator) {
                                     return fixer.replaceTextRange(
                                         [node.key.range[0], node.value.range[0] + "function*".length],
@@ -301,9 +301,9 @@ module.exports = {
 
                     // {x: function(){}} should be written as {x() {}}
                     context.report({
-                        node: node,
+                        node,
                         message: "Expected method shorthand.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             if (node.value.generator) {
                                 return fixer.replaceTextRange(
                                     [node.key.range[0], node.value.range[0] + "function*".length],
@@ -318,9 +318,9 @@ module.exports = {
 
                     // {x: x} should be written as {x}
                     context.report({
-                        node: node,
+                        node,
                         message: "Expected property shorthand.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.replaceText(node, node.value.name);
                         }
                     });
@@ -331,9 +331,9 @@ module.exports = {
 
                     // {"x": x} should be written as {x}
                     context.report({
-                        node: node,
+                        node,
                         message: "Expected property shorthand.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.replaceText(node, node.value.name);
                         }
                     });

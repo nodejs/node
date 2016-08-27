@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("../ast-utils.js");
+const esUtils = require("esutils");
 
 module.exports = {
     meta: {
@@ -17,6 +18,8 @@ module.exports = {
             category: "Possible Errors",
             recommended: false
         },
+
+        fixable: "code",
 
         schema: {
             anyOf: [
@@ -53,7 +56,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         const isParenthesised = astUtils.isParenthesised.bind(astUtils, sourceCode);
@@ -257,15 +260,63 @@ module.exports = {
         }
 
         /**
+         * Determines whether a node should be preceded by an additional space when removing parens
+         * @param {ASTNode} node node to evaluate; must be surrounded by parentheses
+         * @returns {boolean} `true` if a space should be inserted before the node
+         * @private
+         */
+        function requiresLeadingSpace(node) {
+            const leftParenToken = sourceCode.getTokenBefore(node);
+            const tokenBeforeLeftParen = sourceCode.getTokenBefore(node, 1);
+            const firstToken = sourceCode.getFirstToken(node);
+
+            // If there is already whitespace before the previous token, don't add more.
+            if (!tokenBeforeLeftParen || tokenBeforeLeftParen.end !== leftParenToken.start) {
+                return false;
+            }
+
+            // If the parens are preceded by a keyword (e.g. `typeof(0)`), a space should be inserted (`typeof 0`)
+            const precededByKeyword = tokenBeforeLeftParen.type === "Keyword";
+
+            // However, a space should not be inserted unless the first character of the token is an identifier part
+            // e.g. `typeof([])` should be fixed to `typeof[]`
+            const startsWithIdentifierPart = esUtils.code.isIdentifierPartES6(firstToken.value.charCodeAt(0));
+
+            // If the parens are preceded by and start with a unary plus/minus (e.g. `+(+foo)`), a space should be inserted (`+ +foo`)
+            const precededByUnaryPlus = tokenBeforeLeftParen.type === "Punctuator" && tokenBeforeLeftParen.value === "+";
+            const precededByUnaryMinus = tokenBeforeLeftParen.type === "Punctuator" && tokenBeforeLeftParen.value === "-";
+
+            const startsWithUnaryPlus = firstToken.type === "Punctuator" && firstToken.value === "+";
+            const startsWithUnaryMinus = firstToken.type === "Punctuator" && firstToken.value === "-";
+
+            return (precededByKeyword && startsWithIdentifierPart) ||
+                (precededByUnaryPlus && startsWithUnaryPlus) ||
+                (precededByUnaryMinus && startsWithUnaryMinus);
+        }
+
+        /**
          * Report the node
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
         function report(node) {
-            const previousToken = sourceCode.getTokenBefore(node);
+            const leftParenToken = sourceCode.getTokenBefore(node);
+            const rightParenToken = sourceCode.getTokenAfter(node);
 
-            context.report(node, previousToken.loc.start, "Gratuitous parentheses around expression.");
+            context.report({
+                node,
+                loc: leftParenToken.loc.start,
+                message: "Gratuitous parentheses around expression.",
+                fix(fixer) {
+                    const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
+
+                    return fixer.replaceTextRange([
+                        leftParenToken.range[0],
+                        rightParenToken.range[1]
+                    ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource);
+                }
+            });
         }
 
         /**
@@ -329,7 +380,7 @@ module.exports = {
         }
 
         return {
-            ArrayExpression: function(node) {
+            ArrayExpression(node) {
                 [].forEach.call(node.elements, function(e) {
                     if (e && hasExcessParens(e) && precedence(e) >= precedence({type: "AssignmentExpression"})) {
                         report(e);
@@ -337,7 +388,7 @@ module.exports = {
                 });
             },
 
-            ArrowFunctionExpression: function(node) {
+            ArrowFunctionExpression(node) {
                 if (isReturnAssignException(node)) {
                     return;
                 }
@@ -356,7 +407,7 @@ module.exports = {
                 }
             },
 
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (isReturnAssignException(node)) {
                     return;
                 }
@@ -369,7 +420,7 @@ module.exports = {
             BinaryExpression: dryBinaryLogical,
             CallExpression: dryCallNew,
 
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 if (isReturnAssignException(node)) {
                     return;
                 }
@@ -387,13 +438,13 @@ module.exports = {
                 }
             },
 
-            DoWhileStatement: function(node) {
+            DoWhileStatement(node) {
                 if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                     report(node.test);
                 }
             },
 
-            ExpressionStatement: function(node) {
+            ExpressionStatement(node) {
                 if (hasExcessParens(node.expression)) {
                     const firstTokens = sourceCode.getFirstTokens(node.expression, 2);
                     const firstToken = firstTokens[0];
@@ -415,19 +466,19 @@ module.exports = {
                 }
             },
 
-            ForInStatement: function(node) {
+            ForInStatement(node) {
                 if (hasExcessParens(node.right)) {
                     report(node.right);
                 }
             },
 
-            ForOfStatement: function(node) {
+            ForOfStatement(node) {
                 if (hasExcessParens(node.right)) {
                     report(node.right);
                 }
             },
 
-            ForStatement: function(node) {
+            ForStatement(node) {
                 if (node.init && hasExcessParens(node.init)) {
                     report(node.init);
                 }
@@ -441,7 +492,7 @@ module.exports = {
                 }
             },
 
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                     report(node.test);
                 }
@@ -449,7 +500,7 @@ module.exports = {
 
             LogicalExpression: dryBinaryLogical,
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 if (
                     hasExcessParens(node.object) &&
                     precedence(node.object) >= precedence(node) &&
@@ -480,7 +531,7 @@ module.exports = {
 
             NewExpression: dryCallNew,
 
-            ObjectExpression: function(node) {
+            ObjectExpression(node) {
                 [].forEach.call(node.properties, function(e) {
                     const v = e.value;
 
@@ -490,7 +541,7 @@ module.exports = {
                 });
             },
 
-            ReturnStatement: function(node) {
+            ReturnStatement(node) {
                 const returnToken = sourceCode.getFirstToken(node);
 
                 if (isReturnAssignException(node)) {
@@ -506,7 +557,7 @@ module.exports = {
                 }
             },
 
-            SequenceExpression: function(node) {
+            SequenceExpression(node) {
                 [].forEach.call(node.expressions, function(e) {
                     if (hasExcessParens(e) && precedence(e) >= precedence(node)) {
                         report(e);
@@ -514,19 +565,19 @@ module.exports = {
                 });
             },
 
-            SwitchCase: function(node) {
+            SwitchCase(node) {
                 if (node.test && hasExcessParens(node.test)) {
                     report(node.test);
                 }
             },
 
-            SwitchStatement: function(node) {
+            SwitchStatement(node) {
                 if (hasDoubleExcessParens(node.discriminant)) {
                     report(node.discriminant);
                 }
             },
 
-            ThrowStatement: function(node) {
+            ThrowStatement(node) {
                 const throwToken = sourceCode.getFirstToken(node);
 
                 if (hasExcessParensNoLineTerminator(throwToken, node.argument)) {
@@ -537,7 +588,7 @@ module.exports = {
             UnaryExpression: dryUnaryUpdate,
             UpdateExpression: dryUnaryUpdate,
 
-            VariableDeclarator: function(node) {
+            VariableDeclarator(node) {
                 if (node.init && hasExcessParens(node.init) &&
                         precedence(node.init) >= precedence({type: "AssignmentExpression"}) &&
 
@@ -547,19 +598,19 @@ module.exports = {
                 }
             },
 
-            WhileStatement: function(node) {
+            WhileStatement(node) {
                 if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                     report(node.test);
                 }
             },
 
-            WithStatement: function(node) {
+            WithStatement(node) {
                 if (hasDoubleExcessParens(node.object)) {
                     report(node.object);
                 }
             },
 
-            YieldExpression: function(node) {
+            YieldExpression(node) {
                 if (node.argument) {
                     const yieldToken = sourceCode.getFirstToken(node);
 

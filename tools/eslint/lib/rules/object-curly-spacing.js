@@ -39,7 +39,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const spaced = context.options[0] === "always",
             sourceCode = context.getSourceCode();
 
@@ -55,7 +55,7 @@ module.exports = {
         }
 
         const options = {
-            spaced: spaced,
+            spaced,
             arraysInObjectsException: isOptionSet("arraysInObjects"),
             objectsInObjectsException: isOptionSet("objectsInObjects")
         };
@@ -72,10 +72,10 @@ module.exports = {
         */
         function reportNoBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
                 message: "There should be no space after '" + token.value + "'.",
-                fix: function(fixer) {
+                fix(fixer) {
                     const nextToken = context.getSourceCode().getTokenAfter(token);
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
@@ -91,10 +91,10 @@ module.exports = {
         */
         function reportNoEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
                 message: "There should be no space before '" + token.value + "'.",
-                fix: function(fixer) {
+                fix(fixer) {
                     const previousToken = context.getSourceCode().getTokenBefore(token);
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
@@ -110,10 +110,10 @@ module.exports = {
         */
         function reportRequiredBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
                 message: "A space is required after '" + token.value + "'.",
-                fix: function(fixer) {
+                fix(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
             });
@@ -127,10 +127,10 @@ module.exports = {
         */
         function reportRequiredEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
                 message: "A space is required before '" + token.value + "'.",
-                fix: function(fixer) {
+                fix(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }
             });
@@ -181,6 +181,30 @@ module.exports = {
         }
 
         /**
+         * Gets '}' token of an object node.
+         *
+         * Because the last token of object patterns might be a type annotation,
+         * this traverses tokens preceded by the last property, then returns the
+         * first '}' token.
+         *
+         * @param {ASTNode} node - The node to get. This node is an
+         *      ObjectExpression or an ObjectPattern. And this node has one or
+         *      more properties.
+         * @returns {Token} '}' token.
+         */
+        function getClosingBraceOfObject(node) {
+            const lastProperty = node.properties[node.properties.length - 1];
+            let token = sourceCode.getTokenAfter(lastProperty);
+
+            // skip ')' and trailing commas.
+            while (token.type !== "Punctuator" || token.value !== "}") {
+                token = sourceCode.getTokenAfter(token);
+            }
+
+            return token;
+        }
+
+        /**
          * Reports a given object node if spacing in curly braces is invalid.
          * @param {ASTNode} node - An ObjectExpression or ObjectPattern node to check.
          * @returns {void}
@@ -191,7 +215,7 @@ module.exports = {
             }
 
             const first = sourceCode.getFirstToken(node),
-                last = sourceCode.getLastToken(node),
+                last = getClosingBraceOfObject(node),
                 second = sourceCode.getTokenAfter(first),
                 penultimate = sourceCode.getTokenBefore(last);
 

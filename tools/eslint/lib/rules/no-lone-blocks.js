@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         // A stack of lone blocks to be checked for block-level bindings
         const loneBlocks = [];
@@ -69,7 +69,7 @@ module.exports = {
 
         // Default rule definition: report all lone blocks
         ruleDef = {
-            BlockStatement: function(node) {
+            BlockStatement(node) {
                 if (isLoneBlock(node)) {
                     report(node);
                 }
@@ -79,12 +79,12 @@ module.exports = {
         // ES6: report blocks without block-level bindings
         if (context.parserOptions.ecmaVersion >= 6) {
             ruleDef = {
-                BlockStatement: function(node) {
+                BlockStatement(node) {
                     if (isLoneBlock(node)) {
                         loneBlocks.push(node);
                     }
                 },
-                "BlockStatement:exit": function(node) {
+                "BlockStatement:exit"(node) {
                     if (loneBlocks.length > 0 && loneBlocks[loneBlocks.length - 1] === node) {
                         loneBlocks.pop();
                         report(node);

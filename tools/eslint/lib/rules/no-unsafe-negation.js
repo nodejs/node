@@ -60,7 +60,7 @@ module.exports = {
                     !astUtils.isParenthesised(sourceCode, node.left)
                 ) {
                     context.report({
-                        node: node,
+                        node,
                         loc: node.left.loc,
                         message: "Unexpected negating the left operand of '{{operator}}' operator.",
                         data: node,

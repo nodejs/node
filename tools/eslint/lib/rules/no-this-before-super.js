@@ -45,7 +45,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /*
          * Information for each constructor.
@@ -136,7 +136,7 @@ module.exports = {
              * @param {ASTNode} node - The current node.
              * @returns {void}
              */
-            onCodePathStart: function(codePath, node) {
+            onCodePathStart(codePath, node) {
                 if (isConstructorFunction(node)) {
 
                     // Class > ClassBody > MethodDefinition > FunctionExpression
@@ -149,14 +149,14 @@ module.exports = {
                             classNode.superClass &&
                             !astUtils.isNullOrUndefined(classNode.superClass)
                         ),
-                        codePath: codePath
+                        codePath
                     };
                 } else {
                     funcInfo = {
                         upper: funcInfo,
                         isConstructor: false,
                         hasExtends: false,
-                        codePath: codePath
+                        codePath
                     };
                 }
             },
@@ -171,7 +171,7 @@ module.exports = {
              * @param {ASTNode} node - The current node.
              * @returns {void}
              */
-            onCodePathEnd: function(codePath) {
+            onCodePathEnd(codePath) {
                 const isDerivedClass = funcInfo.hasExtends;
 
                 funcInfo = funcInfo.upper;
@@ -205,7 +205,7 @@ module.exports = {
              * @param {CodePathSegment} segment - A code path segment to initialize.
              * @returns {void}
              */
-            onCodePathSegmentStart: function(segment) {
+            onCodePathSegmentStart(segment) {
                 if (!isInConstructorOfDerivedClass(funcInfo)) {
                     return;
                 }
@@ -229,7 +229,7 @@ module.exports = {
              *      of a loop.
              * @returns {void}
              */
-            onCodePathSegmentLoop: function(fromSegment, toSegment) {
+            onCodePathSegmentLoop(fromSegment, toSegment) {
                 if (!isInConstructorOfDerivedClass(funcInfo)) {
                     return;
                 }
@@ -259,7 +259,7 @@ module.exports = {
              * @param {ASTNode} node - A target node.
              * @returns {void}
              */
-            ThisExpression: function(node) {
+            ThisExpression(node) {
                 if (isBeforeCallOfSuper()) {
                     setInvalid(node);
                 }
@@ -270,7 +270,7 @@ module.exports = {
              * @param {ASTNode} node - A target node.
              * @returns {void}
              */
-            Super: function(node) {
+            Super(node) {
                 if (!astUtils.isCallee(node) && isBeforeCallOfSuper()) {
                     setInvalid(node);
                 }
@@ -281,7 +281,7 @@ module.exports = {
              * @param {ASTNode} node - A target node.
              * @returns {void}
              */
-            "CallExpression:exit": function(node) {
+            "CallExpression:exit"(node) {
                 if (node.callee.type === "Super" && isBeforeCallOfSuper()) {
                     setSuperCalled();
                 }
@@ -291,7 +291,7 @@ module.exports = {
              * Resets state.
              * @returns {void}
              */
-            "Program:exit": function() {
+            "Program:exit"() {
                 segInfoMap = Object.create(null);
             }
         };
