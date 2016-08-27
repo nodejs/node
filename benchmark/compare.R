@@ -33,30 +33,39 @@ if (!is.null(plot.filename)) {
 
 # Print a table with results
 statistics = ddply(dat, "name", function(subdat) {
-  # Perform a statistics test to see of there actually is a difference in
-  # performace.
-  w = t.test(rate ~ binary, data=subdat);
+  old.rate = subset(subdat, binary == "old")$rate;
+  new.rate = subset(subdat, binary == "new")$rate;
 
   # Calculate improvement for the "new" binary compared with the "old" binary
-  new_mu = mean(subset(subdat, binary == "new")$rate);
-  old_mu = mean(subset(subdat, binary == "old")$rate);
-  improvement = sprintf("%.2f %%", ((new_mu - old_mu) / old_mu * 100));
+  old.mu = mean(old.rate);
+  new.mu = mean(new.rate);
+  improvement = sprintf("%.2f %%", ((new.mu - old.mu) / old.mu * 100));
 
-  # Add user friendly stars to the table. There should be at least one star
-  # before you can say that there is an improvement.
-  significant = '';
-  if (w$p.value < 0.001) {
-    significant = '***';
-  } else if (w$p.value < 0.01) {
-    significant = '**';
-  } else if (w$p.value < 0.05) {
-    significant = '*';
+  p.value = NA;
+  significant = 'NA';
+  # Check if there is enough data to calulate the calculate the p-value
+  if (length(old.rate) > 1 && length(new.rate) > 1) {
+    # Perform a statistics test to see of there actually is a difference in
+    # performance.
+    w = t.test(rate ~ binary, data=subdat);
+    p.value = w$p.value;
+
+    # Add user friendly stars to the table. There should be at least one star
+    # before you can say that there is an improvement.
+    significant = '';
+    if (p.value < 0.001) {
+      significant = '***';
+    } else if (p.value < 0.01) {
+      significant = '**';
+    } else if (p.value < 0.05) {
+      significant = '*';
+    }
   }
 
   r = list(
     improvement = improvement,
     significant = significant,
-    p.value = w$p.value
+    p.value = p.value
   );
   return(data.frame(r));
 });
