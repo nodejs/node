@@ -290,6 +290,17 @@ parent process using the file descriptor (fd) identified using the
 environment variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
 
+When specifying the [`stdio`][] option, the value *must* be a JSON Array
+containing at least one item with value `'ipc'` or a `TypeError` will be
+thrown. For instance:
+
+```js
+const child_process = require('child_process');
+child_process.fork('my_script.js', [], {
+    stdio: [0, 1, 2, 'ipc']
+});
+```
+
 *Note: Unlike the fork(2) POSIX system call, `child_process.fork()` does
 not clone the current process.*
 
