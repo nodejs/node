@@ -51,13 +51,17 @@ if (length(aggregate) > 0) {
 stats = ddply(dat, c(x.axis.name, category.name), function(subdat) {
   rate = subdat$rate;
 
-  # calculate standard error of the mean
-  se = sqrt(var(rate)/length(rate));
+  # calculate confidence interval of the mean
+  ci = NA;
+  if (length(rate) > 1) {
+    se = sqrt(var(rate)/length(rate));
+    ci = se * qt(0.975, length(rate) - 1)
+  }
 
   # calculate mean and 95 % confidence interval
   r = list(
     rate = mean(rate),
-    confidence.interval = se * qt(0.975, length(rate) - 1)
+    confidence.interval = ci
   );
 
   return(data.frame(r));
@@ -66,11 +70,14 @@ stats = ddply(dat, c(x.axis.name, category.name), function(subdat) {
 print(stats, row.names=F);
 
 if (!is.null(plot.filename)) {
-  p = ggplot(stats, aes_string(x=x.axis.name, y='mean', colour=category.name));
+  p = ggplot(stats, aes_string(x=x.axis.name, y='rate', colour=category.name));
   if (use.log2) {
     p = p + scale_x_continuous(trans='log2');
   }
-  p = p + geom_errorbar(aes(ymin=mean-confidence.interval, ymax=mean+confidence.interval), width=.1);
+  p = p + geom_errorbar(
+    aes(ymin=rate-confidence.interval, ymax=rate+confidence.interval),
+    width=.1, na.rm=TRUE
+  );
   p = p + geom_point();
   p = p + ylab("rate of operations (higher is better)");
   p = p + ggtitle(dat[1, 1]);
