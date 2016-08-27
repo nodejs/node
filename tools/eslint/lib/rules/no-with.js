@@ -20,10 +20,10 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            WithStatement: function(node) {
+            WithStatement(node) {
                 context.report(node, "Unexpected use of 'with' statement.");
             }
         };

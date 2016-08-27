@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0];
         let grouping = false,
@@ -202,7 +202,7 @@ module.exports = {
 
         return {
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
 
                 if (isMixed(node.declarations)) {
                     context.report(

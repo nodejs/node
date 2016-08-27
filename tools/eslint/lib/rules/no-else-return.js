@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -127,7 +127,7 @@ module.exports = {
 
         return {
 
-            IfStatement: function(node) {
+            IfStatement(node) {
                 const parent = context.getAncestors().pop();
                 let consequents,
                     alternate;

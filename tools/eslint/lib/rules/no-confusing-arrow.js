@@ -42,7 +42,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
         const config = context.options[0] || {};
         const sourceCode = context.getSourceCode();
 

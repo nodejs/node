@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
             REJECTED_SPACE_MESSAGE = "There should be no spaces inside this paren.",
@@ -88,8 +88,8 @@ module.exports = {
             }
 
             return {
-                openers: openers,
-                closers: closers
+                openers,
+                closers
             };
         }
 
@@ -234,19 +234,19 @@ module.exports = {
 
                     if (token.value === "(" && shouldOpenerHaveSpace(token, nextToken)) {
                         context.report({
-                            node: node,
+                            node,
                             loc: token.loc.start,
                             message: MISSING_SPACE_MESSAGE,
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.insertTextAfter(token, " ");
                             }
                         });
                     } else if (token.value === "(" && shouldOpenerRejectSpace(token, nextToken)) {
                         context.report({
-                            node: node,
+                            node,
                             loc: token.loc.start,
                             message: REJECTED_SPACE_MESSAGE,
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.removeRange([token.range[1], nextToken.range[0]]);
                             }
                         });
@@ -254,19 +254,19 @@ module.exports = {
 
                         // context.report(node, token.loc.start, MISSING_SPACE_MESSAGE);
                         context.report({
-                            node: node,
+                            node,
                             loc: token.loc.start,
                             message: MISSING_SPACE_MESSAGE,
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
                             }
                         });
                     } else if (token.value === ")" && shouldCloserRejectSpace(prevToken, token)) {
                         context.report({
-                            node: node,
+                            node,
                             loc: token.loc.start,
                             message: REJECTED_SPACE_MESSAGE,
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.removeRange([prevToken.range[1], token.range[0]]);
                             }
                         });

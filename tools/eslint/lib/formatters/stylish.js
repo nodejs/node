@@ -67,7 +67,7 @@ module.exports = function(results) {
             }),
             {
                 align: ["", "r", "l"],
-                stringLength: function(str) {
+                stringLength(str) {
                     return chalk.stripColor(str).length;
                 }
             }

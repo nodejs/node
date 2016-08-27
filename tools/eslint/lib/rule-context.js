@@ -96,7 +96,7 @@ RuleContext.prototype = {
      * Passthrough to eslint.getSourceCode().
      * @returns {SourceCode} The SourceCode object for the code.
      */
-    getSourceCode: function() {
+    getSourceCode() {
         return this.eslint.getSourceCode();
     },
 
@@ -110,7 +110,7 @@ RuleContext.prototype = {
      *     with symbols being replaced by this object's values.
      * @returns {void}
      */
-    report: function(nodeOrDescriptor, location, message, opts) {
+    report(nodeOrDescriptor, location, message, opts) {
 
         // check to see if it's a new style call
         if (arguments.length === 1) {

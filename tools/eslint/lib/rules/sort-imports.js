@@ -42,7 +42,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false,
@@ -96,7 +96,7 @@ module.exports = {
         }
 
         return {
-            ImportDeclaration: function(node) {
+            ImportDeclaration(node) {
                 if (previousDeclaration) {
                     const currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
                         previousMemberSyntaxGroupIndex = getMemberParameterGroupIndex(previousDeclaration);
@@ -114,7 +114,7 @@ module.exports = {
                     if (currentMemberSyntaxGroupIndex !== previousMemberSyntaxGroupIndex) {
                         if (currentMemberSyntaxGroupIndex < previousMemberSyntaxGroupIndex) {
                             context.report({
-                                node: node,
+                                node,
                                 message: "Expected '{{syntaxA}}' syntax before '{{syntaxB}}' syntax.",
                                 data: {
                                     syntaxA: memberSyntaxSortOrder[currentMemberSyntaxGroupIndex],
@@ -128,7 +128,7 @@ module.exports = {
                             currentLocalMemberName < previousLocalMemberName
                         ) {
                             context.report({
-                                node: node,
+                                node,
                                 message: "Imports should be sorted alphabetically."
                             });
                         }

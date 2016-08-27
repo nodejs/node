@@ -44,7 +44,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const mode = context.options[0];
         const UNEXPECTED_MESSAGE = "Unexpected trailing comma.";
         const MISSING_MESSAGE = "Missing trailing comma.";
@@ -112,7 +112,7 @@ module.exports = {
                     node: lastItem,
                     loc: trailingToken.loc.start,
                     message: UNEXPECTED_MESSAGE,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.remove(trailingToken);
                     }
                 });
@@ -157,7 +157,7 @@ module.exports = {
                     node: lastItem,
                     loc: lastItem.loc.end,
                     message: MISSING_MESSAGE,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.insertTextAfter(penultimateToken, ",");
                     }
                 });

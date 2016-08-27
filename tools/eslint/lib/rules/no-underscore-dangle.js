@@ -39,7 +39,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0] || {};
         const ALLOWED_VARIABLES = options.allow ? options.allow : [];

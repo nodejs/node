@@ -162,7 +162,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Reports functions which match the following condition:

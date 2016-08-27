@@ -85,7 +85,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         const MODE_ALWAYS = "always",
             MODE_NEVER = "never";
@@ -98,7 +98,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            "VariableDeclaration:exit": function(node) {
+            "VariableDeclaration:exit"(node) {
 
                 const kind = node.kind,
                     declarations = node.declarations;

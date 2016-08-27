@@ -305,8 +305,8 @@ function promptUser(callback) {
             type: "list",
             name: "styleguide",
             message: "Which style guide do you want to follow?",
-            choices: [{name: "Google", value: "google"}, {name: "AirBnB", value: "airbnb"}, {name: "Standard", value: "standard"}],
-            when: function(answers) {
+            choices: [{name: "Google", value: "google"}, {name: "Airbnb", value: "airbnb"}, {name: "Standard", value: "standard"}],
+            when(answers) {
                 answers.packageJsonExists = npmUtil.checkPackageJson();
                 return answers.source === "guide" && answers.packageJsonExists;
             }
@@ -315,10 +315,10 @@ function promptUser(callback) {
             type: "input",
             name: "patterns",
             message: "Which file(s), path(s), or glob(s) should be examined?",
-            when: function(answers) {
+            when(answers) {
                 return (answers.source === "auto");
             },
-            validate: function(input) {
+            validate(input) {
                 if (input.trim().length === 0 && input.trim() !== ",") {
                     return "You must tell us what code to examine. Try again.";
                 }
@@ -331,7 +331,7 @@ function promptUser(callback) {
             message: "What format do you want your config file to be in?",
             default: "JavaScript",
             choices: ["JavaScript", "YAML", "JSON"],
-            when: function(answers) {
+            when(answers) {
                 return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
             }
         }
@@ -367,7 +367,7 @@ function promptUser(callback) {
                 name: "modules",
                 message: "Are you using ES6 modules?",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.es6 === true;
                 }
             },
@@ -383,7 +383,7 @@ function promptUser(callback) {
                 name: "commonjs",
                 message: "Do you use CommonJS?",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.env.some(function(env) {
                         return env === "browser";
                     });
@@ -400,7 +400,7 @@ function promptUser(callback) {
                 name: "react",
                 message: "Do you use React",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.jsx;
                 }
             }
@@ -479,9 +479,9 @@ function promptUser(callback) {
 //------------------------------------------------------------------------------
 
 const init = {
-    getConfigForStyleGuide: getConfigForStyleGuide,
-    processAnswers: processAnswers,
-    initializeConfig: /* istanbul ignore next */ function(callback) {
+    getConfigForStyleGuide,
+    processAnswers,
+    /* istanbul ignore next */initializeConfig(callback) {
         promptUser(callback);
     }
 };

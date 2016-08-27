@@ -52,7 +52,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -87,7 +87,7 @@ module.exports = {
                 context.report(
                     node,
                     "This function has too many statements ({{count}}). Maximum allowed is {{max}}.",
-                    { count: count, max: max });
+                    { count, max });
             }
         }
 
@@ -110,7 +110,7 @@ module.exports = {
             const count = functionStack.pop();
 
             if (ignoreTopLevelFunctions && functionStack.length === 0) {
-                topLevelFunctions.push({ node: node, count: count});
+                topLevelFunctions.push({ node, count});
             } else {
                 reportIfTooManyStatements(node, count, maxStatements);
             }
@@ -141,7 +141,7 @@ module.exports = {
             "FunctionExpression:exit": endFunction,
             "ArrowFunctionExpression:exit": endFunction,
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 if (topLevelFunctions.length === 1) {
                     return;
                 }

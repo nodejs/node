@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const CALLEE_RE = /set(?:Timeout|Interval)|execScript/;
 
         /*
@@ -114,7 +114,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (isImpliedEvalCallExpression(node)) {
 
                     // call expressions create a new substack
@@ -122,7 +122,7 @@ module.exports = {
                 }
             },
 
-            "CallExpression:exit": function(node) {
+            "CallExpression:exit"(node) {
                 if (node === last(last(impliedEvalAncestorsStack))) {
 
                     /* Destroys the entire sub-stack, rather than just using
@@ -133,25 +133,25 @@ module.exports = {
                 }
             },
 
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
                 if (node.operator === "+" && hasImpliedEvalParent(node)) {
                     last(impliedEvalAncestorsStack).push(node);
                 }
             },
 
-            "BinaryExpression:exit": function(node) {
+            "BinaryExpression:exit"(node) {
                 if (node === last(last(impliedEvalAncestorsStack))) {
                     last(impliedEvalAncestorsStack).pop();
                 }
             },
 
-            Literal: function(node) {
+            Literal(node) {
                 if (typeof node.value === "string") {
                     checkString(node);
                 }
             },
 
-            TemplateLiteral: function(node) {
+            TemplateLiteral(node) {
                 checkString(node);
             }
         };
