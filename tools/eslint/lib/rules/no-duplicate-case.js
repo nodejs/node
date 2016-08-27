@@ -21,11 +21,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         return {
-            SwitchStatement: function(node) {
+            SwitchStatement(node) {
                 const mapping = {};
 
                 node.cases.forEach(function(switchCase) {

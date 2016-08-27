@@ -23,11 +23,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
                 if (node.operator === "in" && node.left.type === "UnaryExpression" && node.left.operator === "!") {
                     context.report(node, "The 'in' expression's left operand is negated.");
                 }

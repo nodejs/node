@@ -23,9 +23,15 @@ const debug = require("debug")("eslint:ignored-paths");
 //------------------------------------------------------------------------------
 
 const ESLINT_IGNORE_FILENAME = ".eslintignore";
+
+/**
+ * Adds `"*"` at the end of `"node_modules/"`,
+ * so that subtle directories could be re-included by .gitignore patterns
+ * such as `"!node_modules/should_not_ignored"`
+ */
 const DEFAULT_IGNORE_DIRS = [
-    "node_modules/",
-    "bower_components/"
+    "/node_modules/*",
+    "/bower_components/*"
 ];
 const DEFAULT_OPTIONS = {
     dotfiles: false,
@@ -40,7 +46,7 @@ const DEFAULT_OPTIONS = {
 
 /**
  * Find an ignore file in the current directory.
- * @param {stirng} cwd Current working directory
+ * @param {string} cwd Current working directory
  * @returns {string} Path of ignore file or an empty string.
  */
 function findIgnoreFile(cwd) {
@@ -96,9 +102,7 @@ function IgnoredPaths(options) {
         return ig.add(fs.readFileSync(filepath, "utf8"));
     }
 
-    this.defaultPatterns = DEFAULT_IGNORE_DIRS.map(function(dir) {
-        return "/" + dir + "*";
-    }).concat(options.patterns || []);
+    this.defaultPatterns = [].concat(DEFAULT_IGNORE_DIRS, options.patterns || []);
     this.baseDir = options.cwd;
 
     this.ig = {
@@ -191,34 +195,37 @@ IgnoredPaths.prototype.contains = function(filepath, category) {
 
 /**
  * Returns a list of dir patterns for glob to ignore
- * @returns {string[]} list of glob ignore patterns
+ * @returns {function()} method to check whether a folder should be ignored by glob.
  */
-IgnoredPaths.prototype.getIgnoredFoldersGlobPatterns = function() {
-    let dirs = DEFAULT_IGNORE_DIRS;
+IgnoredPaths.prototype.getIgnoredFoldersGlobChecker = function() {
+
+    const ig = ignore().add(DEFAULT_IGNORE_DIRS);
 
     if (this.options.ignore) {
-
-        /* eslint-disable no-underscore-dangle */
-
-        const patterns = this.ig.custom._rules.filter(function(rule) {
-            return rule.negative;
-        }).map(function(rule) {
-            return rule.origin;
-        });
-
-        /* eslint-enable no-underscore-dangle */
-
-        dirs = dirs.filter(function(dir) {
-            return patterns.every(function(p) {
-                return (p.indexOf("!" + dir) !== 0 && p.indexOf("!/" + dir) !== 0);
-            });
-        });
+        ig.add(this.ig.custom);
     }
 
+    const filter = ig.createFilter();
 
-    return dirs.map(function(dir) {
-        return dir + "**";
-    });
+    /**
+     * TODO
+     * 1.
+     * Actually, it should be `this.options.baseDir`, which is the base dir of `ignore-path`,
+     * as well as Line 177.
+     * But doing this leads to a breaking change and fails tests.
+     * Related to #6759
+     */
+    const base = this.options.cwd;
+
+    return function(absolutePath) {
+        const relative = pathUtil.getRelativePath(absolutePath, base);
+
+        if (!relative) {
+            return false;
+        }
+
+        return !filter(relative);
+    };
 };
 
 module.exports = IgnoredPaths;

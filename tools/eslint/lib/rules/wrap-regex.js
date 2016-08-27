@@ -20,12 +20,12 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         return {
 
-            Literal: function(node) {
+            Literal(node) {
                 const token = sourceCode.getFirstToken(node),
                     nodeType = token.type;
 

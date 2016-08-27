@@ -48,8 +48,8 @@ function normalizeOptions(options) {
     const allowSamePrecedence = (options && options.allowSamePrecedence) !== false;
 
     return {
-        groups: groups,
-        allowSamePrecedence: allowSamePrecedence
+        groups,
+        allowSamePrecedence
     };
 }
 
@@ -101,7 +101,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
         const options = normalizeOptions(context.options[0]);
 
@@ -179,12 +179,12 @@ module.exports = {
             context.report({
                 node: left,
                 loc: getOperatorToken(left).loc.start,
-                message: message
+                message
             });
             context.report({
                 node: right,
                 loc: getOperatorToken(right).loc.start,
-                message: message
+                message
             });
         }
 

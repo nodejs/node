@@ -47,7 +47,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const config = context.options[0],
             sourceCode = context.getSourceCode();
         let checkFunctions = true,
@@ -99,9 +99,9 @@ module.exports = {
                 if (requireSpace) {
                     if (!hasSpace) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Missing space before opening brace.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.insertTextBefore(node, " ");
                             }
                         });
@@ -109,9 +109,9 @@ module.exports = {
                 } else {
                     if (hasSpace) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Unexpected space before opening brace.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.removeRange([precedingToken.range[1], node.range[0]]);
                             }
                         });

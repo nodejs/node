@@ -78,7 +78,7 @@ function drawTable(messages) {
                 wrapWord: true
             }
         },
-        drawHorizontalLine: function(index) {
+        drawHorizontalLine(index) {
             return index === 1;
         }
     });
@@ -143,7 +143,7 @@ module.exports = function(report) {
                 wrapWord: true
             }
         },
-        drawHorizontalLine: function() {
+        drawHorizontalLine() {
             return true;
         }
     });

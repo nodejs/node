@@ -144,7 +144,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // Default to "never" (!always) if no option
         const always = (context.options[0] === "always");

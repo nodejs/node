@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Get the regex expression
@@ -99,7 +99,7 @@ module.exports = {
         }
 
         return {
-            Literal: function(node) {
+            Literal(node) {
                 const regex = getRegExp(node);
 
                 if (regex) {

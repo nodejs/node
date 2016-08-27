@@ -41,7 +41,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals),
@@ -171,7 +171,7 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 const globalScope = context.getScope();
                 const stack = globalScope.childScopes.slice();
 

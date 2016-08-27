@@ -24,7 +24,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Find the nearest Program or Function ancestor node.
@@ -77,7 +77,7 @@ module.exports = {
         return {
 
             FunctionDeclaration: check,
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (context.options[0] === "both" && node.kind === "var") {
                     check(node);
                 }

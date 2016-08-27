@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            ForInStatement: function(node) {
+            ForInStatement(node) {
 
                 /*
                  * If the for-in statement has {}, then the real body is the body

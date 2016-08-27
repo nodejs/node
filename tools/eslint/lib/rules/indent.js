@@ -80,7 +80,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const MESSAGE = "Expected indentation of {{needed}} {{type}} {{characters}} but found {{gotten}}.";
         const DEFAULT_VARIABLE_INDENT = 1;
@@ -152,10 +152,10 @@ module.exports = {
          */
         function report(node, needed, gotten, loc, isLastNodeCheck) {
             const msgContext = {
-                needed: needed,
+                needed,
                 type: indentType,
                 characters: needed === 1 ? "character" : "characters",
-                gotten: gotten
+                gotten
             };
             const indentChar = indentType === "space" ? " " : "\t";
 
@@ -206,15 +206,15 @@ module.exports = {
 
             if (loc) {
                 context.report({
-                    node: node,
-                    loc: loc,
+                    node,
+                    loc,
                     message: MESSAGE,
                     data: msgContext,
                     fix: getFixerFunction()
                 });
             } else {
                 context.report({
-                    node: node,
+                    node,
                     message: MESSAGE,
                     data: msgContext,
                     fix: getFixerFunction()
@@ -268,6 +268,16 @@ module.exports = {
             ) {
                 report(node, indent, nodeIndent);
             }
+
+            if (node.type === "IfStatement" && node.alternate) {
+                const elseToken = sourceCode.getTokenBefore(node.alternate);
+
+                checkNodeIndent(elseToken, indent, excludeCommas);
+
+                if (!isNodeFirstInLine(node.alternate)) {
+                    checkNodeIndent(node.alternate, indent, excludeCommas);
+                }
+            }
         }
 
         /**
@@ -278,14 +288,7 @@ module.exports = {
          * @returns {void}
          */
         function checkNodesIndent(nodes, indent, excludeCommas) {
-            nodes.forEach(function(node) {
-                if (node.type === "IfStatement" && node.alternate) {
-                    const elseToken = sourceCode.getTokenBefore(node.alternate);
-
-                    checkNodeIndent(elseToken, indent, excludeCommas);
-                }
-                checkNodeIndent(node, indent, excludeCommas);
-            });
+            nodes.forEach(node => checkNodeIndent(node, indent, excludeCommas));
         }
 
         /**
@@ -784,7 +787,7 @@ module.exports = {
         }
 
         return {
-            Program: function(node) {
+            Program(node) {
                 if (node.body.length > 0) {
 
                     // Root nodes should have no indent
@@ -806,27 +809,27 @@ module.exports = {
 
             DoWhileStatement: blockLessNodes,
 
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (node.consequent.type !== "BlockStatement" && node.consequent.loc.start.line > node.loc.start.line) {
                     blockIndentationCheck(node);
                 }
             },
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (node.declarations[node.declarations.length - 1].loc.start.line > node.declarations[0].loc.start.line) {
                     checkIndentInVariableDeclarations(node);
                 }
             },
 
-            ObjectExpression: function(node) {
+            ObjectExpression(node) {
                 checkIndentInArrayOrObjectBlock(node);
             },
 
-            ArrayExpression: function(node) {
+            ArrayExpression(node) {
                 checkIndentInArrayOrObjectBlock(node);
             },
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 if (typeof options.MemberExpression === "undefined") {
                     return;
                 }
@@ -860,7 +863,7 @@ module.exports = {
                 checkNodesIndent(checkNodes, propertyIndent);
             },
 
-            SwitchStatement: function(node) {
+            SwitchStatement(node) {
 
                 // Switch is not a 'BlockStatement'
                 const switchIndent = getNodeIndent(node);
@@ -872,7 +875,7 @@ module.exports = {
                 checkLastNodeLineIndent(node, switchIndent);
             },
 
-            SwitchCase: function(node) {
+            SwitchCase(node) {
 
                 // Skip inline cases
                 if (isSingleLineNode(node)) {

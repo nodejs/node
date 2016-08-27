@@ -20,16 +20,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            VariableDeclarator: function(node) {
+            VariableDeclarator(node) {
                 const name = node.id.name,
                     init = node.init && node.init.name;
 
                 if (init === "undefined" && node.parent.kind !== "const") {
-                    context.report(node, "It's not necessary to initialize '{{name}}' to undefined.", { name: name });
+                    context.report(node, "It's not necessary to initialize '{{name}}' to undefined.", { name });
                 }
             }
         };

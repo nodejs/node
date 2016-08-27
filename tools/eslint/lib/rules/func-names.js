@@ -33,7 +33,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const never = context.options[0] === "never";
 
         /**
@@ -54,7 +54,7 @@ module.exports = {
         }
 
         return {
-            "FunctionExpression:exit": function(node) {
+            "FunctionExpression:exit"(node) {
 
                 // Skip recursive functions.
                 const nameVar = context.getDeclaredVariables(node)[0];

@@ -44,7 +44,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const option = context.options[0];
         let THRESHOLD = 20;
 
@@ -91,7 +91,7 @@ module.exports = {
             }
 
             if (complexity > THRESHOLD) {
-                context.report(node, "Function '{{name}}' has a complexity of {{complexity}}.", { name: name, complexity: complexity });
+                context.report(node, "Function '{{name}}' has a complexity of {{complexity}}.", { name, complexity });
             }
         }
 

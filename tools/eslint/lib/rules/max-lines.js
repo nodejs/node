@@ -51,7 +51,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const option = context.options[0];
         let max = 300;
 
@@ -113,9 +113,9 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 let lines = sourceCode.lines.map(function(text, i) {
-                    return { lineNumber: i + 1, text: text };
+                    return { lineNumber: i + 1, text };
                 });
 
                 if (skipBlankLines) {

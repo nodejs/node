@@ -31,7 +31,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0];
         let allowInForAfterthought = false;
@@ -42,7 +42,7 @@ module.exports = {
 
         return {
 
-            UpdateExpression: function(node) {
+            UpdateExpression(node) {
                 if (allowInForAfterthought && node.parent.type === "ForStatement") {
                     return;
                 }

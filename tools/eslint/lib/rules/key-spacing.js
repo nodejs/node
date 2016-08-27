@@ -323,7 +323,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * OPTIONS
@@ -464,7 +464,7 @@ module.exports = {
                         computed: property.computed ? "computed " : "",
                         key: getKey(property)
                     },
-                    fix: fix
+                    fix
                 });
             }
         }
@@ -616,7 +616,7 @@ module.exports = {
         if (alignmentOptions) { // Verify vertical alignment
 
             return {
-                ObjectExpression: function(node) {
+                ObjectExpression(node) {
                     if (isSingleLine(node)) {
                         verifyListSpacing(node.properties.filter(isKeyValueProperty));
                     } else {
@@ -628,7 +628,7 @@ module.exports = {
         } else { // Obey beforeColon and afterColon in each property as configured
 
             return {
-                Property: function(node) {
+                Property(node) {
                     verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
                 }
             };

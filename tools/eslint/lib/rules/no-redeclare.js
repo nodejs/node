@@ -28,7 +28,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals)
         };

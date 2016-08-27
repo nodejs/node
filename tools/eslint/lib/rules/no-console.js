@@ -35,11 +35,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
 
                 if (node.object.name === "console") {
                     let blockConsole = true;

@@ -42,12 +42,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const always = (context.options[0] || "except-parens") !== "except-parens";
         const sourceCode = context.getSourceCode();
 
         return {
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (!always && isEnclosedInParens(node, sourceCode)) {
                     return;
                 }

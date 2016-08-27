@@ -69,6 +69,6 @@ function getRelativePath(filepath, baseDir) {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    convertPathToPosix: convertPathToPosix,
-    getRelativePath: getRelativePath
+    convertPathToPosix,
+    getRelativePath
 };

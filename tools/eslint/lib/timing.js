@@ -136,8 +136,8 @@ module.exports = (function() {
     }
 
     return {
-        time: time,
-        enabled: enabled
+        time,
+        enabled
     };
 
 }());

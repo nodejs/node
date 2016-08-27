@@ -52,7 +52,7 @@ function makeRegistryItems(rulesConfig) {
     return Object.keys(rulesConfig).reduce(function(accumulator, ruleId) {
         accumulator[ruleId] = rulesConfig[ruleId].map(function(config) {
             return {
-                config: config,
+                config,
                 specificity: config.length || 1,
                 errorCount: void 0
             };
@@ -87,7 +87,7 @@ Registry.prototype = {
      *
      * @returns {void}
      */
-    populateFromCoreRules: function() {
+    populateFromCoreRules() {
         const rulesConfig = configRule.createCoreRuleConfigs();
 
         this.rules = makeRegistryItems(rulesConfig);
@@ -107,7 +107,7 @@ Registry.prototype = {
      * @param   {Object}   registry The autoconfig registry
      * @returns {Object[]}          "rules" configurations to use for linting
      */
-    buildRuleSets: function() {
+    buildRuleSets() {
         let idx = 0;
         const ruleIds = Object.keys(this.rules),
             ruleSets = [];
@@ -168,7 +168,7 @@ Registry.prototype = {
      *
      * @returns {void}
      */
-    stripFailingConfigs: function() {
+    stripFailingConfigs() {
         const ruleIds = Object.keys(this.rules),
             newRegistry = new Registry();
 
@@ -193,7 +193,7 @@ Registry.prototype = {
      *
      * @returns {void}
      */
-    stripExtraConfigs: function() {
+    stripExtraConfigs() {
         const ruleIds = Object.keys(this.rules),
             newRegistry = new Registry();
 
@@ -214,7 +214,7 @@ Registry.prototype = {
      *
      * @returns {Registry}  A registry of failing rules.
      */
-    getFailingRulesRegistry: function() {
+    getFailingRulesRegistry() {
         const ruleIds = Object.keys(this.rules),
             failingRegistry = new Registry();
 
@@ -237,7 +237,7 @@ Registry.prototype = {
      *
      * @returns {Object} An eslint config with rules section populated
      */
-    createConfig: function() {
+    createConfig() {
         const ruleIds = Object.keys(this.rules),
             config = {rules: {}};
 
@@ -256,7 +256,7 @@ Registry.prototype = {
      * @param   {number} specificity Only keep configs with this specificity
      * @returns {Registry}           A registry of rules
      */
-    filterBySpecificity: function(specificity) {
+    filterBySpecificity(specificity) {
         const ruleIds = Object.keys(this.rules),
             newRegistry = new Registry();
 
@@ -278,7 +278,7 @@ Registry.prototype = {
      * @param   {progressCallback} [cb] Optional callback for reporting execution status
      * @returns {Registry}              New registry with errorCount populated
      */
-    lintSourceCode: function(sourceCodes, config, cb) {
+    lintSourceCode(sourceCodes, config, cb) {
         let ruleSetIdx,
             lintedRegistry;
 
@@ -361,6 +361,6 @@ function extendFromRecommended(config) {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    Registry: Registry,
-    extendFromRecommended: extendFromRecommended
+    Registry,
+    extendFromRecommended
 };

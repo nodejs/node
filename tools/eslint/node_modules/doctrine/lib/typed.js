@@ -41,7 +41,9 @@
         OptionalType: 'OptionalType',
         NullableType: 'NullableType',
         NameExpression: 'NameExpression',
-        TypeApplication: 'TypeApplication'
+        TypeApplication: 'TypeApplication',
+        StringLiteralType: 'StringLiteralType',
+        NumericLiteralType: 'NumericLiteralType'
     };
 
     Token = {
@@ -233,7 +235,7 @@
 
                     if (index < length) {
                         ch = source.charCodeAt(index);
-                        if (esutils.code.isIdentifierStart(ch)) {
+                        if (esutils.code.isIdentifierStartES5(ch)) {
                             utility.throwError('unexpected token');
                         }
                     }
@@ -253,7 +255,7 @@
 
                     if (index < length) {
                         ch = source.charCodeAt(index);
-                        if (esutils.code.isIdentifierStart(ch) || esutils.code.isDecimalDigit(ch)) {
+                        if (esutils.code.isIdentifierStartES5(ch) || esutils.code.isDecimalDigit(ch)) {
                             utility.throwError('unexpected token');
                         }
                     }
@@ -311,7 +313,7 @@
 
         if (index < length) {
             ch = source.charCodeAt(index);
-            if (esutils.code.isIdentifierStart(ch)) {
+            if (esutils.code.isIdentifierStartES5(ch)) {
                 utility.throwError('unexpected token');
             }
         }
@@ -460,6 +462,10 @@
         case 0x3D:  /* '=' */
             advance();
             token = Token.EQUAL;
+            return token;
+
+        case 0x2D: /* '-' */
+            token = scanNumber();
             return token;
 
         default:
@@ -888,6 +894,20 @@
 
             return parseTypeName();
 
+        case Token.STRING:
+            next();
+            return {
+                type: Syntax.StringLiteralType,
+                value: value
+            };
+
+        case Token.NUMBER:
+            next();
+            return {
+                type: Syntax.NumericLiteralType,
+                value: value
+            };
+
         default:
             utility.throwError('unexpected token');
         }
@@ -1218,6 +1238,14 @@
                 }
             }
             result += '>';
+            break;
+
+        case Syntax.StringLiteralType:
+            result = '"' + node.value + '"';
+            break;
+
+        case Syntax.NumericLiteralType:
+            result = String(node.value);
             break;
 
         default:

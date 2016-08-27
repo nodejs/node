@@ -55,7 +55,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const MODE_ALWAYS = "always",
             MODE_NEVER = "never";
@@ -265,7 +265,7 @@ module.exports = {
             ForOfStatement: startBlock,
             SwitchStatement: startBlock,
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 const parent = node.parent;
                 const type = node.kind;
 

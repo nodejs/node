@@ -123,7 +123,7 @@ CodePath.prototype = {
      * @param {Function} callback - A callback function.
      * @returns {void}
      */
-    traverseSegments: function(options, callback) {
+    traverseSegments(options, callback) {
         if (typeof options === "function") {
             callback = options;
             options = null;
@@ -142,14 +142,14 @@ CodePath.prototype = {
         let skippedSegment = null;
         let broken = false;
         const controller = {
-            skip: function() {
+            skip() {
                 if (stack.length <= 1) {
                     broken = true;
                 } else {
                     skippedSegment = stack[stack.length - 2][0];
                 }
             },
-            break: function() {
+            break() {
                 broken = true;
             }
         };
