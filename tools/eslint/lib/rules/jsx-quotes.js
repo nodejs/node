@@ -19,14 +19,14 @@ const QUOTE_SETTINGS = {
     "prefer-double": {
         quote: "\"",
         description: "singlequote",
-        convert: function(str) {
+        convert(str) {
             return str.replace(/'/g, "\"");
         }
     },
     "prefer-single": {
         quote: "'",
         description: "doublequote",
-        convert: function(str) {
+        convert(str) {
             return str.replace(/"/g, "'");
         }
     }
@@ -53,7 +53,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const quoteOption = context.options[0] || "prefer-double",
             setting = QUOTE_SETTINGS[quoteOption];
 
@@ -68,14 +68,14 @@ module.exports = {
         }
 
         return {
-            JSXAttribute: function(node) {
+            JSXAttribute(node) {
                 const attributeValue = node.value;
 
                 if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
                     context.report({
                         node: attributeValue,
                         message: "Unexpected usage of " + setting.description + ".",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.replaceText(attributeValue, setting.convert(attributeValue.raw));
                         }
                     });

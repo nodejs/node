@@ -60,7 +60,7 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("No source code to fix");
         return {
             fixed: false,
-            messages: messages,
+            messages,
             output: ""
         };
     }
@@ -128,7 +128,7 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("No fixes to apply");
         return {
             fixed: false,
-            messages: messages,
+            messages,
             output: prefix + text
         };
     }

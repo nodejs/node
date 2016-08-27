@@ -69,7 +69,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /*
          * Inspired by http://tools.ietf.org/html/rfc3986#appendix-B, however:

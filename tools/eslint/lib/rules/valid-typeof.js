@@ -16,10 +16,20 @@ module.exports = {
             recommended: true
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    requireStringLiterals: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
             OPERATORS = ["==", "===", "!=", "!=="];
@@ -30,15 +40,19 @@ module.exports = {
 
         return {
 
-            UnaryExpression: function(node) {
+            UnaryExpression(node) {
                 if (node.operator === "typeof") {
                     const parent = context.getAncestors().pop();
 
                     if (parent.type === "BinaryExpression" && OPERATORS.indexOf(parent.operator) !== -1) {
                         const sibling = parent.left === node ? parent.right : parent.left;
 
-                        if (sibling.type === "Literal" && VALID_TYPES.indexOf(sibling.value) === -1) {
-                            context.report(sibling, "Invalid typeof comparison value.");
+                        if (sibling.type === "Literal") {
+                            if (VALID_TYPES.indexOf(sibling.value) === -1) {
+                                context.report(sibling, "Invalid typeof comparison value.");
+                            }
+                        } else if (context.options[0] && context.options[0].requireStringLiterals) {
+                            context.report(sibling, "Typeof comparisons should be to string literals.");
                         }
                     }
                 }

@@ -31,7 +31,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0] || {},
             ignoreChainWithDepth = options.ignoreChainWithDepth || 2;
@@ -54,7 +54,7 @@ module.exports = {
         }
 
         return {
-            "CallExpression:exit": function(node) {
+            "CallExpression:exit"(node) {
                 if (!node.callee || node.callee.type !== "MemberExpression") {
                     return;
                 }

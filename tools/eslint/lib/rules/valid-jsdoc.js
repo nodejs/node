@@ -59,7 +59,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0] || {},
             prefer = options.prefer || {},
@@ -159,8 +159,8 @@ module.exports = {
             const expectedType = currentType && preferType[currentType];
 
             return {
-                currentType: currentType,
-                expectedType: expectedType
+                currentType,
+                expectedType
             };
         }
 
@@ -349,12 +349,12 @@ module.exports = {
                         if (param.type === "Identifier") {
                             if (jsdocParams[i] && (name !== jsdocParams[i])) {
                                 context.report(jsdocNode, "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.", {
-                                    name: name,
+                                    name,
                                     jsdocName: jsdocParams[i]
                                 });
                             } else if (!params[name] && !isOverride) {
                                 context.report(jsdocNode, "Missing JSDoc for parameter '{{name}}'.", {
-                                    name: name
+                                    name
                                 });
                             }
                         }

@@ -38,7 +38,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0];
         const allowLoop = Boolean(options && options.allowLoop);
         const allowSwitch = Boolean(options && options.allowSwitch);
@@ -99,7 +99,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            LabeledStatement: function(node) {
+            LabeledStatement(node) {
                 scopeInfo = {
                     label: node.label.name,
                     kind: getBodyKind(node.body),
@@ -107,10 +107,10 @@ module.exports = {
                 };
             },
 
-            "LabeledStatement:exit": function(node) {
+            "LabeledStatement:exit"(node) {
                 if (!isAllowed(scopeInfo.kind)) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected labeled statement."
                     });
                 }
@@ -118,19 +118,19 @@ module.exports = {
                 scopeInfo = scopeInfo.upper;
             },
 
-            BreakStatement: function(node) {
+            BreakStatement(node) {
                 if (node.label && !isAllowed(getKind(node.label.name))) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected label in break statement."
                     });
                 }
             },
 
-            ContinueStatement: function(node) {
+            ContinueStatement(node) {
                 if (node.label && !isAllowed(getKind(node.label.name))) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected label in continue statement."
                     });
                 }

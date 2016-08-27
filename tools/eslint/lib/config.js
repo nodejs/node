@@ -163,7 +163,7 @@ function getLocalConfig(thisConfig, directory) {
 
             noConfigError.messageTemplate = "no-config-found";
             noConfigError.messageData = {
-                directory: directory,
+                directory,
                 filesExamined: localConfigFiles
             };
 

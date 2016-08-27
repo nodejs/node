@@ -25,7 +25,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let scopeInfo = null;
 
         /**

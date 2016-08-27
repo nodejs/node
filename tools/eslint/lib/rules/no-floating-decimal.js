@@ -20,10 +20,10 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            Literal: function(node) {
+            Literal(node) {
 
                 if (typeof node.value === "number") {
                     if (node.raw.indexOf(".") === 0) {

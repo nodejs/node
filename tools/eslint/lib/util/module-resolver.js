@@ -52,7 +52,7 @@ ModuleResolver.prototype = {
      * @returns {string} The resolved file path for the module.
      * @throws {Error} If the module cannot be resolved.
      */
-    resolve: function(name, extraLookupPath) {
+    resolve(name, extraLookupPath) {
 
         /*
          * First, clone the lookup paths so we're not messing things up for

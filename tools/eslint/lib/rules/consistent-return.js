@@ -56,7 +56,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
         let funcInfo = null;
@@ -110,31 +110,31 @@ module.exports = {
 
             // Reports.
             context.report({
-                node: node,
-                loc: loc,
+                node,
+                loc,
                 message: "Expected to return a value at the end of this {{type}}.",
-                data: {type: type}
+                data: {type}
             });
         }
 
         return {
 
             // Initializes/Disposes state of each code path.
-            onCodePathStart: function(codePath) {
+            onCodePathStart(codePath) {
                 funcInfo = {
                     upper: funcInfo,
-                    codePath: codePath,
+                    codePath,
                     hasReturn: false,
                     hasReturnValue: false,
                     message: ""
                 };
             },
-            onCodePathEnd: function() {
+            onCodePathEnd() {
                 funcInfo = funcInfo.upper;
             },
 
             // Reports a given return statement if it's inconsistent.
-            ReturnStatement: function(node) {
+            ReturnStatement(node) {
                 const argument = node.argument;
                 let hasReturnValue = Boolean(argument);
 
@@ -147,7 +147,7 @@ module.exports = {
                     funcInfo.hasReturnValue = hasReturnValue;
                     funcInfo.message = "Expected " + (hasReturnValue ? "a" : "no") + " return value.";
                 } else if (funcInfo.hasReturnValue !== hasReturnValue) {
-                    context.report({node: node, message: funcInfo.message});
+                    context.report({node, message: funcInfo.message});
                 }
             },
 

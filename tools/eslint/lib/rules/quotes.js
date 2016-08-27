@@ -107,7 +107,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const quoteOption = context.options[0],
             settings = QUOTE_SETTINGS[quoteOption || "double"],
@@ -208,7 +208,7 @@ module.exports = {
 
         return {
 
-            Literal: function(node) {
+            Literal(node) {
                 const val = node.value,
                     rawVal = node.raw;
                 let isValid;
@@ -224,9 +224,9 @@ module.exports = {
 
                     if (!isValid) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Strings must use " + settings.description + ".",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.replaceText(node, settings.convert(node.raw));
                             }
                         });
@@ -234,7 +234,7 @@ module.exports = {
                 }
             },
 
-            TemplateLiteral: function(node) {
+            TemplateLiteral(node) {
 
                 // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
                 if (allowTemplateLiterals || quoteOption === "backtick" || node.parent.type === "TaggedTemplateExpression") {
@@ -245,9 +245,9 @@ module.exports = {
 
                 if (shouldWarn) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Strings must use " + settings.description + ".",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
                         }
                     });

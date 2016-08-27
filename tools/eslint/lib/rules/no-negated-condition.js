@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Determines if a given node is an if-else without a condition on the else
@@ -63,7 +63,7 @@ module.exports = {
         }
 
         return {
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (!hasElseWithoutCondition(node)) {
                     return;
                 }
@@ -72,7 +72,7 @@ module.exports = {
                     context.report(node, "Unexpected negated condition.");
                 }
             },
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 if (isNegatedIf(node)) {
                     context.report(node, "Unexpected negated condition.");
                 }

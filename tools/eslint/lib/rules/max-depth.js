@@ -43,7 +43,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -115,7 +115,7 @@ module.exports = {
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
 
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
                     pushBlock(node);
                 }

@@ -36,7 +36,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const config = context.options[0];
         const exceptions = (config && config.exceptions) || [];
 
@@ -77,7 +77,7 @@ module.exports = {
         }
 
         return {
-            Program: function() {
+            Program() {
                 const globalScope = context.getScope();
 
                 globalScope.variables.forEach(checkVariable);

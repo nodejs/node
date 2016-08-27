@@ -22,11 +22,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 const propertyName = node.property.name,
                     syncRegex = /.*Sync$/;
 

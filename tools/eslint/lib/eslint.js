@@ -59,7 +59,7 @@ function parseBooleanConfig(string, comment) {
 
         items[name] = {
             value: (value === "true"),
-            comment: comment
+            comment
         };
 
     });
@@ -240,14 +240,14 @@ function disableReporting(reportingConfig, start, rulesToDisable) {
     if (rulesToDisable.length) {
         rulesToDisable.forEach(function(rule) {
             reportingConfig.push({
-                start: start,
+                start,
                 end: null,
-                rule: rule
+                rule
             });
         });
     } else {
         reportingConfig.push({
-            start: start,
+            start,
             end: null,
             rule: null
         });
@@ -407,6 +407,28 @@ function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
 }
 
 /**
+ * Normalize ECMAScript version from the initial config
+ * @param  {number} ecmaVersion ECMAScript version from the initial config
+ * @param  {boolean} isModule Whether the source type is module or not
+ * @returns {number} normalized ECMAScript version
+ */
+function normalizeEcmaVersion(ecmaVersion, isModule) {
+
+    // Need at least ES6 for modules
+    if (isModule && (!ecmaVersion || ecmaVersion < 6)) {
+        ecmaVersion = 6;
+    }
+
+    // Calculate ECMAScript edition number from official year version starting with
+    // ES2015, which corresponds with ES6 (or a difference of 2009).
+    if (ecmaVersion >= 2015) {
+        ecmaVersion -= 2009;
+    }
+
+    return ecmaVersion;
+}
+
+/**
  * Process initial config to make it safe to extend by file comment config
  * @param  {Object} config Initial config
  * @returns {Object}        Processed config
@@ -453,20 +475,18 @@ function prepareConfig(config) {
         settings: ConfigOps.merge({}, config.settings || {}),
         parserOptions: ConfigOps.merge(parserOptions, config.parserOptions || {})
     };
+    const isModule = preparedConfig.parserOptions.sourceType === "module";
 
-    if (preparedConfig.parserOptions.sourceType === "module") {
+    if (isModule) {
         if (!preparedConfig.parserOptions.ecmaFeatures) {
             preparedConfig.parserOptions.ecmaFeatures = {};
         }
 
         // can't have global return inside of modules
         preparedConfig.parserOptions.ecmaFeatures.globalReturn = false;
-
-        // also need at least ES6 for modules
-        if (!preparedConfig.parserOptions.ecmaVersion || preparedConfig.parserOptions.ecmaVersion < 6) {
-            preparedConfig.parserOptions.ecmaVersion = 6;
-        }
     }
+
+    preparedConfig.parserOptions.ecmaVersion = normalizeEcmaVersion(preparedConfig.parserOptions.ecmaVersion, isModule);
 
     return preparedConfig;
 }
@@ -485,7 +505,7 @@ function createStubRule(message) {
      */
     function createRuleModule(context) {
         return {
-            Program: function(node) {
+            Program(node) {
                 context.report(node, message);
             }
         };
@@ -632,7 +652,7 @@ module.exports = (function() {
                 ruleId: null,
                 fatal: true,
                 severity: 2,
-                source: source,
+                source,
                 message: "Parsing error: " + message,
 
                 line: ex.lineNumber,
@@ -841,7 +861,7 @@ module.exports = (function() {
                 ignoreEval: true,
                 nodejsScope: ecmaFeatures.globalReturn,
                 impliedStrict: ecmaFeatures.impliedStrict,
-                ecmaVersion: ecmaVersion,
+                ecmaVersion,
                 sourceType: currentConfig.parserOptions.sourceType || "script",
                 fallback: Traverser.getKeys
             });
@@ -890,11 +910,11 @@ module.exports = (function() {
              * and react accordingly.
              */
             traverser.traverse(ast, {
-                enter: function(node, parent) {
+                enter(node, parent) {
                     node.parent = parent;
                     eventGenerator.enterNode(node);
                 },
-                leave: function(node) {
+                leave(node) {
                     eventGenerator.leaveNode(node);
                 }
             });
@@ -965,9 +985,9 @@ module.exports = (function() {
         }
 
         const problem = {
-            ruleId: ruleId,
-            severity: severity,
-            message: message,
+            ruleId,
+            severity,
+            message,
             line: location.line,
             column: location.column + 1,   // switch to 1-base instead of 0-base
             nodeType: node && node.type,

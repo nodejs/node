@@ -20,10 +20,10 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 if (node.alternate.type === "ConditionalExpression" ||
                         node.consequent.type === "ConditionalExpression") {
                     context.report(node, "Do not nest ternary expressions.");

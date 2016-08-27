@@ -91,7 +91,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const mode = context.options[0] || MODE_ALWAYS;
 
         /**
@@ -107,7 +107,7 @@ module.exports = {
             switch (args.length) {
                 case 0:
                     context.report({
-                        node: node,
+                        node,
                         message: "Missing parameters."
                     });
                     break;
@@ -115,7 +115,7 @@ module.exports = {
                 case 1:
                     if (mode === MODE_ALWAYS) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Missing radix parameter."
                         });
                     }
@@ -124,12 +124,12 @@ module.exports = {
                 default:
                     if (mode === MODE_AS_NEEDED && isDefaultRadix(args[1])) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Redundant radix parameter."
                         });
                     } else if (!isValidRadix(args[1])) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Invalid radix parameter."
                         });
                     }
@@ -138,7 +138,7 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 const scope = context.getScope();
                 let variable;
 
