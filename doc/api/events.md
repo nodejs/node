@@ -278,6 +278,14 @@ emitter.once('event', () => {
 });
 ```
 
+The [`--trace-warnings`][] command line flag can be used to display the
+stack trace for such warnings.
+
+The emitted warning can be inspected with [`process.on('warning')`][] and will
+have the additional `emitter`, `type` and `count` properties, referring to
+the event emitter instance, the event’s name and the number of attached
+listeners, respectively.
+
 ### emitter.addListener(eventName, listener)
 <!-- YAML
 added: v0.1.26
@@ -562,4 +570,6 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`domain`]: domain.html
 [`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception
+[`process.on('warning')`]: process.html#process_event_warning
 [stream]: stream.html
+[`--trace-warnings`]: cli.html#cli_trace_warnings
