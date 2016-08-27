@@ -37,7 +37,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
         const always = context.options[0] === "always";
         const prefix = always ? "Expected" : "Unexpected";
@@ -58,7 +58,7 @@ module.exports = {
                 context.report({
                     loc: token.loc.start,
                     message: prefix + " space(s) before '}'.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(token, " ");
                         }
@@ -90,7 +90,7 @@ module.exports = {
                         column: token.loc.end.column - 2
                     },
                     message: prefix + " space(s) after '${'.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(token, " ");
                         }
@@ -104,7 +104,7 @@ module.exports = {
         }
 
         return {
-            TemplateElement: function(node) {
+            TemplateElement(node) {
                 const token = sourceCode.getFirstToken(node);
 
                 checkSpacingBefore(token);

@@ -65,7 +65,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let done = Object.create(null);
 
         /**
@@ -95,7 +95,7 @@ module.exports = {
         }
 
         return {
-            Program: function() {
+            Program() {
                 done = Object.create(null);
             },
 

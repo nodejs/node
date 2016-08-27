@@ -471,12 +471,12 @@ function resolve(filePath, relativeTo) {
             normalizedPackageName = normalizePackageName(packagePath, "eslint-plugin");
             debug("Attempting to resolve " + normalizedPackageName);
             filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-            return { filePath: filePath, configName: configName };
+            return { filePath, configName };
         } else {
             normalizedPackageName = normalizePackageName(filePath, "eslint-config");
             debug("Attempting to resolve " + normalizedPackageName);
             filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-            return { filePath: filePath };
+            return { filePath };
         }
     }
 
@@ -546,14 +546,14 @@ function load(filePath, applyEnvironments, relativeTo) {
 
 module.exports = {
 
-    getBaseDir: getBaseDir,
-    getLookupPath: getLookupPath,
-    load: load,
-    resolve: resolve,
-    write: write,
-    applyExtends: applyExtends,
-    normalizePackageName: normalizePackageName,
-    CONFIG_FILES: CONFIG_FILES,
+    getBaseDir,
+    getLookupPath,
+    load,
+    resolve,
+    write,
+    applyExtends,
+    normalizePackageName,
+    CONFIG_FILES,
 
     /**
      * Retrieves the configuration filename for a given directory. It loops over all
@@ -562,7 +562,7 @@ module.exports = {
      * @returns {?string} The filename of the configuration file for the directory
      *      or null if there is no configuration file in the directory.
      */
-    getFilenameForDirectory: function(directory) {
+    getFilenameForDirectory(directory) {
         for (let i = 0, len = CONFIG_FILES.length; i < len; i++) {
             const filename = path.join(directory, CONFIG_FILES[i]);
 

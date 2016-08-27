@@ -210,23 +210,23 @@ module.exports = {
      * @returns {boolean} Whether or not the tokens are on the same line.
      * @public
      */
-    isTokenOnSameLine: function(left, right) {
+    isTokenOnSameLine(left, right) {
         return left.loc.end.line === right.loc.start.line;
     },
 
-    isNullOrUndefined: isNullOrUndefined,
-    isCallee: isCallee,
-    isES5Constructor: isES5Constructor,
-    getUpperFunction: getUpperFunction,
-    isArrayFromMethod: isArrayFromMethod,
-    isParenthesised: isParenthesised,
+    isNullOrUndefined,
+    isCallee,
+    isES5Constructor,
+    getUpperFunction,
+    isArrayFromMethod,
+    isParenthesised,
 
     /**
      * Checks whether or not a given node is a string literal.
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is a string literal.
      */
-    isStringLiteral: function(node) {
+    isStringLiteral(node) {
         return (
             (node.type === "Literal" && typeof node.value === "string") ||
             node.type === "TemplateLiteral"
@@ -247,7 +247,7 @@ module.exports = {
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is breakable.
      */
-    isBreakableStatement: function(node) {
+    isBreakableStatement(node) {
         return breakableTypePattern.test(node.type);
     },
 
@@ -257,7 +257,7 @@ module.exports = {
      * @param {ASTNode} node - A node to get.
      * @returns {string|null} The label or `null`.
      */
-    getLabel: function(node) {
+    getLabel(node) {
         if (node.parent.type === "LabeledStatement") {
             return node.parent.label.name;
         }
@@ -270,7 +270,7 @@ module.exports = {
      * @returns {Reference[]} An array of only references which are non initializer and writable.
      * @public
      */
-    getModifyingReferences: function(references) {
+    getModifyingReferences(references) {
         return references.filter(isModifyingReference);
     },
 
@@ -281,7 +281,7 @@ module.exports = {
      * @returns {boolean} True if the text is surrounded by the character, false if not.
      * @private
      */
-    isSurroundedBy: function(val, character) {
+    isSurroundedBy(val, character) {
         return val[0] === character && val[val.length - 1] === character;
     },
 
@@ -290,7 +290,7 @@ module.exports = {
      * @param {LineComment|BlockComment} node The node to be checked
      * @returns {boolean} `true` if the node is an ESLint directive comment
      */
-    isDirectiveComment: function(node) {
+    isDirectiveComment(node) {
         const comment = node.value.trim();
 
         return (
@@ -323,7 +323,7 @@ module.exports = {
      * @param {string} name - A variable name to find.
      * @returns {escope.Variable|null} A found variable or `null`.
      */
-    getVariableByName: function(initScope, name) {
+    getVariableByName(initScope, name) {
         let scope = initScope;
 
         while (scope) {
@@ -360,7 +360,7 @@ module.exports = {
      * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
      * @returns {boolean} The function node is the default `this` binding.
      */
-    isDefaultThisBinding: function(node, sourceCode) {
+    isDefaultThisBinding(node, sourceCode) {
         if (isES5Constructor(node) || hasJSDocThisTag(node, sourceCode)) {
             return false;
         }
@@ -496,7 +496,7 @@ module.exports = {
      * @returns {int} precedence level
      * @private
      */
-    getPrecedence: function(node) {
+    getPrecedence(node) {
         switch (node.type) {
             case "SequenceExpression":
                 return 0;
@@ -594,7 +594,7 @@ module.exports = {
      * @param {ASTNode|null} node - A node to check.
      * @returns {boolean} `true` if the node is a loop node.
      */
-    isLoop: function(node) {
+    isLoop(node) {
         return Boolean(node && anyLoopPattern.test(node.type));
     },
 
@@ -609,7 +609,7 @@ module.exports = {
      * @param {ASTNode|null} node - A node to check.
      * @returns {boolean} `true` if the node is a function node.
      */
-    isFunction: function(node) {
+    isFunction(node) {
         return Boolean(node && anyFunctionPattern.test(node.type));
     },
 

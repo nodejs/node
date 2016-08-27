@@ -36,7 +36,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const sourceCode = context.getSourceCode();
         const tokensAndComments = sourceCode.tokensAndComments;
@@ -73,8 +73,8 @@ module.exports = {
          */
         function report(node, dir, otherNode) {
             context.report({
-                node: node,
-                fix: function(fixer) {
+                node,
+                fix(fixer) {
                     if (options[dir]) {
                         if (dir === "before") {
                             return fixer.insertTextBefore(node, " ");
@@ -160,7 +160,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 tokensAndComments.forEach(function(token, i) {
 
                     if (!isComma(token)) {

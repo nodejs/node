@@ -51,7 +51,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         const multiOnly = (context.options[0] === "multi");
         const multiLine = (context.options[0] === "multi-line");
@@ -144,11 +144,11 @@ module.exports = {
          */
         function reportExpectedBraceError(node, name, suffix) {
             context.report({
-                node: node,
+                node,
                 loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
                 message: "Expected { after '{{name}}'{{suffix}}.",
                 data: {
-                    name: name,
+                    name,
                     suffix: (suffix ? " " + suffix : "")
                 }
             });
@@ -164,11 +164,11 @@ module.exports = {
          */
         function reportUnnecessaryBraceError(node, name, suffix) {
             context.report({
-                node: node,
+                node,
                 loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
                 message: "Unnecessary { after '{{name}}'{{suffix}}.",
                 data: {
-                    name: name,
+                    name,
                     suffix: (suffix ? " " + suffix : "")
                 }
             });
@@ -214,8 +214,8 @@ module.exports = {
 
             return {
                 actual: hasBlock,
-                expected: expected,
-                check: function() {
+                expected,
+                check() {
                     if (this.expected !== null && this.expected !== this.actual) {
                         if (this.expected) {
                             reportExpectedBraceError(node, name, suffix);
@@ -272,7 +272,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
                     prepareIfChecks(node).forEach(function(preparedCheck) {
                         preparedCheck.check();
@@ -280,23 +280,23 @@ module.exports = {
                 }
             },
 
-            WhileStatement: function(node) {
+            WhileStatement(node) {
                 prepareCheck(node, node.body, "while", "condition").check();
             },
 
-            DoWhileStatement: function(node) {
+            DoWhileStatement(node) {
                 prepareCheck(node, node.body, "do").check();
             },
 
-            ForStatement: function(node) {
+            ForStatement(node) {
                 prepareCheck(node, node.body, "for", "condition").check();
             },
 
-            ForInStatement: function(node) {
+            ForInStatement(node) {
                 prepareCheck(node, node.body, "for-in").check();
             },
 
-            ForOfStatement: function(node) {
+            ForOfStatement(node) {
                 prepareCheck(node, node.body, "for-of").check();
             }
         };

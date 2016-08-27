@@ -53,7 +53,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         const never = context.options[0] !== "always";
         const allowNewlines = !never && context.options[1] && context.options[1].allowNewlines;
@@ -116,28 +116,28 @@ module.exports = {
 
             if (never && hasWhitespace) {
                 context.report({
-                    node: node,
+                    node,
                     loc: lastCalleeToken.loc.start,
                     message: "Unexpected space between function name and paren.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
                     }
                 });
             } else if (!never && !hasWhitespace) {
                 context.report({
-                    node: node,
+                    node,
                     loc: lastCalleeToken.loc.start,
                     message: "Missing space between function name and paren.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.insertTextBefore(parenToken, " ");
                     }
                 });
             } else if (!never && !allowNewlines && hasNewline) {
                 context.report({
-                    node: node,
+                    node,
                     loc: lastCalleeToken.loc.start,
                     message: "Unexpected newline between function name and paren.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.replaceTextRange([prevToken.range[1], parenToken.range[0]], " ");
                     }
                 });

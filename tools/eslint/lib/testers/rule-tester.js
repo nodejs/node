@@ -198,7 +198,7 @@ RuleTester.prototype = {
      * @param {Function} rule The rule definition.
      * @returns {void}
      */
-    defineRule: function(name, rule) {
+    defineRule(name, rule) {
         eslint.defineRule(name, rule);
     },
 
@@ -209,7 +209,7 @@ RuleTester.prototype = {
      * @param {Object} test The collection of tests to run.
      * @returns {void}
      */
-    run: function(ruleName, rule, test) {
+    run(ruleName, rule, test) {
 
         const testerConfig = this.testerConfig,
             result = {};
@@ -308,7 +308,7 @@ RuleTester.prototype = {
                     } else {
                         return {
                             meta: rule.meta,
-                            create: function(context) {
+                            create(context) {
                                 Object.freeze(context);
                                 freezeDeeply(context.options);
                                 freezeDeeply(context.settings);
@@ -322,8 +322,8 @@ RuleTester.prototype = {
 
                 return {
                     messages: eslint.verify(code, config, filename, true),
-                    beforeAST: beforeAST,
-                    afterAST: afterAST
+                    beforeAST,
+                    afterAST
                 };
             } finally {
                 rules.get = originalGet;

@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         const RESTRICTED = ["undefined", "NaN", "Infinity", "arguments", "eval"];
 
@@ -36,25 +36,25 @@ module.exports = {
         }
 
         return {
-            VariableDeclarator: function(node) {
+            VariableDeclarator(node) {
                 checkForViolation(node.id);
             },
-            ArrowFunctionExpression: function(node) {
+            ArrowFunctionExpression(node) {
                 [].map.call(node.params, checkForViolation);
             },
-            FunctionExpression: function(node) {
+            FunctionExpression(node) {
                 if (node.id) {
                     checkForViolation(node.id);
                 }
                 [].map.call(node.params, checkForViolation);
             },
-            FunctionDeclaration: function(node) {
+            FunctionDeclaration(node) {
                 if (node.id) {
                     checkForViolation(node.id);
                     [].map.call(node.params, checkForViolation);
                 }
             },
-            CatchClause: function(node) {
+            CatchClause(node) {
                 checkForViolation(node.param);
             }
         };

@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const stack = [];
 
         /**
@@ -61,7 +61,7 @@ module.exports = {
             "FunctionExpression:exit": endChecking,
 
             // Increases the count of `yield` keyword.
-            YieldExpression: function() {
+            YieldExpression() {
 
                 /* istanbul ignore else */
                 if (stack.length > 0) {

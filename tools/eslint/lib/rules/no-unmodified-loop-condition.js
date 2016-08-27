@@ -98,7 +98,7 @@ function isInRange(node, reference) {
 const isInLoop = {
     WhileStatement: isInRange,
     DoWhileStatement: isInRange,
-    ForStatement: function(node, reference) {
+    ForStatement(node, reference) {
         return (
             isInRange(node, reference) &&
             !(node.init && isInRange(node.init, reference))
@@ -118,7 +118,7 @@ function hasDynamicExpressions(root) {
     const traverser = new Traverser();
 
     traverser.traverse(root, {
-        enter: function(node) {
+        enter(node) {
             if (DYNAMIC_PATTERN.test(node.type)) {
                 retv = true;
                 this.break();
@@ -152,8 +152,8 @@ function toLoopCondition(reference) {
 
                 // This reference is inside of a loop condition.
                 return {
-                    reference: reference,
-                    group: group,
+                    reference,
+                    group,
                     isInLoop: isInLoop[node.type].bind(null, node),
                     modified: false
                 };
@@ -253,7 +253,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let groupMap = null;
 
         /**
@@ -266,7 +266,7 @@ module.exports = {
             const node = condition.reference.identifier;
 
             context.report({
-                node: node,
+                node,
                 message: "'{{name}}' is not modified in this loop.",
                 data: node
             });
@@ -346,7 +346,7 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 const queue = [context.getScope()];
 
                 groupMap = new Map();

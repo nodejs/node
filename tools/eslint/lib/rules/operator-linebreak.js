@@ -41,7 +41,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const usedDefaultGlobal = !context.options[0];
         const globalStyle = context.options[0] || "after";
@@ -144,12 +144,12 @@ module.exports = {
             BinaryExpression: validateBinaryExpression,
             LogicalExpression: validateBinaryExpression,
             AssignmentExpression: validateBinaryExpression,
-            VariableDeclarator: function(node) {
+            VariableDeclarator(node) {
                 if (node.init) {
                     validateNode(node, node.id);
                 }
             },
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 validateNode(node, node.test);
                 validateNode(node, node.consequent);
             }

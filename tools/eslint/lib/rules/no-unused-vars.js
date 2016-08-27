@@ -58,7 +58,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const MESSAGE = "'{{name}}' is defined but never used.";
 
@@ -550,7 +550,7 @@ module.exports = {
 
             return {
                 line: baseLoc.line + lineInComment,
-                column: column
+                column
             };
         }
 
@@ -559,7 +559,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            "Program:exit": function(programNode) {
+            "Program:exit"(programNode) {
                 const unusedVars = collectUnusedVariables(context.getScope(), []);
 
                 for (let i = 0, l = unusedVars.length; i < l; ++i) {

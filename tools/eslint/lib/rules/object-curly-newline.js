@@ -61,7 +61,7 @@ function normalizeOptionValue(value) {
         multiline = true;
     }
 
-    return {multiline: multiline, minProperties: minProperties};
+    return {multiline, minProperties};
 }
 
 /**
@@ -113,7 +113,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
         const normalizedOptions = normalizeOptions(context.options[0]);
 
@@ -154,9 +154,9 @@ module.exports = {
                 if (astUtils.isTokenOnSameLine(openBrace, first)) {
                     context.report({
                         message: "Expected a line break after this opening brace.",
-                        node: node,
+                        node,
                         loc: openBrace.loc.start,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextAfter(openBrace, "\n");
                         }
                     });
@@ -164,9 +164,9 @@ module.exports = {
                 if (astUtils.isTokenOnSameLine(last, closeBrace)) {
                     context.report({
                         message: "Expected a line break before this closing brace.",
-                        node: node,
+                        node,
                         loc: closeBrace.loc.start,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextBefore(closeBrace, "\n");
                         }
                     });
@@ -175,9 +175,9 @@ module.exports = {
                 if (!astUtils.isTokenOnSameLine(openBrace, first)) {
                     context.report({
                         message: "Unexpected line break after this opening brace.",
-                        node: node,
+                        node,
                         loc: openBrace.loc.start,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.removeRange([
                                 openBrace.range[1],
                                 first.range[0]
@@ -188,9 +188,9 @@ module.exports = {
                 if (!astUtils.isTokenOnSameLine(last, closeBrace)) {
                     context.report({
                         message: "Unexpected line break before this closing brace.",
-                        node: node,
+                        node,
                         loc: closeBrace.loc.start,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.removeRange([
                                 last.range[1],
                                 closeBrace.range[0]

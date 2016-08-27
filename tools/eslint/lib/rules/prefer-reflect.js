@@ -44,7 +44,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const existingNames = {
             apply: "Function.prototype.apply",
             call: "Function.prototype.call",
@@ -80,13 +80,13 @@ module.exports = {
          */
         function report(node, existing, substitute) {
             context.report(node, "Avoid using {{existing}}, instead use {{substitute}}.", {
-                existing: existing,
-                substitute: substitute
+                existing,
+                substitute
             });
         }
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 const methodName = (node.callee.property || {}).name;
                 const isReflectCall = (node.callee.object || {}).name === "Reflect";
                 const hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
@@ -96,7 +96,7 @@ module.exports = {
                     report(node, existingNames[methodName], reflectSubsitutes[methodName]);
                 }
             },
-            UnaryExpression: function(node) {
+            UnaryExpression(node) {
                 const isDeleteOperator = node.operator === "delete";
                 const targetsIdentifier = node.argument.type === "Identifier";
                 const userConfiguredException = exceptions.indexOf("delete") !== -1;

@@ -47,17 +47,19 @@ function load(rulesDir, cwd) {
 
 /**
  * Registers all given rules of a plugin.
- * @param {Object} pluginRules A key/value map of rule definitions.
+ * @param {Object} plugin The plugin object to import.
  * @param {string} pluginName The name of the plugin without prefix (`eslint-plugin-`).
  * @returns {void}
  */
-function importPlugin(pluginRules, pluginName) {
-    Object.keys(pluginRules).forEach(function(ruleId) {
-        const qualifiedRuleId = pluginName + "/" + ruleId,
-            rule = pluginRules[ruleId];
+function importPlugin(plugin, pluginName) {
+    if (plugin.rules) {
+        Object.keys(plugin.rules).forEach(function(ruleId) {
+            const qualifiedRuleId = pluginName + "/" + ruleId,
+                rule = plugin.rules[ruleId];
 
-        define(qualifiedRuleId, rule);
-    });
+            define(qualifiedRuleId, rule);
+        });
+    }
 }
 
 /**
@@ -65,7 +67,7 @@ function importPlugin(pluginRules, pluginName) {
  * @param {string} ruleId Rule id (file name).
  * @returns {Function} Rule handler.
  */
-function get(ruleId) {
+function getHandler(ruleId) {
     if (typeof rules[ruleId] === "string") {
         return require(rules[ruleId]);
     } else {
@@ -83,17 +85,17 @@ function testClear() {
 }
 
 module.exports = {
-    define: define,
-    load: load,
-    import: importPlugin,
-    get: get,
-    testClear: testClear,
+    define,
+    load,
+    importPlugin,
+    get: getHandler,
+    testClear,
 
     /**
      * Resets rules to its starting state. Use for tests only.
      * @returns {void}
      */
-    testReset: function() {
+    testReset() {
         testClear();
         load();
     }

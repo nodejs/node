@@ -29,7 +29,7 @@ function parseOptions(options) {
         classes = options.classes !== false;
     }
 
-    return {functions: functions, classes: classes};
+    return {functions, classes};
 }
 
 /**
@@ -164,7 +164,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = parseOptions(context.options[0]);
 
         // Defines a function which checks whether or not a reference is allowed according to the option.
@@ -227,7 +227,7 @@ module.exports = {
         }
 
         const ruleDefinition = {
-            "Program:exit": function(node) {
+            "Program:exit"(node) {
                 const scope = context.getScope(),
                     ecmaFeatures = context.parserOptions.ecmaFeatures || {};
 
