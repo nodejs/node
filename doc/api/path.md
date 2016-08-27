@@ -261,11 +261,17 @@ path.isAbsolute('.')        // false
 On Windows:
 
 ```js
-path.isAbsolute('//server')  // true
-path.isAbsolute('C:/foo/..') // true
-path.isAbsolute('bar\\baz')  // false
-path.isAbsolute('.')         // false
+path.isAbsolute('//server')    // true
+path.isAbsolute('\\\\server')  // true
+path.isAbsolute('C:/foo/..')   // true
+path.isAbsolute('C:\\foo\\..') // true
+path.isAbsolute('bar\\baz')    // false
+path.isAbsolute('bar/baz')     // false
+path.isAbsolute('.')           // false
 ```
+
+*Note*: On Windows, the `path.isAbsolute()` method will accept both forward
+slash (`/`) and backwards slash (`\`) characters as path delimiters.
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
