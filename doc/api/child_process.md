@@ -291,7 +291,7 @@ environment variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
 
 When specifying the [`stdio`][] option, the value *must* be a JSON Array
-containing at least one item with value `'ipc'` or a `TypeError` will be
+containing exactly one item with value `'ipc'` or an error will be
 thrown. For instance:
 
 ```js
