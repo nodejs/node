@@ -25,7 +25,7 @@ if (common.isWindows) {
   // We'll only try to run symlink test if we have enough privileges.
   exec('whoami /priv', function(err, o) {
     if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
-      common.skip('Skipped: insufficient privileges');
+      common.skip('insufficient privileges');
       return;
     } else {
       test();
