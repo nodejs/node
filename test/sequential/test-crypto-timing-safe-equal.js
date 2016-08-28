@@ -57,10 +57,13 @@ function getTValue(compareFunc) {
   const rawUnequalBenches = Array(numTrials);
 
   for (let i = 0; i < numTrials; i++) {
-    // First benchmark: comparing two equal buffers
-    rawEqualBenches[i] = runBenchmark(compareFunc, bufferA1, bufferA2, true);
+    // FIXME: The order of these benchmarks is swapped.
+    // Flip them back before merging.
+
     // Second benchmark: comparing two unequal buffers
     rawUnequalBenches[i] = runBenchmark(compareFunc, bufferB, bufferC, false);
+    // First benchmark: comparing two equal buffers
+    rawEqualBenches[i] = runBenchmark(compareFunc, bufferA1, bufferA2, true);
   }
 
   const equalBenches = filterOutliers(rawEqualBenches);
