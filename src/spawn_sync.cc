@@ -501,7 +501,12 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // Close the process handle when ExitCallback was not called.
     uv_handle_t* uv_process_handle =
         reinterpret_cast<uv_handle_t*>(&uv_process_);
-    if (!uv_is_closing(uv_process_handle))
+
+    // Close the process handle if it is still open. The handle type also
+    // needs to be checked because TryInitializeAndRunLoop() won't spawn a
+    // process if input validation fails.
+    if (uv_process_handle->type == UV_PROCESS &&
+        !uv_is_closing(uv_process_handle))
       uv_close(uv_process_handle, nullptr);
 
     // Give closing watchers a chance to finish closing and get their close
