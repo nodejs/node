@@ -13,9 +13,7 @@ const buf = Buffer.from(ab);
 
 
 assert.ok(buf instanceof Buffer);
-// For backwards compatibility of old .parent property test that if buf is not
-// a slice then .parent should be undefined.
-assert.equal(buf.parent, undefined);
+assert.equal(buf.parent, buf.buffer);
 assert.equal(buf.buffer, ab);
 assert.equal(buf.length, ab.byteLength);
 
