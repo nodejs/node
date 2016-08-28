@@ -994,7 +994,7 @@ if (common.hasCrypto) {
 
 const ps = Buffer.poolSize;
 Buffer.poolSize = 0;
-assert.strictEqual(Buffer.allocUnsafe(1).parent, undefined);
+assert(Buffer.allocUnsafe(1).parent instanceof ArrayBuffer);
 Buffer.poolSize = ps;
 
 // Test Buffer.copy() segfault
