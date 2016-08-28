@@ -33,14 +33,25 @@ assert.throws(function() {
   crypto.timingSafeEqual(Buffer.from([1, 2]), 'not a buffer');
 }, 'should throw if the second argument is not a buffer');
 
-function runBenchmark(compareFunc, bufferA, bufferB, expectedResult) {
+function runEqualBenchmark(compareFunc, bufferA, bufferB) {
   const startTime = process.hrtime();
   const result = compareFunc(bufferA, bufferB);
   const endTime = process.hrtime(startTime);
 
   // Ensure that the result of the function call gets used, so that it doesn't
   // get discarded due to engine optimizations.
-  assert.strictEqual(result, expectedResult);
+  assert.strictEqual(result, true);
+  return endTime[0] * 1e9 + endTime[1];
+}
+
+// This is almost the same as the runEqualBenchmark function, but it's
+// duplicated to avoid timing issues with V8 optimization/inlining.
+function runUnequalBenchmark(compareFunc, bufferA, bufferB) {
+  const startTime = process.hrtime();
+  const result = compareFunc(bufferA, bufferB);
+  const endTime = process.hrtime(startTime);
+
+  assert.strictEqual(result, false);
   return endTime[0] * 1e9 + endTime[1];
 }
 
@@ -57,17 +68,10 @@ function getTValue(compareFunc) {
   const rawUnequalBenches = Array(numTrials);
 
   for (let i = 0; i < numTrials; i++) {
-
-    if (i % 2) {
-      // First benchmark: comparing two equal buffers
-      rawEqualBenches[i] = runBenchmark(compareFunc, bufferA1, bufferA2, true);
-      // Second benchmark: comparing two unequal buffers
-      rawUnequalBenches[i] = runBenchmark(compareFunc, bufferB, bufferC, false);
-    } else {
-      // Flip the order of the benchmarks every other iteration
-      rawUnequalBenches[i] = runBenchmark(compareFunc, bufferB, bufferC, false);
-      rawEqualBenches[i] = runBenchmark(compareFunc, bufferA1, bufferA2, true);
-    }
+    // First benchmark: comparing two equal buffers
+    rawEqualBenches[i] = runEqualBenchmark(compareFunc, bufferA1, bufferA2);
+    // Second benchmark: comparing two unequal buffers
+    rawUnequalBenches[i] = runUnequalBenchmark(compareFunc, bufferB, bufferC);
   }
 
   const equalBenches = filterOutliers(rawEqualBenches);
@@ -99,9 +103,7 @@ function getTValue(compareFunc) {
       unequalStd: standardDeviation(unequalBenches),
       combinedStd,
       standardErr,
-      t: (equalMean - unequalMean) / standardErr,
-      rawEqualBenches: JSON.stringify(rawEqualBenches),
-      rawUnequalBenches: JSON.stringify(rawUnequalBenches)
+      t: (equalMean - unequalMean) / standardErr
     });
   }
 
