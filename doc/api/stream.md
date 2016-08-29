@@ -83,7 +83,7 @@ used to fill the read buffer).
 Data is buffered in Writable streams when the
 [`writable.write(chunk)`][stream-write] method is called repeatedly. While the
 total size of the internal write buffer is below the threshold set by
-`highWaterMark`, calls to `writable.write()` will return `true`. Once the
+`highWaterMark`, calls to `writable.write()` will return `true`. Once
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
