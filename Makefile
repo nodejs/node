@@ -138,7 +138,7 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
-DOCBUILDSTAMP_PREREQS = $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
+DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS)
