@@ -189,4 +189,4 @@ There's much more to the Event Loop and Timers than this guide
 has covered. To learn more about the internals of the Node.js
 Event Loop and how Timers operate during execution, check out
 this Node.js guide: [The Node.js Event Loop, Timers, and
-process.nextTick()](../topics/the-event-loop-timers-and-nexttick).
+process.nextTick()](../topics/the-event-loop-timers-and-nexttick.md).
