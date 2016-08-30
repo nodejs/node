@@ -1143,14 +1143,13 @@ Will generate:
 
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 
-## process.nextTick(callback[, arg][, ...])
+## process.nextTick(callback[, ...args])
 <!-- YAML
 added: v0.1.26
 -->
 
 * `callback` {Function}
-* `[, arg][, ...]` {any} Additional arguments to pass when invoking the
-  `callback`
+* `...args` {any} Additional arguments to pass when invoking the `callback`
 
 The `process.nextTick()` method adds the `callback` to the "next tick queue".
 Once the current turn of the event loop turn runs to completion, all callbacks
@@ -1705,7 +1704,7 @@ cases:
 [`process.execPath`]: #process_process_execpath
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
-[`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_arg
+[`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [process_emit_warning]: #process_process_emitwarning_warning_name_ctor
 [process_warning]: #process_event_warning
 [Signal Events]: #process_signal_events

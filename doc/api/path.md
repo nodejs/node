@@ -272,12 +272,12 @@ path.isAbsolute('.')           // false
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.join([path[, ...]])
+## path.join([...paths])
 <!-- YAML
 added: v0.1.16
 -->
 
-* `[path[, ...]]` {String} A sequence of path segments
+* `...paths` {String} A sequence of path segments
 
 The `path.join()` method join all given `path` segments together using the
 platform specific separator as a delimiter, then normalizes the resulting path.
@@ -438,12 +438,12 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
 
 A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
 
-## path.resolve([path[, ...]])
+## path.resolve([...paths])
 <!-- YAML
 added: v0.3.4
 -->
 
-* `[path[, ...]]` {String} A sequence of paths or path segments
+* `...paths` {String} A sequence of paths or path segments
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
 an absolute path.

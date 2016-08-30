@@ -65,14 +65,14 @@ a certain period of time. When a timer's function is called varies depending on
 which method was used to create the timer and what other work the Node.js
 event loop is doing.
 
-### setImmediate(callback[, ...arg])
+### setImmediate(callback[, ...args])
 <!-- YAML
 added: v0.9.1
 -->
 
 * `callback` {Function} The function to call at the end of this turn of
   [the Node.js Event Loop]
-* `[, ...arg]` Optional arguments to pass when the `callback` is called.
+* `...args` {any} Optional arguments to pass when the `callback` is called.
 
 Schedules the "immediate" execution of the `callback` after I/O events'
 callbacks and before timers created using [`setTimeout()`][] and
@@ -87,7 +87,7 @@ next event loop iteration.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-### setInterval(callback, delay[, ...arg])
+### setInterval(callback, delay[, ...args])
 <!-- YAML
 added: v0.0.1
 -->
@@ -95,7 +95,7 @@ added: v0.0.1
 * `callback` {Function} The function to call when the timer elapses.
 * `delay` {number} The number of milliseconds to wait before calling the
   `callback`.
-* `[, ...arg]` Optional arguments to pass when the `callback` is called.
+* `...args` {any} Optional arguments to pass when the `callback` is called.
 
 Schedules repeated execution of `callback` every `delay` milliseconds.
 Returns a `Timeout` for use with [`clearInterval()`][].
@@ -105,7 +105,7 @@ set to `1`.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-### setTimeout(callback, delay[, ...arg])
+### setTimeout(callback, delay[, ...args])
 <!-- YAML
 added: v0.0.1
 -->
@@ -113,7 +113,7 @@ added: v0.0.1
 * `callback` {Function} The function to call when the timer elapses.
 * `delay` {number} The number of milliseconds to wait before calling the
   `callback`.
-* `[, ...arg]` Optional arguments to pass when the `callback` is called.
+* `...args` {any} Optional arguments to pass when the `callback` is called.
 
 Schedules execution of a one-time `callback` after `delay` milliseconds.
 Returns a `Timeout` for use with [`clearTimeout()`][].
@@ -168,6 +168,6 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 [`clearImmediate()`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
-[`setImmediate()`]: timers.html#timers_setimmediate_callback_arg
-[`setInterval()`]: timers.html#timers_setinterval_callback_delay_arg
-[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_arg
+[`setImmediate()`]: timers.html#timers_setimmediate_callback_args
+[`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
+[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
