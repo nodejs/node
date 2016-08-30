@@ -210,6 +210,8 @@ more information about the governance of the Node.js project, see
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
+* [danbev](https://github.com/danbev) -
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [domenic](https://github.com/domenic) -
 **Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
