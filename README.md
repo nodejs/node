@@ -244,6 +244,8 @@ more information about the governance of the Node.js project, see
 **Minwoo Jung** &lt;jmwsoft@gmail.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
+* [lpinca](https://github.com/lpinca) -
+**Luigi Pinca** &lt;luigipinca@gmail.com&gt;
 * [lxe](https://github.com/lxe) -
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
