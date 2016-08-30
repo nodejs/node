@@ -116,39 +116,34 @@ onboarding session.
       * The remaining elements on the form are typically unchanged with the exception of `POST_STATUS_TO_PR`. Check that if you want a CI status indicator to be automatically inserted into the PR.
 
 
-## process for getting code in
+## Landing PRs: Overview
 
-  * the collaborator guide is a great resource: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#technical-howto
-
-
-  * no one (including TSC or CTC members) pushes directly to master without review
-    * an exception is made for release commits only
+  * The [Collaborator Guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#technical-howto) is a great resource.
 
 
-  * one "LGTM" is usually sufficient, except for semver-major changes
-    * the more the better
-    * semver-major (breaking) changes must be reviewed in some form by the CTC
+  * No one (including TSC or CTC members) pushes directly to master without review.
+    * An exception is made for release commits only.
 
 
-  * be sure to wait before merging non-trivial changes
-    * 48 hours for non-trivial changes, and 72 hours on weekends.
+  * One "LGTM" is usually sufficient, except for semver-major changes.
+    * The more the better.
+    * Breaking changes must be LGTM'ed by at least two CTC members.
 
 
-  * **make sure to run the PR through CI before merging!** (Except for documentation PRs)
+  * Wait before merging non-trivial changes.
+    * 48 hours during the week and 72 hours on weekends.
 
 
-  * once code is ready to go in:
-    * [**See "Landing PRs"**](#landing-prs) below
+  * **Run the PR through CI before merging!**
+    * An exception can be made for documentation-only PRs.
 
-
-  * what if something goes wrong?
-    * ping a CTC member
+  * What if something goes wrong?
+    * Ping a CTC member.
     * `#node-dev` on freenode
-    * force-pushing to fix things after is allowed for ~10 minutes, be sure to notify people in IRC if you need to do this, but avoid it
-    * Info on PRs that don't like to apply found under [**"If `git am` fails"**](./onboarding-extras.md#if-git-am-fails).
+    * Force-pushing to fix things after is allowed for ~10 minutes. Avoid it if you can. Post to `#node-dev` (IRC) if you need to force push.
 
 
-## Landing PRs
+## Landing PRs: Details
 
 * Please never use GitHub's green "Merge Pull Request" button.
   * If you do, please force-push removing the merge.
@@ -160,6 +155,7 @@ Update your `master` branch (or whichever branch you are landing on, almost alwa
 Landing a PR
 
 * if it all looks good, `curl -L 'url-of-pr.patch' | git am`
+  * If `git am` fails, see [the relevant section of the Onboarding Extras doc](./onboarding-extras.md#if-git-am-fails).
 * `git rebase -i upstream/master`
 * squash into logical commits if necessary
 * `./configure && make -j8 test` (`-j8` builds node in parallel with 8 threads. adjust to the number of cores (or processor-level threads) your processor has (or slightly more) for best results.)
