@@ -773,6 +773,8 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ca_store_ = root_cert_store;
+  // Increment reference count so global store is not deleted along with CTX.
+  CRYPTO_add(&root_cert_store->references, 1, CRYPTO_LOCK_X509_STORE);
   SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
 }
 
