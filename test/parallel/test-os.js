@@ -125,3 +125,27 @@ if (common.isWindows && process.env.USERPROFILE) {
   assert.ok(os.homedir().indexOf(path.sep) !== -1);
   process.env.HOME = home;
 }
+
+const pwd = os.userInfo();
+const pwdBuf = os.userInfo({ encoding: 'buffer' });
+
+if (common.isWindows) {
+  assert.strictEqual(pwd.uid, -1);
+  assert.strictEqual(pwd.gid, -1);
+  assert.strictEqual(pwd.shell, null);
+  assert.strictEqual(pwdBuf.uid, -1);
+  assert.strictEqual(pwdBuf.gid, -1);
+  assert.strictEqual(pwdBuf.shell, null);
+} else {
+  assert.strictEqual(typeof pwd.uid, 'number');
+  assert.strictEqual(typeof pwd.gid, 'number');
+  assert.notStrictEqual(pwd.shell.indexOf(path.sep), -1);
+  assert.strictEqual(pwd.uid, pwdBuf.uid);
+  assert.strictEqual(pwd.gid, pwdBuf.gid);
+  assert.strictEqual(pwd.shell, pwdBuf.shell.toString('utf8'));
+}
+
+assert.strictEqual(typeof pwd.username, 'string');
+assert.notStrictEqual(pwd.homedir.indexOf(path.sep), -1);
+assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
+assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));

@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
-var net = require('net');
+const assert = require('assert');
+const common = require('../common');
+const fork = require('child_process').fork;
+const net = require('net');
 
 // progress tracker
 function ProgressTracker(missing, callback) {
@@ -76,9 +76,9 @@ if (process.argv[2] === 'child') {
       server.close();
     });
 
-    // we expect 10 connections and close events
-    var connections = new ProgressTracker(10, progress.done.bind(progress));
-    var closed = new ProgressTracker(10, progress.done.bind(progress));
+    // we expect 4 connections and close events
+    var connections = new ProgressTracker(4, progress.done.bind(progress));
+    var closed = new ProgressTracker(4, progress.done.bind(progress));
 
     // create server and send it to child
     var server = net.createServer();
@@ -99,7 +99,7 @@ if (process.argv[2] === 'child') {
       if (msg.what === 'listening') {
         // make connections
         var socket;
-        for (var i = 0; i < 10; i++) {
+        for (var i = 0; i < 4; i++) {
           socket = net.connect(common.PORT, function() {
             console.log('CLIENT: connected');
           });

@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 
 import errno
-
-try:
-  import json
-except ImportError:
-  import simplejson as json
-
+import json
 import os
 import re
 import shutil
