@@ -140,13 +140,6 @@ class SecureContext : public BaseObject {
   void FreeCTXMem() {
     if (ctx_) {
       env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
-      if (ctx_->cert_store == root_cert_store) {
-        // SSL_CTX_free() will attempt to free the cert_store as well.
-        // Since we want our root_cert_store to stay around forever
-        // we just clear the field. Hopefully OpenSSL will not modify this
-        // struct in future versions.
-        ctx_->cert_store = nullptr;
-      }
       SSL_CTX_free(ctx_);
       if (cert_ != nullptr)
         X509_free(cert_);
