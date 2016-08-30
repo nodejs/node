@@ -294,7 +294,7 @@ added: v0.1.26
 
 Alias for `emitter.on(eventName, listener)`.
 
-### emitter.emit(eventName[, arg1][, arg2][, ...])
+### emitter.emit(eventName[, ...args])
 <!-- YAML
 added: v0.1.26
 -->
