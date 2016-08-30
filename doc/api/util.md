@@ -88,12 +88,12 @@ The `--throw-deprecation` command line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
-## util.format(format[, ...])
+## util.format(format[, ...args])
 <!-- YAML
 added: v0.5.3
 -->
 
-* `format` {string} A `printf`-like format string.
+* `format` {String} A `printf`-like format string.
 
 The `util.format()` method returns a formatted string using the first argument
 as a `printf`-like format.
@@ -367,11 +367,11 @@ deprecated: v0.11.3
 
 > Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
-* `string` {string} The message to print to `stderr`
+* `string` {String} The message to print to `stderr`
 
 Deprecated predecessor of `console.error`.
 
-### util.error([...])
+### util.error([...strings])
 <!-- YAML
 added: v0.3.0
 deprecated: v0.11.3
@@ -379,7 +379,7 @@ deprecated: v0.11.3
 
 > Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
-* `string` {string} The message to print to `stderr`
+* `...strings` {String} The message to print to `stderr`
 
 Deprecated predecessor of `console.error`.
 
@@ -781,7 +781,7 @@ deprecated: v6.0.0
 
 > Stability: 0 - Deprecated: Use a third party module instead.
 
-* `string` {string}
+* `string` {String}
 
 The `util.log()` method prints the given `string` to `stdout` with an included
 timestamp.
@@ -792,7 +792,7 @@ const util = require('util');
 util.log('Timestamped message.');
 ```
 
-### util.print([...])
+### util.print([...strings])
 <!-- YAML
 added: v0.3.0
 deprecated: v0.11.3
@@ -802,7 +802,7 @@ deprecated: v0.11.3
 
 Deprecated predecessor of `console.log`.
 
-### util.puts([...])
+### util.puts([...strings])
 <!-- YAML
 added: v0.3.0
 deprecated: v0.11.3
@@ -833,7 +833,7 @@ similar built-in functionality through [`Object.assign()`].
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
 [`Error`]: errors.html#errors_class_error
-[`console.log()`]: console.html#console_console_log_data
-[`console.error()`]: console.html#console_console_error_data
+[`console.log()`]: console.html#console_console_log_data_args
+[`console.error()`]: console.html#console_console_error_data_args
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
