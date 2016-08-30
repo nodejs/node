@@ -109,6 +109,7 @@ function doJSON(input, filename, cb) {
           current.shortDesc = current.desc;
           current.desc = [];
         }
+        current.desc.links = lexed.links;
         current.desc.push(tok);
         state = 'DESC';
       }
@@ -144,6 +145,7 @@ function doJSON(input, filename, cb) {
     }
 
     current.desc = current.desc || [];
+    current.desc.links = lexed.links;
     current.desc.push(tok);
 
   });
