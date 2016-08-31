@@ -137,7 +137,7 @@ onboarding session.
 
   * Wait before merging non-trivial changes.
     * 48 hours during the week and 72 hours on weekends.
-    * An example of a trivial change would be correcting the misspelling of a single word in a documentation file.
+    * An example of a trivial change would be correcting the misspelling of a single word in a documentation file. This sort of change still needs to receive at least one `LGTM` but it does not need to wait 48 hours before landing. 
 
   * **Run the PR through CI before merging!**
     * An exception can be made for documentation-only PRs.
