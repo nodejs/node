@@ -140,7 +140,7 @@ onboarding session.
     * An example of a trivial change would be correcting the misspelling of a single word in a documentation file. This sort of change still needs to receive at least one `LGTM` but it does not need to wait 48 hours before landing. 
 
   * **Run the PR through CI before merging!**
-    * An exception can be made for documentation-only PRs.
+    * An exception can be made for documentation-only PRs as long as it does not include the `addons.md` documentation file. (Example code from that document is extracted and built as part of the tests!)
 
   * What if something goes wrong?
     * Ping a CTC member.
