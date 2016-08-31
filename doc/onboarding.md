@@ -125,10 +125,13 @@ onboarding session.
     * An exception is made for release commits only.
 
 
-  * One "LGTM" is usually sufficient, except for semver-major changes.
-    * The more the better.
+  * One `LGTM` is sufficient, except for semver-major changes.
+    * More than one is better.
     * Breaking changes must be LGTM'ed by at least two CTC members.
-
+    * If one or more Collaborators object to a change, it may not land. Your options in such a situation (aside from abandoning the change) are:
+      * Engage those with objections to persuade them to drop their objections.
+      * Alter your changes so that the objections are dropped.
+      * Escalate to the CTC with the `ctc-agenda` label. Do not do this without exhausting the other options first.
 
   * Wait before merging non-trivial changes.
     * 48 hours during the week and 72 hours on weekends.
@@ -140,7 +143,9 @@ onboarding session.
   * What if something goes wrong?
     * Ping a CTC member.
     * `#node-dev` on freenode
-    * Force-pushing to fix things after is allowed for ~10 minutes. Avoid it if you can. Post to `#node-dev` (IRC) if you need to force push.
+    * Force-pushing to fix things after is allowed for ~10 minutes. Avoid it if you can.
+      * Use `--force-with-lease` to minimize the chance of overwriting someone else's change.
+      * Post to `#node-dev` (IRC) if you force push.
 
 
 ## Landing PRs: Details
@@ -167,7 +172,7 @@ Landing a PR
     * `Reviewed-By: human <email>`
       * Easiest to use `git log` then do a search
       * (`/Name` + `enter` (+ `n` as much as you need to) in vim)
-      * Only include collaborators who have commented "LGTM"
+      * Only include collaborators who have commented `LGTM`
     * `PR-URL: <full-pr-url>`
 * `git push upstream master`
     * close the original PR with "Landed in `<commit hash>`".
