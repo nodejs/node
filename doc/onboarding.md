@@ -137,7 +137,7 @@ onboarding session.
 
   * Wait before merging non-trivial changes.
     * 48 hours during the week and 72 hours on weekends.
-
+    * An example of a trivial change would be correcting the misspelling of a single word in a documentation file.
 
   * **Run the PR through CI before merging!**
     * An exception can be made for documentation-only PRs.
