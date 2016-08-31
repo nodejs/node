@@ -693,6 +693,12 @@ fs.exists('/etc/passwd', (exists) => {
 });
 ```
 
+**Note that the parameter to this callback is not consistent with other
+Node.js callbacks.** Normally, the first parameter to a Node.js callback is
+an `err` parameter, optionally followed by other parameters. The
+`fs.exists()` callback has only one boolean parameter. This is one reason
+`fs.access()` is recommended instead of `fs.exists()`.
+
 Using `fs.exists()` to check for the existence of a file before calling
 `fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
 so introduces a race condition, since other processes may change the file's
@@ -774,16 +780,17 @@ process.
 ## fs.existsSync(path)
 <!-- YAML
 added: v0.1.21
-deprecated: v1.0.0
 -->
-
-> Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][]
-> instead.
 
 * `path` {String | Buffer}
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
+
+Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
+(The `callback` parameter to `fs.exists()` accepts parameters that are
+inconsistent with other Node.js callbacks. `fs.existsSync()` does not use
+a callback.)
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
@@ -2167,7 +2174,6 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`Buffer`]: buffer.html#buffer_buffer
 [Caveats]: #fs_caveats
 [`fs.access()`]: #fs_fs_access_path_mode_callback
-[`fs.accessSync()`]: #fs_fs_accesssync_path_mode
 [`fs.appendFile()`]: fs.html#fs_fs_appendfile_file_data_options_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_callback
@@ -2180,7 +2186,6 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.readFile`]: #fs_fs_readfile_file_options_callback
 [`fs.stat()`]: #fs_fs_stat_path_callback
 [`fs.Stats`]: #fs_class_fs_stats
-[`fs.statSync()`]: #fs_fs_statsync_path
 [`fs.utimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
 [`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
