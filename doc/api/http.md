@@ -1419,6 +1419,8 @@ Options:
   request when the `agent` option is not used. This can be used to avoid
   creating a custom Agent class just to override the default `createConnection`
   function. See [`agent.createConnection()`][] for more details.
+- `timeout`: A number specifying the socket timeout in milliseconds. 
+  This will set the timeout before the socket is connected.
 
 The optional `callback` parameter will be added as a one time listener for
 the [`'response'`][] event.

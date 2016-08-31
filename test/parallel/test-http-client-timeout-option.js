@@ -7,7 +7,8 @@ var options = {
   method: 'GET',
   port: undefined,
   host: '127.0.0.1',
-  path: '/'
+  path: '/',
+  timeout: 1
 };
 
 var server = http.createServer();
@@ -21,7 +22,6 @@ server.listen(0, options.host, function() {
   req.on('close', common.mustCall(() => server.close()));
 
   var timeout_events = 0;
-  req.setTimeout(1);
   req.on('timeout', common.mustCall(() => timeout_events += 1));
   setTimeout(function() {
     req.destroy();
@@ -29,5 +29,5 @@ server.listen(0, options.host, function() {
   }, common.platformTimeout(100));
   setTimeout(function() {
     req.end();
-  }, common.platformTimeout(50));
+  }, common.platformTimeout(10));
 });
