@@ -128,10 +128,12 @@ onboarding session.
   * One `LGTM` is sufficient, except for semver-major changes.
     * More than one is better.
     * Breaking changes must be LGTM'ed by at least two CTC members.
-    * If one or more Collaborators object to a change, it may not land. Your options in such a situation (aside from abandoning the change) are:
-      * Engage those with objections to persuade them to drop their objections.
-      * Alter your changes so that the objections are dropped.
-      * Escalate to the CTC with the `ctc-agenda` label. Do not do this without exhausting the other options first.
+    * If one or more Collaborators object to a change, it should not land until 
+    the objection is addressed. The options for such a situation include:
+      * Engaging those with objections to determine a viable path forward;
+      * Altering the pull request to address the objections;
+      * Escalating the discussion to the CTC using the `ctc-agenda` label. 
+        This should only be done after other options have been exhausted.
 
   * Wait before merging non-trivial changes.
     * 48 hours during the week and 72 hours on weekends.
