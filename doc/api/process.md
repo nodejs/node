@@ -1445,6 +1445,15 @@ if (process.getuid && process.setuid) {
 Android)
 
 
+## process.startTime
+<!-- YAML
+added: REPLACEME
+-->
+
+The `process.startTime` property returns the number of milliseconds since epoch the current Node.js
+process was started.
+
+
 ## process.stderr
 
 The `process.stderr` property returns a [Writable][] stream equivalent to or
