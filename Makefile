@@ -119,7 +119,7 @@ test: all
 	$(MAKE) build-addons
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		addons doctool known_issues message pseudo-tty parallel sequential
+		addons doctool inspector known_issues message pseudo-tty parallel sequential
 	$(MAKE) lint
 
 test-parallel: all
@@ -193,7 +193,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons
-CI_JS_SUITES := doctool known_issues message parallel pseudo-tty sequential
+CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential
 
 # Build and test addons without building anything else
 test-ci-native: | test/addons/.buildstamp
@@ -232,6 +232,9 @@ test-internet: all
 
 test-debugger: all
 	$(PYTHON) tools/test.py debugger
+
+test-inspector: all
+	$(PYTHON) tools/test.py inspector
 
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
