@@ -33,44 +33,48 @@ assert.throws(function() {
   crypto.timingSafeEqual(Buffer.from([1, 2]), 'not a buffer');
 }, 'should throw if the second argument is not a buffer');
 
-function runEqualBenchmark(compareFunc, bufferA, bufferB) {
-  const startTime = process.hrtime();
-  const result = compareFunc(bufferA, bufferB);
-  const endTime = process.hrtime(startTime);
-
-  // Ensure that the result of the function call gets used, so that it doesn't
-  // get discarded due to engine optimizations.
-  assert.strictEqual(result, true);
-  return endTime[0] * 1e9 + endTime[1];
-}
-
-// This is almost the same as the runEqualBenchmark function, but it's
-// duplicated to avoid timing issues with V8 optimization/inlining.
-function runUnequalBenchmark(compareFunc, bufferA, bufferB) {
-  const startTime = process.hrtime();
-  const result = compareFunc(bufferA, bufferB);
-  const endTime = process.hrtime(startTime);
-
-  assert.strictEqual(result, false);
-  return endTime[0] * 1e9 + endTime[1];
-}
-
 function getTValue(compareFunc) {
   const numTrials = 10000;
   const testBufferSize = 10000;
   // Perform benchmarks to verify that timingSafeEqual is actually timing-safe.
-  const bufferA1 = Buffer.alloc(testBufferSize, 'A');
-  const bufferA2 = Buffer.alloc(testBufferSize, 'A');
-  const bufferB = Buffer.alloc(testBufferSize, 'B');
-  const bufferC = Buffer.alloc(testBufferSize, 'C');
 
   const rawEqualBenches = Array(numTrials);
   const rawUnequalBenches = Array(numTrials);
 
   for (let i = 0; i < numTrials; i++) {
+
+    // The `runEqualBenchmark` and `runUnequalBenchmark` functions are
+    // intentionally redefined on every iteration of this loop, to avoid
+    // timing inconsistency.
+    function runEqualBenchmark(compareFunc, bufferA, bufferB) {
+      const startTime = process.hrtime();
+      const result = compareFunc(bufferA, bufferB);
+      const endTime = process.hrtime(startTime);
+
+      // Ensure that the result of the function call gets used, so it doesn't
+      // get discarded due to engine optimizations.
+      assert.strictEqual(result, true);
+      return endTime[0] * 1e9 + endTime[1];
+    }
+
+    // This is almost the same as the runEqualBenchmark function, but it's
+    // duplicated to avoid timing issues with V8 optimization/inlining.
+    function runUnequalBenchmark(compareFunc, bufferA, bufferB) {
+      const startTime = process.hrtime();
+      const result = compareFunc(bufferA, bufferB);
+      const endTime = process.hrtime(startTime);
+
+      assert.strictEqual(result, false);
+      return endTime[0] * 1e9 + endTime[1];
+    }
     // First benchmark: comparing two equal buffers
+    const bufferA1 = Buffer.alloc(testBufferSize, 'A');
+    const bufferA2 = Buffer.alloc(testBufferSize, 'A');
     rawEqualBenches[i] = runEqualBenchmark(compareFunc, bufferA1, bufferA2);
+
     // Second benchmark: comparing two unequal buffers
+    const bufferB = Buffer.alloc(testBufferSize, 'B');
+    const bufferC = Buffer.alloc(testBufferSize, 'C');
     rawUnequalBenches[i] = runUnequalBenchmark(compareFunc, bufferB, bufferC);
   }
 
