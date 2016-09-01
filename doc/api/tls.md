@@ -96,7 +96,7 @@ OpenSSL command-line interface to generate such parameters:
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
-If using Perfect Foward Secrecy using `ECDHE`, Diffie-Hellman parameters are
+If using Perfect Forward Secrecy using `ECDHE`, Diffie-Hellman parameters are
 not required and a default ECDHE curve will be used. The `ecdheCurve` property
 can be used when creating a TLS Server to specify the name of an
 alternative curve to use.
