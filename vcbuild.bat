@@ -82,7 +82,8 @@ if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&got
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
 
-echo Warning: ignoring invalid command line option `%1`.
+echo Error: invalid command line option `%1`.
+exit /b 1
 
 :arg-ok
 :arg-ok
