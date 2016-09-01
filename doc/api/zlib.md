@@ -156,7 +156,7 @@ That is: 128K for windowBits=15  +  128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
 For example, to reduce the default memory requirements from 256K to 128K, the
-options shoud be set to:
+options should be set to:
 
 ```js
 { windowBits: 14, memLevel: 7 }
