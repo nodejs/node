@@ -33,7 +33,7 @@ static void dump_hex(const char* buf, size_t len) {
   while (ptr < end) {
     cptr = ptr;
     for (i = 0; i < 16 && ptr < end; i++) {
-      printf("%2.2X  ", *(ptr++));
+      printf("%2.2X  ", static_cast<unsigned char>(*(ptr++)));
     }
     for (i = 72 - (i * 4); i > 0; i--) {
       printf(" ");
