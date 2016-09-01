@@ -154,7 +154,7 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 
 void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  buf->base = static_cast<char*>(malloc(size));
+  buf->base = static_cast<char*>(node::Malloc(size));
   buf->len = size;
 
   if (buf->base == nullptr && size > 0) {
@@ -210,7 +210,7 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     return;
   }
 
-  char* base = static_cast<char*>(realloc(buf->base, nread));
+  char* base = static_cast<char*>(node::Realloc(buf->base, nread));
   CHECK_LE(static_cast<size_t>(nread), buf->len);
 
   if (pending == UV_TCP) {
