@@ -703,7 +703,7 @@ console.log(process.env.TEST);
 // => undefined
 ```
 
-## process.emitWarning(warning[, name][, ctor])
+## process.emitWarning(warning[, name][, ctor][, state])
 <!-- YAML
 added: v6.0.0
 -->
@@ -714,10 +714,13 @@ added: v6.0.0
 * `ctor` {Function} When `warning` is a String, `ctor` is an optional
   function used to limit the generated stack trace. Default
   `process.emitWarning`
+* `state` {Boolean} a boolean value decides what to return
 
 The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
 [`process.on('warning')`][process_warning] event.
+
+The `process.emitWarning()` method always returns `true`.
 
 ```js
 // Emit a warning using a string...
@@ -781,10 +784,7 @@ flag as illustrated in the example below:
 ```js
 var warned = false;
 function emitMyWarning() {
-  if (!warned) {
-    process.emitWarning('Only warn once!');
-    warned = true;
-  }
+  warned = process.emitWarning('Only warn once!', warned);
 }
 emitMyWarning();
   // Emits: (node: 56339) Warning: Only warn once!
