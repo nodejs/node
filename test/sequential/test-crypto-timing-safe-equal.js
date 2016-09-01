@@ -41,6 +41,9 @@ function runEqualBenchmark(compareFunc, bufferA, bufferB) {
   // Ensure that the result of the function call gets used, so that it doesn't
   // get discarded due to engine optimizations.
   assert.strictEqual(result, true);
+
+  // Prevent V8 from optimizing this function
+  eval('');
   return endTime[0] * 1e9 + endTime[1];
 }
 
@@ -52,6 +55,7 @@ function runUnequalBenchmark(compareFunc, bufferA, bufferB) {
   const endTime = process.hrtime(startTime);
 
   assert.strictEqual(result, false);
+  eval('');
   return endTime[0] * 1e9 + endTime[1];
 }
 
@@ -89,6 +93,9 @@ function getTValue(compareFunc) {
 
   const combinedStd = combinedStandardDeviation(equalBenches, unequalBenches);
   const standardErr = combinedStd * Math.sqrt(1 / equalLen + 1 / unequalLen);
+
+  // Prevent V8 from optimizing this function
+  eval('');
 
   return (equalMean - unequalMean) / standardErr;
 }
