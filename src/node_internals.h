@@ -198,7 +198,8 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   inline void set_env(Environment* env) { env_ = env; }
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
-  virtual void* AllocateUninitialized(size_t size) { return malloc(size); }
+  virtual void* AllocateUninitialized(size_t size)
+    { return node::Malloc(size); }
   virtual void Free(void* data, size_t) { free(data); }
 
  private:
