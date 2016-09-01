@@ -928,8 +928,8 @@ added: v0.11.13
   * `passphrase` {string} A string containing the passphrase for the private key
     or pfx.
   * `cert` {string} A string containing the PEM encoded certificate
-  * `clientCertEngine` {string} A string containing the name of and OpenSSL
-    engine for providing the client certificate.
+  * `clientCertEngine` {string} A string with the name of an OpenSSL engine
+    which can provide the client certificate.
   * `ca`{string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of strings,
     or array of `Buffer`s of trusted certificates in PEM format. If omitted,
     several well known "root" CAs (like VeriSign) will be used. These are used
