@@ -142,7 +142,8 @@ static void ares_poll_close_cb(uv_handle_t* watcher) {
 
 /* Allocates and returns a new node_ares_task */
 static node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
-  node_ares_task* task = static_cast<node_ares_task*>(malloc(sizeof(*task)));
+  node_ares_task* task =
+    static_cast<node_ares_task*>(node::Malloc(sizeof(*task)));
 
   if (task == nullptr) {
     /* Out of memory. */
