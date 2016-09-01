@@ -54,6 +54,15 @@ Tests for garbage collection related functionality.
 |:----------:|
 | No         |
 
+
+### inspector
+
+Tests for the V8 inspector integration.
+
+| Runs on CI |
+|:----------:|
+| Yes        |
+
 ### internet
 
 Tests that make real outbound connections (mainly networking related modules).
