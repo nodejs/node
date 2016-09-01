@@ -48,6 +48,7 @@ void PrintDebuggerReadyMessage(int port) {
     "@%s/inspector.html?"
     "experiments=true&v8only=true&ws=localhost:%d/node\n",
       port, DEVTOOLS_HASH, port);
+  fflush(stderr);
 }
 
 bool AcceptsConnection(inspector_socket_t* socket, const std::string& path) {
@@ -525,6 +526,7 @@ bool AgentImpl::IsStarted() {
 void AgentImpl::WaitForDisconnect() {
   shutting_down_ = true;
   fprintf(stderr, "Waiting for the debugger to disconnect...\n");
+  fflush(stderr);
   inspector_->runMessageLoopOnPause(0);
 }
 
@@ -620,6 +622,7 @@ bool AgentImpl::OnInspectorHandshakeIO(inspector_socket_t* socket,
     return false;
   default:
     UNREACHABLE();
+    return false;
   }
 }
 
