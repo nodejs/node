@@ -69,7 +69,7 @@ actually uses - are those above._
 
 * **timers**: this phase executes callbacks scheduled by `setTimeout()`
  and `setInterval()`.
-* **I/O callbacks**: most types of callback except timers, `setImmedate()`, close
+* **I/O callbacks**: most types of callback except timers, `setImmediate()`, close
 * **idle, prepare**: only used internally
 * **poll**: retrieve new I/O events; node will block here when appropriate
 * **check**: `setImmediate()` callbacks are invoked here

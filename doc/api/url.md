@@ -64,7 +64,7 @@ For example: `'host.com:8080'`
 
 The `auth` property is the username and password portion of the URL, also
 referred to as "userinfo". This string subset follows the `protocol` and
-double slashes (if present) and preceeds the `host` component, delimited by an
+double slashes (if present) and precedes the `host` component, delimited by an
 ASCII "at sign" (`@`). The format of the string is `{username}[:{password}]`,
 with the `[:{password}]` portion being optional.
 
@@ -208,7 +208,7 @@ added: v0.1.25
   method. If `false`, the `query` property on the returned URL object will be an
   unparsed, undecoded string. Defaults to `false`.
 * `slashesDenoteHost` {boolean} If `true`, the first token after the literal
-  string `//` and preceeding the next `/` will be interpreted as the `host`.
+  string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
   Defaults to `false`.
