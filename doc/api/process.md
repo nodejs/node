@@ -216,7 +216,7 @@ rejections have not yet been handled.
 The listener function is called with the following arguments:
 
 * `reason` {Error|any} The object with which the promise was rejected
-  (typically an [`Error`][] objet).
+  (typically an [`Error`][] object).
 * `p` the `Promise` that was rejected.
 
 For example:
@@ -1410,7 +1410,7 @@ added: v0.9.4
 * `groups` {Array}
 
 The `process.setgroups()` method sets the supplementary group IDs for the
-Node.js proess. This is a privileged operation that requires the Node.js process
+Node.js process. This is a privileged operation that requires the Node.js process
 to have `root` or the `CAP_SETGID` capability.
 
 The `groups` array can contain numeric group IDs, group names or both.
@@ -1497,7 +1497,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 ## process.stdout
 
-The `process.stdout` propety returns a [Writable][] stream equivalent to or
+The `process.stdout` property returns a [Writable][] stream equivalent to or
 associated with `stdout` (fd `1`).
 
 For example:

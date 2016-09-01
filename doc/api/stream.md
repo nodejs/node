@@ -1668,7 +1668,7 @@ respectively.
 
 In the following example, for instance, a new Transform stream (which is a
 type of [Duplex][] stream) is created that has an object mode Writable side
-that accepts JavaScript numbers that are converted to hexidecimal strings on
+that accepts JavaScript numbers that are converted to hexadecimal strings on
 the Readable side.
 
 ```js
