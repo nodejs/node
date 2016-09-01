@@ -78,7 +78,8 @@ if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_profiling="--enable-vtune-profiling"&goto arg-ok
 
-echo Warning: ignoring invalid command line option `%1`.
+echo Error: invalid command line option `%1`.
+exit /b 1
 
 :arg-ok
 :arg-ok
