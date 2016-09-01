@@ -8,11 +8,11 @@ const path = require('path');
 const engine = path.join(__dirname, '/build/Release/testengine.engine');
 
 const agentKey = fs.readFileSync(path.join(common.fixturesDir,
-    '/keys/agent1-key.pem'));
+                                           '/keys/agent1-key.pem'));
 const agentCert = fs.readFileSync(path.join(common.fixturesDir,
-    '/keys/agent1-cert.pem'));
+                                            '/keys/agent1-cert.pem'));
 const agentCa = fs.readFileSync(path.join(common.fixturesDir,
-    '/keys/ca1-cert.pem'));
+                                          '/keys/ca1-cert.pem'));
 
 const port = common.PORT;
 
@@ -47,7 +47,6 @@ var server = https.createServer(serverOptions, (req, res) => {
 
     response.on('end', common.mustCall(function() {
       assert.strictEqual(body, 'hello world');
-      console.log('Test passed!');
       server.close();
     }));
   }));
