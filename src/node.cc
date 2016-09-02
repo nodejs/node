@@ -148,8 +148,6 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static std::string* debug_host;  // coverity[leaked_storage]
 static int debug_port = 5858;
-static std::string* inspector_host;  // coverity[leaked_storage]
-static int inspector_port = 9229;
 static const int v8_default_thread_pool_size = 4;
 static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
@@ -3473,15 +3471,12 @@ static bool ParseDebugOpt(const char* arg) {
     return true;
   }
 
-  std::string** const the_host = use_inspector ? &inspector_host : &debug_host;
-  int* const the_port = use_inspector ? &inspector_port : &debug_port;
-
   // FIXME(bnoordhuis) Move IPv6 address parsing logic to lib/net.js.
   // It seems reasonable to support [address]:port notation
   // in net.Server#listen() and net.Socket#connect().
   const size_t port_len = strlen(port);
   if (port[0] == '[' && port[port_len - 1] == ']') {
-    *the_host = new std::string(port + 1, port_len - 2);
+    debug_host = new std::string(port + 1, port_len - 2);
     return true;
   }
 
@@ -3491,13 +3486,13 @@ static bool ParseDebugOpt(const char* arg) {
     // if it's not all decimal digits, it's a host name.
     for (size_t n = 0; port[n] != '\0'; n += 1) {
       if (port[n] < '0' || port[n] > '9') {
-        *the_host = new std::string(port);
+        debug_host = new std::string(port);
         return true;
       }
     }
   } else {
     const bool skip = (colon > port && port[0] == '[' && colon[-1] == ']');
-    *the_host = new std::string(port + skip, colon - skip);
+    debug_host = new std::string(port + skip, colon - skip);
   }
 
   char* endptr;
@@ -3510,7 +3505,7 @@ static bool ParseDebugOpt(const char* arg) {
     exit(12);
   }
 
-  *the_port = static_cast<int>(result);
+  debug_port = static_cast<int>(result);
 
   return true;
 }
@@ -3770,8 +3765,7 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 static void StartDebug(Environment* env, const char* path, bool wait) {
   CHECK(!debugger_running);
   if (use_inspector) {
-    debugger_running = v8_platform.StartInspector(env, path, inspector_port,
-                                                  wait);
+    debugger_running = v8_platform.StartInspector(env, path, debug_port, wait);
   } else {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
