@@ -66,7 +66,7 @@ function master() {
       received = msg.received;
     }));
 
-    worker.on('disconnect', common.mustCall(() => {
+    worker.on('exit', common.mustCall(() => {
       assert.strictEqual(received, PACKETS_PER_WORKER);
     }));
   }
