@@ -7,5 +7,13 @@ require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-// Passing nothing (undefined) instead of string/buffer to `zlib.deflateSync()`
-assert.throws(zlib.deflateSync, /^TypeError: Not a string or buffer$/);
+const expected = /^TypeError: Not a string or buffer$/;
+
+assert.throws(() => { zlib.deflateSync(undefined); }, expected);
+assert.throws(() => { zlib.deflateSync(null); }, expected);
+assert.throws(() => { zlib.deflateSync(true); }, expected);
+assert.throws(() => { zlib.deflateSync(false); }, expected);
+assert.throws(() => { zlib.deflateSync(0); }, expected);
+assert.throws(() => { zlib.deflateSync(1); }, expected);
+assert.throws(() => { zlib.deflateSync([1, 2, 3]); }, expected);
+assert.throws(() => { zlib.deflateSync({foo: 'bar'}); }, expected);
