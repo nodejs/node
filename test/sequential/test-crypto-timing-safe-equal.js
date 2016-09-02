@@ -125,16 +125,16 @@ function filterOutliers(array) {
   return array.filter((value) => value / arrMean < 50);
 }
 
-// t_(0.9995, ∞)
+// t_(0.99995, ∞)
 // i.e. If a given comparison function is indeed timing-safe, the t-test result
-// has a 99.9% chance to be below this threshold. Unfortunately, this means that
-// this test will be a bit flakey and will fail 0.1% of the time even if
+// has a 99.99% chance to be below this threshold. Unfortunately, this means
+// that this test will be a bit flakey and will fail 0.01% of the time even if
 // crypto.timingSafeEqual is working properly.
 // t-table ref: http://www.sjsu.edu/faculty/gerstman/StatPrimer/t-table.pdf
 // Note that in reality there are roughly `2 * numTrials - 2` degrees of
 // freedom, not ∞. However, assuming `numTrials` is large, this doesn't
 // significantly affect the threshold.
-const T_THRESHOLD = 3.291;
+const T_THRESHOLD = 3.892;
 
 const t = getTValue(crypto.timingSafeEqual);
 assert(
