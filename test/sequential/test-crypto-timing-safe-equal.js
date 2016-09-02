@@ -67,12 +67,13 @@ function getTValue(compareFunc) {
       assert.strictEqual(result, false);
       return endTime[0] * 1e9 + endTime[1];
     }
-    const bufferA1 = Buffer.alloc(testBufferSize, 'A');
-    const bufferB = Buffer.alloc(testBufferSize, 'B');
-    const bufferA2 = Buffer.alloc(testBufferSize, 'A');
-    const bufferC = Buffer.alloc(testBufferSize, 'C');
 
     if (i % 2) {
+      const bufferA1 = Buffer.alloc(testBufferSize, 'A');
+      const bufferB = Buffer.alloc(testBufferSize, 'B');
+      const bufferA2 = Buffer.alloc(testBufferSize, 'A');
+      const bufferC = Buffer.alloc(testBufferSize, 'C');
+
       // First benchmark: comparing two equal buffers
       rawEqualBenches[i] = runEqualBenchmark(compareFunc, bufferA1, bufferA2);
 
@@ -81,6 +82,10 @@ function getTValue(compareFunc) {
     } else {
       // Swap the order of the benchmarks every second iteration, to avoid any
       // patterns caused by memory usage.
+      const bufferB = Buffer.alloc(testBufferSize, 'B');
+      const bufferA1 = Buffer.alloc(testBufferSize, 'A');
+      const bufferC = Buffer.alloc(testBufferSize, 'C');
+      const bufferA2 = Buffer.alloc(testBufferSize, 'A');
       rawUnequalBenches[i] = runUnequalBenchmark(compareFunc, bufferB, bufferC);
       rawEqualBenches[i] = runEqualBenchmark(compareFunc, bufferA1, bufferA2);
     }
