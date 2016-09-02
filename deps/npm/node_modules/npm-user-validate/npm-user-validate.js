@@ -4,7 +4,7 @@ exports.username = username
 
 var requirements = exports.requirements = {
   username: {
-    length: 'Name length must be less than or equal to 576 characters long',
+    length: 'Name length must be less than or equal to 214 characters long',
     lowerCase: 'Name must be lowercase',
     urlSafe: 'Name may not contain non-url-safe chars',
     dot: 'Name may not start with "."'
@@ -28,7 +28,7 @@ function username (un) {
     return new Error(requirements.username.dot)
   }
 
-  if (un.length > 576) {
+  if (un.length > 214) {
     return new Error(requirements.username.length)
   }
 

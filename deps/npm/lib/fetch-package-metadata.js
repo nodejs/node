@@ -122,7 +122,15 @@ function fetchNamedPackageData (dep, next) {
     }
     function pickVersionFromRegistryDocument (pkg) {
       if (!regCache[url]) regCache[url] = pkg
-      var versions = Object.keys(pkg.versions).sort(semver.rcompare)
+      var versions = Object.keys(pkg.versions)
+
+      var invalidVersions = versions.filter(function (v) { return !semver.valid(v) })
+      if (invalidVersions.length > 0) {
+        log.warn('pickVersion', 'The package %s has invalid semver-version(s): %s. This usually only happens for unofficial private registries. ' +
+            'You should delete or re-publish the invalid versions.', pkg.name, invalidVersions.join(', '))
+      }
+
+      versions = versions.filter(function (v) { return semver.valid(v) }).sort(semver.rcompare)
 
       if (dep.type === 'tag') {
         var tagVersion = pkg['dist-tags'][dep.spec]

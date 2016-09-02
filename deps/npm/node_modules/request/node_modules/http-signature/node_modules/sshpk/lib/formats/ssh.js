@@ -18,7 +18,7 @@ var SSHKEY_RE = /^([a-z0-9-]+)[ \t]+([a-zA-Z0-9+\/]+[=]*)([\n \t]+([^\n]+))?$/;
 /*JSSTYLED*/
 var SSHKEY_RE2 = /^([a-z0-9-]+)[ \t]+([a-zA-Z0-9+\/ \t\n]+[=]*)(.*)$/;
 
-function read(buf) {
+function read(buf, options) {
 	if (typeof (buf) !== 'string') {
 		assert.buffer(buf, 'buf');
 		buf = buf.toString('ascii');
@@ -95,7 +95,7 @@ function read(buf) {
 	return (key);
 }
 
-function write(key) {
+function write(key, options) {
 	assert.object(key);
 	if (!Key.isKey(key))
 		throw (new Error('Must be a public key'));

@@ -7,6 +7,7 @@ var algs = require('./algs');
 var crypto = require('crypto');
 var errs = require('./errors');
 var Key = require('./key');
+var Certificate = require('./certificate');
 var utils = require('./utils');
 
 var FingerprintFormatError = errs.FingerprintFormatError;
@@ -14,6 +15,7 @@ var InvalidAlgorithmError = errs.InvalidAlgorithmError;
 
 function Fingerprint(opts) {
 	assert.object(opts, 'options');
+	assert.string(opts.type, 'options.type');
 	assert.buffer(opts.hash, 'options.hash');
 	assert.string(opts.algorithm, 'options.algorithm');
 
@@ -22,6 +24,7 @@ function Fingerprint(opts) {
 		throw (new InvalidAlgorithmError(this.algorithm));
 
 	this.hash = opts.hash;
+	this.type = opts.type;
 }
 
 Fingerprint.prototype.toString = function (format) {
@@ -44,11 +47,16 @@ Fingerprint.prototype.toString = function (format) {
 	}
 };
 
-Fingerprint.prototype.matches = function (key) {
-	assert.object(key, 'key');
-	utils.assertCompatible(key, Key, [1, 0], 'key');
+Fingerprint.prototype.matches = function (other) {
+	assert.object(other, 'key or certificate');
+	if (this.type === 'key') {
+		utils.assertCompatible(other, Key, [1, 0], 'key');
+	} else {
+		utils.assertCompatible(other, Certificate, [1, 0],
+		    'certificate');
+	}
 
-	var theirHash = key.hash(this.algorithm);
+	var theirHash = other.hash(this.algorithm);
 	var theirHash2 = crypto.createHash(this.algorithm).
 	    update(theirHash).digest('base64');
 
@@ -59,10 +67,19 @@ Fingerprint.prototype.matches = function (key) {
 	return (this.hash2 === theirHash2);
 };
 
-Fingerprint.parse = function (fp, enAlgs) {
+Fingerprint.parse = function (fp, options) {
 	assert.string(fp, 'fingerprint');
 
-	var alg, hash;
+	var alg, hash, enAlgs;
+	if (Array.isArray(options)) {
+		enAlgs = options;
+		options = {};
+	}
+	assert.optionalObject(options, 'options');
+	if (options === undefined)
+		options = {};
+	if (options.enAlgs !== undefined)
+		enAlgs = options.enAlgs;
 	assert.optionalArrayOfString(enAlgs, 'algorithms');
 
 	var parts = fp.split(':');
@@ -105,7 +122,11 @@ Fingerprint.parse = function (fp, enAlgs) {
 			throw (new InvalidAlgorithmError(alg));
 	}
 
-	return (new Fingerprint({algorithm: alg, hash: hash}));
+	return (new Fingerprint({
+		algorithm: alg,
+		hash: hash,
+		type: options.type || 'key'
+	}));
 };
 
 function addColons(s) {

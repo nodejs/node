@@ -6,13 +6,13 @@ var log = require('npmlog')
 var npm = require('./npm.js')
 var initJson = require('init-package-json')
 var output = require('./utils/output.js')
+var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
 
 init.usage = 'npm init [--force|-f|--yes|-y]'
 
 function init (args, cb) {
   var dir = process.cwd()
   log.pause()
-  log.disableProgress()
   var initFile = npm.config.get('init-module')
   if (!initJson.yes(npm.config)) {
     output([
@@ -28,7 +28,7 @@ function init (args, cb) {
       'Press ^C at any time to quit.'
     ].join('\n'))
   }
-  initJson(dir, initFile, npm.config, function (er, data) {
+  initJson(dir, initFile, npm.config, noProgressTillDone(function (er, data) {
     log.resume()
     log.silly('package data', data)
     if (er && er.message === 'canceled') {
@@ -37,5 +37,5 @@ function init (args, cb) {
     }
     log.info('init', 'written successfully')
     cb(er, data)
-  })
+  }))
 }

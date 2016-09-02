@@ -12,6 +12,7 @@ var os = require('os')
 var umask = require('./utils/umask')
 var usage = require('./utils/usage')
 var output = require('./utils/output')
+var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
 
 config.usage = usage(
   'config',
@@ -106,7 +107,7 @@ function edit (cb) {
         data,
         function (er) {
           if (er) return cb(er)
-          editor(f, { editor: e }, cb)
+          editor(f, { editor: e }, noProgressTillDone(cb))
         }
       )
     })

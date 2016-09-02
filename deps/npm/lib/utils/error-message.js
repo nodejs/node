@@ -284,7 +284,7 @@ function errorMessage (er) {
         'typeerror',
         [
           'This is an error with npm itself. Please report this error at:',
-          '    <http://github.com/npm/npm/issues>'
+          '    <https://github.com/npm/npm/issues>'
         ].join('\n')
       ])
       break

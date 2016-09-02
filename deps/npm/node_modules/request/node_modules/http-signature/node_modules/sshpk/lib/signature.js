@@ -65,23 +65,31 @@ Signature.prototype.toBuffer = function (format) {
 			buf = new SSHBuffer({});
 			buf.writeString('ssh-dss');
 			r = this.part.r.data;
-			if (r[0] === 0x00)
+			if (r.length > 20 && r[0] === 0x00)
 				r = r.slice(1);
 			s = this.part.s.data;
+			if (s.length > 20 && s[0] === 0x00)
+				s = s.slice(1);
+			if ((this.hashAlgorithm &&
+			    this.hashAlgorithm !== 'sha1') ||
+			    r.length + s.length !== 40) {
+				throw (new Error('OpenSSH only supports ' +
+				    'DSA signatures with SHA1 hash'));
+			}
 			buf.writeBuffer(Buffer.concat([r, s]));
 			return (buf.toBuffer());
 		} else if (format === 'ssh' && this.type === 'ecdsa') {
 			var inner = new SSHBuffer({});
-			r = this.part.r;
-			if (r[0] === 0x00)
-				r = r.slice(1);
-			inner.writePart(r);
+			r = this.part.r.data;
+			inner.writeBuffer(r);
 			inner.writePart(this.part.s);
 
 			buf = new SSHBuffer({});
 			/* XXX: find a more proper way to do this? */
 			var curve;
-			var sz = this.part.r.data.length * 8;
+			if (r[0] === 0x00)
+				r = r.slice(1);
+			var sz = r.length * 8;
 			if (sz === 256)
 				curve = 'nistp256';
 			else if (sz === 384)

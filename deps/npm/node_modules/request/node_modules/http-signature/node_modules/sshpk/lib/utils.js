@@ -8,11 +8,13 @@ module.exports = {
 	ecNormalize: ecNormalize,
 	countZeros: countZeros,
 	assertCompatible: assertCompatible,
-	isCompatible: isCompatible
+	isCompatible: isCompatible,
+	opensslKeyDeriv: opensslKeyDeriv
 };
 
 var assert = require('assert-plus');
 var PrivateKey = require('./private-key');
+var crypto = require('crypto');
 
 var MAX_CLASS_DEPTH = 3;
 
@@ -66,6 +68,43 @@ function assertCompatible(obj, klass, needVer, name) {
 	assert.ok(ver[0] == needVer[0] && ver[1] >= needVer[1],
 	    name + ' must be compatible with ' + klass.name + ' klass ' +
 	    'version ' + needVer[0] + '.' + needVer[1]);
+}
+
+var CIPHER_LEN = {
+	'des-ede3-cbc': { key: 7, iv: 8 },
+	'aes-128-cbc': { key: 16, iv: 16 }
+};
+var PKCS5_SALT_LEN = 8;
+
+function opensslKeyDeriv(cipher, salt, passphrase, count) {
+	assert.buffer(salt, 'salt');
+	assert.buffer(passphrase, 'passphrase');
+	assert.number(count, 'iteration count');
+
+	var clen = CIPHER_LEN[cipher];
+	assert.object(clen, 'supported cipher');
+
+	salt = salt.slice(0, PKCS5_SALT_LEN);
+
+	var D, D_prev, bufs;
+	var material = new Buffer(0);
+	while (material.length < clen.key + clen.iv) {
+		bufs = [];
+		if (D_prev)
+			bufs.push(D_prev);
+		bufs.push(passphrase);
+		bufs.push(salt);
+		D = Buffer.concat(bufs);
+		for (var j = 0; j < count; ++j)
+			D = crypto.createHash('md5').update(D).digest();
+		material = Buffer.concat([material, D]);
+		D_prev = D;
+	}
+
+	return ({
+	    key: material.slice(0, clen.key),
+	    iv: material.slice(clen.key, clen.key + clen.iv)
+	});
 }
 
 /* Count leading zero bits on a buffer */

@@ -2,12 +2,10 @@
 
 A minimal matching utility.
 
-[![Build Status](https://secure.travis-ci.org/isaacs/minimatch.png)](http://travis-ci.org/isaacs/minimatch)
+[![Build Status](https://secure.travis-ci.org/isaacs/minimatch.svg)](http://travis-ci.org/isaacs/minimatch)
 
 
 This is the matching library used internally by npm.
-
-Eventually, it will replace the C binding in node-glob.
 
 It works by converting glob expressions into JavaScript `RegExp`
 objects.
@@ -39,7 +37,7 @@ See:
 
 ## Minimatch Class
 
-Create a minimatch object by instanting the `minimatch.Minimatch` class.
+Create a minimatch object by instantiating the `minimatch.Minimatch` class.
 
 ```javascript
 var Minimatch = require("minimatch").Minimatch
@@ -83,13 +81,6 @@ var mm = new Minimatch(pattern, options)
   used by a glob-walker that needs to avoid excessive filesystem calls.
 
 All other methods are internal, and will be called as necessary.
-
-## Functions
-
-The top-level exported function has a `cache` property, which is an LRU
-cache set to store 100 items.  So, calling these methods repeatedly
-with the same pattern and options will use the same Minimatch object,
-saving the cost of parsing it multiple times.
 
 ### minimatch(path, pattern, options)
 

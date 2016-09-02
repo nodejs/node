@@ -30,7 +30,7 @@ function range(a, b, str) {
     begs = [];
     left = str.length;
 
-    while (i < str.length && i >= 0 && ! result) {
+    while (i >= 0 && !result) {
       if (i == ai) {
         begs.push(i);
         ai = str.indexOf(a, i + 1);

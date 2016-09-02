@@ -45,6 +45,7 @@ exports.npm = function (cmd, opts, cb) {
   if (!opts.env.npm_config_cache) {
     opts.env.npm_config_cache = npm_config_cache
   }
+  nodeBin = opts.nodeExecPath || nodeBin
 
   var stdout = ''
   var stderr = ''

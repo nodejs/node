@@ -7,6 +7,7 @@ var dashdash = require('dashdash');
 var sshpk = require('../lib/index');
 var fs = require('fs');
 var path = require('path');
+var getPassword = require('getpass').getPass;
 
 var options = [
 	{
@@ -51,6 +52,8 @@ var options = [
 	}
 ];
 
+var parseOpts = {};
+
 if (require.main === module) {
 	var parser = dashdash.createParser({
 		options: options
@@ -79,11 +82,23 @@ if (require.main === module) {
 	}
 
 	var keyData = fs.readFileSync(opts.identity);
+	parseOpts.filename = opts.identity;
 
+	run();
+}
+
+function run() {
 	var key;
 	try {
-		key = sshpk.parsePrivateKey(keyData);
+		key = sshpk.parsePrivateKey(keyData, 'auto', parseOpts);
 	} catch (e) {
+		if (e.name === 'KeyEncryptedError') {
+			getPassword(function (err, pw) {
+				parseOpts.passphrase = pw;
+				run();
+			});
+			return;
+		}
 		console.error('sshpk-sign: error loading private key "' +
 		    opts.identity + '": ' + e.name + ': ' + e.message);
 		process.exit(1);

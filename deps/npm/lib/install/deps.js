@@ -1,7 +1,6 @@
 'use strict'
 var assert = require('assert')
 var path = require('path')
-var url = require('url')
 var semver = require('semver')
 var asyncMap = require('slide').asyncMap
 var chain = require('slide').chain
@@ -10,6 +9,7 @@ var iferr = require('iferr')
 var npa = require('npm-package-arg')
 var validate = require('aproba')
 var realizePackageSpecifier = require('realize-package-specifier')
+var realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier')
 var asap = require('asap')
 var dezalgo = require('dezalgo')
 var fetchPackageMetadata = require('../fetch-package-metadata.js')
@@ -28,6 +28,8 @@ var andIgnoreErrors = require('./and-ignore-errors.js')
 var isInstallable = require('./validate-args.js').isInstallable
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
+var isDevDep = require('./is-dev-dep.js')
+var isProdDep = require('./is-prod-dep.js')
 
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
@@ -48,16 +50,6 @@ function isDep (tree, child, cb) {
       cb(doesChildVersionMatch(child, devSpec, tree) || child.fromShrinkwrap, null, devSpec)
     })
   })
-}
-
-function isDevDep (tree, name, cb) {
-  var devDeps = tree.package.devDependencies || {}
-  return devDeps[name]
-}
-
-function isProdDep (tree, name, cb) {
-  var deps = tree.package.dependencies || {}
-  return deps[name]
 }
 
 var registryTypes = { range: true, version: true }
@@ -212,26 +204,29 @@ function getShrinkwrap (tree, name) {
   return tree.package._shrinkwrap && tree.package._shrinkwrap.dependencies && tree.package._shrinkwrap.dependencies[name]
 }
 
-exports.getAllMetadata = function (args, tree, next) {
-  asyncMap(args, function (spec, done) {
-    if (tree && spec.lastIndexOf('@') <= 0) {
-      var sw = getShrinkwrap(tree, spec)
-      if (sw) {
-        // FIXME: This is duplicated in inflate-shrinkwrap and should be factoed
-        // into a shared function
-        spec = sw.resolved
-             ? spec + '@' + sw.resolved
-             : (sw.from && url.parse(sw.from).protocol)
-             ? spec + '@' + sw.from
-             : spec + '@' + sw.version
-      } else {
-        var version = matchingDep(tree, spec)
-        if (version != null) {
-          spec += '@' + version
-        }
-      }
+exports.getAllMetadata = function (args, tree, where, next) {
+  asyncMap(args, function (arg, done) {
+    function fetchMetadataWithVersion () {
+      var version = matchingDep(tree, arg)
+      var spec = version == null ? arg : arg + '@' + version
+      return fetchPackageMetadata(spec, where, done)
     }
-    fetchPackageMetadata(spec, packageRelativePath(tree), done)
+    if (tree && arg.lastIndexOf('@') <= 0) {
+      var sw = getShrinkwrap(tree, arg)
+      if (sw) {
+        return realizeShrinkwrapSpecifier(arg, sw, where, function (err, spec) {
+          if (err) {
+            return fetchMetadataWithVersion()
+          } else {
+            return fetchPackageMetadata(spec, where, done)
+          }
+        })
+      } else {
+        return fetchMetadataWithVersion()
+      }
+    } else {
+      return fetchPackageMetadata(arg, where, done)
+    }
   }, next)
 }
 
@@ -449,7 +444,9 @@ function addDependency (name, versionSpec, tree, log, done) {
         }
       }))
     } else {
-      resolveWithNewModule(req, tree, log, next)
+      fetchPackageMetadata(req, packageRelativePath(tree), log.newItem('fetchMetadata'), iferr(next, function (pkg) {
+        resolveWithNewModule(pkg, tree, log, next)
+      }))
     }
   }))
 }
@@ -511,11 +508,6 @@ function replaceModule (obj, key, child, matchBy) {
 
 function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
-  if (pkg.type) {
-    return fetchPackageMetadata(pkg, packageRelativePath(tree), log.newItem('fetchMetadata'), iferr(next, function (pkg) {
-      resolveWithNewModule(pkg, tree, log, next)
-    }))
-  }
 
   if (!pkg._installable) {
     log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')

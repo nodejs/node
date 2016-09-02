@@ -1,3 +1,24 @@
+1.23.0 / 2016-05-01
+===================
+
+  * Add `application/efi`
+  * Add `application/vnd.3gpp.sms+xml`
+  * Add `application/vnd.3lightssoftware.imagescal`
+  * Add `application/vnd.coreos.ignition+json`
+  * Add `application/vnd.desmume.movie`
+  * Add `application/vnd.onepager`
+  * Add `application/vnd.vel+json`
+  * Add `text/prs.prop.logic`
+  * Add `video/encaprtp`
+  * Add `video/h265`
+  * Add `video/iso.segment`
+  * Add `video/raptorfec`
+  * Add `video/rtploopback`
+  * Add `video/vnd.radgamettools.bink`
+  * Add `video/vnd.radgamettools.smacker`
+  * Add `video/vp8`
+  * Add extension `.3gpp` to `audio/3gpp`
+
 1.22.0 / 2016-02-15
 ===================
 

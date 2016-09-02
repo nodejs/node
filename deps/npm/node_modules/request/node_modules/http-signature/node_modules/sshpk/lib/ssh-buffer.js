@@ -73,6 +73,14 @@ SSHBuffer.prototype.readInt = function () {
 	return (v);
 };
 
+SSHBuffer.prototype.readInt64 = function () {
+	assert.ok(this._offset + 8 < this._buffer.length,
+	    'buffer not long enough to read Int64');
+	var v = this._buffer.slice(this._offset, this._offset + 8);
+	this._offset += 8;
+	return (v);
+};
+
 SSHBuffer.prototype.readChar = function () {
 	var v = this._buffer[this._offset++];
 	return (v);
@@ -104,6 +112,22 @@ SSHBuffer.prototype.writeInt = function (v) {
 		this.expand();
 	this._buffer.writeUInt32BE(v, this._offset);
 	this._offset += 4;
+};
+
+SSHBuffer.prototype.writeInt64 = function (v) {
+	assert.buffer(v, 'value');
+	if (v.length > 8) {
+		var lead = v.slice(0, v.length - 8);
+		for (var i = 0; i < lead.length; ++i) {
+			assert.strictEqual(lead[i], 0,
+			    'must fit in 64 bits of precision');
+		}
+		v = v.slice(v.length - 8, v.length);
+	}
+	while (this._offset + 8 > this._size)
+		this.expand();
+	v.copy(this._buffer, this._offset);
+	this._offset += 8;
 };
 
 SSHBuffer.prototype.writeChar = function (v) {
