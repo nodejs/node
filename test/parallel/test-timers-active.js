@@ -12,11 +12,13 @@ var legitTimers = [
 legitTimers.forEach(function(legit) {
   const savedTimeout = legit._idleTimeout;
   active(legit);
-  // active() should mutate these objects
-  assert(legit._idleTimeout === savedTimeout);
-  assert(Number.isInteger(legit._idleStart));
-  assert(legit._idleNext);
-  assert(legit._idlePrev);
+  process.nextTick(() => {
+    // active() should mutate these objects
+    assert(legit._idleTimeout === savedTimeout);
+    assert(Number.isInteger(legit._idleStart));
+    assert(legit._idleNext);
+    assert(legit._idlePrev);
+  });
 });
 
 
@@ -29,6 +31,8 @@ var bogusTimers = [
 bogusTimers.forEach(function(bogus) {
   const savedTimeout = bogus._idleTimeout;
   active(bogus);
-  // active() should not mutate these objects
-  assert.deepStrictEqual(bogus, {_idleTimeout: savedTimeout});
+  process.nextTick(() => {
+    // active() should not mutate these objects
+    assert.deepStrictEqual(bogus, {_idleTimeout: savedTimeout});
+  });
 });

@@ -56,25 +56,27 @@ const handle1 = setTimeout(common.mustCall(function() {
     }));
   }), 10);
 
-  // Make sure our timers got added to the list.
-  const activeHandles = process._getActiveHandles();
-  const activeTimers = activeHandles.filter(function(handle) {
-    return handle instanceof Timer;
-  });
-  const shortTimer = activeTimers.find(function(handle) {
-    return handle._list.msecs === 10;
-  });
-  const longTimers = activeTimers.filter(function(handle) {
-    return handle._list.msecs === TIMEOUT;
-  });
+  setImmediate(() => {
+    // Make sure our timers got added to the list.
+    const activeHandles = process._getActiveHandles();
+    const activeTimers = activeHandles.filter(function(handle) {
+      return handle instanceof Timer;
+    });
+    const shortTimer = activeTimers.find(function(handle) {
+      return handle._list.msecs === 10;
+    });
+    const longTimers = activeTimers.filter(function(handle) {
+      return handle._list.msecs === TIMEOUT;
+    });
 
-  // Make sure our clearTimeout succeeded. One timer finished and
-  // the other was canceled, so none should be active.
-  assert.equal(activeTimers.length, 3, 'There are 3 timers in the list.');
-  assert(shortTimer instanceof Timer, 'The shorter timer is in the list.');
-  assert.equal(longTimers.length, 2, 'Both longer timers are in the list.');
+    // Make sure our clearTimeout succeeded. One timer finished and
+    // the other was canceled, so none should be active.
+    assert.equal(activeTimers.length, 3, 'There are 3 timers in the list.');
+    assert(shortTimer instanceof Timer, 'The shorter timer is in the list.');
+    assert.equal(longTimers.length, 2, 'Both longer timers are in the list.');
 
-  // When this callback completes, `listOnTimeout` should now look at the
-  // correct list and refrain from removing the new TIMEOUT list which
-  // contains the reference to the newer timer.
+    // When this callback completes, `listOnTimeout` should now look at the
+    // correct list and refrain from removing the new TIMEOUT list which
+    // contains the reference to the newer timer.
+  });
 }), TIMEOUT);

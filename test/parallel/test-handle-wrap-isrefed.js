@@ -91,11 +91,13 @@ function makeAssert(message) {
 {
   const assert = makeAssert('hasRef() not working on timer_wrap');
   const timer = setTimeout(() => {}, 500);
-  timer.unref();
-  assert(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'), true);
-  assert(timer._handle.hasRef(), false);
-  timer.ref();
-  assert(timer._handle.hasRef(), true);
-  timer._handle.close(
-      common.mustCall(() => assert(timer._handle.hasRef(), false)));
+  setImmediate(() => {
+    timer.unref();
+    assert(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'), true);
+    assert(timer._handle.hasRef(), false);
+    timer.ref();
+    assert(timer._handle.hasRef(), true);
+    timer._handle.close(
+        common.mustCall(() => assert(timer._handle.hasRef(), false)));
+  });
 }
