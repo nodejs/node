@@ -67,14 +67,15 @@ function getTValue(compareFunc) {
       assert.strictEqual(result, false);
       return endTime[0] * 1e9 + endTime[1];
     }
-    // First benchmark: comparing two equal buffers
     const bufferA1 = Buffer.alloc(testBufferSize, 'A');
+    const bufferB = Buffer.alloc(testBufferSize, 'B');
     const bufferA2 = Buffer.alloc(testBufferSize, 'A');
+    const bufferC = Buffer.alloc(testBufferSize, 'C');
+
+    // First benchmark: comparing two equal buffers
     rawEqualBenches[i] = runEqualBenchmark(compareFunc, bufferA1, bufferA2);
 
     // Second benchmark: comparing two unequal buffers
-    const bufferB = Buffer.alloc(testBufferSize, 'B');
-    const bufferC = Buffer.alloc(testBufferSize, 'C');
     rawUnequalBenches[i] = runUnequalBenchmark(compareFunc, bufferB, bufferC);
   }
 
