@@ -1643,8 +1643,8 @@ class MyDuplex extends Duplex {
   _write(chunk, encoding, callback) {
     // The underlying source only deals with strings
     if (Buffer.isBuffer(chunk))
-      chunk = chunk.toString(encoding);
-    this[kSource].writeSomeData(chunk, encoding);
+      chunk = chunk.toString();
+    this[kSource].writeSomeData(chunk);
     callback();
   }
 
