@@ -63,15 +63,14 @@ function master() {
   function setupWorker(worker) {
     var received = 0;
 
-    worker.on('message', function(msg) {
+    worker.on('message', common.mustCall((msg) => {
       received = msg.received;
-      console.log('worker %d received %d packets', worker.id, received);
-    });
+      worker.disconnect();
+    }));
 
-    worker.on('disconnect', function() {
-      assert(received === PACKETS_PER_WORKER);
-      console.log('worker %d disconnected', worker.id);
-    });
+    worker.on('exit', common.mustCall(() => {
+      assert.strictEqual(received, PACKETS_PER_WORKER);
+    }));
   }
 }
 
@@ -88,7 +87,7 @@ function worker() {
     // Every 10 messages, notify the master.
     if (received == PACKETS_PER_WORKER) {
       process.send({received: received});
-      process.disconnect();
+      socket.close();
     }
   });
 
