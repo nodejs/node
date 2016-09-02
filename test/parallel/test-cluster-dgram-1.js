@@ -64,9 +64,10 @@ function master() {
 
     worker.on('message', common.mustCall((msg) => {
       received = msg.received;
+      worker.disconnect();
     }));
 
-    worker.on('disconnect', common.mustCall(() => {
+    worker.on('exit', common.mustCall(() => {
       assert.strictEqual(received, PACKETS_PER_WORKER);
     }));
   }
@@ -85,7 +86,7 @@ function worker() {
     // Every 10 messages, notify the master.
     if (received === PACKETS_PER_WORKER) {
       process.send({received: received});
-      process.disconnect();
+      socket.close();
     }
   }, PACKETS_PER_WORKER));
 
