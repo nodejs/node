@@ -9,6 +9,8 @@ const typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
 
+const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
+
 // customized heading without id attribute
 var renderer = new marked.Renderer();
 renderer.heading = function(text, level) {
@@ -153,8 +155,11 @@ function parseLists(input) {
   var savedState = [];
   var depth = 0;
   var output = [];
+  let headingIndex = -1;
+  let heading = null;
+
   output.links = input.links;
-  input.forEach(function(tok) {
+  input.forEach(function(tok, index) {
     if (tok.type === 'blockquote_start') {
       savedState.push(state);
       state = 'MAYBE_STABILITY_BQ';
@@ -167,6 +172,17 @@ function parseLists(input) {
     if ((tok.type === 'paragraph' && state === 'MAYBE_STABILITY_BQ') ||
       tok.type === 'code') {
       if (tok.text.match(/Stability:.*/g)) {
+        const stabilityMatch = tok.text.match(STABILITY_TEXT_REG_EXP);
+        const stability = Number(stabilityMatch[2]);
+        const isStabilityIndex =
+          index - 2 === headingIndex || // general
+          index - 3 === headingIndex;   // with api_metadata block
+
+        if (heading && isStabilityIndex) {
+          heading.stability = stability;
+          headingIndex = -1;
+          heading = null;
+        }
         tok.text = parseAPIHeader(tok.text);
         output.push({ type: 'html', text: tok.text });
         return;
@@ -178,6 +194,8 @@ function parseLists(input) {
     if (state === null ||
       (state === 'AFTERHEADING' && tok.type === 'heading')) {
       if (tok.type === 'heading') {
+        headingIndex = index;
+        heading = tok;
         state = 'AFTERHEADING';
       }
       output.push(tok);
@@ -280,7 +298,7 @@ function linkJsTypeDocs(text) {
 
 function parseAPIHeader(text) {
   text = text.replace(
-    /(.*:)\s(\d)([\s\S]*)/,
+    STABILITY_TEXT_REG_EXP,
     '<pre class="api_stability api_stability_$2">$1 $2$3</pre>'
   );
   return text;
@@ -324,8 +342,8 @@ function buildToc(lexed, filename, cb) {
     const realFilename = path.basename(realFilenames[0], '.md');
     const id = getId(realFilename + '_' + tok.text.trim());
     toc.push(new Array((depth - 1) * 2 + 1).join(' ') +
-             '* <a href="#' + id + '">' +
-             tok.text + '</a>');
+             '* <span class="stability_' + tok.stability + '">' +
+             '<a href="#' + id + '">' + tok.text + '</a></span>');
     tok.text += '<span><a class="mark" href="#' + id + '" ' +
                 'id="' + id + '">#</a></span>';
   });
