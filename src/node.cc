@@ -3801,6 +3801,12 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
 #endif
+    } else if (strcmp(arg, "--harmony-proxies") == 0 ||
+               strcmp(arg, "--harmony_proxies") == 0 ||
+               strcmp(arg, "-harmony-proxies") == 0 ||
+               strcmp(arg, "-harmony_proxies") == 0) {
+      // Keep V8 flags to make 5.0 -> 5.1 not breaking.
+      // This is only needed in v6.x.
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
