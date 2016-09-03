@@ -34,12 +34,12 @@ order of operations.
     │  ┌──────────┴────────────┐      │   incoming:   │
     │  │         poll          │<─────┤  connections, │
     │  └──────────┬────────────┘      │   data, etc.  │
-    │  ┌──────────┴────────────┐      └───────────────┘    
+    │  ┌──────────┴────────────┐      └───────────────┘
     │  │        check          │
     │  └──────────┬────────────┘
     │  ┌──────────┴────────────┐
     └──┤    close callbacks    │
-       └───────────────────────┘       
+       └───────────────────────┘
 
 *note: each box will be referred to as a "phase" of the event loop.*
 
@@ -69,11 +69,12 @@ actually uses - are those above._
 
 * **timers**: this phase executes callbacks scheduled by `setTimeout()`
  and `setInterval()`.
-* **I/O callbacks**: most types of callback except timers, `setImmediate()`, close
-* **idle, prepare**: only used internally
-* **poll**: retrieve new I/O events; node will block here when appropriate
-* **check**: `setImmediate()` callbacks are invoked here
-* **close callbacks**: e.g socket.on('close', ...)
+* **I/O callbacks**: executes almost all callbacks with the exception of
+ close callbacks, the ones scheduled by timers, and `setImmediate()`.
+* **idle, prepare**: only used internally.
+* **poll**: retrieve new I/O events; node will block here when appropriate.
+* **check**: `setImmediate()` callbacks are invoked here.
+* **close callbacks**: e.g. `socket.on('close', ...)`.
 
 Between each run of the event loop, Node.js checks if it is waiting for
 any asynchronous I/O or timers and shuts down cleanly if there are not
