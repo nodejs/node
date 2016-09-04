@@ -13,4 +13,4 @@ assert.doesNotThrow(emit);
 
 debug.start(['sterrance']);
 
-setTimeout(emit, 100);
+setImmediate(emit);
