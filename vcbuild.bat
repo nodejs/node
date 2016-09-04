@@ -129,6 +129,8 @@ call :getnodeversion || exit /b 1
 
 if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
 
+if defined noprojgen if defined nobuild if defined nosign if not defined msi goto licensertf
+
 @rem Set environment for msbuild
 
 if defined target_env if "%target_env%" NEQ "vc2015" goto vc-set-2013
