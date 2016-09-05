@@ -422,6 +422,9 @@ It is important to take note of the following:
 * `SIGKILL` cannot have a listener installed, it will unconditionally terminate
   Node.js on all platforms.
 * `SIGSTOP` cannot have a listener installed.
+* `SIGBUS`, `SIGFPE`, `SIGSEGV` and `SIGILL`, when not raised artificially,
+   inherently leave the process in a state from which it is not safe to
+   attempt to call JS listeners.
 
 *Note*: Windows does not support sending signals, but Node.js offers some
 emulation with [`process.kill()`][], and [`ChildProcess.kill()`][]. Sending
