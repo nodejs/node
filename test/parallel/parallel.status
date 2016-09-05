@@ -27,11 +27,6 @@ test-debug-signal-cluster         : PASS,FLAKY
 test-fs-watch-enoent                 : FAIL, PASS
 test-fs-watch-encoding               : FAIL, PASS
 
-# being worked under https://github.com/nodejs/node/pull/7564
-test-async-wrap-post-did-throw           : PASS, FLAKY
-test-async-wrap-throw-from-callback      : PASS, FLAKY
-test-crypto-random                       : PASS, FLAKY
-
 #being worked under https://github.com/nodejs/node/issues/7973
 test-stdio-closed                        : PASS, FLAKY
 
