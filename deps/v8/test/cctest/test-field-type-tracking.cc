@@ -16,6 +16,7 @@
 #include "src/global-handles.h"
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
+#include "src/types.h"
 
 using namespace v8::internal;
 
@@ -2473,6 +2474,16 @@ TEST(TransitionAccessorConstantToSameAccessorConstant) {
   TestTransitionTo(transition_op, transition_op, checker);
 }
 
+TEST(FieldTypeConvertSimple) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  Zone zone(isolate->allocator());
+
+  CHECK_EQ(FieldType::Any()->Convert(&zone), Type::NonInternal());
+  CHECK_EQ(FieldType::None()->Convert(&zone), Type::None());
+}
 
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.
 // TEST(TransitionAccessorConstantToAnotherAccessorConstant)
