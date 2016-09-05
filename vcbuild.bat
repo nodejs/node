@@ -343,12 +343,16 @@ for /d %%F in (test\addons\??_*) do (
 )
 :: generate
 "%node_exe%" tools\doc\addon-verify.js
+if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
+SetLocal EnableDelayedExpansion
 for /d %%F in (test\addons\*) do (
   "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
     --directory="%%F" ^
     --nodedir="%cd%"
+  if !errorlevel! neq 0 exit /b !errorlevel!
 )
+EndLocal
 goto run-tests
 
 :run-tests
