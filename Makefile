@@ -39,6 +39,7 @@ EXEEXT := $(shell $(PYTHON) -c \
 NODE_EXE = node$(EXEEXT)
 NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
+NPM ?= ./deps/npm/bin/npm-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -311,11 +312,25 @@ out/doc/%: doc/%
 # check if ./node is actually set, else use user pre-installed binary
 gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
+	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
+		if [ -x $(NODE) ]; then \
+			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
+		else \
+			cd tools/doc && node ../../$(NPM) install; \
+		fi
 	[ -x $(NODE) ] && $(NODE) $(gen-json) || node $(gen-json)
 
 # check if ./node is actually set, else use user pre-installed binary
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 out/doc/api/%.html: doc/api/%.md
+	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
+		if [ -x $(NODE) ]; then \
+			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
+		else \
+			cd tools/doc && node ../../$(NPM) install; \
+		fi
 	[ -x $(NODE) ] && $(NODE) $(gen-html) || node $(gen-html)
 
 docopen: out/doc/api/all.html
