@@ -2481,7 +2481,7 @@ TEST(FieldTypeConvertSimple) {
 
   Zone zone(isolate->allocator());
 
-  CHECK_EQ(FieldType::Any()->Convert(&zone), Type::NonInternal());
+  CHECK_EQ(FieldType::Any()->Convert(&zone), Type::Any());
   CHECK_EQ(FieldType::None()->Convert(&zone), Type::None());
 }
 
