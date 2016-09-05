@@ -116,9 +116,9 @@ onboarding session.
       * The `PR_ID` box should be filled in with the number identifying the pull request containing the code you wish to test. For example, if the URL for the pull request is `https://github.com/nodejs/node/issues/7006`, then put `7006` in the `PR_ID`.
       * The remaining elements on the form are typically unchanged with the exception of `POST_STATUS_TO_PR`. Check that if you want a CI status indicator to be automatically inserted into the PR.
     * If you need help with something CI-related:
-      * #node-dev (IRC) to talk to other Collaborators
-      * #node-build (IRC) to talk to the Build WG members who maintain the CI infrastructure
-      * [Build WG repo](https://github.com/nodejs/build) to file issues for the Build WG members who maintain the CI infrastructure
+      * Use #node-dev (IRC) to talk to other Collaborators.
+      * Use #node-build (IRC) to talk to the Build WG members who maintain the CI infrastructure.
+      * Use the [Build WG repo](https://github.com/nodejs/build) to file issues for the Build WG members who maintain the CI infrastructure.
 
 
 ## Landing PRs: Overview
