@@ -13,7 +13,7 @@ if (process.argv[2] === 'child') {
     process.exit(41);
   });
 
-  process.stderr.on('err', (err) => {
+  process.stderr.on('error', (err) => {
     process.exit(40);
   });
 
