@@ -4114,10 +4114,11 @@ inline void PlatformInit() {
       continue;
     // Anything but EBADF means something is seriously wrong.  We don't
     // have to special-case EINTR, fstat() is not interruptible.
-    // if (errno != EBADF)
-    //   ABORT();
-    if (fd != open("/dev/null", O_RDWR))
+    if (errno != EBADF)
       ABORT();
+    open("/dev/null", O_RDWR);
+//    if (fd != open("/dev/null", O_RDWR))
+//      ABORT();
   }
 
   CHECK_EQ(err, 0);
