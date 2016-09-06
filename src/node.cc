@@ -4116,9 +4116,8 @@ inline void PlatformInit() {
     // have to special-case EINTR, fstat() is not interruptible.
     if (errno != EBADF)
       ABORT();
-    open("/dev/null", O_RDWR);
-//    if (fd != open("/dev/null", O_RDWR))
-//      ABORT();
+    if (fd != open("/dev/null", O_RDWR))
+      ABORT();
   }
 
   CHECK_EQ(err, 0);
