@@ -7,13 +7,6 @@
 
 #include <atomic>
 
-// Forward declaration to break recursive dependency chain with tracing/agent.h.
-namespace node {
-namespace tracing {
-  class Agent;
-}  // namespace tracing
-}  // namespace node
-
 namespace node {
 namespace tracing {
 
@@ -21,14 +14,17 @@ using v8::platform::tracing::TraceBuffer;
 using v8::platform::tracing::TraceBufferChunk;
 using v8::platform::tracing::TraceObject;
 
+// forward declaration
+class NodeTraceBuffer;
+
 class InternalTraceBuffer {
  public:
   InternalTraceBuffer(size_t max_chunks, NodeTraceWriter* trace_writer,
-                      Agent* agent);
+                      NodeTraceBuffer* external_buffer);
 
   TraceObject* AddTraceEvent(uint64_t* handle);
   TraceObject* GetEventByHandle(uint64_t handle);
-  void Flush();
+  void Flush(bool blocking);
 
   static const double kFlushThreshold;
 
@@ -42,7 +38,7 @@ class InternalTraceBuffer {
   Mutex mutex_;
   size_t max_chunks_;
   NodeTraceWriter* trace_writer_;
-  Agent* agent_;
+  NodeTraceBuffer* external_buffer_;
   std::vector<std::unique_ptr<TraceBufferChunk>> chunks_;
   size_t total_chunks_ = 0;
   uint32_t current_chunk_seq_ = 1;
@@ -51,15 +47,24 @@ class InternalTraceBuffer {
 class NodeTraceBuffer : public TraceBuffer {
  public:
   NodeTraceBuffer(size_t max_chunks, NodeTraceWriter* trace_writer,
-                  Agent* agent);
+                  uv_loop_t* tracing_loop);
+  ~NodeTraceBuffer();
 
   TraceObject* AddTraceEvent(uint64_t* handle) override;
   TraceObject* GetEventByHandle(uint64_t handle) override;
   bool Flush() override;
+  bool Flush(bool blocking);
 
   static const size_t kBufferChunks = 1024;
 
  private:
+  void FlushPrivate(bool blocking);
+  static void NonBlockingFlushSignalCb(uv_async_t* signal);
+  static void ExitSignalCb(uv_async_t* signal);
+
+  uv_loop_t* tracing_loop_;
+  uv_async_t flush_signal_;
+  uv_async_t exit_signal_;
   std::unique_ptr<NodeTraceWriter> trace_writer_;
   // TODO: Change std::atomic to something less contentious.
   std::atomic<InternalTraceBuffer*> current_buf_;
