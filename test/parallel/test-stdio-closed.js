@@ -9,6 +9,14 @@ if (common.isWindows) {
 }
 
 if (process.argv[2] === 'child') {
+  process.stdout.on('error', (err) => {
+    process.exit(41);
+  });
+
+  process.stderr.on('err', (err) => {
+    process.exit(40);
+  });
+
   process.stdout.write('stdout', function() {
     process.stderr.write('stderr', function() {
       process.exit(42);
