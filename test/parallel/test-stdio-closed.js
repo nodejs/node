@@ -24,7 +24,3 @@ const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
 proc.on('exit', common.mustCall(function(exitCode) {
   assert.strictEqual(exitCode, 42);
 }));
-
-proc.on('error', (err) => {
-  throw err;
-});
