@@ -26,10 +26,9 @@ function makeSelect(type, args, which) {
   }
 
   var builder = new WasmModuleBuilder();
-  var sig = new Array();
-  sig.push(type);
-  for (var i = 0; i < args; i++) sig.push(type);
-  builder.addFunction("select", sig)
+  var params = [];
+  for (var i = 0; i < args; i++) params.push(type);
+  builder.addFunction("select", makeSig(params, [type]))
     .addBody([kExprGetLocal, which])
     .exportFunc();
 

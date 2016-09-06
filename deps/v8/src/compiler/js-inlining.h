@@ -36,9 +36,15 @@ class JSInliner final : public AdvancedReducer {
   Reduction ReduceJSCall(Node* node, Handle<JSFunction> function);
 
  private:
-  Zone* local_zone_;
+  CommonOperatorBuilder* common() const;
+  JSOperatorBuilder* javascript() const;
+  SimplifiedOperatorBuilder* simplified() const;
+  Graph* graph() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+
+  Zone* const local_zone_;
   CompilationInfo* info_;
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count,

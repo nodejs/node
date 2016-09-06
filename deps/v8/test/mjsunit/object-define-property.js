@@ -467,53 +467,6 @@ try {
 }
 
 
-// Test runtime calls to DefineDataPropertyUnchecked and
-// DefineAccessorPropertyUnchecked - make sure we don't
-// crash.
-try {
-  %DefineAccessorPropertyUnchecked(0, 0, 0, 0, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked(0, 0, 0, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked(null, null, null, null);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineAccessorPropertyUnchecked(null, null, null, null, null);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked({}, null, null, null);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-// Defining properties null should fail even when we have
-// other allowed values
-try {
-  %DefineAccessorPropertyUnchecked(null, 'foo', func, null, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
-try {
-  %DefineDataPropertyUnchecked(null, 'foo', 0, 0);
-} catch (e) {
-  assertTrue(/illegal access/.test(e));
-}
-
 // Test that all possible differences in step 6 in DefineOwnProperty are
 // exercised, i.e., any difference in the given property descriptor and the
 // existing properties should not return true, but throw an error if the

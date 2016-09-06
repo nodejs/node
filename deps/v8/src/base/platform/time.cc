@@ -10,7 +10,9 @@
 #include <unistd.h>
 #endif
 #if V8_OS_MACOSX
+#include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <pthread.h>
 #endif
 
 #include <cstring>
@@ -24,6 +26,90 @@
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+
+namespace {
+
+#if V8_OS_MACOSX
+int64_t ComputeThreadTicks() {
+  mach_msg_type_number_t thread_info_count = THREAD_BASIC_INFO_COUNT;
+  thread_basic_info_data_t thread_info_data;
+  kern_return_t kr = thread_info(
+      pthread_mach_thread_np(pthread_self()),
+      THREAD_BASIC_INFO,
+      reinterpret_cast<thread_info_t>(&thread_info_data),
+      &thread_info_count);
+  CHECK(kr == KERN_SUCCESS);
+
+  v8::base::CheckedNumeric<int64_t> absolute_micros(
+      thread_info_data.user_time.seconds +
+      thread_info_data.system_time.seconds);
+  absolute_micros *= v8::base::Time::kMicrosecondsPerSecond;
+  absolute_micros += (thread_info_data.user_time.microseconds +
+                      thread_info_data.system_time.microseconds);
+  return absolute_micros.ValueOrDie();
+}
+#elif V8_OS_POSIX
+// Helper function to get results from clock_gettime() and convert to a
+// microsecond timebase. Minimum requirement is MONOTONIC_CLOCK to be supported
+// on the system. FreeBSD 6 has CLOCK_MONOTONIC but defines
+// _POSIX_MONOTONIC_CLOCK to -1.
+V8_INLINE int64_t ClockNow(clockid_t clk_id) {
+#if (defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
+  defined(V8_OS_BSD) || defined(V8_OS_ANDROID)
+// On AIX clock_gettime for CLOCK_THREAD_CPUTIME_ID outputs time with
+// resolution of 10ms. thread_cputime API provides the time in ns
+#if defined(V8_OS_AIX)
+  thread_cputime_t tc;
+  if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
+    if (thread_cputime(-1, &tc) != 0) {
+      UNREACHABLE();
+      return 0;
+    }
+  }
+#endif
+  struct timespec ts;
+  if (clock_gettime(clk_id, &ts) != 0) {
+    UNREACHABLE();
+    return 0;
+  }
+  v8::base::internal::CheckedNumeric<int64_t> result(ts.tv_sec);
+  result *= v8::base::Time::kMicrosecondsPerSecond;
+#if defined(V8_OS_AIX)
+  if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
+    result += (tc.stime / v8::base::Time::kNanosecondsPerMicrosecond);
+  } else {
+    result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
+  }
+#else
+  result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
+#endif
+  return result.ValueOrDie();
+#else  // Monotonic clock not supported.
+  return 0;
+#endif
+}
+#elif V8_OS_WIN
+V8_INLINE bool IsQPCReliable() {
+  v8::base::CPU cpu;
+  // On Athlon X2 CPUs (e.g. model 15) QueryPerformanceCounter is unreliable.
+  return strcmp(cpu.vendor(), "AuthenticAMD") == 0 && cpu.family() == 15;
+}
+
+// Returns the current value of the performance counter.
+V8_INLINE uint64_t QPCNowRaw() {
+  LARGE_INTEGER perf_counter_now = {};
+  // According to the MSDN documentation for QueryPerformanceCounter(), this
+  // will never fail on systems that run XP or later.
+  // https://msdn.microsoft.com/library/windows/desktop/ms644904.aspx
+  BOOL result = ::QueryPerformanceCounter(&perf_counter_now);
+  DCHECK(result);
+  USE(result);
+  return perf_counter_now.QuadPart;
+}
+#endif  // V8_OS_MACOSX
+
+
+}  // namespace
 
 namespace v8 {
 namespace base {
@@ -409,15 +495,12 @@ class HighResolutionTickClock final : public TickClock {
   virtual ~HighResolutionTickClock() {}
 
   int64_t Now() override {
-    LARGE_INTEGER now;
-    BOOL result = QueryPerformanceCounter(&now);
-    DCHECK(result);
-    USE(result);
+    uint64_t now = QPCNowRaw();
 
     // Intentionally calculate microseconds in a round about manner to avoid
     // overflow and precision issues. Think twice before simplifying!
-    int64_t whole_seconds = now.QuadPart / ticks_per_second_;
-    int64_t leftover_ticks = now.QuadPart % ticks_per_second_;
+    int64_t whole_seconds = now / ticks_per_second_;
+    int64_t leftover_ticks = now % ticks_per_second_;
     int64_t ticks = (whole_seconds * Time::kMicrosecondsPerSecond) +
         ((leftover_ticks * Time::kMicrosecondsPerSecond) / ticks_per_second_);
 
@@ -482,10 +565,8 @@ struct CreateHighResTickClockTrait {
       return tick_clock.Pointer();
     }
 
-    // On Athlon X2 CPUs (e.g. model 15) the QueryPerformanceCounter
-    // is unreliable, fallback to the low-resolution tick clock.
-    CPU cpu;
-    if (strcmp(cpu.vendor(), "AuthenticAMD") == 0 && cpu.family() == 15) {
+    // If QPC not reliable, fallback to low-resolution tick clock.
+    if (IsQPCReliable()) {
       return tick_clock.Pointer();
     }
 
@@ -541,12 +622,7 @@ TimeTicks TimeTicks::HighResolutionNow() {
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_POSIX
-  struct timespec ts;
-  int result = clock_gettime(CLOCK_MONOTONIC, &ts);
-  DCHECK_EQ(0, result);
-  USE(result);
-  ticks = (ts.tv_sec * Time::kMicrosecondsPerSecond +
-           ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
+  ticks = ClockNow(CLOCK_MONOTONIC);
 #endif  // V8_OS_MACOSX
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);
@@ -558,6 +634,126 @@ bool TimeTicks::IsHighResolutionClockWorking() {
   return true;
 }
 
+#endif  // V8_OS_WIN
+
+
+bool ThreadTicks::IsSupported() {
+#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+  defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID)
+  return true;
+#elif defined(V8_OS_WIN)
+  return IsSupportedWin();
+#else
+  return false;
+#endif
+}
+
+
+ThreadTicks ThreadTicks::Now() {
+#if V8_OS_MACOSX
+  return ThreadTicks(ComputeThreadTicks());
+#elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+  defined(V8_OS_ANDROID)
+  return ThreadTicks(ClockNow(CLOCK_THREAD_CPUTIME_ID));
+#elif V8_OS_WIN
+  return ThreadTicks::GetForThread(::GetCurrentThread());
+#else
+  UNREACHABLE();
+  return ThreadTicks();
+#endif
+}
+
+
+#if V8_OS_WIN
+ThreadTicks ThreadTicks::GetForThread(const HANDLE& thread_handle) {
+  DCHECK(IsSupported());
+
+  // Get the number of TSC ticks used by the current thread.
+  ULONG64 thread_cycle_time = 0;
+  ::QueryThreadCycleTime(thread_handle, &thread_cycle_time);
+
+  // Get the frequency of the TSC.
+  double tsc_ticks_per_second = TSCTicksPerSecond();
+  if (tsc_ticks_per_second == 0)
+    return ThreadTicks();
+
+  // Return the CPU time of the current thread.
+  double thread_time_seconds = thread_cycle_time / tsc_ticks_per_second;
+  return ThreadTicks(
+      static_cast<int64_t>(thread_time_seconds * Time::kMicrosecondsPerSecond));
+}
+
+// static
+bool ThreadTicks::IsSupportedWin() {
+  static bool is_supported = base::CPU().has_non_stop_time_stamp_counter() &&
+                             !IsQPCReliable();
+  return is_supported;
+}
+
+// static
+void ThreadTicks::WaitUntilInitializedWin() {
+  while (TSCTicksPerSecond() == 0)
+    ::Sleep(10);
+}
+
+double ThreadTicks::TSCTicksPerSecond() {
+  DCHECK(IsSupported());
+
+  // The value returned by QueryPerformanceFrequency() cannot be used as the TSC
+  // frequency, because there is no guarantee that the TSC frequency is equal to
+  // the performance counter frequency.
+
+  // The TSC frequency is cached in a static variable because it takes some time
+  // to compute it.
+  static double tsc_ticks_per_second = 0;
+  if (tsc_ticks_per_second != 0)
+    return tsc_ticks_per_second;
+
+  // Increase the thread priority to reduces the chances of having a context
+  // switch during a reading of the TSC and the performance counter.
+  int previous_priority = ::GetThreadPriority(::GetCurrentThread());
+  ::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+
+  // The first time that this function is called, make an initial reading of the
+  // TSC and the performance counter.
+  static const uint64_t tsc_initial = __rdtsc();
+  static const uint64_t perf_counter_initial = QPCNowRaw();
+
+  // Make a another reading of the TSC and the performance counter every time
+  // that this function is called.
+  uint64_t tsc_now = __rdtsc();
+  uint64_t perf_counter_now = QPCNowRaw();
+
+  // Reset the thread priority.
+  ::SetThreadPriority(::GetCurrentThread(), previous_priority);
+
+  // Make sure that at least 50 ms elapsed between the 2 readings. The first
+  // time that this function is called, we don't expect this to be the case.
+  // Note: The longer the elapsed time between the 2 readings is, the more
+  //   accurate the computed TSC frequency will be. The 50 ms value was
+  //   chosen because local benchmarks show that it allows us to get a
+  //   stddev of less than 1 tick/us between multiple runs.
+  // Note: According to the MSDN documentation for QueryPerformanceFrequency(),
+  //   this will never fail on systems that run XP or later.
+  //   https://msdn.microsoft.com/library/windows/desktop/ms644905.aspx
+  LARGE_INTEGER perf_counter_frequency = {};
+  ::QueryPerformanceFrequency(&perf_counter_frequency);
+  DCHECK_GE(perf_counter_now, perf_counter_initial);
+  uint64_t perf_counter_ticks = perf_counter_now - perf_counter_initial;
+  double elapsed_time_seconds =
+      perf_counter_ticks / static_cast<double>(perf_counter_frequency.QuadPart);
+
+  const double kMinimumEvaluationPeriodSeconds = 0.05;
+  if (elapsed_time_seconds < kMinimumEvaluationPeriodSeconds)
+    return 0;
+
+  // Compute the frequency of the TSC.
+  DCHECK_GE(tsc_now, tsc_initial);
+  uint64_t tsc_ticks = tsc_now - tsc_initial;
+  tsc_ticks_per_second = tsc_ticks / elapsed_time_seconds;
+
+  return tsc_ticks_per_second;
+}
 #endif  // V8_OS_WIN
 
 }  // namespace base

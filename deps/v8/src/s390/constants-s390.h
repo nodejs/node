@@ -1080,6 +1080,7 @@ class Instruction {
     THREE_NIBBLE_OPCODE        // Three Nibbles - Bits 0 to 7, 12 to 15
   };
 
+  static OpcodeFormatType OpcodeFormatTable[256];
 // Helper macro to define static accessors.
 // We use the cast to char* trick to bypass the strict anti-aliasing rules.
 #define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name) \
@@ -1254,37 +1255,7 @@ class Instruction {
   // Get Instruction Format Type
   static OpcodeFormatType getOpcodeFormatType(const byte* instr) {
     const byte firstByte = *instr;
-    // Based on Figure B-3 in z/Architecture Principles of
-    // Operation.
-
-    // 1-byte opcodes
-    //   I, RR, RS, RSI, RX, SS Formats
-    if ((0x04 <= firstByte && 0x9B >= firstByte) ||
-        (0xA8 <= firstByte && 0xB1 >= firstByte) ||
-        (0xBA <= firstByte && 0xBF >= firstByte) || (0xC5 == firstByte) ||
-        (0xC7 == firstByte) || (0xD0 <= firstByte && 0xE2 >= firstByte) ||
-        (0xE8 <= firstByte && 0xEA >= firstByte) ||
-        (0xEE <= firstByte && 0xFD >= firstByte)) {
-      return ONE_BYTE_OPCODE;
-    }
-
-    // 2-byte opcodes
-    //   E, IE, RRD, RRE, RRF, SIL, S, SSE Formats
-    if ((0x00 == firstByte) ||  // Software breakpoint 0x0001
-        (0x01 == firstByte) || (0xB2 == firstByte) || (0xB3 == firstByte) ||
-        (0xB9 == firstByte) || (0xE5 == firstByte)) {
-      return TWO_BYTE_OPCODE;
-    }
-
-    // 3-nibble opcodes
-    //   RI, RIL, SSF Formats
-    if ((0xA5 == firstByte) || (0xA7 == firstByte) ||
-        (0xC0 <= firstByte && 0xCC >= firstByte)) {  // C5,C7 handled above
-      return THREE_NIBBLE_OPCODE;
-    }
-    // Remaining ones are all TWO_BYTE_DISJOINT OPCODES.
-    DCHECK(InstructionLength(instr) == 6);
-    return TWO_BYTE_DISJOINT_OPCODE;
+    return OpcodeFormatTable[firstByte];
   }
 
   // Extract the full opcode from the instruction.
@@ -1304,11 +1275,10 @@ class Instruction {
       case TWO_BYTE_DISJOINT_OPCODE:
         // Two Bytes - Bits 0 to 7, 40 to 47
         return static_cast<Opcode>((*instr << 8) | (*(instr + 5) & 0xFF));
-      case THREE_NIBBLE_OPCODE:
+      default:
+        // case THREE_NIBBLE_OPCODE:
         // Three Nibbles - Bits 0 to 7, 12 to 15
         return static_cast<Opcode>((*instr << 4) | (*(instr + 1) & 0xF));
-      default:
-        break;
     }
 
     UNREACHABLE();

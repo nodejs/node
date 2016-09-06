@@ -479,3 +479,68 @@ function TestSortOnProxy() {
   }
 }
 TestSortOnProxy();
+
+
+// Test special prototypes
+(function testSortSpecialPrototypes() {
+  function test(proto, length, expected) {
+    var result = {
+       length: length,
+       __proto__: proto,
+     };
+    Array.prototype.sort.call(result);
+    assertEquals(expected.length, result.length, "result.length");
+    for (var i = 0; i<expected.length; i++) {
+      assertEquals(expected[i], result[i], "result["+i+"]");
+    }
+  }
+
+  (function fast() {
+    // Fast elements, non-empty
+    test(arguments, 0, []);
+    test(arguments, 1, [2]);
+    test(arguments, 2, [1, 2]);
+    test(arguments, 4, [1, 2, 3, 4]);
+    delete arguments[0]
+    // sort copies down the properties to the receiver, hence result[1]
+    // is read on the arguments through the hole on the receiver.
+    test(arguments, 2, [1, 1]);
+    arguments[0] = undefined;
+    test(arguments, 2, [1, undefined]);
+  })(2, 1, 4, 3);
+
+  (function fastSloppy(a) {
+    // Fast sloppy
+    test(arguments, 0, []);
+    test(arguments, 1, [2]);
+    test(arguments, 2, [1, 2]);
+    delete arguments[0]
+    test(arguments, 2, [1, 1]);
+    arguments[0] = undefined;
+    test(arguments, 2, [1, undefined]);
+  })(2, 1);
+
+  (function fastEmpty() {
+    test(arguments, 0, []);
+    test(arguments, 1, [undefined]);
+    test(arguments, 2, [undefined, undefined]);
+  })();
+
+  (function stringWrapper() {
+    // cannot redefine string wrapper properties
+    assertThrows(() => test(new String('cba'), 3, []), TypeError);
+  })();
+
+  (function typedArrys() {
+    test(new Int32Array(0), 0, []);
+    test(new Int32Array(1), 1, [0]);
+    var array = new Int32Array(3);
+    array[0] = 2;
+    array[1] = 1;
+    array[2] = 3;
+    test(array, 1, [2]);
+    test(array, 2, [1, 2]);
+    test(array, 3, [1, 2, 3]);
+  })()
+
+})();

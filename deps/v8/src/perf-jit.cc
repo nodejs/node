@@ -27,8 +27,12 @@
 
 #include "src/perf-jit.h"
 
+#include <memory>
+
 #include "src/assembler.h"
+#include "src/eh-frame.h"
 #include "src/objects-inl.h"
+#include "src/source-position-table.h"
 
 #if V8_OS_LINUX
 #include <fcntl.h>
@@ -56,7 +60,13 @@ struct PerfJitHeader {
 };
 
 struct PerfJitBase {
-  enum PerfJitEvent { kLoad = 0, kMove = 1, kDebugInfo = 2, kClose = 3 };
+  enum PerfJitEvent {
+    kLoad = 0,
+    kMove = 1,
+    kDebugInfo = 2,
+    kClose = 3,
+    kUnwindingInfo = 4
+  };
 
   uint32_t event_;
   uint32_t size_;
@@ -83,6 +93,13 @@ struct PerfJitCodeDebugInfo : PerfJitBase {
   uint64_t address_;
   uint64_t entry_count_;
   // Followed by entry_count_ instances of PerfJitDebugEntry.
+};
+
+struct PerfJitCodeUnwindingInfo : PerfJitBase {
+  uint64_t unwinding_size_;
+  uint64_t eh_frame_hdr_size_;
+  uint64_t mapped_size_;
+  // Followed by size_ - sizeof(PerfJitCodeUnwindingInfo) bytes of data.
 };
 
 const char PerfJitLogger::kFilenameFormatString[] = "./jit-%d.dump";
@@ -204,6 +221,9 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   uint32_t code_size = code->is_crankshafted() ? code->safepoint_table_offset()
                                                : code->instruction_size();
 
+  // Unwinding info comes right after debug info.
+  if (FLAG_perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
+
   static const char string_terminator[] = "\0";
 
   PerfJitCodeLoad code_load;
@@ -229,8 +249,8 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
-  for (RelocIterator it(code, RelocInfo::kPositionMask); !it.done();
-       it.next()) {
+  for (SourcePositionTableIterator iterator(code->source_position_table());
+       !iterator.done(); iterator.Advance()) {
     entry_count++;
   }
   if (entry_count == 0) return;
@@ -238,7 +258,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   Handle<Object> name_or_url(Script::GetNameOrSourceURL(script));
 
   int name_length = 0;
-  base::SmartArrayPointer<char> name_string;
+  std::unique_ptr<char[]> name_string;
   if (name_or_url->IsString()) {
     name_string =
         Handle<String>::cast(name_or_url)
@@ -250,7 +270,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     char* buffer = NewArray<char>(name_length);
     base::OS::StrNCpy(buffer, name_length + 1, unknown,
                       static_cast<size_t>(name_length));
-    name_string = base::SmartArrayPointer<char>(buffer);
+    name_string = std::unique_ptr<char[]>(buffer);
   }
   DCHECK_EQ(name_length, strlen(name_string.get()));
 
@@ -275,10 +295,11 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   int script_line_offset = script->line_offset();
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+  Address code_start = code->instruction_start();
 
-  for (RelocIterator it(code, RelocInfo::kPositionMask); !it.done();
-       it.next()) {
-    int position = static_cast<int>(it.rinfo()->data());
+  for (SourcePositionTableIterator iterator(code->source_position_table());
+       !iterator.done(); iterator.Advance()) {
+    int position = iterator.source_position();
     int line_number = Script::GetLineNumber(script, position);
     // Compute column.
     int relative_line_number = line_number - script_line_offset;
@@ -293,7 +314,8 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     }
 
     PerfJitDebugEntry entry;
-    entry.address_ = reinterpret_cast<uint64_t>(it.rinfo()->pc());
+    entry.address_ =
+        reinterpret_cast<uint64_t>(code_start + iterator.code_offset());
     entry.line_number_ = line_number;
     entry.column_ = column_offset;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
@@ -301,6 +323,41 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   }
   char padding_bytes[] = "\0\0\0\0\0\0\0\0";
   LogWriteBytes(padding_bytes, padding);
+}
+
+void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
+  PerfJitCodeUnwindingInfo unwinding_info_header;
+  unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
+  unwinding_info_header.time_stamp_ = GetTimestamp();
+  unwinding_info_header.eh_frame_hdr_size_ = EhFrameConstants::kEhFrameHdrSize;
+
+  if (code->has_unwinding_info()) {
+    unwinding_info_header.unwinding_size_ = code->unwinding_info_size();
+    unwinding_info_header.mapped_size_ = unwinding_info_header.unwinding_size_;
+  } else {
+    unwinding_info_header.unwinding_size_ = EhFrameConstants::kEhFrameHdrSize;
+    unwinding_info_header.mapped_size_ = 0;
+  }
+
+  int content_size = static_cast<int>(sizeof(unwinding_info_header) +
+                                      unwinding_info_header.unwinding_size_);
+  int padding_size = RoundUp(content_size, 8) - content_size;
+  unwinding_info_header.size_ = content_size + padding_size;
+
+  LogWriteBytes(reinterpret_cast<const char*>(&unwinding_info_header),
+                sizeof(unwinding_info_header));
+
+  if (code->has_unwinding_info()) {
+    LogWriteBytes(reinterpret_cast<const char*>(code->unwinding_info_start()),
+                  code->unwinding_info_size());
+  } else {
+    OFStream perf_output_stream(perf_output_handle_);
+    EhFrameWriter::WriteEmptyEhFrame(perf_output_stream);
+  }
+
+  char padding_bytes[] = "\0\0\0\0\0\0\0\0";
+  DCHECK_LT(padding_size, sizeof(padding_bytes));
+  LogWriteBytes(padding_bytes, padding_size);
 }
 
 void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {

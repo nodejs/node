@@ -19,10 +19,10 @@ const Register kReturnRegister1 = {Register::kCode_r3};
 const Register kReturnRegister2 = {Register::kCode_r4};
 const Register kJSFunctionRegister = {Register::kCode_r3};
 const Register kContextRegister = {Register::kCode_r13};
+const Register kAllocateSizeRegister = {Register::kCode_r3};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r2};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r4};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r5};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r6};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r6};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r7};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
 const Register kJavaScriptCallArgCountRegister = {Register::kCode_r2};
 const Register kJavaScriptCallNewTargetRegister = {Register::kCode_r5};
@@ -112,7 +112,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define LoadRR lgr
 #define LoadAndTestRR ltgr
 #define LoadImmP lghi
-#define LoadLogicalHalfWordP llgh
 
 // Compare
 #define CmpPH cghi
@@ -150,7 +149,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define LoadRR lr
 #define LoadAndTestRR ltr
 #define LoadImmP lhi
-#define LoadLogicalHalfWordP llh
 
 // Compare
 #define CmpPH chi
@@ -303,6 +301,12 @@ class MacroAssembler : public Assembler {
   void MulP(Register dst, Register src);
   void MulP(Register dst, const MemOperand& opnd);
   void Mul(Register dst, Register src1, Register src2);
+  void Mul32(Register dst, const MemOperand& src1);
+  void Mul32(Register dst, Register src1);
+  void Mul32(Register dst, const Operand& src1);
+  void Mul64(Register dst, const MemOperand& src1);
+  void Mul64(Register dst, Register src1);
+  void Mul64(Register dst, const Operand& src1);
 
   // Divide
   void DivP(Register dividend, Register divider);
@@ -333,8 +337,14 @@ class MacroAssembler : public Assembler {
   void LoadW(Register dst, Register src);
   void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadlW(Register dst, Register src);
+  void LoadLogicalHalfWordP(Register dst, const MemOperand& opnd);
+  void LoadLogicalHalfWordP(Register dst, Register src);
   void LoadB(Register dst, const MemOperand& opnd);
+  void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
+
+  void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
+  void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);
@@ -348,6 +358,9 @@ class MacroAssembler : public Assembler {
   void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
+
+  // Load On Condition
+  void LoadOnConditionP(Condition cond, Register dst, Register src);
 
   // Store Floating Point
   void StoreDouble(DoubleRegister dst, const MemOperand& opnd);
@@ -402,14 +415,21 @@ class MacroAssembler : public Assembler {
   void Xor(Register dst, Register src, const Operand& opnd);
   void XorP(Register dst, Register src, const Operand& opnd);
   void Popcnt32(Register dst, Register src);
+  void Not32(Register dst, Register src = no_reg);
+  void Not64(Register dst, Register src = no_reg);
+  void NotP(Register dst, Register src = no_reg);
 
 #ifdef V8_TARGET_ARCH_S390X
   void Popcnt64(Register dst, Register src);
 #endif
 
-  void NotP(Register dst);
-
   void mov(Register dst, const Operand& src);
+
+  void CleanUInt32(Register x) {
+#ifdef V8_TARGET_ARCH_S390X
+    llgfr(x, x);
+#endif
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -685,7 +705,7 @@ class MacroAssembler : public Assembler {
   void ConvertFloat32ToInt32(const DoubleRegister double_input,
                              const Register dst,
                              const DoubleRegister double_dst,
-                             FPRoundingMode rounding_mode = kRoundToZero);
+                             FPRoundingMode rounding_mode);
   void ConvertFloat32ToUnsignedInt32(
       const DoubleRegister double_input, const Register dst,
       const DoubleRegister double_dst,
@@ -727,7 +747,8 @@ class MacroAssembler : public Assembler {
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.
   // At least one slot (for the return address) should be provided.
-  void EnterExitFrame(bool save_doubles, int stack_space = 1);
+  void EnterExitFrame(bool save_doubles, int stack_space = 1,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
@@ -958,6 +979,15 @@ class MacroAssembler : public Assembler {
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register scratch1,
+                    Register scratch2, AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    Register scratch, AllocationFlags flags);
+
   void AllocateTwoByteString(Register result, Register length,
                              Register scratch1, Register scratch2,
                              Register scratch3, Label* gc_required);
@@ -982,7 +1012,6 @@ class MacroAssembler : public Assembler {
   // when control continues at the gc_required label.
   void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
                           Register heap_number_map, Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
   void AllocateHeapNumberWithValue(Register result, DoubleRegister value,
                                    Register scratch1, Register scratch2,
@@ -1206,44 +1235,6 @@ class MacroAssembler : public Assembler {
                          Register heap_number_map, Register scratch1,
                          Label* not_int32);
 
-  // Overflow handling functions.
-  // Usage: call the appropriate arithmetic function and then call one of the
-  // flow control functions with the corresponding label.
-
-  // Compute dst = left + right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void AddAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-  void AddAndCheckForOverflow(Register dst, Register left, intptr_t right,
-                              Register overflow_dst, Register scratch = r0);
-
-  // Compute dst = left - right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void SubAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-
-  void BranchOnOverflow(Label* label) { blt(label /*, cr0*/); }
-
-  void BranchOnNoOverflow(Label* label) { bge(label /*, cr0*/); }
-
-  void RetOnOverflow(void) {
-    Label label;
-
-    blt(&label /*, cr0*/);
-    Ret();
-    bind(&label);
-  }
-
-  void RetOnNoOverflow(void) {
-    Label label;
-
-    bge(&label /*, cr0*/);
-    Ret();
-    bind(&label);
-  }
-
   // ---------------------------------------------------------------------------
   // Runtime calls
 
@@ -1322,7 +1313,8 @@ class MacroAssembler : public Assembler {
   void MovFromFloatResult(DoubleRegister dst);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& builtin);
+  void JumpToExternalReference(const ExternalReference& builtin,
+                               bool builtin_exit_frame = false);
 
   Handle<Object> CodeObject() {
     DCHECK(!code_object_.is_null());
@@ -1567,17 +1559,29 @@ class MacroAssembler : public Assembler {
   }
 
   void IndexToArrayOffset(Register dst, Register src, int elementSizeLog2,
-                          bool isSmi) {
+                          bool isSmi, bool keyMaybeNegative) {
     if (isSmi) {
       SmiToArrayOffset(dst, src, elementSizeLog2);
-    } else {
+    } else if (keyMaybeNegative ||
+          !CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
 #if V8_TARGET_ARCH_S390X
+      // If array access is dehoisted, the key, being an int32, can contain
+      // a negative value, as needs to be sign-extended to 64-bit for
+      // memory access.
+      //
       // src (key) is a 32-bit integer.  Sign extension ensures
       // upper 32-bit does not contain garbage before being used to
       // reference memory.
       lgfr(src, src);
 #endif
       ShiftLeftP(dst, src, Operand(elementSizeLog2));
+    } else {
+      // Small optimization to reduce pathlength.  After Bounds Check,
+      // the key is guaranteed to be non-negative.  Leverage RISBG,
+      // which also performs zero-extension.
+      risbg(dst, src, Operand(32 - elementSizeLog2),
+            Operand(63 - elementSizeLog2), Operand(elementSizeLog2),
+            true);
     }
   }
 
@@ -1658,6 +1662,10 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
@@ -1758,6 +1766,9 @@ class MacroAssembler : public Assembler {
                   bool load_constant_pool_pointer_reg = false);
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type, int stack_adjustment = 0);
+
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
   // Expects object in r2 and returns map with validated enum cache
   // in r2.  Assumes that any other register can be used as a scratch.
@@ -1871,16 +1882,8 @@ inline MemOperand NativeContextMemOperand() {
   return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
 }
 
-#ifdef GENERATED_CODE_COVERAGE
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm)    \
-  masm->stop(__FILE_LINE__); \
-  masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
+
 }  // namespace internal
 }  // namespace v8
 

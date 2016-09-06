@@ -5,10 +5,11 @@
 
 import os
 import tarfile
+from itertools import chain
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-for root, dirs, files in os.walk("data"):
+for root, dirs, files in chain(os.walk("data"), os.walk("harness")):
   dirs[:] = [d for d in dirs if not d.endswith('.git')]
   for name in files:
     # These names are for gyp, which expects slashes on all platforms.

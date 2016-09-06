@@ -26,6 +26,7 @@ static bool CanCast(F from) {
   // A float can't represent 2^31 - 1 or 2^32 - 1 exactly, so promote the limits
   // to double. Otherwise, the limit is truncated and numbers like 2^31 or 2^32
   // get through, causing any static_cast to be undefined.
+  from = trunc(from);
   return from >= static_cast<double>(std::numeric_limits<T>::min()) &&
          from <= static_cast<double>(std::numeric_limits<T>::max());
 }
@@ -168,9 +169,19 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 // Utility macros.
 
-#define CONVERT_SIMD_LANE_ARG_CHECKED(name, index, lanes) \
-  CONVERT_INT32_ARG_CHECKED(name, index);                 \
-  RUNTIME_ASSERT(name >= 0 && name < lanes);
+// TODO(gdeepti): Fix to use ToNumber conversion once polyfill is updated.
+#define CONVERT_SIMD_LANE_ARG_CHECKED(name, index, lanes)            \
+  Handle<Object> name_object = args.at<Object>(index);               \
+  if (!name_object->IsNumber()) {                                    \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                  \
+        isolate, NewTypeError(MessageTemplate::kInvalidSimdIndex));  \
+  }                                                                  \
+  double number = name_object->Number();                             \
+  if (number < 0 || number >= lanes || !IsInt32Double(number)) {     \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                  \
+        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex)); \
+  }                                                                  \
+  uint32_t name = static_cast<uint32_t>(number);
 
 #define CONVERT_SIMD_ARG_HANDLE_THROW(Type, name, index)                \
   Handle<Type> name;                                                    \
@@ -217,8 +228,10 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 // Common functions.
 
-#define GET_NUMERIC_ARG(lane_type, name, index) \
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(a, index);  \
+#define GET_NUMERIC_ARG(lane_type, name, index)              \
+  Handle<Object> a;                                          \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                        \
+      isolate, a, Object::ToNumber(args.at<Object>(index))); \
   name = ConvertNumber<lane_type>(a->Number());
 
 #define GET_BOOLEAN_ARG(lane_type, name, index) \
@@ -395,10 +408,14 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   FUNCTION(Uint16x8, uint16_t, 16, 8) \
   FUNCTION(Uint8x16, uint8_t, 8, 16)
 
-#define CONVERT_SHIFT_ARG_CHECKED(name, index)         \
-  RUNTIME_ASSERT(args[index]->IsNumber());             \
-  int32_t signed_shift = 0;                            \
-  RUNTIME_ASSERT(args[index]->ToInt32(&signed_shift)); \
+#define CONVERT_SHIFT_ARG_CHECKED(name, index)                          \
+  Handle<Object> name_object = args.at<Object>(index);                  \
+  if (!name_object->IsNumber()) {                                       \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                     \
+        isolate, NewTypeError(MessageTemplate::kInvalidSimdOperation)); \
+  }                                                                     \
+  int32_t signed_shift = 0;                                             \
+  args[index]->ToInt32(&signed_shift);                                  \
   uint32_t name = bit_cast<uint32_t>(signed_shift);
 
 #define SIMD_LSL_FUNCTION(type, lane_type, lane_bits, lane_count) \
@@ -409,31 +426,29 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                          \
     lane_type lanes[kLaneCount] = {0};                            \
-    if (shift < lane_bits) {                                      \
-      for (int i = 0; i < kLaneCount; i++) {                      \
-        lanes[i] = a->get_lane(i) << shift;                       \
-      }                                                           \
+    shift &= lane_bits - 1;                                       \
+    for (int i = 0; i < kLaneCount; i++) {                        \
+      lanes[i] = a->get_lane(i) << shift;                         \
     }                                                             \
     Handle<type> result = isolate->factory()->New##type(lanes);   \
     return *result;                                               \
   }
 
-#define SIMD_LSR_FUNCTION(type, lane_type, lane_bits, lane_count) \
-  RUNTIME_FUNCTION(Runtime_##type##ShiftRightByScalar) {          \
-    static const int kLaneCount = lane_count;                     \
-    HandleScope scope(isolate);                                   \
-    DCHECK(args.length() == 2);                                   \
-    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
-    CONVERT_SHIFT_ARG_CHECKED(shift, 1);                          \
-    lane_type lanes[kLaneCount] = {0};                            \
-    if (shift < lane_bits) {                                      \
-      for (int i = 0; i < kLaneCount; i++) {                      \
-        lanes[i] = static_cast<lane_type>(                        \
-            bit_cast<lane_type>(a->get_lane(i)) >> shift);        \
-      }                                                           \
-    }                                                             \
-    Handle<type> result = isolate->factory()->New##type(lanes);   \
-    return *result;                                               \
+#define SIMD_LSR_FUNCTION(type, lane_type, lane_bits, lane_count)              \
+  RUNTIME_FUNCTION(Runtime_##type##ShiftRightByScalar) {                       \
+    static const int kLaneCount = lane_count;                                  \
+    HandleScope scope(isolate);                                                \
+    DCHECK(args.length() == 2);                                                \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                                 \
+    CONVERT_SHIFT_ARG_CHECKED(shift, 1);                                       \
+    lane_type lanes[kLaneCount] = {0};                                         \
+    shift &= lane_bits - 1;                                                    \
+    for (int i = 0; i < kLaneCount; i++) {                                     \
+      lanes[i] = static_cast<lane_type>(bit_cast<lane_type>(a->get_lane(i)) >> \
+                                        shift);                                \
+    }                                                                          \
+    Handle<type> result = isolate->factory()->New##type(lanes);                \
+    return *result;                                                            \
   }
 
 #define SIMD_ASR_FUNCTION(type, lane_type, lane_bits, lane_count)      \
@@ -443,7 +458,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
     DCHECK(args.length() == 2);                                        \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                         \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                               \
-    if (shift >= lane_bits) shift = lane_bits - 1;                     \
+    shift &= lane_bits - 1;                                            \
     lane_type lanes[kLaneCount];                                       \
     for (int i = 0; i < kLaneCount; i++) {                             \
       int64_t shifted = static_cast<int64_t>(a->get_lane(i)) >> shift; \
@@ -785,8 +800,10 @@ SIMD_SIGNED_TYPES(SIMD_NEG_FUNCTION)
     lane_type lanes[kLaneCount];                                               \
     for (int i = 0; i < kLaneCount; i++) {                                     \
       from_ctype a_value = a->get_lane(i);                                     \
-      if (a_value != a_value) a_value = 0;                                     \
-      RUNTIME_ASSERT(CanCast<lane_type>(a_value));                             \
+      if (a_value != a_value || !CanCast<lane_type>(a_value)) {                \
+        THROW_NEW_ERROR_RETURN_FAILURE(                                        \
+            isolate, NewRangeError(MessageTemplate::kInvalidSimdLaneValue));   \
+      }                                                                        \
       lanes[i] = static_cast<lane_type>(a_value);                              \
     }                                                                          \
     Handle<type> result = isolate->factory()->New##type(lanes);                \
@@ -863,47 +880,62 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
   FUNCTION(Int32x4, int32_t, 4)           \
   FUNCTION(Uint32x4, uint32_t, 4)
 
+#define SIMD_COERCE_INDEX(name, i)                                            \
+  Handle<Object> length_object, number_object;                                \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
+      isolate, length_object, Object::ToLength(isolate, args.at<Object>(i))); \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_object,                  \
+                                     Object::ToNumber(args.at<Object>(i)));   \
+  if (number_object->Number() != length_object->Number()) {                   \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                           \
+        isolate, NewTypeError(MessageTemplate::kInvalidSimdIndex));           \
+  }                                                                           \
+  int32_t name = number_object->Number();
 
 // Common Load and Store Functions
 
-#define SIMD_LOAD(type, lane_type, lane_count, count, result)          \
-  static const int kLaneCount = lane_count;                            \
-  DCHECK(args.length() == 2);                                          \
-  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);              \
-  CONVERT_INT32_ARG_CHECKED(index, 1)                                  \
-  size_t bpe = tarray->element_size();                                 \
-  uint32_t bytes = count * sizeof(lane_type);                          \
-  size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \
-  RUNTIME_ASSERT(index >= 0 && index * bpe + bytes <= byte_length);    \
-  size_t tarray_offset = NumberToSize(isolate, tarray->byte_offset()); \
-  uint8_t* tarray_base =                                               \
-      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +    \
-      tarray_offset;                                                   \
-  lane_type lanes[kLaneCount] = {0};                                   \
-  memcpy(lanes, tarray_base + index * bpe, bytes);                     \
+#define SIMD_LOAD(type, lane_type, lane_count, count, result)        \
+  static const int kLaneCount = lane_count;                          \
+  DCHECK(args.length() == 2);                                        \
+  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);            \
+  SIMD_COERCE_INDEX(index, 1);                                       \
+  size_t bpe = tarray->element_size();                               \
+  uint32_t bytes = count * sizeof(lane_type);                        \
+  size_t byte_length = NumberToSize(tarray->byte_length());          \
+  if (index < 0 || index * bpe + bytes > byte_length) {              \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                  \
+        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex)); \
+  }                                                                  \
+  size_t tarray_offset = NumberToSize(tarray->byte_offset());        \
+  uint8_t* tarray_base =                                             \
+      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +  \
+      tarray_offset;                                                 \
+  lane_type lanes[kLaneCount] = {0};                                 \
+  memcpy(lanes, tarray_base + index * bpe, bytes);                   \
   Handle<type> result = isolate->factory()->New##type(lanes);
 
-
-#define SIMD_STORE(type, lane_type, lane_count, count, a)              \
-  static const int kLaneCount = lane_count;                            \
-  DCHECK(args.length() == 3);                                          \
-  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);              \
-  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 2);                           \
-  CONVERT_INT32_ARG_CHECKED(index, 1)                                  \
-  size_t bpe = tarray->element_size();                                 \
-  uint32_t bytes = count * sizeof(lane_type);                          \
-  size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \
-  RUNTIME_ASSERT(index >= 0 && index * bpe + bytes <= byte_length);    \
-  size_t tarray_offset = NumberToSize(isolate, tarray->byte_offset()); \
-  uint8_t* tarray_base =                                               \
-      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +    \
-      tarray_offset;                                                   \
-  lane_type lanes[kLaneCount];                                         \
-  for (int i = 0; i < kLaneCount; i++) {                               \
-    lanes[i] = a->get_lane(i);                                         \
-  }                                                                    \
+#define SIMD_STORE(type, lane_type, lane_count, count, a)            \
+  static const int kLaneCount = lane_count;                          \
+  DCHECK(args.length() == 3);                                        \
+  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);            \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 2);                         \
+  SIMD_COERCE_INDEX(index, 1);                                       \
+  size_t bpe = tarray->element_size();                               \
+  uint32_t bytes = count * sizeof(lane_type);                        \
+  size_t byte_length = NumberToSize(tarray->byte_length());          \
+  if (index < 0 || byte_length < index * bpe + bytes) {              \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                  \
+        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex)); \
+  }                                                                  \
+  size_t tarray_offset = NumberToSize(tarray->byte_offset());        \
+  uint8_t* tarray_base =                                             \
+      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +  \
+      tarray_offset;                                                 \
+  lane_type lanes[kLaneCount];                                       \
+  for (int i = 0; i < kLaneCount; i++) {                             \
+    lanes[i] = a->get_lane(i);                                       \
+  }                                                                  \
   memcpy(tarray_base + index * bpe, lanes, bytes);
-
 
 #define SIMD_LOAD_FUNCTION(type, lane_type, lane_count)         \
   RUNTIME_FUNCTION(Runtime_##type##Load) {                      \

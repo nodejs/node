@@ -14,16 +14,11 @@
 var GlobalString = global.String;
 var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
 var stringIteratorIteratedStringSymbol =
     utils.ImportNow("string_iterator_iterated_string_symbol");
 var stringIteratorNextIndexSymbol =
     utils.ImportNow("string_iterator_next_index_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 
@@ -49,7 +44,7 @@ function StringIteratorNext() {
 
   if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'String Iterator.prototype.next');
   }
 

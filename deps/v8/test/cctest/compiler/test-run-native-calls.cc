@@ -18,6 +18,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+const auto GetRegConfig = RegisterConfiguration::Turbofan;
+
 namespace {
 typedef float float32;
 typedef double float64;
@@ -76,12 +78,8 @@ class Pairs {
 class RegisterPairs : public Pairs {
  public:
   RegisterPairs()
-      : Pairs(
-            100,
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->num_allocatable_general_registers(),
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->allocatable_general_codes()) {}
+      : Pairs(100, GetRegConfig()->num_allocatable_general_registers(),
+              GetRegConfig()->allocatable_general_codes()) {}
 };
 
 
@@ -89,12 +87,8 @@ class RegisterPairs : public Pairs {
 class Float32RegisterPairs : public Pairs {
  public:
   Float32RegisterPairs()
-      : Pairs(
-            100,
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->num_allocatable_aliased_double_registers(),
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->allocatable_double_codes()) {}
+      : Pairs(100, GetRegConfig()->num_allocatable_aliased_double_registers(),
+              GetRegConfig()->allocatable_double_codes()) {}
 };
 
 
@@ -102,12 +96,8 @@ class Float32RegisterPairs : public Pairs {
 class Float64RegisterPairs : public Pairs {
  public:
   Float64RegisterPairs()
-      : Pairs(
-            100,
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->num_allocatable_aliased_double_registers(),
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->allocatable_double_codes()) {}
+      : Pairs(100, GetRegConfig()->num_allocatable_double_registers(),
+              GetRegConfig()->allocatable_double_codes()) {}
 };
 
 
@@ -136,28 +126,26 @@ struct Allocator {
     if (IsFloatingPoint(type.representation())) {
       // Allocate a floating point register/stack location.
       if (fp_offset < fp_count) {
-        return LinkageLocation::ForRegister(fp_regs[fp_offset++]);
+        int code = fp_regs[fp_offset++];
+        return LinkageLocation::ForRegister(code, type);
       } else {
         int offset = -1 - stack_offset;
         stack_offset += StackWords(type);
-        return LinkageLocation::ForCallerFrameSlot(offset);
+        return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     } else {
       // Allocate a general purpose register/stack location.
       if (gp_offset < gp_count) {
-        return LinkageLocation::ForRegister(gp_regs[gp_offset++]);
+        return LinkageLocation::ForRegister(gp_regs[gp_offset++], type);
       } else {
         int offset = -1 - stack_offset;
         stack_offset += StackWords(type);
-        return LinkageLocation::ForCallerFrameSlot(offset);
+        return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     }
   }
   int StackWords(MachineType type) {
-    // TODO(titzer): hack. float32 occupies 8 bytes on stack.
-    int size = IsFloatingPoint(type.representation())
-                   ? kDoubleSize
-                   : (1 << ElementSizeLog2Of(type.representation()));
+    int size = 1 << ElementSizeLog2Of(type.representation());
     return size <= kPointerSize ? 1 : size / kPointerSize;
   }
   void Reset() {
@@ -200,7 +188,6 @@ class RegisterConfig {
         CallDescriptor::kCallCodeObject,    // kind
         target_type,                        // target MachineType
         target_loc,                         // target location
-        msig,                               // machine_sig
         locations.Build(),                  // location_sig
         stack_param_count,                  // stack_parameter_count
         compiler::Operator::kNoProperties,  // properties
@@ -255,7 +242,7 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
                           Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info("testing", isolate, graph->zone());
+  CompilationInfo info(ArrayVector("testing"), isolate, graph->zone());
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, desc, graph, schedule);
   CHECK(!code.is_null());
@@ -271,9 +258,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
 
 Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
   Zone zone(inner->GetIsolate()->allocator());
-  MachineSignature* msig =
-      const_cast<MachineSignature*>(desc->GetMachineSignature());
-  int param_count = static_cast<int>(msig->parameter_count());
+  int param_count = static_cast<int>(desc->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
     GraphAndBuilders& b = caller;
@@ -299,6 +284,7 @@ Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
     b.graph()->SetEnd(ret);
   }
 
+  MachineSignature* msig = desc->GetMachineSignature(&zone);
   CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, msig);
 
   return CompileGraph("wrapper", cdesc, caller.graph());
@@ -419,7 +405,7 @@ void ArgsBuffer<float64>::Mutate() {
 
 
 int ParamCount(CallDescriptor* desc) {
-  return static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  return static_cast<int>(desc->ParameterCount());
 }
 
 
@@ -538,8 +524,7 @@ static void TestInt32Sub(CallDescriptor* desc) {
 
   Handle<Code> inner_code = CompileGraph("Int32Sub", desc, inner.graph());
   Handle<Code> wrapper = WrapWithCFunction(inner_code, desc);
-  MachineSignature* msig =
-      const_cast<MachineSignature*>(desc->GetMachineSignature());
+  MachineSignature* msig = desc->GetMachineSignature(&zone);
   CodeRunner<int32_t> runnable(isolate, wrapper,
                                CSignature::FromMachine(&zone, msig));
 
@@ -636,14 +621,13 @@ static void Test_RunInt32SubWithRet(int retreg) {
 
 
 // Separate tests for parallelization.
-#define TEST_INT32_SUB_WITH_RET(x)                \
-  TEST(Run_Int32Sub_all_allocatable_pairs_##x) {  \
-    if (x < Register::kNumRegisters &&            \
-        Register::from_code(x).IsAllocatable()) { \
-      Test_RunInt32SubWithRet(x);                 \
-    }                                             \
+#define TEST_INT32_SUB_WITH_RET(x)                     \
+  TEST(Run_Int32Sub_all_allocatable_pairs_##x) {       \
+    if (x < Register::kNumRegisters &&                 \
+        GetRegConfig()->IsAllocatableGeneralCode(x)) { \
+      Test_RunInt32SubWithRet(x);                      \
+    }                                                  \
   }
-
 
 TEST_INT32_SUB_WITH_RET(0)
 TEST_INT32_SUB_WITH_RET(1)
@@ -692,9 +676,7 @@ TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
     base::AccountingAllocator allocator;
     Zone zone(&allocator);
     int parray[2];
-    int rarray[] = {
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-            ->GetAllocatableGeneralCode(0)};
+    int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
     pairs.Next(&parray[0], &parray[1], false);
     Allocator params(parray, 2, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
@@ -741,14 +723,12 @@ static int32_t Compute_Int32_WeightedSum(CallDescriptor* desc, int32_t* input) {
 static void Test_Int32_WeightedSum_of_size(int count) {
   Int32Signature sig(count);
   for (int p0 = 0; p0 < Register::kNumRegisters; p0++) {
-    if (Register::from_code(p0).IsAllocatable()) {
+    if (GetRegConfig()->IsAllocatableGeneralCode(p0)) {
       base::AccountingAllocator allocator;
       Zone zone(&allocator);
 
       int parray[] = {p0};
-      int rarray[] = {
-          RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-              ->GetAllocatableGeneralCode(0)};
+      int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
       Allocator params(parray, 1, nullptr, 0);
       Allocator rets(rarray, 1, nullptr, 0);
       RegisterConfig config(params, rets);
@@ -801,12 +781,8 @@ static void RunSelect(CallDescriptor* desc) {
 
 template <int which>
 void Test_Int32_Select() {
-  int parray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0)};
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0)};
+  int parray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
   Allocator params(parray, 1, nullptr, 0);
   Allocator rets(rarray, 1, nullptr, 0);
   RegisterConfig config(params, rets);
@@ -843,14 +819,10 @@ TEST_INT32_SELECT(63)
 
 
 TEST(Int64Select_registers) {
-  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_allocatable_general_registers() < 2)
-    return;
+  if (GetRegConfig()->num_allocatable_general_registers() < 2) return;
   if (kPointerSize < 8) return;  // TODO(titzer): int64 on 32-bit platforms
 
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
   ArgsBuffer<int64_t>::Sig sig(2);
 
   RegisterPairs pairs;
@@ -871,14 +843,11 @@ TEST(Int64Select_registers) {
 
 
 TEST(Float32Select_registers) {
-  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_allocatable_double_registers() < 2) {
+  if (GetRegConfig()->num_allocatable_double_registers() < 2) {
     return;
   }
 
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   ArgsBuffer<float32>::Sig sig(2);
 
   Float32RegisterPairs pairs;
@@ -899,15 +868,9 @@ TEST(Float32Select_registers) {
 
 
 TEST(Float64Select_registers) {
-  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_allocatable_double_registers() < 2)
-    return;
-  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_allocatable_general_registers() < 2)
-    return;
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  if (GetRegConfig()->num_allocatable_double_registers() < 2) return;
+  if (GetRegConfig()->num_allocatable_general_registers() < 2) return;
+  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   ArgsBuffer<float64>::Sig sig(2);
 
   Float64RegisterPairs pairs;
@@ -928,9 +891,7 @@ TEST(Float64Select_registers) {
 
 
 TEST(Float32Select_stack_params_return_reg) {
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);
@@ -951,9 +912,7 @@ TEST(Float32Select_stack_params_return_reg) {
 
 
 TEST(Float64Select_stack_params_return_reg) {
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);
@@ -1006,9 +965,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
 
 
 TEST(Float64StackParamsToStackParams) {
-  int rarray[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
 
@@ -1027,9 +984,7 @@ TEST(Float64StackParamsToStackParams) {
 
 
 void MixedParamTest(int start) {
-  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_double_registers() < 2)
-    return;
+  if (GetRegConfig()->num_double_registers() < 2) return;
 
 // TODO(titzer): mix in 64-bit types on all platforms when supported.
 #if V8_TARGET_ARCH_32_BIT
@@ -1058,22 +1013,12 @@ void MixedParamTest(int start) {
   const int num_params = static_cast<int>(arraysize(types) - start);
 
   // Build call descriptor
-  int parray_gp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0),
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(1)};
-  int rarray_gp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0)};
-  int parray_fp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0),
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(1)};
-  int rarray_fp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  int parray_gp[] = {GetRegConfig()->GetAllocatableGeneralCode(0),
+                     GetRegConfig()->GetAllocatableGeneralCode(1)};
+  int rarray_gp[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
+  int parray_fp[] = {GetRegConfig()->GetAllocatableDoubleCode(0),
+                     GetRegConfig()->GetAllocatableDoubleCode(1)};
+  int rarray_fp[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   Allocator palloc(parray_gp, 2, parray_fp, 2);
   Allocator ralloc(rarray_gp, 1, rarray_fp, 1);
   RegisterConfig config(palloc, ralloc);
@@ -1174,29 +1119,17 @@ void TestStackSlot(MachineType slot_type, T expected) {
   // Test: Generate with a function f which reserves a stack slot, call an inner
   // function g from f which writes into the stack slot of f.
 
-  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_allocatable_double_registers() < 2)
-    return;
+  if (GetRegConfig()->num_allocatable_double_registers() < 2) return;
 
   Isolate* isolate = CcTest::InitIsolateOnce();
 
   // Lots of code to generate the build descriptor for the inner function.
-  int parray_gp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0),
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(1)};
-  int rarray_gp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0)};
-  int parray_fp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0),
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(1)};
-  int rarray_fp[] = {
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableDoubleCode(0)};
+  int parray_gp[] = {GetRegConfig()->GetAllocatableGeneralCode(0),
+                     GetRegConfig()->GetAllocatableGeneralCode(1)};
+  int rarray_gp[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
+  int parray_fp[] = {GetRegConfig()->GetAllocatableDoubleCode(0),
+                     GetRegConfig()->GetAllocatableDoubleCode(1)};
+  int rarray_fp[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
   Allocator palloc(parray_gp, 2, parray_fp, 2);
   Allocator ralloc(rarray_gp, 1, rarray_fp, 1);
   RegisterConfig config(palloc, ralloc);

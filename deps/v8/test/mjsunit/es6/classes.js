@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy --harmony-function-name --allow-natives-syntax
-// Flags: --harmony-do-expressions
+// Flags: --allow-natives-syntax --harmony-do-expressions
 
 (function TestBasics() {
   var C = class C {}

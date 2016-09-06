@@ -22,18 +22,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(context),
-  B(Star), R(0),
-  B(LdaContextSlot), R(0), U8(1),
-  B(Star), R(0),
-  B(LdaContextSlot), R(0), U8(4),
-  B(Star), R(1),
-  B(LdaContextSlot), R(context), U8(4),
-  B(Mul), R(1),
-  B(Return),
+  /*   97 E> */ B(StackCheck),
+  /*  102 S> */ B(LdrContextSlot), R(context), U8(1), R(0),
+                B(LdrContextSlot), R(0), U8(4), R(1),
+  /*  120 E> */ B(LdaContextSlot), R(context), U8(4),
+                B(Mul), R(1), U8(1),
+  /*  130 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -54,19 +50,15 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 16
 bytecodes: [
-  B(StackCheck),
-  B(LdaContextSlot), R(context), U8(4),
-  B(Star), R(0),
-  B(Ldar), R(context),
-  B(Star), R(1),
-  B(LdaContextSlot), R(1), U8(1),
-  B(Star), R(1),
-  B(Ldar), R(0),
-  B(StaContextSlot), R(1), U8(4),
-  B(LdaUndefined),
-  B(Return),
+  /*   97 E> */ B(StackCheck),
+  /*  102 S> */ B(LdrContextSlot), R(context), U8(4), R(0),
+  /*  111 E> */ B(LdrContextSlot), R(context), U8(1), R(1),
+                B(Ldar), R(0),
+                B(StaContextSlot), R(1), U8(4),
+                B(LdaUndefined),
+  /*  123 S> */ B(Return),
 ]
 constant pool: [
 ]

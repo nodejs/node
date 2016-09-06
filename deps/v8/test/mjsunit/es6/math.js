@@ -9,5 +9,7 @@ function testMathToString() {
   assertTrue(desc.configurable);
   assertFalse(desc.writable);
   assertEquals("Math", desc.value);
+  delete Math[Symbol.toStringTag];
+  assertEquals('[object Object]', "" + Math);
 }
 testMathToString();

@@ -16,13 +16,11 @@ var GetHash;
 var GlobalObject = global.Object;
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
-var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   GetExistingHash = from.GetExistingHash;
   GetHash = from.GetHash;
-  MakeTypeError = from.MakeTypeError;
 });
 
 // -------------------------------------------------------------------
@@ -30,7 +28,7 @@ utils.Import(function(from) {
 
 function WeakMapConstructor(iterable) {
   if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "WeakMap");
+    throw %make_type_error(kConstructorNotFunction, "WeakMap");
   }
 
   %WeakCollectionInitialize(this);
@@ -38,11 +36,11 @@ function WeakMapConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
     if (!IS_CALLABLE(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, adder, 'set', this);
+      throw %make_type_error(kPropertyNotFunction, adder, 'set', this);
     }
     for (var nextItem of iterable) {
       if (!IS_RECEIVER(nextItem)) {
-        throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
+        throw %make_type_error(kIteratorValueNotAnObject, nextItem);
       }
       %_Call(adder, this, nextItem[0], nextItem[1]);
     }
@@ -52,7 +50,7 @@ function WeakMapConstructor(iterable) {
 
 function WeakMapGet(key) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakMap.prototype.get', this);
   }
   if (!IS_RECEIVER(key)) return UNDEFINED;
@@ -64,17 +62,17 @@ function WeakMapGet(key) {
 
 function WeakMapSet(key, value) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakMap.prototype.set', this);
   }
-  if (!IS_RECEIVER(key)) throw MakeTypeError(kInvalidWeakMapKey);
+  if (!IS_RECEIVER(key)) throw %make_type_error(kInvalidWeakMapKey);
   return %WeakCollectionSet(this, key, value, GetHash(key));
 }
 
 
 function WeakMapHas(key) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakMap.prototype.has', this);
   }
   if (!IS_RECEIVER(key)) return false;
@@ -86,7 +84,7 @@ function WeakMapHas(key) {
 
 function WeakMapDelete(key) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakMap.prototype.delete', this);
   }
   if (!IS_RECEIVER(key)) return false;
@@ -119,7 +117,7 @@ utils.InstallFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
 
 function WeakSetConstructor(iterable) {
   if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "WeakSet");
+    throw %make_type_error(kConstructorNotFunction, "WeakSet");
   }
 
   %WeakCollectionInitialize(this);
@@ -127,7 +125,7 @@ function WeakSetConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
     if (!IS_CALLABLE(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, adder, 'add', this);
+      throw %make_type_error(kPropertyNotFunction, adder, 'add', this);
     }
     for (var value of iterable) {
       %_Call(adder, this, value);
@@ -138,17 +136,17 @@ function WeakSetConstructor(iterable) {
 
 function WeakSetAdd(value) {
   if (!IS_WEAKSET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakSet.prototype.add', this);
   }
-  if (!IS_RECEIVER(value)) throw MakeTypeError(kInvalidWeakSetValue);
+  if (!IS_RECEIVER(value)) throw %make_type_error(kInvalidWeakSetValue);
   return %WeakCollectionSet(this, value, true, GetHash(value));
 }
 
 
 function WeakSetHas(value) {
   if (!IS_WEAKSET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakSet.prototype.has', this);
   }
   if (!IS_RECEIVER(value)) return false;
@@ -160,7 +158,7 @@ function WeakSetHas(value) {
 
 function WeakSetDelete(value) {
   if (!IS_WEAKSET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'WeakSet.prototype.delete', this);
   }
   if (!IS_RECEIVER(value)) return false;

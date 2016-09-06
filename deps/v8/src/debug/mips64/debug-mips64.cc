@@ -40,7 +40,7 @@ void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
 
 void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                        Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
+  DCHECK(code->is_debug_stub());
   CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotInstructions);
   // Patch the code changing the debug break slot code from:
   //   nop(DEBUG_BREAK_NOP) - nop(1) is sll(zero_reg, zero_reg, 1)

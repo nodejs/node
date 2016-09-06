@@ -11,6 +11,12 @@
   'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllStoreMemCombinations': [SKIP],
-  'Bytecodes.DecodeBytecodeAndOperands': [SKIP],
 }],  # 'byteorder == big'
+['arch == x87', {
+  'Ieee754.Expm1': [SKIP],
+  'Ieee754.Cos': [SKIP],
+  'Ieee754.Tan': [SKIP],
+  'Ieee754.Acosh': [SKIP],
+  'Ieee754.Asinh': [SKIP],
+}],  # 'arch == x87'
 ]

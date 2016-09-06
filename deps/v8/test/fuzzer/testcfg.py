@@ -26,7 +26,7 @@ class FuzzerTestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for subtest in FuzzerTestSuite.SUB_TESTS:
-      shell = '%s_fuzzer' % subtest
+      shell = 'v8_simple_%s_fuzzer' % subtest
       for fname in os.listdir(os.path.join(self.root, subtest)):
         if not os.path.isfile(os.path.join(self.root, subtest, fname)):
           continue

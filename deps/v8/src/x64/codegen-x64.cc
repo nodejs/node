@@ -32,38 +32,6 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == nullptr) return nullptr;
-  ExternalReference::InitializeMathExpData();
-
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
-                      CodeObjectRequired::kNo);
-  // xmm0: raw double input.
-  XMMRegister input = xmm0;
-  XMMRegister result = xmm1;
-  __ pushq(rax);
-  __ pushq(rbx);
-
-  MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
-
-  __ popq(rbx);
-  __ popq(rax);
-  __ Movsd(xmm0, result);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
-
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
-}
-
-
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   size_t actual_size;
   // Allocate buffer in executable space.
@@ -204,7 +172,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new backing store.
   __ bind(&new_backing_store);
   __ leap(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
-  __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  __ Allocate(rdi, r14, r11, r15, fail, NO_ALLOCATION_FLAGS);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
   __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
@@ -243,8 +211,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // rbx: current element (smi-tagged)
   __ JumpIfNotSmi(rbx, &convert_hole);
   __ SmiToInteger32(rbx, rbx);
-  __ Cvtlsi2sd(xmm0, rbx);
-  __ Movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), xmm0);
+  __ Cvtlsi2sd(kScratchDoubleReg, rbx);
+  __ Movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
+           kScratchDoubleReg);
   __ jmp(&entry);
   __ bind(&convert_hole);
 
@@ -296,7 +265,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // r8 : source FixedDoubleArray
   // r9 : number of elements
   __ leap(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
+  __ Allocate(rdi, r11, r14, r15, &gc_required, NO_ALLOCATION_FLAGS);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
   __ movp(FieldOperand(r11, HeapObject::kMapOffset), rdi);
@@ -495,59 +464,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                   index,
                                   times_1,
                                   SeqOneByteString::kHeaderSize));
-  __ bind(&done);
-}
-
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   XMMRegister input,
-                                   XMMRegister result,
-                                   XMMRegister double_scratch,
-                                   Register temp1,
-                                   Register temp2) {
-  DCHECK(!input.is(result));
-  DCHECK(!input.is(double_scratch));
-  DCHECK(!result.is(double_scratch));
-  DCHECK(!temp1.is(temp2));
-  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
-  DCHECK(!masm->serializer_enabled());  // External references not serializable.
-
-  Label done;
-
-  __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ Movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
-  __ Xorpd(result, result);
-  __ Ucomisd(double_scratch, input);
-  __ j(above_equal, &done);
-  __ Ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
-  __ Movsd(result, Operand(kScratchRegister, 2 * kDoubleSize));
-  __ j(above_equal, &done);
-  __ Movsd(double_scratch, Operand(kScratchRegister, 3 * kDoubleSize));
-  __ Movsd(result, Operand(kScratchRegister, 4 * kDoubleSize));
-  __ Mulsd(double_scratch, input);
-  __ Addsd(double_scratch, result);
-  __ Movq(temp2, double_scratch);
-  __ Subsd(double_scratch, result);
-  __ Movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ leaq(temp1, Operand(temp2, 0x1ff800));
-  __ andq(temp2, Immediate(0x7ff));
-  __ shrq(temp1, Immediate(11));
-  __ Mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
-  __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shlq(temp1, Immediate(52));
-  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
-  __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ Subsd(double_scratch, input);
-  __ Movsd(input, double_scratch);
-  __ Subsd(result, double_scratch);
-  __ Mulsd(input, double_scratch);
-  __ Mulsd(result, input);
-  __ Movq(input, temp1);
-  __ Mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
-  __ Subsd(result, double_scratch);
-  __ Addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
-  __ Mulsd(result, input);
-
   __ bind(&done);
 }
 

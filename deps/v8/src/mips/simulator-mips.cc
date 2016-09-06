@@ -51,7 +51,6 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
 class MipsDebugger {
  public:
   explicit MipsDebugger(Simulator* sim) : sim_(sim) { }
-  ~MipsDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -85,71 +84,16 @@ class MipsDebugger {
 };
 
 
-MipsDebugger::~MipsDebugger() {
-}
-
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitializeCoverage() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void MipsDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->Bits(25, 6);
-  // Retrieve the encoded address, which comes just after this stop.
-  char** msg_address =
-    reinterpret_cast<char**>(sim_->get_pc() + Instr::kInstrSize);
-  char* msg = *msg_address;
-  DCHECK(msg != NULL);
-
-  // Update this stop description.
-  if (!watched_stops_[code].desc) {
-    watched_stops_[code].desc = msg;
-  }
-
-  if (strlen(msg) > 0) {
-    if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", str);
-      fflush(coverage_log);
-    }
-    // Overwrite the instruction and address with nops.
-    instr->SetInstructionBits(kNopInstr);
-    reinterpret_cast<Instr*>(msg_address)->SetInstructionBits(kNopInstr);
-  }
-  sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstructionSize);
-}
-
-
-#else  // GENERATED_CODE_COVERAGE
-
 #define UNSUPPORTED() printf("Sim: Unsupported instruction.\n");
 
-static void InitializeCoverage() {}
-
 
 void MipsDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->Bits(25, 6);
-  // Retrieve the encoded address, which comes just after this stop.
-  char* msg = *reinterpret_cast<char**>(sim_->get_pc() +
-      Instruction::kInstrSize);
-  // Update this stop description.
-  if (!sim_->watched_stops_[code].desc) {
-    sim_->watched_stops_[code].desc = msg;
-  }
-  PrintF("Simulator hit %s (%u)\n", msg, code);
+  PrintF("Simulator hit (%u)\n", code);
   sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
   Debug();
 }
-#endif  // GENERATED_CODE_COVERAGE
 
 
 int32_t MipsDebugger::GetRegisterValue(int regnum) {
@@ -586,7 +530,7 @@ void MipsDebugger::Debug() {
         }
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d",
+          PrintF("  0x%08" PRIxPTR ":  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
@@ -649,8 +593,8 @@ void MipsDebugger::Debug() {
 
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n",
-              reinterpret_cast<intptr_t>(cur), buffer.start());
+          PrintF("  0x%08" PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(cur),
+                 buffer.start());
           cur += Instruction::kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -771,8 +715,8 @@ void MipsDebugger::Debug() {
 
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n",
-                 reinterpret_cast<intptr_t>(cur), buffer.start());
+          PrintF("  0x%08" PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(cur),
+                 buffer.start());
           cur += Instruction::kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
@@ -864,9 +808,7 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
-
-void Simulator::FlushICache(v8::internal::HashMap* i_cache,
-                            void* start_addr,
+void Simulator::FlushICache(base::HashMap* i_cache, void* start_addr,
                             size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
   int intra_line = (start & CachePage::kLineMask);
@@ -887,10 +829,8 @@ void Simulator::FlushICache(v8::internal::HashMap* i_cache,
   }
 }
 
-
-CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
-  v8::internal::HashMap::Entry* entry =
-      i_cache->LookupOrInsert(page, ICacheHash(page));
+CachePage* Simulator::GetCachePage(base::HashMap* i_cache, void* page) {
+  base::HashMap::Entry* entry = i_cache->LookupOrInsert(page, ICacheHash(page));
   if (entry->value == NULL) {
     CachePage* new_page = new CachePage();
     entry->value = new_page;
@@ -900,9 +840,7 @@ CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
 
 
 // Flush from start up to and not including start + size.
-void Simulator::FlushOnePage(v8::internal::HashMap* i_cache,
-                             intptr_t start,
-                             int size) {
+void Simulator::FlushOnePage(base::HashMap* i_cache, intptr_t start, int size) {
   DCHECK(size <= CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
   DCHECK((start & CachePage::kLineMask) == 0);
@@ -914,9 +852,7 @@ void Simulator::FlushOnePage(v8::internal::HashMap* i_cache,
   memset(valid_bytemap, CachePage::LINE_INVALID, size >> CachePage::kLineShift);
 }
 
-
-void Simulator::CheckICache(v8::internal::HashMap* i_cache,
-                            Instruction* instr) {
+void Simulator::CheckICache(base::HashMap* i_cache, Instruction* instr) {
   intptr_t address = reinterpret_cast<intptr_t>(instr);
   void* page = reinterpret_cast<void*>(address & (~CachePage::kPageMask));
   void* line = reinterpret_cast<void*>(address & (~CachePage::kLineMask));
@@ -949,7 +885,7 @@ void Simulator::Initialize(Isolate* isolate) {
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
-    i_cache_ = new v8::internal::HashMap(&ICacheMatch);
+    i_cache_ = new base::HashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
@@ -985,7 +921,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_ra;
   registers_[ra] = bad_ra;
-  InitializeCoverage();
   last_debugger_input_ = NULL;
 }
 
@@ -1062,10 +997,10 @@ class Redirection {
 
 
 // static
-void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
+void Simulator::TearDown(base::HashMap* i_cache, Redirection* first) {
   Redirection::DeleteChain(first);
   if (i_cache != nullptr) {
-    for (HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
+    for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
          entry = i_cache->Next(entry)) {
       delete static_cast<CachePage*>(entry->value);
     }
@@ -1786,12 +1721,12 @@ void Simulator::TraceMemWr(int32_t addr, int32_t value, TraceType t) {
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
   if (addr >=0 && addr < 0x400) {
     // This has to be a NULL-dereference, drop into debugger.
-    PrintF("Memory read from bad address: 0x%08x, pc=0x%08x\n",
-           addr, reinterpret_cast<intptr_t>(instr));
+    PrintF("Memory read from bad address: 0x%08x, pc=0x%08" PRIxPTR "\n", addr,
+           reinterpret_cast<intptr_t>(instr));
     MipsDebugger dbg(this);
     dbg.Debug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1808,12 +1743,12 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
   if (addr >= 0 && addr < 0x400) {
     // This has to be a NULL-dereference, drop into debugger.
-    PrintF("Memory write to bad address: 0x%08x, pc=0x%08x\n",
-           addr, reinterpret_cast<intptr_t>(instr));
+    PrintF("Memory write to bad address: 0x%08x, pc=0x%08" PRIxPTR "\n", addr,
+           reinterpret_cast<intptr_t>(instr));
     MipsDebugger dbg(this);
     dbg.Debug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     TraceMemWr(addr, value, WORD);
     *ptr = value;
@@ -1828,7 +1763,7 @@ void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
 
 
 double Simulator::ReadD(int32_t addr, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     double* ptr = reinterpret_cast<double*>(addr);
     return *ptr;
   }
@@ -1841,7 +1776,7 @@ double Simulator::ReadD(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     double* ptr = reinterpret_cast<double*>(addr);
     *ptr = value;
     return;
@@ -1854,7 +1789,7 @@ void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
 
 
 uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1868,7 +1803,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
 
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1882,7 +1817,7 @@ int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemWr(addr, value, HALF);
     *ptr = value;
@@ -1896,7 +1831,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
 
 
 void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemWr(addr, value, HALF);
     *ptr = value;
@@ -1953,7 +1888,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
 
 // Unsupported instructions use Format to print an error and stop execution.
 void Simulator::Format(Instruction* instr, const char* format) {
-  PrintF("Simulator found unsupported instruction:\n 0x%08x: %s\n",
+  PrintF("Simulator found unsupported instruction:\n 0x%08" PRIxPTR ": %s\n",
          reinterpret_cast<intptr_t>(instr), format);
   UNIMPLEMENTED_MIPS();
 }
@@ -2088,15 +2023,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   FUNCTION_ADDR(generic_target), dval0, dval1);
+                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
+                   dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(generic_target), dval0);
+                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   FUNCTION_ADDR(generic_target), dval0, ival);
+                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
+                   ival);
             break;
           default:
             UNREACHABLE();
@@ -2195,13 +2132,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         PrintF(
             "Call to host triple returning runtime function %p "
             "args %08x, %08x, %08x, %08x, %08x\n",
-            FUNCTION_ADDR(target), arg1, arg2, arg3, arg4, arg5);
+            static_cast<void*>(FUNCTION_ADDR(target)), arg1, arg2, arg3, arg4,
+            arg5);
       }
       // arg0 is a hidden argument pointing to the return location, so don't
       // pass it to the target function.
       ObjectTriple result = target(arg1, arg2, arg3, arg4, arg5);
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Returned { %p, %p, %p }\n", result.x, result.y, result.z);
+        PrintF("Returned { %p, %p, %p }\n", static_cast<void*>(result.x),
+               static_cast<void*>(result.y), static_cast<void*>(result.z));
       }
       // Return is passed back in address pointed to by hidden first argument.
       ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(arg0);
@@ -2216,13 +2155,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         PrintF(
             "Call to host function at %p "
             "args %08x, %08x, %08x, %08x, %08x, %08x\n",
-            FUNCTION_ADDR(target),
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5);
+            static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
+            arg4, arg5);
       }
       int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
       set_register(v0, static_cast<int32_t>(result));
@@ -3731,6 +3665,9 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case TNE:
       do_interrupt = rs() != rt();
       break;
+    case SYNC:
+      // TODO(palfia): Ignore sync instruction for now.
+      break;
     // Conditional moves.
     case MOVN:
       if (rt()) {
@@ -3839,12 +3776,51 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
           alu_out = static_cast<int32_t>(output);
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          alu_out = 0x12345678;
-          UNREACHABLE();
+        case SEB: {
+          uint8_t input = static_cast<uint8_t>(rt());
+          uint32_t output = input;
+          uint32_t mask = 0x00000080;
+
+          // Extending sign
+          if (mask & input) {
+            output |= 0xFFFFFF00;
+          }
+
+          alu_out = static_cast<int32_t>(output);
           break;
+        }
+        case SEH: {
+          uint16_t input = static_cast<uint16_t>(rt());
+          uint32_t output = input;
+          uint32_t mask = 0x00008000;
+
+          // Extending sign
+          if (mask & input) {
+            output |= 0xFFFF0000;
+          }
+
+          alu_out = static_cast<int32_t>(output);
+          break;
+        }
+        case WSBH: {
+          uint32_t input = static_cast<uint32_t>(rt());
+          uint32_t output = 0;
+
+          uint32_t mask = 0xFF000000;
+          for (int i = 0; i < 4; i++) {
+            uint32_t tmp = mask & input;
+            if (i % 2 == 0) {
+              tmp = tmp >> 8;
+            } else {
+              tmp = tmp << 8;
+            }
+            output = output | tmp;
+            mask = mask >> 8;
+          }
+
+          alu_out = static_cast<int32_t>(output);
+          break;
+        }
         default: {
           const uint8_t bp = get_instr()->Bp2Value();
           sa >>= kBp2Bits;
@@ -4413,8 +4389,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
       UNSUPPORTED();
   }
   if (::v8::internal::FLAG_trace_sim) {
-    PrintF("  0x%08x  %-44s   %s\n", reinterpret_cast<intptr_t>(instr),
-           buffer.start(), trace_buf_.start());
+    PrintF("  0x%08" PRIxPTR "  %-44s   %s\n",
+           reinterpret_cast<intptr_t>(instr), buffer.start(),
+           trace_buf_.start());
   }
   if (!pc_modified_) {
     set_register(pc, reinterpret_cast<int32_t>(instr) +

@@ -10,14 +10,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function makeFFI(func, t) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([t,t,t,t,t,t,t,t,t,t,t]);
+  var sig_index = builder.addType(makeSig([t,t,t,t,t,t,t,t,t,t], [t]));
   builder.addImport("func", sig_index);
   // Try to create a frame with lots of spilled values and parameters
   // on the stack to try to catch GC bugs in the reference maps for
   // the different parts of the stack.
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,       // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -28,7 +27,7 @@ function makeFFI(func, t) {
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
       kExprGetLocal, 9,         // --
-      kExprCallImport, 0,       // --
+      kExprCallImport, 10, 0,   // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -38,7 +37,8 @@ function makeFFI(func, t) {
       kExprGetLocal, 6,         // --
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
-      kExprGetLocal, 9          // --
+      kExprGetLocal, 9,         // --
+      kExprCallImport, 10, 0    // --
     ])                          // --
     .exportFunc();
 
@@ -66,9 +66,32 @@ function print10(a, b, c, d, e, f, g, h, i) {
   }
 })();
 
-(function I32Test() {
+(function F64Test() {
   var main = makeFFI(print10, kAstF64);
   for (var i = 1; i < 2e+80; i *= -1137) {
     main(i - 1, i, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8);
   }
+})();
+
+(function GCInJSToWasmTest() {
+  var builder = new WasmModuleBuilder();
+
+  var sig_index = builder.addType(kSig_i_i);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprGetLocal, 0,         // --
+    ])                          // --
+    .exportFunc();
+
+  var main = builder.instantiate({}).exports.main;
+
+  var gc_object = {
+      valueOf: function() {
+        // Call the GC in valueOf, which is called within the JSToWasm wrapper.
+        gc();
+        return {};
+      }
+  };
+
+  main(gc_object);
 })();

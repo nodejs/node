@@ -202,7 +202,7 @@ TEST(3) {
   __ sll(r13, Operand(10));
 
   v8::internal::byte* bufPos = assm.buffer_pos();
-  ::printf("buffer position = %p", bufPos);
+  ::printf("buffer position = %p", static_cast<void*>(bufPos));
   ::fflush(stdout);
   // OS::DebugBreak();
 

@@ -9,11 +9,6 @@
 // -------------------------------------------------------------------
 // Imports
 var InternalArray = utils.InternalArray;
-var MakeTypeError;
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 
@@ -35,7 +30,7 @@ function SpreadArguments() {
 
 function SpreadIterable(collection) {
   if (IS_NULL_OR_UNDEFINED(collection)) {
-    throw MakeTypeError(kNotIterable, collection);
+    throw %make_type_error(kNotIterable, collection);
   }
 
   var args = new InternalArray();

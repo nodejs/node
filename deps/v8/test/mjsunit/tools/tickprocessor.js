@@ -81,7 +81,7 @@
 
   var shell_prov = new UnixCppEntriesProvider();
   var shell_syms = [];
-  shell_prov.parseVmSymbols('shell', 0x08048000, 0x081ee000,
+  shell_prov.parseVmSymbols('shell', 0x08048000, 0x081ee000, 0,
       function (name, start, end) {
         shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -107,7 +107,7 @@
   };
   var libc_prov = new UnixCppEntriesProvider();
   var libc_syms = [];
-  libc_prov.parseVmSymbols('libc', 0xf7c5c000, 0xf7da5000,
+  libc_prov.parseVmSymbols('libc', 0xf7c5c000, 0xf7da5000, 0,
       function (name, start, end) {
         libc_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -145,17 +145,17 @@
 
   var shell_prov = new MacCppEntriesProvider();
   var shell_syms = [];
-  shell_prov.parseVmSymbols('shell', 0x00001b00, 0x00163156,
+  shell_prov.parseVmSymbols('shell', 0x00001c00, 0x00163256, 0x100,
       function (name, start, end) {
         shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
   assertEquals(
-      [['start', 0x00001b00, 0x00001b40],
-       ['dyld_stub_binding_helper', 0x00001b40, 0x0011b710],
-       ['v8::internal::RegExpMacroAssembler::CheckPosition', 0x0011b710, 0x00134250],
-       ['v8::internal::Runtime_StringReplaceRegExpWithString', 0x00134250, 0x00137220],
-       ['v8::internal::Runtime::GetElementOrCharAt', 0x00137220, 0x00137400],
-       ['v8::internal::Runtime_DebugGetPropertyDetails', 0x00137400, 0x00163156]],
+      [['start', 0x00001c00, 0x00001c40],
+       ['dyld_stub_binding_helper', 0x00001c40, 0x0011b810],
+       ['v8::internal::RegExpMacroAssembler::CheckPosition', 0x0011b810, 0x00134350],
+       ['v8::internal::Runtime_StringReplaceRegExpWithString', 0x00134350, 0x00137320],
+       ['v8::internal::Runtime::GetElementOrCharAt', 0x00137320, 0x00137500],
+       ['v8::internal::Runtime_DebugGetPropertyDetails', 0x00137500, 0x00163256]],
       shell_syms);
 
   // stdc++ library
@@ -168,7 +168,7 @@
   };
   var stdc_prov = new MacCppEntriesProvider();
   var stdc_syms = [];
-  stdc_prov.parseVmSymbols('stdc++', 0x95728fb4, 0x95770005,
+  stdc_prov.parseVmSymbols('stdc++', 0x95728fb4, 0x95770005, 0,
       function (name, start, end) {
         stdc_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -211,7 +211,7 @@
   };
   var shell_prov = new WindowsCppEntriesProvider();
   var shell_syms = [];
-  shell_prov.parseVmSymbols('shell.exe', 0x00400000, 0x0057c000,
+  shell_prov.parseVmSymbols('shell.exe', 0x00400000, 0x0057c000, 0,
       function (name, start, end) {
         shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -252,7 +252,7 @@
   read = exeSymbols;
   var exe_exe_syms = [];
   (new WindowsCppEntriesProvider()).parseVmSymbols(
-      'chrome.exe', 0x00400000, 0x00472000,
+      'chrome.exe', 0x00400000, 0x00472000, 0,
       function (name, start, end) {
         exe_exe_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -264,7 +264,7 @@
   read = dllSymbols;
   var exe_dll_syms = [];
   (new WindowsCppEntriesProvider()).parseVmSymbols(
-      'chrome.exe', 0x00400000, 0x00472000,
+      'chrome.exe', 0x00400000, 0x00472000, 0,
       function (name, start, end) {
         exe_dll_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -275,7 +275,7 @@
   read = dllSymbols;
   var dll_dll_syms = [];
   (new WindowsCppEntriesProvider()).parseVmSymbols(
-      'chrome.dll', 0x01c30000, 0x02b80000,
+      'chrome.dll', 0x01c30000, 0x02b80000, 0,
       function (name, start, end) {
         dll_dll_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -287,7 +287,7 @@
   read = exeSymbols;
   var dll_exe_syms = [];
   (new WindowsCppEntriesProvider()).parseVmSymbols(
-      'chrome.dll', 0x01c30000, 0x02b80000,
+      'chrome.dll', 0x01c30000, 0x02b80000, 0,
       function (name, start, end) {
         dll_exe_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
@@ -304,7 +304,7 @@ function CppEntriesProviderMock() {
 
 
 CppEntriesProviderMock.prototype.parseVmSymbols = function(
-    name, startAddr, endAddr, symbolAdder) {
+    name, startAddr, endAddr, slideAddr, symbolAdder) {
   var symbols = {
     'shell':
         [['v8::internal::JSObject::LookupOwnRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)', 0x080f8800, 0x080f8d90],

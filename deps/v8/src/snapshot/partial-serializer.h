@@ -11,10 +11,11 @@
 namespace v8 {
 namespace internal {
 
+class StartupSerializer;
+
 class PartialSerializer : public Serializer {
  public:
-  PartialSerializer(Isolate* isolate, Serializer* startup_snapshot_serializer,
-                    SnapshotByteSink* sink);
+  PartialSerializer(Isolate* isolate, StartupSerializer* startup_serializer);
 
   ~PartialSerializer() override;
 
@@ -22,37 +23,12 @@ class PartialSerializer : public Serializer {
   void Serialize(Object** o);
 
  private:
-  class PartialCacheIndexMap : public AddressMapBase {
-   public:
-    PartialCacheIndexMap() : map_(HashMap::PointersMatch) {}
-
-    static const int kInvalidIndex = -1;
-
-    // Lookup object in the map. Return its index if found, or create
-    // a new entry with new_index as value, and return kInvalidIndex.
-    int LookupOrInsert(HeapObject* obj, int new_index) {
-      HashMap::Entry* entry = LookupEntry(&map_, obj, false);
-      if (entry != NULL) return GetValue(entry);
-      SetValue(LookupEntry(&map_, obj, true), static_cast<uint32_t>(new_index));
-      return kInvalidIndex;
-    }
-
-   private:
-    HashMap map_;
-
-    DISALLOW_COPY_AND_ASSIGN(PartialCacheIndexMap);
-  };
-
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  int PartialSnapshotCacheIndex(HeapObject* o);
   bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
-  Serializer* startup_serializer_;
-  Object* global_object_;
-  PartialCacheIndexMap partial_cache_index_map_;
-  int next_partial_cache_index_;
+  StartupSerializer* startup_serializer_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 

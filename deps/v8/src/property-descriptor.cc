@@ -249,7 +249,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!getter.is_null()) {
     // 18c. If IsCallable(getter) is false and getter is not undefined,
     // throw a TypeError exception.
-    if (!getter->IsCallable() && !getter->IsUndefined()) {
+    if (!getter->IsCallable() && !getter->IsUndefined(isolate)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kObjectGetterCallable, getter));
       return false;
@@ -267,7 +267,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!setter.is_null()) {
     // 21c. If IsCallable(setter) is false and setter is not undefined,
     // throw a TypeError exception.
-    if (!setter->IsCallable() && !setter->IsUndefined()) {
+    if (!setter->IsCallable() && !setter->IsUndefined(isolate)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kObjectSetterCallable, setter));
       return false;

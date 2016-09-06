@@ -43,7 +43,7 @@ void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
 
 void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                        Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
+  DCHECK(code->is_debug_stub());
   PatchingAssembler patcher(isolate, reinterpret_cast<Instruction*>(pc),
                             Assembler::kDebugBreakSlotInstructions);
   // Patch the code emitted by DebugCodegen::GenerateSlots, changing the debug

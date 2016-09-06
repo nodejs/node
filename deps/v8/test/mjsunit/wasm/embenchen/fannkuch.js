@@ -1,5 +1,5 @@
 // Modified embenchen to direct to asm-wasm.
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 var EXPECTED_OUTPUT =
   '123456789\n' +
@@ -5666,7 +5666,8 @@ function asmPrintFloat(x, y) {
   Module.print('float ' + x + ',' + y);// + ' ' + new Error().stack);
 }
 // EMSCRIPTEN_START_ASM
-var asm = Wasm.instantiateModuleFromAsm((function Module(global, env, buffer) {
+var ModuleFunc;
+var asm = (ModuleFunc = function(global, env, buffer) {
   'use asm';
   var HEAP8 = new global.Int8Array(buffer);
   var HEAP16 = new global.Int16Array(buffer);
@@ -8225,9 +8226,10 @@ function stackSave() {
 
 
   return { _strlen: _strlen, _free: _free, _main: _main, _memset: _memset, _malloc: _malloc, _memcpy: _memcpy, runPostSets: runPostSets, stackAlloc: stackAlloc, stackSave: stackSave, stackRestore: stackRestore, setThrew: setThrew, setTempRet0: setTempRet0, setTempRet1: setTempRet1, setTempRet2: setTempRet2, setTempRet3: setTempRet3, setTempRet4: setTempRet4, setTempRet5: setTempRet5, setTempRet6: setTempRet6, setTempRet7: setTempRet7, setTempRet8: setTempRet8, setTempRet9: setTempRet9 };
-}).toString(),
+})
 // EMSCRIPTEN_END_ASM
-{ "Math": Math, "Int8Array": Int8Array, "Int16Array": Int16Array, "Int32Array": Int32Array, "Uint8Array": Uint8Array, "Uint16Array": Uint16Array, "Uint32Array": Uint32Array, "Float32Array": Float32Array, "Float64Array": Float64Array, "abort": abort, "assert": assert, "asmPrintInt": asmPrintInt, "asmPrintFloat": asmPrintFloat, "min": Math_min, "_fflush": _fflush, "_emscripten_memcpy_big": _emscripten_memcpy_big, "_putchar": _putchar, "_fputc": _fputc, "_send": _send, "_pwrite": _pwrite, "_abort": _abort, "__reallyNegative": __reallyNegative, "_fwrite": _fwrite, "_sbrk": _sbrk, "_mkport": _mkport, "_fprintf": _fprintf, "___setErrNo": ___setErrNo, "__formatString": __formatString, "_fileno": _fileno, "_printf": _printf, "_time": _time, "_sysconf": _sysconf, "_write": _write, "___errno_location": ___errno_location, "STACKTOP": STACKTOP, "STACK_MAX": STACK_MAX, "tempDoublePtr": tempDoublePtr, "ABORT": ABORT, "NaN": NaN, "Infinity": Infinity }, buffer);
+({ "Math": Math, "Int8Array": Int8Array, "Int16Array": Int16Array, "Int32Array": Int32Array, "Uint8Array": Uint8Array, "Uint16Array": Uint16Array, "Uint32Array": Uint32Array, "Float32Array": Float32Array, "Float64Array": Float64Array }, { "abort": abort, "assert": assert, "asmPrintInt": asmPrintInt, "asmPrintFloat": asmPrintFloat, "min": Math_min, "_fflush": _fflush, "_emscripten_memcpy_big": _emscripten_memcpy_big, "_putchar": _putchar, "_fputc": _fputc, "_send": _send, "_pwrite": _pwrite, "_abort": _abort, "__reallyNegative": __reallyNegative, "_fwrite": _fwrite, "_sbrk": _sbrk, "_mkport": _mkport, "_fprintf": _fprintf, "___setErrNo": ___setErrNo, "__formatString": __formatString, "_fileno": _fileno, "_printf": _printf, "_time": _time, "_sysconf": _sysconf, "_write": _write, "___errno_location": ___errno_location, "STACKTOP": STACKTOP, "STACK_MAX": STACK_MAX, "tempDoublePtr": tempDoublePtr, "ABORT": ABORT, "NaN": NaN, "Infinity": Infinity }, buffer);
+assertTrue(%IsAsmWasmCode(ModuleFunc));
 var _strlen = Module["_strlen"] = asm["_strlen"];
 var _free = Module["_free"] = asm["_free"];
 var _main = Module["_main"] = asm["_main"];

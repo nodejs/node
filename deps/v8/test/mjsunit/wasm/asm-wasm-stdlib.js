@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
+
+var stdlib = this;
+
+function assertValidAsm(func) {
+  assertTrue(%IsAsmWasmCode(func));
+}
 
 (function TestStdlibConstants() {
   function Module(stdlib) {
@@ -39,9 +45,100 @@
     return {caller:caller, nanCheck:nanCheck};
   }
 
-  var m =Wasm.instantiateModuleFromAsm(Module.toString());
+  var m = Module(stdlib);
+  assertValidAsm(Module);
   assertEquals(1, m.caller());
   assertTrue(isNaN(m.nanCheck()));
+})();
+
+
+var stdlib = this;
+var stdlib_root_members = [
+  'Infinity',
+  'NaN',
+];
+var stdlib_math_members = [
+  'E',
+  'LN10',
+  'LN2',
+  'LOG2E',
+  'LOG10E',
+  'PI',
+  'SQRT1_2',
+  'SQRT2',
+  'ceil',
+  'clz32',
+  'floor',
+  'sqrt',
+  'abs',
+  'min',
+  'max',
+  'acos',
+  'asin',
+  'atan',
+  'cos',
+  'sin',
+  'tan',
+  'exp',
+  'log',
+  'atan2',
+  'pow',
+  'imul',
+  'fround',
+];
+
+
+(function TestBadStdlib() {
+  function Module(stdlib) {
+    "use asm";
+    var foo = stdlib.NaN;
+    return {};
+  }
+  for (var i = 0; i < stdlib_root_members.length; ++i) {
+    var member = stdlib_root_members[i];
+    var stdlib = {};
+    stdlib[member] = 0;
+    print(member);
+    var code = Module.toString().replace('NaN', member);
+    var decl = eval('(' + code + ')');
+    decl(stdlib);
+    assertTrue(%IsNotAsmWasmCode(decl));
+  }
+  for (var i = 0; i < stdlib_math_members.length; ++i) {
+    var member = stdlib_math_members[i];
+    var stdlib = {Math:{}};
+    stdlib['Math'][member] = 0;
+    print(member);
+    var code = Module.toString().replace('NaN', 'Math.' + member);
+    var decl = eval('(' + code + ')');
+    decl(stdlib);
+    assertTrue(%IsNotAsmWasmCode(decl));
+  }
+})();
+
+
+(function TestMissingNaNStdlib() {
+  function Module(stdlib) {
+    "use asm";
+    var foo = stdlib.NaN;
+    return {};
+  }
+  for (var i = 0; i < stdlib_root_members.length; ++i) {
+    var member = stdlib_root_members[i];
+    var code = Module.toString().replace('NaN', member);
+    var decl = eval('(' + code + ')');
+    decl({});
+    assertTrue(%IsNotAsmWasmCode(decl));
+  }
+  for (var i = 0; i < stdlib_math_members.length; ++i) {
+    var member = stdlib_math_members[i];
+    var code = Module.toString().replace('NaN', 'Math.' + member);
+    var decl = eval('(' + code + ')');
+    assertThrows(function() {
+      decl({});
+      assertTrue(%IsNotAsmWasmCode(decl));
+    });
+  }
 })();
 
 
@@ -50,6 +147,7 @@
     "use asm";
 
     var StdlibMathCeil = stdlib.Math.ceil;
+    var StdlibMathClz32 = stdlib.Math.clz32;
     var StdlibMathFloor = stdlib.Math.floor;
     var StdlibMathSqrt = stdlib.Math.sqrt;
     var StdlibMathAbs = stdlib.Math.abs;
@@ -83,33 +181,35 @@
     }
 
     function caller() {
-      if (!deltaEqual(StdlibMathSqrt(123.0), 11.090536506409418)) return 0;
-      if (StdlibMathSqrt(fround(256.0)) != fround(16.0)) return 0;
-      if (StdlibMathCeil(123.7) != 124.0) return 0;
-      if (StdlibMathCeil(fround(123.7)) != fround(124.0)) return 0;
-      if (StdlibMathFloor(123.7) != 123.0) return 0;
-      if (StdlibMathFloor(fround(123.7)) != fround(123.0)) return 0;
-      if (StdlibMathAbs(-123.0) != 123.0) return 0;
-      if (StdlibMathAbs(fround(-123.0)) != fround(123.0)) return 0;
-      if (StdlibMathMin(123.4, 1236.4) != 123.4) return 0;
-      if (StdlibMathMin(fround(123.4),
-            fround(1236.4)) != fround(123.4)) return 0;
-      if (StdlibMathMax(123.4, 1236.4) != 1236.4) return 0;
-      if (StdlibMathMax(fround(123.4), fround(1236.4))
+      if (!(deltaEqual(+StdlibMathSqrt(123.0), 11.090536506409418)|0)) return 0;
+      if (fround(StdlibMathSqrt(fround(256.0))) != fround(16.0)) return 0;
+      if (+StdlibMathCeil(123.7) != 124.0) return 0;
+      if (fround(StdlibMathCeil(fround(123.7))) != fround(124.0)) return 0;
+      if (+StdlibMathFloor(123.7) != 123.0) return 0;
+      if (fround(StdlibMathFloor(fround(123.7))) != fround(123.0)) return 0;
+      if (+StdlibMathAbs(-123.0) != 123.0) return 0;
+      if (fround(StdlibMathAbs(fround(-123.0))) != fround(123.0)) return 0;
+      if (+StdlibMathMin(123.4, 1236.4) != 123.4) return 0;
+      if (fround(StdlibMathMin(fround(123.4),
+            fround(1236.4))) != fround(123.4)) return 0;
+      if (+StdlibMathMax(123.4, 1236.4) != 1236.4) return 0;
+      if (fround(StdlibMathMax(fround(123.4), fround(1236.4)))
           != fround(1236.4)) return 0;
 
-      if (!deltaEqual(StdlibMathAcos(0.1), 1.4706289056333368)) return 0;
-      if (!deltaEqual(StdlibMathAsin(0.2), 0.2013579207903308)) return 0;
-      if (!deltaEqual(StdlibMathAtan(0.2), 0.19739555984988078)) return 0;
-      if (!deltaEqual(StdlibMathCos(0.2), 0.9800665778412416)) return 0;
-      if (!deltaEqual(StdlibMathSin(0.2), 0.19866933079506122)) return 0;
-      if (!deltaEqual(StdlibMathTan(0.2), 0.20271003550867250)) return 0;
-      if (!deltaEqual(StdlibMathExp(0.2), 1.2214027581601699)) return 0;
-      if (!deltaEqual(StdlibMathLog(0.2), -1.6094379124341003)) return 0;
+      if (!(deltaEqual(+StdlibMathAcos(0.1), 1.4706289056333368)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathAsin(0.2), 0.2013579207903308)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathAtan(0.2), 0.19739555984988078)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathCos(0.2), 0.9800665778412416)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathSin(0.2), 0.19866933079506122)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathTan(0.2), 0.20271003550867250)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathExp(0.2), 1.2214027581601699)|0)) return 0;
+      if (!(deltaEqual(+StdlibMathLog(0.2), -1.6094379124341003)|0)) return 0;
+      if ((StdlibMathClz32(134217728)|0) != 4) return 0;
 
-      if (StdlibMathImul(6, 7) != 42) return 0;
-      if (!deltaEqual(StdlibMathAtan2(6.0, 7.0), 0.7086262721276703)) return 0;
-      if (StdlibMathPow(6.0, 7.0) != 279936.0) return 0;
+      if ((StdlibMathImul(6, 7)|0) != 42) return 0;
+      if (!(deltaEqual(+StdlibMathAtan2(6.0, 7.0), 0.7086262721276703)|0))
+        return 0;
+      if (+StdlibMathPow(6.0, 7.0) != 279936.0) return 0;
 
       return 1;
     }
@@ -117,7 +217,8 @@
     return {caller:caller};
   }
 
-  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var m = Module(stdlib);
+  assertValidAsm(Module);
   assertEquals(1, m.caller());
 })();
 
@@ -261,7 +362,8 @@
       max_f64: max_f64,
     };
   }
-  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var m = Module(stdlib);
+  assertValidAsm(Module);
   var values = {
     i32: [
       0, 1, -1, 123, 456, -123, -456,

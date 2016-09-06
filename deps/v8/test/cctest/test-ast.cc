@@ -42,7 +42,7 @@ TEST(List) {
   Zone zone(&allocator);
   AstValueFactory value_factory(&zone, 0);
   AstNodeFactory factory(&value_factory);
-  AstNode* node = factory.NewEmptyStatement(RelocInfo::kNoPosition);
+  AstNode* node = factory.NewEmptyStatement(kNoSourcePosition);
   list->Add(node);
   CHECK_EQ(1, list->length());
   CHECK_EQ(node, list->at(0));

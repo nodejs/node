@@ -11,6 +11,7 @@
 #include "include/v8-platform.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
+#include "src/counters.h"
 
 // This header file defines implementation details of how the trace macros in
 // trace_event_common.h collect and store trace events. Anything not
@@ -282,6 +283,37 @@ extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
   INTERNAL_TRACE_EVENT_UID(ScopedContext)                                  \
   INTERNAL_TRACE_EVENT_UID(scoped_context)(context.raw_id());
 
+#define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() \
+  base::NoBarrier_Load(&v8::internal::tracing::kRuntimeCallStatsTracingEnabled)
+
+#define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name) \
+  INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
+
+#define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(isolate, counter_id) \
+  INTERNAL_TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(isolate, counter_id)
+
+#define INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)  \
+  {                                                                            \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(                                    \
+        TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));                        \
+    base::NoBarrier_Store(                                                     \
+        &v8::internal::tracing::kRuntimeCallStatsTracingEnabled,               \
+        INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE());     \
+  }                                                                            \
+  INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                      \
+  v8::internal::tracing::CallStatsScopedTracer INTERNAL_TRACE_EVENT_UID(       \
+      tracer);                                                                 \
+  if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {      \
+    INTERNAL_TRACE_EVENT_UID(tracer)                                           \
+        .Initialize(isolate, INTERNAL_TRACE_EVENT_UID(category_group_enabled), \
+                    name);                                                     \
+  }
+
+#define INTERNAL_TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(isolate,    \
+                                                               counter_id) \
+  v8::internal::tracing::CounterScope INTERNAL_TRACE_EVENT_UID(scope)(     \
+      isolate, counter_id);
+
 namespace v8 {
 namespace internal {
 namespace tracing {
@@ -291,6 +323,8 @@ namespace tracing {
 const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
+
+extern base::Atomic32 kRuntimeCallStatsTracingEnabled;
 
 class TraceEventHelper {
  public:
@@ -478,7 +512,7 @@ static V8_INLINE uint64_t AddTraceEvent(char phase,
                                         uint64_t id, uint64_t bind_id,
                                         unsigned int flags) {
   return TRACE_EVENT_API_ADD_TRACE_EVENT(phase, category_group_enabled, name,
-                                         id, bind_id, kZeroNumArgs, NULL,
+                                         scope, id, bind_id, kZeroNumArgs, NULL,
                                          NULL, NULL, flags);
 }
 
@@ -492,7 +526,7 @@ static V8_INLINE uint64_t AddTraceEvent(
   uint64_t arg_values[1];
   SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
-      phase, category_group_enabled, name, id, bind_id, num_args,
+      phase, category_group_enabled, name, scope, id, bind_id, num_args,
       &arg1_name, arg_types, arg_values, flags);
 }
 
@@ -509,7 +543,7 @@ static V8_INLINE uint64_t AddTraceEvent(
   SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
   SetTraceValue(arg2_val, &arg_types[1], &arg_values[1]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
-      phase, category_group_enabled, name, id, bind_id, num_args,
+      phase, category_group_enabled, name, scope, id, bind_id, num_args,
       arg_names, arg_types, arg_values, flags);
 }
 
@@ -588,6 +622,146 @@ class TraceEventSamplingStateScope {
 
  private:
   const char* previous_state_;
+};
+
+// Do not use directly.
+class CallStatsScopedTracer {
+ public:
+  CallStatsScopedTracer() : p_data_(nullptr) {}
+  ~CallStatsScopedTracer() {
+    if (V8_UNLIKELY(p_data_ && *data_.category_group_enabled)) {
+      AddEndTraceEvent();
+    }
+  }
+
+  void Initialize(Isolate* isolate, const uint8_t* category_group_enabled,
+                  const char* name);
+
+ private:
+  void AddEndTraceEvent();
+  struct Data {
+    const uint8_t* category_group_enabled;
+    const char* name;
+    Isolate* isolate;
+  };
+  bool has_parent_scope_;
+  Data* p_data_;
+  Data data_;
+};
+
+// TraceEventCallStatsTimer is used to keep track of the stack of currently
+// active timers used for properly measuring the own time of a
+// RuntimeCallCounter.
+class TraceEventCallStatsTimer {
+ public:
+  TraceEventCallStatsTimer() : counter_(nullptr), parent_(nullptr) {}
+  RuntimeCallCounter* counter() { return counter_; }
+  base::ElapsedTimer timer() { return timer_; }
+
+ private:
+  friend class TraceEventStatsTable;
+
+  V8_INLINE void Start(RuntimeCallCounter* counter,
+                       TraceEventCallStatsTimer* parent) {
+    counter_ = counter;
+    parent_ = parent;
+    timer_.Start();
+  }
+
+  V8_INLINE TraceEventCallStatsTimer* Stop() {
+    base::TimeDelta delta = timer_.Elapsed();
+    timer_.Stop();
+    counter_->count++;
+    counter_->time += delta;
+    if (parent_ != nullptr) {
+      // Adjust parent timer so that it does not include sub timer's time.
+      parent_->counter_->time -= delta;
+    }
+    return parent_;
+  }
+
+  RuntimeCallCounter* counter_;
+  TraceEventCallStatsTimer* parent_;
+  base::ElapsedTimer timer_;
+};
+
+class TraceEventStatsTable {
+ public:
+  typedef RuntimeCallCounter TraceEventStatsTable::*CounterId;
+
+#define CALL_RUNTIME_COUNTER(name) \
+  RuntimeCallCounter name = RuntimeCallCounter(#name);
+  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
+  RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name) \
+  RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) \
+  RuntimeCallCounter API_##name = RuntimeCallCounter("API_" #name);
+  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) \
+  RuntimeCallCounter Handler_##name = RuntimeCallCounter(#name);
+  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+
+  // Starting measuring the time for a function. This will establish the
+  // connection to the parent counter for properly calculating the own times.
+  static void Enter(Isolate* isolate, TraceEventCallStatsTimer* timer,
+                    CounterId counter_id);
+
+  // Leave a scope for a measured runtime function. This will properly add
+  // the time delta to the current_counter and subtract the delta from its
+  // parent.
+  static void Leave(Isolate* isolate, TraceEventCallStatsTimer* timer);
+
+  void Reset();
+  const char* Dump();
+
+  TraceEventStatsTable() {
+    Reset();
+    in_use_ = false;
+  }
+
+  TraceEventCallStatsTimer* current_timer() { return current_timer_; }
+  bool InUse() { return in_use_; }
+
+ private:
+  std::stringstream buffer_;
+  std::unique_ptr<char[]> buffer_c_str_;
+  size_t len_ = 0;
+  // Counter to track recursive time events.
+  TraceEventCallStatsTimer* current_timer_ = nullptr;
+  bool in_use_;
+};
+
+class CounterScope {
+ public:
+  CounterScope(Isolate* isolate, TraceEventStatsTable::CounterId counter_id)
+      : isolate_(nullptr) {
+    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())) {
+      isolate_ = isolate;
+      TraceEventStatsTable::Enter(isolate_, &timer_, counter_id);
+    }
+  }
+  ~CounterScope() {
+    // A non-nullptr isolate_ means the stats table already entered the scope
+    // and started the timer, we need to leave the scope and reset the timer
+    // even when we stop tracing, otherwise we have the risk to have a dangling
+    // pointer.
+    if (V8_UNLIKELY(isolate_ != nullptr)) {
+      TraceEventStatsTable::Leave(isolate_, &timer_);
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+  TraceEventCallStatsTimer timer_;
 };
 
 }  // namespace tracing

@@ -72,6 +72,7 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
     i::FLAG_ignition = true;
+    i::FLAG_ignition_osr = false;  // TODO(4764): Disabled for now.
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     CcTest::i_isolate()->interpreter()->Initialize();
@@ -113,6 +114,44 @@ std::string BuildActual(const BytecodeExpectationsPrinter& printer,
   return actual_stream.str();
 }
 
+bool CompareTexts(const std::string& generated, const std::string& expected) {
+  std::istringstream generated_stream(generated);
+  std::istringstream expected_stream(expected);
+  std::string generated_line;
+  std::string expected_line;
+  // Line number does not include golden file header.
+  int line_number = 0;
+
+  do {
+    std::getline(generated_stream, generated_line);
+    std::getline(expected_stream, expected_line);
+
+    if (!generated_stream.good() && !expected_stream.good()) {
+      return true;
+    }
+
+    if (!generated_stream.good()) {
+      std::cerr << "Expected has extra lines after line " << line_number
+                << "\n";
+      std::cerr << "  Expected: '" << expected_line << "'\n";
+      return false;
+    } else if (!expected_stream.good()) {
+      std::cerr << "Generated has extra lines after line " << line_number
+                << "\n";
+      std::cerr << "  Generated: '" << generated_line << "'\n";
+      return false;
+    }
+
+    if (generated_line != expected_line) {
+      std::cerr << "Inputs differ at line " << line_number << "\n";
+      std::cerr << "  Generated: '" << generated_line << "'\n";
+      std::cerr << "  Expected:  '" << expected_line << "'\n";
+      return false;
+    }
+    line_number++;
+  } while (true);
+}
+
 using ConstantPoolType = BytecodeExpectationsPrinter::ConstantPoolType;
 
 TEST(PrimitiveReturnStatements) {
@@ -122,27 +161,29 @@ TEST(PrimitiveReturnStatements) {
   const char* snippets[] = {
       "",
 
-      "return;",
+      "return;\n",
 
-      "return null;",
+      "return null;\n",
 
-      "return true;",
+      "return true;\n",
 
-      "return false;",
+      "return false;\n",
 
-      "return 0;",
+      "return 0;\n",
 
-      "return +1;",
+      "return +1;\n",
 
-      "return -1;",
+      "return -1;\n",
 
-      "return +127;",
+      "return +127;\n",
 
-      "return -128;",
+      "return -128;\n",
+
+      "return 2.0;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("PrimitiveReturnStatements.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrimitiveReturnStatements.golden")));
 }
 
 TEST(PrimitiveExpressions) {
@@ -150,35 +191,35 @@ TEST(PrimitiveExpressions) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "var x = 0; return x;",
+      "var x = 0; return x;\n",
 
-      "var x = 0; return x + 3;",
+      "var x = 0; return x + 3;\n",
 
-      "var x = 0; return x - 3;",
+      "var x = 0; return x - 3;\n",
 
-      "var x = 4; return x * 3;",
+      "var x = 4; return x * 3;\n",
 
-      "var x = 4; return x / 3;",
+      "var x = 4; return x / 3;\n",
 
-      "var x = 4; return x % 3;",
+      "var x = 4; return x % 3;\n",
 
-      "var x = 1; return x | 2;",
+      "var x = 1; return x | 2;\n",
 
-      "var x = 1; return x ^ 2;",
+      "var x = 1; return x ^ 2;\n",
 
-      "var x = 1; return x & 2;",
+      "var x = 1; return x & 2;\n",
 
-      "var x = 10; return x << 3;",
+      "var x = 10; return x << 3;\n",
 
-      "var x = 10; return x >> 3;",
+      "var x = 10; return x >> 3;\n",
 
-      "var x = 10; return x >>> 3;",
+      "var x = 10; return x >>> 3;\n",
 
-      "var x = 0; return (x, 3);",
+      "var x = 0; return (x, 3);\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("PrimitiveExpressions.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrimitiveExpressions.golden")));
 }
 
 TEST(LogicalExpressions) {
@@ -186,43 +227,43 @@ TEST(LogicalExpressions) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "var x = 0; return x || 3;",
+      "var x = 0; return x || 3;\n",
 
-      "var x = 0; return (x == 1) || 3;",
+      "var x = 0; return (x == 1) || 3;\n",
 
-      "var x = 0; return x && 3;",
+      "var x = 0; return x && 3;\n",
 
-      "var x = 0; return (x == 0) && 3;",
+      "var x = 0; return (x == 0) && 3;\n",
 
-      "var x = 0; return x || (1, 2, 3);",
+      "var x = 0; return x || (1, 2, 3);\n",
 
-      "var a = 2, b = 3, c = 4; return a || (a, b, a, b, c = 5, 3);",
+      "var a = 2, b = 3, c = 4; return a || (a, b, a, b, c = 5, 3);\n",
 
       "var x = 1; var a = 2, b = 3; return x || ("  //
       REPEAT_32("\n  a = 1, b = 2, ")               //
-      "3);",
+      "3);\n",
 
       "var x = 0; var a = 2, b = 3; return x && ("  //
       REPEAT_32("\n  a = 1, b = 2, ")               //
-      "3);",
+      "3);\n",
 
       "var x = 1; var a = 2, b = 3; return (x > 3) || ("  //
       REPEAT_32("\n  a = 1, b = 2, ")                     //
-      "3);",
+      "3);\n",
 
       "var x = 0; var a = 2, b = 3; return (x < 5) && ("  //
       REPEAT_32("\n  a = 1, b = 2, ")                     //
-      "3);",
+      "3);\n",
 
-      "return 0 && 3;",
+      "return 0 && 3;\n",
 
-      "return 1 || 3;",
+      "return 1 || 3;\n",
 
-      "var x = 1; return x && 3 || 0, 1;",
+      "var x = 1; return x && 3 || 0, 1;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("LogicalExpressions.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("LogicalExpressions.golden")));
 }
 
 TEST(Parameters) {
@@ -248,8 +289,8 @@ TEST(Parameters) {
       "function f(arg1, arg2, arg3, arg4) { arg2 = 1; }",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("Parameters.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("Parameters.golden")));
 }
 
 TEST(IntegerConstants) {
@@ -257,15 +298,15 @@ TEST(IntegerConstants) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "return 12345678;",
+      "return 12345678;\n",
 
-      "var a = 1234; return 5678;",
+      "var a = 1234; return 5678;\n",
 
-      "var a = 1234; return 1234;",
+      "var a = 1234; return 1234;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("IntegerConstants.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("IntegerConstants.golden")));
 }
 
 TEST(HeapNumberConstants) {
@@ -273,19 +314,19 @@ TEST(HeapNumberConstants) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "return 1.2;",
+      "return 1.2;\n",
 
-      "var a = 1.2; return 2.6;",
+      "var a = 1.2; return 2.6;\n",
 
-      "var a = 3.14; return 3.14;",
+      "var a = 3.14; return 3.14;\n",
 
       "var a;"                    //
       REPEAT_256("\na = 1.414;")  //
-      " a = 3.14;",
+      " a = 3.14;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("HeapNumberConstants.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("HeapNumberConstants.golden")));
 }
 
 TEST(StringConstants) {
@@ -293,15 +334,15 @@ TEST(StringConstants) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "return \"This is a string\";",
+      "return \"This is a string\";\n",
 
-      "var a = \"First string\"; return \"Second string\";",
+      "var a = \"First string\"; return \"Second string\";\n",
 
-      "var a = \"Same string\"; return \"Same string\";",
+      "var a = \"Same string\"; return \"Same string\";\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("StringConstants.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StringConstants.golden")));
 }
 
 TEST(PropertyLoads) {
@@ -313,16 +354,16 @@ TEST(PropertyLoads) {
 
   const char* snippets[] = {
     "function f(a) { return a.name; }\n"
-    "f({name : \"test\"});",
+    "f({name : \"test\"});\n",
 
     "function f(a) { return a[\"key\"]; }\n"
-    "f({key : \"test\"});",
+    "f({key : \"test\"});\n",
 
     "function f(a) { return a[100]; }\n"
-    "f({100 : \"test\"});",
+    "f({100 : \"test\"});\n",
 
     "function f(a, b) { return a[b]; }\n"
-    "f({arg : \"test\"}, \"arg\");",
+    "f({arg : \"test\"}, \"arg\");\n",
 
     "function f(a) { var b = a.name; return a[-124]; }\n"
     "f({\"-124\" : \"test\", name : 123 })",
@@ -344,7 +385,8 @@ TEST(PropertyLoads) {
     "f({name : \"test\"}, \"name\")\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("PropertyLoads.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PropertyLoads.golden")));
 }
 
 TEST(PropertyStores) {
@@ -407,7 +449,8 @@ TEST(PropertyStores) {
     "f({name : \"test\"})\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("PropertyStores.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PropertyStores.golden")));
 }
 
 #define FUNC_ARG "new (function Obj() { this.func = function() { return; }})()"
@@ -436,7 +479,8 @@ TEST(PropertyCall) {
       "f(" FUNC_ARG ")",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("PropertyCall.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PropertyCall.golden")));
 }
 
 TEST(LoadGlobal) {
@@ -465,10 +509,11 @@ TEST(LoadGlobal) {
     REPEAT_127("  b.name;\n")
     "  return a;\n"
     "}\n"
-    "f({name: 1});",
+    "f({name: 1});\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("LoadGlobal.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("LoadGlobal.golden")));
 }
 
 TEST(StoreGlobal) {
@@ -481,18 +526,18 @@ TEST(StoreGlobal) {
   const char* snippets[] = {
     "var a = 1;\n"
     "function f() { a = 2; }\n"
-    "f();",
+    "f();\n",
 
     "var a = \"test\"; function f(b) { a = b; }\n"
-    "f(\"global\");",
+    "f(\"global\");\n",
 
     "'use strict'; var a = 1;\n"
     "function f() { a = 2; }\n"
-    "f();",
+    "f();\n",
 
     "a = 1;\n"
     "function f() { a = 2; }\n"
-    "f();",
+    "f();\n",
 
     "a = 1;\n"
     "function f(b) {\n"
@@ -500,7 +545,7 @@ TEST(StoreGlobal) {
     REPEAT_127("  b.name;\n")
     "  a = 2;\n"
     "}\n"
-    "f({name: 1});",
+    "f({name: 1});\n",
 
     "a = 1;\n"
     "function f(b) {\n"
@@ -509,10 +554,11 @@ TEST(StoreGlobal) {
     REPEAT_127("  b.name;\n")
     "  a = 2;\n"
     "}\n"
-    "f({name: 1});",
+    "f({name: 1});\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("StoreGlobal.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StoreGlobal.golden")));
 }
 
 TEST(CallGlobal) {
@@ -525,14 +571,15 @@ TEST(CallGlobal) {
   const char* snippets[] = {
       "function t() { }\n"
       "function f() { return t(); }\n"
-      "f();",
+      "f();\n",
 
       "function t(a, b, c) { }\n"
       "function f() { return t(1, 2, 3); }\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("CallGlobal.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CallGlobal.golden")));
 }
 
 TEST(CallRuntime) {
@@ -544,30 +591,26 @@ TEST(CallRuntime) {
 
   const char* snippets[] = {
       "function f() { %TheHole() }\n"
-      "f();",
+      "f();\n",
 
       "function f(a) { return %IsArray(a) }\n"
-      "f(undefined);",
+      "f(undefined);\n",
 
       "function f() { return %Add(1, 2) }\n"
-      "f();",
+      "f();\n",
 
       "function f() { return %spread_iterable([1]) }\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("CallRuntime.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CallRuntime.golden")));
 }
 
 TEST(IfConditions) {
-  if (FLAG_harmony_instanceof) {
-    // TODO(mvstanton): when ES6 instanceof ships, regenerate the bytecode
-    // expectations and remove this flag check.
-    return;
-  }
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
-                                      ConstantPoolType::kNumber);
+                                      ConstantPoolType::kMixed);
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
@@ -579,7 +622,7 @@ TEST(IfConditions) {
     "    return -1;\n"
     "  }\n"
     "};\n"
-    "f();",
+    "f();\n",
 
     "function f() {\n"
     "  if ('lucky') {\n"
@@ -588,7 +631,7 @@ TEST(IfConditions) {
     "    return -1;\n"
     "  }\n"
     "};\n"
-    "f();",
+    "f();\n",
 
     "function f() {\n"
     "  if (false) {\n"
@@ -597,14 +640,14 @@ TEST(IfConditions) {
     "    return -1;\n"
     "  }\n"
     "};\n"
-    "f();",
+    "f();\n",
 
     "function f() {\n"
     "  if (false) {\n"
     "    return 1;\n"
     "  }\n"
     "};\n"
-    "f();",
+    "f();\n",
 
     "function f() {\n"
     "  var a = 1;\n"
@@ -614,7 +657,7 @@ TEST(IfConditions) {
     "    return 2;\n"
     "  }\n"
     "};\n"
-    "f();",
+    "f();\n",
 
     "function f(a) {\n"
     "  if (a <= 0) {\n"
@@ -623,14 +666,14 @@ TEST(IfConditions) {
     "    return -200;\n"
     "  }\n"
     "};\n"
-    "f(99);",
+    "f(99);\n",
 
     "function f(a, b) { if (a in b) { return 200; } }"
-    "f('prop', { prop: 'yes'});",
+    "f('prop', { prop: 'yes'});\n",
 
     "function f(z) { var a = 0; var b = 0; if (a === 0.01) {\n"
     REPEAT_64("  b = a; a = b;\n")
-    " return 200; } else { return -200; } } f(0.001);",
+    " return 200; } else { return -200; } } f(0.001);\n",
 
     "function f() {\n"
     "  var a = 0; var b = 0;\n"
@@ -638,7 +681,7 @@ TEST(IfConditions) {
     REPEAT_64("  b = a; a = b;\n")
     "  return 200; } else { return -200; }\n"
     "};\n"
-    "f();",
+    "f();\n",
 
     "function f(a, b) {\n"
     "  if (a == b) { return 1; }\n"
@@ -651,7 +694,7 @@ TEST(IfConditions) {
     "  if (a instanceof b) { return 1; }\n"
     "  return 0;\n"
     "}\n"
-    "f(1, 1);",
+    "f(1, 1);\n",
 
     "function f() {\n"
     "  var a = 0;\n"
@@ -661,10 +704,22 @@ TEST(IfConditions) {
     "    return -20;\n"
     "  }\n"
     "};\n"
-    "f();",
+    "f();\n",
+
+    "function f(a, b) {\n"
+    "  if (a == b || a < 0) {\n"
+    "    return 1;\n"
+    "  } else if (a > 0 && b > 0) {\n"
+    "    return 0;\n"
+    "  } else {\n"
+    "    return -1;\n"
+    "  }\n"
+    "};\n"
+    "f(-1, 1);\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("IfConditions.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("IfConditions.golden")));
 }
 
 TEST(DeclareGlobals) {
@@ -677,18 +732,19 @@ TEST(DeclareGlobals) {
   printer.set_top_level(true);
 
   const char* snippets[] = {
-      "var a = 1;",
+      "var a = 1;\n",
 
-      "function f() {}",
+      "function f() {}\n",
 
       "var a = 1;\n"
-      "a=2;",
+      "a=2;\n",
 
       "function f() {}\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("DeclareGlobals.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("DeclareGlobals.golden")));
 }
 
 TEST(BreakableBlocks) {
@@ -703,7 +759,7 @@ TEST(BreakableBlocks) {
       "  break label;\n"
       "  x = x + 1;\n"
       "}\n"
-      "return x;",
+      "return x;\n",
 
       "var sum = 0;\n"
       "outer: {\n"
@@ -714,7 +770,7 @@ TEST(BreakableBlocks) {
       "    }\n"
       "  }\n"
       "}\n"
-      "return sum;",
+      "return sum;\n",
 
       "outer: {\n"
       "  let y = 10;\n"
@@ -731,11 +787,11 @@ TEST(BreakableBlocks) {
       "    y = 3;\n"
       "  }\n"
       "}\n"
-      "x = 4;",
+      "x = 4;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("BreakableBlocks.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("BreakableBlocks.golden")));
 }
 
 TEST(BasicLoops) {
@@ -745,13 +801,13 @@ TEST(BasicLoops) {
   const char* snippets[] = {
       "var x = 0;\n"
       "while (false) { x = 99; break; continue; }\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 0;\n"
       "while (false) {\n"
       "  x = x + 1;\n"
       "};\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 0;\n"
       "var y = 1;\n"
@@ -761,7 +817,7 @@ TEST(BasicLoops) {
       "  if (x == 3) continue;\n"
       "  if (x == 4) break;\n"
       "}\n"
-      "return y;",
+      "return y;\n",
 
       "var i = 0;\n"
       "while (true) {\n"
@@ -772,7 +828,7 @@ TEST(BasicLoops) {
       "  if (i == 5) break;\n"
       "  i = i + 1;\n"
       "}\n"
-      "return i;",
+      "return i;\n",
 
       "var i = 0;\n"
       "while (true) {\n"
@@ -783,7 +839,7 @@ TEST(BasicLoops) {
       "  i = i + 1;\n"
       "  break;\n"
       "}\n"
-      "return i;",
+      "return i;\n",
 
       "var x = 10;\n"
       "var y = 1;\n"
@@ -791,7 +847,7 @@ TEST(BasicLoops) {
       "  y = y * 12;\n"
       "  x = x - 1;\n"
       "}\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 0; var y = 1;\n"
       "do {\n"
@@ -800,7 +856,7 @@ TEST(BasicLoops) {
       "  if (x == 6) continue;\n"
       "  x = x + 1;\n"
       "} while (x < 10);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 10;\n"
       "var y = 1;\n"
@@ -808,7 +864,7 @@ TEST(BasicLoops) {
       "  y = y * 12;\n"
       "  x = x - 1;\n"
       "} while (x);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 0; var y = 1;\n"
       "do {\n"
@@ -817,7 +873,7 @@ TEST(BasicLoops) {
       "  x = x + 1;\n"
       "  if (x == 6) continue;\n"
       "} while (false);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 0; var y = 1;\n"
       "do {\n"
@@ -826,56 +882,56 @@ TEST(BasicLoops) {
       "  x = x + 1;\n"
       "  if (x == 6) continue;\n"
       "} while (true);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 0;\n"
       "for (;;) {\n"
       "  if (x == 1) break;\n"
       "  if (x == 2) continue;\n"
       "  x = x + 1;\n"
-      "}",
+      "}\n",
 
       "for (var x = 0;;) {\n"
       "  if (x == 1) break;\n"
       "  if (x == 2) continue;\n"
       "  x = x + 1;\n"
-      "}",
+      "}\n",
 
       "var x = 0;\n"
       "for (;; x = x + 1) {\n"
       "  if (x == 1) break;\n"
       "  if (x == 2) continue;\n"
-      "}",
+      "}\n",
 
       "for (var x = 0;; x = x + 1) {\n"
       "  if (x == 1) break;\n"
       "  if (x == 2) continue;\n"
-      "}",
+      "}\n",
 
       "var u = 0;\n"
       "for (var i = 0; i < 100; i = i + 1) {\n"
       "  u = u + 1;\n"
       "  continue;\n"
-      "}",
+      "}\n",
 
       "var y = 1;\n"
       "for (var x = 10; x; --x) {\n"
       "  y = y * 12;\n"
       "}\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 0;\n"
       "for (var i = 0; false; i++) {\n"
       "  x = x + 1;\n"
       "};\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 0;\n"
       "for (var i = 0; true; ++i) {\n"
       "  x = x + 1;\n"
       "  if (x == 20) break;\n"
       "};\n"
-      "return x;",
+      "return x;\n",
 
       "var a = 0;\n"
       "while (a) {\n"
@@ -885,10 +941,11 @@ TEST(BasicLoops) {
       "   if (z) continue;\n"
       "   z++;\n"
       "  }\n"
-      "}",
+      "}\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("BasicLoops.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("BasicLoops.golden")));
 }
 
 TEST(JumpsRequiringConstantWideOperands) {
@@ -904,11 +961,11 @@ TEST(JumpsRequiringConstantWideOperands) {
     "  if (i == 1) continue;\n"
     "  if (i == 2) break;\n"
     "}\n"
-    "return 3;",
+    "return 3;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("JumpsRequiringConstantWideOperands.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("JumpsRequiringConstantWideOperands.golden")));
 }
 
 TEST(UnaryOperators) {
@@ -920,32 +977,33 @@ TEST(UnaryOperators) {
       "while (x != 10) {\n"
       "  x = x + 10;\n"
       "}\n"
-      "return x;",
+      "return x;\n",
 
       "var x = false;\n"
       "do {\n"
       "  x = !x;\n"
       "} while(x == false);\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 101;\n"
-      "return void(x * 3);",
+      "return void(x * 3);\n",
 
       "var x = 1234;\n"
       "var y = void (x * x - 1);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 13;\n"
-      "return ~x;",
+      "return ~x;\n",
 
       "var x = 13;\n"
-      "return +x;",
+      "return +x;\n",
 
       "var x = 13;\n"
-      "return -x;",
+      "return -x;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("UnaryOperators.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("UnaryOperators.golden")));
 }
 
 TEST(Typeof) {
@@ -967,8 +1025,8 @@ TEST(Typeof) {
       "};",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("Typeof.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("Typeof.golden")));
 }
 
 TEST(Delete) {
@@ -977,23 +1035,24 @@ TEST(Delete) {
                                       ConstantPoolType::kMixed);
 
   const char* snippets[] = {
-      "var a = {x:13, y:14}; return delete a.x;",
+      "var a = {x:13, y:14}; return delete a.x;\n",
 
-      "'use strict'; var a = {x:13, y:14}; return delete a.x;",
+      "'use strict'; var a = {x:13, y:14}; return delete a.x;\n",
 
-      "var a = {1:13, 2:14}; return delete a[2];",
+      "var a = {1:13, 2:14}; return delete a[2];\n",
 
-      "var a = 10; return delete a;",
+      "var a = 10; return delete a;\n",
 
       "'use strict';\n"
       "var a = {1:10};\n"
       "(function f1() {return a;});\n"
-      "return delete a[1];",
+      "return delete a[1];\n",
 
-      "return delete 'test';",
+      "return delete 'test';\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("Delete.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("Delete.golden")));
 }
 
 TEST(GlobalDelete) {
@@ -1008,29 +1067,30 @@ TEST(GlobalDelete) {
       "function f() {\n"
       "  return delete a.x;\n"
       "};\n"
-      "f();",
+      "f();\n",
 
       "a = {1:13, 2:14};\n"
       "function f() {\n"
       "  'use strict';\n"
       "  return delete a[1];\n"
       "};\n"
-      "f();",
+      "f();\n",
 
       "var a = {x:13, y:14};\n"
       "function f() {\n"
       "  return delete a;\n"
       "};\n"
-      "f();",
+      "f();\n",
 
       "b = 30;\n"
       "function f() {\n"
       "  return delete b;\n"
       "};\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("GlobalDelete.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("GlobalDelete.golden")));
 }
 
 TEST(FunctionLiterals) {
@@ -1039,15 +1099,15 @@ TEST(FunctionLiterals) {
                                       ConstantPoolType::kMixed);
 
   const char* snippets[] = {
-      "return function(){ }",
+      "return function(){ }\n",
 
-      "return (function(){ })()",
+      "return (function(){ })()\n",
 
-      "return (function(x){ return x; })(1)",
+      "return (function(x){ return x; })(1)\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("FunctionLiterals.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("FunctionLiterals.golden")));
 }
 
 TEST(RegExpLiterals) {
@@ -1056,14 +1116,15 @@ TEST(RegExpLiterals) {
                                       ConstantPoolType::kString);
 
   const char* snippets[] = {
-      "return /ab+d/;",
+      "return /ab+d/;\n",
 
-      "return /(\\w+)\\s(\\w+)/i;",
+      "return /(\\w+)\\s(\\w+)/i;\n",
 
-      "return /ab+d/.exec('abdd');",
+      "return /ab+d/.exec('abdd');\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("RegExpLiterals.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("RegExpLiterals.golden")));
 }
 
 TEST(RegExpLiteralsWide) {
@@ -1074,11 +1135,11 @@ TEST(RegExpLiteralsWide) {
   const char* snippets[] = {
       "var a;"                   //
       REPEAT_256("\na = 1.23;")  //
-      "\nreturn /ab+d/;",
+      "\nreturn /ab+d/;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("RegExpLiteralsWide.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("RegExpLiteralsWide.golden")));
 }
 
 TEST(ArrayLiterals) {
@@ -1087,16 +1148,17 @@ TEST(ArrayLiterals) {
                                       ConstantPoolType::kMixed);
 
   const char* snippets[] = {
-      "return [ 1, 2 ];",
+      "return [ 1, 2 ];\n",
 
-      "var a = 1; return [ a, a + 1 ];",
+      "var a = 1; return [ a, a + 1 ];\n",
 
-      "return [ [ 1, 2 ], [ 3 ] ];",
+      "return [ [ 1, 2 ], [ 3 ] ];\n",
 
-      "var a = 1; return [ [ a, 2 ], [ a + 2 ] ];",
+      "var a = 1; return [ [ a, 2 ], [ a + 2 ] ];\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("ArrayLiterals.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ArrayLiterals.golden")));
 }
 
 TEST(ArrayLiteralsWide) {
@@ -1107,11 +1169,11 @@ TEST(ArrayLiteralsWide) {
   const char* snippets[] = {
       "var a;"                   //
       REPEAT_256("\na = 1.23;")  //
-      "\nreturn [ 1 , 2 ];",
+      "\nreturn [ 1 , 2 ];\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("ArrayLiteralsWide.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ArrayLiteralsWide.golden")));
 }
 
 TEST(ObjectLiterals) {
@@ -1120,38 +1182,39 @@ TEST(ObjectLiterals) {
                                       ConstantPoolType::kMixed);
 
   const char* snippets[] = {
-      "return { };",
+      "return { };\n",
 
-      "return { name: 'string', val: 9.2 };",
+      "return { name: 'string', val: 9.2 };\n",
 
-      "var a = 1; return { name: 'string', val: a };",
+      "var a = 1; return { name: 'string', val: a };\n",
 
-      "var a = 1; return { val: a, val: a + 1 };",
+      "var a = 1; return { val: a, val: a + 1 };\n",
 
-      "return { func: function() { } };",
+      "return { func: function() { } };\n",
 
-      "return { func(a) { return a; } };",
+      "return { func(a) { return a; } };\n",
 
-      "return { get a() { return 2; } };",
+      "return { get a() { return 2; } };\n",
 
-      "return { get a() { return this.x; }, set a(val) { this.x = val } };",
+      "return { get a() { return this.x; }, set a(val) { this.x = val } };\n",
 
-      "return { set b(val) { this.y = val } };",
+      "return { set b(val) { this.y = val } };\n",
 
-      "var a = 1; return { 1: a };",
+      "var a = 1; return { 1: a };\n",
 
-      "return { __proto__: null };",
+      "return { __proto__: null };\n",
 
-      "var a = 'test'; return { [a]: 1 };",
+      "var a = 'test'; return { [a]: 1 };\n",
 
-      "var a = 'test'; return { val: a, [a]: 1 };",
+      "var a = 'test'; return { val: a, [a]: 1 };\n",
 
-      "var a = 'test'; return { [a]: 1, __proto__: {} };",
+      "var a = 'test'; return { [a]: 1, __proto__: {} };\n",
 
-      "var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
+      "var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("ObjectLiterals.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ObjectLiterals.golden")));
 }
 
 TEST(ObjectLiteralsWide) {
@@ -1161,11 +1224,11 @@ TEST(ObjectLiteralsWide) {
   const char* snippets[] = {
       "var a;"                   //
       REPEAT_256("\na = 1.23;")  //
-      "\nreturn { name: 'string', val: 9.2 };",
+      "\nreturn { name: 'string', val: 9.2 };\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("ObjectLiteralsWide.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ObjectLiteralsWide.golden")));
 }
 
 TEST(TopLevelObjectLiterals) {
@@ -1178,11 +1241,11 @@ TEST(TopLevelObjectLiterals) {
   printer.set_top_level(true);
 
   const char* snippets[] = {
-      "var a = { func: function() { } };",
+      "var a = { func: function() { } };\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("TopLevelObjectLiterals.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("TopLevelObjectLiterals.golden")));
 }
 
 TEST(TryCatch) {
@@ -1191,14 +1254,15 @@ TEST(TryCatch) {
                                       ConstantPoolType::kString);
 
   const char* snippets[] = {
-      "try { return 1; } catch(e) { return 2; }",
+      "try { return 1; } catch(e) { return 2; }\n",
 
       "var a;\n"
       "try { a = 1 } catch(e1) {};\n"
-      "try { a = 2 } catch(e2) { a = 3 }",
+      "try { a = 2 } catch(e2) { a = 3 }\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("TryCatch.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("TryCatch.golden")));
 }
 
 TEST(TryFinally) {
@@ -1207,17 +1271,18 @@ TEST(TryFinally) {
                                       ConstantPoolType::kString);
   const char* snippets[] = {
       "var a = 1;\n"
-      "try { a = 2; } finally { a = 3; }",
+      "try { a = 2; } finally { a = 3; }\n",
 
       "var a = 1;\n"
-      "try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
+      "try { a = 2; } catch(e) { a = 20 } finally { a = 3; }\n",
 
       "var a; try {\n"
       "  try { a = 1 } catch(e) { a = 2 }\n"
-      "} catch(e) { a = 20 } finally { a = 3; }",
+      "} catch(e) { a = 20 } finally { a = 3; }\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("TryFinally.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("TryFinally.golden")));
 }
 
 TEST(Throw) {
@@ -1225,14 +1290,15 @@ TEST(Throw) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "throw 1;",
+      "throw 1;\n",
 
-      "throw 'Error';",
+      "throw 'Error';\n",
 
-      "var a = 1; if (a) { throw 'Error'; };",
+      "var a = 1; if (a) { throw 'Error'; };\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("Throw.golden"));
+  CHECK(
+      CompareTexts(BuildActual(printer, snippets), LoadGolden("Throw.golden")));
 }
 
 TEST(CallNew) {
@@ -1245,11 +1311,11 @@ TEST(CallNew) {
   const char* snippets[] = {
       "function bar() { this.value = 0; }\n"
       "function f() { return new bar(); }\n"
-      "f();",
+      "f();\n",
 
       "function bar(x) { this.value = 18; this.x = x;}\n"
       "function f() { return new bar(3); }\n"
-      "f();",
+      "f();\n",
 
       "function bar(w, x, y, z) {\n"
       "  this.value = 18;\n"
@@ -1258,10 +1324,11 @@ TEST(CallNew) {
       "  this.z = z;\n"
       "}\n"
       "function f() { return new bar(3, 4, 5); }\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("CallNew.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CallNew.golden")));
 }
 
 TEST(ContextVariables) {
@@ -1274,27 +1341,27 @@ TEST(ContextVariables) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-    "var a; return function() { a = 1; };",
+    "var a; return function() { a = 1; };\n",
 
-    "var a = 1; return function() { a = 2; };",
+    "var a = 1; return function() { a = 2; };\n",
 
-    "var a = 1; var b = 2; return function() { a = 2; b = 3 };",
+    "var a = 1; var b = 2; return function() { a = 2; b = 3 };\n",
 
-    "var a; (function() { a = 2; })(); return a;",
+    "var a; (function() { a = 2; })(); return a;\n",
 
     "'use strict';\n"
     "let a = 1;\n"
-    "{ let b = 2; return function() { a + b; }; }",
+    "{ let b = 2; return function() { a + b; }; }\n",
 
     "'use strict';\n"
     REPEAT_249_UNIQUE_VARS()
     "eval();\n"
     "var b = 100;\n"
-    "return b",
+    "return b\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("ContextVariables.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ContextVariables.golden")));
 }
 
 TEST(ContextParameters) {
@@ -1314,8 +1381,8 @@ TEST(ContextParameters) {
       "function f() { var self = this; return function() { self = 2; }; }",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("ContextParameters.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("ContextParameters.golden")));
 }
 
 TEST(OuterContextVariables) {
@@ -1345,8 +1412,8 @@ TEST(OuterContextVariables) {
       "var f = new Outer().getInnerFunc();",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("OuterContextVariables.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("OuterContextVariables.golden")));
 }
 
 TEST(CountOperators) {
@@ -1354,30 +1421,31 @@ TEST(CountOperators) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "var a = 1; return ++a;",
+      "var a = 1; return ++a;\n",
 
-      "var a = 1; return a++;",
+      "var a = 1; return a++;\n",
 
-      "var a = 1; return --a;",
+      "var a = 1; return --a;\n",
 
-      "var a = 1; return a--;",
+      "var a = 1; return a--;\n",
 
-      "var a = { val: 1 }; return a.val++;",
+      "var a = { val: 1 }; return a.val++;\n",
 
-      "var a = { val: 1 }; return --a.val;",
+      "var a = { val: 1 }; return --a.val;\n",
 
-      "var name = 'var'; var a = { val: 1 }; return a[name]--;",
+      "var name = 'var'; var a = { val: 1 }; return a[name]--;\n",
 
-      "var name = 'var'; var a = { val: 1 }; return ++a[name];",
+      "var name = 'var'; var a = { val: 1 }; return ++a[name];\n",
 
-      "var a = 1; var b = function() { return a }; return ++a;",
+      "var a = 1; var b = function() { return a }; return ++a;\n",
 
-      "var a = 1; var b = function() { return a }; return a--;",
+      "var a = 1; var b = function() { return a }; return a--;\n",
 
-      "var idx = 1; var a = [1, 2]; return a[idx++] = 2;",
+      "var idx = 1; var a = [1, 2]; return a[idx++] = 2;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("CountOperators.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CountOperators.golden")));
 }
 
 TEST(GlobalCountOperators) {
@@ -1390,23 +1458,23 @@ TEST(GlobalCountOperators) {
   const char* snippets[] = {
       "var global = 1;\n"
       "function f() { return ++global; }\n"
-      "f();",
+      "f();\n",
 
       "var global = 1;\n"
       "function f() { return global--; }\n"
-      "f();",
+      "f();\n",
 
       "unallocated = 1;\n"
       "function f() { 'use strict'; return --unallocated; }\n"
-      "f();",
+      "f();\n",
 
       "unallocated = 1;\n"
       "function f() { return unallocated++; }\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("GlobalCountOperators.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("GlobalCountOperators.golden")));
 }
 
 TEST(CompoundExpressions) {
@@ -1414,19 +1482,19 @@ TEST(CompoundExpressions) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "var a = 1; a += 2;",
+      "var a = 1; a += 2;\n",
 
-      "var a = 1; a /= 2;",
+      "var a = 1; a /= 2;\n",
 
-      "var a = { val: 2 }; a.name *= 2;",
+      "var a = { val: 2 }; a.name *= 2;\n",
 
-      "var a = { 1: 2 }; a[1] ^= 2;",
+      "var a = { 1: 2 }; a[1] ^= 2;\n",
 
-      "var a = 1; (function f() { return a; }); a |= 24;",
+      "var a = 1; (function f() { return a; }); a |= 24;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("CompoundExpressions.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompoundExpressions.golden")));
 }
 
 TEST(GlobalCompoundExpressions) {
@@ -1439,15 +1507,15 @@ TEST(GlobalCompoundExpressions) {
   const char* snippets[] = {
       "var global = 1;\n"
       "function f() { return global &= 1; }\n"
-      "f();",
+      "f();\n",
 
       "unallocated = 1;\n"
       "function f() { return unallocated += 1; }\n"
-      "f();",
+      "f();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("GlobalCompoundExpressions.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("GlobalCompoundExpressions.golden")));
 }
 
 TEST(CreateArguments) {
@@ -1471,8 +1539,8 @@ TEST(CreateArguments) {
       "function f(a, b, c) { 'use strict'; return arguments; }",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("CreateArguments.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("CreateArguments.golden")));
 }
 
 TEST(CreateRestParameter) {
@@ -1492,8 +1560,8 @@ TEST(CreateRestParameter) {
       "function f(a, ...restArgs) { return restArgs[0] + arguments[0]; }",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("CreateRestParameter.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("CreateRestParameter.golden")));
 }
 
 TEST(ForIn) {
@@ -1501,29 +1569,30 @@ TEST(ForIn) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "for (var p in null) {}",
+      "for (var p in null) {}\n",
 
-      "for (var p in undefined) {}",
+      "for (var p in undefined) {}\n",
 
-      "for (var p in undefined) {}",
+      "for (var p in undefined) {}\n",
 
       "var x = 'potatoes';\n"
-      "for (var p in x) { return p; }",
+      "for (var p in x) { return p; }\n",
 
       "var x = 0;\n"
-      "for (var p in [1,2,3]) { x += p; }",
+      "for (var p in [1,2,3]) { x += p; }\n",
 
       "var x = { 'a': 1, 'b': 2 };\n"
       "for (x['a'] in [10, 20, 30]) {\n"
       "  if (x['a'] == 10) continue;\n"
       "  if (x['a'] == 20) break;\n"
-      "}",
+      "}\n",
 
       "var x = [ 10, 11, 12 ] ;\n"
-      "for (x[0] in [1,2,3]) { return x[3]; }",
+      "for (x[0] in [1,2,3]) { return x[3]; }\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("ForIn.golden"));
+  CHECK(
+      CompareTexts(BuildActual(printer, snippets), LoadGolden("ForIn.golden")));
 }
 
 TEST(ForOf) {
@@ -1531,21 +1600,22 @@ TEST(ForOf) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "for (var p of [0, 1, 2]) {}",
+      "for (var p of [0, 1, 2]) {}\n",
 
       "var x = 'potatoes';\n"
-      "for (var p of x) { return p; }",
+      "for (var p of x) { return p; }\n",
 
       "for (var x of [10, 20, 30]) {\n"
       "  if (x == 10) continue;\n"
       "  if (x == 20) break;\n"
-      "}",
+      "}\n",
 
       "var x = { 'a': 1, 'b': 2 };\n"
-      "for (x['a'] of [1,2,3]) { return x['a']; }",
+      "for (x['a'] of [1,2,3]) { return x['a']; }\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("ForOf.golden"));
+  CHECK(
+      CompareTexts(BuildActual(printer, snippets), LoadGolden("ForOf.golden")));
 }
 
 TEST(Conditional) {
@@ -1553,12 +1623,18 @@ TEST(Conditional) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "return 1 ? 2 : 3;",
+      "return 1 ? 2 : 3;\n",
 
-      "return 1 ? 2 ? 3 : 4 : 5;",
+      "return 1 ? 2 ? 3 : 4 : 5;\n",
+
+      "return 0 < 1 ? 2 : 3;\n",
+
+      "var x = 0;\n"
+      "return x ? 2 : 3;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("Conditional.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("Conditional.golden")));
 }
 
 TEST(Switch) {
@@ -1570,39 +1646,39 @@ TEST(Switch) {
     "switch(a) {\n"
     " case 1: return 2;\n"
     " case 2: return 3;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(a) {\n"
     " case 1: a = 2; break;\n"
     " case 2: a = 3; break;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(a) {\n"
     " case 1: a = 2; // fall-through\n"
     " case 2: a = 3; break;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(a) {\n"
     " case 2: break;\n"
     " case 3: break;\n"
     " default: a = 1; break;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(typeof(a)) {\n"
     " case 2: a = 1; break;\n"
     " case 3: a = 2; break;\n"
     " default: a = 3; break;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(a) {\n"
     " case typeof(a): a = 1; break;\n"
     " default: a = 2; break;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(a) {\n"
@@ -1612,7 +1688,7 @@ TEST(Switch) {
     " case 2:\n"
     "  a = 3;\n"
     "  break;\n"
-    "}",
+    "}\n",
 
     "var a = 1;\n"
     "switch(a) {\n"
@@ -1622,10 +1698,11 @@ TEST(Switch) {
     "      default : a = 2; break;\n"
     "   }  // fall-through\n"
     " case 2: a = 3;\n"
-    "}",
+    "}\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("Switch.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("Switch.golden")));
 }
 
 TEST(BasicBlockToBoolean) {
@@ -1633,15 +1710,15 @@ TEST(BasicBlockToBoolean) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "var a = 1; if (a || a < 0) { return 1; }",
+      "var a = 1; if (a || a < 0) { return 1; }\n",
 
-      "var a = 1; if (a && a < 0) { return 1; }",
+      "var a = 1; if (a && a < 0) { return 1; }\n",
 
-      "var a = 1; a = (a || a < 0) ? 2 : 3;",
+      "var a = 1; a = (a || a < 0) ? 2 : 3;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("BasicBlockToBoolean.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("BasicBlockToBoolean.golden")));
 }
 
 TEST(DeadCodeRemoval) {
@@ -1649,17 +1726,17 @@ TEST(DeadCodeRemoval) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
-      "return; var a = 1; a();",
+      "return; var a = 1; a();\n",
 
-      "if (false) { return; }; var a = 1;",
+      "if (false) { return; }; var a = 1;\n",
 
-      "if (true) { return 1; } else { return 2; };",
+      "if (true) { return 1; } else { return 2; };\n",
 
-      "var a = 1; if (a) { return 1; }; return 2;",
+      "var a = 1; if (a) { return 1; }; return 2;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("DeadCodeRemoval.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("DeadCodeRemoval.golden")));
 }
 
 TEST(ThisFunction) {
@@ -1677,8 +1754,8 @@ TEST(ThisFunction) {
       "f = function f() { return f; };",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, "", "\nf();"),
-           LoadGolden("ThisFunction.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+                     LoadGolden("ThisFunction.golden")));
 }
 
 TEST(NewTarget) {
@@ -1687,12 +1764,13 @@ TEST(NewTarget) {
                                       ConstantPoolType::kMixed);
 
   const char* snippets[] = {
-      "return new.target;",
+      "return new.target;\n",
 
-      "new.target;",
+      "new.target;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("NewTarget.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("NewTarget.golden")));
 }
 
 TEST(RemoveRedundantLdar) {
@@ -1705,22 +1783,22 @@ TEST(RemoveRedundantLdar) {
       "  ld_a = ld_a + ld_a;\n"  // in a different basicblock.
       "  if (ld_a > 10) break;\n"
       "}\n"
-      "return ld_a;",
+      "return ld_a;\n",
 
       "var ld_a = 1;\n"
       "do {\n"
       "  ld_a = ld_a + ld_a;\n"
       "  if (ld_a > 10) continue;\n"
       "} while(false);\n"
-      "return ld_a;",
+      "return ld_a;\n",
 
       "var ld_a = 1;\n"
       "  ld_a = ld_a + ld_a;\n"
-      "  return ld_a;",
+      "  return ld_a;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("RemoveRedundantLdar.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("RemoveRedundantLdar.golden")));
 }
 
 TEST(AssignmentsInBinaryExpression) {
@@ -1729,28 +1807,28 @@ TEST(AssignmentsInBinaryExpression) {
                                       ConstantPoolType::kString);
   const char* snippets[] = {
       "var x = 0, y = 1;\n"
-      "return (x = 2, y = 3, x = 4, y = 5);",
+      "return (x = 2, y = 3, x = 4, y = 5);\n",
 
       "var x = 55;\n"
       "var y = (x = 100);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 55;\n"
       "x = x + (x = 100) + (x = 101);\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 55;\n"
       "x = (x = 56) - x + (x = 57);\n"
       "x++;\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 55;\n"
       "var y = x + (x = 1) + (x = 2) + (x = 3);\n"
-      "return y;",
+      "return y;\n",
 
       "var x = 55;\n"
       "var x = x + (x = 1) + (x = 2) + (x = 3);\n"
-      "return x;",
+      "return x;\n",
 
       "var x = 10, y = 20;\n"
       "return x + (x = 1) + (x + 1) * (y = 2) + (y = 3) + (x = 4) + (y = 5) + "
@@ -1760,8 +1838,8 @@ TEST(AssignmentsInBinaryExpression) {
       "return 1 + x + (x++) + (++x);\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("AssignmentsInBinaryExpression.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("AssignmentsInBinaryExpression.golden")));
 }
 
 TEST(Eval) {
@@ -1769,10 +1847,11 @@ TEST(Eval) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "return eval('1;');",
+      "return eval('1;');\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("Eval.golden"));
+  CHECK(
+      CompareTexts(BuildActual(printer, snippets), LoadGolden("Eval.golden")));
 }
 
 TEST(LookupSlot) {
@@ -1781,14 +1860,15 @@ TEST(LookupSlot) {
                                       ConstantPoolType::kString);
 
   const char* snippets[] = {
-      "eval('var x = 10;'); return x;",
+      "eval('var x = 10;'); return x;\n",
 
-      "eval('var x = 10;'); return typeof x;",
+      "eval('var x = 10;'); return typeof x;\n",
 
-      "x = 20; return eval('');",
+      "x = 20; return eval('');\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("LookupSlot.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("LookupSlot.golden")));
 }
 
 TEST(CallLookupSlot) {
@@ -1796,10 +1876,11 @@ TEST(CallLookupSlot) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "g = function(){}; eval(''); return g();",
+      "g = function(){}; eval(''); return g();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("CallLookupSlot.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CallLookupSlot.golden")));
 }
 
 // TODO(mythria): tests for variable/function declaration in lookup slots.
@@ -1831,7 +1912,7 @@ TEST(LookupSlotInEval) {
                                    "}\n"
                                    "f1();");
 
-  CHECK_EQ(actual, LoadGolden("LookupSlotInEval.golden"));
+  CHECK(CompareTexts(actual, LoadGolden("LookupSlotInEval.golden")));
 }
 
 TEST(LookupSlotWideInEval) {
@@ -1867,7 +1948,7 @@ TEST(LookupSlotWideInEval) {
                                    "}\n"
                                    "f1();");
 
-  CHECK_EQ(actual, LoadGolden("LookupSlotWideInEval.golden"));
+  CHECK(CompareTexts(actual, LoadGolden("LookupSlotWideInEval.golden")));
 }
 
 TEST(DeleteLookupSlotInEval) {
@@ -1897,7 +1978,7 @@ TEST(DeleteLookupSlotInEval) {
                                    "}\n"
                                    "f1();");
 
-  CHECK_EQ(actual, LoadGolden("DeleteLookupSlotInEval.golden"));
+  CHECK(CompareTexts(actual, LoadGolden("DeleteLookupSlotInEval.golden")));
 }
 
 TEST(WideRegisters) {
@@ -1913,41 +1994,41 @@ TEST(WideRegisters) {
                                       ConstantPoolType::kNumber);
   const char* snippets[] = {
       "x0 = x127;\n"
-      "return x0;",
+      "return x0;\n",
 
       "x127 = x126;\n"
-      "return x127;",
+      "return x127;\n",
 
       "if (x2 > 3) { return x129; }\n"
-      "return x128;",
+      "return x128;\n",
 
       "var x0 = 0;\n"
       "if (x129 == 3) { var x129 = x0; }\n"
       "if (x2 > 3) { return x0; }\n"
-      "return x129;",
+      "return x129;\n",
 
       "var x0 = 0;\n"
       "var x1 = 0;\n"
       "for (x128 = 0; x128 < 64; x128++) {"
       "  x1 += x128;"
       "}"
-      "return x128;",
+      "return x128;\n",
 
       "var x0 = 1234;\n"
       "var x1 = 0;\n"
       "for (x128 in x0) {"
       "  x1 += x128;"
       "}"
-      "return x1;",
+      "return x1;\n",
 
       "x0 = %Add(x64, x63);\n"
       "x1 = %Add(x27, x143);\n"
       "%TheHole();\n"
-      "return x1;",
+      "return x1;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets, prologue.c_str()),
-           LoadGolden("WideRegisters.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets, prologue.c_str()),
+                     LoadGolden("WideRegisters.golden")));
 }
 
 TEST(ConstVariable) {
@@ -1955,16 +2036,17 @@ TEST(ConstVariable) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "const x = 10;",
+      "const x = 10;\n",
 
-      "const x = 10; return x;",
+      "const x = 10; return x;\n",
 
-      "const x = ( x = 20);",
+      "const x = ( x = 20);\n",
 
-      "const x = 10; x = 20;",
+      "const x = 10; x = 20;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("ConstVariable.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ConstVariable.golden")));
 }
 
 TEST(LetVariable) {
@@ -1972,16 +2054,17 @@ TEST(LetVariable) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "let x = 10;",
+      "let x = 10;\n",
 
-      "let x = 10; return x;",
+      "let x = 10; return x;\n",
 
-      "let x = (x = 20);",
+      "let x = (x = 20);\n",
 
-      "let x = 10; x = 20;",
+      "let x = 10; x = 20;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("LetVariable.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("LetVariable.golden")));
 }
 
 TEST(ConstVariableContextSlot) {
@@ -1991,17 +2074,17 @@ TEST(ConstVariableContextSlot) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "const x = 10; function f1() {return x;}",
+      "const x = 10; function f1() {return x;}\n",
 
-      "const x = 10; function f1() {return x;} return x;",
+      "const x = 10; function f1() {return x;} return x;\n",
 
-      "const x = (x = 20); function f1() {return x;}",
+      "const x = (x = 20); function f1() {return x;}\n",
 
-      "const x = 10; x = 20; function f1() {return x;}",
+      "const x = 10; x = 20; function f1() {return x;}\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("ConstVariableContextSlot.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ConstVariableContextSlot.golden")));
 }
 
 TEST(LetVariableContextSlot) {
@@ -2009,17 +2092,17 @@ TEST(LetVariableContextSlot) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "let x = 10; function f1() {return x;}",
+      "let x = 10; function f1() {return x;}\n",
 
-      "let x = 10; function f1() {return x;} return x;",
+      "let x = 10; function f1() {return x;} return x;\n",
 
-      "let x = (x = 20); function f1() {return x;}",
+      "let x = (x = 20); function f1() {return x;}\n",
 
-      "let x = 10; x = 20; function f1() {return x;}",
+      "let x = 10; x = 20; function f1() {return x;}\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("LetVariableContextSlot.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("LetVariableContextSlot.golden")));
 }
 
 TEST(DoExpression) {
@@ -2030,14 +2113,15 @@ TEST(DoExpression) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "var a = do { }; return a;",
+      "var a = do { }; return a;\n",
 
-      "var a = do { var x = 100; }; return a;",
+      "var a = do { var x = 100; }; return a;\n",
 
-      "while(true) { var a = 10; a = do { ++a; break; }; a = 20; }",
+      "while(true) { var a = 10; a = do { ++a; break; }; a = 20; }\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("DoExpression.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("DoExpression.golden")));
 
   FLAG_harmony_do_expressions = old_flag;
 }
@@ -2047,10 +2131,11 @@ TEST(WithStatement) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
   const char* snippets[] = {
-      "with ({x:42}) { return x; }",
+      "with ({x:42}) { return x; }\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("WithStatement.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("WithStatement.golden")));
 }
 
 TEST(DoDebugger) {
@@ -2058,10 +2143,11 @@ TEST(DoDebugger) {
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kString);
   const char* snippets[] = {
-      "debugger;",
+      "debugger;\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("DoDebugger.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("DoDebugger.golden")));
 }
 
 TEST(ClassDeclarations) {
@@ -2072,27 +2158,27 @@ TEST(ClassDeclarations) {
       "class Person {\n"
       "  constructor(name) { this.name = name; }\n"
       "  speak() { console.log(this.name + ' is speaking.'); }\n"
-      "}",
+      "}\n",
 
       "class person {\n"
       "  constructor(name) { this.name = name; }\n"
       "  speak() { console.log(this.name + ' is speaking.'); }\n"
-      "}",
+      "}\n",
 
       "var n0 = 'a';\n"
       "var n1 = 'b';\n"
       "class N {\n"
       "  [n0]() { return n0; }\n"
       "  static [n1]() { return n1; }\n"
-      "}",
+      "}\n",
 
       "var count = 0;\n"
       "class C { constructor() { count++; }}\n"
       "return new C();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("ClassDeclarations.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ClassDeclarations.golden")));
 }
 
 TEST(ClassAndSuperClass) {
@@ -2150,8 +2236,30 @@ TEST(ClassAndSuperClass) {
       "})();\n",
   };
 
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("ClassAndSuperClass.golden"));
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ClassAndSuperClass.golden")));
+}
+
+TEST(Generators) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate(),
+                                      ConstantPoolType::kMixed);
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "function* f() { }\n"
+      "f();\n",
+
+      "function* f() { yield 42 }\n"
+      "f();\n",
+
+      "function* f() { for (let x of [42]) yield x }\n"
+      "f();\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("Generators.golden")));
 }
 
 }  // namespace interpreter

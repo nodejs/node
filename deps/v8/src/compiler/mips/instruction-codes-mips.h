@@ -17,6 +17,7 @@ namespace compiler {
   V(MipsSub)                       \
   V(MipsSubOvf)                    \
   V(MipsMul)                       \
+  V(MipsMulOvf)                    \
   V(MipsMulHigh)                   \
   V(MipsMulHighU)                  \
   V(MipsDiv)                       \
@@ -30,9 +31,13 @@ namespace compiler {
   V(MipsClz)                       \
   V(MipsCtz)                       \
   V(MipsPopcnt)                    \
+  V(MipsLsa)                       \
   V(MipsShl)                       \
   V(MipsShr)                       \
   V(MipsSar)                       \
+  V(MipsShlPair)                   \
+  V(MipsShrPair)                   \
+  V(MipsSarPair)                   \
   V(MipsExt)                       \
   V(MipsIns)                       \
   V(MipsRor)                       \
@@ -59,6 +64,10 @@ namespace compiler {
   V(MipsSqrtD)                     \
   V(MipsMaxD)                      \
   V(MipsMinD)                      \
+  V(MipsNegS)                      \
+  V(MipsNegD)                      \
+  V(MipsAddPair)                   \
+  V(MipsSubPair)                   \
   V(MipsMulPair)                   \
   V(MipsFloat32RoundDown)          \
   V(MipsFloat32RoundTruncate)      \
@@ -88,24 +97,35 @@ namespace compiler {
   V(MipsLbu)                       \
   V(MipsSb)                        \
   V(MipsLh)                        \
+  V(MipsUlh)                       \
   V(MipsLhu)                       \
+  V(MipsUlhu)                      \
   V(MipsSh)                        \
+  V(MipsUsh)                       \
   V(MipsLw)                        \
+  V(MipsUlw)                       \
   V(MipsSw)                        \
+  V(MipsUsw)                       \
   V(MipsLwc1)                      \
+  V(MipsUlwc1)                     \
   V(MipsSwc1)                      \
+  V(MipsUswc1)                     \
   V(MipsLdc1)                      \
+  V(MipsUldc1)                     \
   V(MipsSdc1)                      \
+  V(MipsUsdc1)                     \
   V(MipsFloat64ExtractLowWord32)   \
   V(MipsFloat64ExtractHighWord32)  \
   V(MipsFloat64InsertLowWord32)    \
   V(MipsFloat64InsertHighWord32)   \
-  V(MipsFloat64Max)                \
-  V(MipsFloat64Min)                \
+  V(MipsFloat64SilenceNaN)         \
   V(MipsFloat32Max)                \
+  V(MipsFloat64Max)                \
   V(MipsFloat32Min)                \
+  V(MipsFloat64Min)                \
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
+  V(MipsByteSwap32)                \
   V(MipsStackClaim)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

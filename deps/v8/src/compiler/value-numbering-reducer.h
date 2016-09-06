@@ -13,7 +13,7 @@ namespace compiler {
 
 class ValueNumberingReducer final : public Reducer {
  public:
-  explicit ValueNumberingReducer(Zone* zone);
+  explicit ValueNumberingReducer(Zone* temp_zone, Zone* graph_zone);
   ~ValueNumberingReducer();
 
   Reduction Reduce(Node* node) override;
@@ -22,12 +22,14 @@ class ValueNumberingReducer final : public Reducer {
   enum { kInitialCapacity = 256u, kCapacityToSizeRatio = 2u };
 
   void Grow();
-  Zone* zone() const { return zone_; }
+  Zone* temp_zone() const { return temp_zone_; }
+  Zone* graph_zone() const { return graph_zone_; }
 
   Node** entries_;
   size_t capacity_;
   size_t size_;
-  Zone* zone_;
+  Zone* temp_zone_;
+  Zone* graph_zone_;
 };
 
 }  // namespace compiler

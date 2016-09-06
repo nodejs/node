@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestFunctionPrototype() {
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("nine", [kAstI32])
+  builder.addFunction("nine", kSig_i)
     .addBody([kExprI8Const, 9])
     .exportFunc();
 

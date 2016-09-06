@@ -7,6 +7,7 @@
 
 #include "src/objects.h"
 #include "src/utils.h"
+#include "src/zone-containers.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -296,7 +297,10 @@ class RegExpCharacterClass final : public RegExpTree {
   bool IsCharacterClass() override;
   bool IsTextElement() override { return true; }
   int min_match() override { return 1; }
-  int max_match() override { return 1; }
+  // The character class may match two code units for unicode regexps.
+  // TODO(yangguo): we should split this class for usage in TextElement, and
+  //                make max_match() dependent on the character class content.
+  int max_match() override { return 2; }
   void AppendToText(RegExpText* text, Zone* zone) override;
   CharacterSet character_set() { return set_; }
   // TODO(lrn): Remove need for complex version if is_standard that
@@ -409,7 +413,8 @@ class RegExpQuantifier final : public RegExpTree {
 
 class RegExpCapture final : public RegExpTree {
  public:
-  explicit RegExpCapture(int index) : body_(NULL), index_(index) {}
+  explicit RegExpCapture(int index)
+      : body_(NULL), index_(index), name_(nullptr) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   static RegExpNode* ToNode(RegExpTree* body, int index,
@@ -424,12 +429,15 @@ class RegExpCapture final : public RegExpTree {
   RegExpTree* body() { return body_; }
   void set_body(RegExpTree* body) { body_ = body; }
   int index() { return index_; }
+  const ZoneVector<uc16>* name() const { return name_; }
+  void set_name(const ZoneVector<uc16>* name) { name_ = name; }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
 
  private:
   RegExpTree* body_;
   int index_;
+  const ZoneVector<uc16>* name_;
 };
 
 
@@ -486,7 +494,9 @@ class RegExpLookaround final : public RegExpTree {
 
 class RegExpBackReference final : public RegExpTree {
  public:
-  explicit RegExpBackReference(RegExpCapture* capture) : capture_(capture) {}
+  RegExpBackReference() : capture_(nullptr), name_(nullptr) {}
+  explicit RegExpBackReference(RegExpCapture* capture)
+      : capture_(capture), name_(nullptr) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpBackReference* AsBackReference() override;
@@ -497,9 +507,13 @@ class RegExpBackReference final : public RegExpTree {
   int max_match() override { return kInfinity; }
   int index() { return capture_->index(); }
   RegExpCapture* capture() { return capture_; }
+  void set_capture(RegExpCapture* capture) { capture_ = capture; }
+  const ZoneVector<uc16>* name() const { return name_; }
+  void set_name(const ZoneVector<uc16>* name) { name_ = name; }
 
  private:
   RegExpCapture* capture_;
+  const ZoneVector<uc16>* name_;
 };
 
 

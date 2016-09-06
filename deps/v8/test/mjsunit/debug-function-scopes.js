@@ -42,14 +42,7 @@ function CheckScope(scope_mirror, scope_expectations, expected_scope_type) {
   }
 }
 
-// A copy of the scope types from debug/mirrors.js.
-var ScopeType = { Global: 0,
-                  Local: 1,
-                  With: 2,
-                  Closure: 3,
-                  Catch: 4,
-                  Block: 5,
-                  Script: 6};
+var ScopeType = debug.ScopeType;
 
 var f1 = (function F1(x) {
   function F2(y) {
@@ -162,6 +155,3 @@ function CheckNoScopeVisible(f) {
 CheckNoScopeVisible(Number);
 
 CheckNoScopeVisible(Function.toString);
-
-// This getter is known to be implemented as closure.
-CheckNoScopeVisible(new Error().__lookupGetter__("stack"));

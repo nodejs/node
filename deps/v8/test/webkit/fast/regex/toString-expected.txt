@@ -37,8 +37,8 @@ PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^\/$", "/"); is true
 PASS testForwardSlash("^\\/$", "\/"); is true
 PASS testForwardSlash("^\\\/$", "\/"); is true
-FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Invalid regular expression flags
-FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Invalid regular expression flags
+PASS testForwardSlash("^\\\\/$", "\\/"); is true
+PASS testForwardSlash("^\\\\\/$", "\\/"); is true
 PASS testForwardSlash("x/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x\/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x/x\/x", "x\/x\/x"); is true

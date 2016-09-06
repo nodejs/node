@@ -26,32 +26,47 @@
 
 
 #include "src/allocation.h"
-#include "src/compiler.h"
+#include "src/ast/ast-traversal-visitor.h"
 
 namespace v8 {
 namespace internal {
 
 // This class collects some specific information on structure of functions
-// in a particular script. It gets called from compiler all the time, but
-// actually records any data only when liveedit operation is in process;
-// in any other time this class is very cheap.
+// in a particular script.
 //
 // The primary interest of the Tracker is to record function scope structures
-// in order to analyze whether function code maybe safely patched (with new
+// in order to analyze whether function code may be safely patched (with new
 // code successfully reading existing data from function scopes). The Tracker
 // also collects compiled function codes.
-class LiveEditFunctionTracker {
+class LiveEditFunctionTracker
+    : public AstTraversalVisitor<LiveEditFunctionTracker> {
  public:
-  explicit LiveEditFunctionTracker(Isolate* isolate, FunctionLiteral* fun);
-  ~LiveEditFunctionTracker();
-  void RecordFunctionInfo(Handle<SharedFunctionInfo> info,
-                          FunctionLiteral* lit, Zone* zone);
-  void RecordRootFunctionInfo(Handle<Code> code);
+  // Traverses the entire AST, and records information about all
+  // FunctionLiterals for further use by LiveEdit code patching. The collected
+  // information is returned as a serialized array.
+  static Handle<JSArray> Collect(FunctionLiteral* node, Handle<Script> script,
+                                 Zone* zone, Isolate* isolate);
 
-  static bool IsActive(Isolate* isolate);
+ protected:
+  friend AstTraversalVisitor<LiveEditFunctionTracker>;
+  void VisitFunctionLiteral(FunctionLiteral* node);
 
  private:
+  LiveEditFunctionTracker(Handle<Script> script, Zone* zone, Isolate* isolate);
+
+  void FunctionStarted(FunctionLiteral* fun);
+  void FunctionDone(Handle<SharedFunctionInfo> shared, Scope* scope);
+  Handle<Object> SerializeFunctionScope(Scope* scope);
+
+  Handle<Script> script_;
+  Zone* zone_;
   Isolate* isolate_;
+
+  Handle<JSArray> result_;
+  int len_;
+  int current_parent_index_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiveEditFunctionTracker);
 };
 
 
@@ -279,14 +294,13 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
                             int end_position, int param_num, int literal_count,
                             int parent_index);
 
-  void SetFunctionCode(Handle<Code> function_code,
-                       Handle<HeapObject> code_scope_info);
-
   void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
   }
 
   void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+
+  Handle<SharedFunctionInfo> GetSharedFunctionInfo();
 
   int GetLiteralCount() {
     return this->GetSmiValueField(kLiteralNumOffset_);
@@ -295,12 +309,6 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   int GetParentIndex() {
     return this->GetSmiValueField(kParentIndexOffset_);
   }
-
-  Handle<Code> GetFunctionCode();
-
-  MaybeHandle<TypeFeedbackVector> GetFeedbackVector();
-
-  Handle<Object> GetCodeScopeInfo();
 
   int GetStartPosition() {
     return this->GetSmiValueField(kStartPositionOffset_);
@@ -313,13 +321,11 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kStartPositionOffset_ = 1;
   static const int kEndPositionOffset_ = 2;
   static const int kParamNumOffset_ = 3;
-  static const int kCodeOffset_ = 4;
-  static const int kCodeScopeInfoOffset_ = 5;
-  static const int kFunctionScopeInfoOffset_ = 6;
-  static const int kParentIndexOffset_ = 7;
-  static const int kSharedFunctionInfoOffset_ = 8;
-  static const int kLiteralNumOffset_ = 9;
-  static const int kSize_ = 10;
+  static const int kFunctionScopeInfoOffset_ = 4;
+  static const int kParentIndexOffset_ = 5;
+  static const int kSharedFunctionInfoOffset_ = 6;
+  static const int kLiteralNumOffset_ = 7;
+  static const int kSize_ = 8;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };

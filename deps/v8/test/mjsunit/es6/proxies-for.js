@@ -151,7 +151,7 @@ function keys(object) {
   object.__proto__ = proxy;
   assertEquals(["0"], keys(object));
 
-  // The Proxy doesn't set his ownKeys enumerable.
+  // The Proxy doesn't set its ownKeys enumerable.
   delete object[0];
   assertEquals([], keys(object));
 
@@ -209,10 +209,15 @@ function keys(object) {
   assertThrowsEquals(() => {keys(proxy)}, "error");
 })();
 
-
-(function () {
-  var symbol = Symbol();
-  var p = new Proxy({}, {ownKeys() { return ["1", symbol, "2"] }});
-  assertEquals(["1","2"], Object.getOwnPropertyNames(p));
-  assertEquals([symbol], Object.getOwnPropertySymbols(p));
+(function testNestedProxy() {
+  var handler = {
+    ownKeys() {
+      return ['c'];
+    },
+    getOwnPropertyDescriptor() { return {configurable: true, enumerable: true } }
+  }
+  var proxy = new Proxy({}, handler);
+  var proxy2 = new Proxy(proxy, {});
+  assertEquals(['c'], keys(proxy));
+  assertEquals(['c'], keys(proxy2));
 })();

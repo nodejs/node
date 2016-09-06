@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-unicode-regexps
-
 var r1 = /abc/gi;
 assertEquals("abc", r1.source);
 assertTrue(r1.global);

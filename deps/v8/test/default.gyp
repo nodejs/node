@@ -19,8 +19,8 @@
             'unittests/unittests.gyp:unittests_run',
           ],
           'includes': [
-            '../build/features.gypi',
-            '../build/isolate.gypi',
+            '../gypfiles/features.gypi',
+            '../gypfiles/isolate.gypi',
           ],
           'sources': [
             'default.isolate',

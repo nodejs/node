@@ -5,57 +5,12 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/conversions-inl.h"
-#include "src/isolate-inl.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 
 namespace v8 {
 namespace internal {
-
-
-// Perform string match of pattern on subject, starting at start index.
-// Caller must ensure that 0 <= start_index <= sub->length(),
-// and should check that pat->length() + start_index <= sub->length().
-int StringMatch(Isolate* isolate, Handle<String> sub, Handle<String> pat,
-                int start_index) {
-  DCHECK(0 <= start_index);
-  DCHECK(start_index <= sub->length());
-
-  int pattern_length = pat->length();
-  if (pattern_length == 0) return start_index;
-
-  int subject_length = sub->length();
-  if (start_index + pattern_length > subject_length) return -1;
-
-  sub = String::Flatten(sub);
-  pat = String::Flatten(pat);
-
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  // Extract flattened substrings of cons strings before getting encoding.
-  String::FlatContent seq_sub = sub->GetFlatContent();
-  String::FlatContent seq_pat = pat->GetFlatContent();
-
-  // dispatch on type of strings
-  if (seq_pat.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = seq_pat.ToOneByteVector();
-    if (seq_sub.IsOneByte()) {
-      return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                          start_index);
-    }
-    return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector,
-                        start_index);
-  }
-  Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
-  if (seq_sub.IsOneByte()) {
-    return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                        start_index);
-  }
-  return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector, start_index);
-}
-
 
 // This may return an empty MaybeHandle if an exception is thrown or
 // we abort due to reaching the recursion limit.
@@ -88,7 +43,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
 
     return subject;
   } else {
-    int index = StringMatch(isolate, subject, search, 0);
+    int index = String::IndexOf(isolate, subject, search, 0);
     if (index == -1) return subject;
     *found = true;
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
@@ -143,8 +98,8 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
-  RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
-  int position = StringMatch(isolate, sub, pat, start_index);
+  CHECK(start_index <= static_cast<uint32_t>(sub->length()));
+  int position = String::IndexOf(isolate, sub, pat, start_index);
   return Smi::FromInt(position);
 }
 
@@ -295,15 +250,19 @@ RUNTIME_FUNCTION(Runtime_SubString) {
     CONVERT_SMI_ARG_CHECKED(to_number, 2);
     start = from_number;
     end = to_number;
-  } else {
+  } else if (args[1]->IsNumber() && args[2]->IsNumber()) {
     CONVERT_DOUBLE_ARG_CHECKED(from_number, 1);
     CONVERT_DOUBLE_ARG_CHECKED(to_number, 2);
     start = FastD2IChecked(from_number);
     end = FastD2IChecked(to_number);
+  } else {
+    return isolate->ThrowIllegalOperation();
   }
-  RUNTIME_ASSERT(end >= start);
-  RUNTIME_ASSERT(start >= 0);
-  RUNTIME_ASSERT(end <= string->length());
+  // The following condition is intentionally robust because the SubStringStub
+  // delegates here and we test this in cctest/test-strings/RobustSubStringStub.
+  if (end < start || start < 0 || end > string->length()) {
+    return isolate->ThrowIllegalOperation();
+  }
   isolate->counters()->sub_string_runtime()->Increment();
 
   return *isolate->factory()->NewSubString(string, start, end);
@@ -313,19 +272,23 @@ RUNTIME_FUNCTION(Runtime_SubString) {
 RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj1, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewConsString(str1, str2));
-  return *result;
+  MaybeHandle<String> maybe_str1(Object::ToString(isolate, obj1));
+  MaybeHandle<String> maybe_str2(Object::ToString(isolate, obj2));
+  Handle<String> str1;
+  Handle<String> str2;
+  maybe_str1.ToHandle(&str1);
+  maybe_str2.ToHandle(&str2);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           isolate->factory()->NewConsString(str1, str2));
 }
 
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   return *isolate->factory()->InternalizeString(string);
 }
@@ -339,7 +302,7 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, regexp_info, 2);
 
-  RUNTIME_ASSERT(regexp_info->HasFastObjectElements());
+  CHECK(regexp_info->HasFastObjectElements());
 
   RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return isolate->heap()->exception();
@@ -436,15 +399,14 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
   size_t actual_array_length = 0;
-  RUNTIME_ASSERT(
-      TryNumberToSize(isolate, array->length(), &actual_array_length));
-  RUNTIME_ASSERT(array_length >= 0);
-  RUNTIME_ASSERT(static_cast<size_t>(array_length) <= actual_array_length);
+  CHECK(TryNumberToSize(array->length(), &actual_array_length));
+  CHECK(array_length >= 0);
+  CHECK(static_cast<size_t>(array_length) <= actual_array_length);
 
   // This assumption is used by the slice encoding in one or two smis.
   DCHECK(Smi::kMaxValue >= String::kMaxLength);
 
-  RUNTIME_ASSERT(array->HasFastElements());
+  CHECK(array->HasFastElements());
   JSObject::EnsureCanContainHeapObjectElements(array);
 
   int special_length = special->length();
@@ -505,8 +467,8 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  RUNTIME_ASSERT(array->HasFastObjectElements());
-  RUNTIME_ASSERT(array_length >= 0);
+  CHECK(array->HasFastObjectElements());
+  CHECK(array_length >= 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   if (fixed_array->length() < array_length) {
@@ -517,12 +479,12 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     return isolate->heap()->empty_string();
   } else if (array_length == 1) {
     Object* first = fixed_array->get(0);
-    RUNTIME_ASSERT(first->IsString());
+    CHECK(first->IsString());
     return first;
   }
 
   int separator_length = separator->length();
-  RUNTIME_ASSERT(separator_length > 0);
+  CHECK(separator_length > 0);
   int max_nof_separators =
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
@@ -531,7 +493,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   int length = (array_length - 1) * separator_length;
   for (int i = 0; i < array_length; i++) {
     Object* element_obj = fixed_array->get(i);
-    RUNTIME_ASSERT(element_obj->IsString());
+    CHECK(element_obj->IsString());
     String* element = String::cast(element_obj);
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
@@ -553,7 +515,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   uc16* end = sink + length;
 #endif
 
-  RUNTIME_ASSERT(fixed_array->get(0)->IsString());
+  CHECK(fixed_array->get(0)->IsString());
   String* first = String::cast(fixed_array->get(0));
   String* separator_raw = *separator;
 
@@ -566,7 +528,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     String::WriteToFlat(separator_raw, sink, 0, separator_length);
     sink += separator_length;
 
-    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    CHECK(fixed_array->get(i)->IsString());
     String* element = String::cast(fixed_array->get(i));
     int element_length = element->length();
     DCHECK(sink + element_length <= end);
@@ -645,18 +607,18 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
   // (increasing order) and strings.
-  RUNTIME_ASSERT(elements_array->HasFastSmiOrObjectElements());
+  CHECK(elements_array->HasFastSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
-  RUNTIME_ASSERT(array_length > 0);
+  CHECK(array_length > 0);
 
   // Find total length of join result.
   int string_length = 0;
   bool is_one_byte = separator->IsOneByteRepresentation();
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
-  RUNTIME_ASSERT(elements_length <= elements_array->elements()->length());
-  RUNTIME_ASSERT((elements_length & 1) == 0);  // Even length.
+  CHECK(elements_length <= elements_array->elements()->length());
+  CHECK((elements_length & 1) == 0);  // Even length.
   FixedArray* elements = FixedArray::cast(elements_array->elements());
   {
     DisallowHeapAllocation no_gc;
@@ -1062,7 +1024,7 @@ MUST_USE_RESULT static Object* ConvertCase(
   }
 
   Object* answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer->IsException() || answer->IsString()) return answer;
+  if (answer->IsException(isolate) || answer->IsString()) return answer;
 
   DCHECK(answer->IsSmi());
   length = Smi::cast(answer)->value();
@@ -1080,7 +1042,7 @@ MUST_USE_RESULT static Object* ConvertCase(
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_lower_mapping());
 }
@@ -1088,70 +1050,9 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCase) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_upper_mapping());
-}
-
-
-RUNTIME_FUNCTION(Runtime_StringTrim) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(trimLeft, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(trimRight, 2);
-
-  string = String::Flatten(string);
-  int length = string->length();
-
-  int left = 0;
-  UnicodeCache* unicode_cache = isolate->unicode_cache();
-  if (trimLeft) {
-    while (left < length &&
-           unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(left))) {
-      left++;
-    }
-  }
-
-  int right = length;
-  if (trimRight) {
-    while (
-        right > left &&
-        unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(right - 1))) {
-      right--;
-    }
-  }
-
-  return *isolate->factory()->NewSubString(string, left, right);
-}
-
-
-RUNTIME_FUNCTION(Runtime_TruncateString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(SeqString, string, 0);
-  CONVERT_INT32_ARG_CHECKED(new_length, 1);
-  RUNTIME_ASSERT(new_length >= 0);
-  return *SeqString::Truncate(string, new_length);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_INT32_ARG_CHECKED(length, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
-  if (length == 0) return isolate->heap()->empty_string();
-  Handle<String> result;
-  if (is_one_byte) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawOneByteString(length));
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawTwoByteString(length));
-  }
-  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
@@ -1261,58 +1162,13 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   return isolate->heap()->empty_string();
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringCharAt) {
+RUNTIME_FUNCTION(Runtime_ExternalStringGetChar) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  if (!args[0]->IsString()) return Smi::FromInt(0);
-  if (!args[1]->IsNumber()) return Smi::FromInt(0);
-  if (std::isinf(args.number_at(1))) return isolate->heap()->empty_string();
-  Object* code = __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
-  if (code->IsNaN()) return isolate->heap()->empty_string();
-  return __RT_impl_Runtime_StringCharFromCode(Arguments(1, &code), isolate);
-}
-
-
-RUNTIME_FUNCTION(Runtime_OneByteSeqStringGetChar) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(ExternalString, string, 0);
   CONVERT_INT32_ARG_CHECKED(index, 1);
-  return Smi::FromInt(string->SeqOneByteStringGet(index));
+  return Smi::FromInt(string->Get(index));
 }
-
-
-RUNTIME_FUNCTION(Runtime_OneByteSeqStringSetChar) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_INT32_ARG_CHECKED(index, 0);
-  CONVERT_INT32_ARG_CHECKED(value, 1);
-  CONVERT_ARG_CHECKED(SeqOneByteString, string, 2);
-  string->SeqOneByteStringSet(index, value);
-  return string;
-}
-
-
-RUNTIME_FUNCTION(Runtime_TwoByteSeqStringGetChar) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
-  CONVERT_INT32_ARG_CHECKED(index, 1);
-  return Smi::FromInt(string->SeqTwoByteStringGet(index));
-}
-
-
-RUNTIME_FUNCTION(Runtime_TwoByteSeqStringSetChar) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_INT32_ARG_CHECKED(index, 0);
-  CONVERT_INT32_ARG_CHECKED(value, 1);
-  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 2);
-  string->SeqTwoByteStringSet(index, value);
-  return string;
-}
-
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   SealHandleScope shs(isolate);

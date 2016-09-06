@@ -20,7 +20,7 @@ TypeFeedbackOracle::TypeFeedbackOracle(
     Handle<TypeFeedbackVector> feedback_vector, Handle<Context> native_context)
     : native_context_(native_context), isolate_(isolate), zone_(zone) {
   BuildDictionary(code);
-  DCHECK(dictionary_->IsDictionary());
+  DCHECK(dictionary_->IsUnseededNumberDictionary());
   // We make a copy of the feedback vector because a GC could clear
   // the type feedback info contained therein.
   // TODO(mvstanton): revisit the decision to copy when we weakly
@@ -108,7 +108,7 @@ bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackVectorSlot slot) {
 
 bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorSlot slot) {
   Handle<Object> value = GetInfo(slot);
-  return value->IsUndefined() ||
+  return value->IsUndefined(isolate()) ||
          value.is_identical_to(
              TypeFeedbackVector::UninitializedSentinel(isolate()));
 }
@@ -280,8 +280,8 @@ void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorSlot slot,
   receiver_types->Clear();
   if (!slot.IsInvalid()) {
     LoadICNexus nexus(feedback_vector_, slot);
-    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-    CollectReceiverTypes(&nexus, name, flags, receiver_types);
+    CollectReceiverTypes(isolate()->load_stub_cache(), &nexus, name,
+                         receiver_types);
   }
 }
 
@@ -295,7 +295,7 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     *key_type = ELEMENT;
   } else {
     KeyedLoadICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
+    CollectReceiverTypes(&nexus, receiver_types);
     *is_string = HasOnlyStringMaps(receiver_types);
     *key_type = nexus.GetKeyType();
   }
@@ -306,8 +306,8 @@ void TypeFeedbackOracle::AssignmentReceiverTypes(FeedbackVectorSlot slot,
                                                  Handle<Name> name,
                                                  SmallMapList* receiver_types) {
   receiver_types->Clear();
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
-  CollectReceiverTypes(slot, name, flags, receiver_types);
+  CollectReceiverTypes(isolate()->store_stub_cache(), slot, name,
+                       receiver_types);
 }
 
 
@@ -326,27 +326,24 @@ void TypeFeedbackOracle::CountReceiverTypes(FeedbackVectorSlot slot,
   if (!slot.IsInvalid()) CollectReceiverTypes(slot, receiver_types);
 }
 
-
-void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
+void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
+                                              FeedbackVectorSlot slot,
                                               Handle<Name> name,
-                                              Code::Flags flags,
                                               SmallMapList* types) {
   StoreICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes<FeedbackNexus>(&nexus, name, flags, types);
+  CollectReceiverTypes(stub_cache, &nexus, name, types);
 }
 
-
-template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, Handle<Name> name,
-                                              Code::Flags flags,
+void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
+                                              FeedbackNexus* nexus,
+                                              Handle<Name> name,
                                               SmallMapList* types) {
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
-      obj->ic_state() == MEGAMORPHIC) {
+      nexus->ic_state() == MEGAMORPHIC) {
     types->Reserve(4, zone());
-    isolate()->stub_cache()->CollectMatchingMaps(
-        types, name, flags, native_context_, zone());
+    stub_cache->CollectMatchingMaps(types, name, native_context_, zone());
   } else {
-    CollectReceiverTypes<T>(obj, types);
+    CollectReceiverTypes(nexus, types);
   }
 }
 
@@ -356,23 +353,22 @@ void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
   FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
   if (kind == FeedbackVectorSlotKind::STORE_IC) {
     StoreICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+    CollectReceiverTypes(&nexus, types);
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, kind);
     KeyedStoreICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+    CollectReceiverTypes(&nexus, types);
   }
 }
 
-
-template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
+void TypeFeedbackOracle::CollectReceiverTypes(FeedbackNexus* nexus,
+                                              SmallMapList* types) {
   MapHandleList maps;
-  if (obj->ic_state() == MONOMORPHIC) {
-    Map* map = obj->FindFirstMap();
+  if (nexus->ic_state() == MONOMORPHIC) {
+    Map* map = nexus->FindFirstMap();
     if (map != NULL) maps.Add(handle(map));
-  } else if (obj->ic_state() == POLYMORPHIC) {
-    obj->FindAllMaps(&maps);
+  } else if (nexus->ic_state() == POLYMORPHIC) {
+    nexus->FindAllMaps(&maps);
   } else {
     return;
   }

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdlib>
+#include <memory>
 #include <sstream>
 
 #include "include/v8.h"
@@ -171,7 +172,6 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 void TestRegExpParser(bool lookbehind) {
   FLAG_harmony_regexp_lookbehind = lookbehind;
-  FLAG_harmony_unicode_regexps = true;
 
   CHECK_PARSE_ERROR("?");
 
@@ -438,6 +438,23 @@ void TestRegExpParser(bool lookbehind) {
   CHECK_MIN_MAX("a(?=b)c", 2, 2);
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
+
+  FLAG_harmony_regexp_named_captures = true;
+  CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<a>",
+               "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))", true);
+  CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<b>",
+               "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))", true);
+  CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<c>",
+               "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))", true);
+  CheckParseEq("(?<a>a)\\k<a>", "(: (^ 'a') (<- 1))", true);
+  CheckParseEq("(?<a>a\\k<a>)", "(^ 'a')", true);
+  CheckParseEq("(?<a>\\k<a>a)", "(^ 'a')", true);
+  CheckParseEq("(?<a>\\k<b>)(?<b>\\k<a>)", "(: (^ (<- 2)) (^ (<- 1)))", true);
+  CheckParseEq("\\k<a>(?<a>a)", "(: (<- 1) (^ 'a'))", true);
+
+  CheckParseEq("(?<\\u{03C0}>a)", "(^ 'a')", true);
+  CheckParseEq("(?<\\u03C0>a)", "(^ 'a')", true);
+  FLAG_harmony_regexp_named_captures = false;
 }
 
 
@@ -450,7 +467,6 @@ TEST(ParserWithoutLookbehind) {
   TestRegExpParser(true);  // Lookbehind enabled.
 }
 
-
 TEST(ParserRegression) {
   CheckParseEq("[A-Z$-][x]", "(! [A-Z $ -] [x])");
   CheckParseEq("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
@@ -458,17 +474,19 @@ TEST(ParserRegression) {
   CheckParseEq("a|", "(| 'a' %)");
 }
 
-static void ExpectError(const char* input,
-                        const char* expected) {
+static void ExpectError(const char* input, const char* expected,
+                        bool unicode = false) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate()->allocator());
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
+  JSRegExp::Flags flags = JSRegExp::kNone;
+  if (unicode) flags |= JSRegExp::kUnicode;
+  CHECK(!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
+                                                 &reader, flags, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
-  v8::base::SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
+  std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(0, strcmp(expected, str.get()));
 }
 
@@ -499,6 +517,23 @@ TEST(Errors) {
     os << "()";
   }
   ExpectError(os.str().c_str(), kTooManyCaptures);
+
+  FLAG_harmony_regexp_named_captures = true;
+  const char* kInvalidCaptureName = "Invalid capture group name";
+  ExpectError("(?<>.)", kInvalidCaptureName, true);
+  ExpectError("(?<1>.)", kInvalidCaptureName, true);
+  ExpectError("(?<_%>.)", kInvalidCaptureName, true);
+  ExpectError("\\k<a", kInvalidCaptureName, true);
+  const char* kDuplicateCaptureName = "Duplicate capture group name";
+  ExpectError("(?<a>.)(?<a>.)", kDuplicateCaptureName, true);
+  const char* kInvalidUnicodeEscape = "Invalid Unicode escape sequence";
+  ExpectError("(?<\\u{FISK}", kInvalidUnicodeEscape, true);
+  const char* kInvalidCaptureReferenced = "Invalid named capture referenced";
+  ExpectError("\\k<a>", kInvalidCaptureReferenced, true);
+  ExpectError("(?<b>)\\k<a>", kInvalidCaptureReferenced, true);
+  const char* kInvalidNamedReference = "Invalid named reference";
+  ExpectError("\\ka", kInvalidNamedReference, true);
+  FLAG_harmony_regexp_named_captures = false;
 }
 
 

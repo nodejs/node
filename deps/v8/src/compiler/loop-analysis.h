@@ -38,8 +38,9 @@ class LoopTree : public ZoneObject {
     Loop* parent() const { return parent_; }
     const ZoneVector<Loop*>& children() const { return children_; }
     size_t HeaderSize() const { return body_start_ - header_start_; }
-    size_t BodySize() const { return body_end_ - body_start_; }
-    size_t TotalSize() const { return body_end_ - header_start_; }
+    size_t BodySize() const { return exits_start_ - body_start_; }
+    size_t ExitsSize() const { return exits_end_ - exits_start_; }
+    size_t TotalSize() const { return exits_end_ - header_start_; }
     size_t depth() const { return static_cast<size_t>(depth_); }
 
    private:
@@ -52,13 +53,15 @@ class LoopTree : public ZoneObject {
           children_(zone),
           header_start_(-1),
           body_start_(-1),
-          body_end_(-1) {}
+          exits_start_(-1),
+          exits_end_(-1) {}
     Loop* parent_;
     int depth_;
     ZoneVector<Loop*> children_;
     int header_start_;
     int body_start_;
-    int body_end_;
+    int exits_start_;
+    int exits_end_;
   };
 
   // Return the innermost nested loop, if any, that contains {node}.
@@ -97,13 +100,19 @@ class LoopTree : public ZoneObject {
   // Return a range which can iterate over the body nodes of {loop}.
   NodeRange BodyNodes(Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->body_start_,
-                     &loop_nodes_[0] + loop->body_end_);
+                     &loop_nodes_[0] + loop->exits_start_);
+  }
+
+  // Return a range which can iterate over the body nodes of {loop}.
+  NodeRange ExitNodes(Loop* loop) {
+    return NodeRange(&loop_nodes_[0] + loop->exits_start_,
+                     &loop_nodes_[0] + loop->exits_end_);
   }
 
   // Return a range which can iterate over the nodes of {loop}.
   NodeRange LoopNodes(Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->header_start_,
-                     &loop_nodes_[0] + loop->body_end_);
+                     &loop_nodes_[0] + loop->exits_end_);
   }
 
   // Return the node that represents the control, i.e. the loop node itself.

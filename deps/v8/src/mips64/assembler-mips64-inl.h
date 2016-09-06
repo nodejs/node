@@ -49,6 +49,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
@@ -102,11 +103,6 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
-Address RelocInfo::wasm_memory_reference() {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  return Assembler::target_address_at(pc_, host_);
-}
-
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
@@ -143,33 +139,6 @@ int RelocInfo::target_address_size() {
   return Assembler::kSpecialTargetSize;
 }
 
-
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
-                                   icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
-      host() != NULL && IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
-  }
-}
-
-void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, size_t old_size, size_t new_size,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  DCHECK(old_base <= wasm_memory_reference() &&
-         wasm_memory_reference() < old_base + old_size);
-  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
-  DCHECK(new_base <= updated_reference &&
-         updated_reference < new_base + new_size);
-  Assembler::set_target_address_at(isolate_, pc_, host_, updated_reference,
-                                   icache_flush_mode);
-}
 
 Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
@@ -231,6 +200,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 
@@ -362,7 +332,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -463,6 +433,8 @@ void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
   CheckTrampolinePoolQuick();
 }
 
+template <>
+inline void Assembler::EmitHelper(uint8_t x);
 
 template <typename T>
 void Assembler::EmitHelper(T x) {
@@ -471,6 +443,14 @@ void Assembler::EmitHelper(T x) {
   CheckTrampolinePoolQuick();
 }
 
+template <>
+void Assembler::EmitHelper(uint8_t x) {
+  *reinterpret_cast<uint8_t*>(pc_) = x;
+  pc_ += sizeof(x);
+  if (reinterpret_cast<intptr_t>(pc_) % kInstrSize == 0) {
+    CheckTrampolinePoolQuick();
+  }
+}
 
 void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   if (!is_buffer_growth_blocked()) {

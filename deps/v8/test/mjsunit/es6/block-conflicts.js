@@ -170,8 +170,5 @@ for (var v = 0; v < varbinds.length; ++v) {
   TestNoConflict('(function (x) {' + varbinds[v] + '})();');
 }
 
-// Test conflicting catch/function bindings.
-TestNoConflict('try {} catch(x) {' + funbind + '}');
-
 // Test conflicting parameter/function bindings.
 TestNoConflict('(function (x) {' + funbind + '})();');

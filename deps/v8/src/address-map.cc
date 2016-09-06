@@ -13,7 +13,7 @@ namespace internal {
 RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = isolate->root_index_map();
   if (map_ != NULL) return;
-  map_ = new HashMap(HashMap::PointersMatch);
+  map_ = new base::HashMap(base::HashMap::PointersMatch);
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
     Object* root = isolate->heap()->root(root_index);
@@ -22,7 +22,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
     // not be referenced through the root list in the snapshot.
     if (isolate->heap()->RootCanBeTreatedAsConstant(root_index)) {
       HeapObject* heap_object = HeapObject::cast(root);
-      HashMap::Entry* entry = LookupEntry(map_, heap_object, false);
+      base::HashMap::Entry* entry = LookupEntry(map_, heap_object, false);
       if (entry != NULL) {
         // Some are initialized to a previous value in the root list.
         DCHECK_LT(GetValue(entry), i);

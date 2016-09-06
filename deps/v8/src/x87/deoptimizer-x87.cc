@@ -35,6 +35,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     int pc_offset = deopt_data->Pc(i)->value();
     if (pc_offset == -1) continue;
+    pc_offset = pc_offset + 1;  // We will encode the pc offset after the call.
     DCHECK_GE(pc_offset, prev_pc_offset);
     int pc_delta = pc_offset - prev_pc_offset;
     // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
@@ -277,8 +278,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   // Fill in the double input registers.
   for (int i = 0; i < X87Register::kMaxNumAllocatableRegisters; ++i) {
     int code = config->GetAllocatableDoubleCode(i);

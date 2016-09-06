@@ -1,0 +1,175 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/sanitizers/sanitizers.gni")
+import("//third_party/icu/config.gni")
+import("v8.gni")
+
+declare_args() {
+  # Sets the test isolation mode (noop|prepare|check).
+  v8_test_isolation_mode = "noop"
+}
+
+template("v8_isolate_run") {
+  # Remember target name as within the action scope the target name will be
+  # different.
+  name = target_name
+  if (name != "" && invoker.isolate != "" && invoker.deps != [] &&
+      v8_test_isolation_mode != "noop") {
+    action(name + "_run") {
+      testonly = true
+
+      deps = invoker.deps
+
+      script = "//tools/isolate_driver.py"
+
+      sources = [
+        invoker.isolate,
+      ]
+
+      inputs = [
+        # Files that are known to be involved in this step.
+        "//tools/swarming_client/isolate.py",
+        "//tools/swarming_client/run_isolated.py",
+      ]
+
+      if (v8_test_isolation_mode == "prepare") {
+        outputs = [
+          "$root_out_dir/$name.isolated.gen.json",
+        ]
+      } else if (v8_test_isolation_mode == "check") {
+        outputs = [
+          "$root_out_dir/$name.isolated",
+          "$root_out_dir/$name.isolated.state",
+        ]
+      }
+
+      # Translate gn to gyp variables.
+      if (is_asan) {
+        asan = "1"
+      } else {
+        asan = "0"
+      }
+      if (is_msan) {
+        msan = "1"
+      } else {
+        msan = "0"
+      }
+      if (is_tsan) {
+        tsan = "1"
+      } else {
+        tsan = "0"
+      }
+      if (is_cfi) {
+        cfi_vptr = "1"
+      } else {
+        cfi_vptr = "0"
+      }
+      if (target_cpu == "x86") {
+        target_arch = "ia32"
+      } else {
+        target_arch = target_cpu
+      }
+      if (is_debug) {
+        configuration_name = "Debug"
+      } else {
+        configuration_name = "Release"
+      }
+      if (is_component_build) {
+        component = "shared_library"
+      } else {
+        component = "static_library"
+      }
+      if (icu_use_data_file) {
+        icu_use_data_file_flag = "1"
+      } else {
+        icu_use_data_file_flag = "0"
+      }
+      if (v8_use_external_startup_data) {
+        use_external_startup_data = "1"
+      } else {
+        use_external_startup_data = "0"
+      }
+      if (v8_use_snapshot) {
+        use_snapshot = "true"
+      } else {
+        use_snapshot = "false"
+      }
+      if (v8_has_valgrind) {
+        has_valgrind = "1"
+      } else {
+        has_valgrind = "0"
+      }
+      if (v8_gcmole) {
+        gcmole = "1"
+      } else {
+        gcmole = "0"
+      }
+
+
+      # Note, all paths will be rebased in isolate_driver.py to be relative to
+      # the isolate file.
+      args = [
+        v8_test_isolation_mode,
+        "--isolated",
+        rebase_path("$root_out_dir/$name.isolated", root_build_dir),
+        "--isolate",
+        rebase_path(invoker.isolate, root_build_dir),
+
+        # Path variables are used to replace file paths when loading a .isolate
+        # file
+        "--path-variable",
+        "DEPTH",
+        rebase_path("//", root_build_dir),
+        "--path-variable",
+        "PRODUCT_DIR",
+        rebase_path(root_out_dir, root_build_dir),
+
+        # TODO(machenbach): Set variables for remaining features.
+        "--config-variable",
+        "CONFIGURATION_NAME=$configuration_name",
+        "--config-variable",
+        "OS=$target_os",
+        "--config-variable",
+        "asan=$asan",
+        "--config-variable",
+        "cfi_vptr=$cfi_vptr",
+        "--config-variable",
+        "gcmole=$gcmole",
+        "--config-variable",
+        "has_valgrind=$has_valgrind",
+        "--config-variable",
+        "icu_use_data_file_flag=$icu_use_data_file_flag",
+        "--config-variable",
+        "msan=$msan",
+        "--config-variable",
+        "tsan=$tsan",
+        "--config-variable",
+        "coverage=0",
+        "--config-variable",
+        "sanitizer_coverage=0",
+        "--config-variable",
+        "component=$component",
+        "--config-variable",
+        "target_arch=$target_arch",
+        "--config-variable",
+        "v8_use_external_startup_data=$use_external_startup_data",
+        "--config-variable",
+        "v8_use_snapshot=$use_snapshot",
+      ]
+
+      if (is_win) {
+        args += [
+          "--config-variable",
+          "msvs_version=2013",
+        ]
+      } else {
+        args += [
+          "--config-variable",
+          "msvs_version=0",
+        ]
+      }
+    }
+  }
+}

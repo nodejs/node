@@ -66,15 +66,12 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     // We need calls to have a predictable size in the unoptimized code, but
     // this is optimized code, so we don't have to have a predictable size.
-    int call_size_in_bytes =
-        MacroAssembler::CallSizeNotPredictableCodeSize(isolate,
-                                                       deopt_entry,
-                                                       RelocInfo::NONE32);
+    int call_size_in_bytes = MacroAssembler::CallDeoptimizerSize();
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
     CodePatcher patcher(isolate, call_address, call_size_in_words);
-    patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
+    patcher.masm()->CallDeoptimizer(deopt_entry);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     DCHECK(call_address + patch_size() <= code->instruction_end());
@@ -189,8 +186,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
@@ -307,15 +303,50 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
-    USE(start);
-    __ mov(ip, Operand(i));
-    __ b(&done);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
+
+  // We need to be able to generate immediates up to kMaxNumberOfEntries. On
+  // ARMv7, we can use movw (with a maximum immediate of 0xffff). On ARMv6, we
+  // need two instructions.
+  STATIC_ASSERT((kMaxNumberOfEntries - 1) <= 0xffff);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(masm(), ARMv7);
+    Label done;
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
+      USE(start);
+      __ movw(ip, i);
+      __ b(&done);
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
+    }
+    __ bind(&done);
+  } else {
+    // We want to keep table_entry_size_ == 8 (since this is the common case),
+    // but we need two instructions to load most immediates over 0xff. To handle
+    // this, we set the low byte in the main table, and then set the high byte
+    // in a separate table if necessary.
+    Label high_fixes[256];
+    int high_fix_max = (count() - 1) >> 8;
+    DCHECK_GT(arraysize(high_fixes), high_fix_max);
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
+      USE(start);
+      __ mov(ip, Operand(i & 0xff));  // Set the low byte.
+      __ b(&high_fixes[i >> 8]);      // Jump to the secondary table.
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
+    }
+    // Generate the secondary table, to set the high byte.
+    for (int high = 1; high <= high_fix_max; high++) {
+      __ bind(&high_fixes[high]);
+      __ orr(ip, ip, Operand(high << 8));
+      // If this isn't the last entry, emit a branch to the end of the table.
+      // The last entry can just fall through.
+      if (high < high_fix_max) __ b(&high_fixes[0]);
+    }
+    // Bind high_fixes[0] last, for indices like 0x00**. This case requires no
+    // fix-up, so for (common) small tables we can jump here, then just fall
+    // through with no additional branch.
+    __ bind(&high_fixes[0]);
   }
-  __ bind(&done);
   __ push(ip);
 }
 

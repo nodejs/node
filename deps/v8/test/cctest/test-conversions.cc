@@ -406,3 +406,30 @@ TEST(SpecialIndexParsing) {
   CheckNonArrayIndex(false, "-9999999999999999");
   CheckNonArrayIndex(false, "42949672964294967296429496729694966");
 }
+
+TEST(NoHandlesForTryNumberToSize) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  size_t result = 0;
+  {
+    SealHandleScope no_handles(isolate);
+    Smi* smi = Smi::FromInt(1);
+    CHECK(TryNumberToSize(smi, &result));
+    CHECK_EQ(result, 1);
+  }
+  result = 0;
+  {
+    HandleScope scope(isolate);
+    Handle<HeapNumber> heap_number1 = isolate->factory()->NewHeapNumber(2.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(TryNumberToSize(*heap_number1, &result));
+      CHECK_EQ(result, 2);
+    }
+    Handle<HeapNumber> heap_number2 = isolate->factory()->NewHeapNumber(
+        static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(!TryNumberToSize(*heap_number2, &result));
+    }
+  }
+}

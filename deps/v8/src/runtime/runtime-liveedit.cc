@@ -24,7 +24,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSValue, script_value, 0);
 
-  RUNTIME_ASSERT(script_value->value()->IsScript());
+  CHECK(script_value->value()->IsScript());
   Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
 
   List<Handle<SharedFunctionInfo> > found;
@@ -67,13 +67,11 @@ RUNTIME_FUNCTION(Runtime_LiveEditGatherCompileInfo) {
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
 
-  RUNTIME_ASSERT(script->value()->IsScript());
+  CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
-  Handle<JSArray> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LiveEdit::GatherCompileInfo(script_handle, source));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LiveEdit::GatherCompileInfo(script_handle, source));
 }
 
 
@@ -88,7 +86,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
   CONVERT_ARG_HANDLE_CHECKED(String, new_source, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, old_script_name, 2);
 
-  RUNTIME_ASSERT(original_script_value->value()->IsScript());
+  CHECK(original_script_value->value()->IsScript());
   Handle<Script> original_script(Script::cast(original_script_value->value()));
 
   Handle<Object> old_script = LiveEdit::ChangeScriptSource(
@@ -108,7 +106,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFunctionSourceUpdated) {
   CHECK(isolate->debug()->live_edit_enabled());
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 0);
-  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_info));
+  CHECK(SharedInfoWrapper::IsInstance(shared_info));
 
   LiveEdit::FunctionSourceUpdated(shared_info);
   return isolate->heap()->undefined_value();
@@ -122,7 +120,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceFunctionCode) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, new_compile_info, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 1);
-  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_info));
+  CHECK(SharedInfoWrapper::IsInstance(shared_info));
 
   LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
   return isolate->heap()->undefined_value();
@@ -140,11 +138,11 @@ RUNTIME_FUNCTION(Runtime_LiveEditFunctionSetScript) {
   if (function_object->IsJSValue()) {
     Handle<JSValue> function_wrapper = Handle<JSValue>::cast(function_object);
     if (script_object->IsJSValue()) {
-      RUNTIME_ASSERT(JSValue::cast(*script_object)->value()->IsScript());
+      CHECK(JSValue::cast(*script_object)->value()->IsScript());
       Script* script = Script::cast(JSValue::cast(*script_object)->value());
       script_object = Handle<Object>(script, isolate);
     }
-    RUNTIME_ASSERT(function_wrapper->value()->IsSharedFunctionInfo());
+    CHECK(function_wrapper->value()->IsSharedFunctionInfo());
     LiveEdit::SetFunctionScript(function_wrapper, script_object);
   } else {
     // Just ignore this. We may not have a SharedFunctionInfo for some functions
@@ -165,9 +163,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceRefToNestedFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSValue, parent_wrapper, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, orig_wrapper, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, subst_wrapper, 2);
-  RUNTIME_ASSERT(parent_wrapper->value()->IsSharedFunctionInfo());
-  RUNTIME_ASSERT(orig_wrapper->value()->IsSharedFunctionInfo());
-  RUNTIME_ASSERT(subst_wrapper->value()->IsSharedFunctionInfo());
+  CHECK(parent_wrapper->value()->IsSharedFunctionInfo());
+  CHECK(orig_wrapper->value()->IsSharedFunctionInfo());
+  CHECK(subst_wrapper->value()->IsSharedFunctionInfo());
 
   LiveEdit::ReplaceRefToNestedFunction(parent_wrapper, orig_wrapper,
                                        subst_wrapper);
@@ -186,7 +184,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, position_change_array, 1);
-  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_array));
+  CHECK(SharedInfoWrapper::IsInstance(shared_array));
 
   LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
   return isolate->heap()->undefined_value();
@@ -205,10 +203,10 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, new_shared_array, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 2);
   USE(new_shared_array);
-  RUNTIME_ASSERT(old_shared_array->length()->IsSmi());
-  RUNTIME_ASSERT(new_shared_array->length() == old_shared_array->length());
-  RUNTIME_ASSERT(old_shared_array->HasFastElements());
-  RUNTIME_ASSERT(new_shared_array->HasFastElements());
+  CHECK(old_shared_array->length()->IsSmi());
+  CHECK(new_shared_array->length() == old_shared_array->length());
+  CHECK(old_shared_array->HasFastElements());
+  CHECK(new_shared_array->HasFastElements());
   int array_length = Smi::cast(old_shared_array->length())->value();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> old_element;
@@ -216,14 +214,13 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, old_element,
         JSReceiver::GetElement(isolate, old_shared_array, i));
-    RUNTIME_ASSERT(
-        old_element->IsJSValue() &&
-        Handle<JSValue>::cast(old_element)->value()->IsSharedFunctionInfo());
+    CHECK(old_element->IsJSValue() &&
+          Handle<JSValue>::cast(old_element)->value()->IsSharedFunctionInfo());
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_element,
         JSReceiver::GetElement(isolate, new_shared_array, i));
-    RUNTIME_ASSERT(
-        new_element->IsUndefined() ||
+    CHECK(
+        new_element->IsUndefined(isolate) ||
         (new_element->IsJSValue() &&
          Handle<JSValue>::cast(new_element)->value()->IsSharedFunctionInfo()));
   }
@@ -261,7 +258,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   CHECK(isolate->debug()->live_edit_enabled());
   DCHECK(args.length() == 2);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
-  RUNTIME_ASSERT(isolate->debug()->CheckExecutionState(break_id));
+  CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
   Heap* heap = isolate->heap();
@@ -273,13 +270,16 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
     return heap->undefined_value();
   }
 
-  JavaScriptFrameIterator it(isolate, id);
+  StackTraceFrameIterator it(isolate, id);
   int inlined_jsframe_index =
       DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
-  if (inlined_jsframe_index == -1) return heap->undefined_value();
+  // Liveedit is not supported on Wasm.
+  if (inlined_jsframe_index == -1 || it.is_wasm()) {
+    return heap->undefined_value();
+  }
   // We don't really care what the inlined frame index is, since we are
   // throwing away the entire frame anyways.
-  const char* error_message = LiveEdit::RestartFrame(it.frame());
+  const char* error_message = LiveEdit::RestartFrame(it.javascript_frame());
   if (error_message) {
     return *(isolate->factory()->InternalizeUtf8String(error_message));
   }

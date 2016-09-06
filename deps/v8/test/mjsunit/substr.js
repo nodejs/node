@@ -152,3 +152,22 @@ for (var i = 63; i >= 0; i--) {
   assertEquals(xl - offset, z.length);
   offset -= i;
 }
+
+
+// Order of conversions.
+{
+  let log = [];
+  let string = {[Symbol.toPrimitive]() { log.push("this"); return "abc" }};
+  let start = {[Symbol.toPrimitive]() { log.push("start"); return 0 }};
+  let length = {[Symbol.toPrimitive]() { log.push("length"); return 1 }};
+  assertEquals("a", String.prototype.substr.call(string, start, length));
+  assertEquals(["this", "start", "length"], log);
+}
+{
+  let log = [];
+  let string = {[Symbol.toPrimitive]() { log.push("this"); return "abc" }};
+  let start = {[Symbol.toPrimitive]() { log.push("start"); return 0 }};
+  let length = {[Symbol.toPrimitive]() { log.push("length"); return 0 }};
+  assertEquals("", String.prototype.substr.call(string, start, length));
+  assertEquals(["this", "start", "length"], log);
+}

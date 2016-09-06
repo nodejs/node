@@ -21,9 +21,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(LdaLookupSlot), U8(0),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaLookupSlot), U8(0),
+  /*   25 S> */ B(Return),
 ]
 constant pool: [
   "x",
@@ -44,11 +44,11 @@ frame size: 0
 parameter count: 1
 bytecode array length: 7
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(10),
-  B(StaLookupSlotSloppy), U8(0),
-  B(LdaUndefined),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaSmi), U8(10),
+  /*   17 E> */ B(StaLookupSlotSloppy), U8(0),
+                B(LdaUndefined),
+  /*   23 S> */ B(Return),
 ]
 constant pool: [
   "x",
@@ -69,11 +69,11 @@ frame size: 0
 parameter count: 1
 bytecode array length: 7
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(10),
-  B(StaLookupSlotStrict), U8(0),
-  B(LdaUndefined),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   29 S> */ B(LdaSmi), U8(10),
+  /*   31 E> */ B(StaLookupSlotStrict), U8(0),
+                B(LdaUndefined),
+  /*   37 S> */ B(Return),
 ]
 constant pool: [
   "x",
@@ -94,10 +94,10 @@ frame size: 0
 parameter count: 1
 bytecode array length: 5
 bytecodes: [
-  B(StackCheck),
-  B(LdaLookupSlotInsideTypeof), U8(0),
-  B(TypeOf),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaLookupSlotInsideTypeof), U8(0),
+                B(TypeOf),
+  /*   32 S> */ B(Return),
 ]
 constant pool: [
   "x",
