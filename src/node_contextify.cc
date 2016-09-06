@@ -485,10 +485,10 @@ class ContextifyScript : public BaseObject {
 
     TryCatch try_catch(env->isolate());
     Local<String> code = args[0]->ToString(env->isolate());
-    Local<String> filename = GetFilenameArg(args, 1);
+    Local<String> filename = GetFilenameArg(env, args, 1);
     Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
     Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
-    bool display_errors = GetDisplayErrorsArg(args, 1);
+    bool display_errors = GetDisplayErrorsArg(env, args, 1);
     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
     bool produce_cached_data = GetProduceCachedData(env, args, 1);
     if (try_catch.HasCaught()) {
@@ -559,18 +559,19 @@ class ContextifyScript : public BaseObject {
 
   // args: [options]
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+
     // Assemble arguments
     TryCatch try_catch(args.GetIsolate());
-    uint64_t timeout = GetTimeoutArg(args, 0);
-    bool display_errors = GetDisplayErrorsArg(args, 0);
-    bool break_on_sigint = GetBreakOnSigintArg(args, 0);
+    uint64_t timeout = GetTimeoutArg(env, args, 0);
+    bool display_errors = GetDisplayErrorsArg(env, args, 0);
+    bool break_on_sigint = GetBreakOnSigintArg(env, args, 0);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
     }
 
     // Do the eval within this context
-    Environment* env = Environment::GetCurrent(args);
     EvalMachine(env, timeout, display_errors, break_on_sigint, args,
                 &try_catch);
   }
@@ -592,9 +593,9 @@ class ContextifyScript : public BaseObject {
     Local<Object> sandbox = args[0].As<Object>();
     {
       TryCatch try_catch(env->isolate());
-      timeout = GetTimeoutArg(args, 1);
-      display_errors = GetDisplayErrorsArg(args, 1);
-      break_on_sigint = GetBreakOnSigintArg(args, 1);
+      timeout = GetTimeoutArg(env, args, 1);
+      display_errors = GetDisplayErrorsArg(env, args, 1);
+      break_on_sigint = GetBreakOnSigintArg(env, args, 1);
       if (try_catch.HasCaught()) {
         try_catch.ReThrow();
         return;
@@ -668,14 +669,14 @@ class ContextifyScript : public BaseObject {
         True(env->isolate()));
   }
 
-  static bool GetBreakOnSigintArg(const FunctionCallbackInfo<Value>& args,
+  static bool GetBreakOnSigintArg(Environment* env,
+                                  const FunctionCallbackInfo<Value>& args,
                                   const int i) {
     if (args[i]->IsUndefined() || args[i]->IsString()) {
       return false;
     }
     if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
+      env->ThrowTypeError("options must be an object");
       return false;
     }
 
@@ -685,14 +686,14 @@ class ContextifyScript : public BaseObject {
     return value->IsTrue();
   }
 
-  static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
+  static int64_t GetTimeoutArg(Environment* env,
+                               const FunctionCallbackInfo<Value>& args,
                                const int i) {
     if (args[i]->IsUndefined() || args[i]->IsString()) {
       return -1;
     }
     if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
+      env->ThrowTypeError("options must be an object");
       return -1;
     }
 
@@ -704,22 +705,21 @@ class ContextifyScript : public BaseObject {
     int64_t timeout = value->IntegerValue();
 
     if (timeout <= 0) {
-      Environment::ThrowRangeError(args.GetIsolate(),
-                                   "timeout must be a positive number");
+      env->ThrowRangeError("timeout must be a positive number");
       return -1;
     }
     return timeout;
   }
 
 
-  static bool GetDisplayErrorsArg(const FunctionCallbackInfo<Value>& args,
+  static bool GetDisplayErrorsArg(Environment* env,
+                                  const FunctionCallbackInfo<Value>& args,
                                   const int i) {
     if (args[i]->IsUndefined() || args[i]->IsString()) {
       return true;
     }
     if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
+      env->ThrowTypeError("options must be an object");
       return false;
     }
 
@@ -731,7 +731,8 @@ class ContextifyScript : public BaseObject {
   }
 
 
-  static Local<String> GetFilenameArg(const FunctionCallbackInfo<Value>& args,
+  static Local<String> GetFilenameArg(Environment* env,
+                                      const FunctionCallbackInfo<Value>& args,
                                       const int i) {
     Local<String> defaultFilename =
         FIXED_ONE_BYTE_STRING(args.GetIsolate(), "evalmachine.<anonymous>");
@@ -743,8 +744,7 @@ class ContextifyScript : public BaseObject {
       return args[i].As<String>();
     }
     if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
+      env->ThrowTypeError("options must be an object");
       return Local<String>();
     }
 
@@ -770,9 +770,7 @@ class ContextifyScript : public BaseObject {
     }
 
     if (!value->IsUint8Array()) {
-      Environment::ThrowTypeError(
-          args.GetIsolate(),
-          "options.cachedData must be a Buffer instance");
+      env->ThrowTypeError("options.cachedData must be a Buffer instance");
       return MaybeLocal<Uint8Array>();
     }
 
