@@ -4,6 +4,8 @@
 
 #include "src/gdb-jit.h"
 
+#include <memory>
+
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -1015,7 +1017,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 #endif
 
-  base::SmartArrayPointer<char> GetFilename() {
+  std::unique_ptr<char[]> GetFilename() {
     return String::cast(script()->name())->ToCString();
   }
 
@@ -2012,17 +2014,19 @@ static uint32_t HashCodeAddress(Address addr) {
   return static_cast<uint32_t>((offset >> kCodeAlignmentBits) * kGoldenRatio);
 }
 
-
-static HashMap* GetLineMap() {
-  static HashMap* line_map = NULL;
-  if (line_map == NULL) line_map = new HashMap(&HashMap::PointersMatch);
+static base::HashMap* GetLineMap() {
+  static base::HashMap* line_map = NULL;
+  if (line_map == NULL) {
+    line_map = new base::HashMap(&base::HashMap::PointersMatch);
+  }
   return line_map;
 }
 
 
 static void PutLineInfo(Address addr, LineInfo* info) {
-  HashMap* line_map = GetLineMap();
-  HashMap::Entry* e = line_map->LookupOrInsert(addr, HashCodeAddress(addr));
+  base::HashMap* line_map = GetLineMap();
+  base::HashMap::Entry* e =
+      line_map->LookupOrInsert(addr, HashCodeAddress(addr));
   if (e->value != NULL) delete static_cast<LineInfo*>(e->value);
   e->value = info;
 }

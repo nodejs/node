@@ -31,7 +31,7 @@
 #include "src/accessors.h"
 #include "src/api.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -52,11 +52,11 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
 
   // Old data space.
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
   heap->AllocateByteArray(100, TENURED).ToObjectChecked();
 
   // Old pointer space.
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
   heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
@@ -72,12 +72,12 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
       kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
 
   // Map space.
-  SimulateFullSpace(heap->map_space());
+  heap::SimulateFullSpace(heap->map_space());
   int instance_size = JSObject::kHeaderSize;
   heap->AllocateMap(JS_OBJECT_TYPE, instance_size).ToObjectChecked();
 
   // Test that we can allocate in old pointer space and code space.
-  SimulateFullSpace(heap->code_space());
+  heap::SimulateFullSpace(heap->code_space());
   heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
   heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
       Builtins::kIllegal)).ToObjectChecked();
@@ -102,7 +102,7 @@ HEAP_TEST(StressHandles) {
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   Handle<Object> o = TestAllocateAfterFailures();
-  CHECK(o->IsTrue());
+  CHECK(o->IsTrue(CcTest::i_isolate()));
   env->Exit();
 }
 
@@ -211,8 +211,7 @@ TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
   CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
-  code_range.SetUp(code_range_size +
-                   kReservedCodeRangePages * v8::base::OS::CommitPageSize());
+  code_range.SetUp(code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
   List< ::Block> blocks(1000);

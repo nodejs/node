@@ -170,7 +170,7 @@ TEST(MergeSuccessful) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   const int kLabSize = 2 * KB;
-  Address base1 = AllocateLabBackingStore(heap, kLabSize);
+  Address base1 = AllocateLabBackingStore(heap, 2 * kLabSize);
   Address limit1 = base1 + kLabSize;
   Address base2 = limit1;
   Address limit2 = base2 + kLabSize;
@@ -226,7 +226,7 @@ TEST(MergeFailed) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   const int kLabSize = 2 * KB;
-  Address base1 = AllocateLabBackingStore(heap, kLabSize);
+  Address base1 = AllocateLabBackingStore(heap, 3 * kLabSize);
   Address base2 = base1 + kLabSize;
   Address base3 = base2 + kLabSize;
 

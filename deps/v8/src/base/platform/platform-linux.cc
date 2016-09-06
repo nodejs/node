@@ -10,7 +10,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/time.h>
 
 // Ubuntu Dapper requires memory pages to be marked as
@@ -43,16 +45,6 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-
-#if V8_OS_NACL
-#if !defined(MAP_NORESERVE)
-// PNaCL doesn't have this, so we always grab all of the memory, which is bad.
-#define MAP_NORESERVE 0
-#endif
-#else
-#include <sys/prctl.h>
-#include <sys/syscall.h>
-#endif
 
 namespace v8 {
 namespace base {
@@ -102,30 +94,22 @@ bool OS::ArmUsingHardFloat() {
 
 
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
-#if V8_OS_NACL
-  // Missing support for tm_zone field.
-  return "";
-#else
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
+  struct tm tm;
+  struct tm* t = localtime_r(&tv, &tm);
   if (!t || !t->tm_zone) return "";
   return t->tm_zone;
-#endif
 }
 
 
 double OS::LocalTimeOffset(TimezoneCache* cache) {
-#if V8_OS_NACL
-  // Missing support for tm_zone field.
-  return 0;
-#else
   time_t tv = time(NULL);
-  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
+  struct tm tm;
+  struct tm* t = localtime_r(&tv, &tm);
   // tm_gmtoff includes any daylight savings offset, so subtract it.
   return static_cast<double>(t->tm_gmtoff * msPerSecond -
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
-#endif
 }
 
 
@@ -220,13 +204,7 @@ void OS::SignalCodeMovingGC() {
     OS::Abort();
   }
   void* addr = mmap(OS::GetRandomMmapAddr(), size,
-#if V8_OS_NACL
-                    // The Native Client port of V8 uses an interpreter,
-                    // so code pages don't need PROT_EXEC.
-                    PROT_READ,
-#else
                     PROT_READ | PROT_EXEC,
-#endif
                     MAP_PRIVATE, fileno(f), 0);
   DCHECK_NE(MAP_FAILED, addr);
   OS::Free(addr, size);
@@ -346,13 +324,7 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
 
 bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-#if V8_OS_NACL
-  // The Native Client port of V8 uses an interpreter,
-  // so code pages don't need PROT_EXEC.
-  int prot = PROT_READ | PROT_WRITE;
-#else
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-#endif
   if (MAP_FAILED == mmap(base,
                          size,
                          prot,
@@ -375,6 +347,14 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
               kMmapFdOffset) != MAP_FAILED;
 }
 
+bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
+                                         void* free_start, size_t free_size) {
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(base, size);
+  __lsan_register_root_region(base, size - free_size);
+#endif
+  return munmap(free_start, free_size) == 0;
+}
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 #if defined(LEAK_SANITIZER)

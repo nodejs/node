@@ -21,60 +21,16 @@
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm)
 
-static void InitializeArrayConstructorDescriptor(
-    Isolate* isolate, CodeStubDescriptor* descriptor,
-    int constant_stack_parameter_count) {
-  Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kArrayConstructor)->entry;
-
-  if (constant_stack_parameter_count == 0) {
-    descriptor->Initialize(deopt_handler, constant_stack_parameter_count,
-                           JS_FUNCTION_STUB_MODE);
-  } else {
-    descriptor->Initialize(a0, deopt_handler, constant_stack_parameter_count,
-                           JS_FUNCTION_STUB_MODE);
-  }
-}
-
-
-static void InitializeInternalArrayConstructorDescriptor(
-    Isolate* isolate, CodeStubDescriptor* descriptor,
-    int constant_stack_parameter_count) {
-  Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kInternalArrayConstructor)->entry;
-
-  if (constant_stack_parameter_count == 0) {
-    descriptor->Initialize(deopt_handler, constant_stack_parameter_count,
-                           JS_FUNCTION_STUB_MODE);
-  } else {
-    descriptor->Initialize(a0, deopt_handler, constant_stack_parameter_count,
-                           JS_FUNCTION_STUB_MODE);
-  }
-}
-
-
-void ArrayNoArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate(), descriptor, 0);
-}
-
-
-void ArraySingleArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate(), descriptor, 1);
-}
-
-
-void ArrayNArgumentsConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate(), descriptor, -1);
-}
-
-
-void InternalArrayNoArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 0);
+void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
+  __ sll(t9, a0, kPointerSizeLog2);
+  __ Addu(t9, sp, t9);
+  __ sw(a1, MemOperand(t9, 0));
+  __ Push(a1);
+  __ Push(a2);
+  __ Addu(a0, a0, Operand(3));
+  __ TailCallRuntime(Runtime::kNewArray);
 }
 
 void FastArrayPushStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
@@ -82,19 +38,11 @@ void FastArrayPushStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(a0, deopt_handler, -1, JS_FUNCTION_STUB_MODE);
 }
 
-void InternalArraySingleArgumentConstructorStub::InitializeDescriptor(
+void FastFunctionBindStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 1);
+  Address deopt_handler = Runtime::FunctionForId(Runtime::kFunctionBind)->entry;
+  descriptor->Initialize(a0, deopt_handler, -1, JS_FUNCTION_STUB_MODE);
 }
-
-
-void InternalArrayNArgumentsConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, -1);
-}
-
-
-#define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
                                           Condition cc);
@@ -812,11 +760,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  const Register base = a1;
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent.is(a2));
-  const Register heapnumbermap = t1;
-  const Register heapnumber = v0;
   const DoubleRegister double_base = f2;
   const DoubleRegister double_exponent = f4;
   const DoubleRegister double_result = f0;
@@ -826,35 +771,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register scratch2 = t3;
 
   Label call_runtime, done, int_exponent;
-  if (exponent_type() == ON_STACK) {
-    Label base_is_smi, unpack_exponent;
-    // The exponent and base are supplied as arguments on the stack.
-    // This can only happen if the stub is called from non-optimized code.
-    // Load input parameters from stack to double registers.
-    __ lw(base, MemOperand(sp, 1 * kPointerSize));
-    __ lw(exponent, MemOperand(sp, 0 * kPointerSize));
-
-    __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
-
-    __ UntagAndJumpIfSmi(scratch, base, &base_is_smi);
-    __ lw(scratch, FieldMemOperand(base, JSObject::kMapOffset));
-    __ Branch(&call_runtime, ne, scratch, Operand(heapnumbermap));
-
-    __ ldc1(double_base, FieldMemOperand(base, HeapNumber::kValueOffset));
-    __ jmp(&unpack_exponent);
-
-    __ bind(&base_is_smi);
-    __ mtc1(scratch, single_scratch);
-    __ cvt_d_w(double_base, single_scratch);
-    __ bind(&unpack_exponent);
-
-    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
-
-    __ lw(scratch, FieldMemOperand(exponent, JSObject::kMapOffset));
-    __ Branch(&call_runtime, ne, scratch, Operand(heapnumbermap));
-    __ ldc1(double_exponent,
-            FieldMemOperand(exponent, HeapNumber::kValueOffset));
-  } else if (exponent_type() == TAGGED) {
+  if (exponent_type() == TAGGED) {
     // Base is already in double_base.
     __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
@@ -874,54 +791,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                        kCheckForInexactConversion);
     // scratch2 == 0 means there was no conversion error.
     __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
-
-    if (exponent_type() == ON_STACK) {
-      // Detect square root case.  Crankshaft detects constant +/-0.5 at
-      // compile time and uses DoMathPowHalf instead.  We then skip this check
-      // for non-constant cases of +/-0.5 as these hardly occur.
-      Label not_plus_half;
-      // Test for 0.5.
-      __ Move(double_scratch, 0.5);
-      __ BranchF(USE_DELAY_SLOT,
-                 &not_plus_half,
-                 NULL,
-                 ne,
-                 double_exponent,
-                 double_scratch);
-      // double_scratch can be overwritten in the delay slot.
-      // Calculates square root of base.  Check for the special case of
-      // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ Move(double_scratch, static_cast<double>(-V8_INFINITY));
-      __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, double_base, double_scratch);
-      __ neg_d(double_result, double_scratch);
-
-      // Add +0 to convert -0 to +0.
-      __ add_d(double_scratch, double_base, kDoubleRegZero);
-      __ sqrt_d(double_result, double_scratch);
-      __ jmp(&done);
-
-      __ bind(&not_plus_half);
-      __ Move(double_scratch, -0.5);
-      __ BranchF(USE_DELAY_SLOT,
-                 &call_runtime,
-                 NULL,
-                 ne,
-                 double_exponent,
-                 double_scratch);
-      // double_scratch can be overwritten in the delay slot.
-      // Calculates square root of base.  Check for the special case of
-      // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ Move(double_scratch, static_cast<double>(-V8_INFINITY));
-      __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, double_base, double_scratch);
-      __ Move(double_result, kDoubleRegZero);
-
-      // Add +0 to convert -0 to +0.
-      __ add_d(double_scratch, double_base, kDoubleRegZero);
-      __ Move(double_result, 1.);
-      __ sqrt_d(double_scratch, double_scratch);
-      __ div_d(double_result, double_result, double_scratch);
-      __ jmp(&done);
-    }
 
     __ push(ra);
     {
@@ -954,10 +823,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ Move(double_result, 1.0);
 
   // Get absolute value of exponent.
-  Label positive_exponent;
+  Label positive_exponent, bail_out;
   __ Branch(&positive_exponent, ge, scratch, Operand(zero_reg));
   __ Subu(scratch, zero_reg, scratch);
+  // Check when Subu overflows and we get negative result
+  // (happens only when input is MIN_INT).
+  __ Branch(&bail_out, gt, zero_reg, Operand(scratch));
   __ bind(&positive_exponent);
+  __ Assert(ge, kUnexpectedNegativeValue, scratch, Operand(zero_reg));
 
   Label while_true, no_carry, loop_end;
   __ bind(&while_true);
@@ -986,42 +859,25 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // double_exponent may not contain the exponent value if the input was a
   // smi.  We set it with exponent value before bailing out.
+  __ bind(&bail_out);
   __ mtc1(exponent, single_scratch);
   __ cvt_d_w(double_exponent, single_scratch);
 
   // Returning or bailing out.
-  if (exponent_type() == ON_STACK) {
-    // The arguments are still on the stack.
-    __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kMathPowRT);
-
-    // The stub is called from non-optimized code, which expects the result
-    // as heap number in exponent.
-    __ bind(&done);
-    __ AllocateHeapNumber(
-        heapnumber, scratch, scratch2, heapnumbermap, &call_runtime);
-    __ sdc1(double_result,
-            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
-    DCHECK(heapnumber.is(v0));
-    __ DropAndRet(2);
-  } else {
-    __ push(ra);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2, scratch);
-      __ MovToFloatParameters(double_base, double_exponent);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()),
-          0, 2);
-    }
-    __ pop(ra);
-    __ MovFromFloatResult(double_result);
-
-    __ bind(&done);
-    __ Ret();
+  __ push(ra);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     0, 2);
   }
-}
+  __ pop(ra);
+  __ MovFromFloatResult(double_result);
 
+  __ bind(&done);
+  __ Ret();
+}
 
 bool CEntryStub::NeedsImmovableCode() {
   return true;
@@ -1032,7 +888,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
-  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+  CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   CreateWeakCellStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
@@ -1040,7 +896,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-  TypeofStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -1095,7 +950,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles());
+  __ EnterExitFrame(save_doubles(), 0, is_builtin_exit()
+                                           ? StackFrame::BUILTIN_EXIT
+                                           : StackFrame::EXIT);
 
   // s0: number of arguments  including receiver (C callee-saved)
   // s1: pointer to first argument (C callee-saved)
@@ -1364,12 +1221,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // restores all kCalleeSaved registers (including cp and fp) to their
   // saved values before returning a failure to C.
 
-  // Clear any pending exceptions.
-  __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
-  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      isolate)));
-  __ sw(t1, MemOperand(t0));
-
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
   // this stub, because runtime stubs are not traversed when doing GC.
@@ -1451,7 +1302,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
                                           &miss,  // When index out of range.
-                                          STRING_INDEX_IS_ARRAY_INDEX,
                                           RECEIVER_IS_STRING);
   char_at_generator.GenerateFast(masm);
   __ Ret();
@@ -1462,128 +1312,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
-void InstanceOfStub::Generate(MacroAssembler* masm) {
-  Register const object = a1;              // Object (lhs).
-  Register const function = a0;            // Function (rhs).
-  Register const object_map = a2;          // Map of {object}.
-  Register const function_map = a3;        // Map of {function}.
-  Register const function_prototype = t0;  // Prototype of {function}.
-  Register const scratch = t1;
-
-  DCHECK(object.is(InstanceOfDescriptor::LeftRegister()));
-  DCHECK(function.is(InstanceOfDescriptor::RightRegister()));
-
-  // Check if {object} is a smi.
-  Label object_is_smi;
-  __ JumpIfSmi(object, &object_is_smi);
-
-  // Lookup the {function} and the {object} map in the global instanceof cache.
-  // Note: This is safe because we clear the global instanceof cache whenever
-  // we change the prototype of any object.
-  Label fast_case, slow_case;
-  __ lw(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kInstanceofCacheFunctionRootIndex);
-  __ Branch(&fast_case, ne, function, Operand(at));
-  __ LoadRoot(at, Heap::kInstanceofCacheMapRootIndex);
-  __ Branch(&fast_case, ne, object_map, Operand(at));
-  __ Ret(USE_DELAY_SLOT);
-  __ LoadRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);  // In delay slot.
-
-  // If {object} is a smi we can safely return false if {function} is a JS
-  // function, otherwise we have to miss to the runtime and throw an exception.
-  __ bind(&object_is_smi);
-  __ JumpIfSmi(function, &slow_case);
-  __ GetObjectType(function, function_map, scratch);
-  __ Branch(&slow_case, ne, scratch, Operand(JS_FUNCTION_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ LoadRoot(v0, Heap::kFalseValueRootIndex);  // In delay slot.
-
-  // Fast-case: The {function} must be a valid JSFunction.
-  __ bind(&fast_case);
-  __ JumpIfSmi(function, &slow_case);
-  __ GetObjectType(function, function_map, scratch);
-  __ Branch(&slow_case, ne, scratch, Operand(JS_FUNCTION_TYPE));
-
-  // Go to the runtime if the function is not a constructor.
-  __ lbu(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
-  __ And(at, scratch, Operand(1 << Map::kIsConstructor));
-  __ Branch(&slow_case, eq, at, Operand(zero_reg));
-
-  // Ensure that {function} has an instance prototype.
-  __ And(at, scratch, Operand(1 << Map::kHasNonInstancePrototype));
-  __ Branch(&slow_case, ne, at, Operand(zero_reg));
-
-  // Get the "prototype" (or initial map) of the {function}.
-  __ lw(function_prototype,
-        FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  __ AssertNotSmi(function_prototype);
-
-  // Resolve the prototype if the {function} has an initial map.  Afterwards the
-  // {function_prototype} will be either the JSReceiver prototype object or the
-  // hole value, which means that no instances of the {function} were created so
-  // far and hence we should return false.
-  Label function_prototype_valid;
-  __ GetObjectType(function_prototype, scratch, scratch);
-  __ Branch(&function_prototype_valid, ne, scratch, Operand(MAP_TYPE));
-  __ lw(function_prototype,
-        FieldMemOperand(function_prototype, Map::kPrototypeOffset));
-  __ bind(&function_prototype_valid);
-  __ AssertNotSmi(function_prototype);
-
-  // Update the global instanceof cache with the current {object} map and
-  // {function}.  The cached answer will be set when it is known below.
-  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-  __ StoreRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
-
-  // Loop through the prototype chain looking for the {function} prototype.
-  // Assume true, and change to false if not found.
-  Register const object_instance_type = function_map;
-  Register const map_bit_field = function_map;
-  Register const null = scratch;
-  Register const result = v0;
-
-  Label done, loop, fast_runtime_fallback;
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ LoadRoot(null, Heap::kNullValueRootIndex);
-  __ bind(&loop);
-
-  // Check if the object needs to be access checked.
-  __ lbu(map_bit_field, FieldMemOperand(object_map, Map::kBitFieldOffset));
-  __ And(map_bit_field, map_bit_field, Operand(1 << Map::kIsAccessCheckNeeded));
-  __ Branch(&fast_runtime_fallback, ne, map_bit_field, Operand(zero_reg));
-  // Check if the current object is a Proxy.
-  __ lbu(object_instance_type,
-         FieldMemOperand(object_map, Map::kInstanceTypeOffset));
-  __ Branch(&fast_runtime_fallback, eq, object_instance_type,
-            Operand(JS_PROXY_TYPE));
-
-  __ lw(object, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ Branch(&done, eq, object, Operand(function_prototype));
-  __ Branch(USE_DELAY_SLOT, &loop, ne, object, Operand(null));
-  __ lw(object_map,
-        FieldMemOperand(object, HeapObject::kMapOffset));  // In delay slot.
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
-  __ Ret(USE_DELAY_SLOT);
-  __ StoreRoot(result,
-               Heap::kInstanceofCacheAnswerRootIndex);  // In delay slot.
-
-  // Found Proxy or access check needed: Call the runtime
-  __ bind(&fast_runtime_fallback);
-  __ Push(object, function_prototype);
-  // Invalidate the instanceof cache.
-  DCHECK(Smi::FromInt(0) == 0);
-  __ StoreRoot(zero_reg, Heap::kInstanceofCacheFunctionRootIndex);
-  __ TailCallRuntime(Runtime::kHasInPrototypeChain);
-
-  // Slow-case: Call the %InstanceOf runtime function.
-  __ bind(&slow_case);
-  __ Push(object, function);
-  __ TailCallRuntime(is_es6_instanceof() ? Runtime::kOrdinaryHasInstance
-                                         : Runtime::kInstanceOf);
 }
 
 
@@ -1900,8 +1628,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(a0, MemOperand(sp, kLastMatchInfoOffset));
   __ JumpIfSmi(a0, &runtime);
   __ GetObjectType(a0, a2, a2);
-  __ Branch(&runtime, ne, a2, Operand(JS_ARRAY_TYPE));
-  // Check that the JSArray is in fast case.
+  __ Branch(&runtime, ne, a2, Operand(JS_OBJECT_TYPE));
+  // Check that the object has fast elements.
   __ lw(last_match_info_elements,
         FieldMemOperand(a0, JSArray::kElementsOffset));
   __ lw(a0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
@@ -2031,7 +1759,8 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   const RegList kSavedRegs = 1 << 4 |  // a0
                              1 << 5 |  // a1
                              1 << 6 |  // a2
-                             1 << 7;   // a3
+                             1 << 7 |  // a3
+                             1 << cp.code();
 
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(a0);
@@ -2053,6 +1782,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
+  Label done_initialize_count, done_increment_count;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
@@ -2071,7 +1801,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Register feedback_map = t1;
   Register weak_value = t4;
   __ lw(weak_value, FieldMemOperand(t2, WeakCell::kValueOffset));
-  __ Branch(&done, eq, a1, Operand(weak_value));
+  __ Branch(&done_increment_count, eq, a1, Operand(weak_value));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&done, eq, t2, Operand(at));
   __ lw(feedback_map, FieldMemOperand(t2, HeapObject::kMapOffset));
@@ -2093,7 +1823,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Make sure the function is the Array() function
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, t2);
   __ Branch(&megamorphic, ne, a1, Operand(t2));
-  __ jmp(&done);
+  __ jmp(&done_increment_count);
 
   __ bind(&miss);
 
@@ -2120,11 +1850,27 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &create_stub);
-  __ Branch(&done);
+  __ Branch(&done_initialize_count);
 
   __ bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
+
+  __ bind(&done_initialize_count);
+  // Initialize the call counter.
+  __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
+  __ li(t0, Operand(Smi::FromInt(1)));
+  __ Branch(USE_DELAY_SLOT, &done);
+  __ sw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
+
+  __ bind(&done_increment_count);
+
+  // Increment the call count for monomorphic function calls.
+  __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
+  __ lw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
+  __ Addu(t0, t0, Operand(Smi::FromInt(1)));
+  __ sw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
+
   __ bind(&done);
 }
 
@@ -2185,7 +1931,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // Increment the call count for monomorphic function calls.
   __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ lw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
-  __ Addu(a3, a3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Addu(a3, a3, Operand(Smi::FromInt(1)));
   __ sw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
 
   __ mov(a2, t0);
@@ -2231,7 +1977,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Increment the call count for monomorphic function calls.
   __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ lw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
-  __ Addu(a3, a3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Addu(a3, a3, Operand(Smi::FromInt(1)));
   __ sw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
 
   __ bind(&call_function);
@@ -2302,7 +2048,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // Initialize the call counter.
   __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ li(t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ li(t0, Operand(Smi::FromInt(1)));
   __ sw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
 
   // Store the function. Use a stub since we need a frame for allocation.
@@ -2312,9 +2058,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
-    __ Push(a1);
+    __ Push(cp, a1);
     __ CallStub(&create_stub);
-    __ Pop(a1);
+    __ Pop(cp, a1);
   }
 
   __ Branch(&call_function);
@@ -2402,13 +2148,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   } else {
     __ Push(object_, index_);
   }
-  if (index_flags_ == STRING_INDEX_IS_NUMBER) {
-    __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero);
-  } else {
-    DCHECK(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
-    // NumberToSmi discards numbers that are not exact integers.
-    __ CallRuntime(Runtime::kNumberToSmi);
-  }
+  __ CallRuntime(Runtime::kNumberToSmi);
 
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
@@ -2750,73 +2490,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // a3: from index (untagged)
   __ SmiTag(a3, a3);
   StringCharAtGenerator generator(v0, a3, a2, v0, &runtime, &runtime, &runtime,
-                                  STRING_INDEX_IS_NUMBER, RECEIVER_IS_STRING);
+                                  RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ DropAndRet(3);
   generator.SkipSlow(masm, &runtime);
 }
 
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in a0.
-  Label not_smi;
-  __ JumpIfNotSmi(a0, &not_smi);
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);
-  __ bind(&not_smi);
-
-  Label not_heap_number;
-  __ GetObjectType(a0, a1, a1);
-  // a0: receiver
-  // a1: receiver instance type
-  __ Branch(&not_heap_number, ne, a1, Operand(HEAP_NUMBER_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);
-  __ bind(&not_heap_number);
-
-  NonNumberToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-}
-
-void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
-  // The NonNumberToNumber stub takes on argument in a0.
-  __ AssertNotNumber(a0);
-
-  Label not_string;
-  __ GetObjectType(a0, a1, a1);
-  // a0: receiver
-  // a1: receiver instance type
-  __ Branch(&not_string, hs, a1, Operand(FIRST_NONSTRING_TYPE));
-  StringToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_string);
-
-  Label not_oddball;
-  __ Branch(&not_oddball, ne, a1, Operand(ODDBALL_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ lw(v0, FieldMemOperand(a0, Oddball::kToNumberOffset));  // In delay slot.
-  __ bind(&not_oddball);
-
-  __ Push(a0);  // Push argument.
-  __ TailCallRuntime(Runtime::kToNumber);
-}
-
-void StringToNumberStub::Generate(MacroAssembler* masm) {
-  // The StringToNumber stub takes on argument in a0.
-  __ AssertString(a0);
-
-  // Check if string has a cached array index.
-  Label runtime;
-  __ lw(a2, FieldMemOperand(a0, String::kHashFieldOffset));
-  __ And(at, a2, Operand(String::kContainsCachedArrayIndexMask));
-  __ Branch(&runtime, ne, at, Operand(zero_reg));
-  __ IndexFromHash(a2, v0);
-  __ Ret();
-
-  __ bind(&runtime);
-  __ Push(a0);  // Push argument.
-  __ TailCallRuntime(Runtime::kStringToNumber);
-}
 
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes on argument in a0.
@@ -2998,7 +2677,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // Load a2 with the allocation site. We stick an undefined dummy value here
   // and replace it with the real allocation site later when we instantiate this
   // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
-  __ li(a2, handle(isolate()->heap()->undefined_value()));
+  __ li(a2, isolate()->factory()->undefined_value());
 
   // Make sure that we actually patched the allocation site.
   if (FLAG_debug_code) {
@@ -3893,14 +3572,14 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
-  LoadICStub stub(isolate(), state());
+  LoadICStub stub(isolate());
   stub.GenerateForTrampoline(masm);
 }
 
 
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(LoadWithVectorDescriptor::VectorRegister());
-  KeyedLoadICStub stub(isolate(), state());
+  KeyedLoadICStub stub(isolate());
   stub.GenerateForTrampoline(masm);
 }
 
@@ -4037,11 +3716,8 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ bind(&not_array);
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&miss, ne, at, Operand(feedback));
-  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, code_flags,
-                                               receiver, name, feedback,
-                                               receiver_map, scratch1, t5);
+  masm->isolate()->load_stub_cache()->GenerateProbe(
+      masm, receiver, name, feedback, receiver_map, scratch1, t5);
 
   __ bind(&miss);
   LoadIC::GenerateMiss(masm);
@@ -4120,37 +3796,30 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ jmp(&compare_map);
 }
 
-
-void VectorStoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
-  VectorStoreICStub stub(isolate(), state());
+void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
+  StoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
-
-void VectorKeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
-  VectorKeyedStoreICStub stub(isolate(), state());
+void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
+  KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
+void StoreICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
 
-void VectorStoreICStub::Generate(MacroAssembler* masm) {
-  GenerateImpl(masm, false);
-}
-
-
-void VectorStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
+void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
-
-void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // a1
-  Register key = VectorStoreICDescriptor::NameRegister();           // a2
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // a3
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // t0
-  DCHECK(VectorStoreICDescriptor::ValueRegister().is(a0));          // a0
+void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // a1
+  Register key = StoreWithVectorDescriptor::NameRegister();           // a2
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // a3
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // t0
+  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(a0));          // a0
   Register feedback = t1;
   Register receiver_map = t2;
   Register scratch1 = t5;
@@ -4179,11 +3848,8 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ bind(&not_array);
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&miss, ne, feedback, Operand(at));
-  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, code_flags, receiver, key, feedback, receiver_map,
-      scratch1, scratch2);
+  masm->isolate()->store_stub_cache()->GenerateProbe(
+      masm, receiver, key, feedback, receiver_map, scratch1, scratch2);
 
   __ bind(&miss);
   StoreIC::GenerateMiss(masm);
@@ -4193,13 +3859,11 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);  // In delay slot.
 }
 
-
-void VectorKeyedStoreICStub::Generate(MacroAssembler* masm) {
+void KeyedStoreICStub::Generate(MacroAssembler* masm) {
   GenerateImpl(masm, false);
 }
 
-
-void VectorKeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
+void KeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
@@ -4265,13 +3929,12 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
   __ jmp(miss);
 }
 
-
-void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // a1
-  Register key = VectorStoreICDescriptor::NameRegister();           // a2
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // a3
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // t0
-  DCHECK(VectorStoreICDescriptor::ValueRegister().is(a0));          // a0
+void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // a1
+  Register key = StoreWithVectorDescriptor::NameRegister();           // a2
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // a3
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // t0
+  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(a0));          // a0
   Register feedback = t1;
   Register receiver_map = t2;
   Register scratch1 = t5;
@@ -4517,19 +4180,13 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   }
 }
 
-
-void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
+void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
       isolate);
   ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
       isolate);
-  ArrayConstructorStubAheadOfTimeHelper<ArrayNArgumentsConstructorStub>(
-      isolate);
-}
-
-
-void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
-    Isolate* isolate) {
+  ArrayNArgumentsConstructorStub stub(isolate);
+  stub.GetCode();
   ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things.
@@ -4537,8 +4194,6 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
     stubh1.GetCode();
     InternalArraySingleArgumentConstructorStub stubh2(isolate, kinds[i]);
     stubh2.GetCode();
-    InternalArrayNArgumentsConstructorStub stubh3(isolate, kinds[i]);
-    stubh3.GetCode();
   }
 }
 
@@ -4557,13 +4212,15 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
     CreateArrayDispatchOneArgument(masm, mode);
 
     __ bind(&not_one_case);
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+    ArrayNArgumentsConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
   } else if (argument_count() == NONE) {
     CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
   } else if (argument_count() == ONE) {
     CreateArrayDispatchOneArgument(masm, mode);
   } else if (argument_count() == MORE_THAN_ONE) {
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+    ArrayNArgumentsConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
   } else {
     UNREACHABLE();
   }
@@ -4647,7 +4304,7 @@ void InternalArrayConstructorStub::GenerateCase(
   InternalArrayNoArgumentConstructorStub stub0(isolate(), kind);
   __ TailCallStub(&stub0, lo, a0, Operand(1));
 
-  InternalArrayNArgumentsConstructorStub stubN(isolate(), kind);
+  ArrayNArgumentsConstructorStub stubN(isolate());
   __ TailCallStub(&stubN, hi, a0, Operand(1));
 
   if (IsFastPackedElementsKind(kind)) {
@@ -4748,15 +4405,15 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ bind(&done_allocate);
 
   // Initialize the JSObject fields.
-  __ sw(a2, MemOperand(v0, JSObject::kMapOffset));
+  __ sw(a2, FieldMemOperand(v0, JSObject::kMapOffset));
   __ LoadRoot(a3, Heap::kEmptyFixedArrayRootIndex);
-  __ sw(a3, MemOperand(v0, JSObject::kPropertiesOffset));
-  __ sw(a3, MemOperand(v0, JSObject::kElementsOffset));
+  __ sw(a3, FieldMemOperand(v0, JSObject::kPropertiesOffset));
+  __ sw(a3, FieldMemOperand(v0, JSObject::kElementsOffset));
   STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ Addu(a1, v0, Operand(JSObject::kHeaderSize));
+  __ Addu(a1, v0, Operand(JSObject::kHeaderSize - kHeapObjectTag));
 
   // ----------- S t a t e -------------
-  //  -- v0 : result (untagged)
+  //  -- v0 : result (tagged)
   //  -- a1 : result fields (untagged)
   //  -- t1 : result end (untagged)
   //  -- a2 : initial map
@@ -4774,11 +4431,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   {
     // Initialize all in-object fields with undefined.
     __ InitializeFieldsWithFiller(a1, t1, a0);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Ret(USE_DELAY_SLOT);
-    __ Addu(v0, v0, Operand(kHeapObjectTag));  // In delay slot.
+    __ Ret();
   }
   __ bind(&slack_tracking);
   {
@@ -4801,9 +4454,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     Label finalize;
     STATIC_ASSERT(Map::kSlackTrackingCounterEnd == 1);
     __ And(a3, a3, Operand(Map::ConstructionCounter::kMask));
-    __ Branch(USE_DELAY_SLOT, &finalize, eq, a3, Operand(zero_reg));
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Addu(v0, v0, Operand(kHeapObjectTag));  // In delay slot.
+    __ Branch(&finalize, eq, a3, Operand(zero_reg));
     __ Ret();
 
     // Finalize the instance size.
@@ -4828,10 +4479,10 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(a2);
   }
-  STATIC_ASSERT(kHeapObjectTag == 1);
-  __ Subu(v0, v0, Operand(kHeapObjectTag));
   __ lbu(t1, FieldMemOperand(a2, Map::kInstanceSizeOffset));
   __ Lsa(t1, v0, t1, kPointerSizeLog2);
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  __ Subu(t1, t1, Operand(kHeapObjectTag));
   __ jmp(&done_allocate);
 
   // Fall back to %NewObject.
@@ -4850,19 +4501,19 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(a1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make a2 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Branch(USE_DELAY_SLOT, &loop_entry);
-    __ mov(a2, fp);  // In delay slot.
-    __ bind(&loop);
+  // Make a2 point to the JavaScript frame.
+  __ mov(a2, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ lw(a2, MemOperand(a2, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ lw(a3, MemOperand(a2, StandardFrameConstants::kFunctionOffset));
-    __ Branch(&loop, ne, a1, Operand(a3));
+    __ Branch(&ok, eq, a1, Operand(a3));
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ bind(&ok);
   }
 
   // Check if we have rest parameters (only possible if we have an
@@ -4877,10 +4528,10 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // specified by the function's internal formal parameter count.
   Label rest_parameters;
   __ lw(a0, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ lw(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(a1,
-        FieldMemOperand(a1, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Subu(a0, a0, Operand(a1));
+  __ lw(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a3,
+        FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Subu(a0, a0, Operand(a3));
   __ Branch(&rest_parameters, gt, a0, Operand(zero_reg));
 
   // Return an empty rest parameter array.
@@ -4893,7 +4544,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
 
     // Allocate an empty rest parameter array.
     Label allocate, done_allocate;
-    __ Allocate(JSArray::kSize, v0, a0, a1, &allocate, TAG_OBJECT);
+    __ Allocate(JSArray::kSize, v0, a0, a1, &allocate, NO_ALLOCATION_FLAGS);
     __ bind(&done_allocate);
 
     // Setup the rest parameter array in v0.
@@ -4927,15 +4578,16 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- cp : context
     //  -- a0 : number of rest parameters (tagged)
+    //  -- a1 : function
     //  -- a2 : pointer to first rest parameters
     //  -- ra : return address
     // -----------------------------------
 
     // Allocate space for the rest parameter array plus the backing store.
     Label allocate, done_allocate;
-    __ li(a1, Operand(JSArray::kSize + FixedArray::kHeaderSize));
-    __ Lsa(a1, a1, a0, kPointerSizeLog2 - 1);
-    __ Allocate(a1, v0, a3, t0, &allocate, TAG_OBJECT);
+    __ li(t0, Operand(JSArray::kSize + FixedArray::kHeaderSize));
+    __ Lsa(t0, t0, a0, kPointerSizeLog2 - 1);
+    __ Allocate(t0, v0, a3, t1, &allocate, NO_ALLOCATION_FLAGS);
     __ bind(&done_allocate);
 
     // Setup the elements array in v0.
@@ -4968,16 +4620,24 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a3);  // In delay slot
 
-    // Fall back to %AllocateInNewSpace.
+    // Fall back to %AllocateInNewSpace (if not too big).
+    Label too_big_for_new_space;
     __ bind(&allocate);
+    __ Branch(&too_big_for_new_space, gt, t0,
+              Operand(Page::kMaxRegularHeapObjectSize));
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(a1);
-      __ Push(a0, a2, a1);
+      __ SmiTag(t0);
+      __ Push(a0, a2, t0);
       __ CallRuntime(Runtime::kAllocateInNewSpace);
       __ Pop(a0, a2);
     }
     __ jmp(&done_allocate);
+
+    // Fall back to %NewStrictArguments.
+    __ bind(&too_big_for_new_space);
+    __ Push(a1);
+    __ TailCallRuntime(Runtime::kNewStrictArguments);
   }
 }
 
@@ -4991,23 +4651,39 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(a1);
 
+  // Make t0 point to the JavaScript frame.
+  __ mov(t0, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
+    __ lw(t0, MemOperand(t0, StandardFrameConstants::kCallerFPOffset));
+  }
+  if (FLAG_debug_code) {
+    Label ok;
+    __ lw(a3, MemOperand(t0, StandardFrameConstants::kFunctionOffset));
+    __ Branch(&ok, eq, a1, Operand(a3));
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ bind(&ok);
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Lsa(a3, fp, a2, kPointerSizeLog2 - 1);
+  __ Lsa(a3, t0, a2, kPointerSizeLog2 - 1);
   __ Addu(a3, a3, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // a1 : function
   // a2 : number of parameters (tagged)
   // a3 : parameters pointer
+  // t0 : Javascript frame pointer
   // Registers used over whole function:
   //  t1 : arguments count (tagged)
   //  t2 : mapped parameter count (tagged)
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  __ lw(t0, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ lw(t0, MemOperand(t0, StandardFrameConstants::kCallerFPOffset));
   __ lw(a0, MemOperand(t0, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Branch(&adaptor_frame, eq, a0,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -5053,7 +4729,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ Addu(t5, t5, Operand(JSSloppyArgumentsObject::kSize));
 
   // Do the allocation of all three objects in one go.
-  __ Allocate(t5, v0, t5, t0, &runtime, TAG_OBJECT);
+  __ Allocate(t5, v0, t5, t0, &runtime, NO_ALLOCATION_FLAGS);
 
   // v0 = address of new object(s) (tagged)
   // a2 = argument count (smi-tagged)
@@ -5205,19 +4881,19 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(a1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make a2 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Branch(USE_DELAY_SLOT, &loop_entry);
-    __ mov(a2, fp);  // In delay slot.
-    __ bind(&loop);
+  // Make a2 point to the JavaScript frame.
+  __ mov(a2, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ lw(a2, MemOperand(a2, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ lw(a3, MemOperand(a2, StandardFrameConstants::kFunctionOffset));
-    __ Branch(&loop, ne, a1, Operand(a3));
+    __ Branch(&ok, eq, a1, Operand(a3));
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ bind(&ok);
   }
 
   // Check if we have an arguments adaptor frame below the function frame.
@@ -5227,9 +4903,9 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ Branch(&arguments_adaptor, eq, a0,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   {
-    __ lw(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
     __ lw(a0,
-          FieldMemOperand(a1, SharedFunctionInfo::kFormalParameterCountOffset));
+          FieldMemOperand(t0, SharedFunctionInfo::kFormalParameterCountOffset));
     __ Lsa(a2, a2, a0, kPointerSizeLog2 - 1);
     __ Addu(a2, a2, Operand(StandardFrameConstants::kCallerSPOffset -
                             1 * kPointerSize));
@@ -5247,15 +4923,16 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- cp : context
   //  -- a0 : number of rest parameters (tagged)
+  //  -- a1 : function
   //  -- a2 : pointer to first rest parameters
   //  -- ra : return address
   // -----------------------------------
 
   // Allocate space for the strict arguments object plus the backing store.
   Label allocate, done_allocate;
-  __ li(a1, Operand(JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize));
-  __ Lsa(a1, a1, a0, kPointerSizeLog2 - 1);
-  __ Allocate(a1, v0, a3, t0, &allocate, TAG_OBJECT);
+  __ li(t0, Operand(JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize));
+  __ Lsa(t0, t0, a0, kPointerSizeLog2 - 1);
+  __ Allocate(t0, v0, a3, t1, &allocate, NO_ALLOCATION_FLAGS);
   __ bind(&done_allocate);
 
   // Setup the elements array in v0.
@@ -5288,46 +4965,24 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a3);  // In delay slot
 
-  // Fall back to %AllocateInNewSpace.
+  // Fall back to %AllocateInNewSpace (if not too big).
+  Label too_big_for_new_space;
   __ bind(&allocate);
+  __ Branch(&too_big_for_new_space, gt, t0,
+            Operand(Page::kMaxRegularHeapObjectSize));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ SmiTag(a1);
-    __ Push(a0, a2, a1);
+    __ SmiTag(t0);
+    __ Push(a0, a2, t0);
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(a0, a2);
   }
   __ jmp(&done_allocate);
-}
 
-
-void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
-  Register context_reg = cp;
-  Register slot_reg = a2;
-  Register result_reg = v0;
-  Label slow_case;
-
-  // Go up context chain to the script context.
-  for (int i = 0; i < depth(); ++i) {
-    __ lw(result_reg, ContextMemOperand(context_reg, Context::PREVIOUS_INDEX));
-    context_reg = result_reg;
-  }
-
-  // Load the PropertyCell value at the specified slot.
-  __ Lsa(at, context_reg, slot_reg, kPointerSizeLog2);
-  __ lw(result_reg, ContextMemOperand(at, 0));
-  __ lw(result_reg, FieldMemOperand(result_reg, PropertyCell::kValueOffset));
-
-  // Check that value is not the_hole.
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-  __ Branch(&slow_case, eq, result_reg, Operand(at));
-  __ Ret();
-
-  // Fallback to the runtime.
-  __ bind(&slow_case);
-  __ SmiTag(slot_reg);
-  __ Push(slot_reg);
-  __ TailCallRuntime(Runtime::kLoadGlobalViaContext);
+  // Fall back to %NewStrictArguments.
+  __ bind(&too_big_for_new_space);
+  __ Push(a1);
+  __ TailCallRuntime(Runtime::kNewStrictArguments);
 }
 
 
@@ -5608,7 +5263,11 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
+  STATIC_ASSERT(FCA::kArgsLength == 8);
+
+  // new target
+  __ PushRoot(Heap::kUndefinedValueRootIndex);
 
   // Save context, callee and call data.
   __ Push(context, callee, call_data);
@@ -5632,7 +5291,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
-  const int kApiStackSpace = 4;
+  const int kApiStackSpace = 3;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
@@ -5649,8 +5308,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // FunctionCallbackInfo::length_ = argc
   __ li(at, Operand(argc()));
   __ sw(at, MemOperand(a0, 2 * kPointerSize));
-  // FunctionCallbackInfo::is_construct_call_ = 0
-  __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_function_callback(masm->isolate());
@@ -5667,8 +5324,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   int stack_space = 0;
-  int32_t stack_space_offset = 4 * kPointerSize;
+  int32_t stack_space_offset = 3 * kPointerSize;
   stack_space = argc() + FCA::kArgsLength + 1;
+  // TODO(adamk): Why are we clobbering this immediately?
   stack_space_offset = kInvalidStackOffset;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            stack_space_offset, return_value_operand,
@@ -5677,15 +5335,44 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- sp[0]                        : name
-  //  -- sp[4 .. (4 + kArgsLength*4)] : v8::PropertyCallbackInfo::args_
-  //  -- ...
-  //  -- a2                           : api_function_address
-  // -----------------------------------
+  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
+  // name below the exit frame to make GC aware of them.
+  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
 
-  Register api_function_address = ApiGetterDescriptor::function_address();
-  DCHECK(api_function_address.is(a2));
+  Register receiver = ApiGetterDescriptor::ReceiverRegister();
+  Register holder = ApiGetterDescriptor::HolderRegister();
+  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register scratch = t0;
+  DCHECK(!AreAliased(receiver, holder, callback, scratch));
+
+  Register api_function_address = a2;
+
+  // Here and below +1 is for name() pushed after the args_ array.
+  typedef PropertyCallbackArguments PCA;
+  __ Subu(sp, sp, (PCA::kArgsLength + 1) * kPointerSize);
+  __ sw(receiver, MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
+  __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
+  __ sw(scratch, MemOperand(sp, (PCA::kDataIndex + 1) * kPointerSize));
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ sw(scratch, MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
+  __ sw(scratch, MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
+                                    kPointerSize));
+  __ li(scratch, Operand(ExternalReference::isolate_address(isolate())));
+  __ sw(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
+  __ sw(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
+  // should_throw_on_error -> false
+  DCHECK(Smi::FromInt(0) == nullptr);
+  __ sw(zero_reg,
+        MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
+  __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
+  __ sw(scratch, MemOperand(sp, 0 * kPointerSize));
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
@@ -5706,6 +5393,10 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
 
+  __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
+  __ lw(api_function_address,
+        FieldMemOperand(scratch, Foreign::kForeignAddressOffset));
+
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(
       fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
@@ -5713,7 +5404,6 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                            kStackUnwindSpace, kInvalidStackOffset,
                            return_value_operand, NULL);
 }
-
 
 #undef __
 

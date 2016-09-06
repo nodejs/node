@@ -55,8 +55,6 @@ void ALAA::Exit(IterationStatement* loop) {
 
 void ALAA::VisitVariableDeclaration(VariableDeclaration* leaf) {}
 void ALAA::VisitFunctionDeclaration(FunctionDeclaration* leaf) {}
-void ALAA::VisitImportDeclaration(ImportDeclaration* leaf) {}
-void ALAA::VisitExportDeclaration(ExportDeclaration* leaf) {}
 void ALAA::VisitEmptyStatement(EmptyStatement* leaf) {}
 void ALAA::VisitContinueStatement(ContinueStatement* leaf) {}
 void ALAA::VisitBreakStatement(BreakStatement* leaf) {}
@@ -265,8 +263,9 @@ void ALAA::VisitForInStatement(ForInStatement* loop) {
 void ALAA::VisitForOfStatement(ForOfStatement* loop) {
   Visit(loop->assign_iterator());
   Enter(loop);
+  Visit(loop->next_result());
+  Visit(loop->result_done());
   Visit(loop->assign_each());
-  Visit(loop->subject());
   Visit(loop->body());
   Exit(loop);
 }
@@ -298,17 +297,15 @@ void ALAA::AnalyzeAssignment(Variable* var) {
   }
 }
 
-
-int ALAA::GetVariableIndex(Scope* scope, Variable* var) {
+int ALAA::GetVariableIndex(DeclarationScope* scope, Variable* var) {
   CHECK(var->IsStackAllocated());
   if (var->is_this()) return 0;
   if (var->IsParameter()) return 1 + var->index();
   return 1 + scope->num_parameters() + var->index();
 }
 
-
-int LoopAssignmentAnalysis::GetAssignmentCountForTesting(Scope* scope,
-                                                         Variable* var) {
+int LoopAssignmentAnalysis::GetAssignmentCountForTesting(
+    DeclarationScope* scope, Variable* var) {
   int count = 0;
   int var_index = AstLoopAssignmentAnalyzer::GetVariableIndex(scope, var);
   for (size_t i = 0; i < list_.size(); i++) {

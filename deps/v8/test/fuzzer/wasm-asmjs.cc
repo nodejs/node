@@ -33,7 +33,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::TryCatch try_catch(isolate);
   v8::internal::WasmJs::InstallWasmFunctionMap(i_isolate,
                                                i_isolate->native_context());
-  v8::internal::wasm::CompileAndRunWasmModule(i_isolate, data, data + size,
-                                              true);
+  v8::internal::wasm::testing::CompileAndRunWasmModule(i_isolate, data,
+                                                       data + size, true);
   return 0;
 }

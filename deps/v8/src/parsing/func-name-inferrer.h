@@ -16,6 +16,8 @@ class AstString;
 class AstValueFactory;
 class FunctionLiteral;
 
+enum class InferName { kYes, kNo };
+
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
 // Inference is performed in cases when an anonymous function is assigned
@@ -70,6 +72,8 @@ class FuncNameInferrer : public ZoneObject {
       funcs_to_infer_.RemoveLast();
     }
   }
+
+  void RemoveAsyncKeywordFromEnd();
 
   // Infers a function name and leaves names collection state.
   void Infer() {

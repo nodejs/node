@@ -82,8 +82,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
-    Register reg = Register::from_code(reg_num);
-    if (reg.IsAllocatable()) {
+    if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(
+            reg_num)) {
+      Register reg = Register::from_code(reg_num);
       if (!reg.is(destination_reg)) {
         __ push(reg);
         source_reg_offset += kPointerSize;
@@ -111,8 +112,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 2; --reg_num) {
-    Register reg = Register::from_code(reg_num);
-    if (reg.IsAllocatable()) {
+    if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(
+            reg_num)) {
+      Register reg = Register::from_code(reg_num);
       if (!reg.is(destination_reg)) {
         __ lw(at, MemOperand(sp, 0));
         __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));

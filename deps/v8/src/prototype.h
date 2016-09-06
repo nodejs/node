@@ -25,14 +25,12 @@ namespace internal {
 
 class PrototypeIterator {
  public:
-  enum WhereToStart { START_AT_RECEIVER, START_AT_PROTOTYPE };
-
   enum WhereToEnd { END_AT_NULL, END_AT_NON_HIDDEN };
 
   const int kProxyPrototypeLimit = 100 * 1000;
 
   PrototypeIterator(Isolate* isolate, Handle<JSReceiver> receiver,
-                    WhereToStart where_to_start = START_AT_PROTOTYPE,
+                    WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
       : object_(NULL),
         handle_(receiver),
@@ -41,32 +39,34 @@ class PrototypeIterator {
         is_at_end_(false),
         seen_proxies_(0) {
     CHECK(!handle_.is_null());
-    if (where_to_start == START_AT_PROTOTYPE) Advance();
+    if (where_to_start == kStartAtPrototype) Advance();
   }
 
   PrototypeIterator(Isolate* isolate, JSReceiver* receiver,
-                    WhereToStart where_to_start = START_AT_PROTOTYPE,
+                    WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
       : object_(receiver),
         isolate_(isolate),
         where_to_end_(where_to_end),
         is_at_end_(false),
         seen_proxies_(0) {
-    if (where_to_start == START_AT_PROTOTYPE) Advance();
+    if (where_to_start == kStartAtPrototype) Advance();
   }
 
   explicit PrototypeIterator(Map* receiver_map)
       : object_(receiver_map->prototype()),
         isolate_(receiver_map->GetIsolate()),
         where_to_end_(END_AT_NULL),
-        is_at_end_(object_->IsNull()) {}
+        is_at_end_(object_->IsNull(isolate_)),
+        seen_proxies_(0) {}
 
   explicit PrototypeIterator(Handle<Map> receiver_map)
       : object_(NULL),
         handle_(handle(receiver_map->prototype(), receiver_map->GetIsolate())),
         isolate_(receiver_map->GetIsolate()),
         where_to_end_(END_AT_NULL),
-        is_at_end_(handle_->IsNull()) {}
+        is_at_end_(handle_->IsNull(isolate_)),
+        seen_proxies_(0) {}
 
   ~PrototypeIterator() {}
 
@@ -114,7 +114,7 @@ class PrototypeIterator {
     Object* prototype = map->prototype();
     is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN
                      ? !map->has_hidden_prototype()
-                     : prototype->IsNull();
+                     : prototype->IsNull(isolate_);
 
     if (handle_.is_null()) {
       object_ = prototype;
@@ -153,7 +153,8 @@ class PrototypeIterator {
     MaybeHandle<Object> proto =
         JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
     if (!proto.ToHandle(&handle_)) return false;
-    is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull();
+    is_at_end_ =
+        where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull(isolate_);
     return true;
   }
 

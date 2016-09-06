@@ -82,8 +82,9 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       graph_(zone),
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
-      last_live_in_reg_marker_(nullptr) {
-}
+      last_live_in_reg_marker_(nullptr),
+      last_deopt_(nullptr),
+      operands_map_(zone) {}
 
 
 void InstructionScheduler::StartBlock(RpoNumber rpo) {
@@ -91,6 +92,8 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(last_side_effect_instr_ == nullptr);
   DCHECK(pending_loads_.empty());
   DCHECK(last_live_in_reg_marker_ == nullptr);
+  DCHECK(last_deopt_ == nullptr);
+  DCHECK(operands_map_.empty());
   sequence()->StartBlock(rpo);
 }
 
@@ -106,6 +109,8 @@ void InstructionScheduler::EndBlock(RpoNumber rpo) {
   last_side_effect_instr_ = nullptr;
   pending_loads_.clear();
   last_live_in_reg_marker_ = nullptr;
+  last_deopt_ = nullptr;
+  operands_map_.clear();
 }
 
 
@@ -128,6 +133,12 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       last_live_in_reg_marker_->AddSuccessor(new_node);
     }
 
+    // Make sure that new instructions are not scheduled before the last
+    // deoptimization point.
+    if (last_deopt_ != nullptr) {
+      last_deopt_->AddSuccessor(new_node);
+    }
+
     // Instructions with side effects and memory operations can't be
     // reordered with respect to each other.
     if (HasSideEffect(instr)) {
@@ -146,12 +157,36 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
       pending_loads_.push_back(new_node);
+    } else if (instr->IsDeoptimizeCall()) {
+      // Ensure that deopts are not reordered with respect to side-effect
+      // instructions.
+      if (last_side_effect_instr_ != nullptr) {
+        last_side_effect_instr_->AddSuccessor(new_node);
+      }
+      last_deopt_ = new_node;
     }
 
     // Look for operand dependencies.
-    for (ScheduleGraphNode* node : graph_) {
-      if (HasOperandDependency(node->instruction(), instr)) {
-        node->AddSuccessor(new_node);
+    for (size_t i = 0; i < instr->InputCount(); ++i) {
+      const InstructionOperand* input = instr->InputAt(i);
+      if (input->IsUnallocated()) {
+        int32_t vreg = UnallocatedOperand::cast(input)->virtual_register();
+        auto it = operands_map_.find(vreg);
+        if (it != operands_map_.end()) {
+          it->second->AddSuccessor(new_node);
+        }
+      }
+    }
+
+    // Record the virtual registers defined by this instruction.
+    for (size_t i = 0; i < instr->OutputCount(); ++i) {
+      const InstructionOperand* output = instr->OutputAt(i);
+      if (output->IsUnallocated()) {
+        operands_map_[UnallocatedOperand::cast(output)->virtual_register()] =
+            new_node;
+      } else if (output->IsConstant()) {
+        operands_map_[ConstantOperand::cast(output)->virtual_register()] =
+            new_node;
       }
     }
   }
@@ -206,6 +241,30 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchParentFramePointer:
     case kArchTruncateDoubleToI:
     case kArchStackSlot:
+    case kArchDebugBreak:
+    case kArchImpossible:
+    case kArchComment:
+    case kIeee754Float64Acos:
+    case kIeee754Float64Acosh:
+    case kIeee754Float64Asin:
+    case kIeee754Float64Asinh:
+    case kIeee754Float64Atan:
+    case kIeee754Float64Atanh:
+    case kIeee754Float64Atan2:
+    case kIeee754Float64Cbrt:
+    case kIeee754Float64Cos:
+    case kIeee754Float64Cosh:
+    case kIeee754Float64Exp:
+    case kIeee754Float64Expm1:
+    case kIeee754Float64Log:
+    case kIeee754Float64Log1p:
+    case kIeee754Float64Log10:
+    case kIeee754Float64Log2:
+    case kIeee754Float64Pow:
+    case kIeee754Float64Sin:
+    case kIeee754Float64Sinh:
+    case kIeee754Float64Tan:
+    case kIeee754Float64Tanh:
       return kNoOpcodeFlags;
 
     case kArchStackPointer:
@@ -224,6 +283,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchTailCallCodeObject:
     case kArchTailCallJSFunctionFromJSFunction:
     case kArchTailCallJSFunction:
+    case kArchTailCallAddress:
       return kHasSideEffect | kIsBlockTerminator;
 
     case kArchDeoptimize:
@@ -253,6 +313,18 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchStoreWithWriteBarrier:
       return kHasSideEffect;
 
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
+      return kIsLoadOperation;
+
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     TARGET_ARCH_OPCODE_LIST(CASE)
 #undef CASE
@@ -261,33 +333,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
   UNREACHABLE();
   return kNoOpcodeFlags;
-}
-
-
-bool InstructionScheduler::HasOperandDependency(
-    const Instruction* instr1, const Instruction* instr2) const {
-  for (size_t i = 0; i < instr1->OutputCount(); ++i) {
-    for (size_t j = 0; j < instr2->InputCount(); ++j) {
-      const InstructionOperand* output = instr1->OutputAt(i);
-      const InstructionOperand* input = instr2->InputAt(j);
-
-      if (output->IsUnallocated() && input->IsUnallocated() &&
-          (UnallocatedOperand::cast(output)->virtual_register() ==
-           UnallocatedOperand::cast(input)->virtual_register())) {
-        return true;
-      }
-
-      if (output->IsConstant() && input->IsUnallocated() &&
-          (ConstantOperand::cast(output)->virtual_register() ==
-           UnallocatedOperand::cast(input)->virtual_register())) {
-        return true;
-      }
-    }
-  }
-
-  // TODO(bafsa): Do we need to look for anti-dependencies/output-dependencies?
-
-  return false;
 }
 
 

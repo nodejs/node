@@ -32,6 +32,7 @@
 
 #include "src/compiler.h"
 #include "src/disasm.h"
+#include "src/interpreter/interpreter.h"
 #include "src/parsing/parser.h"
 #include "test/cctest/cctest.h"
 
@@ -305,7 +306,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // We shouldn't have deoptimization support. We want to recompile and
   // verify that our feedback vector preserves information.
   CHECK(!f->shared()->has_deoptimization_support());
-  Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
 
   // Verify that we gathered feedback.
   CHECK(!feedback_vector->is_empty());
@@ -319,8 +320,11 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
   CHECK(f->IsOptimized());
-  CHECK(f->shared()->has_deoptimization_support());
-  object = f->shared()->feedback_vector()->Get(slot_for_a);
+  // If the baseline code is bytecode, then it will not have deoptimization
+  // support. has_deoptimization_support() check is only required if the
+  // baseline code is from fullcodegen.
+  CHECK(f->shared()->has_deoptimization_support() || i::FLAG_ignition);
+  object = f->feedback_vector()->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());
 }
@@ -355,18 +359,16 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
   // If we are compiling lazily then it should not be compiled, and so no
   // feedback vector allocated yet.
   CHECK(!f->shared()->is_compiled());
-  CHECK(f->shared()->feedback_vector()->is_empty());
+  CHECK(f->feedback_vector()->is_empty());
 
   CompileRun("morphing_call();");
 
   // Now a feedback vector is allocated.
   CHECK(f->shared()->is_compiled());
-  CHECK(!f->shared()->feedback_vector()->is_empty());
+  CHECK(!f->feedback_vector()->is_empty());
 }
 
-
-// Test that optimized code for different closures is actually shared
-// immediately by the FastNewClosureStub when run in the same context.
+// Test that optimized code for different closures is actually shared.
 TEST(OptimizedCodeSharing1) {
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
@@ -385,8 +387,8 @@ TEST(OptimizedCodeSharing1) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure();"
-        "var closure2 = MakeClosure();");
+        "var closure1 = MakeClosure(); closure1();"
+        "var closure2 = MakeClosure(); closure2();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -403,9 +405,7 @@ TEST(OptimizedCodeSharing1) {
   }
 }
 
-
-// Test that optimized code for different closures is actually shared
-// immediately by the FastNewClosureStub when run different contexts.
+// Test that optimized code for different closures is actually shared.
 TEST(OptimizedCodeSharing2) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
@@ -456,8 +456,8 @@ TEST(OptimizedCodeSharing2) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure();"
-        "var closure2 = MakeClosure();");
+        "var closure1 = MakeClosure(); closure1();"
+        "var closure2 = MakeClosure(); closure2();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -475,9 +475,7 @@ TEST(OptimizedCodeSharing2) {
   }
 }
 
-
-// Test that optimized code for different closures is actually shared
-// immediately by the FastNewClosureStub without context-dependent entries.
+// Test that optimized code for different closures is actually shared.
 TEST(OptimizedCodeSharing3) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
@@ -531,8 +529,8 @@ TEST(OptimizedCodeSharing3) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure();"
-        "var closure2 = MakeClosure();");
+        "var closure1 = MakeClosure(); closure1();"
+        "var closure2 = MakeClosure(); closure2();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -763,3 +761,83 @@ TEST(SplitConstantsInFullCompiler) {
   CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
 }
 #endif
+
+static void IsBaselineCompiled(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Handle<Object> object = v8::Utils::OpenHandle(*args[0]);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(object);
+  bool is_baseline = function->shared()->code()->kind() == Code::FUNCTION;
+  return args.GetReturnValue().Set(is_baseline);
+}
+
+static void InstallIsBaselineCompiledHelper(v8::Isolate* isolate) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::FunctionTemplate> t =
+      v8::FunctionTemplate::New(isolate, IsBaselineCompiled);
+  CHECK(context->Global()
+            ->Set(context, v8_str("IsBaselineCompiled"),
+                  t->GetFunction(context).ToLocalChecked())
+            .FromJust());
+}
+
+TEST(IgnitionBaselineOnReturn) {
+  // TODO(4280): Remove this entire test once --ignition-preserve-bytecode is
+  // the default and the flag is removed. This test doesn't provide benefit any
+  // longer once {InterpreterActivationsFinder} is gone.
+  if (FLAG_ignition_preserve_bytecode) return;
+  FLAG_allow_natives_syntax = true;
+  FLAG_always_opt = false;
+  CcTest::InitializeVM();
+  FLAG_ignition = true;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->interpreter()->Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+  InstallIsBaselineCompiledHelper(CcTest::isolate());
+
+  CompileRun(
+      "var is_baseline_in_function, is_baseline_after_return;\n"
+      "var return_val;\n"
+      "function f() {\n"
+      "  %CompileBaseline(f);\n"
+      "  is_baseline_in_function = IsBaselineCompiled(f);\n"
+      "  return 1234;\n"
+      "};\n"
+      "return_val = f();\n"
+      "is_baseline_after_return = IsBaselineCompiled(f);\n");
+  CHECK_EQ(false, GetGlobalProperty("is_baseline_in_function")->BooleanValue());
+  CHECK_EQ(true, GetGlobalProperty("is_baseline_after_return")->BooleanValue());
+  CHECK_EQ(1234.0, GetGlobalProperty("return_val")->Number());
+}
+
+TEST(IgnitionEntryTrampolineSelfHealing) {
+  FLAG_allow_natives_syntax = true;
+  FLAG_always_opt = false;
+  CcTest::InitializeVM();
+  FLAG_ignition = true;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->interpreter()->Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "function MkFun() {"
+      "  function f() { return 23 }"
+      "  return f"
+      "}"
+      "var f1 = MkFun(); f1();"
+      "var f2 = MkFun(); f2();"
+      "%BaselineFunctionOnNextCall(f1);");
+  Handle<JSFunction> f1 = Handle<JSFunction>::cast(GetGlobalProperty("f1"));
+  Handle<JSFunction> f2 = Handle<JSFunction>::cast(GetGlobalProperty("f2"));
+
+  // Function {f1} is marked for baseline.
+  CompileRun("var result1 = f1()");
+  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
+  CHECK_EQ(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
+  CHECK_EQ(23.0, GetGlobalProperty("result1")->Number());
+
+  // Function {f2} will self-heal now.
+  CompileRun("var result2 = f2()");
+  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
+  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
+  CHECK_EQ(23.0, GetGlobalProperty("result2")->Number());
+}

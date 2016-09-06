@@ -171,12 +171,12 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 10
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(127),
-  B(Star), R(0),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1494 S> */ B(Wide), B(Mov), R16(127), R16(0),
+  /* 1505 S> */ B(Ldar), R(0),
+  /* 1516 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -347,12 +347,12 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(126),
-  B(Star), R(127),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1494 S> */ B(Wide), B(Mov), R16(126), R16(127),
+  /* 1507 S> */ B(Wide), B(Ldar), R16(127),
+  /* 1520 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -521,20 +521,18 @@ snippet: "
   if (x2 > 3) { return x129; }
   return x128;
 "
-frame size: 158
+frame size: 157
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 17
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(2),
-  B(Wide), B(Star), R16(157),
-  B(LdaSmi), U8(3),
-  B(Wide), B(TestGreaterThan), R16(157),
-  B(JumpIfFalse), U8(7),
-  B(Wide), B(Ldar), R16(129),
-  B(Return),
-  B(Ldar), R(128),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1494 S> */ B(LdaSmi), U8(3),
+  /* 1501 E> */ B(TestGreaterThan), R(2),
+                B(JumpIfFalse), U8(7),
+  /* 1508 S> */ B(Wide), B(Ldar), R16(129),
+  /* 1536 S> */ B(Return),
+  /* 1523 S> */ B(Wide), B(Ldar), R16(128),
+  /* 1536 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -705,29 +703,25 @@ snippet: "
   if (x2 > 3) { return x0; }
   return x129;
 "
-frame size: 158
+frame size: 157
 parameter count: 1
-bytecode array length: 48
+bytecode array length: 34
 bytecodes: [
-  B(StackCheck),
-  B(LdaZero),
-  B(Star), R(0),
-  B(Wide), B(Ldar), R16(129),
-  B(Wide), B(Star), R16(157),
-  B(LdaSmi), U8(3),
-  B(Wide), B(TestEqual), R16(157),
-  B(JumpIfFalse), U8(8),
-  B(Ldar), R(0),
-  B(Wide), B(Star), R16(129),
-  B(Ldar), R(2),
-  B(Wide), B(Star), R16(157),
-  B(LdaSmi), U8(3),
-  B(Wide), B(TestGreaterThan), R16(157),
-  B(JumpIfFalse), U8(5),
-  B(Ldar), R(0),
-  B(Return),
-  B(Wide), B(Ldar), R16(129),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1503 S> */ B(LdaZero),
+                B(Star), R(0),
+  /* 1506 S> */ B(LdaSmi), U8(3),
+  /* 1515 E> */ B(Wide), B(TestEqual), R16(129),
+                B(JumpIfFalse), U8(10),
+  /* 1534 S> */ B(Wide), B(Mov), R16(0), R16(129),
+                B(Ldar), R(0),
+  /* 1540 S> */ B(LdaSmi), U8(3),
+  /* 1547 E> */ B(TestGreaterThan), R(2),
+                B(JumpIfFalse), U8(5),
+  /* 1554 S> */ B(Ldar), R(0),
+  /* 1580 S> */ B(Return),
+  /* 1567 S> */ B(Wide), B(Ldar), R16(129),
+  /* 1580 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -899,34 +893,29 @@ snippet: "
 "
 frame size: 158
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 53
 bytecodes: [
-  B(StackCheck),
-  B(LdaZero),
-  B(Star), R(0),
-  B(LdaZero),
-  B(Star), R(1),
-  B(LdaZero),
-  B(Star), R(128),
-  B(Ldar), R(128),
-  B(Wide), B(Star), R16(157),
-  B(LdaSmi), U8(64),
-  B(Wide), B(TestLessThan), R16(157),
-  B(JumpIfFalse), U8(29),
-  B(StackCheck),
-  B(Ldar), R(1),
-  B(Wide), B(Star), R16(157),
-  B(Ldar), R(128),
-  B(Wide), B(Add), R16(157),
-  B(Star), R(1),
-  B(Ldar), R(128),
-  B(ToNumber),
-  B(Wide), B(Star), R16(157),
-  B(Inc),
-  B(Star), R(128),
-  B(Jump), U8(-39),
-  B(Ldar), R(128),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1503 S> */ B(LdaZero),
+                B(Star), R(0),
+  /* 1515 S> */ B(LdaZero),
+                B(Star), R(1),
+  /* 1523 S> */ B(LdaZero),
+                B(Wide), B(Star), R16(128),
+  /* 1538 S> */ B(LdaSmi), U8(64),
+  /* 1538 E> */ B(Wide), B(TestLessThan), R16(128),
+                B(JumpIfFalse), U8(30),
+  /* 1518 E> */ B(StackCheck),
+  /* 1555 S> */ B(Wide), B(Ldar), R16(128),
+  /* 1561 E> */ B(Add), R(1), U8(2),
+                B(Wide), B(Mov), R16(1), R16(157),
+                B(Star), R(1),
+  /* 1548 S> */ B(Wide), B(Ldar), R16(128),
+                B(Inc), U8(1),
+                B(Wide), B(Star), R16(128),
+                B(Jump), U8(-34),
+  /* 1567 S> */ B(Wide), B(Ldar), R16(128),
+  /* 1580 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -1098,37 +1087,35 @@ snippet: "
 "
 frame size: 163
 parameter count: 1
-bytecode array length: 80
+bytecode array length: 84
 bytecodes: [
-  B(StackCheck),
-  B(Wide), B(LdaSmi), U16(1234),
-  B(Star), R(0),
-  B(LdaZero),
-  B(Star), R(1),
-  B(Ldar), R(0),
-  B(JumpIfUndefined), U8(65),
-  B(JumpIfNull), U8(63),
-  B(ToObject),
-  B(Wide), B(Star), R16(157),
-  B(Wide), B(ForInPrepare), R16(158),
-  B(LdaZero),
-  B(Wide), B(Star), R16(161),
-  B(Wide), B(ForInDone), R16(161), R16(160),
-  B(JumpIfTrue), U8(41),
-  B(Wide), B(ForInNext), R16(157), R16(161), R16(158), U16(1),
-  B(JumpIfUndefined), U8(19),
-  B(Star), R(128),
-  B(StackCheck),
-  B(Ldar), R(1),
-  B(Wide), B(Star), R16(162),
-  B(Ldar), R(128),
-  B(Wide), B(Add), R16(162),
-  B(Star), R(1),
-  B(Wide), B(ForInStep), R16(161),
-  B(Wide), B(Star), R16(161),
-  B(Jump), U8(-45),
-  B(Ldar), R(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1503 S> */ B(Wide), B(LdaSmi), U16(1234),
+                B(Star), R(0),
+  /* 1518 S> */ B(LdaZero),
+                B(Star), R(1),
+  /* 1534 S> */ B(Ldar), R(0),
+                B(JumpIfUndefined), U8(69),
+                B(JumpIfNull), U8(67),
+                B(Wide), B(ToObject), R16(157),
+                B(Wide), B(ForInPrepare), R16(157), R16(158),
+                B(LdaZero),
+                B(Wide), B(Star), R16(161),
+  /* 1526 S> */ B(Wide), B(ForInDone), R16(161), R16(160),
+                B(JumpIfTrue), U8(44),
+                B(Wide), B(ForInNext), R16(157), R16(161), R16(158), U16(2),
+                B(JumpIfUndefined), U8(22),
+                B(Wide), B(Star), R16(128),
+  /* 1521 E> */ B(StackCheck),
+  /* 1541 S> */ B(Wide), B(Ldar), R16(128),
+  /* 1547 E> */ B(Add), R(1), U8(1),
+                B(Wide), B(Mov), R16(1), R16(162),
+                B(Star), R(1),
+  /* 1544 E> */ B(Wide), B(ForInStep), R16(161),
+                B(Wide), B(Star), R16(161),
+                B(Jump), U8(-48),
+  /* 1553 S> */ B(Ldar), R(1),
+  /* 1564 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -1301,24 +1288,20 @@ snippet: "
 "
 frame size: 159
 parameter count: 1
-bytecode array length: 55
+bytecode array length: 53
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(64),
-  B(Wide), B(Star), R16(157),
-  B(Ldar), R(63),
-  B(Wide), B(Star), R16(158),
-  B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
-  B(Star), R(0),
-  B(Ldar), R(27),
-  B(Wide), B(Star), R16(157),
-  B(Wide), B(Ldar), R16(143),
-  B(Wide), B(Star), R16(158),
-  B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
-  B(Star), R(1),
-  B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
-  B(Ldar), R(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /* 1494 S> */ B(Wide), B(Mov), R16(64), R16(157),
+                B(Wide), B(Mov), R16(63), R16(158),
+  /* 1509 E> */ B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
+                B(Star), R(0),
+  /* 1515 S> */ B(Wide), B(Mov), R16(27), R16(157),
+                B(Wide), B(Mov), R16(143), R16(158),
+  /* 1530 E> */ B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
+                B(Star), R(1),
+  /* 1537 S> */ B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
+  /* 1549 S> */ B(Ldar), R(1),
+  /* 1560 S> */ B(Return),
 ]
 constant pool: [
 ]

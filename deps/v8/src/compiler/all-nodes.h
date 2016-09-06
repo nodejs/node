@@ -16,19 +16,27 @@ namespace compiler {
 // from end.
 class AllNodes {
  public:
-  // Constructor. Traverses the graph and builds the {live} sets.
-  AllNodes(Zone* local_zone, const Graph* graph);
+  // Constructor. Traverses the graph and builds the {reachable} sets. When
+  // {only_inputs} is true, find the nodes reachable through input edges;
+  // these are all live nodes.
+  AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs = true);
 
   bool IsLive(Node* node) {
-    if (!node) return false;
-    size_t id = node->id();
-    return id < is_live.size() && is_live[id];
+    CHECK(only_inputs_);
+    return IsReachable(node);
   }
 
-  NodeVector live;  // Nodes reachable from end.
+  bool IsReachable(Node* node) {
+    if (!node) return false;
+    size_t id = node->id();
+    return id < is_reachable_.size() && is_reachable_[id];
+  }
+
+  NodeVector reachable;  // Nodes reachable from end.
 
  private:
-  BoolVector is_live;
+  BoolVector is_reachable_;
+  const bool only_inputs_;
 };
 
 }  // namespace compiler

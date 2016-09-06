@@ -37,6 +37,8 @@
 #error Unsupported target architecture.
 #endif
 
+#include "src/globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -44,7 +46,6 @@ namespace internal {
 HGraph* LCodeGenBase::graph() const {
   return chunk()->graph();
 }
-
 
 LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
                            CompilationInfo* info)
@@ -61,8 +62,9 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
       translations_(info->zone()),
       inlined_function_count_(0),
       last_lazy_deopt_pc_(0),
-      osr_pc_offset_(-1) {}
-
+      osr_pc_offset_(-1),
+      source_position_table_builder_(info->zone(),
+                                     info->SourcePositionRecordingMode()) {}
 
 bool LCodeGenBase::GenerateBody() {
   DCHECK(is_generating());
@@ -137,6 +139,10 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 #endif
 }
 
+void LCodeGenBase::RecordAndWritePosition(int pos) {
+  if (pos == kNoSourcePosition) return;
+  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
+}
 
 void LCodeGenBase::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
@@ -158,8 +164,9 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
   SourcePosition position = deopt_info.position;
+  int deopt_id = deopt_info.deopt_id;
   int raw_position = position.IsUnknown() ? 0 : position.raw();
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position);
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position, deopt_id);
 }
 
 
@@ -364,14 +371,12 @@ void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
   }
 }
 
-
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
-    LInstruction* instr, Deoptimizer::DeoptReason deopt_reason) {
+    LInstruction* instr, DeoptimizeReason deopt_reason, int deopt_id) {
   Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
-                                    instr->Mnemonic(), deopt_reason);
-  HEnterInlined* enter_inlined = instr->environment()->entry();
-  deopt_info.inlining_id = enter_inlined ? enter_inlined->inlining_id() : 0;
+                                    deopt_reason, deopt_id);
   return deopt_info;
 }
+
 }  // namespace internal
 }  // namespace v8

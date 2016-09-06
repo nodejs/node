@@ -17,29 +17,34 @@ void Isolate::set_context(Context* context) {
   thread_local_top_.context_ = context;
 }
 
+Handle<Context> Isolate::native_context() {
+  return handle(context()->native_context(), this);
+}
+
+Context* Isolate::raw_native_context() { return context()->native_context(); }
 
 Object* Isolate::pending_exception() {
   DCHECK(has_pending_exception());
-  DCHECK(!thread_local_top_.pending_exception_->IsException());
+  DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   return thread_local_top_.pending_exception_;
 }
 
 
 void Isolate::set_pending_exception(Object* exception_obj) {
-  DCHECK(!exception_obj->IsException());
+  DCHECK(!exception_obj->IsException(this));
   thread_local_top_.pending_exception_ = exception_obj;
 }
 
 
 void Isolate::clear_pending_exception() {
-  DCHECK(!thread_local_top_.pending_exception_->IsException());
+  DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   thread_local_top_.pending_exception_ = heap_.the_hole_value();
 }
 
 
 bool Isolate::has_pending_exception() {
-  DCHECK(!thread_local_top_.pending_exception_->IsException());
-  return !thread_local_top_.pending_exception_->IsTheHole();
+  DCHECK(!thread_local_top_.pending_exception_->IsException(this));
+  return !thread_local_top_.pending_exception_->IsTheHole(this);
 }
 
 
@@ -50,19 +55,19 @@ void Isolate::clear_pending_message() {
 
 Object* Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
-  DCHECK(!thread_local_top_.scheduled_exception_->IsException());
+  DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   return thread_local_top_.scheduled_exception_;
 }
 
 
 bool Isolate::has_scheduled_exception() {
-  DCHECK(!thread_local_top_.scheduled_exception_->IsException());
+  DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
 }
 
 
 void Isolate::clear_scheduled_exception() {
-  DCHECK(!thread_local_top_.scheduled_exception_->IsException());
+  DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
 }
 
@@ -71,9 +76,18 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
   return exception != heap()->termination_exception();
 }
 
+void Isolate::FireBeforeCallEnteredCallback() {
+  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
+    before_call_entered_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
+  }
+}
 
 Handle<JSGlobalObject> Isolate::global_object() {
-  return Handle<JSGlobalObject>(context()->global_object(), this);
+  return handle(context()->global_object(), this);
+}
+
+Handle<JSObject> Isolate::global_proxy() {
+  return handle(context()->global_proxy(), this);
 }
 
 
@@ -86,19 +100,31 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
+SaveContext::SaveContext(Isolate* isolate)
+    : isolate_(isolate), prev_(isolate->save_context()) {
+  if (isolate->context() != NULL) {
+    context_ = Handle<Context>(isolate->context());
+  }
+  isolate->set_save_context(this);
+  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
+}
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name) \
-  Handle<type> Isolate::name() {                         \
-    return Handle<type>(native_context()->name(), this); \
-  }                                                      \
-  bool Isolate::is_##name(type* value) {                 \
-    return native_context()->is_##name(value);           \
+SaveContext::~SaveContext() {
+  isolate_->set_context(context_.is_null() ? NULL : *context_);
+  isolate_->set_save_context(prev_);
+}
+
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
+  Handle<type> Isolate::name() {                             \
+    return Handle<type>(raw_native_context()->name(), this); \
+  }                                                          \
+  bool Isolate::is_##name(type* value) {                     \
+    return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
 bool Isolate::IsArraySpeciesLookupChainIntact() {
-  if (!FLAG_harmony_species) return true;
   // Note: It would be nice to have debug checks to make sure that the
   // species protector is accurate, but this would be hard to do for most of
   // what the protector stands for:
@@ -111,9 +137,14 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->species_protector();
+  Cell* species_cell = heap()->species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::cast(species_cell->value())->value() == kArrayProtectorValid;
+}
+
+bool Isolate::IsHasInstanceLookupChainIntact() {
+  PropertyCell* has_instance_cell = heap()->has_instance_protector();
+  return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
 }
 
 }  // namespace internal

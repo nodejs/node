@@ -147,10 +147,10 @@ Type::bitset BitsetType::Lub(Type* type) {
   if (type->IsClass()) return type->AsClass()->Lub();
   if (type->IsConstant()) return type->AsConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
-  if (type->IsContext()) return kInternal & kTaggedPointer;
+  if (type->IsContext()) return kOtherInternal & kTaggedPointer;
   if (type->IsArray()) return kOtherObject;
   if (type->IsFunction()) return kFunction;
-  if (type->IsTuple()) return kInternal;
+  if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
   return kNone;
 }
@@ -187,21 +187,25 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       if (map == heap->undefined_map()) return kUndefined;
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
-      DCHECK(map == heap->the_hole_map() ||
-             map == heap->uninitialized_map() ||
+      if (map == heap->the_hole_map()) return kHole;
+      DCHECK(map == heap->uninitialized_map() ||
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
-             map == heap->optimized_out_map());
-      return kInternal & kTaggedPointer;
+             map == heap->optimized_out_map() ||
+             map == heap->stale_register_map());
+      return kOtherInternal & kTaggedPointer;
     }
     case HEAP_NUMBER_TYPE:
       return kNumber & kTaggedPointer;
     case SIMD128_VALUE_TYPE:
       return kSimd;
     case JS_OBJECT_TYPE:
+    case JS_ARGUMENTS_TYPE:
+    case JS_ERROR_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
+    case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       if (map->is_undetectable()) return kOtherUndetectable;
       return kOtherObject;
@@ -246,10 +250,10 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SCRIPT_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
-      return kInternal & kTaggedPointer;
+      return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do
-    // require bit set types, they should get kInternal & kTaggedPointer.
+    // require bit set types, they should get kOtherInternal & kTaggedPointer.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
 #define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
@@ -266,8 +270,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case CODE_CACHE_TYPE:
-    case POLYMORPHIC_CODE_CACHE_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case BOX_TYPE:

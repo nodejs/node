@@ -252,11 +252,14 @@ function testTraceNativeConversion(nativeFunc) {
 
 
 function testOmittedBuiltin(throwing, omitted) {
+  var reached = false;
   try {
     throwing();
-    assertUnreachable(omitted);
+    reached = true;
   } catch (e) {
     assertTrue(e.stack.indexOf(omitted) < 0, omitted);
+  } finally {
+    assertFalse(reached);
   }
 }
 
@@ -305,19 +308,18 @@ testOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
 // Omitted because ADD from runtime.js is non-native builtin.
 testOmittedBuiltin(function(){ thrower + 2; }, "ADD");
 
+var reached = false;
 var error = new Error();
-error.toString = function() { assertUnreachable(); };
+error.toString = function() { reached = true; };
 error.stack;
+assertFalse(reached);
 
+reached = false;
 error = new Error();
-error.name = { toString: function() { assertUnreachable(); }};
-error.message = { toString: function() {  assertUnreachable(); }};
+Array.prototype.push = function(x) { reached = true; };
+Array.prototype.join = function(x) { reached = true; };
 error.stack;
-
-error = new Error();
-Array.prototype.push = function(x) { assertUnreachable(); };
-Array.prototype.join = function(x) { assertUnreachable(); };
-error.stack;
+assertFalse(reached);
 
 var fired = false;
 error = new Error({ toString: function() { fired = true; } });
@@ -366,3 +368,75 @@ my_error = new Error();
 var stolen_getter = Object.getOwnPropertyDescriptor(my_error, 'stack').get;
 Object.defineProperty(fake_error, 'stack', { get: stolen_getter });
 assertEquals(undefined, fake_error.stack);
+
+// Check that overwriting the stack property during stack trace formatting
+// does not crash.
+error = new Error();
+error.__defineGetter__("name", function() { error.stack = "abc"; });
+assertEquals("abc", error.stack);
+
+error = new Error();
+error.__defineGetter__("name", function() { delete error.stack; });
+assertEquals(undefined, error.stack);
+
+// Check that repeated trace collection does not crash.
+error = new Error();
+Error.captureStackTrace(error);
+
+// Check property descriptor.
+var o = {};
+Error.captureStackTrace(o);
+assertEquals([], Object.keys(o));
+var desc = Object.getOwnPropertyDescriptor(o, "stack");
+assertFalse(desc.enumerable);
+assertTrue(desc.configurable);
+assertTrue(desc.writable);
+
+// Check that exceptions thrown within prepareStackTrace throws an exception.
+Error.prepareStackTrace = function(e, frames) { throw 42; }
+
+var x = {}
+assertThrows(() => Error.captureStackTrace(x));
+
+// Check that we don't crash when CaptureSimpleStackTrace returns undefined.
+var o = {};
+var oldStackTraceLimit = Error.stackTraceLimit;
+Error.stackTraceLimit = "not a number";
+Error.captureStackTrace(o);
+Error.stackTraceLimit = oldStackTraceLimit;
+
+// Check that we don't crash when a callsite's function's script is empty.
+Error.prepareStackTrace = function(e, frames) {
+  assertEquals(undefined, frames[0].getEvalOrigin());
+}
+try {
+  DataView();
+  assertUnreachable();
+} catch (e) {
+  assertEquals(undefined, e.stack);
+}
+
+// Check that a tight recursion in prepareStackTrace throws when accessing
+// stack. Trying again without a custom formatting function formats correctly.
+var err = new Error("abc");
+Error.prepareStackTrace = () => Error.prepareStackTrace();
+try {
+  err.stack;
+  assertUnreachable();
+} catch (e) {
+  err = e;
+}
+
+Error.prepareStackTrace = undefined;
+assertTrue(
+    err.stack.indexOf("RangeError: Maximum call stack size exceeded") != -1);
+assertTrue(err.stack.indexOf("prepareStackTrace") != -1);
+
+// Check that the callsite constructor throws.
+
+Error.prepareStackTrace = (e,s) => s;
+var constructor = new Error().stack[0].constructor;
+
+assertThrows(() => constructor.call());
+assertThrows(() => constructor.call(
+    null, {}, () => undefined, {valueOf() { return 0 }}, false));

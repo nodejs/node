@@ -126,8 +126,14 @@ struct Peeling {
     // Copy all the nodes first.
     for (Node* node : nodes) {
       inputs.clear();
-      for (Node* input : node->inputs()) inputs.push_back(map(input));
-      Insert(node, graph->NewNode(node->op(), node->InputCount(), &inputs[0]));
+      for (Node* input : node->inputs()) {
+        inputs.push_back(map(input));
+      }
+      Node* copy = graph->NewNode(node->op(), node->InputCount(), &inputs[0]);
+      if (NodeProperties::IsTyped(node)) {
+        NodeProperties::SetType(copy, NodeProperties::GetType(node));
+      }
+      Insert(node, copy);
     }
 
     // Fix remaining inputs of the copies.
@@ -160,56 +166,54 @@ Node* PeeledIteration::map(Node* node) {
   return node;
 }
 
-
-static void FindLoopExits(LoopTree* loop_tree, LoopTree::Loop* loop,
-                          NodeVector& exits, NodeVector& rets) {
+bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
   // Look for returns and if projections that are outside the loop but whose
   // control input is inside the loop.
+  Node* loop_node = loop_tree->GetLoopControl(loop);
   for (Node* node : loop_tree->LoopNodes(loop)) {
     for (Node* use : node->uses()) {
       if (!loop_tree->Contains(loop, use)) {
-        if (IrOpcode::IsIfProjectionOpcode(use->opcode())) {
-          // This is a branch from inside the loop to outside the loop.
-          exits.push_back(use);
-        } else if (use->opcode() == IrOpcode::kReturn &&
-                   loop_tree->Contains(loop,
-                                       NodeProperties::GetControlInput(use))) {
-          // This is a return from inside the loop.
-          rets.push_back(use);
+        bool unmarked_exit;
+        switch (node->opcode()) {
+          case IrOpcode::kLoopExit:
+            unmarked_exit = (node->InputAt(1) != loop_node);
+            break;
+          case IrOpcode::kLoopExitValue:
+          case IrOpcode::kLoopExitEffect:
+            unmarked_exit = (node->InputAt(1)->InputAt(1) != loop_node);
+            break;
+          default:
+            unmarked_exit = (use->opcode() != IrOpcode::kTerminate);
+        }
+        if (unmarked_exit) {
+          if (FLAG_trace_turbo_loop) {
+            Node* loop_node = loop_tree->GetLoopControl(loop);
+            PrintF(
+                "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
+                "(%s) is inside "
+                "loop, but its use %i (%s) is outside.\n",
+                loop_node->id(), node->id(), node->op()->mnemonic(), use->id(),
+                use->op()->mnemonic());
+          }
+          return false;
         }
       }
     }
   }
-}
-
-
-bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
-  Zone zone(loop_tree->zone()->allocator());
-  NodeVector exits(&zone);
-  NodeVector rets(&zone);
-  FindLoopExits(loop_tree, loop, exits, rets);
-  return exits.size() <= 1u;
+  return true;
 }
 
 
 PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
                                   LoopTree* loop_tree, LoopTree::Loop* loop,
                                   Zone* tmp_zone) {
-  //============================================================================
-  // Find the loop exit region to determine if this loop can be peeled.
-  //============================================================================
-  NodeVector exits(tmp_zone);
-  NodeVector rets(tmp_zone);
-  FindLoopExits(loop_tree, loop, exits, rets);
-
-  if (exits.size() != 1) return nullptr;  // not peelable currently.
+  if (!CanPeel(loop_tree, loop)) return nullptr;
 
   //============================================================================
   // Construct the peeled iteration.
   //============================================================================
   PeeledIterationImpl* iter = new (tmp_zone) PeeledIterationImpl(tmp_zone);
-  size_t estimated_peeled_size =
-      5 + (loop->TotalSize() + exits.size() + rets.size()) * 2;
+  size_t estimated_peeled_size = 5 + (loop->TotalSize()) * 2;
   Peeling peeling(graph, tmp_zone, estimated_peeled_size, &iter->node_pairs_);
 
   Node* dead = graph->NewNode(common->Dead());
@@ -260,73 +264,126 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
     // Only one backedge, simply replace the input to loop with output of
     // peeling.
     for (Node* node : loop_tree->HeaderNodes(loop)) {
-      node->ReplaceInput(0, peeling.map(node->InputAt(0)));
+      node->ReplaceInput(0, peeling.map(node->InputAt(1)));
     }
     new_entry = peeling.map(loop_node->InputAt(1));
   }
   loop_node->ReplaceInput(0, new_entry);
 
   //============================================================================
-  // Duplicate the loop exit region and add a merge.
+  // Change the exit and exit markers to merge/phi/effect-phi.
   //============================================================================
+  for (Node* exit : loop_tree->ExitNodes(loop)) {
+    switch (exit->opcode()) {
+      case IrOpcode::kLoopExit:
+        // Change the loop exit node to a merge node.
+        exit->ReplaceInput(1, peeling.map(exit->InputAt(0)));
+        NodeProperties::ChangeOp(exit, common->Merge(2));
+        break;
+      case IrOpcode::kLoopExitValue:
+        // Change exit marker to phi.
+        exit->InsertInput(graph->zone(), 1, peeling.map(exit->InputAt(0)));
+        NodeProperties::ChangeOp(
+            exit, common->Phi(MachineRepresentation::kTagged, 2));
+        break;
+      case IrOpcode::kLoopExitEffect:
+        // Change effect exit marker to effect phi.
+        exit->InsertInput(graph->zone(), 1, peeling.map(exit->InputAt(0)));
+        NodeProperties::ChangeOp(exit, common->EffectPhi(2));
+        break;
+      default:
+        break;
+    }
+  }
+  return iter;
+}
 
-  // Currently we are limited to peeling loops with a single exit. The exit is
-  // the postdominator of the loop (ignoring returns).
-  Node* postdom = exits[0];
-  for (Node* node : rets) exits.push_back(node);
-  for (Node* use : postdom->uses()) {
-    if (NodeProperties::IsPhi(use)) exits.push_back(use);
+namespace {
+
+void PeelInnerLoops(Graph* graph, CommonOperatorBuilder* common,
+                    LoopTree* loop_tree, LoopTree::Loop* loop,
+                    Zone* temp_zone) {
+  // If the loop has nested loops, peel inside those.
+  if (!loop->children().empty()) {
+    for (LoopTree::Loop* inner_loop : loop->children()) {
+      PeelInnerLoops(graph, common, loop_tree, inner_loop, temp_zone);
+    }
+    return;
+  }
+  // Only peel small-enough loops.
+  if (loop->TotalSize() > LoopPeeler::kMaxPeeledNodes) return;
+  if (FLAG_trace_turbo_loop) {
+    PrintF("Peeling loop with header: ");
+    for (Node* node : loop_tree->HeaderNodes(loop)) {
+      PrintF("%i ", node->id());
+    }
+    PrintF("\n");
   }
 
-  NodeRange exit_range(&exits[0], &exits[0] + exits.size());
-  peeling.CopyNodes(graph, tmp_zone, dead, exit_range);
+  LoopPeeler::Peel(graph, common, loop_tree, loop, temp_zone);
+}
 
-  Node* merge = graph->NewNode(common->Merge(2), postdom, peeling.map(postdom));
-  postdom->ReplaceUses(merge);
-  merge->ReplaceInput(0, postdom);  // input 0 overwritten by above line.
-
-  // Find and update all the edges into either the loop or exit region.
-  for (int i = 0; i < 2; i++) {
-    NodeRange range = i == 0 ? loop_tree->LoopNodes(loop) : exit_range;
-    ZoneVector<Edge> value_edges(tmp_zone);
-    ZoneVector<Edge> effect_edges(tmp_zone);
-
-    for (Node* node : range) {
-      // Gather value and effect edges from outside the region.
-      for (Edge edge : node->use_edges()) {
-        if (!peeling.Marked(edge.from())) {
-          // Edge from outside the loop into the region.
-          if (NodeProperties::IsValueEdge(edge) ||
-              NodeProperties::IsContextEdge(edge)) {
-            value_edges.push_back(edge);
-          } else if (NodeProperties::IsEffectEdge(edge)) {
-            effect_edges.push_back(edge);
-          } else {
-            // don't do anything for control edges.
-            // TODO(titzer): should update control edges to peeled?
-          }
-        }
-      }
-
-      // Update all the value and effect edges at once.
-      if (!value_edges.empty()) {
-        // TODO(titzer): machine type is wrong here.
-        Node* phi =
-            graph->NewNode(common->Phi(MachineRepresentation::kTagged, 2), node,
-                           peeling.map(node), merge);
-        for (Edge edge : value_edges) edge.UpdateTo(phi);
-        value_edges.clear();
-      }
-      if (!effect_edges.empty()) {
-        Node* effect_phi = graph->NewNode(common->EffectPhi(2), node,
-                                          peeling.map(node), merge);
-        for (Edge edge : effect_edges) edge.UpdateTo(effect_phi);
-        effect_edges.clear();
+void EliminateLoopExit(Node* node) {
+  DCHECK_EQ(IrOpcode::kLoopExit, node->opcode());
+  // The exit markers take the loop exit as input. We iterate over uses
+  // and remove all the markers from the graph.
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) {
+      Node* marker = edge.from();
+      if (marker->opcode() == IrOpcode::kLoopExitValue) {
+        NodeProperties::ReplaceUses(marker, marker->InputAt(0));
+        marker->Kill();
+      } else if (marker->opcode() == IrOpcode::kLoopExitEffect) {
+        NodeProperties::ReplaceUses(marker, nullptr,
+                                    NodeProperties::GetEffectInput(marker));
+        marker->Kill();
       }
     }
   }
+  NodeProperties::ReplaceUses(node, nullptr, nullptr,
+                              NodeProperties::GetControlInput(node, 0));
+  node->Kill();
+}
 
-  return iter;
+}  // namespace
+
+// static
+void LoopPeeler::PeelInnerLoopsOfTree(Graph* graph,
+                                      CommonOperatorBuilder* common,
+                                      LoopTree* loop_tree, Zone* temp_zone) {
+  for (LoopTree::Loop* loop : loop_tree->outer_loops()) {
+    PeelInnerLoops(graph, common, loop_tree, loop, temp_zone);
+  }
+
+  EliminateLoopExits(graph, temp_zone);
+}
+
+// static
+void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* temp_zone) {
+  ZoneQueue<Node*> queue(temp_zone);
+  ZoneVector<bool> visited(graph->NodeCount(), false, temp_zone);
+  queue.push(graph->end());
+  while (!queue.empty()) {
+    Node* node = queue.front();
+    queue.pop();
+
+    if (node->opcode() == IrOpcode::kLoopExit) {
+      Node* control = NodeProperties::GetControlInput(node);
+      EliminateLoopExit(node);
+      if (!visited[control->id()]) {
+        visited[control->id()] = true;
+        queue.push(control);
+      }
+    } else {
+      for (int i = 0; i < node->op()->ControlInputCount(); i++) {
+        Node* control = NodeProperties::GetControlInput(node, i);
+        if (!visited[control->id()]) {
+          visited[control->id()] = true;
+          queue.push(control);
+        }
+      }
+    }
+  }
 }
 
 }  // namespace compiler

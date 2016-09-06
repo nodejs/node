@@ -11,19 +11,21 @@
 namespace v8 {
 namespace base {
 
-class AccountingAllocator final {
+class AccountingAllocator {
  public:
   AccountingAllocator() = default;
-  ~AccountingAllocator() = default;
+  virtual ~AccountingAllocator() = default;
 
   // Returns nullptr on failed allocation.
-  void* Allocate(size_t bytes);
-  void Free(void* memory, size_t bytes);
+  virtual void* Allocate(size_t bytes);
+  virtual void Free(void* memory, size_t bytes);
 
   size_t GetCurrentMemoryUsage() const;
+  size_t GetMaxMemoryUsage() const;
 
  private:
   AtomicWord current_memory_usage_ = 0;
+  AtomicWord max_memory_usage_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(AccountingAllocator);
 };

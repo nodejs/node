@@ -13,6 +13,7 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/bits.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -36,6 +37,11 @@ inline int HexValue(uc32 c) {
   return -1;
 }
 
+inline char HexCharOfValue(int value) {
+  DCHECK(0 <= value && value <= 16);
+  if (value < 10) return value + '0';
+  return value - 10 + 'A';
+}
 
 inline int BoolToInt(bool b) { return b ? 1 : 0; }
 
@@ -194,6 +200,23 @@ T Min(T a, T b) {
   return a < b ? a : b;
 }
 
+// Returns the maximum of the two parameters according to JavaScript semantics.
+template <typename T>
+T JSMax(T x, T y) {
+  if (std::isnan(x)) return x;
+  if (std::isnan(y)) return y;
+  if (std::signbit(x) < std::signbit(y)) return x;
+  return x > y ? x : y;
+}
+
+// Returns the maximum of the two parameters according to JavaScript semantics.
+template <typename T>
+T JSMin(T x, T y) {
+  if (std::isnan(x)) return x;
+  if (std::isnan(y)) return y;
+  if (std::signbit(x) < std::signbit(y)) return y;
+  return x > y ? y : x;
+}
 
 // Returns the absolute value of its argument.
 template <typename T>
@@ -299,8 +322,9 @@ class BitFieldBase {
   static T decode(U value) {
     return static_cast<T>((value & kMask) >> shift);
   }
-};
 
+  STATIC_ASSERT((kNext - 1) / 8 < sizeof(U));
+};
 
 template <class T, int shift, int size>
 class BitField8 : public BitFieldBase<T, shift, size, uint8_t> {};
@@ -932,42 +956,21 @@ class TokenDispenserForFinally {
 // ----------------------------------------------------------------------------
 // I/O support.
 
-#if __GNUC__ >= 4
-// On gcc we can ask the compiler to check the types of %d-style format
-// specifiers and their associated arguments.  TODO(erikcorry) fix this
-// so it works on MacOSX.
-#if defined(__MACH__) && defined(__APPLE__)
-#define PRINTF_CHECKING
-#define FPRINTF_CHECKING
-#define PRINTF_METHOD_CHECKING
-#define FPRINTF_METHOD_CHECKING
-#else  // MacOsX.
-#define PRINTF_CHECKING __attribute__ ((format (printf, 1, 2)))
-#define FPRINTF_CHECKING __attribute__ ((format (printf, 2, 3)))
-#define PRINTF_METHOD_CHECKING __attribute__ ((format (printf, 2, 3)))
-#define FPRINTF_METHOD_CHECKING __attribute__ ((format (printf, 3, 4)))
-#endif
-#else
-#define PRINTF_CHECKING
-#define FPRINTF_CHECKING
-#define PRINTF_METHOD_CHECKING
-#define FPRINTF_METHOD_CHECKING
-#endif
-
 // Our version of printf().
-void PRINTF_CHECKING PrintF(const char* format, ...);
-void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
+void PRINTF_FORMAT(1, 2) PrintF(const char* format, ...);
+void PRINTF_FORMAT(2, 3) PrintF(FILE* out, const char* format, ...);
 
 // Prepends the current process ID to the output.
-void PRINTF_CHECKING PrintPID(const char* format, ...);
+void PRINTF_FORMAT(1, 2) PrintPID(const char* format, ...);
 
 // Prepends the current process ID and given isolate pointer to the output.
-void PrintIsolate(void* isolate, const char* format, ...);
+void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
-int FPRINTF_CHECKING SNPrintF(Vector<char> str, const char* format, ...);
-int VSNPrintF(Vector<char> str, const char* format, va_list args);
+int PRINTF_FORMAT(2, 3) SNPrintF(Vector<char> str, const char* format, ...);
+int PRINTF_FORMAT(2, 0)
+    VSNPrintF(Vector<char> str, const char* format, va_list args);
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n);
 
@@ -1113,13 +1116,6 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #else
 #define STOS "stosq"
 #endif
-#endif
-#if defined(__native_client__)
-  // This STOS sequence does not validate for x86_64 Native Client.
-  // Here we #undef STOS to force use of the slower C version.
-  // TODO(bradchen): Profile V8 and implement a faster REP STOS
-  // here if the profile indicates it matters.
-#undef STOS
 #endif
 
 #if defined(MEMORY_SANITIZER)
@@ -1470,10 +1466,11 @@ class StringBuilder : public SimpleStringBuilder {
   StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) { }
 
   // Add formatted contents to the builder just like printf().
-  void AddFormatted(const char* format, ...);
+  void PRINTF_FORMAT(2, 3) AddFormatted(const char* format, ...);
 
   // Add formatted contents like printf based on a va_list.
-  void AddFormattedList(const char* format, va_list list);
+  void PRINTF_FORMAT(2, 0) AddFormattedList(const char* format, va_list list);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
@@ -1520,22 +1517,26 @@ inline uintptr_t GetCurrentStackPosition() {
 
 template <typename V>
 static inline V ReadUnalignedValue(const void* p) {
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
   return *reinterpret_cast<const V*>(p);
-#else
+#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
   V r;
   memmove(&r, p, sizeof(V));
   return r;
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
 }
 
 template <typename V>
 static inline void WriteUnalignedValue(void* p, V value) {
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
   *(reinterpret_cast<V*>(p)) = value;
-#else   // V8_TARGET_ARCH_MIPS
+#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
   memmove(p, &value, sizeof(V));
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
+}
+
+static inline double ReadFloatValue(const void* p) {
+  return ReadUnalignedValue<float>(p);
 }
 
 static inline double ReadDoubleValue(const void* p) {
@@ -1562,6 +1563,33 @@ static inline void WriteUnalignedUInt32(void* p, uint32_t value) {
   WriteUnalignedValue(p, value);
 }
 
+template <typename V>
+static inline V ReadLittleEndianValue(const void* p) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  return ReadUnalignedValue<V>(p);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  V ret = 0;
+  const byte* src = reinterpret_cast<const byte*>(p);
+  byte* dst = reinterpret_cast<byte*>(&ret);
+  for (size_t i = 0; i < sizeof(V); i++) {
+    dst[i] = src[sizeof(V) - i - 1];
+  }
+  return ret;
+#endif  // V8_TARGET_LITTLE_ENDIAN
+}
+
+template <typename V>
+static inline void WriteLittleEndianValue(void* p, V value) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WriteUnalignedValue<V>(p, value);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  byte* src = reinterpret_cast<byte*>(&value);
+  byte* dst = reinterpret_cast<byte*>(p);
+  for (size_t i = 0; i < sizeof(V); i++) {
+    dst[i] = src[sizeof(V) - i - 1];
+  }
+#endif  // V8_TARGET_LITTLE_ENDIAN
+}
 }  // namespace internal
 }  // namespace v8
 

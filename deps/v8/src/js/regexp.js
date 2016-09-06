@@ -4,14 +4,11 @@
 
 (function(global, utils) {
 
-'use strict';
-
 %CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
 // Imports
 
-var AddIndexedProperty;
 var ExpandReplacement;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
@@ -19,19 +16,17 @@ var GlobalRegExp = global.RegExp;
 var GlobalRegExpPrototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 var SpeciesConstructor;
 
 utils.Import(function(from) {
-  AddIndexedProperty = from.AddIndexedProperty;
   ExpandReplacement = from.ExpandReplacement;
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   SpeciesConstructor = from.SpeciesConstructor;
@@ -43,15 +38,17 @@ utils.Import(function(from) {
 // regexp match.  The property RegExpLastMatchInfo includes the matchIndices
 // array of the last successful regexp match (an array of start/end index
 // pairs for the match and all the captured substrings), the invariant is
-// that there are at least two capture indeces.  The array also contains
+// that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
-var RegExpLastMatchInfo = new InternalPackedArray(
- 2,                 // REGEXP_NUMBER_OF_CAPTURES
- "",                // Last subject.
- UNDEFINED,         // Last input - settable with RegExpSetInput.
- 0,                 // REGEXP_FIRST_CAPTURE + 0
- 0                  // REGEXP_FIRST_CAPTURE + 1
-);
+// We use a JSObject rather than a JSArray so we don't have to manually update
+// its length.
+var RegExpLastMatchInfo = {
+  REGEXP_NUMBER_OF_CAPTURES: 2,
+  REGEXP_LAST_SUBJECT:       "",
+  REGEXP_LAST_INPUT:         UNDEFINED,  // Settable with RegExpSetInput.
+  CAPTURE0:                  0,
+  CAPTURE1:                  0
+};
 
 // -------------------------------------------------------------------
 
@@ -117,12 +114,12 @@ function RegExpConstructor(pattern, flags) {
 // ES#sec-regexp.prototype.compile RegExp.prototype.compile (pattern, flags)
 function RegExpCompileJS(pattern, flags) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.compile", this);
   }
 
   if (IS_REGEXP(pattern)) {
-    if (!IS_UNDEFINED(flags)) throw MakeTypeError(kRegExpFlags);
+    if (!IS_UNDEFINED(flags)) throw %make_type_error(kRegExpFlags);
 
     flags = PatternFlags(pattern);
     pattern = REGEXP_SOURCE(pattern);
@@ -183,7 +180,7 @@ function RegExpExecNoTests(regexp, string, start) {
 // RegExp.prototype.exec ( string )
 function RegExpSubclassExecJS(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.exec', this);
   }
 
@@ -229,7 +226,7 @@ function RegExpSubclassExecJS(string) {
 // Legacy implementation of RegExp.prototype.exec
 function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.exec', this);
   }
 
@@ -276,7 +273,7 @@ function RegExpSubclassExec(regexp, string, exec) {
   if (IS_CALLABLE(exec)) {
     var result = %_Call(exec, regexp, string);
     if (!IS_RECEIVER(result) && !IS_NULL(result)) {
-      throw MakeTypeError(kInvalidRegExpExecResult);
+      throw %make_type_error(kInvalidRegExpExecResult);
     }
     return result;
   }
@@ -296,7 +293,7 @@ var regexp_val;
 // else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.test', this);
   }
   string = TO_STRING(string);
@@ -327,10 +324,10 @@ function RegExpTest(string) {
     // not a '?'.  But see https://code.google.com/p/v8/issues/detail?id=3560
     var regexp = this;
     var source = REGEXP_SOURCE(regexp);
-    if (regexp.length >= 3 &&
-        %_StringCharCodeAt(regexp, 0) == 46 &&  // '.'
-        %_StringCharCodeAt(regexp, 1) == 42 &&  // '*'
-        %_StringCharCodeAt(regexp, 2) != 63) {  // '?'
+    if (source.length >= 3 &&
+        %_StringCharCodeAt(source, 0) == 46 &&  // '.'
+        %_StringCharCodeAt(source, 1) == 42 &&  // '*'
+        %_StringCharCodeAt(source, 2) != 63) {  // '?'
       regexp = TrimRegExp(regexp);
     }
     // matchIndices is either null or the RegExpLastMatchInfo array.
@@ -347,7 +344,7 @@ function RegExpTest(string) {
 // ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
 function RegExpSubclassTest(string) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.test', this);
   }
   string = TO_STRING(string);
@@ -371,7 +368,7 @@ function TrimRegExp(regexp) {
 
 function RegExpToString() {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(
+    throw %make_type_error(
         kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
   }
   if (this === GlobalRegExpPrototype) {
@@ -395,7 +392,7 @@ function AtSurrogatePair(subject, index) {
 function RegExpSplit(string, limit) {
   // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@split", this);
   }
   var separator = this;
@@ -469,7 +466,7 @@ function RegExpSplit(string, limit) {
 // RegExp.prototype [ @@split ] ( string, limit )
 function RegExpSubclassSplit(string, limit) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@split", this);
   }
   string = TO_STRING(string);
@@ -502,7 +499,7 @@ function RegExpSubclassSplit(string, limit) {
   var result;
   if (size === 0) {
     result = RegExpSubclassExec(splitter, string);
-    if (IS_NULL(result)) AddIndexedProperty(array, 0, string);
+    if (IS_NULL(result)) %AddElement(array, 0, string);
     return array;
   }
   var stringIndex = prevStringIndex;
@@ -515,10 +512,10 @@ function RegExpSubclassSplit(string, limit) {
       stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
     } else {
       var end = MinSimple(TO_LENGTH(splitter.lastIndex), size);
-      if (end === stringIndex) {
+      if (end === prevStringIndex) {
         stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
       } else {
-        AddIndexedProperty(
+        %AddElement(
             array, arrayIndex,
             %_SubString(string, prevStringIndex, stringIndex));
         arrayIndex++;
@@ -526,7 +523,7 @@ function RegExpSubclassSplit(string, limit) {
         prevStringIndex = end;
         var numberOfCaptures = MaxSimple(TO_LENGTH(result.length), 0);
         for (var i = 1; i < numberOfCaptures; i++) {
-          AddIndexedProperty(array, arrayIndex, result[i]);
+          %AddElement(array, arrayIndex, result[i]);
           arrayIndex++;
           if (arrayIndex === lim) return array;
         }
@@ -534,34 +531,18 @@ function RegExpSubclassSplit(string, limit) {
       }
     }
   }
-  AddIndexedProperty(array, arrayIndex,
+  %AddElement(array, arrayIndex,
                      %_SubString(string, prevStringIndex, size));
   return array;
 }
 %FunctionRemovePrototype(RegExpSubclassSplit);
 
 
-// Legacy implementation of RegExp.prototype[Symbol.match] which
-// doesn't properly call the underlying exec method
-function RegExpMatch(string) {
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.@@match", this);
-  }
-  var subject = TO_STRING(string);
-
-  if (!REGEXP_GLOBAL(this)) return RegExpExecNoTests(this, subject, 0);
-  this.lastIndex = 0;
-  var result = %StringMatch(subject, this, RegExpLastMatchInfo);
-  return result;
-}
-
-
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 function RegExpSubclassMatch(string) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@match", this);
   }
   string = TO_STRING(string);
@@ -719,7 +700,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
 
 function RegExpReplace(string, replace) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@replace", this);
   }
   var subject = TO_STRING(string);
@@ -875,7 +856,7 @@ function SetAdvancedStringIndex(regexp, string, unicode) {
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 function RegExpSubclassReplace(string, replace) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@replace", this);
   }
   string = TO_STRING(string);
@@ -956,24 +937,11 @@ function RegExpSubclassReplace(string, replace) {
 %FunctionRemovePrototype(RegExpSubclassReplace);
 
 
-// Legacy implementation of RegExp.prototype[Symbol.search] which
-// doesn't properly use the overridden exec method
-function RegExpSearch(string) {
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.@@search", this);
-  }
-  var match = DoRegExpExec(this, TO_STRING(string), 0);
-  if (match) return match[CAPTURE0];
-  return -1;
-}
-
-
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
 function RegExpSubclassSearch(string) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@search", this);
   }
   string = TO_STRING(string);
@@ -1051,7 +1019,7 @@ function RegExpMakeCaptureGetter(n) {
 // ES6 21.2.5.3.
 function RegExpGetFlags() {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(
+    throw %make_type_error(
         kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
   }
   var result = '';
@@ -1072,7 +1040,7 @@ function RegExpGetGlobal() {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.global");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.global");
   }
   return TO_BOOLEAN(REGEXP_GLOBAL(this));
 }
@@ -1087,7 +1055,7 @@ function RegExpGetIgnoreCase() {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
   }
   return TO_BOOLEAN(REGEXP_IGNORE_CASE(this));
 }
@@ -1101,7 +1069,7 @@ function RegExpGetMultiline() {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.multiline");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.multiline");
   }
   return TO_BOOLEAN(REGEXP_MULTILINE(this));
 }
@@ -1115,7 +1083,7 @@ function RegExpGetSource() {
       %IncrementUseCounter(kRegExpPrototypeSourceGetter);
       return "(?:)";
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.source");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.source");
   }
   return REGEXP_SOURCE(this);
 }
@@ -1130,11 +1098,32 @@ function RegExpGetSticky() {
       %IncrementUseCounter(kRegExpPrototypeStickyGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.sticky");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.sticky");
   }
   return TO_BOOLEAN(REGEXP_STICKY(this));
 }
 %SetForceInlineFlag(RegExpGetSticky);
+
+
+// ES6 21.2.5.15.
+function RegExpGetUnicode() {
+  if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
+      return UNDEFINED;
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.unicode");
+  }
+  return TO_BOOLEAN(REGEXP_UNICODE(this));
+}
+%SetForceInlineFlag(RegExpGetUnicode);
+
+
+function RegExpSpecies() {
+  return this;
+}
+
 
 // -------------------------------------------------------------------
 
@@ -1145,15 +1134,17 @@ GlobalRegExpPrototype = new GlobalObject();
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
 
+utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
+
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "exec", RegExpExecJS,
-  "test", RegExpTest,
+  "exec", RegExpSubclassExecJS,
+  "test", RegExpSubclassTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
-  matchSymbol, RegExpMatch,
-  replaceSymbol, RegExpReplace,
-  searchSymbol, RegExpSearch,
-  splitSymbol, RegExpSplit,
+  matchSymbol, RegExpSubclassMatch,
+  replaceSymbol, RegExpSubclassReplace,
+  searchSymbol, RegExpSubclassSearch,
+  splitSymbol, RegExpSubclassSplit,
 ]);
 
 utils.InstallGetter(GlobalRegExp.prototype, 'flags', RegExpGetFlags);
@@ -1162,6 +1153,7 @@ utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
 utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
 utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
 utils.InstallGetter(GlobalRegExp.prototype, 'sticky', RegExpGetSticky);
+utils.InstallGetter(GlobalRegExp.prototype, 'unicode', RegExpGetUnicode);
 
 // The properties `input` and `$_` are aliases for each other.  When this
 // value is set the value it is set to is coerced to a string.
@@ -1211,7 +1203,13 @@ for (var i = 1; i < 10; ++i) {
 // -------------------------------------------------------------------
 // Internal
 
-var InternalRegExpMatchInfo = new InternalPackedArray(2, "", UNDEFINED, 0, 0);
+var InternalRegExpMatchInfo = {
+  REGEXP_NUMBER_OF_CAPTURES: 2,
+  REGEXP_LAST_SUBJECT:       "",
+  REGEXP_LAST_INPUT:         UNDEFINED,
+  CAPTURE0:                  0,
+  CAPTURE1:                  0
+};
 
 function InternalRegExpMatch(regexp, subject) {
   var matchInfo = %_RegExpExec(regexp, subject, 0, InternalRegExpMatchInfo);
@@ -1236,12 +1234,6 @@ utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
   to.RegExpInitialize = RegExpInitialize;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
-  to.RegExpSubclassExecJS = RegExpSubclassExecJS;
-  to.RegExpSubclassMatch = RegExpSubclassMatch;
-  to.RegExpSubclassReplace = RegExpSubclassReplace;
-  to.RegExpSubclassSearch = RegExpSubclassSearch;
-  to.RegExpSubclassSplit = RegExpSubclassSplit;
-  to.RegExpSubclassTest = RegExpSubclassTest;
   to.RegExpTest = RegExpTest;
 });
 

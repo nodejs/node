@@ -97,7 +97,6 @@ if (failure) { \
     V8_Fatal(__FILE__, __LINE__, "MIPS Disassembler tests failed.\n"); \
   }
 
-
 #define COMPARE_PC_REL_COMPACT(asm_, compare_string, offset)                   \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
@@ -106,15 +105,16 @@ if (failure) { \
     prev_instr_compact_branch = assm.IsPrevInstrCompactBranch();               \
     if (prev_instr_compact_branch) {                                           \
       snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",         \
-               compare_string, progcounter + 8 + (offset * 4));                \
+               compare_string,                                                 \
+               static_cast<void *>(progcounter + 8 + (offset * 4)));           \
     } else {                                                                   \
       snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",         \
-               compare_string, progcounter + 4 + (offset * 4));                \
+               compare_string,                                                 \
+               static_cast<void *>(progcounter + 4 + (offset * 4)));           \
     }                                                                          \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
-
 
 #define COMPARE_PC_REL(asm_, compare_string, offset)                           \
   {                                                                            \
@@ -122,11 +122,10 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + (offset * 4));                      \
+             compare_string, static_cast<void *>(progcounter + (offset * 4))); \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
-
 
 #define COMPARE_PC_JUMP(asm_, compare_string, target)                          \
   {                                                                            \
@@ -136,13 +135,12 @@ if (failure) { \
     int instr_index = (target >> 2) & kImm26Mask;                              \
     snprintf(                                                                  \
         str_with_address, sizeof(str_with_address), "%s %p -> %p",             \
-        compare_string, reinterpret_cast<byte *>(target),                      \
-        reinterpret_cast<byte *>(((uint64_t)(progcounter + 1) & ~0xfffffff) |  \
+        compare_string, reinterpret_cast<void *>(target),                      \
+        reinterpret_cast<void *>(((uint64_t)(progcounter + 1) & ~0xfffffff) |  \
                                  (instr_index << 2)));                         \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
-
 
 #define GET_PC_REGION(pc_region)                                         \
   {                                                                      \
@@ -530,41 +528,28 @@ TEST(Type0) {
   COMPARE(dsrav(v0, v1, fp),
           "03c31017       dsrav   v0, v1, fp");
 
-  if (kArchVariant == kMips64r2) {
-    COMPARE(rotr(a0, a1, 0),
-            "00252002       rotr    a0, a1, 0");
-    COMPARE(rotr(s0, s1, 8),
-            "00318202       rotr    s0, s1, 8");
-    COMPARE(rotr(a6, a7, 24),
-            "002b5602       rotr    a6, a7, 24");
-    COMPARE(rotr(v0, v1, 31),
-            "002317c2       rotr    v0, v1, 31");
-    COMPARE(drotr(a0, a1, 0),
-            "0025203a       drotr   a0, a1, 0");
-    COMPARE(drotr(s0, s1, 8),
-            "0031823a       drotr   s0, s1, 8");
-    COMPARE(drotr(a6, a7, 24),
-            "002b563a       drotr   a6, a7, 24");
-    COMPARE(drotr(v0, v1, 31),
-            "002317fa       drotr   v0, v1, 31");
+  COMPARE(rotr(a0, a1, 0), "00252002       rotr    a0, a1, 0");
+  COMPARE(rotr(s0, s1, 8), "00318202       rotr    s0, s1, 8");
+  COMPARE(rotr(a6, a7, 24), "002b5602       rotr    a6, a7, 24");
+  COMPARE(rotr(v0, v1, 31), "002317c2       rotr    v0, v1, 31");
+  COMPARE(drotr(a0, a1, 0), "0025203a       drotr   a0, a1, 0");
+  COMPARE(drotr(s0, s1, 8), "0031823a       drotr   s0, s1, 8");
+  COMPARE(drotr(a6, a7, 24), "002b563a       drotr   a6, a7, 24");
+  COMPARE(drotr(v0, v1, 31), "002317fa       drotr   v0, v1, 31");
 
-    COMPARE(rotrv(a0, a1, a2),
-            "00c52046       rotrv   a0, a1, a2");
-    COMPARE(rotrv(s0, s1, s2),
-            "02518046       rotrv   s0, s1, s2");
-    COMPARE(rotrv(a6, a7, t0),
-            "018b5046       rotrv   a6, a7, t0");
-    COMPARE(rotrv(v0, v1, fp),
-            "03c31046       rotrv   v0, v1, fp");
-    COMPARE(drotrv(a0, a1, a2),
-            "00c52056       drotrv  a0, a1, a2");
-    COMPARE(drotrv(s0, s1, s2),
-            "02518056       drotrv  s0, s1, s2");
-    COMPARE(drotrv(a6, a7, t0),
-            "018b5056       drotrv  a6, a7, t0");
-    COMPARE(drotrv(v0, v1, fp),
-            "03c31056       drotrv  v0, v1, fp");
-  }
+  COMPARE(drotr32(a0, a1, 0), "0025203e       drotr32 a0, a1, 0");
+  COMPARE(drotr32(s0, s1, 8), "0031823e       drotr32 s0, s1, 8");
+  COMPARE(drotr32(a6, a7, 24), "002b563e       drotr32 a6, a7, 24");
+  COMPARE(drotr32(v0, v1, 31), "002317fe       drotr32 v0, v1, 31");
+
+  COMPARE(rotrv(a0, a1, a2), "00c52046       rotrv   a0, a1, a2");
+  COMPARE(rotrv(s0, s1, s2), "02518046       rotrv   s0, s1, s2");
+  COMPARE(rotrv(a6, a7, t0), "018b5046       rotrv   a6, a7, t0");
+  COMPARE(rotrv(v0, v1, fp), "03c31046       rotrv   v0, v1, fp");
+  COMPARE(drotrv(a0, a1, a2), "00c52056       drotrv  a0, a1, a2");
+  COMPARE(drotrv(s0, s1, s2), "02518056       drotrv  s0, s1, s2");
+  COMPARE(drotrv(a6, a7, t0), "018b5056       drotrv  a6, a7, t0");
+  COMPARE(drotrv(v0, v1, fp), "03c31056       drotrv  v0, v1, fp");
 
   COMPARE(break_(0),
           "0000000d       break, code: 0x00000 (0)");
@@ -697,6 +682,26 @@ TEST(Type0) {
     COMPARE(clz(v0, v1),
             "70621020       clz     v0, v1");
   }
+
+  COMPARE(seb(a0, a1), "7c052420       seb     a0, a1");
+  COMPARE(seb(s6, s7), "7c17b420       seb     s6, s7");
+  COMPARE(seb(v0, v1), "7c031420       seb     v0, v1");
+
+  COMPARE(seh(a0, a1), "7c052620       seh     a0, a1");
+  COMPARE(seh(s6, s7), "7c17b620       seh     s6, s7");
+  COMPARE(seh(v0, v1), "7c031620       seh     v0, v1");
+
+  COMPARE(wsbh(a0, a1), "7c0520a0       wsbh    a0, a1");
+  COMPARE(wsbh(s6, s7), "7c17b0a0       wsbh    s6, s7");
+  COMPARE(wsbh(v0, v1), "7c0310a0       wsbh    v0, v1");
+
+  COMPARE(dsbh(a0, a1), "7c0520a4       dsbh    a0, a1");
+  COMPARE(dsbh(s6, s7), "7c17b0a4       dsbh    s6, s7");
+  COMPARE(dsbh(v0, v1), "7c0310a4       dsbh    v0, v1");
+
+  COMPARE(dshd(a0, a1), "7c052164       dshd    a0, a1");
+  COMPARE(dshd(s6, s7), "7c17b164       dshd    s6, s7");
+  COMPARE(dshd(v0, v1), "7c031164       dshd    v0, v1");
 
   COMPARE(ins_(a0, a1, 31, 1),
           "7ca4ffc4       ins     a0, a1, 31, 1");

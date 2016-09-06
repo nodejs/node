@@ -208,8 +208,6 @@ class Types {
 
   Type* Representation(Type* t) { return Type::Representation(t, zone_); }
 
-  // Type* Semantic(Type* t) { return Intersect(t,
-  // MaskSemanticForTesting); }
   Type* Semantic(Type* t) { return Type::Semantic(t, zone_); }
 
   Type* Random() {

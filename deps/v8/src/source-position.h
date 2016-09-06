@@ -7,8 +7,8 @@
 
 #include <ostream>
 
-#include "src/assembler.h"
 #include "src/flags.h"
+#include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -49,8 +49,7 @@ class SourcePosition {
   uint32_t raw() const { return value_; }
 
  private:
-  static const uint32_t kNoPosition =
-      static_cast<uint32_t>(RelocInfo::kNoPosition);
+  static const uint32_t kNoPosition = static_cast<uint32_t>(kNoSourcePosition);
   typedef BitField<uint32_t, 0, 9> InliningIdField;
 
   // Offset from the start of the inlined function.

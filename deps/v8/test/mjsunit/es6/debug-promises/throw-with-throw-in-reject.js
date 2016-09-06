@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when an exception is thrown inside a Promise, which is
 // caught by a custom promise, which throws a new exception in its reject
@@ -12,7 +12,7 @@
 
 Debug = debug.Debug;
 
-var expected_events = 2;
+var expected_events = 1;
 var log = [];
 
 var p = new Promise(function(resolve, reject) {
@@ -34,7 +34,7 @@ MyPromise.prototype = new Promise(function() {});
 MyPromise.__proto__ = Promise;
 p.constructor = MyPromise;
 
-var q = p.chain(
+var q = p.then(
   function() {
     log.push("throw caught");
     throw new Error("caught");  // event
@@ -45,12 +45,10 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Exception) {
       expected_events--;
       assertTrue(expected_events >= 0);
-      if (expected_events == 1) {
+      if (expected_events == 0) {
         assertEquals(["resolve", "construct", "end main",
                       "throw caught"], log);
         assertEquals("caught", event_data.exception().message);
-      } else if (expected_events == 0) {
-        assertEquals("reject", event_data.exception().message);
       } else {
         assertUnreachable();
       }

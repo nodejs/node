@@ -10,6 +10,7 @@ Error.prepareStackTrace = (error,stack) => {
   return error.message + "\n    at " + stack.join("\n    at ");
 }
 
+var verbose = typeof(arguments) !== "undefined" && arguments.indexOf("-v") >= 0;
 
 function checkStackTrace(expected) {
   var e = new Error();
@@ -340,32 +341,32 @@ function run_tests(shard) {
     return source;
   }
 
-  var f_args_variants = ["", "1", "1, 2"];
-  var g_args_variants = ["", "10", "10, 20"];
+  var f_args_variants = [/*"", "1",*/ "1, 2"];
+  var g_args_variants = [/*"", "10",*/ "10, 20"];
   var f_inlinable_variants = [true, false];
   var g_inlinable_variants = [true, false];
   // This is to avoid bailing out because of referencing new.target.
-  var check_new_target_variants = [true, false];
+  var check_new_target_variants = [/*true,*/ false];
   var deopt_mode_variants = ["none", "f", "g", "test"];
   var f_variants = [
       f_cfg_sloppy,
       f_cfg_strict,
       f_cfg_bound,
       f_cfg_proxy,
-      f_cfg_possibly_eval,
+//      f_cfg_possibly_eval,
   ];
   var g_variants = [
       g_cfg_normal,
-      g_cfg_reflect_apply,
+//      g_cfg_reflect_apply,
       g_cfg_function_apply,
-      g_cfg_function_apply_arguments_object,
+//      g_cfg_function_apply_arguments_object,
       g_cfg_function_call,
   ];
   var test_warmup_counts = [0, 1, 2];
 
   var iter = 0;
   var tests_executed = 0;
-  if (shard !== undefined) {
+  if (verbose && shard !== undefined) {
     print("Running shard #" + shard);
   }
   f_variants.forEach((f_cfg) => {
@@ -378,7 +379,9 @@ function run_tests(shard) {
                 g_inlinable_variants.forEach((g_inlinable) => {
                   test_warmup_counts.forEach((test_warmup_count) => {
                     if (shard !== undefined && (iter++) % SHARDS_COUNT != shard) {
-                      print("skipping...");
+                      if (verbose) {
+                        print("skipping...");
+                      }
                       return;
                     }
                     tests_executed++;
@@ -396,8 +399,10 @@ function run_tests(shard) {
                       deopt_mode,
                     };
                     var source = test_template(cfg);
-                    print("====================");
-                    print(source);
+                    if (verbose) {
+                      // print("====================");
+                      // print(source);
+                    }
                     eval(source);
                   });
                 });
@@ -408,7 +413,9 @@ function run_tests(shard) {
       });
     });
   });
-  print("Number of tests executed: " + tests_executed);
+  if (verbose) {
+    print("Number of tests executed: " + tests_executed);
+  }
 }
 
 // Uncomment to run all the tests at once or use shard runners.

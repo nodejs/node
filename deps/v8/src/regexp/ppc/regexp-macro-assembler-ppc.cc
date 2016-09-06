@@ -10,7 +10,6 @@
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -1270,11 +1269,6 @@ void RegExpMacroAssemblerPPC::CheckStackLimit() {
 }
 
 
-bool RegExpMacroAssemblerPPC::CanReadUnaligned() {
-  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
-}
-
-
 void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
                                                             int characters) {
   Register offset = current_input_offset();
@@ -1288,14 +1282,47 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
   // We assume we don't want to do unaligned loads on PPC, so this function
   // must only be used to load a single character at a time.
 
-  DCHECK(characters == 1);
   __ add(current_character(), end_of_input_address(), offset);
+#if V8_TARGET_LITTLE_ENDIAN
   if (mode_ == LATIN1) {
-    __ lbz(current_character(), MemOperand(current_character()));
+    if (characters == 4) {
+      __ lwz(current_character(), MemOperand(current_character()));
+    } else if (characters == 2) {
+      __ lhz(current_character(), MemOperand(current_character()));
+    } else {
+      DCHECK(characters == 1);
+      __ lbz(current_character(), MemOperand(current_character()));
+    }
   } else {
     DCHECK(mode_ == UC16);
-    __ lhz(current_character(), MemOperand(current_character()));
+    if (characters == 2) {
+      __ lwz(current_character(), MemOperand(current_character()));
+    } else {
+      DCHECK(characters == 1);
+      __ lhz(current_character(), MemOperand(current_character()));
+    }
   }
+#else
+  if (mode_ == LATIN1) {
+    if (characters == 4) {
+      __ lwbrx(current_character(), MemOperand(r0, current_character()));
+    } else if (characters == 2) {
+      __ lhbrx(current_character(), MemOperand(r0, current_character()));
+    } else {
+      DCHECK(characters == 1);
+      __ lbz(current_character(), MemOperand(current_character()));
+    }
+  } else {
+    DCHECK(mode_ == UC16);
+    if (characters == 2) {
+      __ lwz(current_character(), MemOperand(current_character()));
+      __ rlwinm(current_character(), current_character(), 16, 0, 31);
+    } else {
+      DCHECK(characters == 1);
+      __ lhz(current_character(), MemOperand(current_character()));
+    }
+  }
+#endif
 }
 
 

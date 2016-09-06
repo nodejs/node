@@ -14,6 +14,7 @@ namespace interpreter {
 
 class BytecodeArrayBuilder;
 class Register;
+class TemporaryRegisterObserver;
 
 class TemporaryRegisterAllocator final {
  public:
@@ -54,6 +55,9 @@ class TemporaryRegisterAllocator final {
   // Returns the number of temporary register allocations made.
   int allocation_count() const { return allocation_count_; }
 
+  // Sets an observer for temporary register events.
+  void set_observer(TemporaryRegisterObserver* observer);
+
  private:
   // Allocate a temporary register.
   int AllocateTemporaryRegister();
@@ -61,11 +65,18 @@ class TemporaryRegisterAllocator final {
   ZoneSet<int> free_temporaries_;
   int allocation_base_;
   int allocation_count_;
+  TemporaryRegisterObserver* observer_;
 
   DISALLOW_COPY_AND_ASSIGN(TemporaryRegisterAllocator);
 };
 
-// A class than allows the instantiator to allocate temporary registers that are
+class TemporaryRegisterObserver {
+ public:
+  virtual ~TemporaryRegisterObserver() {}
+  virtual void TemporaryRegisterFreeEvent(Register reg) = 0;
+};
+
+// A class that allows the instantiator to allocate temporary registers that are
 // cleaned up when scope is closed.
 class BytecodeRegisterAllocator final {
  public:

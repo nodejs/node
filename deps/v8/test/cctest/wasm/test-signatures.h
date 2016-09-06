@@ -35,7 +35,8 @@ class TestSignatures {
         sig_v_v(0, 0, kIntTypes4),
         sig_v_i(0, 1, kIntTypes4),
         sig_v_ii(0, 2, kIntTypes4),
-        sig_v_iii(0, 3, kIntTypes4) {
+        sig_v_iii(0, 3, kIntTypes4),
+        sig_s_i(1, 1, kSimd128IntTypes4) {
     // I used C++ and you won't believe what happened next....
     for (int i = 0; i < 4; i++) kIntTypes4[i] = kAstI32;
     for (int i = 0; i < 4; i++) kLongTypes4[i] = kAstI64;
@@ -44,9 +45,11 @@ class TestSignatures {
     for (int i = 0; i < 4; i++) kIntLongTypes4[i] = kAstI64;
     for (int i = 0; i < 4; i++) kIntFloatTypes4[i] = kAstF32;
     for (int i = 0; i < 4; i++) kIntDoubleTypes4[i] = kAstF64;
+    for (int i = 0; i < 4; i++) kSimd128IntTypes4[i] = kAstS128;
     kIntLongTypes4[0] = kAstI32;
     kIntFloatTypes4[0] = kAstI32;
     kIntDoubleTypes4[0] = kAstI32;
+    kSimd128IntTypes4[1] = kAstI32;
   }
 
   FunctionSig* i_v() { return &sig_i_v; }
@@ -71,6 +74,7 @@ class TestSignatures {
   FunctionSig* v_i() { return &sig_v_i; }
   FunctionSig* v_ii() { return &sig_v_ii; }
   FunctionSig* v_iii() { return &sig_v_iii; }
+  FunctionSig* s_i() { return &sig_s_i; }
 
   FunctionSig* many(Zone* zone, LocalType ret, LocalType param, int count) {
     FunctionSig::Builder builder(zone, ret == kAstStmt ? 0 : 1, count);
@@ -89,6 +93,7 @@ class TestSignatures {
   LocalType kIntLongTypes4[4];
   LocalType kIntFloatTypes4[4];
   LocalType kIntDoubleTypes4[4];
+  LocalType kSimd128IntTypes4[4];
 
   FunctionSig sig_i_v;
   FunctionSig sig_i_i;
@@ -112,6 +117,7 @@ class TestSignatures {
   FunctionSig sig_v_i;
   FunctionSig sig_v_ii;
   FunctionSig sig_v_iii;
+  FunctionSig sig_s_i;
 };
 }  // namespace wasm
 }  // namespace internal

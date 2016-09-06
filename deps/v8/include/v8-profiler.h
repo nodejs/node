@@ -46,6 +46,75 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 
 namespace v8 {
 
+// TickSample captures the information collected for each sample.
+struct TickSample {
+  // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
+  // include the runtime function we're calling. Externally exposed tick
+  // samples don't care.
+  enum RecordCEntryFrame { kIncludeCEntryFrame, kSkipCEntryFrame };
+
+  TickSample()
+      : state(OTHER),
+        pc(nullptr),
+        external_callback_entry(nullptr),
+        frames_count(0),
+        has_external_callback(false),
+        update_stats(true) {}
+
+  /**
+   * Initialize a tick sample from the isolate.
+   * \param isolate The isolate.
+   * \param state Execution state.
+   * \param record_c_entry_frame Include or skip the runtime function.
+   * \param update_stats Whether update the sample to the aggregated stats.
+   * \param use_simulator_reg_state When set to true and V8 is running under a
+   *                                simulator, the method will use the simulator
+   *                                register state rather than the one provided
+   *                                with |state| argument. Otherwise the method
+   *                                will use provided register |state| as is.
+   */
+  void Init(Isolate* isolate, const v8::RegisterState& state,
+            RecordCEntryFrame record_c_entry_frame, bool update_stats,
+            bool use_simulator_reg_state = true);
+  /**
+   * Get a call stack sample from the isolate.
+   * \param isolate The isolate.
+   * \param state Register state.
+   * \param record_c_entry_frame Include or skip the runtime function.
+   * \param frames Caller allocated buffer to store stack frames.
+   * \param frames_limit Maximum number of frames to capture. The buffer must
+   *                     be large enough to hold the number of frames.
+   * \param sample_info The sample info is filled up by the function
+   *                    provides number of actual captured stack frames and
+   *                    the current VM state.
+   * \param use_simulator_reg_state When set to true and V8 is running under a
+   *                                simulator, the method will use the simulator
+   *                                register state rather than the one provided
+   *                                with |state| argument. Otherwise the method
+   *                                will use provided register |state| as is.
+   * \note GetStackSample is thread and signal safe and should only be called
+   *                      when the JS thread is paused or interrupted.
+   *                      Otherwise the behavior is undefined.
+   */
+  static bool GetStackSample(Isolate* isolate, v8::RegisterState* state,
+                             RecordCEntryFrame record_c_entry_frame,
+                             void** frames, size_t frames_limit,
+                             v8::SampleInfo* sample_info,
+                             bool use_simulator_reg_state = true);
+  StateTag state;  // The state of the VM.
+  void* pc;        // Instruction pointer.
+  union {
+    void* tos;  // Top stack value (*sp).
+    void* external_callback_entry;
+  };
+  static const unsigned kMaxFramesCountLog2 = 8;
+  static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
+  void* stack[kMaxFramesCount];                 // Call stack.
+  unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
+  bool has_external_callback : 1;
+  bool update_stats : 1;  // Whether the sample should update aggregated stats.
+};
+
 /**
  * CpuProfileNode represents a node in a call graph.
  */
@@ -103,7 +172,9 @@ class V8_EXPORT CpuProfileNode {
   unsigned GetHitCount() const;
 
   /** Returns function entry UID. */
-  unsigned GetCallUid() const;
+  V8_DEPRECATE_SOON(
+      "Use GetScriptId, GetLineNumber, and GetColumnNumber instead.",
+      unsigned GetCallUid() const);
 
   /** Returns id of the node. The id is unique within the tree */
   unsigned GetNodeId() const;
@@ -173,13 +244,24 @@ class V8_EXPORT CpuProfile {
   void Delete();
 };
 
-
 /**
  * Interface for controlling CPU profiling. Instance of the
- * profiler can be retrieved using v8::Isolate::GetCpuProfiler.
+ * profiler can be created using v8::CpuProfiler::New method.
  */
 class V8_EXPORT CpuProfiler {
  public:
+  /**
+   * Creates a new CPU profiler for the |isolate|. The isolate must be
+   * initialized. The profiler object must be disposed after use by calling
+   * |Dispose| method.
+   */
+  static CpuProfiler* New(Isolate* isolate);
+
+  /**
+   * Disposes the CPU profiler object.
+   */
+  void Dispose();
+
   /**
    * Changes default CPU profiler sampling interval to the specified number
    * of microseconds. Default interval is 1000us. This method must be called
@@ -515,6 +597,11 @@ class V8_EXPORT AllocationProfile {
  */
 class V8_EXPORT HeapProfiler {
  public:
+  enum SamplingFlags {
+    kSamplingNoFlags = 0,
+    kSamplingForceGC = 1 << 0,
+  };
+
   /**
    * Callback function invoked for obtaining RetainedObjectInfo for
    * the given JavaScript wrapper object. It is prohibited to enter V8
@@ -640,7 +727,8 @@ class V8_EXPORT HeapProfiler {
    * Returns false if a sampling heap profiler is already running.
    */
   bool StartSamplingHeapProfiler(uint64_t sample_interval = 512 * 1024,
-                                 int stack_depth = 16);
+                                 int stack_depth = 16,
+                                 SamplingFlags flags = kSamplingNoFlags);
 
   /**
    * Stops the sampling heap profile and discards the current profile.
@@ -688,7 +776,6 @@ class V8_EXPORT HeapProfiler {
   HeapProfiler& operator=(const HeapProfiler&);
 };
 
-
 /**
  * Interface for providing information about embedder's objects
  * held by global handles. This information is reported in two ways:
@@ -703,7 +790,7 @@ class V8_EXPORT HeapProfiler {
  *     were not previously reported via AddObjectGroup.
  *
  * Thus, if an embedder wants to provide information about native
- * objects for heap snapshots, he can do it in a GC prologue
+ * objects for heap snapshots, it can do it in a GC prologue
  * handler, and / or by assigning wrapper class ids in the following way:
  *
  *  1. Bind a callback to class id by calling SetWrapperClassInfoProvider.

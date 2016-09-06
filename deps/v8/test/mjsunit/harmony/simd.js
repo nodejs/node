@@ -622,7 +622,9 @@ TestSIMDObject()
 
 function TestStringify(expected, input) {
   assertEquals(expected, JSON.stringify(input));
-  assertEquals(expected, JSON.stringify(input, null, 0));
+  assertEquals(expected, JSON.stringify(input, (key, value) => value));
+  assertEquals(JSON.stringify(input, null, "="),
+               JSON.stringify(input, (key, value) => value, "="));
 }
 
 TestStringify(undefined, SIMD.Float32x4(1, 2, 3, 4));

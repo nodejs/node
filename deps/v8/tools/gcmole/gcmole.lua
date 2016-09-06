@@ -184,26 +184,26 @@ end
 -- GYP file parsing
 
 local function ParseGYPFile()
-   local gyp = ""
-   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
-   for i = 1, #gyp_files do
-      local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
-      local t = f:read('*a')
-      gyp = gyp .. t
-      f:close()
-   end
-
    local result = {}
+   local gyp_files = {
+       { "src/v8.gyp",             "'([^']-%.cc)'",      "src/"         },
+       { "test/cctest/cctest.gyp", "'(test-[^']-%.cc)'", "test/cctest/" }
+   }
 
-   for condition, sources in
-      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
-      if result[condition] == nil then result[condition] = {} end
-      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
-         table.insert(result[condition], "src/" .. file)
+   for i = 1, #gyp_files do
+      local filename = gyp_files[i][1]
+      local pattern = gyp_files[i][2]
+      local prefix = gyp_files[i][3]
+      local gyp_file = assert(io.open(filename), "failed to open GYP file")
+      local gyp = gyp_file:read('*a')
+      for condition, sources in
+         gyp:gmatch "%[.-### gcmole%((.-)%) ###(.-)%]" do
+         if result[condition] == nil then result[condition] = {} end
+         for file in sources:gmatch(pattern) do
+            table.insert(result[condition], prefix .. file)
+         end
       end
-      for file in sources:gmatch "'(test-[^']-%.cc)'" do
-         table.insert(result[condition], "test/cctest/" .. file)
-      end
+      gyp_file:close()
    end
 
    return result

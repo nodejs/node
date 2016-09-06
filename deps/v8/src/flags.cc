@@ -429,6 +429,10 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
                "Try --help for options\n",
                arg, Type2String(flag->type()));
+        if (is_bool_type) {
+          PrintF(stderr,
+                 "To set or unset a boolean flag, use --flag or --no-flag.\n");
+        }
         return_code = j;
         break;
       }

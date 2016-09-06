@@ -49,9 +49,8 @@ namespace compiler {
   V(X87Float32Sub)                 \
   V(X87Float32Mul)                 \
   V(X87Float32Div)                 \
-  V(X87Float32Max)                 \
-  V(X87Float32Min)                 \
   V(X87Float32Abs)                 \
+  V(X87Float32Neg)                 \
   V(X87Float32Sqrt)                \
   V(X87Float32Round)               \
   V(X87LoadFloat64Constant)        \
@@ -60,9 +59,12 @@ namespace compiler {
   V(X87Float64Mul)                 \
   V(X87Float64Div)                 \
   V(X87Float64Mod)                 \
+  V(X87Float32Max)                 \
   V(X87Float64Max)                 \
+  V(X87Float32Min)                 \
   V(X87Float64Min)                 \
   V(X87Float64Abs)                 \
+  V(X87Float64Neg)                 \
   V(X87Int32ToFloat32)             \
   V(X87Uint32ToFloat32)            \
   V(X87Int32ToFloat64)             \
@@ -80,6 +82,7 @@ namespace compiler {
   V(X87Float64Sqrt)                \
   V(X87Float64Round)               \
   V(X87Float64Cmp)                 \
+  V(X87Float64SilenceNaN)          \
   V(X87Movsxbl)                    \
   V(X87Movzxbl)                    \
   V(X87Movb)                       \
@@ -96,7 +99,10 @@ namespace compiler {
   V(X87PushFloat64)                \
   V(X87PushFloat32)                \
   V(X87Poke)                       \
-  V(X87StackCheck)
+  V(X87StackCheck)                 \
+  V(X87Xchgb)                      \
+  V(X87Xchgw)                      \
+  V(X87Xchgl)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -33,17 +33,23 @@ PUBLIC_BENCHMARKS = [
   'emscripten',
   'compile',
   'jetstream',
+  'jetstream-ignition',
   'jsbench',
   'jstests',
   'kraken_orig',
+  'kraken_orig-ignition',
   'massive',
   'memory',
   'octane',
+  'octane-noopt',
+  'octane-ignition',
   'octane-pr',
   'octane-tf',
   'octane-tf-pr',
   'simdjs',
   'sunspider',
+  'sunspider-ignition',
+  'wasm',
 ]
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))

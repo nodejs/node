@@ -26,6 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
+
+from variants import ALL_VARIANTS
+from utils import Freeze
 
 # These outcomes can occur in a TestCase's outcomes list:
 SKIP = "SKIP"
@@ -57,8 +61,12 @@ VARIABLES = {ALWAYS: True}
 for var in ["debug", "release", "big", "little",
             "android_arm", "android_arm64", "android_ia32", "android_x87",
             "android_x64", "arm", "arm64", "ia32", "mips", "mipsel", "mips64",
-            "mips64el", "x64", "x87", "nacl_ia32", "nacl_x64", "ppc", "ppc64",
-            "s390", "s390x", "macos", "windows", "linux", "aix"]:
+            "mips64el", "x64", "x87", "ppc", "ppc64", "s390", "s390x", "macos",
+            "windows", "linux", "aix"]:
+  VARIABLES[var] = var
+
+# Allow using variants as keywords.
+for var in ALL_VARIANTS:
   VARIABLES[var] = var
 
 
@@ -100,6 +108,44 @@ def _AddOutcome(result, new):
     result.add(new)
 
 
+def _JoinsPassAndFail(outcomes1, outcomes2):
+  """Indicates if we join PASS and FAIL from two different outcome sets and
+  the first doesn't already contain both.
+  """
+  return (
+      PASS in outcomes1 and
+      not FAIL in outcomes1 and
+      FAIL in outcomes2
+  )
+
+VARIANT_EXPRESSION = object()
+
+def _EvalExpression(exp, variables):
+  try:
+    return eval(exp, variables)
+  except NameError as e:
+    identifier = re.match("name '(.*)' is not defined", e.message).group(1)
+    assert identifier == "variant", "Unknown identifier: %s" % identifier
+    return VARIANT_EXPRESSION
+
+
+def _EvalVariantExpression(section, rules, wildcards, variant, variables):
+  variables_with_variant = {}
+  variables_with_variant.update(variables)
+  variables_with_variant["variant"] = variant
+  result = _EvalExpression(section[0], variables_with_variant)
+  assert result != VARIANT_EXPRESSION
+  if result is True:
+    _ReadSection(
+        section[1],
+        rules[variant],
+        wildcards[variant],
+        variables_with_variant,
+    )
+  else:
+    assert result is False, "Make sure expressions evaluate to boolean values"
+
+
 def _ParseOutcomeList(rule, outcomes, target_dict, variables):
   result = set([])
   if type(outcomes) == str:
@@ -108,7 +154,16 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
     if type(item) == str:
       _AddOutcome(result, item)
     elif type(item) == list:
-      if not eval(item[0], variables): continue
+      exp = _EvalExpression(item[0], variables)
+      assert exp != VARIANT_EXPRESSION, (
+        "Nested variant expressions are not supported")
+      if exp is False:
+        continue
+
+      # Ensure nobody uses an identifier by mistake, like "default",
+      # which would evaluate to true here otherwise.
+      assert exp is True, "Make sure expressions evaluate to boolean values"
+
       for outcome in item[1:]:
         assert type(outcome) == str
         _AddOutcome(result, outcome)
@@ -116,40 +171,71 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
       assert False
   if len(result) == 0: return
   if rule in target_dict:
+    # A FAIL without PASS in one rule has always precedence over a single
+    # PASS (without FAIL) in another. Otherwise the default PASS expectation
+    # in a rule with a modifier (e.g. PASS, SLOW) would be joined to a FAIL
+    # from another rule (which intended to mark a test as FAIL and not as
+    # PASS and FAIL).
+    if _JoinsPassAndFail(target_dict[rule], result):
+      target_dict[rule] -= set([PASS])
+    if _JoinsPassAndFail(result, target_dict[rule]):
+      result -= set([PASS])
     target_dict[rule] |= result
   else:
     target_dict[rule] = result
 
 
-def ReadContent(path):
-  with open(path) as f:
-    global KEYWORDS
-    return eval(f.read(), KEYWORDS)
+def ReadContent(content):
+  global KEYWORDS
+  return eval(content, KEYWORDS)
 
 
-def ReadStatusFile(path, variables):
-  contents = ReadContent(path)
+def ReadStatusFile(content, variables):
+  # Empty defaults for rules and wildcards. Variant-independent
+  # rules are mapped by "", others by the variant name.
+  rules = {variant: {} for variant in ALL_VARIANTS}
+  rules[""] = {}
+  wildcards = {variant: {} for variant in ALL_VARIANTS}
+  wildcards[""] = {}
 
-  rules = {}
-  wildcards = {}
   variables.update(VARIABLES)
-  for section in contents:
+  for section in ReadContent(content):
     assert type(section) == list
     assert len(section) == 2
-    if not eval(section[0], variables): continue
-    section = section[1]
-    assert type(section) == dict
-    for rule in section:
-      assert type(rule) == str
-      if rule[-1] == '*':
-        _ParseOutcomeList(rule, section[rule], wildcards, variables)
-      else:
-        _ParseOutcomeList(rule, section[rule], rules, variables)
-  return rules, wildcards
+    exp = _EvalExpression(section[0], variables)
+    if exp is False:
+      # The expression is variant-independent and evaluates to False.
+      continue
+    elif exp == VARIANT_EXPRESSION:
+      # If the expression contains one or more "variant" keywords, we evaluate
+      # it for all possible variants and create rules for those that apply.
+      for variant in ALL_VARIANTS:
+        _EvalVariantExpression(section, rules, wildcards, variant, variables)
+    else:
+      # The expression is variant-independent and evaluates to True.
+      assert exp is True, "Make sure expressions evaluate to boolean values"
+      _ReadSection(
+          section[1],
+          rules[""],
+          wildcards[""],
+          variables,
+      )
+  return Freeze(rules), Freeze(wildcards)
+
+
+def _ReadSection(section, rules, wildcards, variables):
+  assert type(section) == dict
+  for rule in section:
+    assert type(rule) == str
+    if rule[-1] == '*':
+      _ParseOutcomeList(rule, section[rule], wildcards, variables)
+    else:
+      _ParseOutcomeList(rule, section[rule], rules, variables)
 
 
 def PresubmitCheck(path):
-  contents = ReadContent(path)
+  with open(path) as f:
+    contents = ReadContent(f.read())
   root_prefix = os.path.basename(os.path.dirname(path)) + "/"
   status = {"success": True}
   def _assert(check, message):  # Like "assert", but doesn't throw.

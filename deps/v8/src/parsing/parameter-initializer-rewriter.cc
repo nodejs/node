@@ -5,7 +5,7 @@
 #include "src/parsing/parameter-initializer-rewriter.h"
 
 #include "src/ast/ast.h"
-#include "src/ast/ast-expression-visitor.h"
+#include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/scopes.h"
 
 namespace v8 {
@@ -14,33 +14,34 @@ namespace internal {
 namespace {
 
 
-class Rewriter final : public AstExpressionVisitor {
+class Rewriter final : public AstTraversalVisitor<Rewriter> {
  public:
-  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* old_scope,
-           Scope* new_scope)
-      : AstExpressionVisitor(stack_limit, initializer),
-        old_scope_(old_scope),
-        new_scope_(new_scope) {}
+  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* param_scope)
+      : AstTraversalVisitor(stack_limit, initializer),
+        param_scope_(param_scope) {}
 
  private:
-  void VisitExpression(Expression* expr) override {}
+  // This is required so that the overriden Visit* methods can be
+  // called by the base class (template).
+  friend class AstTraversalVisitor<Rewriter>;
 
-  void VisitFunctionLiteral(FunctionLiteral* expr) override;
-  void VisitClassLiteral(ClassLiteral* expr) override;
-  void VisitVariableProxy(VariableProxy* expr) override;
+  void VisitFunctionLiteral(FunctionLiteral* expr);
+  void VisitClassLiteral(ClassLiteral* expr);
+  void VisitVariableProxy(VariableProxy* expr);
 
-  Scope* old_scope_;
-  Scope* new_scope_;
+  void VisitBlock(Block* stmt);
+  void VisitTryCatchStatement(TryCatchStatement* stmt);
+  void VisitWithStatement(WithStatement* stmt);
+
+  Scope* param_scope_;
 };
 
-
 void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
-  function_literal->scope()->ReplaceOuterScope(new_scope_);
+  function_literal->scope()->ReplaceOuterScope(param_scope_);
 }
 
 
 void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
-  class_literal->scope()->ReplaceOuterScope(new_scope_);
   if (class_literal->extends() != nullptr) {
     Visit(class_literal->extends());
   }
@@ -60,26 +61,50 @@ void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
 
 
 void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
-  if (proxy->is_resolved()) {
-    Variable* var = proxy->var();
-    if (var->mode() != TEMPORARY) return;
-    if (old_scope_->RemoveTemporary(var)) {
-      var->set_scope(new_scope_);
-      new_scope_->AddTemporary(var);
+  if (!proxy->is_resolved()) {
+    if (param_scope_->outer_scope()->RemoveUnresolved(proxy)) {
+      param_scope_->AddUnresolved(proxy);
     }
-  } else if (old_scope_->RemoveUnresolved(proxy)) {
-    new_scope_->AddUnresolved(proxy);
+  } else {
+    // Ensure that temporaries we find are already in the correct scope.
+    DCHECK(proxy->var()->mode() != TEMPORARY ||
+           proxy->var()->scope() == param_scope_->GetClosureScope());
   }
+}
+
+
+void Rewriter::VisitBlock(Block* stmt) {
+  if (stmt->scope() != nullptr)
+    stmt->scope()->ReplaceOuterScope(param_scope_);
+  else
+    VisitStatements(stmt->statements());
+}
+
+
+void Rewriter::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  Visit(stmt->try_block());
+  stmt->scope()->ReplaceOuterScope(param_scope_);
+}
+
+
+void Rewriter::VisitWithStatement(WithStatement* stmt) {
+  Visit(stmt->expression());
+  stmt->scope()->ReplaceOuterScope(param_scope_);
 }
 
 
 }  // anonymous namespace
 
+void ReparentParameterExpressionScope(uintptr_t stack_limit, Expression* expr,
+                                      Scope* param_scope) {
+  // The only case that uses this code is block scopes for parameters containing
+  // sloppy eval.
+  DCHECK(param_scope->is_block_scope());
+  DCHECK(param_scope->is_declaration_scope());
+  DCHECK(param_scope->calls_sloppy_eval());
+  DCHECK(param_scope->outer_scope()->is_function_scope());
 
-void RewriteParameterInitializerScope(uintptr_t stack_limit,
-                                      Expression* initializer, Scope* old_scope,
-                                      Scope* new_scope) {
-  Rewriter rewriter(stack_limit, initializer, old_scope, new_scope);
+  Rewriter rewriter(stack_limit, expr, param_scope);
   rewriter.Run();
 }
 

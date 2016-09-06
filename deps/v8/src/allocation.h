@@ -45,12 +45,12 @@ class Embedded {
 #endif
 
 
-// Superclass for classes only using statics.
+// Superclass for classes only using static method functions.
+// The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {
 #ifdef DEBUG
  public:
-  void* operator new(size_t size);
-  void operator delete(void* p);
+  AllStatic() = delete;
 #endif
 };
 

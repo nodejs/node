@@ -195,7 +195,14 @@ function TestDuplicateKeys() {
   });
 
   var result = Object.getOwnPropertyDescriptors(P);
-  assertEquals({ "A": undefined }, result);
+  assertEquals({
+    "A": {
+      "value": "VALUE",
+      "writable": false,
+      "enumerable": false,
+      "configurable": true
+    }
+  }, result);
   assertTrue(result.hasOwnProperty("A"));
   assertEquals([
     "ownKeys()",
@@ -204,3 +211,25 @@ function TestDuplicateKeys() {
   ], log);
 }
 TestDuplicateKeys();
+
+function TestFakeProperty() {
+  var log = [];
+  var P = new Proxy({}, {
+    ownKeys() {
+      log.push(`ownKeys()`);
+      return ["fakeProperty"];
+    },
+    getOwnPropertyDescriptor(target, name) {
+      log.push(`getOwnPropertyDescriptor(${name})`);
+      return;
+    }
+  });
+  var result = Object.getOwnPropertyDescriptors(P);
+  assertEquals({}, result);
+  assertFalse(result.hasOwnProperty("fakeProperty"));
+  assertEquals([
+    "ownKeys()",
+    "getOwnPropertyDescriptor(fakeProperty)"
+  ], log);
+}
+TestFakeProperty();

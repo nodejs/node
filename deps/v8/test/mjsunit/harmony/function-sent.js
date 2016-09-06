@@ -49,7 +49,7 @@
     try {
       yield function.sent;
     } finally {
-      return 666;
+      return 23;
     }
   }
 
@@ -77,7 +77,7 @@
     let x = g();
     assertEquals({value: 1, done: false}, x.next(1));
     assertEquals({value: undefined, done: false}, x.next(2));
-    assertEquals({value: 42, done: true}, x.return(42));
+    assertEquals({value: 23, done: true}, x.return(42));
   }
 }
 

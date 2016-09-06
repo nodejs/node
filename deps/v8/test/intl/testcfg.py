@@ -26,10 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
+FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class IntlTestSuite(testsuite.TestSuite):
 
@@ -55,7 +57,11 @@ class IntlTestSuite(testsuite.TestSuite):
     return tests
 
   def GetFlagsForTestCase(self, testcase, context):
+    source = self.GetSourceForTest(testcase)
     flags = ["--allow-natives-syntax"] + context.mode_flags
+    flags_match = re.findall(FLAGS_PATTERN, source)
+    for match in flags_match:
+      flags += match.strip().split()
 
     files = []
     files.append(os.path.join(self.root, "assert.js"))
@@ -71,6 +77,10 @@ class IntlTestSuite(testsuite.TestSuite):
 
     return testcase.flags + flags
 
+  def GetSourceForTest(self, testcase):
+    filename = os.path.join(self.root, testcase.path + self.suffix())
+    with open(filename) as f:
+      return f.read()
 
 def GetSuite(name, root):
   return IntlTestSuite(name, root)

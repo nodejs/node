@@ -14,14 +14,17 @@ namespace compiler {
 // Forward declarations.
 class Operator;
 
-
 class OperatorProperties final {
  public:
   static bool HasContextInput(const Operator* op);
   static int GetContextInputCount(const Operator* op) {
     return HasContextInput(op) ? 1 : 0;
   }
-  static int GetFrameStateInputCount(const Operator* op);
+
+  static bool HasFrameStateInput(const Operator* op);
+  static int GetFrameStateInputCount(const Operator* op) {
+    return HasFrameStateInput(op) ? 1 : 0;
+  }
 
   static int GetTotalInputCount(const Operator* op);
 

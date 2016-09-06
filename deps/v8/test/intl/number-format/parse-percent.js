@@ -25,12 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --intl-extra
+
 var nf = new Intl.NumberFormat(['en'], {style: 'percent'});
 
 assertEquals(1.2343, nf.v8Parse('123.43%'));
 assertEquals(1.23, nf.v8Parse('123%'));
 assertEquals(NaN, nf.v8Parse(NaN));
-assertEquals(123.23, nf.v8Parse('123,23%'));
-assertEquals(123.23456, nf.v8Parse('123,23.456%'));
-assertEquals(123.23456, nf.v8Parse('0000000123,23.456%'));
-assertEquals(-123.23456, nf.v8Parse('-123,23.456%'));
+assertEquals(123.23, nf.v8Parse('12,323%'));
+assertEquals(123.23456, nf.v8Parse('12,323.456%'));
+assertEquals(123.23456, nf.v8Parse('000000012323.456%'));
+assertEquals(-123.23456, nf.v8Parse('-12,323.456%'));
+
+// Not tolerant of misplaced group separators.
+assertEquals(undefined, nf.v8Parse('123,23%'));
+assertEquals(undefined, nf.v8Parse('123,23.456%'));
+assertEquals(undefined, nf.v8Parse('0000000123,23.456%'));
+assertEquals(undefined, nf.v8Parse('-123,23.456%'));
+assertEquals(undefined, nf.v8Parse('0000000123,23.456%'));
+assertEquals(undefined, nf.v8Parse('-123,23.456%'));

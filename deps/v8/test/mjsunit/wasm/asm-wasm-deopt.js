@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
-// Flags: --allow-natives-syntax
+// Flags: --validate-asm --allow-natives-syntax
 
 (function TestDeoptimizeArgMismatch() {
   function deopt() {
@@ -21,8 +20,7 @@
     return {'_main': _main}
   }
   function test() {
-    var wasm = Wasm.instantiateModuleFromAsm(
-       Module.toString(), {'deopt': deopt});
+    var wasm = Module(null, {'deopt': deopt});
     wasm._main(0, 0, 0);
   }
   test();

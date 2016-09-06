@@ -87,3 +87,43 @@ function TestGeneratorObjectMethods() {
   TestNonGenerator(g.prototype);
 }
 TestGeneratorObjectMethods();
+
+
+function TestPrototype() {
+  function* g() { }
+
+  let g_prototype = g.prototype;
+  assertEquals([], Reflect.ownKeys(g_prototype));
+
+  let generator_prototype = Object.getPrototypeOf(g_prototype);
+  assertSame(generator_prototype, Object.getPrototypeOf(g).prototype);
+
+  // Unchanged .prototype
+  assertSame(g_prototype, Object.getPrototypeOf(g()));
+
+  // Custom object as .prototype
+  {
+    let proto = {};
+    g.prototype = proto;
+    assertSame(proto, Object.getPrototypeOf(g()));
+  }
+
+  // Custom non-object as .prototype
+  g.prototype = null;
+  assertSame(generator_prototype, Object.getPrototypeOf(g()));
+}
+TestPrototype();
+
+
+function TestComputedPropertyNames() {
+  function* f1() { return {[yield]: 42} }
+  var g1 = f1();
+  g1.next();
+  assertEquals(42, g1.next('a').value.a);
+
+  function* f2() { return {['a']: yield} }
+  var g2 = f2();
+  g2.next();
+  assertEquals(42, g2.next(42).value.a);
+}
+TestComputedPropertyNames();

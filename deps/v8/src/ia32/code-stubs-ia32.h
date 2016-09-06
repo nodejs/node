@@ -301,8 +301,8 @@ class RecordWriteStub: public PlatformCodeStub {
                                   Register r2,
                                   Register r3) {
       for (int i = 0; i < Register::kNumRegisters; i++) {
-        Register candidate = Register::from_code(i);
-        if (candidate.IsAllocatable()) {
+        if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(i)) {
+          Register candidate = Register::from_code(i);
           if (candidate.is(ecx)) continue;
           if (candidate.is(r1)) continue;
           if (candidate.is(r2)) continue;

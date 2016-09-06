@@ -157,26 +157,20 @@ static bool HasDebugInfo(v8::Local<v8::Function> fun) {
   return shared->HasDebugInfo();
 }
 
-
-// Set a break point in a function and return the associated break point
-// number.
-static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
+// Set a break point in a function with a position relative to function start,
+// and return the associated break point number.
+static int SetBreakPoint(v8::Local<v8::Function> fun, int position) {
+  i::Handle<i::JSFunction> function =
+      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
+  position += function->shared()->start_position();
   static int break_point = 0;
-  v8::internal::Isolate* isolate = fun->GetIsolate();
+  v8::internal::Isolate* isolate = function->GetIsolate();
   v8::internal::Debug* debug = isolate->debug();
   debug->SetBreakPoint(
-      fun,
+      function,
       Handle<Object>(v8::internal::Smi::FromInt(++break_point), isolate),
       &position);
   return break_point;
-}
-
-
-// Set a break point in a function and return the associated break point
-// number.
-static int SetBreakPoint(v8::Local<v8::Function> fun, int position) {
-  return SetBreakPoint(
-      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun)), position);
 }
 
 
@@ -6081,53 +6075,48 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
 };
 
-
-TEST(DebugGetLoadedScripts) {
+TEST(DebugScriptLineEndsAreAscending) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   env.ExposeDebug();
 
-  v8::Local<v8::Context> context = env.context();
-  EmptyExternalStringResource source_ext_str;
-  v8::Local<v8::String> source =
-      v8::String::NewExternalTwoByte(env->GetIsolate(), &source_ext_str)
-          .ToLocalChecked();
-  CHECK(v8::Script::Compile(context, source).IsEmpty());
-  Handle<i::ExternalTwoByteString> i_source(
-      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
-  // This situation can happen if source was an external string disposed
-  // by its owner.
-  i_source->set_resource(0);
+  // Compile a test script.
+  v8::Local<v8::String> script = v8_str(isolate,
+                                        "function f() {\n"
+                                        "  debugger;\n"
+                                        "}\n");
 
-  bool allow_natives_syntax = i::FLAG_allow_natives_syntax;
-  i::FLAG_allow_natives_syntax = true;
-  EnableDebugger(env->GetIsolate());
-  v8::MaybeLocal<v8::Value> result =
-      CompileRun(env.context(),
-                 "var scripts = %DebugGetLoadedScripts();"
-                 "var count = scripts.length;"
-                 "for (var i = 0; i < count; ++i) {"
-                 "  var lines = scripts[i].lineCount();"
-                 "  if (lines < 1) throw 'lineCount';"
-                 "  var last = -1;"
-                 "  for (var j = 0; j < lines; ++j) {"
-                 "    var end = scripts[i].lineEnd(j);"
-                 "    if (last >= end) throw 'lineEnd';"
-                 "    last = end;"
-                 "  }"
-                 "}");
-  CHECK(!result.IsEmpty());
-  DisableDebugger(env->GetIsolate());
-  // Must not crash while accessing line_ends.
-  i::FLAG_allow_natives_syntax = allow_natives_syntax;
+  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8_str(isolate, "name"));
+  v8::Local<v8::Script> script1 =
+      v8::Script::Compile(env.context(), script, &origin1).ToLocalChecked();
+  USE(script1);
 
-  // Some scripts are retrieved - at least the number of native scripts.
-  CHECK_GT(env->Global()
-               ->Get(context, v8_str(env->GetIsolate(), "count"))
-               .ToLocalChecked()
-               ->Int32Value(context)
-               .FromJust(),
-           8);
+  Handle<v8::internal::FixedArray> instances;
+  {
+    v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+    v8::internal::DebugScope debug_scope(debug);
+    CHECK(!debug_scope.failed());
+    instances = debug->GetLoadedScripts();
+  }
+
+  CHECK_GT(instances->length(), 0);
+  for (int i = 0; i < instances->length(); i++) {
+    Handle<v8::internal::Script> script = Handle<v8::internal::Script>(
+        v8::internal::Script::cast(instances->get(i)));
+
+    v8::internal::Script::InitLineEnds(script);
+    v8::internal::FixedArray* ends =
+        v8::internal::FixedArray::cast(script->line_ends());
+    CHECK_GT(ends->length(), 0);
+
+    int prev_end = -1;
+    for (int j = 0; j < ends->length(); j++) {
+      const int curr_end = v8::internal::Smi::cast(ends->get(j))->value();
+      CHECK_GT(curr_end, prev_end);
+      prev_end = curr_end;
+    }
+  }
 }
 
 
@@ -7185,6 +7174,40 @@ TEST(NoDebugContextWhenDebuggerDisabled) {
   CHECK(context.IsEmpty());
 }
 
+static void DebugEventCheckContext(
+    const v8::Debug::EventDetails& event_details) {
+  if (event_details.GetEvent() == v8::Break) {
+    v8::Isolate* isolate = event_details.GetIsolate();
+    CHECK(v8::Debug::GetDebuggedContext(isolate)
+              .ToLocalChecked()
+              ->Global()
+              ->Equals(isolate->GetCurrentContext(),
+                       event_details.GetEventContext()->Global())
+              .FromJust());
+  }
+}
+
+static void CheckContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(v8::Debug::GetDebuggedContext(args.GetIsolate()).IsEmpty());
+}
+
+TEST(DebuggedContext) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+
+  v8::Debug::SetDebugEventListener(isolate, DebugEventCheckContext);
+
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){bar=0;}", "foo");
+
+  SetBreakPoint(foo, 0);
+  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+
+  v8::Local<v8::Function> fun = v8::FunctionTemplate::New(isolate, CheckContext)
+                                    ->GetFunction(env.context())
+                                    .ToLocalChecked();
+  fun->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+}
 
 static v8::Local<v8::Value> expected_callback_data;
 static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
@@ -7555,9 +7578,9 @@ static void DebugBreakInlineListener(
   CHECK_EQ(expected_frame_count, frame_count);
 
   for (int i = 0; i < frame_count; i++) {
-    // The 5. element in the returned array of GetFrameDetails contains the
+    // The 6. element in the returned array of GetFrameDetails contains the
     // source position of that frame.
-    SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[5]", break_id, i);
+    SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[6]", break_id, i);
     v8::Local<v8::Value> result = CompileRun(script);
     CHECK_EQ(expected_line_number[i],
              i::Script::GetLineNumber(source_script,
@@ -7834,8 +7857,8 @@ TEST(DebugPromiseInterceptedByTryCatch) {
   CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
   CompileRun(
       "var r;"
-      "p.chain(function() { r = 'resolved'; },"
-      "        function() { r = 'rejected'; });");
+      "p.then(function() { r = 'resolved'; },"
+      "       function() { r = 'rejected'; });");
   CHECK(CompileRun("r")->Equals(context, v8_str("resolved")).FromJust());
 }
 
@@ -7874,41 +7897,10 @@ TEST(DebugPromiseRejectedByCallback) {
   CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
   CompileRun(
       "var r;"
-      "p.chain(function() { r = 'resolved'; },"
-      "        function(e) { r = 'rejected' + e; });");
+      "p.then(function() { r = 'resolved'; },"
+      "       function(e) { r = 'rejected' + e; });");
   CHECK(
       CompileRun("r")->Equals(context, v8_str("rejectedrejection")).FromJust());
-  CHECK_EQ(1, exception_event_counter);
-}
-
-
-TEST(DebugBreakOnExceptionInObserveCallback) {
-  i::FLAG_harmony_object_observe = true;
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Debug::SetDebugEventListener(isolate, &DebugEventCountException);
-  v8::Local<v8::Context> context = env.context();
-  // Break on uncaught exception
-  ChangeBreakOnException(false, true);
-  exception_event_counter = 0;
-
-  v8::Local<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(isolate, ThrowCallback);
-  CHECK(env->Global()
-            ->Set(context, v8_str("fun"),
-                  fun->GetFunction(context).ToLocalChecked())
-            .FromJust());
-
-  CompileRun(
-      "var obj = {};"
-      "var callbackRan = false;"
-      "Object.observe(obj, function() {"
-      "   callbackRan = true;"
-      "   throw Error('foo');"
-      "});"
-      "obj.prop = 1");
-  CHECK(CompileRun("callbackRan")->BooleanValue(context).FromJust());
   CHECK_EQ(1, exception_event_counter);
 }
 
@@ -7986,18 +7978,11 @@ static void NoInterruptsOnDebugEvent(
   --after_compile_handler_depth;
 }
 
-
 TEST(NoInterruptsInDebugListener) {
   DebugLocalContext env;
   v8::Debug::SetDebugEventListener(env->GetIsolate(), NoInterruptsOnDebugEvent);
   CompileRun("void(0);");
 }
-
-class TestBreakLocation : public i::BreakLocation {
- public:
-  using i::BreakLocation::GetIterator;
-  using i::BreakLocation::Iterator;
-};
 
 TEST(BreakLocationIterator) {
   DebugLocalContext env;
@@ -8020,53 +8005,40 @@ TEST(BreakLocationIterator) {
   CHECK(i_isolate->debug()->EnsureDebugInfo(shared, function));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
-  int code_size = debug_info->abstract_code()->Size();
+  Handle<i::AbstractCode> abstract_code(shared->abstract_code());
 
-  bool found_return = false;
-  bool found_call = false;
-  bool found_debugger = false;
-
-  // Test public interface.
-  for (int i = 0; i < code_size; i++) {
-    i::BreakLocation location = i::BreakLocation::FromCodeOffset(debug_info, i);
-    if (location.IsCall()) found_call = true;
-    if (location.IsReturn()) found_return = true;
-    if (location.IsDebuggerStatement()) found_debugger = true;
+  {
+    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
+                                                  i::ALL_BREAK_LOCATIONS);
+    CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
+    CHECK_EQ(17, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsDebugBreakSlot());
+    CHECK_EQ(32, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsCall());
+    CHECK_EQ(32, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
+    CHECK_EQ(47, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsReturn());
+    CHECK_EQ(60, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->Done());
   }
-  CHECK(found_call);
-  CHECK(found_return);
-  CHECK(found_debugger);
 
-  // Test underlying implementation.
-  TestBreakLocation::Iterator* iterator =
-      TestBreakLocation::GetIterator(debug_info, i::ALL_BREAK_LOCATIONS);
-  CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
-  CHECK_EQ(7, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsDebugBreakSlot());
-  CHECK_EQ(22, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsCall());
-  CHECK_EQ(22, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
-  CHECK_EQ(37, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsReturn());
-  CHECK_EQ(50, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->Done());
-  delete iterator;
-
-  iterator = TestBreakLocation::GetIterator(debug_info, i::CALLS_AND_RETURNS);
-  CHECK(iterator->GetBreakLocation().IsCall());
-  CHECK_EQ(22, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsReturn());
-  CHECK_EQ(50, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->Done());
-  delete iterator;
+  {
+    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
+                                                  i::CALLS_AND_RETURNS);
+    CHECK(iterator->GetBreakLocation().IsCall());
+    CHECK_EQ(32, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsReturn());
+    CHECK_EQ(60, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->Done());
+  }
 
   DisableDebugger(isolate);
 }

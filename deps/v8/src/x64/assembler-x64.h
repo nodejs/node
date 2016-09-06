@@ -117,8 +117,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -183,7 +181,11 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm14)                  \
   V(xmm15)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(xmm0)                               \
   V(xmm1)                               \
   V(xmm2)                               \
   V(xmm3)                               \
@@ -197,11 +199,11 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm11)                              \
   V(xmm12)                              \
   V(xmm13)                              \
-  V(xmm14)                              \
-  V(xmm15)
+  V(xmm14)
 
+static const bool kSimpleFPAliasing = true;
 
-struct DoubleRegister {
+struct XMMRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -212,15 +214,13 @@ struct DoubleRegister {
 
   static const int kMaxNumRegisters = Code::kAfterLast;
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister result = {code};
+  static XMMRegister from_code(int code) {
+    XMMRegister result = {code};
     return result;
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  bool is(XMMRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
     return reg_code;
@@ -238,17 +238,17 @@ struct DoubleRegister {
   int reg_code;
 };
 
+typedef XMMRegister FloatRegister;
+
+typedef XMMRegister DoubleRegister;
+
+typedef XMMRegister Simd128Register;
 
 #define DECLARE_REGISTER(R) \
   const DoubleRegister R = {DoubleRegister::kCode_##R};
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
-
-
-typedef DoubleRegister XMMRegister;
-
-typedef DoubleRegister Simd128Register;
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -334,6 +334,8 @@ enum RoundingMode {
 class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
+  explicit Immediate(int32_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode) {}
   explicit Immediate(Smi* value) {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
     value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
@@ -341,6 +343,7 @@ class Immediate BASE_EMBEDDED {
 
  private:
   int32_t value_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
 
   friend class Assembler;
 };
@@ -417,11 +420,11 @@ class Operand BASE_EMBEDDED {
   friend class Assembler;
 };
 
-
 #define ASSEMBLER_INSTRUCTION_LIST(V) \
   V(add)                              \
   V(and)                              \
   V(cmp)                              \
+  V(cmpxchg)                          \
   V(dec)                              \
   V(idiv)                             \
   V(div)                              \
@@ -440,7 +443,6 @@ class Operand BASE_EMBEDDED {
   V(test)                             \
   V(xchg)                             \
   V(xor)
-
 
 // Shift instructions on operands/registers with kPointerSize, kInt32Size and
 // kInt64Size.
@@ -706,9 +708,11 @@ class Assembler : public AssemblerBase {
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, const Operand& src);
+  void movsxbq(Register dst, Register src);
   void movsxbq(Register dst, const Operand& src);
   void movsxwl(Register dst, Register src);
   void movsxwl(Register dst, const Operand& src);
+  void movsxwq(Register dst, Register src);
   void movsxwq(Register dst, const Operand& src);
   void movsxlq(Register dst, Register src);
   void movsxlq(Register dst, const Operand& src);
@@ -783,6 +787,15 @@ class Assembler : public AssemblerBase {
 
   void decb(Register dst);
   void decb(const Operand& dst);
+
+  // Lock prefix.
+  void lock();
+
+  void xchgb(Register reg, const Operand& op);
+  void xchgw(Register reg, const Operand& op);
+
+  void cmpxchgb(const Operand& dst, Register src);
+  void cmpxchgw(const Operand& dst, Register src);
 
   // Sign-extends rax into rdx:rax.
   void cqo();
@@ -1083,6 +1096,8 @@ class Assembler : public AssemblerBase {
   void movdqu(XMMRegister dst, const Operand& src);
 
   void movapd(XMMRegister dst, XMMRegister src);
+  void movupd(XMMRegister dst, const Operand& src);
+  void movupd(const Operand& dst, XMMRegister src);
 
   void psllq(XMMRegister reg, byte imm8);
   void psrlq(XMMRegister reg, byte imm8);
@@ -1129,8 +1144,11 @@ class Assembler : public AssemblerBase {
   void minsd(XMMRegister dst, const Operand& src);
 
   void andpd(XMMRegister dst, XMMRegister src);
+  void andpd(XMMRegister dst, const Operand& src);
   void orpd(XMMRegister dst, XMMRegister src);
+  void orpd(XMMRegister dst, const Operand& src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void xorpd(XMMRegister dst, const Operand& src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, const Operand& src);
 
@@ -1142,18 +1160,68 @@ class Assembler : public AssemblerBase {
   void movmskpd(Register dst, XMMRegister src);
 
   void punpckldq(XMMRegister dst, XMMRegister src);
+  void punpckldq(XMMRegister dst, const Operand& src);
   void punpckhdq(XMMRegister dst, XMMRegister src);
 
   // SSE 4.1 instruction
+  void insertps(XMMRegister dst, XMMRegister src, byte imm8);
   void extractps(Register dst, XMMRegister src, byte imm8);
-
   void pextrd(Register dst, XMMRegister src, int8_t imm8);
-
   void pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
+  void cmpps(XMMRegister dst, XMMRegister src, int8_t cmp);
+  void cmpps(XMMRegister dst, const Operand& src, int8_t cmp);
+  void cmppd(XMMRegister dst, XMMRegister src, int8_t cmp);
+  void cmppd(XMMRegister dst, const Operand& src, int8_t cmp);
+
+#define SSE_CMP_P(instr, imm8)                                                \
+  void instr##ps(XMMRegister dst, XMMRegister src) { cmpps(dst, src, imm8); } \
+  void instr##ps(XMMRegister dst, const Operand& src) {                       \
+    cmpps(dst, src, imm8);                                                    \
+  }                                                                           \
+  void instr##pd(XMMRegister dst, XMMRegister src) { cmppd(dst, src, imm8); } \
+  void instr##pd(XMMRegister dst, const Operand& src) { cmppd(dst, src, imm8); }
+
+  SSE_CMP_P(cmpeq, 0x0);
+  SSE_CMP_P(cmplt, 0x1);
+  SSE_CMP_P(cmple, 0x2);
+  SSE_CMP_P(cmpneq, 0x4);
+  SSE_CMP_P(cmpnlt, 0x5);
+  SSE_CMP_P(cmpnle, 0x6);
+
+#undef SSE_CMP_P
+
+  void minps(XMMRegister dst, XMMRegister src);
+  void minps(XMMRegister dst, const Operand& src);
+  void maxps(XMMRegister dst, XMMRegister src);
+  void maxps(XMMRegister dst, const Operand& src);
+  void rcpps(XMMRegister dst, XMMRegister src);
+  void rcpps(XMMRegister dst, const Operand& src);
+  void rsqrtps(XMMRegister dst, XMMRegister src);
+  void rsqrtps(XMMRegister dst, const Operand& src);
+  void sqrtps(XMMRegister dst, XMMRegister src);
+  void sqrtps(XMMRegister dst, const Operand& src);
+  void movups(XMMRegister dst, XMMRegister src);
+  void movups(XMMRegister dst, const Operand& src);
+  void movups(const Operand& dst, XMMRegister src);
+  void paddd(XMMRegister dst, XMMRegister src);
+  void paddd(XMMRegister dst, const Operand& src);
+  void psubd(XMMRegister dst, XMMRegister src);
+  void psubd(XMMRegister dst, const Operand& src);
+  void pmulld(XMMRegister dst, XMMRegister src);
+  void pmulld(XMMRegister dst, const Operand& src);
+  void pmuludq(XMMRegister dst, XMMRegister src);
+  void pmuludq(XMMRegister dst, const Operand& src);
+  void psrldq(XMMRegister dst, uint8_t shift);
+  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void cvtps2dq(XMMRegister dst, XMMRegister src);
+  void cvtps2dq(XMMRegister dst, const Operand& src);
+  void cvtdq2ps(XMMRegister dst, XMMRegister src);
+  void cvtdq2ps(XMMRegister dst, const Operand& src);
 
   // AVX instruction
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1484,11 +1552,69 @@ class Assembler : public AssemblerBase {
   void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
   void vmovaps(XMMRegister dst, XMMRegister src) { vps(0x28, dst, xmm0, src); }
+  void vmovups(XMMRegister dst, XMMRegister src) { vps(0x10, dst, xmm0, src); }
+  void vmovups(XMMRegister dst, const Operand& src) {
+    vps(0x10, dst, xmm0, src);
+  }
+  void vmovups(const Operand& dst, XMMRegister src) {
+    vps(0x11, src, xmm0, dst);
+  }
   void vmovapd(XMMRegister dst, XMMRegister src) { vpd(0x28, dst, xmm0, src); }
+  void vmovupd(XMMRegister dst, const Operand& src) {
+    vpd(0x10, dst, xmm0, src);
+  }
+  void vmovupd(const Operand& dst, XMMRegister src) {
+    vpd(0x11, src, xmm0, dst);
+  }
+  void vmovmskps(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vps(0x50, idst, xmm0, src);
+  }
   void vmovmskpd(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
     vpd(0x50, idst, xmm0, src);
   }
+  void vcmpps(XMMRegister dst, XMMRegister src1, XMMRegister src2, int8_t cmp) {
+    vps(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+  void vcmpps(XMMRegister dst, XMMRegister src1, const Operand& src2,
+              int8_t cmp) {
+    vps(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+  void vcmppd(XMMRegister dst, XMMRegister src1, XMMRegister src2, int8_t cmp) {
+    vpd(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+  void vcmppd(XMMRegister dst, XMMRegister src1, const Operand& src2,
+              int8_t cmp) {
+    vpd(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+
+#define AVX_CMP_P(instr, imm8)                                             \
+  void instr##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##ps(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vcmppd(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##pd(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vcmppd(dst, src1, src2, imm8);                                         \
+  }
+
+  AVX_CMP_P(vcmpeq, 0x0);
+  AVX_CMP_P(vcmplt, 0x1);
+  AVX_CMP_P(vcmple, 0x2);
+  AVX_CMP_P(vcmpneq, 0x4);
+  AVX_CMP_P(vcmpnlt, 0x5);
+  AVX_CMP_P(vcmpnle, 0x6);
+
+#undef AVX_CMP_P
 
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
@@ -1689,7 +1815,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, int raw_position);
+  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
 
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,
@@ -1705,10 +1831,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data) { dq(data); }
   void dq(Label* label);
-
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -1755,7 +1877,12 @@ class Assembler : public AssemblerBase {
                                RelocInfo::Mode rmode,
                                TypeFeedbackId ast_id = TypeFeedbackId::None());
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
-  void emit(Immediate x) { emitl(x.value_); }
+  void emit(Immediate x) {
+    if (!RelocInfo::IsNone(x.rmode_)) {
+      RecordRelocInfo(x.rmode_);
+    }
+    emitl(x.value_);
+  }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.
@@ -1926,6 +2053,7 @@ class Assembler : public AssemblerBase {
   void emit_sse_operand(Register reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, Register src);
   void emit_sse_operand(Register dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister dst);
 
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all
@@ -2041,6 +2169,11 @@ class Assembler : public AssemblerBase {
   void emit_cmp(const Operand& dst, Immediate src, int size) {
     immediate_arithmetic_op(0x7, dst, src, size);
   }
+
+  // Compare {al,ax,eax,rax} with src.  If equal, set ZF and write dst into
+  // src. Otherwise clear ZF and write src into {al,ax,eax,rax}.  This
+  // operation is only atomic if prefixed by the lock instruction.
+  void emit_cmpxchg(const Operand& dst, Register src, int size);
 
   void emit_dec(Register dst, int size);
   void emit_dec(const Operand& dst, int size);
@@ -2190,9 +2323,6 @@ class Assembler : public AssemblerBase {
   std::deque<int> internal_reference_positions_;
 
   List< Handle<Code> > code_targets_;
-
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
 };
 
 

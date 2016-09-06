@@ -33,6 +33,11 @@ class LoopPeeler {
   static PeeledIteration* Peel(Graph* graph, CommonOperatorBuilder* common,
                                LoopTree* loop_tree, LoopTree::Loop* loop,
                                Zone* tmp_zone);
+  static void PeelInnerLoopsOfTree(Graph* graph, CommonOperatorBuilder* common,
+                                   LoopTree* loop_tree, Zone* tmp_zone);
+
+  static void EliminateLoopExits(Graph* graph, Zone* temp_zone);
+  static const size_t kMaxPeeledNodes = 1000;
 };
 
 

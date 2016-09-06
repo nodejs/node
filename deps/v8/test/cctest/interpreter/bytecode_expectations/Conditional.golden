@@ -13,15 +13,11 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(JumpIfToBooleanFalse), U8(6),
-  B(LdaSmi), U8(2),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(3),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaSmi), U8(2),
+  /*   52 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -34,19 +30,58 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(JumpIfToBooleanFalse), U8(14),
-  B(LdaSmi), U8(2),
-  B(JumpIfToBooleanFalse), U8(6),
-  B(LdaSmi), U8(3),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(4),
-  B(Jump), U8(4),
-  B(LdaSmi), U8(5),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaSmi), U8(3),
+  /*   60 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+
+---
+snippet: "
+  return 0 < 1 ? 2 : 3;
+"
+frame size: 1
+parameter count: 1
+bytecode array length: 17
+bytecodes: [
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaZero),
+                B(Star), R(0),
+                B(LdaSmi), U8(1),
+  /*   43 E> */ B(TestLessThan), R(0),
+                B(JumpIfFalse), U8(6),
+                B(LdaSmi), U8(2),
+                B(Jump), U8(4),
+                B(LdaSmi), U8(3),
+  /*   56 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+
+---
+snippet: "
+  var x = 0;
+  return x ? 2 : 3;
+"
+frame size: 1
+parameter count: 1
+bytecode array length: 13
+bytecodes: [
+  /*   30 E> */ B(StackCheck),
+  /*   42 S> */ B(LdaZero),
+                B(Star), R(0),
+  /*   45 S> */ B(JumpIfToBooleanFalse), U8(6),
+                B(LdaSmi), U8(2),
+                B(Jump), U8(4),
+                B(LdaSmi), U8(3),
+  /*   63 S> */ B(Return),
 ]
 constant pool: [
 ]

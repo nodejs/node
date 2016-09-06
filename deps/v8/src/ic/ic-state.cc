@@ -257,10 +257,10 @@ void BinaryOpICState::Update(Handle<Object> left, Handle<Object> right,
 
   if (old_extra_ic_state == GetExtraICState()) {
     // Tagged operations can lead to non-truncating HChanges
-    if (left->IsUndefined() || left->IsBoolean()) {
+    if (left->IsUndefined(isolate_) || left->IsBoolean()) {
       left_kind_ = GENERIC;
     } else {
-      DCHECK(right->IsUndefined() || right->IsBoolean());
+      DCHECK(right->IsUndefined(isolate_) || right->IsBoolean());
       right_kind_ = GENERIC;
     }
   }
@@ -274,7 +274,7 @@ BinaryOpICState::Kind BinaryOpICState::UpdateKind(Handle<Object> object,
   if (object->IsBoolean() && is_truncating) {
     // Booleans will be automatically truncated by HChange.
     new_kind = INT32;
-  } else if (object->IsUndefined()) {
+  } else if (object->IsUndefined(isolate_)) {
     // Undefined will be automatically truncated by HChange.
     new_kind = is_truncating ? INT32 : NUMBER;
   } else if (object->IsSmi()) {
@@ -446,8 +446,9 @@ CompareICState::State CompareICState::NewInputState(State old_state,
 
 // static
 CompareICState::State CompareICState::TargetState(
-    State old_state, State old_left, State old_right, Token::Value op,
-    bool has_inlined_smi_code, Handle<Object> x, Handle<Object> y) {
+    Isolate* isolate, State old_state, State old_left, State old_right,
+    Token::Value op, bool has_inlined_smi_code, Handle<Object> x,
+    Handle<Object> y) {
   switch (old_state) {
     case UNINITIALIZED:
       if (x->IsBoolean() && y->IsBoolean()) return BOOLEAN;
@@ -456,8 +457,8 @@ CompareICState::State CompareICState::TargetState(
       if (Token::IsOrderedRelationalCompareOp(op)) {
         // Ordered comparisons treat undefined as NaN, so the
         // NUMBER stub will do the right thing.
-        if ((x->IsNumber() && y->IsUndefined()) ||
-            (y->IsNumber() && x->IsUndefined())) {
+        if ((x->IsNumber() && y->IsUndefined(isolate)) ||
+            (y->IsNumber() && x->IsUndefined(isolate))) {
           return NUMBER;
         }
       }

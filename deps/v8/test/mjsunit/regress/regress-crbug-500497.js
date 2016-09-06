@@ -4,6 +4,7 @@
 
 // New space must be at max capacity to trigger pretenuring decision.
 // Flags: --allow-natives-syntax --verify-heap --max-semi-space-size=1
+// Flags: --expose-gc
 
 var global = [];  // Used to keep some objects alive.
 
@@ -11,6 +12,8 @@ function Ctor() {
   var result = {a: {}, b: {}, c: {}, d: {}, e: {}, f: {}, g: {}};
   return result;
 }
+
+gc();
 
 for (var i = 0; i < 120; i++) {
   // Make the "a" property long-lived, while everything else is short-lived.

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags:  --expose-wasm
+// Flags: --expose-wasm --validate-asm --allow-natives-syntax
 
 function f() {
   "use asm";
 
 }
 assertFalse(Wasm == undefined);
-assertThrows(function() { Wasm.instantiateModuleFromAsm(f.toString()); });
+assertTrue(%IsNotAsmWasmCode(f));

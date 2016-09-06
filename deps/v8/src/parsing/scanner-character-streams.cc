@@ -8,13 +8,40 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/list-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/unicode-inl.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+size_t CopyUtf8CharsToUtf16Chars(uint16_t* dest, size_t length, const byte* src,
+                                 size_t* src_pos, size_t src_length) {
+  static const unibrow::uchar kMaxUtf16Character =
+      unibrow::Utf16::kMaxNonSurrogateCharCode;
+  size_t i = 0;
+  // Because of the UTF-16 lead and trail surrogates, we stop filling the buffer
+  // one character early (in the normal case), because we need to have at least
+  // two free spaces in the buffer to be sure that the next character will fit.
+  while (i < length - 1) {
+    if (*src_pos == src_length) break;
+    unibrow::uchar c = src[*src_pos];
+    if (c <= unibrow::Utf8::kMaxOneByteChar) {
+      *src_pos = *src_pos + 1;
+    } else {
+      c = unibrow::Utf8::CalculateValue(src + *src_pos, src_length - *src_pos,
+                                        src_pos);
+    }
+    if (c > kMaxUtf16Character) {
+      dest[i++] = unibrow::Utf16::LeadSurrogate(c);
+      dest[i++] = unibrow::Utf16::TrailSurrogate(c);
+    } else {
+      dest[i++] = static_cast<uc16>(c);
+    }
+  }
+  return i;
+}
 
 size_t CopyCharsHelper(uint16_t* dest, size_t length, const uint8_t* src,
                        size_t* src_pos, size_t src_length,
@@ -24,8 +51,7 @@ size_t CopyCharsHelper(uint16_t* dest, size_t length, const uint8_t* src,
   if (length == 0) return 0;
 
   if (encoding == ScriptCompiler::StreamedSource::UTF8) {
-    return v8::internal::Utf8ToUtf16CharacterStream::CopyChars(
-        dest, length, src, src_pos, src_length);
+    return CopyUtf8CharsToUtf16Chars(dest, length, src, src_pos, src_length);
   }
 
   size_t to_fill = length;
@@ -175,163 +201,7 @@ size_t GenericStringUtf16CharacterStream::FillBuffer(size_t from_pos) {
 
 
 // ----------------------------------------------------------------------------
-// Utf8ToUtf16CharacterStream
-Utf8ToUtf16CharacterStream::Utf8ToUtf16CharacterStream(const byte* data,
-                                                       size_t length)
-    : BufferedUtf16CharacterStream(),
-      raw_data_(data),
-      raw_data_length_(length),
-      raw_data_pos_(0),
-      raw_character_position_(0) {
-  ReadBlock();
-}
-
-
-Utf8ToUtf16CharacterStream::~Utf8ToUtf16CharacterStream() { }
-
-
-size_t Utf8ToUtf16CharacterStream::CopyChars(uint16_t* dest, size_t length,
-                                             const byte* src, size_t* src_pos,
-                                             size_t src_length) {
-  static const unibrow::uchar kMaxUtf16Character =
-      unibrow::Utf16::kMaxNonSurrogateCharCode;
-  size_t i = 0;
-  // Because of the UTF-16 lead and trail surrogates, we stop filling the buffer
-  // one character early (in the normal case), because we need to have at least
-  // two free spaces in the buffer to be sure that the next character will fit.
-  while (i < length - 1) {
-    if (*src_pos == src_length) break;
-    unibrow::uchar c = src[*src_pos];
-    if (c <= unibrow::Utf8::kMaxOneByteChar) {
-      *src_pos = *src_pos + 1;
-    } else {
-      c = unibrow::Utf8::CalculateValue(src + *src_pos, src_length - *src_pos,
-                                        src_pos);
-    }
-    if (c > kMaxUtf16Character) {
-      dest[i++] = unibrow::Utf16::LeadSurrogate(c);
-      dest[i++] = unibrow::Utf16::TrailSurrogate(c);
-    } else {
-      dest[i++] = static_cast<uc16>(c);
-    }
-  }
-  return i;
-}
-
-
-size_t Utf8ToUtf16CharacterStream::BufferSeekForward(size_t delta) {
-  size_t old_pos = pos_;
-  size_t target_pos = pos_ + delta;
-  SetRawPosition(target_pos);
-  pos_ = raw_character_position_;
-  ReadBlock();
-  return pos_ - old_pos;
-}
-
-
-size_t Utf8ToUtf16CharacterStream::FillBuffer(size_t char_position) {
-  SetRawPosition(char_position);
-  if (raw_character_position_ != char_position) {
-    // char_position was not a valid position in the stream (hit the end
-    // while spooling to it).
-    return 0u;
-  }
-  size_t i = CopyChars(buffer_, kBufferSize, raw_data_, &raw_data_pos_,
-                       raw_data_length_);
-  raw_character_position_ = char_position + i;
-  return i;
-}
-
-
-static const byte kUtf8MultiByteMask = 0xC0;
-static const byte kUtf8MultiByteCharFollower = 0x80;
-
-
-#ifdef DEBUG
-static const byte kUtf8MultiByteCharStart = 0xC0;
-static bool IsUtf8MultiCharacterStart(byte first_byte) {
-  return (first_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharStart;
-}
-#endif
-
-
-static bool IsUtf8MultiCharacterFollower(byte later_byte) {
-  return (later_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharFollower;
-}
-
-
-// Move the cursor back to point at the preceding UTF-8 character start
-// in the buffer.
-static inline void Utf8CharacterBack(const byte* buffer, size_t* cursor) {
-  byte character = buffer[--*cursor];
-  if (character > unibrow::Utf8::kMaxOneByteChar) {
-    DCHECK(IsUtf8MultiCharacterFollower(character));
-    // Last byte of a multi-byte character encoding. Step backwards until
-    // pointing to the first byte of the encoding, recognized by having the
-    // top two bits set.
-    while (IsUtf8MultiCharacterFollower(buffer[--*cursor])) { }
-    DCHECK(IsUtf8MultiCharacterStart(buffer[*cursor]));
-  }
-}
-
-
-// Move the cursor forward to point at the next following UTF-8 character start
-// in the buffer.
-static inline void Utf8CharacterForward(const byte* buffer, size_t* cursor) {
-  byte character = buffer[(*cursor)++];
-  if (character > unibrow::Utf8::kMaxOneByteChar) {
-    // First character of a multi-byte character encoding.
-    // The number of most-significant one-bits determines the length of the
-    // encoding:
-    //  110..... - (0xCx, 0xDx) one additional byte (minimum).
-    //  1110.... - (0xEx) two additional bytes.
-    //  11110... - (0xFx) three additional bytes (maximum).
-    DCHECK(IsUtf8MultiCharacterStart(character));
-    // Additional bytes is:
-    // 1 if value in range 0xC0 .. 0xDF.
-    // 2 if value in range 0xE0 .. 0xEF.
-    // 3 if value in range 0xF0 .. 0xF7.
-    // Encode that in a single value.
-    size_t additional_bytes =
-        ((0x3211u) >> (((character - 0xC0) >> 2) & 0xC)) & 0x03;
-    *cursor += additional_bytes;
-    DCHECK(!IsUtf8MultiCharacterFollower(buffer[1 + additional_bytes]));
-  }
-}
-
-
-// This can't set a raw position between two surrogate pairs, since there
-// is no position in the UTF8 stream that corresponds to that.  This assumes
-// that the surrogate pair is correctly coded as a 4 byte UTF-8 sequence.  If
-// it is illegally coded as two 3 byte sequences then there is no problem here.
-void Utf8ToUtf16CharacterStream::SetRawPosition(size_t target_position) {
-  if (raw_character_position_ > target_position) {
-    // Spool backwards in utf8 buffer.
-    do {
-      size_t old_pos = raw_data_pos_;
-      Utf8CharacterBack(raw_data_, &raw_data_pos_);
-      raw_character_position_--;
-      DCHECK(old_pos - raw_data_pos_ <= 4);
-      // Step back over both code units for surrogate pairs.
-      if (old_pos - raw_data_pos_ == 4) raw_character_position_--;
-    } while (raw_character_position_ > target_position);
-    // No surrogate pair splitting.
-    DCHECK(raw_character_position_ == target_position);
-    return;
-  }
-  // Spool forwards in the utf8 buffer.
-  while (raw_character_position_ < target_position) {
-    if (raw_data_pos_ == raw_data_length_) return;
-    size_t old_pos = raw_data_pos_;
-    Utf8CharacterForward(raw_data_, &raw_data_pos_);
-    raw_character_position_++;
-    DCHECK(raw_data_pos_ - old_pos <= 4);
-    if (raw_data_pos_ - old_pos == 4) raw_character_position_++;
-  }
-  // No surrogate pair splitting.
-  DCHECK(raw_character_position_ == target_position);
-}
-
+// ExternalStreamingStream
 
 size_t ExternalStreamingStream::FillBuffer(size_t position) {
   // Ignore "position" which is the position in the decoded data. Instead,
@@ -559,15 +429,11 @@ void ExternalStreamingStream::HandleUtf8SplitCharacters(
 ExternalTwoByteStringUtf16CharacterStream::
     ~ExternalTwoByteStringUtf16CharacterStream() { }
 
-
 ExternalTwoByteStringUtf16CharacterStream::
     ExternalTwoByteStringUtf16CharacterStream(
         Handle<ExternalTwoByteString> data, int start_position,
         int end_position)
-    : Utf16CharacterStream(),
-      source_(data),
-      raw_data_(data->GetTwoByteData(start_position)),
-      bookmark_(kNoBookmark) {
+    : raw_data_(data->GetTwoByteData(start_position)), bookmark_(kNoBookmark) {
   buffer_cursor_ = raw_data_,
   buffer_end_ = raw_data_ + (end_position - start_position);
   pos_ = start_position;
@@ -585,5 +451,62 @@ void ExternalTwoByteStringUtf16CharacterStream::ResetToBookmark() {
   pos_ = bookmark_;
   buffer_cursor_ = raw_data_ + bookmark_;
 }
+
+// ----------------------------------------------------------------------------
+// ExternalOneByteStringUtf16CharacterStream
+
+ExternalOneByteStringUtf16CharacterStream::
+    ~ExternalOneByteStringUtf16CharacterStream() {}
+
+ExternalOneByteStringUtf16CharacterStream::
+    ExternalOneByteStringUtf16CharacterStream(
+        Handle<ExternalOneByteString> data, int start_position,
+        int end_position)
+    : raw_data_(data->GetChars()),
+      length_(end_position),
+      bookmark_(kNoBookmark) {
+  DCHECK(end_position >= start_position);
+  pos_ = start_position;
+}
+
+ExternalOneByteStringUtf16CharacterStream::
+    ExternalOneByteStringUtf16CharacterStream(const char* data, size_t length)
+    : raw_data_(reinterpret_cast<const uint8_t*>(data)),
+      length_(length),
+      bookmark_(kNoBookmark) {}
+
+ExternalOneByteStringUtf16CharacterStream::
+    ExternalOneByteStringUtf16CharacterStream(const char* data)
+    : ExternalOneByteStringUtf16CharacterStream(data, strlen(data)) {}
+
+bool ExternalOneByteStringUtf16CharacterStream::SetBookmark() {
+  bookmark_ = pos_;
+  return true;
+}
+
+void ExternalOneByteStringUtf16CharacterStream::ResetToBookmark() {
+  DCHECK(bookmark_ != kNoBookmark);
+  pos_ = bookmark_;
+  buffer_cursor_ = buffer_;
+  buffer_end_ = buffer_ + FillBuffer(pos_);
+}
+
+size_t ExternalOneByteStringUtf16CharacterStream::BufferSeekForward(
+    size_t delta) {
+  size_t old_pos = pos_;
+  pos_ = Min(pos_ + delta, length_);
+  ReadBlock();
+  return pos_ - old_pos;
+}
+
+size_t ExternalOneByteStringUtf16CharacterStream::FillBuffer(size_t from_pos) {
+  if (from_pos >= length_) return 0;
+  size_t length = Min(kBufferSize, length_ - from_pos);
+  for (size_t i = 0; i < length; ++i) {
+    buffer_[i] = static_cast<uc16>(raw_data_[from_pos + i]);
+  }
+  return length;
+}
+
 }  // namespace internal
 }  // namespace v8

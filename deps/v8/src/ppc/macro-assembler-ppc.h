@@ -19,8 +19,8 @@ const Register kReturnRegister1 = {Register::kCode_r4};
 const Register kReturnRegister2 = {Register::kCode_r5};
 const Register kJSFunctionRegister = {Register::kCode_r4};
 const Register kContextRegister = {Register::kCode_r30};
+const Register kAllocateSizeRegister = {Register::kCode_r4};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r3};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r14};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r15};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r16};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r17};
@@ -73,10 +73,8 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
-#define LoadPU ldu
 #define LoadPX ldx
 #define LoadPUX ldux
-#define StorePU stdu
 #define StorePX stdx
 #define StorePUX stdux
 #define ShiftLeftImm sldi
@@ -90,10 +88,8 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define Mul mulld
 #define Div divd
 #else
-#define LoadPU lwzu
 #define LoadPX lwzx
 #define LoadPUX lwzux
-#define StorePU stwu
 #define StorePX stwx
 #define StorePUX stwux
 #define ShiftLeftImm slwi
@@ -437,7 +433,8 @@ class MacroAssembler : public Assembler {
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.
   // At least one slot (for the return address) should be provided.
-  void EnterExitFrame(bool save_doubles, int stack_space = 1);
+  void EnterExitFrame(bool save_doubles, int stack_space = 1,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
@@ -515,8 +512,25 @@ class MacroAssembler : public Assembler {
   void StoreRepresentation(Register src, const MemOperand& mem,
                            Representation r, Register scratch = no_reg);
 
-  void LoadDouble(DoubleRegister dst, const MemOperand& mem, Register scratch);
-  void StoreDouble(DoubleRegister src, const MemOperand& mem, Register scratch);
+  void LoadDouble(DoubleRegister dst, const MemOperand& mem,
+                  Register scratch = no_reg);
+  void LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
+                  Register scratch = no_reg);
+
+  void LoadSingle(DoubleRegister dst, const MemOperand& mem,
+                  Register scratch = no_reg);
+  void LoadSingleU(DoubleRegister dst, const MemOperand& mem,
+                   Register scratch = no_reg);
+
+  void StoreDouble(DoubleRegister src, const MemOperand& mem,
+                   Register scratch = no_reg);
+  void StoreDoubleU(DoubleRegister src, const MemOperand& mem,
+                   Register scratch = no_reg);
+
+  void StoreSingle(DoubleRegister src, const MemOperand& mem,
+                   Register scratch = no_reg);
+  void StoreSingleU(DoubleRegister src, const MemOperand& mem,
+                    Register scratch = no_reg);
 
   // Move values between integer and floating point registers.
   void MovIntToDouble(DoubleRegister dst, Register src, Register scratch);
@@ -573,7 +587,9 @@ class MacroAssembler : public Assembler {
 
   // These exist to provide portability between 32 and 64bit
   void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadPU(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void StoreP(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StorePU(Register src, const MemOperand& mem, Register scratch = no_reg);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -696,6 +712,15 @@ class MacroAssembler : public Assembler {
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register scratch1,
+                    Register scratch2, AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    Register scratch, AllocationFlags flags);
+
   void AllocateTwoByteString(Register result, Register length,
                              Register scratch1, Register scratch2,
                              Register scratch3, Label* gc_required);
@@ -720,7 +745,6 @@ class MacroAssembler : public Assembler {
   // when control continues at the gc_required label.
   void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
                           Register heap_number_map, Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
   void AllocateHeapNumberWithValue(Register result, DoubleRegister value,
                                    Register scratch1, Register scratch2,
@@ -1049,7 +1073,8 @@ class MacroAssembler : public Assembler {
   void MovFromFloatResult(DoubleRegister dst);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& builtin);
+  void JumpToExternalReference(const ExternalReference& builtin,
+                               bool builtin_exit_frame = false);
 
   Handle<Object> CodeObject() {
     DCHECK(!code_object_.is_null());
@@ -1380,6 +1405,10 @@ class MacroAssembler : public Assembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
+
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
 
@@ -1496,6 +1525,9 @@ class MacroAssembler : public Assembler {
                   bool load_constant_pool_pointer_reg = false);
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type, int stack_adjustment = 0);
+
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
   // Expects object in r3 and returns map with validated enum cache
   // in r3.  Assumes that any other register can be used as a scratch.
@@ -1632,17 +1664,8 @@ inline MemOperand NativeContextMemOperand() {
   return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
 }
 
-
-#ifdef GENERATED_CODE_COVERAGE
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm)    \
-  masm->stop(__FILE_LINE__); \
-  masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
+
 }  // namespace internal
 }  // namespace v8
 

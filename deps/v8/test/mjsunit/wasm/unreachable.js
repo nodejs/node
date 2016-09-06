@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var main = (function () {
   var builder = new WasmModuleBuilder();
-  builder.addFunction("main", [kAstStmt])
+  builder.addFunction("main", kSig_v_v)
     .addBody([kExprUnreachable])
     .exportAs("main");
 
@@ -23,4 +23,4 @@ try {
     print("correctly caught: " + e);
     exception = e;
 }
-assertEquals("unreachable", exception);
+assertEquals("unreachable", exception.message);

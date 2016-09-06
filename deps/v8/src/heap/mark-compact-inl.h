@@ -12,38 +12,29 @@
 namespace v8 {
 namespace internal {
 
-inline std::vector<Page*>& MarkCompactCollector::sweeping_list(Space* space) {
-  if (space == heap()->old_space()) {
-    return sweeping_list_old_space_;
-  } else if (space == heap()->code_space()) {
-    return sweeping_list_code_space_;
-  }
-  DCHECK_EQ(space, heap()->map_space());
-  return sweeping_list_map_space_;
-}
-
-
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
+  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
   if (marking_deque_.Push(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
   } else {
-    Marking::BlackToGrey(obj);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+    Marking::BlackToGrey(mark_bit);
   }
 }
 
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
+  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
   if (!marking_deque_.Unshift(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
-    Marking::BlackToGrey(obj);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+    Marking::BlackToGrey(mark_bit);
   }
 }
 
 
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
   if (Marking::IsWhite(mark_bit)) {
     Marking::WhiteToBlack(mark_bit);
     DCHECK(obj->GetIsolate()->heap()->Contains(obj));
@@ -54,7 +45,7 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   DCHECK(Marking::IsWhite(mark_bit));
-  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
   Marking::WhiteToBlack(mark_bit);
   MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
 }
@@ -63,7 +54,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
 bool MarkCompactCollector::IsMarked(Object* obj) {
   DCHECK(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
-  return Marking::IsBlackOrGrey(Marking::MarkBitFrom(heap_object));
+  return Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(heap_object));
 }
 
 
@@ -73,7 +64,7 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(Marking::IsBlackOrGrey(Marking::MarkBitFrom(object)));
+    DCHECK(Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object)));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }
@@ -90,7 +81,7 @@ void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
 
 void CodeFlusher::AddCandidate(JSFunction* function) {
   DCHECK(function->code() == function->shared()->code());
-  if (function->next_function_link()->IsUndefined()) {
+  if (function->next_function_link()->IsUndefined(isolate_)) {
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
   }
@@ -116,7 +107,7 @@ void CodeFlusher::SetNextCandidate(JSFunction* candidate,
 
 
 void CodeFlusher::ClearNextCandidate(JSFunction* candidate, Object* undefined) {
-  DCHECK(undefined->IsUndefined());
+  DCHECK(undefined->IsUndefined(candidate->GetIsolate()));
   candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
 }
 
@@ -157,25 +148,66 @@ HeapObject* LiveObjectIterator<T>::Next() {
         second_bit_index = 0x1;
         // The overlapping case; there has to exist a cell after the current
         // cell.
-        DCHECK(!it_.Done());
+        // However, if there is a black area at the end of the page, and the
+        // last word is a one word filler, we are not allowed to advance. In
+        // that case we can return immediately.
+        if (it_.Done()) {
+          DCHECK(HeapObject::FromAddress(addr)->map() ==
+                 HeapObject::FromAddress(addr)
+                     ->GetHeap()
+                     ->one_pointer_filler_map());
+          return nullptr;
+        }
         it_.Advance();
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
-      if (T == kBlackObjects && (current_cell_ & second_bit_index)) {
-        object = HeapObject::FromAddress(addr);
-      } else if (T == kGreyObjects && !(current_cell_ & second_bit_index)) {
-        object = HeapObject::FromAddress(addr);
-      } else if (T == kAllLiveObjects) {
+
+      if (current_cell_ & second_bit_index) {
+        // We found a black object. If the black object is within a black area,
+        // make sure that we skip all set bits in the black area until the
+        // object ends.
+        HeapObject* black_object = HeapObject::FromAddress(addr);
+        Address end = addr + black_object->Size() - kPointerSize;
+        // One word filler objects do not borrow the second mark bit. We have
+        // to jump over the advancing and clearing part.
+        // Note that we know that we are at a one word filler when
+        // object_start + object_size - kPointerSize == object_start.
+        if (addr != end) {
+          DCHECK_EQ(chunk_, MemoryChunk::FromAddress(end));
+          uint32_t end_mark_bit_index = chunk_->AddressToMarkbitIndex(end);
+          unsigned int end_cell_index =
+              end_mark_bit_index >> Bitmap::kBitsPerCellLog2;
+          MarkBit::CellType end_index_mask =
+              1u << Bitmap::IndexInCell(end_mark_bit_index);
+          if (it_.Advance(end_cell_index)) {
+            cell_base_ = it_.CurrentCellBase();
+            current_cell_ = *it_.CurrentCell();
+          }
+
+          // Clear all bits in current_cell, including the end index.
+          current_cell_ &= ~(end_index_mask + end_index_mask - 1);
+        }
+
+        if (T == kBlackObjects || T == kAllLiveObjects) {
+          object = black_object;
+        }
+      } else if ((T == kGreyObjects || T == kAllLiveObjects)) {
         object = HeapObject::FromAddress(addr);
       }
 
-      // Clear the second bit of the found object.
-      current_cell_ &= ~second_bit_index;
-
       // We found a live object.
-      if (object != nullptr) break;
+      if (object != nullptr) {
+        if (object->IsFiller()) {
+          // Black areas together with slack tracking may result in black filler
+          // objects. We filter these objects out in the iterator.
+          object = nullptr;
+        } else {
+          break;
+        }
+      }
     }
+
     if (current_cell_ == 0) {
       if (!it_.Done()) {
         it_.Advance();

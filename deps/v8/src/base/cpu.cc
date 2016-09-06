@@ -44,9 +44,7 @@
 namespace v8 {
 namespace base {
 
-#if defined(__pnacl__)
-// Portable host shouldn't do feature detection.
-#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 // Define __cpuid() for non-MSVC libraries.
 #if !V8_LIBC_MSVCRT
@@ -338,13 +336,10 @@ CPU::CPU()
       has_vfp_(false),
       has_vfp3_(false),
       has_vfp3_d32_(false),
-      is_fp64_mode_(false) {
+      is_fp64_mode_(false),
+      has_non_stop_time_stamp_counter_(false) {
   memcpy(vendor_, "Unknown", 8);
-#if V8_OS_NACL
-// Portable host shouldn't do feature detection.
-// TODO(jfb): Remove the hardcoded ARM simulator flags in the build, and
-// hardcode them here instead.
-#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];
 
   // __cpuid with an InfoType argument of 0 returns the number of
@@ -417,6 +412,13 @@ CPU::CPU()
     has_lzcnt_ = (cpu_info[2] & 0x00000020) != 0;
     // SAHF must be probed in long mode.
     has_sahf_ = (cpu_info[2] & 0x00000001) != 0;
+  }
+
+  // Check if CPU has non stoppable time stamp counter.
+  const int parameter_containing_non_stop_time_stamp_counter = 0x80000007;
+  if (num_ext_ids >= parameter_containing_non_stop_time_stamp_counter) {
+    __cpuid(cpu_info, parameter_containing_non_stop_time_stamp_counter);
+    has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
   }
 
 #elif V8_HOST_ARCH_ARM

@@ -147,24 +147,28 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // pre-resolve the proxy because it resides in the same scope as the
   // declaration.
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = parser_->NewUnresolved(name, descriptor_->mode);
+  VariableProxy* proxy = descriptor_->scope->NewUnresolved(
+      factory(), name, parser_->scanner()->location().beg_pos,
+      parser_->scanner()->location().end_pos);
   Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, descriptor_->mode, descriptor_->scope,
-      descriptor_->declaration_pos);
-  Variable* var =
-      parser_->Declare(declaration, descriptor_->declaration_kind,
-                       descriptor_->mode != VAR, ok_, descriptor_->hoist_scope);
+      proxy, descriptor_->scope, descriptor_->declaration_pos);
+  Variable* var = parser_->Declare(declaration, descriptor_->declaration_kind,
+                                   descriptor_->mode,
+                                   DefaultInitializationFlag(descriptor_->mode),
+                                   ok_, descriptor_->hoist_scope);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
-  DCHECK(!proxy->is_resolved() || proxy->var() == var);
+  DCHECK(proxy->is_resolved());
+  DCHECK(initializer_position_ != kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
 
-  DCHECK(initializer_position_ != RelocInfo::kNoPosition);
-
+  // TODO(adamk): This should probably be checking hoist_scope.
+  // Move it to Parser::Declare() to make it easier to test
+  // the right scope.
   Scope* declaration_scope = IsLexicalVariableMode(descriptor_->mode)
                                  ? descriptor_->scope
-                                 : descriptor_->scope->DeclarationScope();
-  if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
+                                 : descriptor_->scope->GetDeclarationScope();
+  if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
     return;
@@ -173,8 +177,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     names_->Add(name, zone());
   }
 
-  // Initialize variables if needed. A
-  // declaration of the form:
+  // If there's no initializer, we're done.
+  if (value == nullptr) return;
+
+  // A declaration of the form:
   //
   //    var v = x;
   //
@@ -182,125 +188,57 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   //
   //    var v; v = x;
   //
-  // In particular, we need to re-lookup 'v' (in scope_, not
-  // declaration_scope) as it may be a different 'v' than the 'v' in the
-  // declaration (e.g., if we are inside a 'with' statement or 'catch'
-  // block).
-  //
-  // However, note that const declarations are different! A const
-  // declaration of the form:
-  //
-  //   const c = x;
-  //
-  // is *not* syntactic sugar for:
-  //
-  //   const c; c = x;
-  //
-  // The "variable" c initialized to x is the same as the declared
-  // one - there is no re-lookup (see the last parameter of the
-  // Declare() call above).
-  Scope* initialization_scope = IsImmutableVariableMode(descriptor_->mode)
-                                    ? declaration_scope
-                                    : descriptor_->scope;
+  // In particular, we need to re-lookup 'v' as it may be a different
+  // 'v' than the 'v' in the declaration (e.g., if we are inside a
+  // 'with' statement or 'catch' block). Global var declarations
+  // also need special treatment.
+  Scope* var_init_scope = descriptor_->scope;
 
+  if (descriptor_->mode == VAR && var_init_scope->is_script_scope()) {
+    // Global variable declarations must be compiled in a specific
+    // way. When the script containing the global variable declaration
+    // is entered, the global variable must be declared, so that if it
+    // doesn't exist (on the global object itself, see ES5 errata) it
+    // gets created with an initial undefined value. This is handled
+    // by the declarations part of the function representing the
+    // top-level global code; see Runtime::DeclareGlobalVariable. If
+    // it already exists (in the object or in a prototype), it is
+    // *not* touched until the variable declaration statement is
+    // executed.
+    //
+    // Executing the variable declaration statement will always
+    // guarantee to give the global object an own property.
+    // This way, global variable declarations can shadow
+    // properties in the prototype chain, but only after the variable
+    // declaration statement has been executed. This is important in
+    // browsers where the global object (window) has lots of
+    // properties defined in prototype objects.
 
-  // Global variable declarations must be compiled in a specific
-  // way. When the script containing the global variable declaration
-  // is entered, the global variable must be declared, so that if it
-  // doesn't exist (on the global object itself, see ES5 errata) it
-  // gets created with an initial undefined value. This is handled
-  // by the declarations part of the function representing the
-  // top-level global code; see Runtime::DeclareGlobalVariable. If
-  // it already exists (in the object or in a prototype), it is
-  // *not* touched until the variable declaration statement is
-  // executed.
-  //
-  // Executing the variable declaration statement will always
-  // guarantee to give the global object an own property.
-  // This way, global variable declarations can shadow
-  // properties in the prototype chain, but only after the variable
-  // declaration statement has been executed. This is important in
-  // browsers where the global object (window) has lots of
-  // properties defined in prototype objects.
-  if (initialization_scope->is_script_scope() &&
-      !IsLexicalVariableMode(descriptor_->mode)) {
-    // Compute the arguments for the runtime
-    // call.test-parsing/InitializedDeclarationsInStrictForOfError
     ZoneList<Expression*>* arguments =
         new (zone()) ZoneList<Expression*>(3, zone());
-    // We have at least 1 parameter.
     arguments->Add(
         factory()->NewStringLiteral(name, descriptor_->declaration_pos),
         zone());
-    CallRuntime* initialize;
+    arguments->Add(factory()->NewNumberLiteral(var_init_scope->language_mode(),
+                                               kNoSourcePosition),
+                   zone());
+    arguments->Add(value, zone());
 
-    if (IsImmutableVariableMode(descriptor_->mode)) {
-      arguments->Add(value, zone());
-      // Construct the call to Runtime_InitializeConstGlobal
-      // and add it to the initialization statement block.
-      // Note that the function does different things depending on
-      // the number of arguments (1 or 2).
-      initialize = factory()->NewCallRuntime(Runtime::kInitializeConstGlobal,
-                                             arguments, value->position());
-      value = NULL;  // zap the value to avoid the unnecessary assignment
-    } else {
-      // Add language mode.
-      // We may want to pass singleton to avoid Literal allocations.
-      LanguageMode language_mode = initialization_scope->language_mode();
-      arguments->Add(
-          factory()->NewNumberLiteral(language_mode, RelocInfo::kNoPosition),
-          zone());
-
-      // Be careful not to assign a value to the global variable if
-      // we're in a with. The initialization value should not
-      // necessarily be stored in the global object in that case,
-      // which is why we need to generate a separate assignment node.
-      if (value != NULL && !descriptor_->scope->inside_with()) {
-        arguments->Add(value, zone());
-        // Construct the call to Runtime_InitializeVarGlobal
-        // and add it to the initialization statement block.
-        initialize = factory()->NewCallRuntime(Runtime::kInitializeVarGlobal,
-                                               arguments, value->position());
-        value = NULL;  // zap the value to avoid the unnecessary assignment
-      } else {
-        initialize = NULL;
-      }
-    }
-
-    if (initialize != NULL) {
-      block_->statements()->Add(
-          factory()->NewExpressionStatement(initialize, initialize->position()),
-          zone());
-    }
-  } else if (value != nullptr && (descriptor_->mode == CONST_LEGACY ||
-                                  IsLexicalVariableMode(descriptor_->mode))) {
-    // Constant initializations always assign to the declared constant which
-    // is always at the function scope level. This is only relevant for
-    // dynamically looked-up variables and constants (the
-    // start context for constant lookups is always the function context,
-    // while it is the top context for var declared variables). Sigh...
-    // For 'let' and 'const' declared variables in harmony mode the
-    // initialization also always assigns to the declared variable.
-    DCHECK_NOT_NULL(proxy);
-    DCHECK_NOT_NULL(proxy->var());
-    DCHECK_NOT_NULL(value);
-    // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : value->position();
-    Assignment* assignment =
-        factory()->NewAssignment(Token::INIT, proxy, value, pos);
+    CallRuntime* initialize = factory()->NewCallRuntime(
+        Runtime::kInitializeVarGlobal, arguments, value->position());
     block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, pos), zone());
-    value = NULL;
-  }
-
-  // Add an assignment node to the initialization statement block if we still
-  // have a pending initialization value.
-  if (value != NULL) {
-    DCHECK(descriptor_->mode == VAR);
-    // 'var' initializations are simply assignments (with all the consequences
-    // if they are inside a 'with' statement - they may change a 'with' object
-    // property).
-    VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
+        factory()->NewExpressionStatement(initialize, initialize->position()),
+        zone());
+  } else {
+    // For 'let' and 'const' declared variables the initialization always
+    // assigns to the declared variable.
+    // But for var declarations we need to do a new lookup.
+    if (descriptor_->mode == VAR) {
+      proxy = var_init_scope->NewUnresolved(factory(), name);
+    } else {
+      DCHECK_NOT_NULL(proxy);
+      DCHECK_NOT_NULL(proxy->var());
+    }
     // Add break location for destructured sub-pattern.
     int pos = IsSubPattern() ? pattern->position() : value->position();
     Assignment* assignment =
@@ -316,10 +254,10 @@ Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
   if (value != nullptr) {
     auto assignment = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(temp), value,
-        RelocInfo::kNoPosition);
+        kNoSourcePosition);
 
     block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+        factory()->NewExpressionStatement(assignment, kNoSourcePosition),
         zone());
   }
   return temp;
@@ -334,7 +272,7 @@ void Parser::PatternRewriter::VisitRewritableExpression(
     // perform BindingPattern rewriting
     DCHECK(!node->is_rewritten());
     node->Rewrite(node->expression());
-    return node->expression()->Accept(this);
+    return Visit(node->expression());
   }
 
   if (node->is_rewritten()) return;
@@ -354,11 +292,10 @@ void Parser::PatternRewriter::VisitRewritableExpression(
     auto temp_var = CreateTempVar(current_value_);
     Expression* is_undefined = factory()->NewCompareOperation(
         Token::EQ_STRICT, factory()->NewVariableProxy(temp_var),
-        factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
+        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
     value = factory()->NewConditional(is_undefined, initializer,
                                       factory()->NewVariableProxy(temp_var),
-                                      RelocInfo::kNoPosition);
+                                      kNoSourcePosition);
   }
 
   PatternContext old_context = SetAssignmentContextIfNeeded(initializer);
@@ -387,6 +324,21 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   return set_context(old_context);
 }
 
+// When an extra declaration scope needs to be inserted to account for
+// a sloppy eval in a default parameter or function body, the expressions
+// needs to be in that new inner scope which was added after initial
+// parsing.
+void Parser::PatternRewriter::RewriteParameterScopes(Expression* expr) {
+  if (!IsBindingContext()) return;
+  if (descriptor_->declaration_kind != DeclarationDescriptor::PARAMETER) return;
+  if (!scope()->is_block_scope()) return;
+
+  DCHECK(scope()->is_declaration_scope());
+  DCHECK(scope()->outer_scope()->is_function_scope());
+  DCHECK(scope()->calls_sloppy_eval());
+
+  ReparentParameterExpressionScope(parser_->stack_limit(), expr, scope());
+}
 
 void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                                  Variable** temp_var) {
@@ -396,10 +348,15 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
 
   for (ObjectLiteralProperty* property : *pattern->properties()) {
     PatternContext context = SetInitializerContextIfNeeded(property->value());
+
+    // Computed property names contain expressions which might require
+    // scope rewriting.
+    if (!property->key()->IsLiteral()) RewriteParameterScopes(property->key());
+
     RecurseIntoSubpattern(
         property->value(),
         factory()->NewProperty(factory()->NewVariableProxy(temp),
-                               property->key(), RelocInfo::kNoPosition));
+                               property->key(), kNoSourcePosition));
     set_context(context);
   }
 }
@@ -417,13 +374,13 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
   auto temp = *temp_var = CreateTempVar(current_value_);
   auto iterator = CreateTempVar(parser_->GetIterator(
-      factory()->NewVariableProxy(temp), factory(), RelocInfo::kNoPosition));
-  auto done = CreateTempVar(
-      factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition));
+      factory()->NewVariableProxy(temp), factory(), kNoSourcePosition));
+  auto done =
+      CreateTempVar(factory()->NewBooleanLiteral(false, kNoSourcePosition));
   auto result = CreateTempVar();
   auto v = CreateTempVar();
   auto completion = CreateTempVar();
-  auto nopos = RelocInfo::kNoPosition;
+  auto nopos = kNoSourcePosition;
 
   // For the purpose of iterator finalization, we temporarily set block_ to a
   // new block.  In the main body of this function, we write to block_ (both
@@ -431,9 +388,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   // wrap this new block in a try-finally statement, restore block_ to its
   // original value, and add the try-finally statement to block_.
   auto target = block_;
-  if (FLAG_harmony_iterator_close) {
-    block_ = factory()->NewBlock(nullptr, 8, true, nopos);
-  }
+  block_ = factory()->NewBlock(nullptr, 8, true, nopos);
 
   Spread* spread = nullptr;
   for (Expression* value : *node->values()) {
@@ -459,30 +414,29 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       auto result_done = factory()->NewProperty(
           factory()->NewVariableProxy(result),
           factory()->NewStringLiteral(ast_value_factory()->done_string(),
-                                      RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
+                                      kNoSourcePosition),
+          kNoSourcePosition);
 
       auto assign_undefined = factory()->NewAssignment(
           Token::ASSIGN, factory()->NewVariableProxy(v),
-          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
+          factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
 
       auto assign_value = factory()->NewAssignment(
           Token::ASSIGN, factory()->NewVariableProxy(v),
           factory()->NewProperty(
               factory()->NewVariableProxy(result),
               factory()->NewStringLiteral(ast_value_factory()->value_string(),
-                                          RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
+                                          kNoSourcePosition),
+              kNoSourcePosition),
+          kNoSourcePosition);
 
       auto unset_done = factory()->NewAssignment(
           Token::ASSIGN, factory()->NewVariableProxy(done),
-          factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
+          factory()->NewBooleanLiteral(false, kNoSourcePosition),
+          kNoSourcePosition);
 
       auto inner_else =
-          factory()->NewBlock(nullptr, 2, true, RelocInfo::kNoPosition);
+          factory()->NewBlock(nullptr, 2, true, kNoSourcePosition);
       inner_else->statements()->Add(
           factory()->NewExpressionStatement(assign_value, nopos), zone());
       inner_else->statements()->Add(
@@ -494,7 +448,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           inner_else, nopos);
 
       auto next_block =
-          factory()->NewBlock(nullptr, 3, true, RelocInfo::kNoPosition);
+          factory()->NewBlock(nullptr, 3, true, kNoSourcePosition);
       next_block->statements()->Add(
           factory()->NewExpressionStatement(
               factory()->NewAssignment(
@@ -506,22 +460,21 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           factory()->NewExpressionStatement(
               parser_->BuildIteratorNextResult(
                   factory()->NewVariableProxy(iterator), result,
-                  RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
+                  kNoSourcePosition),
+              kNoSourcePosition),
           zone());
       next_block->statements()->Add(inner_if, zone());
 
       if_not_done = factory()->NewIfStatement(
-          factory()->NewUnaryOperation(Token::NOT,
-                                       factory()->NewVariableProxy(done),
-                                       RelocInfo::kNoPosition),
-          next_block, factory()->NewEmptyStatement(RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
+          factory()->NewUnaryOperation(
+              Token::NOT, factory()->NewVariableProxy(done), kNoSourcePosition),
+          next_block, factory()->NewEmptyStatement(kNoSourcePosition),
+          kNoSourcePosition);
     }
     block_->statements()->Add(if_not_done, zone());
 
     if (!(value->IsLiteral() && value->AsLiteral()->raw_value()->IsTheHole())) {
-      if (FLAG_harmony_iterator_close) {
+      {
         // completion = kAbruptCompletion;
         Expression* proxy = factory()->NewVariableProxy(completion);
         Expression* assignment = factory()->NewAssignment(
@@ -533,7 +486,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
       RecurseIntoSubpattern(value, factory()->NewVariableProxy(v));
 
-      if (FLAG_harmony_iterator_close) {
+      {
         // completion = kNormalCompletion;
         Expression* proxy = factory()->NewVariableProxy(completion);
         Expression* assignment = factory()->NewAssignment(
@@ -552,11 +505,11 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
     // let array = [];
     // while (!done) {
+    //   done = true;  // If .next, .done or .value throws, don't close.
     //   result = IteratorNext(iterator);
-    //   if (result.done) {
-    //     done = true;
-    //   } else {
+    //   if (!result.done) {
     //     %AppendElement(array, result.value);
+    //     done = false;
     //   }
     // }
 
@@ -568,20 +521,20 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           empty_exprs,
           // Reuse pattern's literal index - it is unused since there is no
           // actual literal allocated.
-          node->literal_index(), RelocInfo::kNoPosition));
+          node->literal_index(), kNoSourcePosition));
     }
-
-    // result = IteratorNext(iterator);
-    Statement* get_next = factory()->NewExpressionStatement(
-        parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
-                                         result, nopos),
-        nopos);
 
     // done = true;
     Statement* set_done = factory()->NewExpressionStatement(
         factory()->NewAssignment(
             Token::ASSIGN, factory()->NewVariableProxy(done),
             factory()->NewBooleanLiteral(true, nopos), nopos),
+        nopos);
+
+    // result = IteratorNext(iterator);
+    Statement* get_next = factory()->NewExpressionStatement(
+        parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
+                                         result, nopos),
         nopos);
 
     // %AppendElement(array, result.value);
@@ -600,29 +553,44 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           nopos);
     }
 
-    // if (result.done) { #set_done } else { #append_element }
-    Statement* set_done_or_append;
+    // done = false;
+    Statement* unset_done = factory()->NewExpressionStatement(
+        factory()->NewAssignment(
+            Token::ASSIGN, factory()->NewVariableProxy(done),
+            factory()->NewBooleanLiteral(false, nopos), nopos),
+        nopos);
+
+    // if (!result.done) { #append_element; #unset_done }
+    Statement* maybe_append_and_unset_done;
     {
       Expression* result_done =
           factory()->NewProperty(factory()->NewVariableProxy(result),
                                  factory()->NewStringLiteral(
                                      ast_value_factory()->done_string(), nopos),
                                  nopos);
-      set_done_or_append = factory()->NewIfStatement(result_done, set_done,
-                                                     append_element, nopos);
+
+      Block* then = factory()->NewBlock(nullptr, 2, true, nopos);
+      then->statements()->Add(append_element, zone());
+      then->statements()->Add(unset_done, zone());
+
+      maybe_append_and_unset_done = factory()->NewIfStatement(
+          factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
+          factory()->NewEmptyStatement(nopos), nopos);
     }
 
     // while (!done) {
+    //   #set_done;
     //   #get_next;
-    //   #set_done_or_append;
+    //   #maybe_append_and_unset_done;
     // }
     WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
     {
       Expression* condition = factory()->NewUnaryOperation(
           Token::NOT, factory()->NewVariableProxy(done), nopos);
-      Block* body = factory()->NewBlock(nullptr, 2, true, nopos);
+      Block* body = factory()->NewBlock(nullptr, 3, true, nopos);
+      body->statements()->Add(set_done, zone());
       body->statements()->Add(get_next, zone());
-      body->statements()->Add(set_done_or_append, zone());
+      body->statements()->Add(maybe_append_and_unset_done, zone());
       loop->Initialize(condition, body);
     }
 
@@ -631,13 +599,11 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                           factory()->NewVariableProxy(array));
   }
 
-  if (FLAG_harmony_iterator_close) {
-    Expression* closing_condition = factory()->NewUnaryOperation(
-        Token::NOT, factory()->NewVariableProxy(done), nopos);
-    parser_->FinalizeIteratorUse(completion, closing_condition, iterator,
-                                 block_, target);
-    block_ = target;
-  }
+  Expression* closing_condition = factory()->NewUnaryOperation(
+      Token::NOT, factory()->NewVariableProxy(done), nopos);
+  parser_->FinalizeIteratorUse(completion, closing_condition, iterator, block_,
+                               target);
+  block_ = target;
 }
 
 
@@ -661,19 +627,14 @@ void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
   if (IsInitializerContext()) {
     Expression* is_undefined = factory()->NewCompareOperation(
         Token::EQ_STRICT, factory()->NewVariableProxy(temp),
-        factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
+        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
     value = factory()->NewConditional(is_undefined, initializer,
                                       factory()->NewVariableProxy(temp),
-                                      RelocInfo::kNoPosition);
+                                      kNoSourcePosition);
   }
 
-  if (IsBindingContext() &&
-      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
-      scope()->is_arrow_scope()) {
-    RewriteParameterInitializerScope(parser_->stack_limit(), initializer,
-                                     scope()->outer_scope(), scope());
-  }
+  // Initializer may have been parsed in the wrong scope.
+  RewriteParameterScopes(initializer);
 
   PatternContext old_context = SetAssignmentContextIfNeeded(initializer);
   RecurseIntoSubpattern(node->target(), value);
@@ -691,14 +652,11 @@ void Parser::PatternRewriter::VisitProperty(v8::internal::Property* node) {
       factory()->NewAssignment(Token::ASSIGN, node, value, node->position());
 
   block_->statements()->Add(
-      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-      zone());
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
 }
 
 
 // =============== UNREACHABLE =============================
-
-void Parser::PatternRewriter::Visit(AstNode* node) { UNREACHABLE(); }
 
 #define NOT_A_PATTERN(Node)                                        \
   void Parser::PatternRewriter::Visit##Node(v8::internal::Node*) { \
@@ -722,7 +680,6 @@ NOT_A_PATTERN(DoExpression)
 NOT_A_PATTERN(DoWhileStatement)
 NOT_A_PATTERN(EmptyStatement)
 NOT_A_PATTERN(EmptyParentheses)
-NOT_A_PATTERN(ExportDeclaration)
 NOT_A_PATTERN(ExpressionStatement)
 NOT_A_PATTERN(ForInStatement)
 NOT_A_PATTERN(ForOfStatement)
@@ -730,7 +687,6 @@ NOT_A_PATTERN(ForStatement)
 NOT_A_PATTERN(FunctionDeclaration)
 NOT_A_PATTERN(FunctionLiteral)
 NOT_A_PATTERN(IfStatement)
-NOT_A_PATTERN(ImportDeclaration)
 NOT_A_PATTERN(Literal)
 NOT_A_PATTERN(NativeFunctionLiteral)
 NOT_A_PATTERN(RegExpLiteral)

@@ -1,0 +1,101 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+protocol_path = "//third_party/WebKit/Source/platform/inspector_protocol"
+protocol_sources = [
+  "$target_gen_dir/Console.cpp",
+  "$target_gen_dir/Console.h",
+  "$target_gen_dir/Debugger.cpp",
+  "$target_gen_dir/Debugger.h",
+  "$target_gen_dir/HeapProfiler.cpp",
+  "$target_gen_dir/HeapProfiler.h",
+  "$target_gen_dir/Profiler.cpp",
+  "$target_gen_dir/Profiler.h",
+  "$target_gen_dir/public/Debugger.h",
+  "$target_gen_dir/public/Runtime.h",
+  "$target_gen_dir/Runtime.cpp",
+  "$target_gen_dir/Runtime.h",
+]
+
+action("inspector_protocol_sources") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  script = "$protocol_path/CodeGenerator.py"
+  sources = [
+    "$protocol_path/CodeGenerator.py",
+    "$protocol_path/Exported_h.template",
+    "$protocol_path/Imported_h.template",
+    "$protocol_path/TypeBuilder_cpp.template",
+    "$protocol_path/TypeBuilder_h.template",
+  ]
+  inputs = [
+    "js_protocol.json",
+  ]
+  outputs = protocol_sources
+  args = [
+    "--protocol",
+    rebase_path("js_protocol.json", root_build_dir),
+    "--string_type",
+    "String16",
+    "--export_macro",
+    "PLATFORM_EXPORT",
+    "--output_dir",
+    rebase_path(target_gen_dir, root_build_dir),
+    "--output_package",
+    "inspector",
+    "--exported_dir",
+    rebase_path("$target_gen_dir/public", root_build_dir),
+    "--exported_package",
+    "inspector/public",
+  ]
+}
+
+config("inspector_protocol_config") {
+  include_dirs = [ "$protocol_path/../.." ]
+  defines = [ "V8_INSPECTOR_USE_STL" ]
+  cflags = []
+  if (is_win) {
+    cflags += [
+      "/wd4267",  # Truncation from size_t to int.
+      "/wd4305",  # Truncation from 'type1' to 'type2'.
+      "/wd4324",  # Struct padded due to declspec(align).
+      "/wd4714",  # Function marked forceinline not inlined.
+      "/wd4800",  # Value forced to bool.
+      "/wd4996",  # Deprecated function call.
+    ]
+  }
+}
+
+source_set("inspector_protocol") {
+  deps = [
+    ":inspector_protocol_sources",
+  ]
+  configs += [ ":inspector_protocol_config" ]
+  include_dirs = [ "$target_gen_dir/.." ]
+  sources = protocol_sources + [
+              "$protocol_path/Allocator.h",
+              "$protocol_path/Array.h",
+              "$protocol_path/BackendCallback.h",
+              "$protocol_path/CodeGenerator.py",
+              "$protocol_path/Collections.h",
+              "$protocol_path/DispatcherBase.cpp",
+              "$protocol_path/DispatcherBase.h",
+              "$protocol_path/ErrorSupport.cpp",
+              "$protocol_path/ErrorSupport.h",
+              "$protocol_path/FrontendChannel.h",
+              "$protocol_path/Maybe.h",
+              "$protocol_path/Object.cpp",
+              "$protocol_path/Object.h",
+              "$protocol_path/Parser.cpp",
+              "$protocol_path/Parser.h",
+              "$protocol_path/Platform.h",
+              "$protocol_path/PlatformSTL.h",
+              "$protocol_path/String16.cpp",
+              "$protocol_path/String16.h",
+              "$protocol_path/String16STL.cpp",
+              "$protocol_path/String16STL.h",
+              "$protocol_path/ValueConversions.h",
+              "$protocol_path/Values.cpp",
+              "$protocol_path/Values.h",
+            ]
+}

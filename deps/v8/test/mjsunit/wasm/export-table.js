@@ -11,11 +11,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var kReturnValue = 88;
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", [kAstI32])
+  builder.addFunction("main", kSig_i)
     .addBody([
-      kExprReturn,
       kExprI8Const,
-      kReturnValue])
+      kReturnValue,
+      kExprReturn, kArity1
+    ])
     .exportFunc();
 
   var module = builder.instantiate();
@@ -31,11 +32,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", [kAstI32])
+  builder.addFunction("main", kSig_i)
     .addBody([
-      kExprReturn,
       kExprI8Const,
-      kReturnValue])
+      kReturnValue,
+      kExprReturn, kArity1
+    ])
     .exportAs("blah")
     .exportAs("foo");
 
@@ -47,4 +49,41 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(kReturnValue, module.exports.foo());
   assertEquals(kReturnValue, module.exports.blah());
+})();
+
+
+(function testNumericName() {
+  var kReturnValue = 93;
+
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("main", kSig_i)
+    .addBody([
+      kExprI8Const,
+      kReturnValue,
+      kExprReturn, kArity1
+    ])
+    .exportAs("0");
+
+  var module = builder.instantiate();
+
+  assertEquals("object", typeof module.exports);
+  assertEquals("function", typeof module.exports["0"]);
+
+  assertEquals(kReturnValue, module.exports["0"]());
+})();
+
+(function testExportNameClash() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("one",   kSig_v_v).addBody([kExprNop]).exportAs("main");
+  builder.addFunction("two",   kSig_v_v).addBody([kExprNop]).exportAs("other");
+  builder.addFunction("three", kSig_v_v).addBody([kExprNop]).exportAs("main");
+
+  try {
+    builder.instantiate();
+    assertUnreachable("should have thrown an exception");
+  } catch (e) {
+    assertContains("Duplicate export", e.toString());
+  }
 })();

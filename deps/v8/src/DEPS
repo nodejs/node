@@ -3,16 +3,19 @@ include_rules = [
   "+src",
   "-src/compiler",
   "+src/compiler/pipeline.h",
-  "+src/compiler/code-stub-assembler.h",
+  "+src/compiler/code-assembler.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",
   "-src/interpreter",
   "+src/interpreter/bytecode-array-iterator.h",
+  "+src/interpreter/bytecode-decoder.h",
+  "+src/interpreter/bytecode-flags.h",
+  "+src/interpreter/bytecode-register.h",
   "+src/interpreter/bytecodes.h",
   "+src/interpreter/interpreter.h",
-  "+src/interpreter/source-position-table.h",
+  "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
   "-include/libplatform"
 ]
@@ -20,5 +23,6 @@ include_rules = [
 specific_include_rules = {
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
+    "+include/libplatform/v8-tracing.h",
   ],
 }

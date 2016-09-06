@@ -248,7 +248,6 @@ class Runner(object):
       self.total += 1
 
   def _ProcessTestNormal(self, test, result, pool):
-    self.indicator.AboutToRun(test)
     test.output = result[1]
     test.duration = result[2]
     has_unexpected_output = test.suite.HasUnexpectedOutput(test)
@@ -285,7 +284,6 @@ class Runner(object):
     if test.run == 1 and result[1].HasTimedOut():
       # If we get a timeout in the first run, we are already in an
       # unpredictable state. Just report it as a failure and don't rerun.
-      self.indicator.AboutToRun(test)
       test.output = result[1]
       self.remaining -= 1
       self.failed.append(test)
@@ -294,16 +292,13 @@ class Runner(object):
       # From the second run on, check for different allocations. If a
       # difference is found, call the indicator twice to report both tests.
       # All runs of each test are counted as one for the statistic.
-      self.indicator.AboutToRun(test)
       self.remaining -= 1
       self.failed.append(test)
       self.indicator.HasRun(test, True)
-      self.indicator.AboutToRun(test)
       test.output = result[1]
       self.indicator.HasRun(test, True)
     elif test.run >= 3:
       # No difference on the third run -> report a success.
-      self.indicator.AboutToRun(test)
       self.remaining -= 1
       self.succeeded += 1
       test.output = result[1]

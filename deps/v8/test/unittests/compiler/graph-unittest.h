@@ -48,6 +48,9 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
 
   Node* EmptyFrameState();
 
+  Matcher<Node*> IsBooleanConstant(bool value) {
+    return value ? IsTrueConstant() : IsFalseConstant();
+  }
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
   Matcher<Node*> IsUndefinedConstant();
