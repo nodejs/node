@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 if (common.isWindows) {
   common.skip('platform not supported.');
@@ -18,9 +18,13 @@ if (process.argv[2] === 'child') {
 }
 
 // Run the script in a shell but close stdout and stderr.
-var cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
-var proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
+const cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
+const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
 
 proc.on('exit', common.mustCall(function(exitCode) {
-  assert.equal(exitCode, 42);
+  assert.strictEqual(exitCode, 42);
 }));
+
+proc.on('error', (err) => {
+  throw err;
+});
