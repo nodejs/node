@@ -5,12 +5,12 @@
 #include "src/fast-accessor-assembler.h"
 
 #include "src/base/logging.h"
+#include "src/code-stub-assembler.h"
 #include "src/code-stubs.h"  // For CallApiCallbackStub.
-#include "src/compiler/code-stub-assembler.h"
 #include "src/handles-inl.h"
 #include "src/objects.h"  // For FAA::LoadInternalField impl.
 
-using v8::internal::compiler::CodeStubAssembler;
+using v8::internal::CodeStubAssembler;
 using v8::internal::compiler::Node;
 
 namespace v8 {
@@ -43,45 +43,53 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::LoadInternalField(
     ValueId value, int field_no) {
   CHECK_EQ(kBuilding, state_);
 
-  // Determine the 'value' object's instance type.
-  Node* object_map = assembler_->LoadObjectField(
-      FromId(value), Internals::kHeapObjectMapOffset, MachineType::Pointer());
-  Node* instance_type = assembler_->WordAnd(
-      assembler_->LoadObjectField(object_map,
-                                  Internals::kMapInstanceTypeAndBitFieldOffset,
-                                  MachineType::Uint16()),
-      assembler_->IntPtrConstant(0xff));
-
-  // Check whether we have a proper JSObject.
   CodeStubAssembler::Variable result(assembler_.get(),
                                      MachineRepresentation::kTagged);
-  CodeStubAssembler::Label is_jsobject(assembler_.get());
-  CodeStubAssembler::Label is_not_jsobject(assembler_.get());
+  LabelId is_not_jsobject = MakeLabel();
   CodeStubAssembler::Label merge(assembler_.get(), &result);
-  assembler_->Branch(
-      assembler_->WordEqual(
-          instance_type, assembler_->IntPtrConstant(Internals::kJSObjectType)),
-      &is_jsobject, &is_not_jsobject);
 
-  // JSObject? Then load the internal field field_no.
-  assembler_->Bind(&is_jsobject);
+  CheckIsJSObjectOrJump(value, is_not_jsobject);
+
   Node* internal_field = assembler_->LoadObjectField(
       FromId(value), JSObject::kHeaderSize + kPointerSize * field_no,
       MachineType::Pointer());
+
   result.Bind(internal_field);
   assembler_->Goto(&merge);
 
-  // No JSObject? Return undefined.
-  // TODO(vogelheim): Check whether this is the appropriate action, or whether
-  //                  the method should take a label instead.
-  assembler_->Bind(&is_not_jsobject);
-  Node* fail_value = assembler_->UndefinedConstant();
-  result.Bind(fail_value);
+  // Return null, mimicking the C++ counterpart.
+  SetLabel(is_not_jsobject);
+  result.Bind(assembler_->NullConstant());
   assembler_->Goto(&merge);
 
   // Return.
   assembler_->Bind(&merge);
   return FromRaw(result.value());
+}
+
+FastAccessorAssembler::ValueId
+FastAccessorAssembler::LoadInternalFieldUnchecked(ValueId value, int field_no) {
+  CHECK_EQ(kBuilding, state_);
+
+  // Defensive debug checks.
+  if (FLAG_debug_code) {
+    LabelId is_jsobject = MakeLabel();
+    LabelId is_not_jsobject = MakeLabel();
+    CheckIsJSObjectOrJump(value, is_not_jsobject);
+    assembler_->Goto(FromId(is_jsobject));
+
+    SetLabel(is_not_jsobject);
+    assembler_->DebugBreak();
+    assembler_->Goto(FromId(is_jsobject));
+
+    SetLabel(is_jsobject);
+  }
+
+  Node* result = assembler_->LoadObjectField(
+      FromId(value), JSObject::kHeaderSize + kPointerSize * field_no,
+      MachineType::Pointer());
+
+  return FromRaw(result);
 }
 
 FastAccessorAssembler::ValueId FastAccessorAssembler::LoadValue(ValueId value,
@@ -100,6 +108,11 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::LoadObject(ValueId value,
       0, MachineType::AnyTagged()));
 }
 
+FastAccessorAssembler::ValueId FastAccessorAssembler::ToSmi(ValueId value) {
+  CHECK_EQ(kBuilding, state_);
+  return FromRaw(assembler_->SmiTag(FromId(value)));
+}
+
 void FastAccessorAssembler::ReturnValue(ValueId value) {
   CHECK_EQ(kBuilding, state_);
   assembler_->Return(FromId(value));
@@ -113,7 +126,7 @@ void FastAccessorAssembler::CheckFlagSetOrReturnNull(ValueId value, int mask) {
       assembler_->Word32Equal(
           assembler_->Word32And(FromId(value), assembler_->Int32Constant(mask)),
           assembler_->Int32Constant(0)),
-      &pass, &fail);
+      &fail, &pass);
   assembler_->Bind(&fail);
   assembler_->Return(assembler_->NullConstant());
   assembler_->Bind(&pass);
@@ -141,13 +154,18 @@ void FastAccessorAssembler::SetLabel(LabelId label_id) {
   assembler_->Bind(FromId(label_id));
 }
 
+void FastAccessorAssembler::Goto(LabelId label_id) {
+  CHECK_EQ(kBuilding, state_);
+  assembler_->Goto(FromId(label_id));
+}
+
 void FastAccessorAssembler::CheckNotZeroOrJump(ValueId value_id,
                                                LabelId label_id) {
   CHECK_EQ(kBuilding, state_);
   CodeStubAssembler::Label pass(assembler_.get());
   assembler_->Branch(
       assembler_->WordEqual(FromId(value_id), assembler_->IntPtrConstant(0)),
-      &pass, FromId(label_id));
+      FromId(label_id), &pass);
   assembler_->Bind(&pass);
 }
 
@@ -161,29 +179,63 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
                              ExternalReference::DIRECT_API_CALL, isolate());
 
   // Create & call API callback via stub.
-  CallApiCallbackStub stub(isolate(), 1, true);
+  CallApiCallbackStub stub(isolate(), 1, true, true);
   DCHECK_EQ(5, stub.GetCallInterfaceDescriptor().GetParameterCount());
   DCHECK_EQ(1, stub.GetCallInterfaceDescriptor().GetStackParameterCount());
   // TODO(vogelheim): There is currently no clean way to retrieve the context
   //     parameter for a stub and the implementation details are hidden in
   //     compiler/*. The context_paramter is computed as:
   //       Linkage::GetJSCallContextParamIndex(descriptor->JSParameterCount())
-  const int context_parameter = 2;
+  const int context_parameter = 3;
   Node* call = assembler_->CallStub(
       stub.GetCallInterfaceDescriptor(),
       assembler_->HeapConstant(stub.GetCode()),
       assembler_->Parameter(context_parameter),
 
       // Stub/register parameters:
-      assembler_->Parameter(0),               /* receiver (use accessor's) */
-      assembler_->UndefinedConstant(),        /* call_data (undefined) */
-      assembler_->NullConstant(),             /* holder (null) */
+      assembler_->UndefinedConstant(), /* callee (there's no JSFunction) */
+      assembler_->UndefinedConstant(), /* call_data (undefined) */
+      assembler_->Parameter(0), /* receiver (same as holder in this case) */
       assembler_->ExternalConstant(callback), /* API callback function */
 
       // JS arguments, on stack:
       FromId(arg));
 
   return FromRaw(call);
+}
+
+void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
+                                                  LabelId label_id) {
+  CHECK_EQ(kBuilding, state_);
+
+  // Determine the 'value' object's instance type.
+  Node* object_map = assembler_->LoadObjectField(
+      FromId(value_id), Internals::kHeapObjectMapOffset,
+      MachineType::Pointer());
+
+  Node* instance_type = assembler_->WordAnd(
+      assembler_->LoadObjectField(object_map,
+                                  Internals::kMapInstanceTypeAndBitFieldOffset,
+                                  MachineType::Uint16()),
+      assembler_->IntPtrConstant(0xff));
+
+  CodeStubAssembler::Label is_jsobject(assembler_.get());
+
+  // Check whether we have a proper JSObject.
+  assembler_->GotoIf(
+      assembler_->WordEqual(
+          instance_type, assembler_->IntPtrConstant(Internals::kJSObjectType)),
+      &is_jsobject);
+
+  // JSApiObject?.
+  assembler_->GotoUnless(
+      assembler_->WordEqual(instance_type, assembler_->IntPtrConstant(
+                                               Internals::kJSApiObjectType)),
+      FromId(label_id));
+
+  // Continue.
+  assembler_->Goto(&is_jsobject);
+  assembler_->Bind(&is_jsobject);
 }
 
 MaybeHandle<Code> FastAccessorAssembler::Build() {

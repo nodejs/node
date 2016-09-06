@@ -15,9 +15,9 @@ frame size: 0
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  B(StackCheck),
-  B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
+  /*   49 S> */ B(Return),
 ]
 constant pool: [
   "ab+d",
@@ -33,12 +33,12 @@ frame size: 0
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  B(StackCheck),
-  B(CreateRegExpLiteral), U8(0), U8(0), U8(2),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(2),
+  /*   58 S> */ B(Return),
 ]
 constant pool: [
-  "(\x5cw+)\x5cs(\x5cw+)",
+  "(\u005cw+)\u005cs(\u005cw+)",
 ]
 handlers: [
 ]
@@ -49,17 +49,16 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 22
 bytecodes: [
-  B(StackCheck),
-  B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
-  B(Star), R(1),
-  B(LoadIC), R(1), U8(1), U8(3),
-  B(Star), R(0),
-  B(LdaConstant), U8(2),
-  B(Star), R(2),
-  B(Call), R(0), R(1), U8(2), U8(1),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
+                B(Star), R(1),
+  /*   47 E> */ B(LdrNamedProperty), R(1), U8(1), U8(3), R(0),
+                B(LdaConstant), U8(2),
+                B(Star), R(2),
+  /*   48 E> */ B(Call), R(0), R(1), U8(2), U8(1),
+  /*   62 S> */ B(Return),
 ]
 constant pool: [
   "ab+d",

@@ -5,8 +5,5 @@
 var failing_proxy = new Proxy({}, new Proxy({}, {
   get() { throw "No trap should fire" }}));
 
-Object.setPrototypeOf(Object.prototype, failing_proxy);
-assertThrows(()=>a, TypeError);
-
-Object.setPrototypeOf(this, failing_proxy);
-assertThrows(()=>a, TypeError);
+assertThrows(() => Object.setPrototypeOf(Object.prototype, failing_proxy), TypeError);
+assertThrows(()=>a, ReferenceError);

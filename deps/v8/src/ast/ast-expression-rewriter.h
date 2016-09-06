@@ -17,19 +17,21 @@ namespace internal {
 // A rewriting Visitor over a CompilationInfo's AST that invokes
 // VisitExpression on each expression node.
 
-class AstExpressionRewriter : public AstVisitor {
+// This AstVistor is not final, and provides the AstVisitor methods as virtual
+// methods so they can be specialized by subclasses.
+class AstExpressionRewriter : public AstVisitor<AstExpressionRewriter> {
  public:
-  explicit AstExpressionRewriter(Isolate* isolate) : AstVisitor() {
+  explicit AstExpressionRewriter(Isolate* isolate) {
     InitializeAstRewriter(isolate);
   }
-  explicit AstExpressionRewriter(uintptr_t stack_limit) : AstVisitor() {
+  explicit AstExpressionRewriter(uintptr_t stack_limit) {
     InitializeAstRewriter(stack_limit);
   }
-  ~AstExpressionRewriter() override {}
+  virtual ~AstExpressionRewriter() {}
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
-  void VisitStatements(ZoneList<Statement*>* statements) override;
-  void VisitExpressions(ZoneList<Expression*>* expressions) override;
+  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  virtual void VisitStatements(ZoneList<Statement*>* statements);
+  virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 
   virtual void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
 
@@ -39,7 +41,7 @@ class AstExpressionRewriter : public AstVisitor {
  private:
   DEFINE_AST_REWRITER_SUBCLASS_MEMBERS();
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

@@ -58,14 +58,16 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
   __asm__ __volatile__ (  // NOLINT
     // Clean every line of the D cache containing the target data.
     "0:                                \n\t"
-    // dc      : Data Cache maintenance
-    //    c    : Clean
-    //     va  : by (Virtual) Address
-    //       u : to the point of Unification
-    // The point of unification for a processor is the point by which the
-    // instruction and data caches are guaranteed to see the same copy of a
-    // memory location. See ARM DDI 0406B page B2-12 for more information.
-    "dc   cvau, %[dline]                \n\t"
+    // dc       : Data Cache maintenance
+    //    c     : Clean
+    //     i    : Invalidate
+    //      va  : by (Virtual) Address
+    //        c : to the point of Coherency
+    // See ARM DDI 0406B page B2-12 for more information.
+    // We would prefer to use "cvau" (clean to the point of unification) here
+    // but we use "civac" to work around Cortex-A53 errata 819472, 826319,
+    // 827319 and 824069.
+    "dc   civac, %[dline]               \n\t"
     "add  %[dline], %[dline], %[dsize]  \n\t"
     "cmp  %[dline], %[end]              \n\t"
     "b.lt 0b                            \n\t"

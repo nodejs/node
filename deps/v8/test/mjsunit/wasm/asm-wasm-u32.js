@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 function WrapInAsmModule(func) {
   function MODULE_NAME(stdlib) {
@@ -20,22 +20,19 @@ function WrapInAsmModule(func) {
   return eval("(" + source + ")");
 }
 
-function RunThreeWayTest(asmfunc, expect) {
+function RunAsmJsTest(asmfunc, expect) {
   var asm_source = asmfunc.toString();
   var nonasm_source = asm_source.replace(new RegExp("use asm"), "");
   var stdlib = {Math: Math};
 
-  var js_module = eval("(" + nonasm_source + ")")(stdlib);
   print("Testing " + asmfunc.name + " (js)...");
+  var js_module = eval("(" + nonasm_source + ")")(stdlib);
   expect(js_module);
 
   print("Testing " + asmfunc.name + " (asm.js)...");
   var asm_module = asmfunc(stdlib);
+  assertTrue(%IsAsmWasmCode(asmfunc));
   expect(asm_module);
-
-  print("Testing " + asmfunc.name + " (wasm)...");
-  var wasm_module = Wasm.instantiateModuleFromAsm(asm_source, stdlib);
-  expect(wasm_module);
 }
 
 const imul = Math.imul;
@@ -212,7 +209,7 @@ var funcs = [
 
 (function () {
   for (func of funcs) {
-    RunThreeWayTest(WrapInAsmModule(func), function (module) {
+    RunAsmJsTest(WrapInAsmModule(func), function (module) {
       for (a of inputs) {
         for (b of inputs) {
           var expected = func(a, b);

@@ -10,7 +10,7 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/profiler/cpu-profiler.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -21,14 +21,11 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSBoundFunction()) {
-  Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, JSBoundFunction::GetName(
-                             isolate, Handle<JSBoundFunction>::cast(function)));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSBoundFunction::GetName(
+                     isolate, Handle<JSBoundFunction>::cast(function)));
   } else {
-    RUNTIME_ASSERT(function->IsJSFunction());
-    return Handle<JSFunction>::cast(function)->shared()->name();
+    return *JSFunction::GetName(isolate, Handle<JSFunction>::cast(function));
   }
 }
 
@@ -51,8 +48,8 @@ RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
   DCHECK(args.length() == 1);
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  RUNTIME_ASSERT(f->RemovePrototype());
-  f->shared()->set_construct_stub(
+  CHECK(f->RemovePrototype());
+  f->shared()->SetConstructStub(
       *isolate->builtins()->ConstructedNonConstructable());
 
   return isolate->heap()->undefined_value();
@@ -95,16 +92,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   return Smi::FromInt(pos);
 }
 
-
-RUNTIME_FUNCTION(Runtime_FunctionGetPositionForOffset) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_CHECKED(AbstractCode, abstract_code, 0);
-  CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
-  return Smi::FromInt(abstract_code->SourcePosition(offset));
-}
-
 RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -131,8 +118,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_SMI_ARG_CHECKED(length, 1);
-  RUNTIME_ASSERT((length & 0xC0000000) == 0xC0000000 ||
-                 (length & 0xC0000000) == 0x0);
+  CHECK((length & 0xC0000000) == 0xC0000000 || (length & 0xC0000000) == 0x0);
   fun->shared()->set_length(length);
   return isolate->heap()->undefined_value();
 }
@@ -144,7 +130,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RUNTIME_ASSERT(fun->IsConstructor());
+  CHECK(fun->IsConstructor());
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               Accessors::FunctionSetPrototype(fun, value));
   return args[0];  // return TOS
@@ -189,7 +175,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   }
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
-  target_shared->set_feedback_vector(source_shared->feedback_vector());
+  target_shared->set_num_literals(source_shared->num_literals());
+  target_shared->set_feedback_metadata(source_shared->feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
   target_shared->set_start_position_and_type(
@@ -206,21 +193,17 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
-  DCHECK(target->next_function_link()->IsUndefined());
+  DCHECK(target->next_function_link()->IsUndefined(isolate));
 
-  // Make sure we get a fresh copy of the literal vector to avoid cross
-  // context contamination.
   Handle<Context> context(source->context());
   target->set_context(*context);
 
-  int number_of_literals = source->NumberOfLiterals();
-  Handle<LiteralsArray> literals =
-      LiteralsArray::New(isolate, handle(target_shared->feedback_vector()),
-                         number_of_literals, TENURED);
-  target->set_literals(*literals);
+  // Make sure we get a fresh copy of the literal vector to avoid cross
+  // context contamination, and that the literal vector makes it's way into
+  // the target_shared optimized code map.
+  JSFunction::EnsureLiterals(target);
 
-  if (isolate->logger()->is_logging_code_events() ||
-      isolate->cpu_profiler()->is_profiling()) {
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(
         source_shared, Handle<AbstractCode>(source_shared->abstract_code()));
   }
@@ -234,7 +217,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 // into the global object when doing call and apply.
 RUNTIME_FUNCTION(Runtime_SetNativeFlag) {
   SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(Object, object, 0);
 
@@ -255,7 +238,7 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
 
 RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
@@ -276,11 +259,8 @@ RUNTIME_FUNCTION(Runtime_Call) {
   for (int i = 0; i < argc; ++i) {
     argv[i] = args.at<Object>(2 + i);
   }
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, target, receiver, argc, argv.start()));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
 }
 
 
@@ -289,10 +269,7 @@ RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  if (receiver->IsNull() || receiver->IsUndefined()) {
-    return isolate->global_proxy();
-  }
-  return *Object::ToObject(isolate, receiver).ToHandleChecked();
+  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
 }
 
 

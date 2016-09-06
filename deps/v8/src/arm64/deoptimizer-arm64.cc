@@ -97,8 +97,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all allocatable floating point registers.
   CPURegList saved_fp_registers(
       CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
-          ->allocatable_double_codes_mask());
+      RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask());
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.

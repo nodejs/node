@@ -57,7 +57,7 @@ Register PropertyAccessCompiler::slot() const {
     return LoadDescriptor::SlotRegister();
   }
   DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-  return VectorStoreICDescriptor::SlotRegister();
+  return StoreWithVectorDescriptor::SlotRegister();
 }
 
 
@@ -66,7 +66,7 @@ Register PropertyAccessCompiler::vector() const {
     return LoadWithVectorDescriptor::VectorRegister();
   }
   DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-  return VectorStoreICDescriptor::VectorRegister();
+  return StoreWithVectorDescriptor::VectorRegister();
 }
 }  // namespace internal
 }  // namespace v8

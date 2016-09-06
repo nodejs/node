@@ -14,14 +14,9 @@
 var GlobalMap = global.Map;
 var GlobalSet = global.Set;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
 var MapIterator = utils.ImportNow("MapIterator");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var SetIterator = utils.ImportNow("SetIterator");
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 
@@ -32,7 +27,7 @@ function SetIteratorConstructor(set, kind) {
 
 function SetIteratorNextJS() {
   if (!IS_SET_ITERATOR(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set Iterator.prototype.next', this);
   }
 
@@ -57,7 +52,7 @@ function SetIteratorNextJS() {
 
 function SetEntries() {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set.prototype.entries', this);
   }
   return new SetIterator(this, ITERATOR_KIND_ENTRIES);
@@ -66,7 +61,7 @@ function SetEntries() {
 
 function SetValues() {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set.prototype.values', this);
   }
   return new SetIterator(this, ITERATOR_KIND_VALUES);
@@ -100,7 +95,7 @@ function MapIteratorConstructor(map, kind) {
 
 function MapIteratorNextJS() {
   if (!IS_MAP_ITERATOR(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map Iterator.prototype.next', this);
   }
 
@@ -126,7 +121,7 @@ function MapIteratorNextJS() {
 
 function MapEntries() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.entries', this);
   }
   return new MapIterator(this, ITERATOR_KIND_ENTRIES);
@@ -135,7 +130,7 @@ function MapEntries() {
 
 function MapKeys() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.keys', this);
   }
   return new MapIterator(this, ITERATOR_KIND_KEYS);
@@ -144,7 +139,7 @@ function MapKeys() {
 
 function MapValues() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.values', this);
   }
   return new MapIterator(this, ITERATOR_KIND_VALUES);

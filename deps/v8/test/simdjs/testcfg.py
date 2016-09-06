@@ -4,7 +4,6 @@
 
 
 import os
-import shutil
 import sys
 
 from testrunner.local import testsuite
@@ -52,21 +51,6 @@ class SimdJsTestSuite(testsuite.TestSuite):
     if testcase.output.exit_code != 0:
       return True
     return "FAILED!" in testcase.output.stdout
-
-  def DownloadData(self):
-    print "SimdJs download is deprecated. It's part of DEPS."
-
-    # Clean up old directories and archive files.
-    directory_old_name = os.path.join(self.root, "data.old")
-    if os.path.exists(directory_old_name):
-      shutil.rmtree(directory_old_name)
-
-    archive_files = [f for f in os.listdir(self.root)
-                     if f.startswith("ecmascript_simd-")]
-    if len(archive_files) > 0:
-      print "Clobber outdated test archives ..."
-      for f in archive_files:
-        os.remove(os.path.join(self.root, f))
 
 
 def GetSuite(name, root):

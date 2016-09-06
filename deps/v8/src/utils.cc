@@ -430,11 +430,8 @@ void init_memcopy_functions(Isolate* isolate) {
 
 bool DoubleToBoolean(double d) {
   // NaN, +0, and -0 should return the false object
-#if V8_TARGET_LITTLE_ENDIAN
-  union IeeeDoubleLittleEndianArchType u;
-#else
-  union IeeeDoubleBigEndianArchType u;
-#endif
+  IeeeDoubleArchType u;
+
   u.d = d;
   if (u.bits.exp == 2047) {
     // Detect NaN for IEEE double precision floating point.

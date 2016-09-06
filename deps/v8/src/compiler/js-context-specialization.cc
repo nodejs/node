@@ -70,7 +70,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // before the function to which it belongs has initialized the slot.
   // We must be conservative and check if the value in the slot is currently the
   // hole or undefined. If it is neither of these, then it must be initialized.
-  if (value->IsUndefined() || value->IsTheHole()) {
+  if (value->IsUndefined(isolate()) || value->IsTheHole(isolate())) {
     return NoChange();
   }
 

@@ -14,9 +14,9 @@
 namespace v8 {
 namespace internal {
 
-
 AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
-                   Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root)
+                   DeclarationScope* scope, BailoutId osr_ast_id,
+                   FunctionLiteral* root, AstTypeBounds* bounds)
     : isolate_(isolate),
       zone_(zone),
       closure_(closure),
@@ -24,9 +24,10 @@ AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
       osr_ast_id_(osr_ast_id),
       root_(root),
       oracle_(isolate, zone, handle(closure->shared()->code()),
-              handle(closure->shared()->feedback_vector()),
+              handle(closure->feedback_vector()),
               handle(closure->context()->native_context())),
-      store_(zone) {
+      store_(zone),
+      bounds_(bounds) {
   InitializeAstVisitor(isolate);
 }
 
@@ -304,14 +305,7 @@ void AstTyper::VisitForInStatement(ForInStatement* stmt) {
   store_.Forget();  // Control may transfer here via 'break'.
 }
 
-
-void AstTyper::VisitForOfStatement(ForOfStatement* stmt) {
-  RECURSE(Visit(stmt->iterable()));
-  store_.Forget();  // Control may transfer here via looping or 'continue'.
-  RECURSE(Visit(stmt->body()));
-  store_.Forget();  // Control may transfer here via 'break'.
-}
-
+void AstTyper::VisitForOfStatement(ForOfStatement* stmt) {}
 
 void AstTyper::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Effects try_effects = EnterEffects();
@@ -353,7 +347,7 @@ void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 void AstTyper::VisitDoExpression(DoExpression* expr) {
   RECURSE(VisitBlock(expr->block()));
   RECURSE(VisitVariableProxy(expr->result()));
-  NarrowType(expr, expr->result()->bounds());
+  NarrowType(expr, bounds_->get(expr->result()));
 }
 
 
@@ -371,9 +365,9 @@ void AstTyper::VisitConditional(Conditional* expr) {
   then_effects.Alt(else_effects);
   store_.Seq(then_effects);
 
-  NarrowType(expr, Bounds::Either(
-      expr->then_expression()->bounds(),
-      expr->else_expression()->bounds(), zone()));
+  NarrowType(expr,
+             Bounds::Either(bounds_->get(expr->then_expression()),
+                            bounds_->get(expr->else_expression()), zone()));
 }
 
 
@@ -464,11 +458,11 @@ void AstTyper::VisitAssignment(Assignment* expr) {
       expr->is_compound() ? expr->binary_operation() : expr->value();
   RECURSE(Visit(expr->target()));
   RECURSE(Visit(rhs));
-  NarrowType(expr, rhs->bounds());
+  NarrowType(expr, bounds_->get(rhs));
 
   VariableProxy* proxy = expr->target()->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsStackAllocated()) {
-    store_.Seq(variable_index(proxy->var()), Effect(expr->bounds()));
+    store_.Seq(variable_index(proxy->var()), Effect(bounds_->get(expr)));
   }
 }
 
@@ -521,7 +515,7 @@ void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
   bool is_uninitialized = true;
-  if (expr->IsUsingCallFeedbackICSlot(isolate_)) {
+  if (expr->IsUsingCallFeedbackICSlot()) {
     FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
     is_uninitialized = oracle()->CallIsUninitialized(slot);
     if (!expr->expression()->IsProperty() &&
@@ -540,8 +534,7 @@ void AstTyper::VisitCall(Call* expr) {
     RECURSE(Visit(arg));
   }
 
-  VariableProxy* proxy = expr->expression()->AsVariableProxy();
-  if (proxy != NULL && proxy->var()->is_possibly_eval(isolate_)) {
+  if (expr->is_possibly_eval()) {
     store_.Forget();  // Eval could do whatever to local variables.
   }
 
@@ -628,7 +621,7 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
 
   VariableProxy* proxy = expr->expression()->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsStackAllocated()) {
-    store_.Seq(variable_index(proxy->var()), Effect(expr->bounds()));
+    store_.Seq(variable_index(proxy->var()), Effect(bounds_->get(expr)));
   }
 }
 
@@ -656,7 +649,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::COMMA:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, expr->right()->bounds());
+      NarrowType(expr, bounds_->get(expr->right()));
       break;
     case Token::OR:
     case Token::AND: {
@@ -669,16 +662,16 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       left_effects.Alt(right_effects);
       store_.Seq(left_effects);
 
-      NarrowType(expr, Bounds::Either(
-          expr->left()->bounds(), expr->right()->bounds(), zone()));
+      NarrowType(expr, Bounds::Either(bounds_->get(expr->left()),
+                                      bounds_->get(expr->right()), zone()));
       break;
     }
     case Token::BIT_OR:
     case Token::BIT_AND: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      Type* upper = Type::Union(
-          expr->left()->bounds().upper, expr->right()->bounds().upper, zone());
+      Type* upper = Type::Union(bounds_->get(expr->left()).upper,
+                                bounds_->get(expr->right()).upper, zone());
       if (!upper->Is(Type::Signed32())) upper = Type::Signed32();
       Type* lower = Type::Intersect(Type::SignedSmall(), upper, zone());
       NarrowType(expr, Bounds(lower, upper));
@@ -702,8 +695,8 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      Bounds l = expr->left()->bounds();
-      Bounds r = expr->right()->bounds();
+      Bounds l = bounds_->get(expr->left());
+      Bounds r = bounds_->get(expr->right());
       Type* lower =
           !l.lower->IsInhabited() || !r.lower->IsInhabited()
               ? Type::None()
@@ -789,14 +782,6 @@ void AstTyper::VisitVariableDeclaration(VariableDeclaration* declaration) {
 
 void AstTyper::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
   RECURSE(Visit(declaration->fun()));
-}
-
-
-void AstTyper::VisitImportDeclaration(ImportDeclaration* declaration) {
-}
-
-
-void AstTyper::VisitExportDeclaration(ExportDeclaration* declaration) {
 }
 
 

@@ -4,12 +4,13 @@
 
 #include <utility>
 
+#include "src/compiler.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -125,11 +126,11 @@ class BytecodeGraphTester {
     // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(zone_, function);
 
-    CompilationInfo compilation_info(&parse_info);
+    CompilationInfo compilation_info(&parse_info, function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
-    compiler::Pipeline pipeline(&compilation_info);
-    Handle<Code> code = pipeline.GenerateCode();
+    compilation_info.MarkAsOptimizeFromBytecode();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
     function->ReplaceCode(*code);
 
     return function;
@@ -2332,7 +2333,19 @@ TEST(BytecodeGraphBuilderDo) {
        "  if (x == 4) break;\n"
        "} while (x < 7);\n"
        "return y;",
-       {factory->NewNumberFromInt(16)}}};
+       {factory->NewNumberFromInt(16)}},
+      {"var x = 0, sum = 0;\n"
+       "do {\n"
+       "  do {\n"
+       "    ++sum;\n"
+       "    ++x;\n"
+       "  } while (sum < 1 || x < 2)\n"
+       "  do {\n"
+       "    ++x;\n"
+       "  } while (x < 1)\n"
+       "} while (sum < 3)\n"
+       "return sum;",
+       {factory->NewNumber(3)}}};
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
@@ -2413,6 +2426,19 @@ TEST(BytecodeGraphBuilderFor) {
        "}\n"
        "return sum;",
        {factory->NewNumberFromInt(385)}},
+      {"var sum = 0;\n"
+       "for (var x = 0; x < 5; x++) {\n"
+       "  for (var y = 0; y < 5; y++) {\n"
+       "    ++sum;\n"
+       "  }\n"
+       "}\n"
+       "for (var x = 0; x < 5; x++) {\n"
+       "  for (var y = 0; y < 5; y++) {\n"
+       "    ++sum;\n"
+       "  }\n"
+       "}\n"
+       "return sum;",
+       {factory->NewNumberFromInt(50)}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {

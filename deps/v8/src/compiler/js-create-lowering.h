@@ -45,6 +45,7 @@ class JSCreateLowering final : public AdvancedReducer {
   Reduction ReduceJSCreate(Node* node);
   Reduction ReduceJSCreateArguments(Node* node);
   Reduction ReduceJSCreateArray(Node* node);
+  Reduction ReduceJSCreateClosure(Node* node);
   Reduction ReduceJSCreateIterResultObject(Node* node);
   Reduction ReduceJSCreateLiteral(Node* node);
   Reduction ReduceJSCreateFunctionContext(Node* node);
@@ -70,6 +71,8 @@ class JSCreateLowering final : public AdvancedReducer {
                                     Handle<JSObject> boilerplate,
                                     PretenureFlag pretenure,
                                     AllocationSiteUsageContext* site_context);
+
+  Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 
   // Infers the LiteralsArray to use for a given {node}.
   MaybeHandle<LiteralsArray> GetSpecializationLiterals(Node* node);

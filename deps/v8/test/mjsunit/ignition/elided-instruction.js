@@ -25,17 +25,13 @@ function listener(event, exec_state, event_data, data) {
 
 function f() {
   var a = 1;                     // Break 2. 10.
-  // This return statement emits no bytecode instruction for the evaluation of
-  // the to-be-returned expression. Therefore we cannot set a break location
-  // before the statement and a second break location immediately before
-  // returning to the caller.
-  return a;
-}                                // Break 3. 0.
+  return a;                      // Break 3. 2.
+}                                // Break 4. 0.
 
 Debug.setListener(listener);
 debugger;                        // Break 0. 0.
 f();                             // Break 1. 0.
-Debug.setListener(null);         // Break 4. 0.
+Debug.setListener(null);         // Break 5. 0.
 
 assertNull(exception);
-assertEquals(5, break_count);
+assertEquals(6, break_count);

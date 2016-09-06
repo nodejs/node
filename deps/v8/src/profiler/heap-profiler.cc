@@ -34,7 +34,7 @@ HeapProfiler::~HeapProfiler() {
 void HeapProfiler::DeleteAllSnapshots() {
   snapshots_.Iterate(DeleteHeapSnapshot);
   snapshots_.Clear();
-  names_.Reset(new StringsStorage(heap()));
+  names_.reset(new StringsStorage(heap()));
 }
 
 
@@ -84,20 +84,20 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   return result;
 }
 
-
-bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
-                                             int stack_depth) {
+bool HeapProfiler::StartSamplingHeapProfiler(
+    uint64_t sample_interval, int stack_depth,
+    v8::HeapProfiler::SamplingFlags flags) {
   if (sampling_heap_profiler_.get()) {
     return false;
   }
-  sampling_heap_profiler_.Reset(new SamplingHeapProfiler(
-      heap(), names_.get(), sample_interval, stack_depth));
+  sampling_heap_profiler_.reset(new SamplingHeapProfiler(
+      heap(), names_.get(), sample_interval, stack_depth, flags));
   return true;
 }
 
 
 void HeapProfiler::StopSamplingHeapProfiler() {
-  sampling_heap_profiler_.Reset(nullptr);
+  sampling_heap_profiler_.reset();
 }
 
 
@@ -115,7 +115,7 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   is_tracking_object_moves_ = true;
   DCHECK(!is_tracking_allocations());
   if (track_allocations) {
-    allocation_tracker_.Reset(new AllocationTracker(ids_.get(), names_.get()));
+    allocation_tracker_.reset(new AllocationTracker(ids_.get(), names_.get()));
     heap()->DisableInlineAllocation();
     heap()->isolate()->debug()->feature_tracker()->Track(
         DebugFeatureTracker::kAllocationTracking);
@@ -132,7 +132,7 @@ SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream,
 void HeapProfiler::StopHeapObjectsTracking() {
   ids_->StopHeapObjectsTracking();
   if (is_tracking_allocations()) {
-    allocation_tracker_.Reset(NULL);
+    allocation_tracker_.reset();
     heap()->EnableInlineAllocation();
   }
 }
@@ -170,7 +170,7 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
   base::LockGuard<base::Mutex> guard(&profiler_mutex_);
   bool known_object = ids_->MoveObject(from, to, size);
-  if (!known_object && !allocation_tracker_.is_empty()) {
+  if (!known_object && allocation_tracker_) {
     allocation_tracker_->address_to_trace()->MoveObject(from, to, size);
   }
 }
@@ -178,7 +178,7 @@ void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
 
 void HeapProfiler::AllocationEvent(Address addr, int size) {
   DisallowHeapAllocation no_allocation;
-  if (!allocation_tracker_.is_empty()) {
+  if (allocation_tracker_) {
     allocation_tracker_->AllocationEvent(addr, size);
   }
 }
@@ -214,7 +214,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 
 
 void HeapProfiler::ClearHeapObjectMap() {
-  ids_.Reset(new HeapObjectsMap(heap()));
+  ids_.reset(new HeapObjectsMap(heap()));
   if (!is_tracking_allocations()) is_tracking_object_moves_ = false;
 }
 

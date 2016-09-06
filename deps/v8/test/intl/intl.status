@@ -29,29 +29,11 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # BUG(v8:3454).
-  'date-format/parse-MMMdy': [FAIL],
-  'date-format/parse-mdyhms': [FAIL],
-  'number-format/parse-decimal': [FAIL],
-  'number-format/parse-percent': [FAIL],
 }],  # ALWAYS
 
-##############################################################################
-['system == linux', {
-  # BUG(v8:2899).
-  'collator/default-locale': [PASS, FAIL],
-}],  # 'system == linux'
-
-##############################################################################
-['system == macos', {
-  # BUG(v8:4459).
-  'collator/default-locale': [FAIL],
-}],  # 'system == macos'
-
-##############################################################################
-['arch == arm or arch == arm64', {
-  # BUG(v8:4459).
-  'collator/default-locale': [PASS, FAIL],
-}],  # 'arch == arm or arch == arm64'
+['arch == arm64 and mode == debug and simulator_run == True and variant == ignition', {
+  # Ignition on ARM64 simulator in debug mode.
+  'date-format/timezone': [PASS, ['no_snap', SKIP]],
+  'number-format/check-digit-ranges': [PASS, ['no_snap', SKIP]],
+}],  # 'arch == arm64 and mode == debug and simulator_run == True and variant == ignition'
 ]

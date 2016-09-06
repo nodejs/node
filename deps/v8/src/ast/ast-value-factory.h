@@ -29,7 +29,7 @@
 #define V8_AST_AST_VALUE_FACTORY_H_
 
 #include "src/api.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/utils.h"
 
 // AstString, AstValue and AstValueFactory are for storing strings and values
@@ -42,13 +42,14 @@ namespace internal {
 
 class AstString : public ZoneObject {
  public:
-  virtual ~AstString() {}
+  explicit AstString(bool is_raw)
+      : next_(nullptr), bit_field_(IsRawStringBits::encode(is_raw)) {}
 
-  virtual int length() const = 0;
+  int length() const;
   bool IsEmpty() const { return length() == 0; }
 
   // Puts the string into the V8 heap.
-  virtual void Internalize(Isolate* isolate) = 0;
+  void Internalize(Isolate* isolate);
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {
@@ -56,23 +57,30 @@ class AstString : public ZoneObject {
     return string_;
   }
 
+  AstString** next_location() { return &next_; }
+  AstString* next() const { return next_; }
+
  protected:
-  // This is null until the string is internalized.
+  // Handle<String>::null() until internalized.
   Handle<String> string_;
+  AstString* next_;
+  // Poor-man's virtual dispatch to AstRawString / AstConsString. Takes less
+  // memory.
+  class IsRawStringBits : public BitField<bool, 0, 1> {};
+  int bit_field_;
 };
 
 
 class AstRawString final : public AstString {
  public:
-  int length() const override {
-    if (is_one_byte_)
-      return literal_bytes_.length();
+  int length() const {
+    if (is_one_byte()) return literal_bytes_.length();
     return literal_bytes_.length() / 2;
   }
 
   int byte_length() const { return literal_bytes_.length(); }
 
-  void Internalize(Isolate* isolate) override;
+  void Internalize(Isolate* isolate);
 
   bool AsArrayIndex(uint32_t* index) const;
 
@@ -80,11 +88,12 @@ class AstRawString final : public AstString {
   const unsigned char* raw_data() const {
     return literal_bytes_.start();
   }
-  bool is_one_byte() const { return is_one_byte_; }
+
+  bool is_one_byte() const { return IsOneByteBits::decode(bit_field_); }
+
   bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const {
-    if (is_one_byte_)
-      return literal_bytes_[0];
+    if (is_one_byte()) return literal_bytes_[0];
     const uint16_t* c =
         reinterpret_cast<const uint16_t*>(literal_bytes_.start());
     return *c;
@@ -100,29 +109,34 @@ class AstRawString final : public AstString {
   friend class AstRawStringInternalizationKey;
 
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
-            uint32_t hash)
-      : is_one_byte_(is_one_byte), literal_bytes_(literal_bytes), hash_(hash) {}
+               uint32_t hash)
+      : AstString(true), hash_(hash), literal_bytes_(literal_bytes) {
+    bit_field_ |= IsOneByteBits::encode(is_one_byte);
+  }
 
-  AstRawString()
-      : is_one_byte_(true),
-        hash_(0) {}
+  AstRawString() : AstString(true), hash_(0) {
+    bit_field_ |= IsOneByteBits::encode(true);
+  }
 
-  bool is_one_byte_;
+  class IsOneByteBits : public BitField<bool, IsRawStringBits::kNext, 1> {};
 
+  uint32_t hash_;
   // Points to memory owned by Zone.
   Vector<const byte> literal_bytes_;
-  uint32_t hash_;
 };
 
 
 class AstConsString final : public AstString {
  public:
   AstConsString(const AstString* left, const AstString* right)
-      : length_(left->length() + right->length()), left_(left), right_(right) {}
+      : AstString(false),
+        length_(left->length() + right->length()),
+        left_(left),
+        right_(right) {}
 
-  int length() const override { return length_; }
+  int length() const { return length_; }
 
-  void Internalize(Isolate* isolate) override;
+  void Internalize(Isolate* isolate);
 
  private:
   const int length_;
@@ -140,25 +154,31 @@ class AstValue : public ZoneObject {
   }
 
   bool IsNumber() const {
-    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI;
+    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI ||
+           type_ == SMI_WITH_DOT;
   }
 
-  bool ContainsDot() const { return type_ == NUMBER_WITH_DOT; }
+  bool ContainsDot() const {
+    return type_ == NUMBER_WITH_DOT || type_ == SMI_WITH_DOT;
+  }
 
   const AstRawString* AsString() const {
-    if (type_ == STRING)
-      return string_;
-    UNREACHABLE();
-    return 0;
+    CHECK_EQ(STRING, type_);
+    return string_;
   }
 
   double AsNumber() const {
     if (type_ == NUMBER || type_ == NUMBER_WITH_DOT)
       return number_;
-    if (type_ == SMI)
+    if (type_ == SMI || type_ == SMI_WITH_DOT)
       return smi_;
     UNREACHABLE();
     return 0;
+  }
+
+  Smi* AsSmi() const {
+    CHECK(type_ == SMI || type_ == SMI_WITH_DOT);
+    return Smi::FromInt(smi_);
   }
 
   bool EqualsString(const AstRawString* string) const {
@@ -169,7 +189,12 @@ class AstValue : public ZoneObject {
 
   bool BooleanValue() const;
 
+  bool IsSmi() const { return type_ == SMI || type_ == SMI_WITH_DOT; }
+  bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
+  bool IsTrue() const { return type_ == BOOLEAN && bool_; }
+  bool IsUndefined() const { return type_ == UNDEFINED; }
   bool IsTheHole() const { return type_ == THE_HOLE; }
+  bool IsNull() const { return type_ == NULL_TYPE; }
 
   void Internalize(Isolate* isolate);
 
@@ -181,6 +206,8 @@ class AstValue : public ZoneObject {
     DCHECK(!value_.is_null());
     return value_;
   }
+  AstValue* next() const { return next_; }
+  void set_next(AstValue* next) { next_ = next; }
 
  private:
   friend class AstValueFactory;
@@ -191,33 +218,40 @@ class AstValue : public ZoneObject {
     NUMBER,
     NUMBER_WITH_DOT,
     SMI,
+    SMI_WITH_DOT,
     BOOLEAN,
     NULL_TYPE,
     UNDEFINED,
     THE_HOLE
   };
 
-  explicit AstValue(const AstRawString* s) : type_(STRING) { string_ = s; }
-
-  explicit AstValue(const char* name) : type_(SYMBOL) { symbol_name_ = name; }
-
-  explicit AstValue(double n, bool with_dot) {
-    if (with_dot) {
-      type_ = NUMBER_WITH_DOT;
-    } else {
-      type_ = NUMBER;
-    }
-    number_ = n;
+  explicit AstValue(const AstRawString* s) : type_(STRING), next_(nullptr) {
+    string_ = s;
   }
 
-  AstValue(Type t, int i) : type_(t) {
+  explicit AstValue(const char* name) : type_(SYMBOL), next_(nullptr) {
+    symbol_name_ = name;
+  }
+
+  explicit AstValue(double n, bool with_dot) : next_(nullptr) {
+    int int_value;
+    if (DoubleToSmiInteger(n, &int_value)) {
+      type_ = with_dot ? SMI_WITH_DOT : SMI;
+      smi_ = int_value;
+    } else {
+      type_ = with_dot ? NUMBER_WITH_DOT : NUMBER;
+      number_ = n;
+    }
+  }
+
+  AstValue(Type t, int i) : type_(t), next_(nullptr) {
     DCHECK(type_ == SMI);
     smi_ = i;
   }
 
-  explicit AstValue(bool b) : type_(BOOLEAN) { bool_ = b; }
+  explicit AstValue(bool b) : type_(BOOLEAN), next_(nullptr) { bool_ = b; }
 
-  explicit AstValue(Type t) : type_(t) {
+  explicit AstValue(Type t) : type_(t), next_(nullptr) {
     DCHECK(t == NULL_TYPE || t == UNDEFINED || t == THE_HOLE);
   }
 
@@ -229,12 +263,13 @@ class AstValue : public ZoneObject {
     double number_;
     int smi_;
     bool bool_;
-    ZoneList<const AstRawString*>* strings_;
+    const AstRawString* strings_;
     const char* symbol_name_;
   };
 
-  // Internalized value (empty before internalized).
+  // Handle<String>::null() until internalized.
   Handle<Object> value_;
+  AstValue* next_;
 };
 
 
@@ -242,6 +277,8 @@ class AstValue : public ZoneObject {
 #define STRING_CONSTANTS(F)                     \
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
+  F(async, "async")                             \
+  F(await, "await")                             \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \
@@ -257,15 +294,16 @@ class AstValue : public ZoneObject {
   F(eval, "eval")                               \
   F(function, "function")                       \
   F(get_space, "get ")                          \
+  F(length, "length")                           \
   F(let, "let")                                 \
   F(native, "native")                           \
   F(new_target, ".new.target")                  \
   F(next, "next")                               \
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
-  F(rest_parameter, ".rest_parameter")          \
   F(return, "return")                           \
   F(set_space, "set ")                          \
+  F(star_default_star, "*default*")             \
   F(this, "this")                               \
   F(this_function, ".this_function")            \
   F(throw, "throw")                             \
@@ -285,9 +323,12 @@ class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
+        values_(nullptr),
+        strings_end_(&strings_),
         zone_(zone),
         isolate_(NULL),
         hash_seed_(hash_seed) {
+    ResetStrings();
 #define F(name, str) name##_string_ = NULL;
     STRING_CONSTANTS(F)
 #undef F
@@ -342,6 +383,28 @@ class AstValueFactory {
   const AstValue* NewTheHole();
 
  private:
+  AstValue* AddValue(AstValue* value) {
+    if (isolate_) {
+      value->Internalize(isolate_);
+    } else {
+      value->set_next(values_);
+      values_ = value;
+    }
+    return value;
+  }
+  AstString* AddString(AstString* string) {
+    if (isolate_) {
+      string->Internalize(isolate_);
+    } else {
+      *strings_end_ = string;
+      strings_end_ = string->next_location();
+    }
+    return string;
+  }
+  void ResetStrings() {
+    strings_ = nullptr;
+    strings_end_ = &strings_;
+  }
   AstRawString* GetOneByteStringInternal(Vector<const uint8_t> literal);
   AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
@@ -350,11 +413,14 @@ class AstValueFactory {
   static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
-  HashMap string_table_;
+  base::HashMap string_table_;
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
-  List<AstValue*> values_;
-  List<AstString*> strings_;
+  AstValue* values_;
+  // We need to keep track of strings_ in order, since cons strings require
+  // their members to be internalized first.
+  AstString* strings_;
+  AstString** strings_end_;
   Zone* zone_;
   Isolate* isolate_;
 

@@ -13,6 +13,7 @@ SAMPLE_EVERY_N_CYCLES=10000
 SAMPLE_RATE_CONFIG_FILE="/proc/sys/kernel/perf_event_max_sample_rate"
 KERNEL_MAP_CONFIG_FILE="/proc/sys/kernel/kptr_restrict"
 CALL_GRAPH_METHOD="fp"  # dwarf does not play nice with JITted objects.
+EVENT_TYPE=${EVENT_TYPE:=cycles:u}
 
 ########## Usage
 
@@ -46,7 +47,7 @@ fi
 
 echo "Running..."
 perf record -R \
-  -e cycles:u \
+  -e $EVENT_TYPE \
   -c $SAMPLE_EVERY_N_CYCLES \
   --call-graph $CALL_GRAPH_METHOD \
   -i $@ --perf_basic_prof

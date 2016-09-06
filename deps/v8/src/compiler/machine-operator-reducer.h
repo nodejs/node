@@ -32,8 +32,13 @@ class MachineOperatorReducer final : public Reducer {
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<uint32_t>(value));
+    return Int32Constant(bit_cast<int32_t>(value));
   }
+  Node* Uint64Constant(uint64_t value) {
+    return Int64Constant(bit_cast<int64_t>(value));
+  }
+  Node* Float64Mul(Node* lhs, Node* rhs);
+  Node* Float64PowHalf(Node* value);
   Node* Word32And(Node* lhs, Node* rhs);
   Node* Word32And(Node* lhs, uint32_t rhs) {
     return Word32And(lhs, Uint32Constant(rhs));
@@ -65,17 +70,22 @@ class MachineOperatorReducer final : public Reducer {
   }
 
   Reduction ReduceInt32Add(Node* node);
+  Reduction ReduceInt64Add(Node* node);
   Reduction ReduceInt32Sub(Node* node);
+  Reduction ReduceInt64Sub(Node* node);
   Reduction ReduceInt32Div(Node* node);
   Reduction ReduceUint32Div(Node* node);
   Reduction ReduceInt32Mod(Node* node);
   Reduction ReduceUint32Mod(Node* node);
-  Reduction ReduceTruncateFloat64ToInt32(Node* node);
   Reduction ReduceStore(Node* node);
   Reduction ReduceProjection(size_t index, Node* node);
   Reduction ReduceWord32Shifts(Node* node);
   Reduction ReduceWord32Shl(Node* node);
+  Reduction ReduceWord64Shl(Node* node);
+  Reduction ReduceWord32Shr(Node* node);
+  Reduction ReduceWord64Shr(Node* node);
   Reduction ReduceWord32Sar(Node* node);
+  Reduction ReduceWord64Sar(Node* node);
   Reduction ReduceWord32And(Node* node);
   Reduction ReduceWord32Or(Node* node);
   Reduction ReduceFloat64InsertLowWord32(Node* node);

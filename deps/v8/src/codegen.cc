@@ -7,12 +7,15 @@
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
 #endif
+
+#include <memory>
+
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
+#include "src/eh-frame.h"
 #include "src/parsing/parser.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -61,7 +64,6 @@ double modulo(double x, double y) {
   }
 
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
-UNARY_MATH_FUNCTION(exp, CreateExpFunction)
 
 #undef UNARY_MATH_FUNCTION
 
@@ -86,32 +88,24 @@ Comment::~Comment() {
 
 
 void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
-  bool print_source = false;
   bool print_ast = false;
   const char* ftype;
 
   if (info->isolate()->bootstrapper()->IsActive()) {
-    print_source = FLAG_print_builtin_source;
     print_ast = FLAG_print_builtin_ast;
     ftype = "builtin";
   } else {
-    print_source = FLAG_print_source;
     print_ast = FLAG_print_ast;
     ftype = "user-defined";
   }
 
-  if (FLAG_trace_codegen || print_source || print_ast) {
-    base::SmartArrayPointer<char> name = info->GetDebugName();
+  if (FLAG_trace_codegen || print_ast) {
+    std::unique_ptr<char[]> name = info->GetDebugName();
     PrintF("[generating %s code for %s function: %s]\n", kind, ftype,
            name.get());
   }
 
 #ifdef DEBUG
-  if (info->parse_info() && print_source) {
-    PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->isolate()).PrintProgram(info->literal()));
-  }
-
   if (info->parse_info() && print_ast) {
     PrintF("--- AST ---\n%s\n",
            AstPrinter(info->isolate()).PrintProgram(info->literal()));
@@ -119,9 +113,10 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #endif  // DEBUG
 }
 
-
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
-                                             CompilationInfo* info) {
+                                             EhFrameWriter* eh_frame_writer,
+                                             CompilationInfo* info,
+                                             Handle<Object> self_reference) {
   Isolate* isolate = info->isolate();
 
   // Allocate and install the code.
@@ -131,11 +126,11 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
       Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
       info->IsStub();
   masm->GetCode(&desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
-                                  false, is_crankshafted,
-                                  info->prologue_offset(),
-                                  info->is_debug() && !is_crankshafted);
+  if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
+
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, flags, self_reference, false, is_crankshafted,
+      info->prologue_offset(), info->is_debug() && !is_crankshafted);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
@@ -147,13 +142,14 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
   AllowDeferredHandleDereference allow_deference_for_print_code;
-  bool print_code = info->isolate()->bootstrapper()->IsActive()
-      ? FLAG_print_builtin_code
-      : (FLAG_print_code ||
-         (info->IsStub() && FLAG_print_code_stubs) ||
-         (info->IsOptimizing() && FLAG_print_opt_code));
+  Isolate* isolate = info->isolate();
+  bool print_code =
+      isolate->bootstrapper()->IsActive()
+          ? FLAG_print_builtin_code
+          : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
+             (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
-    base::SmartArrayPointer<char> debug_name = info->GetDebugName();
+    std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
 
@@ -162,16 +158,16 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
         info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
                                code->kind() == Code::FUNCTION);
     if (print_source) {
-      FunctionLiteral* literal = info->literal();
+      Handle<SharedFunctionInfo> shared = info->shared_info();
       Handle<Script> script = info->script();
-      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+      if (!script->IsUndefined(isolate) &&
+          !script->source()->IsUndefined(isolate)) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(String::cast(script->source()),
-                                     literal->start_position());
+                                     shared->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
-        int source_len =
-            literal->end_position() - literal->start_position() + 1;
+        int source_len = shared->end_position() - shared->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
             os << AsReversiblyEscapedUC16(stream.GetNext());
@@ -191,8 +187,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       os << "--- Code ---\n";
     }
     if (print_source) {
-      FunctionLiteral* literal = info->literal();
-      os << "source_position = " << literal->start_position() << "\n";
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      os << "source_position = " << shared->start_position() << "\n";
     }
     code->Disassemble(debug_name.get(), os);
     os << "--- End code ---\n";

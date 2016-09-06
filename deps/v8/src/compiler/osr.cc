@@ -24,10 +24,16 @@ namespace internal {
 namespace compiler {
 
 OsrHelper::OsrHelper(CompilationInfo* info)
-    : parameter_count_(info->scope()->num_parameters()),
-      stack_slot_count_(info->scope()->num_stack_slots() +
-                        info->osr_expr_stack_height()) {}
-
+    : parameter_count_(
+          info->is_optimizing_from_bytecode()
+              ? info->shared_info()->bytecode_array()->parameter_count()
+              : info->scope()->num_parameters()),
+      stack_slot_count_(
+          info->is_optimizing_from_bytecode()
+              ? info->shared_info()->bytecode_array()->register_count() +
+                    InterpreterFrameConstants::kExtraSlotCount
+              : info->scope()->num_stack_slots() +
+                    info->osr_expr_stack_height()) {}
 
 #ifdef DEBUG
 #define TRACE_COND (FLAG_trace_turbo_graph && FLAG_trace_osr)
@@ -78,8 +84,8 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
     }
 
     // Copy all nodes.
-    for (size_t i = 0; i < all.live.size(); i++) {
-      Node* orig = all.live[i];
+    for (size_t i = 0; i < all.reachable.size(); i++) {
+      Node* orig = all.reachable[i];
       Node* copy = mapping->at(orig->id());
       if (copy != sentinel) {
         // Mapping already exists.
@@ -107,7 +113,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
     }
 
     // Fix missing inputs.
-    for (Node* orig : all.live) {
+    for (Node* orig : all.reachable) {
       Node* copy = mapping->at(orig->id());
       for (int j = 0; j < copy->InputCount(); j++) {
         if (copy->InputAt(j) == sentinel) {

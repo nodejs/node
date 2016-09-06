@@ -44,7 +44,6 @@ class NativesCollection {
   // The following methods are implemented in natives-common.cc:
 
   static FixedArray* GetSourceCache(Heap* heap);
-  static void UpdateSourceCache(Heap* heap);
 };
 
 typedef NativesCollection<CORE> Natives;

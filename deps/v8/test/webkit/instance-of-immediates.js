@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-instanceof
-
 description('This test makes sure that instance of behaves correctly when the value, constructor, or its prototype are immediates.');
 
 // A Constructor to use check for instances of, and an instance called obj.

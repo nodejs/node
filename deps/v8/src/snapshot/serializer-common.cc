@@ -14,13 +14,16 @@ namespace internal {
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = isolate->external_reference_map();
   if (map_ != NULL) return;
-  map_ = new HashMap(HashMap::PointersMatch);
+  map_ = new base::HashMap(base::HashMap::PointersMatch);
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (int i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     if (addr == ExternalReferenceTable::NotAvailable()) continue;
     // We expect no duplicate external references entries in the table.
-    DCHECK_NULL(map_->Lookup(addr, Hash(addr)));
+    // AccessorRefTable getter may have duplicates, indicated by an empty string
+    // as name.
+    DCHECK(table->name(i)[0] == '\0' ||
+           map_->Lookup(addr, Hash(addr)) == nullptr);
     map_->LookupOrInsert(addr, Hash(addr))->value = reinterpret_cast<void*>(i);
   }
   isolate->set_external_reference_map(map_);
@@ -28,16 +31,16 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
 
 uint32_t ExternalReferenceEncoder::Encode(Address address) const {
   DCHECK_NOT_NULL(address);
-  HashMap::Entry* entry =
-      const_cast<HashMap*>(map_)->Lookup(address, Hash(address));
+  base::HashMap::Entry* entry =
+      const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
   DCHECK_NOT_NULL(entry);
   return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
 }
 
 const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
-  HashMap::Entry* entry =
-      const_cast<HashMap*>(map_)->Lookup(address, Hash(address));
+  base::HashMap::Entry* entry =
+      const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
   if (entry == NULL) return "<unknown>";
   uint32_t i = static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   return ExternalReferenceTable::instance(isolate)->name(i);
@@ -56,6 +59,7 @@ void SerializedData::AllocateData(int size) {
 //  - during deserialization to populate it.
 //  - during normal GC to keep its content alive.
 //  - not during serialization. The partial serializer adds to it explicitly.
+DISABLE_CFI_PERF
 void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
   List<Object*>* cache = isolate->partial_snapshot_cache();
   for (int i = 0;; ++i) {
@@ -64,7 +68,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitPointer(&cache->at(i));
-    if (cache->at(i)->IsUndefined()) break;
+    if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }
 

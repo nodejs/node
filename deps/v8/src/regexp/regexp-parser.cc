@@ -25,6 +25,8 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
       zone_(zone),
       error_(error),
       captures_(NULL),
+      named_captures_(NULL),
+      named_back_references_(NULL),
       in_(in),
       current_(kEndMarker),
       ignore_case_(flags & JSRegExp::kIgnoreCase),
@@ -73,7 +75,8 @@ void RegExpParser::Advance() {
   if (has_next()) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
-      ReportError(CStrVector(Isolate::kStackOverflowMessage));
+      ReportError(CStrVector(
+          MessageTemplate::TemplateString(MessageTemplate::kStackOverflow)));
     } else if (zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
@@ -130,6 +133,7 @@ bool RegExpParser::IsSyntaxCharacterOrSlash(uc32 c) {
 
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
+  if (failed_) return NULL;  // Do not overwrite any existing error.
   failed_ = true;
   *error_ = isolate()->factory()->NewStringFromAscii(message).ToHandleChecked();
   // Zip to the end to make sure the no more input is read.
@@ -148,6 +152,7 @@ RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
 //   Disjunction
 RegExpTree* RegExpParser::ParsePattern() {
   RegExpTree* result = ParseDisjunction(CHECK_FAILED);
+  PatchNamedBackReferences(CHECK_FAILED);
   DCHECK(!has_more());
   // If the result of parsing is a literal string atom, and it has the
   // same length as the input, then the atom is identical to the input.
@@ -171,7 +176,7 @@ RegExpTree* RegExpParser::ParsePattern() {
 RegExpTree* RegExpParser::ParseDisjunction() {
   // Used to store current state while parsing subexpressions.
   RegExpParserState initial_state(NULL, INITIAL, RegExpLookaround::LOOKAHEAD, 0,
-                                  ignore_case(), unicode(), zone());
+                                  nullptr, ignore_case(), unicode(), zone());
   RegExpParserState* state = &initial_state;
   // Cache the builder in a local variable for quick access.
   RegExpBuilder* builder = initial_state.builder();
@@ -203,6 +208,10 @@ RegExpTree* RegExpParser::ParseDisjunction() {
 
         // Build result of subexpression.
         if (group_type == CAPTURE) {
+          if (state->IsNamedCapture()) {
+            CreateNamedCaptureAtIndex(state->capture_name(),
+                                      capture_index CHECK_FAILED);
+          }
           RegExpCapture* capture = GetCapture(capture_index);
           capture->set_body(body);
           body = capture;
@@ -267,47 +276,65 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       case '(': {
         SubexpressionType subexpr_type = CAPTURE;
         RegExpLookaround::Type lookaround_type = state->lookaround_type();
+        bool is_named_capture = false;
         Advance();
         if (current() == '?') {
           switch (Next()) {
             case ':':
               subexpr_type = GROUPING;
+              Advance(2);
               break;
             case '=':
               lookaround_type = RegExpLookaround::LOOKAHEAD;
               subexpr_type = POSITIVE_LOOKAROUND;
+              Advance(2);
               break;
             case '!':
               lookaround_type = RegExpLookaround::LOOKAHEAD;
               subexpr_type = NEGATIVE_LOOKAROUND;
+              Advance(2);
               break;
             case '<':
+              Advance();
               if (FLAG_harmony_regexp_lookbehind) {
-                Advance();
-                lookaround_type = RegExpLookaround::LOOKBEHIND;
                 if (Next() == '=') {
                   subexpr_type = POSITIVE_LOOKAROUND;
+                  lookaround_type = RegExpLookaround::LOOKBEHIND;
+                  Advance(2);
                   break;
                 } else if (Next() == '!') {
                   subexpr_type = NEGATIVE_LOOKAROUND;
+                  lookaround_type = RegExpLookaround::LOOKBEHIND;
+                  Advance(2);
                   break;
                 }
+              }
+              if (FLAG_harmony_regexp_named_captures && unicode()) {
+                is_named_capture = true;
+                Advance();
+                break;
               }
             // Fall through.
             default:
               return ReportError(CStrVector("Invalid group"));
           }
-          Advance(2);
-        } else {
+        }
+
+        const ZoneVector<uc16>* capture_name = nullptr;
+        if (subexpr_type == CAPTURE) {
           if (captures_started_ >= kMaxCaptures) {
             return ReportError(CStrVector("Too many captures"));
           }
           captures_started_++;
+
+          if (is_named_capture) {
+            capture_name = ParseCaptureGroupName(CHECK_FAILED);
+          }
         }
         // Store current state and begin new disjunction parsing.
         state = new (zone()) RegExpParserState(
             state, subexpr_type, lookaround_type, captures_started_,
-            ignore_case(), unicode(), zone());
+            capture_name, ignore_case(), unicode(), zone());
         builder = state->builder();
         continue;
       }
@@ -361,11 +388,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               if (FLAG_harmony_regexp_property) {
                 ZoneList<CharacterRange>* ranges =
                     new (zone()) ZoneList<CharacterRange>(2, zone());
-                if (!ParsePropertyClass(ranges)) {
+                if (!ParsePropertyClass(ranges, p == 'P')) {
                   return ReportError(CStrVector("Invalid property name"));
                 }
                 RegExpCharacterClass* cc =
-                    new (zone()) RegExpCharacterClass(ranges, p == 'P');
+                    new (zone()) RegExpCharacterClass(ranges, false);
                 builder->AddCharacterClass(cc);
               } else {
                 // With /u, no identity escapes except for syntax characters
@@ -415,7 +442,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               break;
             }
           }
-          // FALLTHROUGH
+          // Fall through.
           case '0': {
             Advance();
             if (unicode() && Next() >= '0' && Next() <= '9') {
@@ -496,6 +523,13 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             }
             break;
           }
+          case 'k':
+            if (FLAG_harmony_regexp_named_captures && unicode()) {
+              Advance(2);
+              ParseNamedBackReference(builder, state CHECK_FAILED);
+              break;
+            }
+          // Fall through.
           default:
             Advance();
             // With /u, no identity escapes except for syntax characters
@@ -511,17 +545,16 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         break;
       case '{': {
         int dummy;
-        if (ParseIntervalQuantifier(&dummy, &dummy)) {
-          return ReportError(CStrVector("Nothing to repeat"));
-        }
-        // fallthrough
+        bool parsed = ParseIntervalQuantifier(&dummy, &dummy CHECK_FAILED);
+        if (parsed) return ReportError(CStrVector("Nothing to repeat"));
+        // Fall through.
       }
       case '}':
       case ']':
         if (unicode()) {
           return ReportError(CStrVector("Lone quantifier brackets"));
         }
-      // fallthrough
+      // Fall through.
       default:
         builder->AddUnicodeCharacter(current());
         Advance();
@@ -675,6 +708,148 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   return true;
 }
 
+static void push_code_unit(ZoneVector<uc16>* v, uint32_t code_unit) {
+  if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    v->push_back(code_unit);
+  } else {
+    v->push_back(unibrow::Utf16::LeadSurrogate(code_unit));
+    v->push_back(unibrow::Utf16::TrailSurrogate(code_unit));
+  }
+}
+
+const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
+  DCHECK(FLAG_harmony_regexp_named_captures);
+  DCHECK(unicode());
+
+  ZoneVector<uc16>* name =
+      new (zone()->New(sizeof(ZoneVector<uc16>))) ZoneVector<uc16>(zone());
+
+  bool at_start = true;
+  while (true) {
+    uc32 c = current();
+    Advance();
+
+    // Convert unicode escapes.
+    if (c == '\\' && current() == 'u') {
+      Advance();
+      if (!ParseUnicodeEscape(&c)) {
+        ReportError(CStrVector("Invalid Unicode escape sequence"));
+        return nullptr;
+      }
+    }
+
+    if (at_start) {
+      if (!IdentifierStart::Is(c)) {
+        ReportError(CStrVector("Invalid capture group name"));
+        return nullptr;
+      }
+      push_code_unit(name, c);
+      at_start = false;
+    } else {
+      if (c == '>') {
+        break;
+      } else if (IdentifierPart::Is(c)) {
+        push_code_unit(name, c);
+      } else {
+        ReportError(CStrVector("Invalid capture group name"));
+        return nullptr;
+      }
+    }
+  }
+
+  return name;
+}
+
+bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
+                                             int index) {
+  DCHECK(FLAG_harmony_regexp_named_captures);
+  DCHECK(unicode());
+  DCHECK(0 < index && index <= captures_started_);
+  DCHECK_NOT_NULL(name);
+
+  if (named_captures_ == nullptr) {
+    named_captures_ = new (zone()) ZoneList<RegExpCapture*>(1, zone());
+  } else {
+    // Check for duplicates and bail if we find any.
+    for (const auto& named_capture : *named_captures_) {
+      if (*named_capture->name() == *name) {
+        ReportError(CStrVector("Duplicate capture group name"));
+        return false;
+      }
+    }
+  }
+
+  RegExpCapture* capture = GetCapture(index);
+  DCHECK(capture->name() == nullptr);
+
+  capture->set_name(name);
+  named_captures_->Add(capture, zone());
+
+  return true;
+}
+
+bool RegExpParser::ParseNamedBackReference(RegExpBuilder* builder,
+                                           RegExpParserState* state) {
+  // The parser is assumed to be on the '<' in \k<name>.
+  if (current() != '<') {
+    ReportError(CStrVector("Invalid named reference"));
+    return false;
+  }
+
+  Advance();
+  const ZoneVector<uc16>* name = ParseCaptureGroupName();
+  if (name == nullptr) {
+    return false;
+  }
+
+  if (state->IsInsideCaptureGroup(name)) {
+    builder->AddEmpty();
+  } else {
+    RegExpBackReference* atom = new (zone()) RegExpBackReference();
+    atom->set_name(name);
+
+    builder->AddAtom(atom);
+
+    if (named_back_references_ == nullptr) {
+      named_back_references_ =
+          new (zone()) ZoneList<RegExpBackReference*>(1, zone());
+    }
+    named_back_references_->Add(atom, zone());
+  }
+
+  return true;
+}
+
+void RegExpParser::PatchNamedBackReferences() {
+  if (named_back_references_ == nullptr) return;
+
+  if (named_captures_ == nullptr) {
+    ReportError(CStrVector("Invalid named capture referenced"));
+    return;
+  }
+
+  // Look up and patch the actual capture for each named back reference.
+  // TODO(jgruber): O(n^2), optimize if necessary.
+
+  for (int i = 0; i < named_back_references_->length(); i++) {
+    RegExpBackReference* ref = named_back_references_->at(i);
+
+    int index = -1;
+    for (const auto& capture : *named_captures_) {
+      if (*capture->name() == *ref->name()) {
+        index = capture->index();
+        break;
+      }
+    }
+
+    if (index == -1) {
+      ReportError(CStrVector("Invalid named capture referenced"));
+      return;
+    }
+
+    ref->set_capture(GetCapture(index));
+  }
+}
 
 RegExpCapture* RegExpParser::GetCapture(int index) {
   // The index for the capture groups are one-based. Its index in the list is
@@ -691,6 +866,24 @@ RegExpCapture* RegExpParser::GetCapture(int index) {
   return captures_->at(index - 1);
 }
 
+Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
+  if (named_captures_ == nullptr || named_captures_->is_empty())
+    return Handle<FixedArray>();
+
+  Factory* factory = isolate()->factory();
+
+  int len = named_captures_->length() * 2;
+  Handle<FixedArray> array = factory->NewFixedArray(len);
+
+  for (int i = 0; i < named_captures_->length(); i++) {
+    RegExpCapture* capture = named_captures_->at(i);
+    MaybeHandle<String> name = factory->NewStringFromTwoByte(capture->name());
+    array->set(i * 2, *name.ToHandleChecked());
+    array->set(i * 2 + 1, Smi::FromInt(capture->index()));
+  }
+
+  return array;
+}
 
 bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(int index) {
   for (RegExpParserState* s = this; s != NULL; s = s->previous_state()) {
@@ -703,6 +896,15 @@ bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(int index) {
   return false;
 }
 
+bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(
+    const ZoneVector<uc16>* name) {
+  DCHECK_NOT_NULL(name);
+  for (RegExpParserState* s = this; s != NULL; s = s->previous_state()) {
+    if (s->capture_name() == nullptr) continue;
+    if (*s->capture_name() == *name) return true;
+  }
+  return false;
+}
 
 // QuantifierPrefix ::
 //   { DecimalDigits }
@@ -845,29 +1047,49 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
 }
 
 #ifdef V8_I18N_SUPPORT
-bool IsExactPropertyValueAlias(const char* property_name, UProperty property,
-                               int32_t property_value) {
-  const char* short_name =
-      u_getPropertyValueName(property, property_value, U_SHORT_PROPERTY_NAME);
+
+namespace {
+
+bool IsExactPropertyAlias(const char* property_name, UProperty property) {
+  const char* short_name = u_getPropertyName(property, U_SHORT_PROPERTY_NAME);
   if (short_name != NULL && strcmp(property_name, short_name) == 0) return true;
   for (int i = 0;; i++) {
-    const char* long_name = u_getPropertyValueName(
-        property, property_value,
-        static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
+    const char* long_name = u_getPropertyName(
+        property, static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
     if (long_name == NULL) break;
     if (strcmp(property_name, long_name) == 0) return true;
   }
   return false;
 }
 
-bool LookupPropertyClass(UProperty property, const char* property_name,
-                         ZoneList<CharacterRange>* result, Zone* zone) {
-  int32_t property_value = u_getPropertyValueEnum(property, property_name);
+bool IsExactPropertyValueAlias(const char* property_value_name,
+                               UProperty property, int32_t property_value) {
+  const char* short_name =
+      u_getPropertyValueName(property, property_value, U_SHORT_PROPERTY_NAME);
+  if (short_name != NULL && strcmp(property_value_name, short_name) == 0) {
+    return true;
+  }
+  for (int i = 0;; i++) {
+    const char* long_name = u_getPropertyValueName(
+        property, property_value,
+        static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
+    if (long_name == NULL) break;
+    if (strcmp(property_value_name, long_name) == 0) return true;
+  }
+  return false;
+}
+
+bool LookupPropertyValueName(UProperty property,
+                             const char* property_value_name, bool negate,
+                             ZoneList<CharacterRange>* result, Zone* zone) {
+  int32_t property_value =
+      u_getPropertyValueEnum(property, property_value_name);
   if (property_value == UCHAR_INVALID_CODE) return false;
 
   // We require the property name to match exactly to one of the property value
   // aliases. However, u_getPropertyValueEnum uses loose matching.
-  if (!IsExactPropertyValueAlias(property_name, property, property_value)) {
+  if (!IsExactPropertyValueAlias(property_value_name, property,
+                                 property_value)) {
     return false;
   }
 
@@ -878,6 +1100,7 @@ bool LookupPropertyClass(UProperty property, const char* property_name,
 
   if (success) {
     uset_removeAllStrings(set);
+    if (negate) uset_complement(set);
     int item_count = uset_getItemCount(set);
     int item_result = 0;
     for (int i = 0; i < item_count; i++) {
@@ -892,48 +1115,103 @@ bool LookupPropertyClass(UProperty property, const char* property_name,
   uset_close(set);
   return success;
 }
-#endif  // V8_I18N_SUPPORT
 
-bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
-#ifdef V8_I18N_SUPPORT
-  List<char> property_name_list;
+template <size_t N>
+inline bool NameEquals(const char* name, const char (&literal)[N]) {
+  return strncmp(name, literal, N + 1) == 0;
+}
+
+bool LookupSpecialPropertyValueName(const char* name,
+                                    ZoneList<CharacterRange>* result,
+                                    bool negate, Zone* zone) {
+  if (NameEquals(name, "Any")) {
+    if (!negate) result->Add(CharacterRange::Everything(), zone);
+  } else if (NameEquals(name, "ASCII")) {
+    result->Add(negate ? CharacterRange::Range(0x80, String::kMaxCodePoint)
+                       : CharacterRange::Range(0x0, 0x7f),
+                zone);
+  } else if (NameEquals(name, "Assigned")) {
+    return LookupPropertyValueName(UCHAR_GENERAL_CATEGORY, "Unassigned",
+                                   !negate, result, zone);
+  } else {
+    return false;
+  }
+  return true;
+}
+
+}  // anonymous namespace
+
+bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
+                                      bool negate) {
+  // Parse the property class as follows:
+  // - In \p{name}, 'name' is interpreted
+  //   - either as a general category property value name.
+  //   - or as a binary property name.
+  // - In \p{name=value}, 'name' is interpreted as an enumerated property name,
+  //   and 'value' is interpreted as one of the available property value names.
+  // - Aliases in PropertyAlias.txt and PropertyValueAlias.txt can be used.
+  // - Loose matching is not applied.
+  List<char> first_part;
+  List<char> second_part;
   if (current() == '{') {
-    for (Advance(); current() != '}'; Advance()) {
+    // Parse \p{[PropertyName=]PropertyNameValue}
+    for (Advance(); current() != '}' && current() != '='; Advance()) {
       if (!has_next()) return false;
-      property_name_list.Add(static_cast<char>(current()));
+      first_part.Add(static_cast<char>(current()));
     }
-  } else if (current() != kEndMarker) {
-    property_name_list.Add(static_cast<char>(current()));
+    if (current() == '=') {
+      for (Advance(); current() != '}'; Advance()) {
+        if (!has_next()) return false;
+        second_part.Add(static_cast<char>(current()));
+      }
+      second_part.Add(0);  // null-terminate string.
+    }
   } else {
     return false;
   }
   Advance();
-  property_name_list.Add(0);  // null-terminate string.
+  first_part.Add(0);  // null-terminate string.
 
-  const char* property_name = property_name_list.ToConstVector().start();
-
-#define PROPERTY_NAME_LOOKUP(PROPERTY)                                  \
-  do {                                                                  \
-    if (LookupPropertyClass(PROPERTY, property_name, result, zone())) { \
-      return true;                                                      \
-    }                                                                   \
-  } while (false)
-
-  // General_Category (gc) found in PropertyValueAliases.txt
-  PROPERTY_NAME_LOOKUP(UCHAR_GENERAL_CATEGORY_MASK);
-  // Script (sc) found in Scripts.txt
-  PROPERTY_NAME_LOOKUP(UCHAR_SCRIPT);
-  // To disambiguate from script names, block names have an "In"-prefix.
-  if (property_name_list.length() > 3 && property_name[0] == 'I' &&
-      property_name[1] == 'n') {
-    // Block (blk) found in Blocks.txt
-    property_name += 2;
-    PROPERTY_NAME_LOOKUP(UCHAR_BLOCK);
+  if (second_part.is_empty()) {
+    // First attempt to interpret as general category property value name.
+    const char* name = first_part.ToConstVector().start();
+    if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, negate,
+                                result, zone())) {
+      return true;
+    }
+    // Interpret "Any", "ASCII", and "Assigned".
+    if (LookupSpecialPropertyValueName(name, result, negate, zone())) {
+      return true;
+    }
+    // Then attempt to interpret as binary property name with value name 'Y'.
+    UProperty property = u_getPropertyEnum(name);
+    if (property < UCHAR_BINARY_START) return false;
+    if (property >= UCHAR_BINARY_LIMIT) return false;
+    if (!IsExactPropertyAlias(name, property)) return false;
+    return LookupPropertyValueName(property, negate ? "N" : "Y", false, result,
+                                   zone());
+  } else {
+    // Both property name and value name are specified. Attempt to interpret
+    // the property name as enumerated property.
+    const char* property_name = first_part.ToConstVector().start();
+    const char* value_name = second_part.ToConstVector().start();
+    UProperty property = u_getPropertyEnum(property_name);
+    if (property < UCHAR_INT_START) return false;
+    if (property >= UCHAR_INT_LIMIT) return false;
+    if (!IsExactPropertyAlias(property_name, property)) return false;
+    return LookupPropertyValueName(property, value_name, negate, result,
+                                   zone());
   }
-#undef PROPERTY_NAME_LOOKUP
-#endif  // V8_I18N_SUPPORT
+}
+
+#else  // V8_I18N_SUPPORT
+
+bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
+                                      bool negate) {
   return false;
 }
+
+#endif  // V8_I18N_SUPPORT
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
   uc32 x = 0;
@@ -1096,7 +1374,6 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
   return CharacterRange::Singleton(first);
 }
 
-
 static const uc16 kNoCharClass = 0;
 
 // Adds range or pre-defined character class to character ranges.
@@ -1120,19 +1397,10 @@ bool RegExpParser::ParseClassProperty(ZoneList<CharacterRange>* ranges) {
   bool parse_success = false;
   if (next == 'p') {
     Advance(2);
-    parse_success = ParsePropertyClass(ranges);
+    parse_success = ParsePropertyClass(ranges, false);
   } else if (next == 'P') {
     Advance(2);
-    ZoneList<CharacterRange>* property_class =
-        new (zone()) ZoneList<CharacterRange>(2, zone());
-    parse_success = ParsePropertyClass(property_class);
-    if (parse_success) {
-      ZoneList<CharacterRange>* negated =
-          new (zone()) ZoneList<CharacterRange>(2, zone());
-      CharacterRange::Negate(property_class, negated, zone());
-      const Vector<CharacterRange> negated_vector = negated->ToVector();
-      ranges->AddAll(negated_vector, zone());
-    }
+    parse_success = ParsePropertyClass(ranges, true);
   } else {
     return false;
   }
@@ -1229,6 +1497,7 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
     int capture_count = parser.captures_started();
     result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;
     result->contains_anchor = parser.contains_anchor();
+    result->capture_name_map = parser.CreateCaptureNameMap();
     result->capture_count = capture_count;
   }
   return !parser.failed();

@@ -1,2144 +1,6073 @@
-2016-04-06: Version 5.1.281
+2016-08-23: Version 5.4.500
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.280
+2016-08-23: Version 5.4.499
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.279
+2016-08-23: Version 5.4.498
 
-        Ship --harmony-regexp-exec (issue 4602).
+        Performance and stability improvements on all platforms.
+
+
+2016-08-23: Version 5.4.497
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-23: Version 5.4.496
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-23: Version 5.4.495
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-23: Version 5.4.494
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-23: Version 5.4.493
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-23: Version 5.4.492
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.491
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.490
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.489
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.488
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.487
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.486
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.485
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.484
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.483
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.482
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.481
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.480
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-22: Version 5.4.479
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-20: Version 5.4.478
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-20: Version 5.4.477
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-20: Version 5.4.476
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.475
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.474
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.473
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.472
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.471
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.470
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.469
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.468
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.467
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.466
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.465
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.464
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.463
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.462
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.461
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-19: Version 5.4.460
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.459
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.458
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.457
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.456
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.455
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.454
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.453
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.452
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.451
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-18: Version 5.4.450
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.449
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.448
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.447
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.446
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.445
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.444
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.443
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.442
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.441
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-17: Version 5.4.440
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.439
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.438
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.437
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.436
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.435
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.434
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.433
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.432
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.431
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.430
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.429
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-16: Version 5.4.428
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-15: Version 5.4.427
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-15: Version 5.4.426
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-15: Version 5.4.425
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-15: Version 5.4.424
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-15: Version 5.4.423
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-14: Version 5.4.422
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-14: Version 5.4.421
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-13: Version 5.4.420
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.419
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.418
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.417
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.416
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.415
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.414
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.413
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.412
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.411
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.410
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.409
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.408
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-12: Version 5.4.407
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.406
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.405
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.404
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.403
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.402
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.401
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.400
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-11: Version 5.4.399
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.398
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.397
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.396
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.395
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.394
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.393
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-10: Version 5.4.392
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.391
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.390
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.389
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.388
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.387
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.386
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.385
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.384
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.383
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.382
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.381
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.380
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.379
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-09: Version 5.4.378
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.377
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.376
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.375
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.374
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.373
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.372
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.371
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.370
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.369
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.368
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-08: Version 5.4.367
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.366
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.365
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.364
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.363
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.362
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.361
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.360
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.359
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.358
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.357
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-05: Version 5.4.356
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.355
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.354
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.353
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.352
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.351
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.350
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-04: Version 5.4.349
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.348
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.347
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.346
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.345
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.344
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.343
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.342
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.341
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.340
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.339
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.338
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-03: Version 5.4.337
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.336
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.335
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.334
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.333
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.332
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.331
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.330
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.329
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.328
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.327
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.326
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.325
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.324
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.323
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.322
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-02: Version 5.4.321
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.320
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.319
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.318
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.317
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.316
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.315
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.314
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.313
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.312
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.311
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.310
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.309
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.308
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.307
+
+        Performance and stability improvements on all platforms.
+
+
+2016-08-01: Version 5.4.306
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-31: Version 5.4.305
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-31: Version 5.4.304
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-30: Version 5.4.303
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-30: Version 5.4.302
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.301
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.300
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.299
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.298
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.297
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.296
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.295
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.294
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.293
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.292
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.291
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.290
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.289
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-29: Version 5.4.288
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.287
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.286
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.285
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.284
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.283
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.282
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-28: Version 5.4.281
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.280
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.279
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.278
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.277
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.276
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.275
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.274
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.273
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.272
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.271
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.270
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.269
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.268
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-27: Version 5.4.267
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.266
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.265
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.264
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.263
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.262
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.261
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.260
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.259
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.258
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.257
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.256
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.255
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.254
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.253
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.252
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.251
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-26: Version 5.4.250
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.249
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.248
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.247
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.246
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.245
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.244
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.243
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.242
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.241
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.240
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.239
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.238
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.237
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.236
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-25: Version 5.4.235
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-24: Version 5.4.234
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-24: Version 5.4.233
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-23: Version 5.4.232
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.231
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.230
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.229
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.228
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.227
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.226
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.225
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.224
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.223
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.222
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.221
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.220
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.219
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-22: Version 5.4.218
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.217
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.216
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.215
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.214
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.213
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.212
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.211
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.210
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.209
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.208
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.207
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.206
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.205
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.204
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.203
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.202
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-21: Version 5.4.201
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.200
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.199
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.198
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.197
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.196
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.195
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.194
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.193
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.192
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-20: Version 5.4.191
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-19: Version 5.4.190
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-19: Version 5.4.189
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.188
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.187
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.186
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.185
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.184
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.183
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.182
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.181
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.180
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.179
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.178
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.177
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.176
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-18: Version 5.4.175
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-17: Version 5.4.174
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-17: Version 5.4.173
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-17: Version 5.4.172
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-16: Version 5.4.171
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-16: Version 5.4.170
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-16: Version 5.4.169
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.168
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.167
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.166
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.165
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.164
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.163
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.162
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.161
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.160
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.159
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.158
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-15: Version 5.4.157
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.156
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.155
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.154
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.153
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.152
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.151
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.150
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.149
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.148
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.147
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.146
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.145
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.144
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.143
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.142
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.141
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.140
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.139
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.138
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.137
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.136
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-14: Version 5.4.135
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.134
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.133
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.132
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.131
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.130
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.129
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.128
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.127
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.126
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.125
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.124
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.123
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.122
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.121
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.120
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.119
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.118
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.117
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.116
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.115
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.114
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.113
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.112
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-13: Version 5.4.111
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.110
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.109
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.108
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.107
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.106
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.105
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.104
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.103
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.102
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.101
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.100
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.99
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.98
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.97
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.96
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.95
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.94
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-12: Version 5.4.93
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.92
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.91
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.90
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.89
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.88
+
+        Recognize HTMLCloseComment after multiline comment (issue 5142).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.87
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.86
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.85
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.84
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.83
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.82
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.81
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.80
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.79
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.78
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.77
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.76
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.75
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.74
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.73
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.72
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-11: Version 5.4.71
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.70
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.69
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.68
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.67
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.66
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.65
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.64
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.62
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.61
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-08: Version 5.4.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.59
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.58
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.56
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.50
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.49
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.48
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.47
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-07: Version 5.4.46
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.45
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.44
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.43
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.42
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.41
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.40
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.39
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.38
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.37
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.36
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.35
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.34
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.33
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.32
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-06: Version 5.4.31
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.30
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.29
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.28
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.27
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.26
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.25
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.24
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.23
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-05: Version 5.4.22
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.21
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.20
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.19
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.18
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.17
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.16
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.15
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.14
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.13
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.12
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.11
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.10
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.9
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-04: Version 5.4.8
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-03: Version 5.4.7
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-03: Version 5.4.6
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-03: Version 5.4.5
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-03: Version 5.4.4
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-01: Version 5.4.3
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-01: Version 5.4.2
+
+        Performance and stability improvements on all platforms.
+
+
+2016-07-01: Version 5.4.1
+
+        [stubs] GetPropertyStub added (issue 4911).
+
+        [wasm] Fix receiver conversion for WASM->JS calls (Chromium issue
+        624713).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-30: Version 5.3.351
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-30: Version 5.3.350
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.349
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.348
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.347
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.346
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.345
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.344
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.343
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.342
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.341
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.340
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.339
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.338
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.337
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.336
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-29: Version 5.3.335
+
+        Allow trailing commas in function parameter lists (issue 5051).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-28: Version 5.3.334
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-28: Version 5.3.333
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.332
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.331
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.330
+
+        [stubs] Implementing CodeStubAssembler::GetOwnProperty() (issue 4911).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.329
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.328
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.327
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.326
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-27: Version 5.3.325
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-26: Version 5.3.324
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-26: Version 5.3.323
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-26: Version 5.3.322
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-26: Version 5.3.321
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-24: Version 5.3.320
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-24: Version 5.3.319
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-24: Version 5.3.318
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-24: Version 5.3.317
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-24: Version 5.3.316
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-23: Version 5.3.315
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-23: Version 5.3.314
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-23: Version 5.3.313
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-23: Version 5.3.312
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.311
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.310
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.309
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.308
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.307
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.306
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.305
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.304
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.303
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.302
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.301
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.300
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.299
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.298
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.297
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.296
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.295
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.294
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.293
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-22: Version 5.3.292
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.291
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.290
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.289
+
+        Reland: change most cases of variable redeclaration from TypeError to
+        SyntaxError (issue 4955).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.288
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.287
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.286
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.285
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.284
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.283
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.282
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.281
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-21: Version 5.3.280
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.279
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.278
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.277
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.276
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.275
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.274
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.273
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.272
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.271
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.270
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.269
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.268
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.267
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.266
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.265
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.264
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.263
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.262
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.261
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.260
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.259
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.258
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-20: Version 5.3.257
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.256
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.255
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.254
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.253
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.252
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.251
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-17: Version 5.3.250
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.249
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.248
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.247
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.246
+
+        [es8] Unstage syntactic tail calls (issue 4915).
+
+        [ic] LoadICState cleanup (Chromium issue 576312).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.245
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.244
+
+        [ic] Remove --new-load-global-ic switch (Chromium issue 576312).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.243
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.242
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-16: Version 5.3.241
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.240
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.239
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.238
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.237
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.236
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.235
+
+        [ic] Enable new LoadGlobalIC machinery (Chromium issue 576312).
+
+        [ic] LoadGlobalIC is now able to cache PropertyCells in the feedback
+        vector (Chromium issue 576312).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.234
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.233
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.232
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.231
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-15: Version 5.3.230
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-14: Version 5.3.229
+
+        [stubs] Ensure that StoreTransitionStub does not bailout after the
+        properties backing store is enlarged (Chromium issue 601420).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-14: Version 5.3.228
+
+        [ic] Split LoadIC into LoadGlobalIC and LoadIC (Chromium issue 576312).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-14: Version 5.3.227
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-14: Version 5.3.226
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.225
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.224
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.223
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.222
+
+        change most cases of variable redeclaration from TypeError to
+        SyntaxError (issue 4955).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.221
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.220
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.219
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.218
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.217
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-13: Version 5.3.216
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-12: Version 5.3.215
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-12: Version 5.3.214
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.213
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.212
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.211
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.210
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.209
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.208
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.207
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.206
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.205
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.204
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.203
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.202
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-10: Version 5.3.201
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.200
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.199
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.198
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.197
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.196
+
+        [ic] [stubs] Remove InlineCacheState field from the code flags (Chromium
+        issue 618701).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.195
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.194
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.193
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.192
+
+        [build] Use icu data file by default (Chromium issue 616033).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.191
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.190
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.189
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-09: Version 5.3.188
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.187
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.186
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.185
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.184
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.183
+
+        [build] Use sysroot for linux compilation with clang (Chromium issues
+        474921, 616032).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.182
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.181
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.180
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.179
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.178
+
+        [icu] Support loading data file from default location (Chromium issue
+        616033).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.177
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.176
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.175
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.174
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.173
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.172
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-08: Version 5.3.171
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.170
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.169
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.168
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.167
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.166
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.165
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.164
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.163
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.162
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.161
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.160
+
+        [runtime] Don't use ElementsTransitionAndStoreStub for transitions that
+        involve instance rewriting (issue 5009, Chromium issue 617524).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.159
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.158
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.157
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.156
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.155
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-07: Version 5.3.154
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.153
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.152
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.151
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.150
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.149
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.148
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.147
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.146
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.145
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.144
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.143
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.142
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.141
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-06: Version 5.3.140
+
+        [build] Use sysroot for linux compilation with clang (Chromium issues
+        474921, 616032).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-05: Version 5.3.139
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-04: Version 5.3.138
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.137
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.136
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.135
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.134
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.133
+
+        Performance and stability improvements on all platforms.
 
+
+2016-06-03: Version 5.3.132
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.131
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.130
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.129
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.128
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.127
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.126
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.125
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.124
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.123
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.122
+
+        Performance and stability improvements on all platforms.
+
+
+2016-06-03: Version 5.3.121
+
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.278
+2016-06-02: Version 5.3.120
 
-        [V8] Removed debugger V8::PromiseEvent (Chromium issue 526811).
+        Performance and stability improvements on all platforms.
 
-        [asm.js] Fix typing bug for non-literals in heap access (Chromium issue
-        599825).
 
-        Ensure CreateDataProperty works correctly on TypedArrays (Chromium issue
-        596394).
+2016-06-02: Version 5.3.119
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.277
+2016-06-02: Version 5.3.118
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.276
+2016-06-02: Version 5.3.117
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.275
+2016-06-02: Version 5.3.116
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.274
+2016-06-02: Version 5.3.115
 
         Performance and stability improvements on all platforms.
+
 
+2016-06-02: Version 5.3.114
 
-2016-04-05: Version 5.1.273
+        [stubs] Extend HasProperty stub with dictionary-mode, string wrapper and
+        double-elements objects support (issue 2743).
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.272
+2016-06-02: Version 5.3.113
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-05: Version 5.1.271
+2016-06-02: Version 5.3.112
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.270
+2016-06-02: Version 5.3.111
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.269
+2016-06-02: Version 5.3.110
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.268
+2016-06-02: Version 5.3.109
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.267
+2016-06-02: Version 5.3.108
 
-        [api] Restrict Template::Set to take templates or primitive values.
+        Performance and stability improvements on all platforms.
+
 
+2016-06-02: Version 5.3.107
+
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.266
+2016-06-01: Version 5.3.106
 
         Performance and stability improvements on all platforms.
+
 
+2016-06-01: Version 5.3.105
 
-2016-04-04: Version 5.1.265
+        Extend HasProperty stub with dictionary-mode, string wrapper and double-
+        elements objects support (issue 2743).
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.264
+2016-06-01: Version 5.3.104
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.263
+2016-06-01: Version 5.3.103
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.262
+2016-06-01: Version 5.3.102
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.261
+2016-06-01: Version 5.3.101
 
+        [runtime] Ensure that all elements kind transitions are chained to the
+        root map (issue 5009).
+
         Performance and stability improvements on all platforms.
 
 
-2016-04-04: Version 5.1.260
+2016-06-01: Version 5.3.100
 
         Performance and stability improvements on all platforms.
+
 
+2016-06-01: Version 5.3.99
+
+        Performance and stability improvements on all platforms.
 
-2016-04-04: Version 5.1.259
 
-        Further ES2015 RegExp spec compliance fixes (issue 4602).
+2016-06-01: Version 5.3.98
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-03: Version 5.1.258
+2016-06-01: Version 5.3.97
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-02: Version 5.1.257
+2016-06-01: Version 5.3.96
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-02: Version 5.1.256
+2016-06-01: Version 5.3.95
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-02: Version 5.1.255
+2016-06-01: Version 5.3.94
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.254
+2016-06-01: Version 5.3.93
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.253
+2016-05-31: Version 5.3.92
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.252
+2016-05-31: Version 5.3.91
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.251
+2016-05-31: Version 5.3.90
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.250
+2016-05-31: Version 5.3.89
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.249
+2016-05-31: Version 5.3.88
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.248
+2016-05-31: Version 5.3.87
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.247
+2016-05-31: Version 5.3.86
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.246
+2016-05-31: Version 5.3.85
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.245
+2016-05-31: Version 5.3.84
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.244
+2016-05-31: Version 5.3.83
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.243
+2016-05-30: Version 5.3.82
 
         Performance and stability improvements on all platforms.
 
 
-2016-04-01: Version 5.1.242
+2016-05-30: Version 5.3.81
 
+        [api] Remove deprectated memory allocation callback API (issue 4813).
+
         Performance and stability improvements on all platforms.
+
 
+2016-05-30: Version 5.3.80
 
-2016-04-01: Version 5.1.241
+        Performance and stability improvements on all platforms.
 
-        [GN] Define USE_EABI_HARDFLOAT=1 when arm_float_abi=="hard" (Chromium
-        issue 592660).
 
-        Ship --harmony-regexp-exec (issue 4602).
+2016-05-30: Version 5.3.79
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.240
+2016-05-30: Version 5.3.78
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.239
+2016-05-30: Version 5.3.77
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.238
+2016-05-30: Version 5.3.76
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.237
+2016-05-30: Version 5.3.75
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.236
+2016-05-30: Version 5.3.74
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.235
+2016-05-30: Version 5.3.73
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-30: Version 5.3.72
 
-2016-03-31: Version 5.1.234
+        Performance and stability improvements on all platforms.
+
 
-        [arm/Linux] Don't rely on KUSER_HELPERS feature (Chromium issue 599051).
+2016-05-30: Version 5.3.71
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.233
+2016-05-30: Version 5.3.70
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.232
+2016-05-30: Version 5.3.69
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-30: Version 5.3.68
 
+        Performance and stability improvements on all platforms.
 
-2016-03-31: Version 5.1.231
 
-        Turn scavenge_reclaim_unmodified_objects on by default (Chromium issue
-        4880).
+2016-05-29: Version 5.3.67
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.230
+2016-05-28: Version 5.3.66
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.229
+2016-05-28: Version 5.3.65
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.228
+2016-05-27: Version 5.3.64
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.227
+2016-05-27: Version 5.3.63
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.226
+2016-05-27: Version 5.3.62
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.225
+2016-05-27: Version 5.3.61
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-27: Version 5.3.60
+
+        Performance and stability improvements on all platforms.
 
-2016-03-31: Version 5.1.224
 
-        Raise minimum Mac OS version to 10.7 (issue 4847).
+2016-05-27: Version 5.3.59
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-31: Version 5.1.223
+2016-05-27: Version 5.3.58
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-30: Version 5.1.222
+2016-05-27: Version 5.3.57
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-30: Version 5.1.221
+2016-05-26: Version 5.3.56
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-30: Version 5.1.220
+2016-05-26: Version 5.3.55
 
-        Stage --harmony-regexp-exec (issue 4602).
+        Performance and stability improvements on all platforms.
 
-        Add fast paths for native RegExps in ES2015 subclass-aware code (issue
-        4602).
 
-        [V8] Add FunctionMirror.prototype.contextDebugId method (Chromium issue
-        595206).
+2016-05-26: Version 5.3.54
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-30: Version 5.1.219
+2016-05-26: Version 5.3.53
 
-        Remove RegExp.prototype.source getter compat workaround (issue 4827,
-        Chromium issue 581577).
+        Performance and stability improvements on all platforms.
 
-        Check for proper types from error handling code (Chromium issue 596718).
 
-        Add ES2015 RegExp full subclassing semantics behind a flag (issue 4602).
+2016-05-25: Version 5.3.52
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-24: Version 5.1.218
+2016-05-25: Version 5.3.51
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-24: Version 5.1.217
+2016-05-25: Version 5.3.50
 
-        [esnext] implement String padding proposal.
+        TypedArray: Make byteOffset, byteLength, and length configurable (issue
+        4902).
 
+        Make %ThrowTypeError% function(s) strict (issue 4925).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-24: Version 5.1.216
+2016-05-25: Version 5.3.49
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-24: Version 5.1.215
+2016-05-25: Version 5.3.48
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-24: Version 5.1.214
+2016-05-25: Version 5.3.47
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-25: Version 5.3.46
 
-2016-03-23: Version 5.1.213
+        Performance and stability improvements on all platforms.
+
 
-        Implement ES2015 labelled function declaration restrictions (Chromium
-        issue 595309).
+2016-05-25: Version 5.3.45
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.212
+2016-05-25: Version 5.3.44
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.211
+2016-05-25: Version 5.3.43
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.210
+2016-05-25: Version 5.3.42
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.209
+2016-05-25: Version 5.3.41
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.208
+2016-05-25: Version 5.3.40
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.207
+2016-05-25: Version 5.3.39
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.206
+2016-05-24: Version 5.3.38
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.205
+2016-05-24: Version 5.3.37
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.204
+2016-05-24: Version 5.3.36
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.203
+2016-05-24: Version 5.3.35
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.202
+2016-05-24: Version 5.3.34
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.201
+2016-05-24: Version 5.3.33
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-23: Version 5.1.200
+2016-05-24: Version 5.3.32
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.199
+2016-05-24: Version 5.3.31
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.198
+2016-05-24: Version 5.3.30
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.197
+2016-05-24: Version 5.3.29
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.196
+2016-05-24: Version 5.3.28
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.195
+2016-05-24: Version 5.3.27
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-24: Version 5.3.26
 
+        Performance and stability improvements on all platforms.
 
-2016-03-22: Version 5.1.194
 
-        Fix match default behavior on strings for ES2015 semantics (issue 4602).
+2016-05-24: Version 5.3.25
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.193
+2016-05-24: Version 5.3.24
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.192
+2016-05-24: Version 5.3.23
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-24: Version 5.3.22
+
+        Performance and stability improvements on all platforms.
 
-2016-03-22: Version 5.1.191
 
-        [Interpreter] TurboFan implementation of intrinsics (issue 4822).
+2016-05-23: Version 5.3.21
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-22: Version 5.1.190
+2016-05-23: Version 5.3.20
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.189
+2016-05-23: Version 5.3.19
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.188
+2016-05-23: Version 5.3.18
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.187
+2016-05-23: Version 5.3.17
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.186
+2016-05-23: Version 5.3.16
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.185
+2016-05-23: Version 5.3.15
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.184
+2016-05-23: Version 5.3.14
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.183
+2016-05-23: Version 5.3.13
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.182
+2016-05-23: Version 5.3.12
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.181
+2016-05-23: Version 5.3.11
 
-        Temporarily undeprecate ForceSet (Chromium issue 595601).
+        Performance and stability improvements on all platforms.
+
 
+2016-05-23: Version 5.3.10
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-21: Version 5.1.180
+2016-05-23: Version 5.3.9
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-20: Version 5.1.179
+2016-05-21: Version 5.3.8
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-20: Version 5.1.178
+2016-05-21: Version 5.3.7
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-20: Version 5.1.177
+2016-05-21: Version 5.3.6
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-19: Version 5.1.176
+2016-05-20: Version 5.3.5
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-18: Version 5.1.175
+2016-05-20: Version 5.3.4
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-20: Version 5.3.3
 
-2016-03-18: Version 5.1.174
+        Move case conversion with ICU to 'staged' (issues 4476, 4477).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-18: Version 5.1.173
+2016-05-20: Version 5.3.2
 
-        Parser: Make skipping HTML comments optional (Chromium issue 573887).
+        Performance and stability improvements on all platforms.
+
 
-        [es7] implement exponentiation operator proposal (issue 3915).
+2016-05-20: Version 5.3.1
 
+        Move case conversion with ICU to 'staged' (issues 4476, 4477).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-18: Version 5.1.172
+2016-05-19: Version 5.2.371
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-18: Version 5.1.171
+2016-05-19: Version 5.2.370
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-18: Version 5.1.170
+2016-05-19: Version 5.2.369
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-18: Version 5.1.169
+2016-05-19: Version 5.2.368
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.168
+2016-05-18: Version 5.2.367
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-18: Version 5.2.366
 
-2016-03-17: Version 5.1.167
+        Performance and stability improvements on all platforms.
+
 
-        Throw the right exceptions from setting elements in
-        Array.prototype.concat (Chromium issue 595319).
+2016-05-18: Version 5.2.365
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-18: Version 5.2.364
 
+        Performance and stability improvements on all platforms.
 
-2016-03-17: Version 5.1.166
 
-        Throw exceptions from CreateDataProperty when should_throw (Chromium
-        issue 595319).
+2016-05-18: Version 5.2.363
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.165
+2016-05-18: Version 5.2.362
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.164
+2016-05-18: Version 5.2.361
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.163
+2016-05-18: Version 5.2.360
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.162
+2016-05-18: Version 5.2.359
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.161
+2016-05-18: Version 5.2.358
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.160
+2016-05-18: Version 5.2.357
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.159
+2016-05-18: Version 5.2.356
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.158
+2016-05-18: Version 5.2.355
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.157
+2016-05-18: Version 5.2.354
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.156
+2016-05-18: Version 5.2.353
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.155
+2016-05-18: Version 5.2.352
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.154
+2016-05-18: Version 5.2.351
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.153
+2016-05-18: Version 5.2.350
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.152
+2016-05-18: Version 5.2.349
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-18: Version 5.2.348
+
+        Performance and stability improvements on all platforms.
 
-2016-03-17: Version 5.1.151
 
-        Move FastAccessorAssembler from RawMachineAssembler to CodeStubAssembler
-        (Chromium issue 508898).
+2016-05-17: Version 5.2.347
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.150
+2016-05-17: Version 5.2.346
 
-        [serializer] Add API to warm up startup snapshot with an additional
-        script (issue 4836).
+        Performance and stability improvements on all platforms.
+
 
+2016-05-17: Version 5.2.345
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.149
+2016-05-17: Version 5.2.344
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.148
+2016-05-17: Version 5.2.343
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-17: Version 5.1.147
+2016-05-17: Version 5.2.342
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-17: Version 5.2.341
 
-2016-03-16: Version 5.1.146
+        Performance and stability improvements on all platforms.
+
 
-        Ship ES2015 restrictions on function declaration locations (issue 4824).
+2016-05-17: Version 5.2.340
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-16: Version 5.1.145
+2016-05-17: Version 5.2.339
 
+        [wasm] remove extra nops in asm-wasm (issue 4203).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-16: Version 5.1.144
+2016-05-17: Version 5.2.338
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-16: Version 5.1.143
+2016-05-17: Version 5.2.337
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-16: Version 5.1.142
+2016-05-17: Version 5.2.336
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-16: Version 5.1.141
+2016-05-17: Version 5.2.335
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-17: Version 5.2.334
 
-2016-03-16: Version 5.1.140
+        Performance and stability improvements on all platforms.
+
 
-        Put RegExp js code in strict mode (issue 4504).
+2016-05-17: Version 5.2.333
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.139
+2016-05-17: Version 5.2.332
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-16: Version 5.2.331
 
+        Performance and stability improvements on all platforms.
 
-2016-03-15: Version 5.1.138
 
-        [builtins] Fix Array.prototype.concat bug (Chromium issue 594574).
+2016-05-16: Version 5.2.330
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.137
+2016-05-16: Version 5.2.329
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-16: Version 5.2.328
 
-2016-03-15: Version 5.1.136
+        Add UseCounter for decimal with leading zero (issue 4973).
 
+        [esnext] implement frontend changes for async/await proposal (issue
+        4483).
+
         Performance and stability improvements on all platforms.
+
 
+2016-05-16: Version 5.2.327
 
-2016-03-15: Version 5.1.135
+        Performance and stability improvements on all platforms.
+
 
-        Ship Array.prototype.values (issue 4247).
+2016-05-15: Version 5.2.326
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.134
+2016-05-14: Version 5.2.325
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.133
+2016-05-14: Version 5.2.324
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.132
+2016-05-13: Version 5.2.323
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.131
+2016-05-13: Version 5.2.322
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.130
+2016-05-13: Version 5.2.321
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.129
+2016-05-13: Version 5.2.320
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-15: Version 5.1.128
+2016-05-13: Version 5.2.319
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.127
+2016-05-13: Version 5.2.318
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-13: Version 5.2.317
 
+        Performance and stability improvements on all platforms.
 
-2016-03-14: Version 5.1.126
 
-        Remove --harmony-modules flag and let embedder decide when modules are
-        used (issue 1569, Chromium issue 594639).
+2016-05-13: Version 5.2.316
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-13: Version 5.2.315
+
+        Performance and stability improvements on all platforms.
 
-2016-03-14: Version 5.1.125
 
-        Make test262 test runner check for which exception is thrown (issue
-        4803).
+2016-05-13: Version 5.2.314
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.124
+2016-05-13: Version 5.2.313
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.123
+2016-05-13: Version 5.2.312
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.122
+2016-05-13: Version 5.2.311
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.121
+2016-05-13: Version 5.2.310
 
+        [api] Clarify expectations of ArrayBuffer::Allocator in API (Chromium
+        issue 611688).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.120
+2016-05-13: Version 5.2.309
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-14: Version 5.1.119
+2016-05-13: Version 5.2.308
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-13: Version 5.2.307
 
-2016-03-13: Version 5.1.118
+        In parallel to the strict octal check that would reject `012` in strict
+        mode, this patch collects UseCounters for `089` in strict mode. The spec
+        says this should be an error, but this patch does not report it as such
+        (issue 4973).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-11: Version 5.1.117
+2016-05-12: Version 5.2.306
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-11: Version 5.1.116
+2016-05-12: Version 5.2.305
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-11: Version 5.1.115
+2016-05-12: Version 5.2.304
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-12: Version 5.2.303
 
+        Performance and stability improvements on all platforms.
 
-2016-03-11: Version 5.1.114
 
-        [arm64] Fix i/d cache line size confusion typo (Chromium issue 593867).
+2016-05-12: Version 5.2.302
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-12: Version 5.2.301
+
+        Performance and stability improvements on all platforms.
 
-2016-03-11: Version 5.1.113
 
-        Fix expression positions for for-loops (issue 4690).
+2016-05-12: Version 5.2.300
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-11: Version 5.1.112
+2016-05-12: Version 5.2.299
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-11: Version 5.1.111
+2016-05-12: Version 5.2.298
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.110
+2016-05-12: Version 5.2.297
 
-        Minor library function fixes for TypedArray spec compliance (issue
-        4785).
+        Performance and stability improvements on all platforms.
+
 
-        Check that Promise subclasses have callable resolve/reject (issue 4633).
+2016-05-12: Version 5.2.296
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.109
+2016-05-12: Version 5.2.295
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.108
+2016-05-11: Version 5.2.294
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.107
+2016-05-11: Version 5.2.293
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.106
+2016-05-11: Version 5.2.292
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.105
+2016-05-11: Version 5.2.291
 
+        Use ICU case conversion/transliterator for case conversion (issues 4476,
+        4477).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.104
+2016-05-11: Version 5.2.290
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.103
+2016-05-11: Version 5.2.289
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.102
+2016-05-11: Version 5.2.288
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.101
+2016-05-11: Version 5.2.287
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-11: Version 5.2.286
 
-2016-03-10: Version 5.1.100
+        Performance and stability improvements on all platforms.
+
 
-        [strong] Remove all remainders of strong mode (issue 3956).
+2016-05-11: Version 5.2.285
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-11: Version 5.2.284
 
+        Performance and stability improvements on all platforms.
 
-2016-03-10: Version 5.1.99
 
-        Marks the label associated with the runtime call in
-        CodeStubAssembler::Allocate as deferred (Chromium issue 593359).
+2016-05-10: Version 5.2.283
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.98
+2016-05-10: Version 5.2.282
 
-        Implement iterator finalization in array destructuring (issue 3566).
+        Fix Map::AsArray to properly iterate over the backing store (issue
+        4946).
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-10: Version 5.2.281
 
-2016-03-10: Version 5.1.97
+        Remove LOG line checking from presubmit.
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.96
+2016-05-10: Version 5.2.280
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-10: Version 5.1.95
+2016-05-10: Version 5.2.279
 
-        String.prototype[Symbol.iterator] does RequireObjectCoercible(this)
-        (issue 4348).
+        Performance and stability improvements on all platforms.
 
-        Stage restrictive declarations flag (issue 4824).
 
-        Expose Array.prototype.values behind a flag and stage it (issue 4247).
+2016-05-10: Version 5.2.278
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.94
+2016-05-10: Version 5.2.277
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-10: Version 5.2.276
 
-2016-03-09: Version 5.1.93
+        Performance and stability improvements on all platforms.
+
 
-        Ensure appropriate bounds checking for Array subclass concat (Chromium
-        issue 592340).
+2016-05-10: Version 5.2.275
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.92
+2016-05-10: Version 5.2.274
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.91
+2016-05-10: Version 5.2.273
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.90
+2016-05-10: Version 5.2.272
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.89
+2016-05-10: Version 5.2.271
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.88
+2016-05-10: Version 5.2.270
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.87
+2016-05-10: Version 5.2.269
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.86
+2016-05-10: Version 5.2.268
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.85
+2016-05-10: Version 5.2.267
 
+        Various species micro-optimizations (Chromium issue 609739).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-09: Version 5.1.84
+2016-05-09: Version 5.2.266
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.83
+2016-05-09: Version 5.2.265
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-09: Version 5.2.264
 
-2016-03-08: Version 5.1.82
+        Fix TypedArray Property optimizations (Chromium issue 593634).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.81
+2016-05-09: Version 5.2.263
 
-        Optimize new TypedArray(typedArray) constructor (Chromium issue 592007).
+        Performance and stability improvements on all platforms.
+
 
-        Ensure the @@species protector is updated for accessors (issue 4093).
+2016-05-09: Version 5.2.262
 
-        Add UseCounters for various RegExp compatibility issues (Chromium issue
-        581577).
+        [V8] Add v8::Value::TypeOf to API (Chromium issue 595206).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.80
+2016-05-09: Version 5.2.261
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.79
+2016-05-09: Version 5.2.260
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.78
+2016-05-09: Version 5.2.259
 
+        Expose IsConstructor to the C++ API (issue 4993).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.77
+2016-05-09: Version 5.2.258
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.76
+2016-05-09: Version 5.2.257
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.75
+2016-05-09: Version 5.2.256
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.74
+2016-05-09: Version 5.2.255
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.73
+2016-05-09: Version 5.2.254
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-08: Version 5.1.72
+2016-05-08: Version 5.2.253
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-07: Version 5.2.252
 
-2016-03-08: Version 5.1.71
+        fix Set::AsArray to not leave undefined holes in output array (issue
+        4946).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.70
+2016-05-06: Version 5.2.251
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.69
+2016-05-06: Version 5.2.250
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.68
+2016-05-06: Version 5.2.249
 
-        [key-accumulator] Starting to reimplement the key-accumulator (issue
-        4758, Chromium issue 545503).
+        Performance and stability improvements on all platforms.
+
 
+2016-05-06: Version 5.2.248
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.67
+2016-05-06: Version 5.2.247
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.66
+2016-05-06: Version 5.2.246
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-06: Version 5.2.245
 
-2016-03-07: Version 5.1.65
+        Performance and stability improvements on all platforms.
+
 
-        [key-accumulator] Starting to reimplement the key-accumulator (issue
-        4758, Chromium issue 545503).
+2016-05-06: Version 5.2.244
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.64
+2016-05-06: Version 5.2.243
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.63
+2016-05-04: Version 5.2.242
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.62
+2016-05-04: Version 5.2.241
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.61
+2016-05-04: Version 5.2.240
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.60
+2016-05-04: Version 5.2.239
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.59
+2016-05-04: Version 5.2.238
+
+        Performance and stability improvements on all platforms.
 
-        Use v8::kGCCallbackFlagCollectAllAvailableGarbage in
-        Heap::CollectAllAvailableGarbage (Chromium issue 591463).
 
-        [key-accumulator] Starting to reimplement the key-accumulator (issue
-        4758, Chromium issue 545503).
+2016-05-04: Version 5.2.237
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.58
+2016-05-04: Version 5.2.236
 
-        [regexp] Fix off-by-one in CharacterRange::Negate (Chromium issue
-        592343).
+        S390: Add HasProperty code stub that tries simple lookups or jumps to
+        runtime otherwise (issue 2743).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-07: Version 5.1.57
+2016-05-04: Version 5.2.235
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-04: Version 5.2.234
+
+        Make array __proto__ manipulations not disturb the species protector
+        (Chromium issue 606207).
+
+        Add v8::Object::GetOwnPropertyNames(context, filter) method (issue 3861,
+        Chromium issue 581495).
 
+        Performance and stability improvements on all platforms.
 
-2016-03-07: Version 5.1.56
 
-        Use v8::kGCCallbackFlagCollectAllAvailableGarbage in
-        Heap::CollectAllAvailableGarbage (Chromium issue 591463).
+2016-05-04: Version 5.2.233
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-06: Version 5.1.55
+2016-05-04: Version 5.2.232
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-06: Version 5.1.54
+2016-05-04: Version 5.2.231
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.53
+2016-05-04: Version 5.2.230
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.52
+2016-05-04: Version 5.2.229
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.51
+2016-05-04: Version 5.2.228
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-04: Version 5.2.227
 
-2016-03-04: Version 5.1.50
+        MIPS64: Fix [turbofan] Length and index2 are unsigned in
+        CheckedLoad/CheckedStore (Chromium issue 599717).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.49
+2016-05-04: Version 5.2.226
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.48
+2016-05-04: Version 5.2.225
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.47
+2016-05-04: Version 5.2.224
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-04: Version 5.2.223
 
+        Performance and stability improvements on all platforms.
 
-2016-03-04: Version 5.1.46
 
-        Introduce v8::MicrotasksScope (Chromium issue 585949).
+2016-05-04: Version 5.2.222
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.45
+2016-05-04: Version 5.2.221
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.44
+2016-05-04: Version 5.2.220
 
-        Use a different GCCallbackFlag for GCs triggered by
-        CollectAllAvailableGarbage (Chromium issue 591463).
+        [wasm] Fix for 608630: allow proxies as FFI (Chromium issue 608630).
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.43
+2016-05-04: Version 5.2.219
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.42
+2016-05-03: Version 5.2.218
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.41
+2016-05-03: Version 5.2.217
 
         Performance and stability improvements on all platforms.
+
+
+2016-05-03: Version 5.2.216
+
+        [wasm] Disallow runtime calls in asm.js modules (Chromium issue 592352).
 
+        [API] remove (deprecated) hidden properties.
 
-2016-03-04: Version 5.1.40
+        [wasm] Fix bug with empty input to Wasm.instantiateModuleFromAsm()
+        (Chromium issue 605488).
 
+        Add HasProperty code stub that tries simple lookups or jumps to runtime
+        otherwise (issue 2743).
+
+        Fix ExternalTwobyteStringUtf16CharacterStream::PushBack(kEndOfInput)
+        (Chromium issue 607903).
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.39
+2016-05-03: Version 5.2.215
+
+        Performance and stability improvements on all platforms.
 
-        Ship ES2015 Function.name reform (issue 3699, Chromium issue 588803).
 
-        Introduce v8::MicrotasksScope (Chromium issue 585949).
+2016-05-03: Version 5.2.214
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-04: Version 5.1.38
+2016-05-03: Version 5.2.213
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.37
+2016-05-03: Version 5.2.212
 
-        Restrict FunctionDeclarations in Statement position (issue 4647).
+        Performance and stability improvements on all platforms.
+
 
+2016-05-03: Version 5.2.211
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.36
+2016-05-02: Version 5.2.210
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.35
+2016-05-02: Version 5.2.209
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.34
+2016-05-02: Version 5.2.208
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.33
+2016-05-02: Version 5.2.207
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.32
+2016-05-02: Version 5.2.206
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-03: Version 5.1.31
+2016-05-02: Version 5.2.205
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-02: Version 5.2.204
 
-2016-03-03: Version 5.1.30
+        [debugger] Add JSProxy support in Runtime::GetInternalProperties
+        (Chromium issue 588705).
 
-        Implement TypedArray(typedarray) constructor (issue 4726).
+        Performance and stability improvements on all platforms.
+
 
+2016-05-02: Version 5.2.203
+
         Performance and stability improvements on all platforms.
 
 
-2016-03-02: Version 5.1.29
+2016-05-02: Version 5.2.202
 
         Performance and stability improvements on all platforms.
+
 
+2016-05-02: Version 5.2.201
 
-2016-03-02: Version 5.1.28
+        Performance and stability improvements on all platforms.
+
 
-        [turbofan] Adds an Allocate macro to the CodeStubAssembler (Chromium
-        issue 588692).
+2016-05-02: Version 5.2.200
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-02: Version 5.1.27
+2016-05-02: Version 5.2.199
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-02: Version 5.1.26
+2016-05-02: Version 5.2.198
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-02: Version 5.1.25
+2016-05-02: Version 5.2.197
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-02: Version 5.1.24
+2016-05-02: Version 5.2.196
+
+        Performance and stability improvements on all platforms.
 
-        Devtools: expose scopes source location to debugger (Chromium issue
-        327092).
 
-        CodeStubAssembler can generate code for builtins (issue 4614).
+2016-05-02: Version 5.2.195
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.23
+2016-05-02: Version 5.2.194
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.22
+2016-05-02: Version 5.2.193
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.21
+2016-05-02: Version 5.2.192
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.20
+2016-05-02: Version 5.2.191
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.19
+2016-05-01: Version 5.2.190
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.18
+2016-05-01: Version 5.2.189
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.17
+2016-04-30: Version 5.2.188
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.16
+2016-04-30: Version 5.2.187
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.15
+2016-04-30: Version 5.2.186
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.14
+2016-04-29: Version 5.2.185
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.13
+2016-04-29: Version 5.2.184
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.12
+2016-04-29: Version 5.2.183
 
         Performance and stability improvements on all platforms.
 
 
-2016-03-01: Version 5.1.11
+2016-04-29: Version 5.2.182
 
-        Make %TypedArray%.from spec-compliant (issue 4782).
+        Performance and stability improvements on all platforms.
+
 
+2016-04-29: Version 5.2.181
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-29: Version 5.1.10
+2016-04-29: Version 5.2.180
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-29: Version 5.1.9
+2016-04-29: Version 5.2.179
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-28: Version 5.1.8
+2016-04-29: Version 5.2.178
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-29: Version 5.2.177
 
-2016-02-28: Version 5.1.7
+        Fix overflow issue in Zone::New (Chromium issue 606115).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-28: Version 5.1.6
+2016-04-29: Version 5.2.176
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-28: Version 5.1.5
+2016-04-29: Version 5.2.175
 
+        [wasm] Binary 11: Bump module version to 0xB. [wasm] Binary 11: Swap the
+        order of section name / section length. [wasm] Binary 11: Shorter
+        section names. [wasm] Binary 11: Add a prefix for function type
+        declarations. [wasm] Binary 11: Function types encoded as pcount, p*,
+        rcount, r* [wasm] Fix numeric names for functions (Chromium issue
+        575167).
+
+        [wasm] Binary 11: WASM AST is now postorder. [wasm] Binary 11: br_table
+        takes a value. [wasm] Binary 11: Add implicit blocks to if arms. [wasm]
+        Binary 11: Add arities to call, return, and breaks [wasm] Binary 11: Add
+        experimental version (Chromium issue 575167).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-28: Version 5.1.4
+2016-04-29: Version 5.2.174
 
+        Add checks for detached ArrayBuffers to ArrayBuffer.prototype.slice
+        (issue 4964).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-28: Version 5.1.3
+2016-04-28: Version 5.2.173
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-28: Version 5.1.2
+2016-04-28: Version 5.2.172
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-28: Version 5.2.171
 
-2016-02-27: Version 5.1.1
+        Ship for-in initializer deprecation (issue 4942).
 
-        Fix strict mode function error message (issue 2198).
+        Performance and stability improvements on all platforms.
+
 
-        Reland of Make Intl install properties more like how other builtins do
-        (patchset #1 id:1 of https://codereview.chromium.org/1733293003/ )
-        (issue 4778).
+2016-04-28: Version 5.2.170
 
-        [turbofan] Bailout if LoadBuffer typing assumption doesn't hold
-        (Chromium issue 589792).
+        Add GC request to libFuzzers in attempt to avoid parasitic coverage
+        (Chromium issue 584819).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-26: Version 5.0.104
+2016-04-28: Version 5.2.169
 
         Performance and stability improvements on all platforms.
+
+
+2016-04-28: Version 5.2.168
 
+        Prevent unnecessary memory (de-)allocations in LiteralBuffer::CopyFrom
+        (issue 4947).
 
-2016-02-26: Version 5.0.103
+        Performance and stability improvements on all platforms.
+
 
-        Make Intl install properties more like how other builtins do (issue
-        4778).
+2016-04-28: Version 5.2.167
 
         Performance and stability improvements on all platforms.
+
+
+2016-04-28: Version 5.2.166
 
+        Performance and stability improvements on all platforms.
 
-2016-02-26: Version 5.0.102
 
-        Make TypedArray.from and TypedArray.of writable and configurable (issue
-        4315).
+2016-04-28: Version 5.2.165
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.101
+2016-04-28: Version 5.2.164
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-27: Version 5.2.163
+
+        Performance and stability improvements on all platforms.
 
-2016-02-25: Version 5.0.100
 
-        Ship ES2015 iterator finalization (issue 3566).
+2016-04-27: Version 5.2.162
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.99
+2016-04-27: Version 5.2.161
 
-        Introduce MicrotasksCompletedCallback (Chromium issue 585949).
+        [esnext] stage --harmony-string-padding (issue 4954).
 
+        Disallow generator declarations in certain locations (issue 4824).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.98
+2016-04-27: Version 5.2.160
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-27: Version 5.2.159
 
-2016-02-25: Version 5.0.97
+        [api] Expose FunctionCallbackInfo::NewTarget (issue 4261).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.96
+2016-04-27: Version 5.2.158
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.95
+2016-04-27: Version 5.2.157
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.94
+2016-04-27: Version 5.2.156
 
+        [es8] Report proper syntax error for tail call expressions in for-in and
+        for-of bodies (issue 4915).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.93
+2016-04-27: Version 5.2.155
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.92
+2016-04-27: Version 5.2.154
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.91
+2016-04-27: Version 5.2.153
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.90
+2016-04-27: Version 5.2.152
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.89
+2016-04-27: Version 5.2.151
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.88
+2016-04-26: Version 5.2.150
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.87
+2016-04-26: Version 5.2.149
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-25: Version 5.0.86
+2016-04-26: Version 5.2.148
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-26: Version 5.2.147
 
-2016-02-25: Version 5.0.85
+        Do not penalize performance when --harmony-species is off (Chromium
+        issue 606207).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.84
+2016-04-26: Version 5.2.146
 
+        [es8] Initial set of changes to support syntactic tail calls (issue
+        4915).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.83
+2016-04-26: Version 5.2.145
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-26: Version 5.2.144
 
-2016-02-24: Version 5.0.82
+        Performance and stability improvements on all platforms.
 
-        Ensure IteratorClose is called for errors in non-declaring assignments
-        (issue 4776).
 
-        Fix priority of exceptions being thrown from for-of loops (issue 4775).
+2016-04-26: Version 5.2.143
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.81
+2016-04-26: Version 5.2.142
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-26: Version 5.2.141
 
-2016-02-24: Version 5.0.80
+        Performance and stability improvements on all platforms.
 
-        Encode interpreter::SourcePositionTable as variable-length ints (issue
-        4690).
 
-        Stage ES2015 iterator finalization (issue 3566).
+2016-04-26: Version 5.2.140
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.79
+2016-04-26: Version 5.2.139
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-26: Version 5.2.138
 
-2016-02-24: Version 5.0.78
+        [es6] Fix tail call elimination in single-expression arrow functions
+        (issue 4698).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.77
+2016-04-26: Version 5.2.137
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.76
+2016-04-25: Version 5.2.136
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.75
+2016-04-25: Version 5.2.135
 
+        Widen --harmony-for-in flag to throw errors in PreParser (issue 4942).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-24: Version 5.0.74
+2016-04-25: Version 5.2.134
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.73
+2016-04-25: Version 5.2.133
 
-        Intl: Use private symbols to memoize bound functions (issue 3785).
+        Performance and stability improvements on all platforms.
 
-        Ensure Array.prototype.indexOf returns +0 rather than -0.
 
-        Ship ES2015 Symbol.species (issue 4093).
+2016-04-25: Version 5.2.132
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.72
+2016-04-25: Version 5.2.131
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.71
+2016-04-25: Version 5.2.130
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.70
+2016-04-25: Version 5.2.129
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.69
+2016-04-25: Version 5.2.128
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.68
+2016-04-25: Version 5.2.127
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.67
+2016-04-25: Version 5.2.126
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-23: Version 5.0.66
+2016-04-25: Version 5.2.125
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.65
+2016-04-25: Version 5.2.124
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.64
+2016-04-25: Version 5.2.123
 
-        ES2015 web compat workaround: RegExp.prototype.flags => "" (Chromium
-        issue 581577).
+        Performance and stability improvements on all platforms.
+
 
-        Remove the Proxy enumerate trap (issue 4768).
+2016-04-25: Version 5.2.122
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.63
+2016-04-22: Version 5.2.121
 
         Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.120
 
+        Performance and stability improvements on all platforms.
 
-2016-02-22: Version 5.0.62
 
-        Remove Reflect.enumerate (issue 4768).
+2016-04-22: Version 5.2.119
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.61
+2016-04-22: Version 5.2.118
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-22: Version 5.2.117
 
-2016-02-22: Version 5.0.60
+        [debugger] Hide scopes that originate from desugaring (Chromium issue
+        604458).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.59
+2016-04-22: Version 5.2.116
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.58
+2016-04-22: Version 5.2.115
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.57
+2016-04-21: Version 5.2.114
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.56
+2016-04-21: Version 5.2.113
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.55
+2016-04-21: Version 5.2.112
 
+        [ic] Restore PROPERTY key tracking in keyed ICs (Chromium issue 594183).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-22: Version 5.0.54
+2016-04-21: Version 5.2.111
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-21: Version 5.0.53
+2016-04-21: Version 5.2.110
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-21: Version 5.0.52
+2016-04-21: Version 5.2.109
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-21: Version 5.0.51
+2016-04-21: Version 5.2.108
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-21: Version 5.0.50
+2016-04-21: Version 5.2.107
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-21: Version 5.0.49
+2016-04-21: Version 5.2.106
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-21: Version 5.0.48
+2016-04-21: Version 5.2.105
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-20: Version 5.0.47
+2016-04-21: Version 5.2.104
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-20: Version 5.0.46
+2016-04-21: Version 5.2.103
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.45
+2016-04-21: Version 5.2.102
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-20: Version 5.2.101
 
-2016-02-19: Version 5.0.44
+        Performance and stability improvements on all platforms.
+
 
-        Return undefined from RegExp.prototype.compile (Chromium issue 585775).
+2016-04-20: Version 5.2.100
 
         Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.99
 
+        Performance and stability improvements on all platforms.
 
-2016-02-19: Version 5.0.43
 
-        Disable --harmony-object-observe (Chromium issue 552100).
+2016-04-20: Version 5.2.98
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-20: Version 5.2.97
+
+        Performance and stability improvements on all platforms.
 
-2016-02-19: Version 5.0.42
 
-        Introduce BeforeCallEnteredCallback (Chromium issue 585949).
+2016-04-20: Version 5.2.96
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.41
+2016-04-20: Version 5.2.95
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.40
+2016-04-20: Version 5.2.94
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.39
+2016-04-20: Version 5.2.93
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.38
+2016-04-20: Version 5.2.92
 
-        [wasm] Add support for import section (Chromium issue 575167).
+        Performance and stability improvements on all platforms.
+
 
+2016-04-20: Version 5.2.91
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.37
+2016-04-20: Version 5.2.90
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.36
+2016-04-20: Version 5.2.89
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-20: Version 5.2.88
 
-2016-02-19: Version 5.0.35
+        [turbofan] Length and index2 are unsigned in CheckedLoad/CheckedStore
+        (Chromium issue 599717).
 
+        Prevent un-parsed LiteralFunction reaching the compiler (Chromium issue
+        604044).
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.34
+2016-04-20: Version 5.2.87
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.33
+2016-04-20: Version 5.2.86
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.32
+2016-04-19: Version 5.2.85
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.31
+2016-04-19: Version 5.2.84
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-19: Version 5.2.83
+
+        Performance and stability improvements on all platforms.
 
-2016-02-19: Version 5.0.30
 
-        Mark old SetAccessCheckCallback as deprecated.
+2016-04-19: Version 5.2.82
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.29
+2016-04-19: Version 5.2.81
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.28
+2016-04-19: Version 5.2.80
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.27
+2016-04-19: Version 5.2.79
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-19: Version 5.0.26
+2016-04-19: Version 5.2.78
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.25
+2016-04-19: Version 5.2.77
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.24
+2016-04-19: Version 5.2.76
 
-        Make Date.prototype.toGMTString an alias for Date.prototype.toUTCString
-        (issue 4708).
+        Performance and stability improvements on all platforms.
+
 
+2016-04-19: Version 5.2.75
+
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.23
+2016-04-19: Version 5.2.74
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.22
+2016-04-19: Version 5.2.73
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.21
+2016-04-19: Version 5.2.72
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.20
+2016-04-19: Version 5.2.71
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.19
+2016-04-19: Version 5.2.70
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.18
+2016-04-19: Version 5.2.69
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.17
+2016-04-19: Version 5.2.68
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-19: Version 5.2.67
 
-2016-02-18: Version 5.0.16
+        Performance and stability improvements on all platforms.
+
 
-        [es6] Implement for-of iterator finalization (issue 2214).
+2016-04-19: Version 5.2.66
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.15
+2016-04-18: Version 5.2.65
 
         Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.64
 
+        Performance and stability improvements on all platforms.
 
-2016-02-18: Version 5.0.14
 
-        Use displayName in Error.stack rendering if present (issue 4761).
+2016-04-18: Version 5.2.63
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.13
+2016-04-18: Version 5.2.62
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-18: Version 5.2.61
 
-2016-02-18: Version 5.0.12
+        [Atomics] Remove Atomics code stubs; use TF ops (issue 4614).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-18: Version 5.0.11
+2016-04-18: Version 5.2.60
 
         Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.59
 
+        Performance and stability improvements on all platforms.
 
-2016-02-17: Version 5.0.10
 
-        [Atomics] Add dmb/dsb/isb instructions to ARM (issue 4614).
+2016-04-18: Version 5.2.58
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.9
+2016-04-18: Version 5.2.57
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.8
+2016-04-18: Version 5.2.56
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.7
+2016-04-18: Version 5.2.55
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.6
+2016-04-18: Version 5.2.54
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.5
+2016-04-18: Version 5.2.53
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.4
+2016-04-18: Version 5.2.52
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.3
+2016-04-18: Version 5.2.51
 
         Performance and stability improvements on all platforms.
+
 
+2016-04-18: Version 5.2.50
 
-2016-02-17: Version 5.0.2
+        [Atomics] Remove Atomics code stubs; use TF ops (issue 4614).
 
         Performance and stability improvements on all platforms.
 
 
-2016-02-17: Version 5.0.1
+2016-04-18: Version 5.2.49
 
+        [api] Bring back finalizers on global handles.
+
         Performance and stability improvements on all platforms.
+
+
+2016-02-17: Sentinel
 
+        The ChangeLog file is no longer maintained on master. This
+        sentinel should stay on top of this list.
 
 2016-02-17: Version 4.10.253
 
@@ -7266,12 +11195,6 @@
         493156).
 
         Performance and stability improvements on all platforms.
-
-
-2015-05-17: Sentinel
-
-        The ChangeLog file is no longer maintained on bleeding_edge. This
-        sentinel should stay on top of this list.
 
 
 2015-05-17: Version 4.5.2

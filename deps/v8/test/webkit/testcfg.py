@@ -106,12 +106,6 @@ class WebkitTestSuite(testsuite.TestSuite):
     if not string: return True
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID") or
-            # These five patterns appear in normal Native Client output.
-            string.startswith("DEBUG MODE ENABLED") or
-            string.startswith("tools/nacl-run.py") or
-            string.find("BYPASSING ALL ACL CHECKS") > 0 or
-            string.find("Native Client module will be loaded") > 0 or
-            string.find("NaClHostDescOpen:") > 0 or
             # FIXME(machenbach): The test driver shouldn't try to use slow
             # asserts if they weren't compiled. This fails in optdebug=2.
             string == "Warning: unknown flag --enable-slow-asserts." or

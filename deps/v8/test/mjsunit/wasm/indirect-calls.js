@@ -10,24 +10,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var module = (function () {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([kAstI32, kAstI32, kAstI32]);
+  var sig_index = builder.addType(kSig_i_ii);
   builder.addImport("add", sig_index);
   builder.addFunction("add", sig_index)
     .addBody([
-      kExprCallImport, 0, kExprGetLocal, 0, kExprGetLocal, 1
+      kExprGetLocal, 0, kExprGetLocal, 1, kExprCallImport, kArity2, 0
     ]);
   builder.addFunction("sub", sig_index)
     .addBody([
-      kExprI32Sub, kExprGetLocal, 0, kExprGetLocal, 1
+      kExprGetLocal, 0,             // --
+      kExprGetLocal, 1,             // --
+      kExprI32Sub,                  // --
     ]);
-  builder.addFunction("main", [kAstI32, kAstI32, kAstI32, kAstI32])
+  builder.addFunction("main", kSig_i_iii)
     .addBody([
-      kExprCallIndirect, sig_index,
       kExprGetLocal, 0,
       kExprGetLocal, 1,
-      kExprGetLocal, 2])
+      kExprGetLocal, 2,
+      kExprCallIndirect, kArity2, sig_index
+    ])
     .exportFunc()
-  builder.appendToFunctionTable([0, 1, 2]);
+  builder.appendToTable([0, 1, 2]);
 
   return builder.instantiate({add: function(a, b) { return a + b | 0; }});
 })();

@@ -10,11 +10,6 @@
 // Imports
 
 var GlobalString = global.String;
-var MakeTypeError;
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 // http://tc39.github.io/proposal-string-pad-start-end/
@@ -30,7 +25,8 @@ function StringPad(thisString, maxLength, fillString) {
   } else {
     fillString = TO_STRING(fillString);
     if (fillString === "") {
-      fillString = " ";
+      // If filler is the empty String, return S.
+      return "";
     }
   }
 

@@ -15,10 +15,10 @@ frame size: 0
 parameter count: 1
 bytecode array length: 4
 bytecodes: [
-  B(StackCheck),
-  B(Debugger),
-  B(LdaUndefined),
-  B(Return),
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(Debugger),
+                B(LdaUndefined),
+  /*   44 S> */ B(Return),
 ]
 constant pool: [
 ]

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony
-// Flags: --harmony-simd --harmony-instanceof
+// Flags: --harmony-simd
 
 function test(f, expected, type) {
   try {
@@ -147,7 +147,12 @@ test(function() {
 }, "Method Set.prototype.add called on incompatible receiver [object Array]",
 TypeError);
 
-// kInstanceofFunctionExpected
+// kNonCallableInInstanceOfCheck
+test(function() {
+  1 instanceof {};
+}, "Right-hand side of 'instanceof' is not callable", TypeError);
+
+// kNonObjectInInstanceOfCheck
 test(function() {
   1 instanceof 1;
 }, "Right-hand side of 'instanceof' is not an object", TypeError);

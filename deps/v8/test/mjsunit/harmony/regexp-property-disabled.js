@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-unicode-regexps --no-harmony-regexp-property
+// Flags: --no-harmony-regexp-property
 
 function test(source, message) {
   try {

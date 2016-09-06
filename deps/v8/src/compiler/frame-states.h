@@ -80,7 +80,9 @@ enum class FrameStateType {
   kInterpretedFunction,  // Represents an InterpretedFrame.
   kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
   kTailCallerFunction,   // Represents a frame removed by tail call elimination.
-  kConstructStub         // Represents a ConstructStubFrame.
+  kConstructStub,        // Represents a ConstructStubFrame.
+  kGetterStub,           // Represents a GetterStubFrame.
+  kSetterStub            // Represents a SetterStubFrame.
 };
 
 class FrameStateFunctionInfo {

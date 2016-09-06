@@ -111,8 +111,8 @@ def RunProcess(verbose, timeout, args, **rest):
   return output.Output(
       process.returncode,
       timeout_result[0],
-      stdout,
-      stderr,
+      stdout.decode('utf-8', 'replace').encode('utf-8'),
+      stderr.decode('utf-8', 'replace').encode('utf-8'),
       process.pid,
   )
 

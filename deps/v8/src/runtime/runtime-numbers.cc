@@ -13,90 +13,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_NumberToRadixString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_SMI_ARG_CHECKED(radix, 1);
-  RUNTIME_ASSERT(2 <= radix && radix <= 36);
-
-  // Fast case where the result is a one character string.
-  if (args[0]->IsSmi()) {
-    int value = args.smi_at(0);
-    if (value >= 0 && value < radix) {
-      // Character array used for conversion.
-      static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-      return *isolate->factory()->LookupSingleCharacterStringFromCode(
-          kCharTable[value]);
-    }
-  }
-
-  // Slow case.
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (std::isnan(value)) {
-    return isolate->heap()->nan_string();
-  }
-  if (std::isinf(value)) {
-    if (value < 0) {
-      return isolate->heap()->minus_infinity_string();
-    }
-    return isolate->heap()->infinity_string();
-  }
-  char* str = DoubleToRadixCString(value, radix);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToFixed) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2IChecked(f_number);
-  // See DoubleToFixedCString for these constants:
-  RUNTIME_ASSERT(f >= 0 && f <= 20);
-  RUNTIME_ASSERT(!Double(value).IsSpecial());
-  char* str = DoubleToFixedCString(value, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToExponential) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2IChecked(f_number);
-  RUNTIME_ASSERT(f >= -1 && f <= 20);
-  RUNTIME_ASSERT(!Double(value).IsSpecial());
-  char* str = DoubleToExponentialCString(value, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToPrecision) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2IChecked(f_number);
-  RUNTIME_ASSERT(f >= 1 && f <= 21);
-  RUNTIME_ASSERT(!Double(value).IsSpecial());
-  char* str = DoubleToPrecisionCString(value, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsValidSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -121,7 +37,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
   // Step 8.a. is already handled in the JS function.
-  RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
+  CHECK(radix == 0 || (2 <= radix && radix <= 36));
 
   subject = String::Flatten(subject);
   double value;
@@ -171,20 +87,6 @@ RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
   return *isolate->factory()->NumberToString(number, false);
-}
-
-
-// TODO(bmeurer): Kill this runtime entry. Uses in date.js are wrong anyway.
-RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, input, Object::ToNumber(input));
-  double double_value = DoubleToInteger(input->Number());
-  // Map both -0 and +0 to +0.
-  if (double_value == 0) double_value = 0;
-
-  return *isolate->factory()->NewNumber(double_value);
 }
 
 

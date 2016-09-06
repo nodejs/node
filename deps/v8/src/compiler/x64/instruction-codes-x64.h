@@ -64,8 +64,6 @@ namespace compiler {
   V(SSEFloat32Abs)                 \
   V(SSEFloat32Neg)                 \
   V(SSEFloat32Sqrt)                \
-  V(SSEFloat32Max)                 \
-  V(SSEFloat32Min)                 \
   V(SSEFloat32ToFloat64)           \
   V(SSEFloat32ToInt32)             \
   V(SSEFloat32ToUint32)            \
@@ -80,7 +78,9 @@ namespace compiler {
   V(SSEFloat64Neg)                 \
   V(SSEFloat64Sqrt)                \
   V(SSEFloat64Round)               \
+  V(SSEFloat32Max)                 \
   V(SSEFloat64Max)                 \
+  V(SSEFloat32Min)                 \
   V(SSEFloat64Min)                 \
   V(SSEFloat64ToFloat32)           \
   V(SSEFloat64ToInt32)             \
@@ -102,29 +102,30 @@ namespace compiler {
   V(SSEFloat64InsertLowWord32)     \
   V(SSEFloat64InsertHighWord32)    \
   V(SSEFloat64LoadLowWord32)       \
+  V(SSEFloat64SilenceNaN)          \
   V(AVXFloat32Cmp)                 \
   V(AVXFloat32Add)                 \
   V(AVXFloat32Sub)                 \
   V(AVXFloat32Mul)                 \
   V(AVXFloat32Div)                 \
-  V(AVXFloat32Max)                 \
-  V(AVXFloat32Min)                 \
   V(AVXFloat64Cmp)                 \
   V(AVXFloat64Add)                 \
   V(AVXFloat64Sub)                 \
   V(AVXFloat64Mul)                 \
   V(AVXFloat64Div)                 \
-  V(AVXFloat64Max)                 \
-  V(AVXFloat64Min)                 \
   V(AVXFloat64Abs)                 \
   V(AVXFloat64Neg)                 \
   V(AVXFloat32Abs)                 \
   V(AVXFloat32Neg)                 \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
+  V(X64Movsxbq)                    \
+  V(X64Movzxbq)                    \
   V(X64Movb)                       \
   V(X64Movsxwl)                    \
   V(X64Movzxwl)                    \
+  V(X64Movsxwq)                    \
+  V(X64Movzxwq)                    \
   V(X64Movw)                       \
   V(X64Movl)                       \
   V(X64Movsxlq)                    \
@@ -141,7 +142,10 @@ namespace compiler {
   V(X64Inc32)                      \
   V(X64Push)                       \
   V(X64Poke)                       \
-  V(X64StackCheck)
+  V(X64StackCheck)                 \
+  V(X64Xchgb)                      \
+  V(X64Xchgw)                      \
+  V(X64Xchgl)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

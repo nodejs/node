@@ -5,7 +5,7 @@
 #ifndef V8_LOCKED_QUEUE_INL_
 #define V8_LOCKED_QUEUE_INL_
 
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/locked-queue.h"
 
 namespace v8 {
@@ -15,7 +15,7 @@ template <typename Record>
 struct LockedQueue<Record>::Node : Malloced {
   Node() : next(nullptr) {}
   Record value;
-  AtomicValue<Node*> next;
+  base::AtomicValue<Node*> next;
 };
 
 

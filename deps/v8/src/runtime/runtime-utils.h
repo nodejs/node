@@ -11,133 +11,90 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
-
-#define RUNTIME_ASSERT(value)                      \
-  do {                                             \
-    if (!(value)) {                                \
-      V8_RuntimeError(__FILE__, __LINE__, #value); \
-      return isolate->ThrowIllegalOperation();     \
-    }                                              \
-  } while (0)
-
-#define RUNTIME_ASSERT_HANDLIFIED(value, T)        \
-  do {                                             \
-    if (!(value)) {                                \
-      V8_RuntimeError(__FILE__, __LINE__, #value); \
-      isolate->ThrowIllegalOperation();            \
-      return MaybeHandle<T>();                     \
-    }                                              \
-  } while (0)
-
-#else
-
-#define RUNTIME_ASSERT(value)                  \
-  do {                                         \
-    if (!(value)) {                            \
-      return isolate->ThrowIllegalOperation(); \
-    }                                          \
-  } while (0)
-
-#define RUNTIME_ASSERT_HANDLIFIED(value, T) \
-  do {                                      \
-    if (!(value)) {                         \
-      isolate->ThrowIllegalOperation();     \
-      return MaybeHandle<T>();              \
-    }                                       \
-  } while (0)
-
-#endif
-
 // Cast the given object to a value of the specified type and store
 // it in a variable with the given name.  If the object is not of the
-// expected type call IllegalOperation and return.
+// expected type we crash safely.
 #define CONVERT_ARG_CHECKED(Type, name, index) \
-  RUNTIME_ASSERT(args[index]->Is##Type());     \
+  CHECK(args[index]->Is##Type());              \
   Type* name = Type::cast(args[index]);
 
 #define CONVERT_ARG_HANDLE_CHECKED(Type, name, index) \
-  RUNTIME_ASSERT(args[index]->Is##Type());            \
+  CHECK(args[index]->Is##Type());                     \
   Handle<Type> name = args.at<Type>(index);
 
 #define CONVERT_NUMBER_ARG_HANDLE_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsNumber());             \
+  CHECK(args[index]->IsNumber());                      \
   Handle<Object> name = args.at<Object>(index);
 
 // Cast the given object to a boolean and store it in a variable with
-// the given name.  If the object is not a boolean call IllegalOperation
-// and return.
+// the given name.  If the object is not a boolean we crash safely.
 #define CONVERT_BOOLEAN_ARG_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsBoolean());      \
-  bool name = args[index]->IsTrue();
+  CHECK(args[index]->IsBoolean());               \
+  bool name = args[index]->IsTrue(isolate);
 
 // Cast the given argument to a Smi and store its value in an int variable
-// with the given name.  If the argument is not a Smi call IllegalOperation
-// and return.
+// with the given name.  If the argument is not a Smi we crash safely.
 #define CONVERT_SMI_ARG_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsSmi());      \
+  CHECK(args[index]->IsSmi());               \
   int name = args.smi_at(index);
 
 // Cast the given argument to a double and store it in a variable with
 // the given name.  If the argument is not a number (as opposed to
-// the number not-a-number) call IllegalOperation and return.
+// the number not-a-number) we crash safely.
 #define CONVERT_DOUBLE_ARG_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsNumber());      \
+  CHECK(args[index]->IsNumber());               \
   double name = args.number_at(index);
 
-
 // Cast the given argument to a size_t and store its value in a variable with
-// the given name.  If the argument is not a size_t call IllegalOperation and
-// return.
+// the given name.  If the argument is not a size_t we crash safely.
 #define CONVERT_SIZE_ARG_CHECKED(name, index)            \
-  RUNTIME_ASSERT(args[index]->IsNumber());               \
+  CHECK(args[index]->IsNumber());                        \
   Handle<Object> name##_object = args.at<Object>(index); \
   size_t name = 0;                                       \
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *name##_object, &name));
-
+  CHECK(TryNumberToSize(*name##_object, &name));
 
 // Call the specified converter on the object *comand store the result in
 // a variable of the specified type with the given name.  If the
-// object is not a Number call IllegalOperation and return.
+// object is not a Number we crash safely.
 #define CONVERT_NUMBER_CHECKED(type, name, Type, obj) \
-  RUNTIME_ASSERT(obj->IsNumber());                    \
+  CHECK(obj->IsNumber());                             \
   type name = NumberTo##Type(obj);
 
-
 // Cast the given argument to PropertyDetails and store its value in a
-// variable with the given name.  If the argument is not a Smi call
-// IllegalOperation and return.
+// variable with the given name.  If the argument is not a Smi we crash safely.
 #define CONVERT_PROPERTY_DETAILS_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsSmi());               \
+  CHECK(args[index]->IsSmi());                        \
   PropertyDetails name = PropertyDetails(Smi::cast(args[index]));
-
 
 // Assert that the given argument has a valid value for a LanguageMode
 // and store it in a LanguageMode variable with the given name.
-#define CONVERT_LANGUAGE_MODE_ARG_CHECKED(name, index)        \
-  RUNTIME_ASSERT(args[index]->IsSmi());                       \
-  RUNTIME_ASSERT(is_valid_language_mode(args.smi_at(index))); \
+#define CONVERT_LANGUAGE_MODE_ARG_CHECKED(name, index) \
+  CHECK(args[index]->IsSmi());                         \
+  CHECK(is_valid_language_mode(args.smi_at(index)));   \
   LanguageMode name = static_cast<LanguageMode>(args.smi_at(index));
 
-
 // Assert that the given argument is a number within the Int32 range
-// and convert it to int32_t.  If the argument is not an Int32 call
-// IllegalOperation and return.
+// and convert it to int32_t.  If the argument is not an Int32 we crash safely.
 #define CONVERT_INT32_ARG_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsNumber());     \
+  CHECK(args[index]->IsNumber());              \
   int32_t name = 0;                            \
-  RUNTIME_ASSERT(args[index]->ToInt32(&name));
+  CHECK(args[index]->ToInt32(&name));
 
+// Assert that the given argument is a number within the Uint32 range
+// and convert it to uint32_t.  If the argument is not an Uint32 call
+// IllegalOperation and return.
+#define CONVERT_UINT32_ARG_CHECKED(name, index) \
+  CHECK(args[index]->IsNumber());               \
+  uint32_t name = 0;                            \
+  CHECK(args[index]->ToUint32(&name));
 
 // Cast the given argument to PropertyAttributes and store its value in a
-// variable with the given name.  If the argument is not a Smi call or the
-// enum value is out of range, call IllegalOperation and return.
-#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                   \
-  RUNTIME_ASSERT(args[index]->IsSmi());                                    \
-  RUNTIME_ASSERT(                                                          \
-      (args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
+// variable with the given name.  If the argument is not a Smi or the
+// enum value is out of range, we crash safely.
+#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                     \
+  CHECK(args[index]->IsSmi());                                               \
+  CHECK((args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
   PropertyAttributes name = static_cast<PropertyAttributes>(args.smi_at(index));
-
 
 // A mechanism to return a pair of Object pointers in registers (if possible).
 // How this is achieved is calling convention-dependent.

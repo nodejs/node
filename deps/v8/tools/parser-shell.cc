@@ -36,24 +36,15 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api.h"
 #include "src/compiler.h"
-#include "src/parsing/scanner-character-streams.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "tools/shell-utils.h"
 
 using namespace v8::internal;
-
-class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t) { free(data); }
-};
 
 class StringResource8 : public v8::String::ExternalOneByteStringResource {
  public:
@@ -142,7 +133,7 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
 
 int main(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::V8::InitializeICU();
+  v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
@@ -168,9 +159,9 @@ int main(int argc, char* argv[]) {
       fnames.push_back(std::string(argv[i]));
     }
   }
-  ArrayBufferAllocator array_buffer_allocator;
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = &array_buffer_allocator;
+  create_params.array_buffer_allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -199,5 +190,6 @@ int main(int argc, char* argv[]) {
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
   delete platform;
+  delete create_params.array_buffer_allocator;
   return 0;
 }

@@ -91,18 +91,19 @@ inline Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr,
                                           Atomic32 increment) {
   Atomic32 temp, temp2;
 
-  __asm__ __volatile__(".set push\n"
-                       ".set noreorder\n"
-                       "1:\n"
-                       "ll %0, %2\n"  // temp = *ptr
-                       "addu %1, %0, %3\n"  // temp2 = temp + increment
-                       "sc %1, %2\n"  // *ptr = temp2 (with atomic check)
-                       "beqz %1, 1b\n"  // start again on atomic error
-                       "addu %1, %0, %3\n"  // temp2 = temp + increment
-                       ".set pop\n"
-                       : "=&r" (temp), "=&r" (temp2), "=m" (*ptr)
-                       : "Ir" (increment), "m" (*ptr)
-                       : "memory");
+  __asm__ __volatile__(
+      ".set push\n"
+      ".set noreorder\n"
+      "1:\n"
+      "ll %0, %2\n"        // temp = *ptr
+      "addu %1, %0, %3\n"  // temp2 = temp + increment
+      "sc %1, %2\n"        // *ptr = temp2 (with atomic check)
+      "beqz %1, 1b\n"      // start again on atomic error
+      "addu %1, %0, %3\n"  // temp2 = temp + increment
+      ".set pop\n"
+      : "=&r"(temp), "=&r"(temp2), "=ZC"(*ptr)
+      : "Ir"(increment), "m"(*ptr)
+      : "memory");
   // temp2 now holds the final value.
   return temp2;
 }
@@ -228,18 +229,19 @@ inline Atomic64 NoBarrier_AtomicIncrement(volatile Atomic64* ptr,
                                           Atomic64 increment) {
   Atomic64 temp, temp2;
 
-  __asm__ __volatile__(".set push\n"
-                       ".set noreorder\n"
-                       "1:\n"
-                       "lld %0, %2\n"  // temp = *ptr
-                       "daddu %1, %0, %3\n"  // temp2 = temp + increment
-                       "scd %1, %2\n"  // *ptr = temp2 (with atomic check)
-                       "beqz %1, 1b\n"  // start again on atomic error
-                       "daddu %1, %0, %3\n"  // temp2 = temp + increment
-                       ".set pop\n"
-                       : "=&r" (temp), "=&r" (temp2), "=m" (*ptr)
-                       : "Ir" (increment), "m" (*ptr)
-                       : "memory");
+  __asm__ __volatile__(
+      ".set push\n"
+      ".set noreorder\n"
+      "1:\n"
+      "lld %0, %2\n"        // temp = *ptr
+      "daddu %1, %0, %3\n"  // temp2 = temp + increment
+      "scd %1, %2\n"        // *ptr = temp2 (with atomic check)
+      "beqz %1, 1b\n"       // start again on atomic error
+      "daddu %1, %0, %3\n"  // temp2 = temp + increment
+      ".set pop\n"
+      : "=&r"(temp), "=&r"(temp2), "=ZC"(*ptr)
+      : "Ir"(increment), "m"(*ptr)
+      : "memory");
   // temp2 now holds the final value.
   return temp2;
 }

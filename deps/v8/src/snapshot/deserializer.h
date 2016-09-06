@@ -30,13 +30,14 @@ class Deserializer : public SerializerDeserializer {
  public:
   // Create a deserializer from a snapshot byte source.
   template <class Data>
-  explicit Deserializer(Data* data)
+  explicit Deserializer(Data* data, bool deserializing_user_code = false)
       : isolate_(NULL),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
+        next_map_index_(0),
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
-        deserializing_user_code_(false),
+        deserializing_user_code_(deserializing_user_code),
         next_alignment_(kWordAligned) {
     DecodeReservation(data->Reservations());
   }
@@ -50,13 +51,13 @@ class Deserializer : public SerializerDeserializer {
   MaybeHandle<Object> DeserializePartial(Isolate* isolate,
                                          Handle<JSGlobalProxy> global_proxy);
 
-  // Deserialize a shared function info. Fail gracefully.
-  MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
+  // Deserialize an object graph. Fail gracefully.
+  MaybeHandle<HeapObject> DeserializeObject(Isolate* isolate);
 
-  // Pass a vector of externally-provided objects referenced by the snapshot.
-  // The ownership to its backing store is handed over as well.
-  void SetAttachedObjects(Vector<Handle<Object> > attached_objects) {
-    attached_objects_ = attached_objects;
+  // Add an object to back an attached reference. The order to add objects must
+  // mirror the order they are added in the serializer.
+  void AddAttachedObject(Handle<HeapObject> attached_object) {
+    attached_objects_.Add(attached_object);
   }
 
  private:
@@ -89,7 +90,7 @@ class Deserializer : public SerializerDeserializer {
   void DeserializeDeferredObjects();
 
   void FlushICacheForNewIsolate();
-  void FlushICacheForNewCodeObjects();
+  void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
 
   void CommitPostProcessedObjects(Isolate* isolate);
 
@@ -117,7 +118,7 @@ class Deserializer : public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  Vector<Handle<Object> > attached_objects_;
+  List<Handle<HeapObject> > attached_objects_;
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
@@ -129,6 +130,8 @@ class Deserializer : public SerializerDeserializer {
   Heap::Reservation reservations_[kNumberOfSpaces];
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
+  int next_map_index_;
+  List<Address> allocated_maps_;
 
   ExternalReferenceTable* external_reference_table_;
 

@@ -74,16 +74,12 @@ SUPPORTED_ARCHS = ["android_arm",
                    "s390",
                    "s390x",
                    "mipsel",
-                   "nacl_ia32",
-                   "nacl_x64",
                    "x64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_ia32",
               "arm",
-              "mipsel",
-              "nacl_ia32",
-              "nacl_x64"]
+              "mipsel"]
 MAX_DEOPT = 1000000000
 DISTRIBUTION_MODES = ["smooth", "random"]
 
@@ -398,7 +394,6 @@ def Execute(arch, mode, args, options, suites, workspace):
     "deopt_fuzzer": True,
     "gc_stress": False,
     "gcov_coverage": False,
-    "ignition": False,
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": False,

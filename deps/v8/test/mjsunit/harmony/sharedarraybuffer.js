@@ -572,3 +572,21 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
   assertThrows(function(i) { typedArrayConstructors[i](); }.bind(this, i),
                TypeError);
 }
+
+// byteLength from prototype can be overwritten
+var s = new SharedArrayBuffer(10);
+assertEquals(10, s.byteLength);
+Object.defineProperty(s, 'byteLength', {value: 42});
+assertEquals(42, s.byteLength);
+
+// byteLength on incompatible type (shared vs. regular ArrayBuffer)
+var desc = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength');
+s = new SharedArrayBuffer(10);
+Object.defineProperty(s, 'byteLength', desc);
+assertThrows(function() {s.byteLength}, TypeError);
+
+desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,
+  'byteLength');
+var a = new ArrayBuffer(10);
+Object.defineProperty(a, 'byteLength', desc);
+assertThrows(function() {a.byteLength}, TypeError);

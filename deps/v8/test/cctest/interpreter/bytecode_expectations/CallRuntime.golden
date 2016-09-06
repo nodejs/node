@@ -17,10 +17,10 @@ frame size: 0
 parameter count: 1
 bytecode array length: 8
 bytecodes: [
-  B(StackCheck),
-  B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
-  B(LdaUndefined),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
+                B(LdaUndefined),
+  /*   26 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -32,15 +32,13 @@ snippet: "
   function f(a) { return %IsArray(a) }
   f(undefined);
 "
-frame size: 1
+frame size: 0
 parameter count: 2
-bytecode array length: 11
+bytecode array length: 7
 bytecodes: [
-  B(StackCheck),
-  B(Ldar), R(arg0),
-  B(Star), R(0),
-  B(CallRuntime), U16(Runtime::kIsArray), R(0), U8(1),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   16 S> */ B(CallRuntime), U16(Runtime::kIsArray), R(arg0), U8(1),
+  /*   35 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -56,13 +54,13 @@ frame size: 2
 parameter count: 1
 bytecode array length: 15
 bytecodes: [
-  B(StackCheck),
-  B(LdaSmi), U8(1),
-  B(Star), R(0),
-  B(LdaSmi), U8(2),
-  B(Star), R(1),
-  B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdaSmi), U8(1),
+                B(Star), R(0),
+                B(LdaSmi), U8(2),
+                B(Star), R(1),
+                B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),
+  /*   33 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -76,15 +74,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 14
 bytecodes: [
-  B(StackCheck),
-  B(LdaUndefined),
-  B(Star), R(0),
-  B(CreateArrayLiteral), U8(0), U8(0), U8(3),
-  B(Star), R(1),
-  B(CallJSRuntime), U8(115), R(0), U8(2),
-  B(Return),
+  /*   10 E> */ B(StackCheck),
+  /*   15 S> */ B(LdrUndefined), R(0),
+                B(CreateArrayLiteral), U8(0), U8(0), U8(3),
+                B(Star), R(1),
+                B(CallJSRuntime), U8(134), R(0), U8(2),
+  /*   44 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,

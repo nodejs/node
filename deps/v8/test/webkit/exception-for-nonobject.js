@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-instanceof
-
 description("Test for correct handling of exceptions from instanceof and 'new' expressions");
 
 shouldThrow("new {}.undefined");

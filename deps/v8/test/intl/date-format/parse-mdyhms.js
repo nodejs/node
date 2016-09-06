@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Testing v8Parse method for date and time pattern.
+//
+// Flags: --intl-extra
 
 var dtf = new Intl.DateTimeFormat(['en'],
                                   {year: 'numeric', month: 'numeric',
@@ -34,7 +36,7 @@ var dtf = new Intl.DateTimeFormat(['en'],
                                    timeZone: 'UTC'});
 
 // Make sure we have pattern we expect (may change in the future).
-assertEquals('M/d/y h:mm:ss a', dtf.resolved.pattern);
+assertEquals('M/d/y, h:mm:ss a', dtf.resolved.pattern);
 
 var date = dtf.v8Parse('2/4/74 12:30:42 pm');
 assertEquals(1974, date.getUTCFullYear());
@@ -44,14 +46,20 @@ assertEquals(12, date.getUTCHours());
 assertEquals(30, date.getUTCMinutes());
 assertEquals(42, date.getUTCSeconds());
 
+// Can deal with '-' vs '/'.
+date = dtf.v8Parse('2-4-74 12:30:42 am');
+assertEquals(1974, date.getUTCFullYear());
+assertEquals(1, date.getUTCMonth());
+assertEquals(4, date.getUTCDate());
+assertEquals(0, date.getUTCHours());
+assertEquals(30, date.getUTCMinutes());
+assertEquals(42, date.getUTCSeconds());
+
 // AM/PM were not specified.
-assertEquals(undefined, dtf.v8Parse('2/4/74 12:30:12'));
+assertEquals(undefined, dtf.v8Parse('2/4/74 12:30:42'));
 
 // Time was not specified.
 assertEquals(undefined, dtf.v8Parse('2/4/74'));
 
 // Month is numeric, so it fails on "Feb".
 assertEquals(undefined, dtf.v8Parse('Feb 4th 1974'));
-
-// Wrong date delimiter.
-assertEquals(undefined, dtf.v8Parse('2-4-74 12:30:12 am'));

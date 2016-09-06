@@ -126,7 +126,6 @@ class HGlobalValueNumberingPhase final : public HPhase {
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
                         SideEffects loop_kills);
-  bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
   TrackedEffects Print(SideEffects side_effects) {
     return TrackedEffects(&side_effects_tracker_, side_effects);

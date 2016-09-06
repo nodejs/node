@@ -2,24 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
-function RunThreeWayTest(asmfunc, expect) {
+function RunAsmJsTest(asmfunc, expect) {
   var asm_source = asmfunc.toString();
   var nonasm_source = asm_source.replace(new RegExp("use asm"), "");
   var stdlib = {Math: Math};
 
-  var js_module = eval("(" + nonasm_source + ")")(stdlib);
   print("Testing " + asmfunc.name + " (js)...");
+  var js_module = eval("(" + nonasm_source + ")")(stdlib);
   expect(js_module);
 
   print("Testing " + asmfunc.name + " (asm.js)...");
   var asm_module = asmfunc(stdlib);
+  assertTrue(%IsAsmWasmCode(asmfunc));
   expect(asm_module);
-
-  print("Testing " + asmfunc.name + " (wasm)...");
-  var wasm_module = Wasm.instantiateModuleFromAsm(asm_source, stdlib);
-  expect(wasm_module);
 }
 
 function PositiveIntLiterals() {
@@ -38,8 +35,9 @@ function PositiveIntLiterals() {
           f256: f256, f1000: f1000, f2000000, fmax: fmax};
 }
 
-RunThreeWayTest(PositiveIntLiterals, function(module) {
+RunAsmJsTest(PositiveIntLiterals, function(module) {
   assertEquals(0, module.f0());
+  assertEquals(1, module.f1());
   assertEquals(1, module.f1());
   assertEquals(4, module.f4());
   assertEquals(64, module.f64());
@@ -65,7 +63,7 @@ function NegativeIntLiterals() {
           f256: f256, f1000: f1000, f2000000, fmin: fmin};
 }
 
-RunThreeWayTest(NegativeIntLiterals, function (module) {
+RunAsmJsTest(NegativeIntLiterals, function (module) {
   assertEquals(-1, module.f1());
   assertEquals(-4, module.f4());
   assertEquals(-64, module.f64());
@@ -93,7 +91,7 @@ function PositiveUnsignedLiterals() {
           f256: f256, f1000: f1000, f2000000, fmax: fmax};
 }
 
-RunThreeWayTest(PositiveUnsignedLiterals, function (module) {
+RunAsmJsTest(PositiveUnsignedLiterals, function (module) {
   assertEquals(0, module.f0());
   assertEquals(1, module.f1());
   assertEquals(4, module.f4());
@@ -130,7 +128,7 @@ function LargeUnsignedLiterals() {
   return {a: a, b: b, c: c, d: d, e: e};
 }
 
-RunThreeWayTest(LargeUnsignedLiterals, function(module) {
+RunAsmJsTest(LargeUnsignedLiterals, function(module) {
   assertEquals(2147483648, module.a());
   assertEquals(2147483649, module.b());
   assertEquals(0x80000000, module.c());
@@ -165,7 +163,7 @@ function ManyI32() {
   return {main: main};
 }
 
-RunThreeWayTest(ManyI32, function(module) {
+RunAsmJsTest(ManyI32, function(module) {
   assertEquals(-222411306, module.main());
 });
 
@@ -187,7 +185,7 @@ function ManyF64a() {
   return {main: main};
 }
 
-RunThreeWayTest(ManyF64a, function(module) {
+RunAsmJsTest(ManyF64a, function(module) {
   assertEquals(-8640233.599945681, module.main());
 });
 
@@ -203,7 +201,7 @@ function ManyF64b() {
   return {k1: k1, k2: k2, k3: k3, k4: k4, k5: k5, k6: k6};
 }
 
-RunThreeWayTest(ManyF64b, function(module) {
+RunAsmJsTest(ManyF64b, function(module) {
   assertEquals(2.4e-24, module.k1());
   assertEquals(2.4e-19, module.k2());
   assertEquals(2.4e-14, module.k3());
@@ -225,7 +223,7 @@ function ManyF64c() {
   return {k1: k1, k2: k2, k3: k3, k4: k4, k5: k5, k6: k6};
 }
 
-RunThreeWayTest(ManyF64c, function(module) {
+RunAsmJsTest(ManyF64c, function(module) {
   assertEquals(2.4000000000000004e+26, module.k1());
   assertEquals(2.4e+21, module.k2());
   assertEquals(2.4e+16, module.k3());
@@ -250,7 +248,7 @@ function ManyF32a(stdlib) {
 
 if (false) {
   // TODO(bradnelson): fails validation of F32 literals somehow.
-RunThreeWayTest(ManyF32a, function(module) {
+RunAsmJsTest(ManyF32a, function(module) {
   assertEquals(2.0999999917333043e-24, module.k1());
   assertEquals(2.099999868734112e-19, module.k2());
   assertEquals(2.099999997029825e-14, module.k3());

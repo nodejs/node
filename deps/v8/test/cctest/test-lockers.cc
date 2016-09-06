@@ -27,11 +27,12 @@
 
 #include <limits.h>
 
+#include <memory>
+
 #include "src/v8.h"
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
-#include "src/base/smart-pointers.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
@@ -100,7 +101,7 @@ TEST(KangarooIsolates) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  v8::base::SmartPointer<KangarooThread> thread1;
+  std::unique_ptr<KangarooThread> thread1;
   {
     v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -109,7 +110,7 @@ TEST(KangarooIsolates) {
     v8::Context::Scope context_scope(context);
     CHECK_EQ(isolate, v8::Isolate::GetCurrent());
     CompileRun("function getValue() { return 30; }");
-    thread1.Reset(new KangarooThread(isolate, context));
+    thread1.reset(new KangarooThread(isolate, context));
   }
   thread1->Start();
   thread1->Join();
@@ -465,8 +466,7 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   }
 
   virtual void Run() {
-    v8::base::SmartPointer<LockIsolateAndCalculateFibSharedContextThread>
-        thread;
+    std::unique_ptr<LockIsolateAndCalculateFibSharedContextThread> thread;
     v8::Locker lock1(isolate1_);
     CHECK(v8::Locker::IsLocked(isolate1_));
     CHECK(!v8::Locker::IsLocked(isolate2_));
@@ -478,8 +478,8 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
         v8::Context::Scope context_scope(context1);
         CalcFibAndCheck(context1);
       }
-      thread.Reset(new LockIsolateAndCalculateFibSharedContextThread(
-          isolate1_, context1));
+      thread.reset(new LockIsolateAndCalculateFibSharedContextThread(isolate1_,
+                                                                     context1));
     }
     v8::Locker lock2(isolate2_);
     CHECK(v8::Locker::IsLocked(isolate1_));

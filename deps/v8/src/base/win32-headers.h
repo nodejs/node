@@ -27,10 +27,10 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
-// Require Windows XP or higher (this is required for the RtlCaptureContext
-// function to be present).
+// Require Windows Vista or higher (this is required for the
+// QueryThreadCycleTime function to be present).
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x501
+#define _WIN32_WINNT 0x0600
 #endif
 
 #include <windows.h>

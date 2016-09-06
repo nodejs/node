@@ -9,5 +9,7 @@ function testJSONToString() {
   assertTrue(desc.configurable);
   assertFalse(desc.writable);
   assertEquals("JSON", desc.value);
+  delete JSON[Symbol.toStringTag];
+  assertEquals('[object Object]', "" + JSON);
 }
 testJSONToString();

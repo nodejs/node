@@ -33,30 +33,9 @@ from . import commands
 from . import statusfile
 from . import utils
 from ..objects import testcase
+from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
 
-# Use this to run several variants of the tests.
-ALL_VARIANT_FLAGS = {
-  "default": [[]],
-  "stress": [["--stress-opt", "--always-opt"]],
-  "turbofan": [["--turbo"]],
-  "turbofan_opt": [["--turbo", "--always-opt"]],
-  "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--turbo"]],
-  "preparser": [["--min-preparse-length=0"]],
-}
 
-# FAST_VARIANTS implies no --always-opt.
-FAST_VARIANT_FLAGS = {
-  "default": [[]],
-  "stress": [["--stress-opt"]],
-  "turbofan": [["--turbo"]],
-  "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--turbo"]],
-  "preparser": [["--min-preparse-length=0"]],
-}
-
-ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "nocrankshaft", "ignition", "preparser"])
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 
@@ -69,12 +48,13 @@ class VariantGenerator(object):
     self.standard_variant = STANDARD_VARIANT & variants
 
   def FilterVariantsByTest(self, testcase):
-    if testcase.outcomes and statusfile.OnlyStandardVariant(
-        testcase.outcomes):
-      return self.standard_variant
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
-      return self.fast_variants
-    return self.all_variants
+    result = self.all_variants
+    if testcase.outcomes:
+      if statusfile.OnlyStandardVariant(testcase.outcomes):
+        return self.standard_variant
+      if statusfile.OnlyFastVariants(testcase.outcomes):
+        result = self.fast_variants
+    return result
 
   def GetFlagSets(self, testcase, variant):
     if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
@@ -142,12 +122,21 @@ class TestSuite(object):
     """
     return self._VariantGeneratorFactory()(self, set(variants))
 
+  def PrepareSources(self):
+    """Called once before multiprocessing for doing file-system operations.
+
+    This should not access the network. For network access use the method
+    below.
+    """
+    pass
+
   def DownloadData(self):
     pass
 
   def ReadStatusFile(self, variables):
-    (self.rules, self.wildcards) = \
-        statusfile.ReadStatusFile(self.status_file(), variables)
+    with open(self.status_file()) as f:
+      self.rules, self.wildcards = (
+          statusfile.ReadStatusFile(f.read(), variables))
 
   def ReadTestCases(self, context):
     self.tests = self.ListTests(context)
@@ -162,18 +151,40 @@ class TestSuite(object):
 
   def FilterTestCasesByStatus(self, warn_unused_rules,
                               slow_tests="dontcare",
-                              pass_fail_tests="dontcare"):
+                              pass_fail_tests="dontcare",
+                              variants=False):
+
+    # Use only variants-dependent rules and wildcards when filtering
+    # respective test cases and generic rules when filtering generic test
+    # cases.
+    if not variants:
+      rules = self.rules[""]
+      wildcards = self.wildcards[""]
+    else:
+      # We set rules and wildcards to a variant-specific version for each test
+      # below.
+      rules = {}
+      wildcards = {}
+
     filtered = []
+
+    # Remember used rules as tuples of (rule, variant), where variant is "" for
+    # variant-independent rules.
     used_rules = set()
+
     for t in self.tests:
       slow = False
       pass_fail = False
       testname = self.CommonTestName(t)
-      if testname in self.rules:
-        used_rules.add(testname)
+      variant = t.variant or ""
+      if variants:
+        rules = self.rules[variant]
+        wildcards = self.wildcards[variant]
+      if testname in rules:
+        used_rules.add((testname, variant))
         # Even for skipped tests, as the TestCase object stays around and
         # PrintReport() uses it.
-        t.outcomes = self.rules[testname]
+        t.outcomes = t.outcomes | rules[testname]
         if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
         for outcome in t.outcomes:
@@ -182,14 +193,14 @@ class TestSuite(object):
         slow = statusfile.IsSlow(t.outcomes)
         pass_fail = statusfile.IsPassOrFail(t.outcomes)
       skip = False
-      for rule in self.wildcards:
+      for rule in wildcards:
         assert rule[-1] == '*'
         if testname.startswith(rule[:-1]):
-          used_rules.add(rule)
-          t.outcomes |= self.wildcards[rule]
+          used_rules.add((rule, variant))
+          t.outcomes = t.outcomes | wildcards[rule]
           if statusfile.DoSkip(t.outcomes):
             skip = True
-            break  # "for rule in self.wildcards"
+            break  # "for rule in wildcards"
           slow = slow or statusfile.IsSlow(t.outcomes)
           pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
       if (skip
@@ -202,12 +213,26 @@ class TestSuite(object):
     if not warn_unused_rules:
       return
 
-    for rule in self.rules:
-      if rule not in used_rules:
-        print("Unused rule: %s -> %s" % (rule, self.rules[rule]))
-    for rule in self.wildcards:
-      if rule not in used_rules:
-        print("Unused rule: %s -> %s" % (rule, self.wildcards[rule]))
+    if not variants:
+      for rule in self.rules[""]:
+        if (rule, "") not in used_rules:
+          print("Unused rule: %s -> %s (variant independent)" % (
+              rule, self.rules[""][rule]))
+      for rule in self.wildcards[""]:
+        if (rule, "") not in used_rules:
+          print("Unused rule: %s -> %s (variant independent)" % (
+              rule, self.wildcards[""][rule]))
+    else:
+      for variant in ALL_VARIANTS:
+        for rule in self.rules[variant]:
+          if (rule, variant) not in used_rules:
+            print("Unused rule: %s -> %s (variant: %s)" % (
+                rule, self.rules[variant][rule], variant))
+        for rule in self.wildcards[variant]:
+          if (rule, variant) not in used_rules:
+            print("Unused rule: %s -> %s (variant: %s)" % (
+                rule, self.wildcards[variant][rule], variant))
+
 
   def FilterTestCasesByArgs(self, args):
     """Filter test cases based on command-line arguments.

@@ -5,6 +5,7 @@
 #ifndef V8_CRANKSHAFT_HYDROGEN_RANGE_ANALYSIS_H_
 #define V8_CRANKSHAFT_HYDROGEN_RANGE_ANALYSIS_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/crankshaft/hydrogen.h"
 
 namespace v8 {
@@ -21,7 +22,7 @@ class HRangeAnalysisPhase : public HPhase {
   void Run();
 
  private:
-  void TraceRange(const char* msg, ...);
+  PRINTF_FORMAT(2, 3) void TraceRange(const char* msg, ...);
   void InferControlFlowRange(HCompareNumericAndBranch* test,
                              HBasicBlock* dest);
   void UpdateControlFlowRange(Token::Value op, HValue* value, HValue* other);

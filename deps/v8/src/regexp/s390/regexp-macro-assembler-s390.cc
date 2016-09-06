@@ -10,7 +10,6 @@
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
@@ -1227,23 +1226,54 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
 
-bool RegExpMacroAssemblerS390::CanReadUnaligned() {
-  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
-}
 
 void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
-  DCHECK(characters == 1);
   if (mode_ == LATIN1) {
-    __ LoadlB(current_character(),
-              MemOperand(current_input_offset(), end_of_input_address(),
-                         cp_offset * char_size()));
+    // using load reverse for big-endian platforms
+    if (characters == 4) {
+#if V8_TARGET_LITTLE_ENDIAN
+      __ LoadlW(current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+#else
+      __ LoadLogicalReversedWordP(current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+#endif
+    } else if (characters == 2) {
+#if V8_TARGET_LITTLE_ENDIAN
+      __ LoadLogicalHalfWordP(current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+#else
+      __ LoadLogicalReversedHalfWordP(current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+#endif
+    } else {
+      DCHECK(characters == 1);
+      __ LoadlB(current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+    }
   } else {
     DCHECK(mode_ == UC16);
-    __ LoadLogicalHalfWordP(
-        current_character(),
-        MemOperand(current_input_offset(), end_of_input_address(),
-                   cp_offset * char_size()));
+    if (characters == 2) {
+      __ LoadlW(current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+#if !V8_TARGET_LITTLE_ENDIAN
+      // need to swap the order of the characters for big-endian platforms
+      __ rll(current_character(), current_character(), Operand(16));
+#endif
+    } else {
+      DCHECK(characters == 1);
+      __ LoadLogicalHalfWordP(
+          current_character(),
+                MemOperand(current_input_offset(), end_of_input_address(),
+                           cp_offset * char_size()));
+    }
   }
 }
 

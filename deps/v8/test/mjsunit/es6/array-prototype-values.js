@@ -13,3 +13,4 @@ assertTrue(valuesDesc.configurable);
 assertTrue(valuesDesc.writable);
 assertFalse(valuesDesc.enumerable);
 assertTrue(Array.prototype[Symbol.unscopables].values);
+assertThrows(() => new Array.prototype[Symbol.iterator], TypeError);

@@ -21,8 +21,8 @@ using namespace v8::internal::compiler;
 #define __ assm.
 
 static int32_t DummyStaticFunction(Object* result) { return 1; }
-TEST(WasmRelocationX64movq64) {
-  CcTest::InitializeVM();
+
+TEST(WasmRelocationX64MemoryReference) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
@@ -80,4 +80,63 @@ TEST(WasmRelocationX64movq64) {
 #endif
 }
 
+TEST(WasmRelocationX64WasmMemorySizeReference) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[4096];
+  Assembler assm(isolate, buffer, sizeof buffer);
+  DummyStaticFunction(NULL);
+  int32_t size = 512;
+  Label fail;
+
+  __ movl(rax, Immediate(size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  __ cmpl(rax, Immediate(size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  __ j(not_equal, &fail);
+  __ ret(0);
+  __ bind(&fail);
+  __ movl(rax, Immediate(0xdeadbeef));
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  USE(code);
+
+  CSignature0<int64_t> csig;
+  CodeRunner<int64_t> runnable(isolate, code, &csig);
+  int64_t ret_value = runnable.Call();
+  CHECK_NE(ret_value, 0xdeadbeef);
+
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+  byte* begin = code->instruction_start();
+  byte* end = begin + code->instruction_size();
+  disasm::Disassembler::Disassemble(stdout, begin, end);
+#endif
+  int32_t diff = 512;
+
+  int mode_mask = (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (RelocInfo::IsWasmMemorySizeReference(mode)) {
+      it.rinfo()->update_wasm_memory_reference(
+          reinterpret_cast<Address>(1234), reinterpret_cast<Address>(1234),
+          it.rinfo()->wasm_memory_size_reference(),
+          it.rinfo()->wasm_memory_size_reference() + diff, SKIP_ICACHE_FLUSH);
+    }
+  }
+
+  ret_value = runnable.Call();
+  CHECK_NE(ret_value, 0xdeadbeef);
+
+#ifdef OBJECT_PRINT
+  code->Print(os);
+  begin = code->instruction_start();
+  end = begin + code->instruction_size();
+  disasm::Disassembler::Disassemble(stdout, begin, end);
+#endif
+}
 #undef __

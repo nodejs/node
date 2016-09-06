@@ -186,6 +186,30 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Memory::Address_at(pc_);
+}
+
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Memory::Address_at(pc_);
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return Memory::uint32_at(pc_);
+}
+
+void RelocInfo::unchecked_update_wasm_memory_reference(
+    Address address, ICacheFlushMode flush_mode) {
+  Memory::Address_at(pc_) = address;
+}
+
+void RelocInfo::unchecked_update_wasm_memory_size(uint32_t size,
+                                                  ICacheFlushMode flush_mode) {
+  Memory::uint32_at(pc_) = size;
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand
@@ -271,17 +295,11 @@ Register Operand::reg() const {
 #define EMIT(x)                                 \
   *pc_++ = (x)
 
-
-#ifdef GENERATED_CODE_COVERAGE
-static void InitCoverageLog();
-#endif
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
-      positions_recorder_(this) {
-  // Clear the buffer in debug mode unless it was provided by the
-  // caller in which case we can't be sure it's okay to overwrite
-  // existing code in it; see CodePatcher::CodePatcher(...).
+    : AssemblerBase(isolate, buffer, buffer_size) {
+// Clear the buffer in debug mode unless it was provided by the
+// caller in which case we can't be sure it's okay to overwrite
+// existing code in it; see CodePatcher::CodePatcher(...).
 #ifdef DEBUG
   if (own_buffer_) {
     memset(buffer_, 0xCC, buffer_size_);  // int3
@@ -289,17 +307,12 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 #endif
 
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
-
-#ifdef GENERATED_CODE_COVERAGE
-  InitCoverageLog();
-#endif
 }
 
 
 void Assembler::GetCode(CodeDesc* desc) {
   // Finalize code (at this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info).
-  reloc_info_writer.Finish();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -308,6 +321,8 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
   desc->origin = this;
   desc->constant_pool_size = 0;
+  desc->unwinding_info_size = 0;
+  desc->unwinding_info = nullptr;
 }
 
 
@@ -681,6 +696,45 @@ void Assembler::xchg(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::xchg_b(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x86);
+  emit_operand(reg, op);
+}
+
+void Assembler::xchg_w(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x87);
+  emit_operand(reg, op);
+}
+
+void Assembler::lock() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF0);
+}
+
+void Assembler::cmpxchg(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xB1);
+  emit_operand(src, dst);
+}
+
+void Assembler::cmpxchg_b(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xB0);
+  emit_operand(src, dst);
+}
+
+void Assembler::cmpxchg_w(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xB1);
+  emit_operand(src, dst);
+}
 
 void Assembler::adc(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
@@ -1468,7 +1522,6 @@ void Assembler::bind(Label* L) {
 
 
 void Assembler::call(Label* L) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   if (L->is_bound()) {
     const int long_size = 5;
@@ -1486,7 +1539,6 @@ void Assembler::call(Label* L) {
 
 
 void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
@@ -1505,7 +1557,6 @@ int Assembler::CallSize(const Operand& adr) {
 
 
 void Assembler::call(const Operand& adr) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   EMIT(0xFF);
   emit_operand(edx, adr);
@@ -1520,7 +1571,6 @@ int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
 void Assembler::call(Handle<Code> code,
                      RelocInfo::Mode rmode,
                      TypeFeedbackId ast_id) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode)
       || rmode == RelocInfo::CODE_AGE_SEQUENCE);
@@ -2342,6 +2392,26 @@ void Assembler::movaps(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movups(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x11);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movups(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x10);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movups(const Operand& dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x11);
+  emit_sse_operand(src, dst);
+}
 
 void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   DCHECK(is_uint8(imm8));
@@ -2990,31 +3060,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitCoverageLog() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void LogGeneratedCodeCoverage(const char* file_line) {
-  const char* return_address = (&file_line)[-1];
-  char* push_insn = const_cast<char*>(return_address - 12);
-  push_insn[0] = 0xeb;  // Relative branch insn.
-  push_insn[1] = 13;    // Skip over coverage insns.
-  if (coverage_log != NULL) {
-    fprintf(coverage_log, "%s\n", file_line);
-    fflush(coverage_log);
-  }
-}
-
-#endif
 
 }  // namespace internal
 }  // namespace v8

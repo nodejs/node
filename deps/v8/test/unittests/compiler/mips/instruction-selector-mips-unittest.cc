@@ -1150,40 +1150,6 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
 }
 
 
-TEST_F(InstructionSelectorTest, Float32Max) {
-  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
-                  MachineType::Float32());
-  Node* const p0 = m.Parameter(0);
-  Node* const p1 = m.Parameter(1);
-  Node* const n = m.Float32Max(p0, p1);
-  m.Return(n);
-  Stream s = m.Build();
-  // Float32Max is `(b < a) ? a : b`.
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMipsFloat32Max, s[0]->arch_opcode());
-  ASSERT_EQ(2U, s[0]->InputCount());
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-}
-
-
-TEST_F(InstructionSelectorTest, Float32Min) {
-  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
-                  MachineType::Float32());
-  Node* const p0 = m.Parameter(0);
-  Node* const p1 = m.Parameter(1);
-  Node* const n = m.Float32Min(p0, p1);
-  m.Return(n);
-  Stream s = m.Build();
-  // Float32Min is `(a < b) ? a : b`.
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMipsFloat32Min, s[0]->arch_opcode());
-  ASSERT_EQ(2U, s[0]->InputCount());
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-}
-
-
 TEST_F(InstructionSelectorTest, Float64Max) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64());
@@ -1192,7 +1158,6 @@ TEST_F(InstructionSelectorTest, Float64Max) {
   Node* const n = m.Float64Max(p0, p1);
   m.Return(n);
   Stream s = m.Build();
-  // Float64Max is `(b < a) ? a : b`.
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kMipsFloat64Max, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
@@ -1209,14 +1174,12 @@ TEST_F(InstructionSelectorTest, Float64Min) {
   Node* const n = m.Float64Min(p0, p1);
   m.Return(n);
   Stream s = m.Build();
-  // Float64Min is `(a < b) ? a : b`.
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kMipsFloat64Min, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
-
 
 }  // namespace compiler
 }  // namespace internal

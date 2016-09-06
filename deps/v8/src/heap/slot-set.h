@@ -64,6 +64,7 @@ class SlotSet : public Malloced {
   // The slot offsets specify a range of slots at addresses:
   // [page_start_ + start_offset ... page_start_ + end_offset).
   void RemoveRange(int start_offset, int end_offset) {
+    CHECK_LE(end_offset, 1 << kPageSizeBits);
     DCHECK_LE(start_offset, end_offset);
     int start_bucket, start_cell, start_bit;
     SlotToIndices(start_offset, &start_bucket, &start_cell, &start_bit);
@@ -193,9 +194,15 @@ class SlotSet : public Malloced {
   }
 
   void MaskCell(int bucket_index, int cell_index, uint32_t mask) {
-    uint32_t* cells = bucket[bucket_index];
-    if (cells != nullptr && cells[cell_index] != 0) {
-      cells[cell_index] &= mask;
+    if (bucket_index < kBuckets) {
+      uint32_t* cells = bucket[bucket_index];
+      if (cells != nullptr && cells[cell_index] != 0) {
+        cells[cell_index] &= mask;
+      }
+    } else {
+      // GCC bug 59124: Emits wrong warnings
+      // "array subscript is above array bounds"
+      UNREACHABLE();
     }
   }
 
@@ -217,7 +224,6 @@ class SlotSet : public Malloced {
 enum SlotType {
   EMBEDDED_OBJECT_SLOT,
   OBJECT_SLOT,
-  RELOCATED_CODE_OBJECT,
   CELL_TARGET_SLOT,
   CODE_TARGET_SLOT,
   CODE_ENTRY_SLOT,
@@ -234,7 +240,30 @@ enum SlotType {
 // typed slots contain V8 internal pointers that are not directly exposed to JS.
 class TypedSlotSet {
  public:
-  typedef uint32_t TypedSlot;
+  struct TypedSlot {
+    TypedSlot() : type_and_offset_(0), host_offset_(0) {}
+
+    TypedSlot(SlotType type, uint32_t host_offset, uint32_t offset)
+        : type_and_offset_(TypeField::encode(type) |
+                           OffsetField::encode(offset)),
+          host_offset_(host_offset) {}
+
+    bool operator==(const TypedSlot other) {
+      return type_and_offset_ == other.type_and_offset_ &&
+             host_offset_ == other.host_offset_;
+    }
+
+    bool operator!=(const TypedSlot other) { return !(*this == other); }
+
+    SlotType type() { return TypeField::decode(type_and_offset_); }
+
+    uint32_t offset() { return OffsetField::decode(type_and_offset_); }
+
+    uint32_t host_offset() { return host_offset_; }
+
+    uint32_t type_and_offset_;
+    uint32_t host_offset_;
+  };
   static const int kMaxOffset = 1 << 29;
 
   explicit TypedSlotSet(Address page_start) : page_start_(page_start) {
@@ -251,8 +280,8 @@ class TypedSlotSet {
   }
 
   // The slot offset specifies a slot at address page_start_ + offset.
-  void Insert(SlotType type, int offset) {
-    TypedSlot slot = ToTypedSlot(type, offset);
+  void Insert(SlotType type, uint32_t host_offset, uint32_t offset) {
+    TypedSlot slot(type, host_offset, offset);
     if (!chunk_->AddSlot(slot)) {
       chunk_ = new Chunk(chunk_, NextCapacity(chunk_->capacity));
       bool added = chunk_->AddSlot(slot);
@@ -273,7 +302,7 @@ class TypedSlotSet {
   template <typename Callback>
   int Iterate(Callback callback) {
     STATIC_ASSERT(NUMBER_OF_SLOT_TYPES < 8);
-    const TypedSlot kRemovedSlot = TypeField::encode(NUMBER_OF_SLOT_TYPES);
+    const TypedSlot kRemovedSlot(NUMBER_OF_SLOT_TYPES, 0, 0);
     Chunk* chunk = chunk_;
     int new_count = 0;
     while (chunk != nullptr) {
@@ -282,9 +311,10 @@ class TypedSlotSet {
       for (int i = 0; i < count; i++) {
         TypedSlot slot = buffer[i];
         if (slot != kRemovedSlot) {
-          SlotType type = TypeField::decode(slot);
-          Address addr = page_start_ + OffsetField::decode(slot);
-          if (callback(type, addr) == KEEP_SLOT) {
+          SlotType type = slot.type();
+          Address addr = page_start_ + slot.offset();
+          Address host_addr = page_start_ + slot.host_offset();
+          if (callback(type, host_addr, addr) == KEEP_SLOT) {
             new_count++;
           } else {
             buffer[i] = kRemovedSlot;
@@ -302,10 +332,6 @@ class TypedSlotSet {
 
   static int NextCapacity(int capacity) {
     return Min(kMaxBufferSize, capacity * 2);
-  }
-
-  static TypedSlot ToTypedSlot(SlotType type, int offset) {
-    return TypeField::encode(type) | OffsetField::encode(offset);
   }
 
   class OffsetField : public BitField<int, 0, 29> {};

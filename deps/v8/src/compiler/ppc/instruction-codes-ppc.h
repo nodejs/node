@@ -42,6 +42,7 @@ namespace compiler {
   V(PPC_SubPair)                   \
   V(PPC_SubDouble)                 \
   V(PPC_Mul32)                     \
+  V(PPC_Mul32WithHigh32)          \
   V(PPC_Mul64)                     \
   V(PPC_MulHigh32)                 \
   V(PPC_MulHighU32)                \
@@ -93,6 +94,7 @@ namespace compiler {
   V(PPC_Uint32ToFloat32)           \
   V(PPC_Uint32ToDouble)            \
   V(PPC_Float32ToDouble)           \
+  V(PPC_Float64SilenceNaN)         \
   V(PPC_DoubleToInt32)             \
   V(PPC_DoubleToUint32)            \
   V(PPC_DoubleToInt64)             \
@@ -112,6 +114,7 @@ namespace compiler {
   V(PPC_LoadWordS16)               \
   V(PPC_LoadWordU16)               \
   V(PPC_LoadWordS32)               \
+  V(PPC_LoadWordU32)               \
   V(PPC_LoadWord64)                \
   V(PPC_LoadFloat32)               \
   V(PPC_LoadDouble)                \

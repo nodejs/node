@@ -34,7 +34,6 @@ Semaphore::~Semaphore() {
   USE(result);
 }
 
-
 void Semaphore::Signal() {
   kern_return_t result = semaphore_signal(native_handle_);
   DCHECK_EQ(KERN_SUCCESS, result);
@@ -75,10 +74,6 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 Semaphore::Semaphore(int count) {
   DCHECK(count >= 0);
-#if V8_LIBC_GLIBC
-  // sem_init in glibc prior to 2.1 does not zero out semaphores.
-  memset(&native_handle_, 0, sizeof(native_handle_));
-#endif
   int result = sem_init(&native_handle_, 0, count);
   DCHECK_EQ(0, result);
   USE(result);
@@ -91,9 +86,11 @@ Semaphore::~Semaphore() {
   USE(result);
 }
 
-
 void Semaphore::Signal() {
   int result = sem_post(&native_handle_);
+  // This check may fail with <libc-2.21, which we use on the try bots, if the
+  // semaphore is destroyed while sem_post is still executed. A work around is
+  // to extend the lifetime of the semaphore.
   CHECK_EQ(0, result);
 }
 
@@ -110,17 +107,6 @@ void Semaphore::Wait() {
 
 
 bool Semaphore::WaitFor(const TimeDelta& rel_time) {
-#if V8_OS_NACL
-  // PNaCL doesn't support sem_timedwait, do ugly busy waiting.
-  ElapsedTimer timer;
-  timer.Start();
-  do {
-    int result = sem_trywait(&native_handle_);
-    if (result == 0) return true;
-    DCHECK(errno == EAGAIN || errno == EINTR);
-  } while (!timer.HasExpired(rel_time));
-  return false;
-#else
   // Compute the time for end of timeout.
   const Time time = Time::NowFromSystemTime() + rel_time;
   const struct timespec ts = time.ToTimespec();
@@ -144,7 +130,6 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
     DCHECK_EQ(-1, result);
     DCHECK_EQ(EINTR, errno);
   }
-#endif
 }
 
 #elif V8_OS_WIN
@@ -161,7 +146,6 @@ Semaphore::~Semaphore() {
   DCHECK(result);
   USE(result);
 }
-
 
 void Semaphore::Signal() {
   LONG dummy;

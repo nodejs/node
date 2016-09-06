@@ -14,23 +14,24 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 34
 bytecodes: [
-  B(LdaConstant), U8(0),
-  B(Star), R(1),
-  B(LdaZero),
-  B(Star), R(2),
-  B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
-  B(StackCheck),
-  B(LdaConstant), U8(1),
-  B(Star), R(1),
-  B(LdaZero),
-  B(Star), R(2),
-  B(LdaSmi), U8(1),
-  B(Star), R(3),
-  B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
-  B(LdaUndefined),
-  B(Return),
+                B(LdaConstant), U8(0),
+                B(Star), R(1),
+                B(LdaZero),
+                B(Star), R(2),
+                B(Mov), R(closure), R(3),
+                B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
+  /*    0 E> */ B(StackCheck),
+  /*    8 S> */ B(LdaConstant), U8(1),
+                B(Star), R(1),
+                B(LdaZero),
+                B(Star), R(2),
+                B(LdaSmi), U8(1),
+                B(Star), R(3),
+                B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
+                B(LdaUndefined),
+  /*   10 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -43,18 +44,19 @@ handlers: [
 snippet: "
   function f() {}
 "
-frame size: 2
+frame size: 3
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 18
 bytecodes: [
-  B(LdaConstant), U8(0),
-  B(Star), R(0),
-  B(LdaZero),
-  B(Star), R(1),
-  B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(2),
-  B(StackCheck),
-  B(LdaUndefined),
-  B(Return),
+                B(LdaConstant), U8(0),
+                B(Star), R(0),
+                B(LdaZero),
+                B(Star), R(1),
+                B(Mov), R(closure), R(2),
+                B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(0), U8(3),
+  /*    0 E> */ B(StackCheck),
+                B(LdaUndefined),
+  /*   15 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -69,25 +71,26 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 40
 bytecodes: [
-  B(LdaConstant), U8(0),
-  B(Star), R(1),
-  B(LdaZero),
-  B(Star), R(2),
-  B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
-  B(StackCheck),
-  B(LdaConstant), U8(1),
-  B(Star), R(1),
-  B(LdaZero),
-  B(Star), R(2),
-  B(LdaSmi), U8(1),
-  B(Star), R(3),
-  B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
-  B(LdaSmi), U8(2),
-  B(StaGlobalSloppy), U8(1), U8(3),
-  B(Star), R(0),
-  B(Return),
+                B(LdaConstant), U8(0),
+                B(Star), R(1),
+                B(LdaZero),
+                B(Star), R(2),
+                B(Mov), R(closure), R(3),
+                B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
+  /*    0 E> */ B(StackCheck),
+  /*    8 S> */ B(LdaConstant), U8(1),
+                B(Star), R(1),
+                B(LdaZero),
+                B(Star), R(2),
+                B(LdaSmi), U8(1),
+                B(Star), R(3),
+                B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
+  /*   11 S> */ B(LdaSmi), U8(2),
+  /*   12 E> */ B(StaGlobalSloppy), U8(1), U8(3),
+                B(Star), R(0),
+  /*   15 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
@@ -101,27 +104,25 @@ snippet: "
   function f() {}
   f();
 "
-frame size: 3
+frame size: 4
 parameter count: 1
 bytecode array length: 29
 bytecodes: [
-  B(LdaConstant), U8(0),
-  B(Star), R(1),
-  B(LdaZero),
-  B(Star), R(2),
-  B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
-  B(StackCheck),
-  B(LdaUndefined),
-  B(Star), R(2),
-  B(LdaGlobal), U8(1), U8(1),
-  B(Star), R(1),
-  B(Call), R(1), R(2), U8(1), U8(3),
-  B(Star), R(0),
-  B(Return),
+                B(LdaConstant), U8(0),
+                B(Star), R(1),
+                B(LdaZero),
+                B(Star), R(2),
+                B(Mov), R(closure), R(3),
+                B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
+  /*    0 E> */ B(StackCheck),
+  /*   16 S> */ B(LdrUndefined), R(2),
+                B(LdrGlobal), U8(1), R(1),
+  /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(3),
+                B(Star), R(0),
+  /*   20 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
 ]

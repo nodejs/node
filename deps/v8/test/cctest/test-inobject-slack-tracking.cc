@@ -925,15 +925,14 @@ TEST(SubclassErrorBuiltin) {
   v8::HandleScope scope(CcTest::isolate());
 
   const int first_field = 2;
-  TestSubclassBuiltin("A1", JS_OBJECT_TYPE, "Error", "'err'", first_field);
-  TestSubclassBuiltin("A2", JS_OBJECT_TYPE, "EvalError", "'err'", first_field);
-  TestSubclassBuiltin("A3", JS_OBJECT_TYPE, "RangeError", "'err'", first_field);
-  TestSubclassBuiltin("A4", JS_OBJECT_TYPE, "ReferenceError", "'err'",
+  TestSubclassBuiltin("A1", JS_ERROR_TYPE, "Error", "'err'", first_field);
+  TestSubclassBuiltin("A2", JS_ERROR_TYPE, "EvalError", "'err'", first_field);
+  TestSubclassBuiltin("A3", JS_ERROR_TYPE, "RangeError", "'err'", first_field);
+  TestSubclassBuiltin("A4", JS_ERROR_TYPE, "ReferenceError", "'err'",
                       first_field);
-  TestSubclassBuiltin("A5", JS_OBJECT_TYPE, "SyntaxError", "'err'",
-                      first_field);
-  TestSubclassBuiltin("A6", JS_OBJECT_TYPE, "TypeError", "'err'", first_field);
-  TestSubclassBuiltin("A7", JS_OBJECT_TYPE, "URIError", "'err'", first_field);
+  TestSubclassBuiltin("A5", JS_ERROR_TYPE, "SyntaxError", "'err'", first_field);
+  TestSubclassBuiltin("A6", JS_ERROR_TYPE, "TypeError", "'err'", first_field);
+  TestSubclassBuiltin("A7", JS_ERROR_TYPE, "URIError", "'err'", first_field);
 }
 
 
@@ -1100,7 +1099,7 @@ TEST(SubclassPromiseBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  const int first_field = 4;
+  const int first_field = 5;
   TestSubclassBuiltin("A1", JS_PROMISE_TYPE, "Promise",
                       "function(resolve, reject) { resolve('ok'); }",
                       first_field);

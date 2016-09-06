@@ -63,7 +63,6 @@
 //  V8_OS_FREEBSD       - FreeBSD
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
-//  V8_OS_NACL          - Native Client
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
@@ -79,9 +78,6 @@
 #elif defined(__APPLE__)
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
-# define V8_OS_POSIX 1
-#elif defined(__native_client__)
-# define V8_OS_NACL 1
 # define V8_OS_POSIX 1
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1

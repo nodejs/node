@@ -19,16 +19,10 @@ namespace compiler {
 
 namespace {
 
-enum class Decision { kUnknown, kTrue, kFalse };
-
 Decision DecideCondition(Node* const cond) {
   switch (cond->opcode()) {
     case IrOpcode::kInt32Constant: {
       Int32Matcher mcond(cond);
-      return mcond.Value() ? Decision::kTrue : Decision::kFalse;
-    }
-    case IrOpcode::kInt64Constant: {
-      Int64Matcher mcond(cond);
       return mcond.Value() ? Decision::kTrue : Decision::kFalse;
     }
     case IrOpcode::kHeapConstant: {
@@ -70,8 +64,6 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceReturn(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
-    case IrOpcode::kGuard:
-      return ReduceGuard(node);
     default:
       break;
   }
@@ -130,6 +122,7 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
          node->opcode() == IrOpcode::kDeoptimizeUnless);
   bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
+  DeoptimizeReason reason = DeoptimizeReasonOf(node->op());
   Node* condition = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -141,20 +134,22 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   if (condition->opcode() == IrOpcode::kBooleanNot) {
     NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
     NodeProperties::ChangeOp(node, condition_is_true
-                                       ? common()->DeoptimizeIf()
-                                       : common()->DeoptimizeUnless());
+                                       ? common()->DeoptimizeIf(reason)
+                                       : common()->DeoptimizeUnless(reason));
     return Changed(node);
   }
   Decision const decision = DecideCondition(condition);
   if (decision == Decision::kUnknown) return NoChange();
   if (condition_is_true == (decision == Decision::kTrue)) {
-    return Replace(control);
+    ReplaceWithValue(node, dead(), effect, control);
+  } else {
+    control =
+        graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager, reason),
+                         frame_state, effect, control);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), control);
+    Revisit(graph()->end());
   }
-  control = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                             frame_state, effect, control);
-  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-  NodeProperties::MergeControlToEnd(graph(), common(), control);
-  Revisit(graph()->end());
   return Replace(dead());
 }
 
@@ -252,17 +247,6 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
             return Change(node, machine()->Float32Abs(), vtrue);
           }
         }
-        if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-            machine()->Float32Min().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float32Min().op(), vtrue, vfalse);
-        } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                   machine()->Float32Max().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float32Max().op(), vtrue, vfalse);
-        }
       } else if (cond->opcode() == IrOpcode::kFloat64LessThan) {
         Float64BinopMatcher mcond(cond);
         if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
@@ -273,17 +257,6 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
             Revisit(merge);
             return Change(node, machine()->Float64Abs(), vtrue);
           }
-        }
-        if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-            machine()->Float64Min().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float64Min().op(), vtrue, vfalse);
-        } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                   machine()->Float64Max().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float64Max().op(), vtrue, vfalse);
         }
       }
     }
@@ -308,8 +281,16 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
   Node* const value = node->InputAt(0);
-  Node* const effect = node->InputAt(1);
-  Node* const control = node->InputAt(2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  bool changed = false;
+  if (effect->opcode() == IrOpcode::kCheckpoint) {
+    // Any {Return} node can never be used to insert a deoptimization point,
+    // hence checkpoints can be cut out of the effect chain flowing into it.
+    effect = NodeProperties::GetEffectInput(effect);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    changed = true;
+  }
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control &&
       effect->opcode() == IrOpcode::kEffectPhi &&
@@ -334,7 +315,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     Replace(control, dead());
     return Replace(dead());
   }
-  return NoChange();
+  return changed ? Changed(node) : NoChange();
 }
 
 
@@ -362,13 +343,6 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
           return Change(node, machine()->Float32Abs(), vtrue);
         }
       }
-      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-          machine()->Float32Min().IsSupported()) {
-        return Change(node, machine()->Float32Min().op(), vtrue, vfalse);
-      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                 machine()->Float32Max().IsSupported()) {
-        return Change(node, machine()->Float32Max().op(), vtrue, vfalse);
-      }
       break;
     }
     case IrOpcode::kFloat64LessThan: {
@@ -380,28 +354,11 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
           return Change(node, machine()->Float64Abs(), vtrue);
         }
       }
-      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-          machine()->Float64Min().IsSupported()) {
-        return Change(node, machine()->Float64Min().op(), vtrue, vfalse);
-      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                 machine()->Float64Max().IsSupported()) {
-        return Change(node, machine()->Float64Max().op(), vtrue, vfalse);
-      }
       break;
     }
     default:
       break;
   }
-  return NoChange();
-}
-
-
-Reduction CommonOperatorReducer::ReduceGuard(Node* node) {
-  DCHECK_EQ(IrOpcode::kGuard, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetTypeOrAny(input);
-  Type* const guard_type = OpParameter<Type*>(node);
-  if (input_type->Is(guard_type)) return Replace(input);
   return NoChange();
 }
 

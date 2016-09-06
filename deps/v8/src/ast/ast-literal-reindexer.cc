@@ -16,11 +16,6 @@ void AstLiteralReindexer::VisitVariableDeclaration(VariableDeclaration* node) {
 }
 
 
-void AstLiteralReindexer::VisitExportDeclaration(ExportDeclaration* node) {
-  VisitVariableProxy(node->proxy());
-}
-
-
 void AstLiteralReindexer::VisitEmptyStatement(EmptyStatement* node) {}
 
 
@@ -80,11 +75,6 @@ void AstLiteralReindexer::VisitSuperCallReference(SuperCallReference* node) {
 void AstLiteralReindexer::VisitRewritableExpression(
     RewritableExpression* node) {
   Visit(node->expression());
-}
-
-
-void AstLiteralReindexer::VisitImportDeclaration(ImportDeclaration* node) {
-  VisitVariableProxy(node->proxy());
 }
 
 
@@ -326,9 +316,6 @@ void AstLiteralReindexer::VisitFunctionLiteral(FunctionLiteral* node) {
   // We don't recurse into the declarations or body of the function literal:
 }
 
-
-void AstLiteralReindexer::Reindex(Expression* pattern) {
-  pattern->Accept(this);
-}
+void AstLiteralReindexer::Reindex(Expression* pattern) { Visit(pattern); }
 }  // namespace internal
 }  // namespace v8

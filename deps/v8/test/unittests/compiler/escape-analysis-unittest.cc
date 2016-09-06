@@ -48,7 +48,8 @@ class EscapeAnalysisTest : public GraphTest {
       effect = effect_;
     }
 
-    return effect_ = graph()->NewNode(common()->BeginRegion(), effect);
+    return effect_ = graph()->NewNode(
+               common()->BeginRegion(RegionObservability::kObservable), effect);
   }
 
   Node* FinishRegion(Node* value, Node* effect = nullptr) {
@@ -146,14 +147,18 @@ class EscapeAnalysisTest : public GraphTest {
   }
 
   FieldAccess FieldAccessAtIndex(int offset) {
-    FieldAccess access = {kTaggedBase, offset, MaybeHandle<Name>(), Type::Any(),
-                          MachineType::AnyTagged()};
+    FieldAccess access = {kTaggedBase,
+                          offset,
+                          MaybeHandle<Name>(),
+                          Type::Any(),
+                          MachineType::AnyTagged(),
+                          kFullWriteBarrier};
     return access;
   }
 
   ElementAccess MakeElementAccess(int header_size) {
     ElementAccess access = {kTaggedBase, header_size, Type::Any(),
-                            MachineType::AnyTagged()};
+                            MachineType::AnyTagged(), kFullWriteBarrier};
     return access;
   }
 
@@ -441,8 +446,9 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
                            nullptr),
       state_values1, state_values2, state_values3, UndefinedConstant(),
       graph()->start(), graph()->start());
-  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect1, ifFalse);
+  Node* deopt = graph()->NewNode(
+      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      frame_state, effect1, ifFalse);
   Node* ifTrue = IfTrue();
   Node* load = Load(FieldAccessAtIndex(0), finish, effect1, ifTrue);
   Node* result = Return(load, effect1, ifTrue);
@@ -481,8 +487,9 @@ TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
                            nullptr),
       state_values1, state_values2, state_values3, UndefinedConstant(),
       graph()->start(), graph()->start());
-  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect1, ifFalse);
+  Node* deopt = graph()->NewNode(
+      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      frame_state, effect1, ifFalse);
   Node* ifTrue = IfTrue();
   Node* load = Load(FieldAccessAtIndex(0), finish, effect1, ifTrue);
   Node* result = Return(load, effect1, ifTrue);

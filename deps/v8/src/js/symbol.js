@@ -16,44 +16,16 @@ var hasInstanceSymbol = utils.ImportNow("has_instance_symbol");
 var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
+var matchSymbol = utils.ImportNow("match_symbol");
+var replaceSymbol = utils.ImportNow("replace_symbol");
+var searchSymbol = utils.ImportNow("search_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
+var splitSymbol = utils.ImportNow("split_symbol");
 var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
-
 // -------------------------------------------------------------------
-
-// 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
-function SymbolToPrimitive(hint) {
-  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "Symbol.prototype [ @@toPrimitive ]", this);
-  }
-  return %_ValueOf(this);
-}
-
-
-function SymbolToString() {
-  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "Symbol.prototype.toString", this);
-  }
-  return %SymbolDescriptiveString(%_ValueOf(this));
-}
-
-
-function SymbolValueOf() {
-  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "Symbol.prototype.valueOf", this);
-  }
-  return %_ValueOf(this);
-}
-
 
 function SymbolFor(key) {
   key = TO_STRING(key);
@@ -68,7 +40,7 @@ function SymbolFor(key) {
 
 
 function SymbolKeyFor(symbol) {
-  if (!IS_SYMBOL(symbol)) throw MakeTypeError(kSymbolKeyFor, symbol);
+  if (!IS_SYMBOL(symbol)) throw %make_type_error(kSymbolKeyFor, symbol);
   return %SymbolRegistry().keyFor[symbol];
 }
 
@@ -78,11 +50,11 @@ utils.InstallConstants(GlobalSymbol, [
   "hasInstance", hasInstanceSymbol,
   "isConcatSpreadable", isConcatSpreadableSymbol,
   "iterator", iteratorSymbol,
-  // TODO(yangguo): expose when implemented.
-  // "match", matchSymbol,
-  // "replace", replaceSymbol,
-  // "search", searchSymbol,
-  // "split, splitSymbol,
+  "match", matchSymbol,
+  "replace", replaceSymbol,
+  "search", searchSymbol,
+  "species", speciesSymbol,
+  "split", splitSymbol,
   "toPrimitive", toPrimitiveSymbol,
   "toStringTag", toStringTagSymbol,
   "unscopables", unscopablesSymbol,
@@ -92,24 +64,5 @@ utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
   "for", SymbolFor,
   "keyFor", SymbolKeyFor
 ]);
-
-%AddNamedProperty(
-    GlobalSymbol.prototype, toStringTagSymbol, "Symbol", DONT_ENUM | READ_ONLY);
-
-utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM | READ_ONLY, [
-  toPrimitiveSymbol, SymbolToPrimitive
-]);
-
-utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
-  "toString", SymbolToString,
-  "valueOf", SymbolValueOf
-]);
-
-// -------------------------------------------------------------------
-// Exports
-
-utils.Export(function(to) {
-  to.SymbolToString = SymbolToString;
-})
 
 })

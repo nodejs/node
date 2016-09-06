@@ -23,6 +23,12 @@ class Int64Lowering {
 
   void LowerGraph();
 
+  static int GetParameterCountAfterLowering(
+      Signature<MachineRepresentation>* signature);
+
+  static const int kLowerWordOffset;
+  static const int kHigherWordOffset;
+
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
@@ -51,6 +57,7 @@ class Int64Lowering {
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
   void PreparePhiReplacement(Node* phi);
+  void GetIndexNodes(Node* index, Node*& index_low, Node*& index_high);
 
   struct NodeState {
     Node* node;

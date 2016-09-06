@@ -8,30 +8,39 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
+std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
   switch (hint) {
-    case BinaryOperationHints::kNone:
+    case BinaryOperationHint::kNone:
       return os << "None";
-    case BinaryOperationHints::kSignedSmall:
+    case BinaryOperationHint::kSignedSmall:
       return os << "SignedSmall";
-    case BinaryOperationHints::kSigned32:
+    case BinaryOperationHint::kSigned32:
       return os << "Signed32";
-    case BinaryOperationHints::kNumber:
-      return os << "Number";
-    case BinaryOperationHints::kString:
-      return os << "String";
-    case BinaryOperationHints::kAny:
+    case BinaryOperationHint::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case BinaryOperationHint::kAny:
       return os << "Any";
   }
   UNREACHABLE();
   return os;
 }
 
-
-std::ostream& operator<<(std::ostream& os, BinaryOperationHints hints) {
-  return os << hints.left() << "*" << hints.right() << "->" << hints.result();
+std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
+  switch (hint) {
+    case CompareOperationHint::kNone:
+      return os << "None";
+    case CompareOperationHint::kSignedSmall:
+      return os << "SignedSmall";
+    case CompareOperationHint::kNumber:
+      return os << "Number";
+    case CompareOperationHint::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case CompareOperationHint::kAny:
+      return os << "Any";
+  }
+  UNREACHABLE();
+  return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   switch (hint) {
@@ -62,12 +71,11 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
   if (hints == ToBooleanHint::kAny) return os << "Any";
   if (hints == ToBooleanHint::kNone) return os << "None";
   bool first = true;
-  for (ToBooleanHints::mask_type i = 0; i < sizeof(i) * CHAR_BIT; ++i) {
+  for (ToBooleanHints::mask_type i = 0; i < sizeof(i) * 8; ++i) {
     ToBooleanHint const hint = static_cast<ToBooleanHint>(1u << i);
     if (hints & hint) {
       if (!first) os << "|";

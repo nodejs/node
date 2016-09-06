@@ -9,7 +9,12 @@
 #include <iosfwd>
 #include <limits>
 
+#include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/base/safe_math.h"
+#if V8_OS_WIN
+#include "src/base/win32-headers.h"
+#endif
 
 // Forward declarations.
 extern "C" {
@@ -23,7 +28,13 @@ namespace v8 {
 namespace base {
 
 class Time;
+class TimeDelta;
 class TimeTicks;
+
+namespace time_internal {
+template<class TimeClass>
+class TimeBase;
+}
 
 // -----------------------------------------------------------------------------
 // TimeDelta
@@ -143,6 +154,7 @@ class TimeDelta final {
   }
 
  private:
+  template<class TimeClass> friend class time_internal::TimeBase;
   // Constructs a delta given the duration in microseconds. This is private
   // to avoid confusion by callers with an integer constructor. Use
   // FromSeconds, FromMilliseconds, etc. instead.
@@ -153,34 +165,122 @@ class TimeDelta final {
 };
 
 
+namespace time_internal {
+
+// TimeBase--------------------------------------------------------------------
+
+// Provides value storage and comparison/math operations common to all time
+// classes. Each subclass provides for strong type-checking to ensure
+// semantically meaningful comparison/math of time values from the same clock
+// source or timeline.
+template<class TimeClass>
+class TimeBase {
+ public:
+  static const int64_t kHoursPerDay = 24;
+  static const int64_t kMillisecondsPerSecond = 1000;
+  static const int64_t kMillisecondsPerDay =
+      kMillisecondsPerSecond * 60 * 60 * kHoursPerDay;
+  static const int64_t kMicrosecondsPerMillisecond = 1000;
+  static const int64_t kMicrosecondsPerSecond =
+      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
+  static const int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
+  static const int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
+  static const int64_t kMicrosecondsPerDay =
+      kMicrosecondsPerHour * kHoursPerDay;
+  static const int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static const int64_t kNanosecondsPerMicrosecond = 1000;
+  static const int64_t kNanosecondsPerSecond =
+      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+
+  // Returns true if this object has not been initialized.
+  //
+  // Warning: Be careful when writing code that performs math on time values,
+  // since it's possible to produce a valid "zero" result that should not be
+  // interpreted as a "null" value.
+  bool IsNull() const {
+    return us_ == 0;
+  }
+
+  // Returns true if this object represents the maximum time.
+  bool IsMax() const { return us_ == std::numeric_limits<int64_t>::max(); }
+
+  // For serializing only. Use FromInternalValue() to reconstitute. Please don't
+  // use this and do arithmetic on it, as it is more error prone than using the
+  // provided operators.
+  int64_t ToInternalValue() const { return us_; }
+
+  TimeClass& operator=(TimeClass other) {
+    us_ = other.us_;
+    return *(static_cast<TimeClass*>(this));
+  }
+
+  // Compute the difference between two times.
+  TimeDelta operator-(TimeClass other) const {
+    return TimeDelta::FromMicroseconds(us_ - other.us_);
+  }
+
+  // Return a new time modified by some delta.
+  TimeClass operator+(TimeDelta delta) const {
+    return TimeClass(bits::SignedSaturatedAdd64(delta.delta_, us_));
+  }
+  TimeClass operator-(TimeDelta delta) const {
+    return TimeClass(-bits::SignedSaturatedSub64(delta.delta_, us_));
+  }
+
+  // Modify by some time delta.
+  TimeClass& operator+=(TimeDelta delta) {
+    return static_cast<TimeClass&>(*this = (*this + delta));
+  }
+  TimeClass& operator-=(TimeDelta delta) {
+    return static_cast<TimeClass&>(*this = (*this - delta));
+  }
+
+  // Comparison operators
+  bool operator==(TimeClass other) const {
+    return us_ == other.us_;
+  }
+  bool operator!=(TimeClass other) const {
+    return us_ != other.us_;
+  }
+  bool operator<(TimeClass other) const {
+    return us_ < other.us_;
+  }
+  bool operator<=(TimeClass other) const {
+    return us_ <= other.us_;
+  }
+  bool operator>(TimeClass other) const {
+    return us_ > other.us_;
+  }
+  bool operator>=(TimeClass other) const {
+    return us_ >= other.us_;
+  }
+
+  // Converts an integer value representing TimeClass to a class. This is used
+  // when deserializing a |TimeClass| structure, using a value known to be
+  // compatible. It is not provided as a constructor because the integer type
+  // may be unclear from the perspective of a caller.
+  static TimeClass FromInternalValue(int64_t us) { return TimeClass(us); }
+
+ protected:
+  explicit TimeBase(int64_t us) : us_(us) {}
+
+  // Time value in a microsecond timebase.
+  int64_t us_;
+};
+
+}  // namespace time_internal
+
+
 // -----------------------------------------------------------------------------
 // Time
 //
 // This class represents an absolute point in time, internally represented as
 // microseconds (s/1,000,000) since 00:00:00 UTC, January 1, 1970.
 
-class Time final {
+class Time final : public time_internal::TimeBase<Time> {
  public:
-  static const int64_t kMillisecondsPerSecond = 1000;
-  static const int64_t kMicrosecondsPerMillisecond = 1000;
-  static const int64_t kMicrosecondsPerSecond = kMicrosecondsPerMillisecond *
-                                                kMillisecondsPerSecond;
-  static const int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
-  static const int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
-  static const int64_t kMicrosecondsPerDay = kMicrosecondsPerHour * 24;
-  static const int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
-  static const int64_t kNanosecondsPerMicrosecond = 1000;
-  static const int64_t kNanosecondsPerSecond = kNanosecondsPerMicrosecond *
-                                               kMicrosecondsPerSecond;
-
   // Contains the NULL time. Use Time::Now() to get the current time.
-  Time() : us_(0) {}
-
-  // Returns true if the time object has not been initialized.
-  bool IsNull() const { return us_ == 0; }
-
-  // Returns true if the time object is the maximum time.
-  bool IsMax() const { return us_ == std::numeric_limits<int64_t>::max(); }
+  Time() : TimeBase(0) {}
 
   // Returns the current time. Watch out, the system might adjust its clock
   // in which case time will actually go backwards. We don't guarantee that
@@ -200,15 +300,6 @@ class Time final {
   // with which we might compare it.
   static Time Max() { return Time(std::numeric_limits<int64_t>::max()); }
 
-  // Converts to/from internal values. The meaning of the "internal value" is
-  // completely up to the implementation, so it should be treated as opaque.
-  static Time FromInternalValue(int64_t value) {
-    return Time(value);
-  }
-  int64_t ToInternalValue() const {
-    return us_;
-  }
-
   // Converts to/from POSIX time specs.
   static Time FromTimespec(struct timespec ts);
   struct timespec ToTimespec() const;
@@ -226,59 +317,9 @@ class Time final {
   static Time FromJsTime(double ms_since_epoch);
   double ToJsTime() const;
 
-  Time& operator=(const Time& other) {
-    us_ = other.us_;
-    return *this;
-  }
-
-  // Compute the difference between two times.
-  TimeDelta operator-(const Time& other) const {
-    return TimeDelta::FromMicroseconds(us_ - other.us_);
-  }
-
-  // Modify by some time delta.
-  Time& operator+=(const TimeDelta& delta) {
-    us_ += delta.InMicroseconds();
-    return *this;
-  }
-  Time& operator-=(const TimeDelta& delta) {
-    us_ -= delta.InMicroseconds();
-    return *this;
-  }
-
-  // Return a new time modified by some delta.
-  Time operator+(const TimeDelta& delta) const {
-    return Time(us_ + delta.InMicroseconds());
-  }
-  Time operator-(const TimeDelta& delta) const {
-    return Time(us_ - delta.InMicroseconds());
-  }
-
-  // Comparison operators
-  bool operator==(const Time& other) const {
-    return us_ == other.us_;
-  }
-  bool operator!=(const Time& other) const {
-    return us_ != other.us_;
-  }
-  bool operator<(const Time& other) const {
-    return us_ < other.us_;
-  }
-  bool operator<=(const Time& other) const {
-    return us_ <= other.us_;
-  }
-  bool operator>(const Time& other) const {
-    return us_ > other.us_;
-  }
-  bool operator>=(const Time& other) const {
-    return us_ >= other.us_;
-  }
-
  private:
-  explicit Time(int64_t us) : us_(us) {}
-
-  // Time in microseconds in UTC.
-  int64_t us_;
+  friend class time_internal::TimeBase<Time>;
+  explicit Time(int64_t us) : TimeBase(us) {}
 };
 
 std::ostream& operator<<(std::ostream&, const Time&);
@@ -298,9 +339,9 @@ inline Time operator+(const TimeDelta& delta, const Time& time) {
 // Time::Now() may actually decrease or jump).  But note that TimeTicks may
 // "stand still", for example if the computer suspended.
 
-class TimeTicks final {
+class TimeTicks final : public time_internal::TimeBase<TimeTicks> {
  public:
-  TimeTicks() : ticks_(0) {}
+  TimeTicks() : TimeBase(0) {}
 
   // Platform-dependent tick count representing "right now."
   // The resolution of this clock is ~1-15ms.  Resolution varies depending
@@ -318,78 +359,67 @@ class TimeTicks final {
   // Returns true if the high-resolution clock is working on this system.
   static bool IsHighResolutionClockWorking();
 
-  // Returns true if this object has not been initialized.
-  bool IsNull() const { return ticks_ == 0; }
-
-  // Converts to/from internal values. The meaning of the "internal value" is
-  // completely up to the implementation, so it should be treated as opaque.
-  static TimeTicks FromInternalValue(int64_t value) {
-    return TimeTicks(value);
-  }
-  int64_t ToInternalValue() const {
-    return ticks_;
-  }
-
-  TimeTicks& operator=(const TimeTicks other) {
-    ticks_ = other.ticks_;
-    return *this;
-  }
-
-  // Compute the difference between two times.
-  TimeDelta operator-(const TimeTicks other) const {
-    return TimeDelta::FromMicroseconds(ticks_ - other.ticks_);
-  }
-
-  // Modify by some time delta.
-  TimeTicks& operator+=(const TimeDelta& delta) {
-    ticks_ += delta.InMicroseconds();
-    return *this;
-  }
-  TimeTicks& operator-=(const TimeDelta& delta) {
-    ticks_ -= delta.InMicroseconds();
-    return *this;
-  }
-
-  // Return a new TimeTicks modified by some delta.
-  TimeTicks operator+(const TimeDelta& delta) const {
-    return TimeTicks(ticks_ + delta.InMicroseconds());
-  }
-  TimeTicks operator-(const TimeDelta& delta) const {
-    return TimeTicks(ticks_ - delta.InMicroseconds());
-  }
-
-  // Comparison operators
-  bool operator==(const TimeTicks& other) const {
-    return ticks_ == other.ticks_;
-  }
-  bool operator!=(const TimeTicks& other) const {
-    return ticks_ != other.ticks_;
-  }
-  bool operator<(const TimeTicks& other) const {
-    return ticks_ < other.ticks_;
-  }
-  bool operator<=(const TimeTicks& other) const {
-    return ticks_ <= other.ticks_;
-  }
-  bool operator>(const TimeTicks& other) const {
-    return ticks_ > other.ticks_;
-  }
-  bool operator>=(const TimeTicks& other) const {
-    return ticks_ >= other.ticks_;
-  }
-
  private:
-  // Please use Now() to create a new object. This is for internal use
-  // and testing. Ticks is in microseconds.
-  explicit TimeTicks(int64_t ticks) : ticks_(ticks) {}
+  friend class time_internal::TimeBase<TimeTicks>;
 
-  // Tick count in microseconds.
-  int64_t ticks_;
+  // Please use Now() to create a new object. This is for internal use
+  // and testing. Ticks are in microseconds.
+  explicit TimeTicks(int64_t ticks) : TimeBase(ticks) {}
 };
 
 inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
   return ticks + delta;
 }
+
+
+// ThreadTicks ----------------------------------------------------------------
+
+// Represents a clock, specific to a particular thread, than runs only while the
+// thread is running.
+class ThreadTicks final : public time_internal::TimeBase<ThreadTicks> {
+ public:
+  ThreadTicks() : TimeBase(0) {}
+
+  // Returns true if ThreadTicks::Now() is supported on this system.
+  static bool IsSupported();
+
+  // Waits until the initialization is completed. Needs to be guarded with a
+  // call to IsSupported().
+  static void WaitUntilInitialized() {
+#if V8_OS_WIN
+    WaitUntilInitializedWin();
+#endif
+  }
+
+  // Returns thread-specific CPU-time on systems that support this feature.
+  // Needs to be guarded with a call to IsSupported(). Use this timer
+  // to (approximately) measure how much time the calling thread spent doing
+  // actual work vs. being de-scheduled. May return bogus results if the thread
+  // migrates to another CPU between two calls. Returns an empty ThreadTicks
+  // object until the initialization is completed. If a clock reading is
+  // absolutely needed, call WaitUntilInitialized() before this method.
+  static ThreadTicks Now();
+
+#if V8_OS_WIN
+  // Similar to Now() above except this returns thread-specific CPU time for an
+  // arbitrary thread. All comments for Now() method above apply apply to this
+  // method as well.
+  static ThreadTicks GetForThread(const HANDLE& thread_handle);
+#endif
+
+ private:
+  // Please use Now() or GetForThread() to create a new object. This is for
+  // internal use and testing. Ticks are in microseconds.
+  explicit ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
+
+#if V8_OS_WIN
+  // Returns the frequency of the TSC in ticks per second, or 0 if it hasn't
+  // been measured yet. Needs to be guarded with a call to IsSupported().
+  static double TSCTicksPerSecond();
+  static bool IsSupportedWin();
+  static void WaitUntilInitializedWin();
+#endif
+};
 
 }  // namespace base
 }  // namespace v8

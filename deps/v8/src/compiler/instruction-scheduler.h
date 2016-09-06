@@ -156,10 +156,6 @@ class InstructionScheduler final : public ZoneObject {
   int GetInstructionFlags(const Instruction* instr) const;
   int GetTargetInstructionFlags(const Instruction* instr) const;
 
-  // Return true if instr2 uses any value defined by instr1.
-  bool HasOperandDependency(const Instruction* instr1,
-                            const Instruction* instr2) const;
-
   // Return true if the instruction is a basic block terminator.
   bool IsBlockTerminator(const Instruction* instr) const;
 
@@ -177,10 +173,12 @@ class InstructionScheduler final : public ZoneObject {
   // Identify nops used as a definition point for live-in registers at
   // function entry.
   bool IsFixedRegisterParameter(const Instruction* instr) const {
-    return (instr->arch_opcode() == kArchNop) &&
-      (instr->OutputCount() == 1) &&
-      (instr->OutputAt(0)->IsUnallocated()) &&
-      UnallocatedOperand::cast(instr->OutputAt(0))->HasFixedRegisterPolicy();
+    return (instr->arch_opcode() == kArchNop) && (instr->OutputCount() == 1) &&
+           (instr->OutputAt(0)->IsUnallocated()) &&
+           (UnallocatedOperand::cast(instr->OutputAt(0))
+                ->HasFixedRegisterPolicy() ||
+            UnallocatedOperand::cast(instr->OutputAt(0))
+                ->HasFixedFPRegisterPolicy());
   }
 
   void ComputeTotalLatencies();
@@ -209,6 +207,13 @@ class InstructionScheduler final : public ZoneObject {
   // All these nops are chained together and added as a predecessor of every
   // other instructions in the basic block.
   ScheduleGraphNode* last_live_in_reg_marker_;
+
+  // Last deoptimization instruction encountered while building the graph.
+  ScheduleGraphNode* last_deopt_;
+
+  // Keep track of definition points for virtual registers. This is used to
+  // record operand dependencies in the scheduling graph.
+  ZoneMap<int32_t, ScheduleGraphNode*> operands_map_;
 };
 
 }  // namespace compiler
