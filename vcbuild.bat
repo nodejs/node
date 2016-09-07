@@ -33,7 +33,6 @@ set noperfctr=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
-set release_urls_arg=
 set build_release=
 set enable_vtune_arg=
 set configure_flags=
@@ -108,7 +107,7 @@ if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
 if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
 if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
-if defined release_urlbase set release_urlbase_arg=--release-urlbase=%release_urlbase%
+if defined release_urlbase set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 if defined dll set configure_flags=%configure_flags% --shared
