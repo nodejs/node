@@ -11,7 +11,7 @@
 #include <windows.h>
 #endif
 
-namespace blink {
+namespace v8_inspector {
 
 #if defined(_MSC_VER)
 
@@ -24,6 +24,6 @@ inline int atomicIncrement(int volatile* addend) { return atomicAdd(addend, 1); 
 
 #endif
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif /* Atomics_h */

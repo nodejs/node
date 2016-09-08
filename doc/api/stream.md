@@ -83,7 +83,7 @@ used to fill the read buffer).
 Data is buffered in Writable streams when the
 [`writable.write(chunk)`][stream-write] method is called repeatedly. While the
 total size of the internal write buffer is below the threshold set by
-`highWaterMark`, calls to `writable.write()` will return `true`. Once the
+`highWaterMark`, calls to `writable.write()` will return `true`. Once
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
@@ -963,10 +963,11 @@ function parseHeader(stream, callback) {
         header += split.shift();
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
+        stream.removeListener('error', callback);
+        // set the readable listener before unshifting
+        stream.removeListener('readable', onReadable);
         if (buf.length)
           stream.unshift(buf);
-        stream.removeListener('error', callback);
-        stream.removeListener('readable', onReadable);
         // now the body of the message can be read from the stream.
         callback(null, header, stream);
       } else {
@@ -1667,7 +1668,7 @@ respectively.
 
 In the following example, for instance, a new Transform stream (which is a
 type of [Duplex][] stream) is created that has an object mode Writable side
-that accepts JavaScript numbers that are converted to hexidecimal strings on
+that accepts JavaScript numbers that are converted to hexadecimal strings on
 the Readable side.
 
 ```js

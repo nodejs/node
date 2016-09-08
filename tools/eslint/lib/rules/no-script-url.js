@@ -22,11 +22,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            Literal: function(node) {
+            Literal(node) {
                 if (node.value && typeof node.value === "string") {
                     const value = node.value.toLowerCase();
 

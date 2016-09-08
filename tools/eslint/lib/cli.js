@@ -120,7 +120,7 @@ const cli = {
      * @param {string} [text] The text to lint (used for TTY).
      * @returns {int} The exit code for the operation.
      */
-    execute: function(args, text) {
+    execute(args, text) {
 
         let currentOptions;
 

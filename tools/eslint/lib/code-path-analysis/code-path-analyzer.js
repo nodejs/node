@@ -592,7 +592,7 @@ CodePathAnalyzer.prototype = {
      * @param {ASTNode} node - A node which is entering.
      * @returns {void}
      */
-    enterNode: function(node) {
+    enterNode(node) {
         this.currentNode = node;
 
         // Updates the code path due to node's position in its parent node.
@@ -617,7 +617,7 @@ CodePathAnalyzer.prototype = {
      * @param {ASTNode} node - A node which is leaving.
      * @returns {void}
      */
-    leaveNode: function(node) {
+    leaveNode(node) {
         this.currentNode = node;
 
         // Updates the code path.
@@ -641,7 +641,7 @@ CodePathAnalyzer.prototype = {
      * @param {CodePathSegment} toSegment - A segment of next.
      * @returns {void}
      */
-    onLooped: function(fromSegment, toSegment) {
+    onLooped(fromSegment, toSegment) {
         if (fromSegment.reachable && toSegment.reachable) {
             debug.dump("onCodePathSegmentLoop " + fromSegment.id + " -> " + toSegment.id);
             this.emitter.emit(

@@ -30,7 +30,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -73,7 +73,7 @@ module.exports = {
 
         return {
 
-            Identifier: function(node) {
+            Identifier(node) {
 
                 /*
                  * Leading and trailing underscores are commonly used to flag

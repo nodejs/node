@@ -44,7 +44,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const minLength = typeof options.min !== "undefined" ? options.min : 2;
         const maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
@@ -66,10 +66,10 @@ module.exports = {
                     parent.parent.parent.type === "ObjectPattern" && parent.parent.parent.parent.left === parent.parent.parent)
                 );
             },
-            AssignmentPattern: function(parent, node) {
+            AssignmentPattern(parent, node) {
                 return parent.left === node;
             },
-            VariableDeclarator: function(parent, node) {
+            VariableDeclarator(parent, node) {
                 return parent.id === node;
             },
             Property: properties && function(parent, node) {
@@ -86,7 +86,7 @@ module.exports = {
         };
 
         return {
-            Identifier: function(node) {
+            Identifier(node) {
                 const name = node.name;
                 const parent = node.parent;
 
@@ -105,7 +105,7 @@ module.exports = {
                         isShort ?
                             "Identifier name '{{name}}' is too short (< {{min}})." :
                             "Identifier name '{{name}}' is too long (> {{max}}).",
-                        { name: name, min: minLength, max: maxLength }
+                        { name, min: minLength, max: maxLength }
                     );
                 }
             }

@@ -38,7 +38,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],

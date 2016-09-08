@@ -10,7 +10,7 @@
 
 const fs = require("fs"),
     path = require("path"),
-    glob = require("glob"),
+    GlobSync = require("./glob"),
     shell = require("shelljs"),
 
     pathUtil = require("./path-util"),
@@ -113,9 +113,9 @@ function listFilesToProcess(globPatterns, options) {
     const ignoredPaths = new IgnoredPaths(options);
     const globOptions = {
         nodir: true,
-        cwd: cwd,
-        ignore: ignoredPaths.getIgnoredFoldersGlobPatterns()
+        cwd
     };
+    const shouldIgnore = ignoredPaths.getIgnoredFoldersGlobChecker();
 
     /**
      * Executes the linter on a file defined by the `filename`. Skips
@@ -151,7 +151,7 @@ function listFilesToProcess(globPatterns, options) {
         if (added[filename]) {
             return;
         }
-        files.push({filename: filename, ignored: ignored});
+        files.push({filename, ignored});
         added[filename] = true;
     }
 
@@ -162,7 +162,7 @@ function listFilesToProcess(globPatterns, options) {
         if (shell.test("-f", file)) {
             addFile(fs.realpathSync(file), !shell.test("-d", file));
         } else {
-            glob.sync(pattern, globOptions).forEach(function(globMatch) {
+            new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(function(globMatch) {
                 addFile(path.resolve(cwd, globMatch), false);
             });
         }
@@ -172,6 +172,6 @@ function listFilesToProcess(globPatterns, options) {
 }
 
 module.exports = {
-    resolveFileGlobPatterns: resolveFileGlobPatterns,
-    listFilesToProcess: listFilesToProcess
+    resolveFileGlobPatterns,
+    listFilesToProcess
 };

@@ -97,16 +97,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let globalScope;
 
         return {
 
-            Program: function() {
+            Program() {
                 globalScope = context.getScope();
             },
 
-            CallExpression: function(node) {
+            CallExpression(node) {
                 const callee = node.callee,
                     currentScope = context.getScope();
 

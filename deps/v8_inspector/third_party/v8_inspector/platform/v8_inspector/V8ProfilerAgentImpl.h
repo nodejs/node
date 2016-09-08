@@ -5,8 +5,7 @@
 #ifndef V8ProfilerAgentImpl_h
 #define V8ProfilerAgentImpl_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/protocol/Profiler.h"
 
 #include <vector>
@@ -16,9 +15,11 @@ class CpuProfiler;
 class Isolate;
 }
 
-namespace blink {
+namespace v8_inspector {
 
 class V8InspectorSessionImpl;
+
+namespace protocol = blink::protocol;
 
 class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
     PROTOCOL_DISALLOW_COPY(V8ProfilerAgentImpl);
@@ -59,6 +60,6 @@ private:
     String16 m_frontendInitiatedProfileId;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // !defined(V8ProfilerAgentImpl_h)

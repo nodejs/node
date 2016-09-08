@@ -90,7 +90,7 @@ module.exports = {
             additionalProperties: false
         }]
     },
-    create: function(context) {
+    create(context) {
         const config = context.options[0] || {};
         const checkGetWithoutSet = config.getWithoutSet === true;
         const checkSetWithoutGet = config.setWithoutGet !== false;
@@ -146,7 +146,7 @@ module.exports = {
         }
 
         return {
-            ObjectExpression: function(node) {
+            ObjectExpression(node) {
                 if (checkSetWithoutGet || checkGetWithoutSet) {
                     checkLonelySetGet(node);
                 }

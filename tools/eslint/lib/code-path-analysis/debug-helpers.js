@@ -143,7 +143,7 @@ module.exports = {
      * @param {Object} traceMap - Optional. A map to check whether or not segments had been done.
      * @returns {string} A DOT code of the code path.
      */
-    makeDotArrows: function(codePath, traceMap) {
+    makeDotArrows(codePath, traceMap) {
         const stack = [[codePath.initialSegment, 0]];
         const done = traceMap || Object.create(null);
         let lastId = codePath.initialSegment.id;

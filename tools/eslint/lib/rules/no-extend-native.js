@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0] || {};
         const exceptions = config.exceptions || [];
@@ -57,7 +57,7 @@ module.exports = {
         return {
 
             // handle the Array.prototype.extra style case
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 const lhs = node.left;
 
                 if (lhs.type !== "MemberExpression" || lhs.object.type !== "MemberExpression") {
@@ -80,7 +80,7 @@ module.exports = {
             },
 
             // handle the Object.definePropert[y|ies](Array.prototype) case
-            CallExpression: function(node) {
+            CallExpression(node) {
 
                 const callee = node.callee;
 

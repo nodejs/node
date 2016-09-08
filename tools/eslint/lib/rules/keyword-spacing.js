@@ -100,7 +100,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         /**
@@ -126,7 +126,7 @@ module.exports = {
                     loc: token.loc.start,
                     message: "Expected space(s) before \"{{value}}\".",
                     data: token,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.insertTextBefore(token, " ");
                     }
                 });
@@ -156,7 +156,7 @@ module.exports = {
                     loc: token.loc.start,
                     message: "Unexpected space(s) before \"{{value}}\".",
                     data: token,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.removeRange([prevToken.range[1], token.range[0]]);
                     }
                 });
@@ -186,7 +186,7 @@ module.exports = {
                     loc: token.loc.start,
                     message: "Expected space(s) after \"{{value}}\".",
                     data: token,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.insertTextAfter(token, " ");
                     }
                 });
@@ -216,7 +216,7 @@ module.exports = {
                     loc: token.loc.start,
                     message: "Unexpected space(s) after \"{{value}}\".",
                     data: token,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.removeRange([token.range[1], nextToken.range[0]]);
                     }
                 });

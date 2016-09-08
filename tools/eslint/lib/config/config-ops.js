@@ -34,7 +34,7 @@ module.exports = {
      * Creates an empty configuration object suitable for merging as a base.
      * @returns {Object} A configuration object.
      */
-    createEmptyConfig: function() {
+    createEmptyConfig() {
         return {
             globals: {},
             env: {},
@@ -49,7 +49,7 @@ module.exports = {
      * @returns {Object} A configuration object with the appropriate rules and globals
      *      set.
      */
-    createEnvironmentConfig: function(env) {
+    createEnvironmentConfig(env) {
 
         const envConfig = this.createEmptyConfig();
 
@@ -84,7 +84,7 @@ module.exports = {
      * @param {Object} config The configuration information.
      * @returns {Object} The updated configuration information.
      */
-    applyEnvironments: function(config) {
+    applyEnvironments(config) {
         if (config.env && typeof config.env === "object") {
             debug("Apply environment settings to config");
             return this.merge(this.createEnvironmentConfig(config.env), config);
@@ -196,7 +196,7 @@ module.exports = {
      * @param {Object} config The config object to normalize.
      * @returns {void}
      */
-    normalize: function(config) {
+    normalize(config) {
 
         if (config.rules) {
             Object.keys(config.rules).forEach(function(ruleId) {
@@ -218,7 +218,7 @@ module.exports = {
      * @param {Object} config The config object to normalize.
      * @returns {void}
      */
-    normalizeToStrings: function(config) {
+    normalizeToStrings(config) {
 
         if (config.rules) {
             Object.keys(config.rules).forEach(function(ruleId) {
@@ -238,7 +238,7 @@ module.exports = {
      * @param {int|string|Array} ruleConfig The configuration for an individual rule.
      * @returns {boolean} True if the rule represents an error, false if not.
      */
-    isErrorSeverity: function(ruleConfig) {
+    isErrorSeverity(ruleConfig) {
 
         let severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
@@ -254,7 +254,7 @@ module.exports = {
      * @param {number|string|Array} ruleConfig - The configuration for an individual rule.
      * @returns {boolean} `true` if the configuration has valid severity.
      */
-    isValidSeverity: function(ruleConfig) {
+    isValidSeverity(ruleConfig) {
         let severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
         if (typeof severity === "string") {
@@ -268,7 +268,7 @@ module.exports = {
      * @param {Object} config - The configuration for rules.
      * @returns {boolean} `true` if the configuration has valid severity.
      */
-    isEverySeverityValid: function(config) {
+    isEverySeverityValid(config) {
         return Object.keys(config).every(function(ruleId) {
             return this.isValidSeverity(config[ruleId]);
         }, this);

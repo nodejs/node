@@ -106,49 +106,51 @@ onboarding session.
 
   * Continuous Integration (CI) Testing:
     * https://ci.nodejs.org/
-    * It is not automatically run. You need to start it manually.
+      * It is not automatically run. You need to start it manually.
     * Log in on CI is integrated with GitHub. Try to log in now!
     * You will be using `node-test-pull-request` most of the time. Go there now!
+      * Consider bookmarking it: https://ci.nodejs.org/job/node-test-pull-request/
     * To get to the form to start a job, click on `Build with Parameters`. (If you don't see it, that probably means you are not logged in!) Click it now!
     * To start CI testing from this screen, you need to fill in two elements on the form:
       * The `CERTIFY_SAFE` box should be checked. By checking it, you are indicating that you have reviewed the code you are about to test and you are confident that it does not contain any malicious code. (We don't want people hijacking our CI hosts to attack other hosts on the internet, for example!)
-      * The `PR_ID` box should be filled in with the number identifying the pull request containing the code you wish to test. For example, if the URL for the pull request is https://github.com/nodejs/node/issues/7006, then put `7006` in the `PR_ID`.
+      * The `PR_ID` box should be filled in with the number identifying the pull request containing the code you wish to test. For example, if the URL for the pull request is `https://github.com/nodejs/node/issues/7006`, then put `7006` in the `PR_ID`.
       * The remaining elements on the form are typically unchanged with the exception of `POST_STATUS_TO_PR`. Check that if you want a CI status indicator to be automatically inserted into the PR.
 
 
-## process for getting code in
+## Landing PRs: Overview
 
-  * the collaborator guide is a great resource: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#technical-howto
-
-
-  * no one (including TSC or CTC members) pushes directly to master without review
-    * an exception is made for release commits only
+  * The [Collaborator Guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#technical-howto) is a great resource.
 
 
-  * one "LGTM" is usually sufficient, except for semver-major changes
-    * the more the better
-    * semver-major (breaking) changes must be reviewed in some form by the CTC
+  * No one (including TSC or CTC members) pushes directly to master without review.
+    * An exception is made for release commits only.
 
 
-  * be sure to wait before merging non-trivial changes
-    * 48 hours for non-trivial changes, and 72 hours on weekends.
+  * One `LGTM` is sufficient, except for semver-major changes.
+    * More than one is better.
+    * Breaking changes must be LGTM'ed by at least two CTC members.
+    * If one or more Collaborators object to a change, it should not land until
+    the objection is addressed. The options for such a situation include:
+      * Engaging those with objections to determine a viable path forward;
+      * Altering the pull request to address the objections;
+      * Escalating the discussion to the CTC using the `ctc-agenda` label. This should only be done after other options have been exhausted.
 
+  * Wait before merging non-trivial changes.
+    * 48 hours during the week and 72 hours on weekends.
+    * An example of a trivial change would be correcting the misspelling of a single word in a documentation file. This sort of change still needs to receive at least one `LGTM` but it does not need to wait 48 hours before landing.
 
-  * **make sure to run the PR through CI before merging!** (Except for documentation PRs)
+  * **Run the PR through CI before merging!**
+    * An exception can be made for documentation-only PRs as long as it does not include the `addons.md` documentation file. (Example code from that document is extracted and built as part of the tests!)
 
-
-  * once code is ready to go in:
-    * [**See "Landing PRs"**](#landing-prs) below
-
-
-  * what if something goes wrong?
-    * ping a CTC member
+  * What if something goes wrong?
+    * Ping a CTC member.
     * `#node-dev` on freenode
-    * force-pushing to fix things after is allowed for ~10 minutes, be sure to notify people in IRC if you need to do this, but avoid it
-    * Info on PRs that don't like to apply found under [**"If `git am` fails"**](./onboarding-extras.md#if-git-am-fails).
+    * Force-pushing to fix things after is allowed for ~10 minutes. Avoid it if you can.
+      * Use `--force-with-lease` to minimize the chance of overwriting someone else's change.
+      * Post to `#node-dev` (IRC) if you force push.
 
 
-## Landing PRs
+## Landing PRs: Details
 
 * Please never use GitHub's green "Merge Pull Request" button.
   * If you do, please force-push removing the merge.
@@ -160,6 +162,7 @@ Update your `master` branch (or whichever branch you are landing on, almost alwa
 Landing a PR
 
 * if it all looks good, `curl -L 'url-of-pr.patch' | git am`
+  * If `git am` fails, see [the relevant section of the Onboarding Extras doc](./onboarding-extras.md#if-git-am-fails).
 * `git rebase -i upstream/master`
 * squash into logical commits if necessary
 * `./configure && make -j8 test` (`-j8` builds node in parallel with 8 threads. adjust to the number of cores (or processor-level threads) your processor has (or slightly more) for best results.)
@@ -171,7 +174,7 @@ Landing a PR
     * `Reviewed-By: human <email>`
       * Easiest to use `git log` then do a search
       * (`/Name` + `enter` (+ `n` as much as you need to) in vim)
-      * Only include collaborators who have commented "LGTM"
+      * Only include collaborators who have commented `LGTM`
     * `PR-URL: <full-pr-url>`
 * `git push upstream master`
     * close the original PR with "Landed in `<commit hash>`".

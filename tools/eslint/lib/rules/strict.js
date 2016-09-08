@@ -91,7 +91,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const ecmaFeatures = context.parserOptions.ecmaFeatures || {},
             scopes = [],
@@ -207,7 +207,7 @@ module.exports = {
         }
 
         const rule = {
-            Program: function(node) {
+            Program(node) {
                 const useStrictDirectives = getUseStrictDirectives(node.body);
 
                 if (node.sourceType === "module") {
@@ -232,10 +232,10 @@ module.exports = {
             Object.assign(rule, {
 
                 // Inside of class bodies are always strict mode.
-                ClassBody: function() {
+                ClassBody() {
                     classScopes.push(true);
                 },
-                "ClassBody:exit": function() {
+                "ClassBody:exit"() {
                     classScopes.pop();
                 },
 

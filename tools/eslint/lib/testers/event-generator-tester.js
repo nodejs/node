@@ -43,7 +43,7 @@ module.exports = {
      * @param {Object} instance - An object to check.
      * @returns {void}
      */
-    testEventGeneratorInterface: function(instance) {
+    testEventGeneratorInterface(instance) {
         this.describe("should implement EventGenerator interface", function() {
             this.it("should have `emitter` property.", function() {
                 assert.equal(typeof instance.emitter, "object");

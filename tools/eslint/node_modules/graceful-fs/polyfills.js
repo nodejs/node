@@ -206,9 +206,9 @@ function patchLutimes (fs) {
 function chmodFix (orig) {
   if (!orig) return orig
   return function (target, mode, cb) {
-    return orig.call(fs, target, mode, function (er, res) {
+    return orig.call(fs, target, mode, function (er) {
       if (chownErOk(er)) er = null
-      if (cb) cb(er, res)
+      if (cb) cb.apply(this, arguments)
     })
   }
 }
@@ -228,9 +228,9 @@ function chmodFixSync (orig) {
 function chownFix (orig) {
   if (!orig) return orig
   return function (target, uid, gid, cb) {
-    return orig.call(fs, target, uid, gid, function (er, res) {
+    return orig.call(fs, target, uid, gid, function (er) {
       if (chownErOk(er)) er = null
-      if (cb) cb(er, res)
+      if (cb) cb.apply(this, arguments)
     })
   }
 }

@@ -158,7 +158,7 @@ SourceCode.prototype = {
      * @param {int=} afterCount The number of characters after the node to retrieve.
      * @returns {string} The text representing the AST node.
      */
-    getText: function(node, beforeCount, afterCount) {
+    getText(node, beforeCount, afterCount) {
         if (node) {
             return this.text.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
                 node.range[1] + (afterCount || 0));
@@ -172,7 +172,7 @@ SourceCode.prototype = {
      * Gets the entire source text split into an array of lines.
      * @returns {Array} The source text as an array of lines.
      */
-    getLines: function() {
+    getLines() {
         return this.lines;
     },
 
@@ -180,7 +180,7 @@ SourceCode.prototype = {
      * Retrieves an array containing all comments in the source code.
      * @returns {ASTNode[]} An array of comment nodes.
      */
-    getAllComments: function() {
+    getAllComments() {
         return this.ast.comments;
     },
 
@@ -190,7 +190,7 @@ SourceCode.prototype = {
      * @returns {Object} The list of comments indexed by their position.
      * @public
      */
-    getComments: function(node) {
+    getComments(node) {
 
         let leadingComments = node.leadingComments || [];
         const trailingComments = node.trailingComments || [];
@@ -219,7 +219,7 @@ SourceCode.prototype = {
      *      given node or null if not found.
      * @public
      */
-    getJSDocComment: function(node) {
+    getJSDocComment(node) {
 
         let parent = node.parent;
 
@@ -259,13 +259,13 @@ SourceCode.prototype = {
      * @param {int} index Range index of the desired node.
      * @returns {ASTNode} The node if found or null if not found.
      */
-    getNodeByRangeIndex: function(index) {
+    getNodeByRangeIndex(index) {
         let result = null,
             resultParent = null;
         const traverser = new Traverser();
 
         traverser.traverse(this.ast, {
-            enter: function(node, parent) {
+            enter(node, parent) {
                 if (node.range[0] <= index && index < node.range[1]) {
                     result = node;
                     resultParent = parent;
@@ -273,7 +273,7 @@ SourceCode.prototype = {
                     this.skip();
                 }
             },
-            leave: function(node) {
+            leave(node) {
                 if (node === result) {
                     this.break();
                 }
@@ -292,7 +292,7 @@ SourceCode.prototype = {
      * @returns {boolean} True if there is only space between tokens, false
      *  if there is anything other than whitespace between tokens.
      */
-    isSpaceBetweenTokens: function(first, second) {
+    isSpaceBetweenTokens(first, second) {
         const text = this.text.slice(first.range[1], second.range[0]);
 
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));

@@ -208,9 +208,10 @@ static struct {
     platform_ = nullptr;
   }
 
-  bool StartInspector(Environment *env, int port, bool wait) {
+  bool StartInspector(Environment *env, const char* script_path,
+                      int port, bool wait) {
 #if HAVE_INSPECTOR
-    return env->inspector_agent()->Start(platform_, port, wait);
+    return env->inspector_agent()->Start(platform_, script_path, port, wait);
 #else
     return true;
 #endif  // HAVE_INSPECTOR
@@ -221,7 +222,8 @@ static struct {
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
   void Dispose() {}
-  bool StartInspector(Environment *env, int port, bool wait) {
+  bool StartInspector(Environment *env, const char* script_path,
+                      int port, bool wait) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return false;  // make compiler happy
   }
@@ -3406,7 +3408,7 @@ void SetupProcessObject(Environment* env,
 #undef READONLY_PROPERTY
 
 
-static void AtExit() {
+static void AtProcessExit() {
   uv_tty_reset_mode();
 }
 
@@ -3443,7 +3445,7 @@ void LoadEnvironment(Environment* env) {
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
   env->isolate()->AddMessageListener(OnMessage);
 
-  atexit(AtExit);
+  atexit(AtProcessExit);
 
   TryCatch try_catch(env->isolate());
 
@@ -3465,14 +3467,6 @@ void LoadEnvironment(Environment* env) {
   // The bootstrap_node.js file returns a function 'f'
   CHECK(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
-
-  // Now we call 'f' with the 'process' variable that we've built up with
-  // all our bindings. Inside bootstrap_node.js we'll take care of
-  // assigning things to their places.
-
-  // We start the process this way in order to be more modular. Developers
-  // who do not like how bootstrap_node.js setups the module system but do
-  // like Node's I/O bindings may want to replace 'f' with their own function.
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
@@ -3503,6 +3497,13 @@ void LoadEnvironment(Environment* env) {
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
+  // Now we call 'f' with the 'process' variable that we've built up with
+  // all our bindings. Inside bootstrap_node.js we'll take care of
+  // assigning things to their places.
+
+  // We start the process this way in order to be more modular. Developers
+  // who do not like how bootstrap_node.js setups the module system but do
+  // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
   f->Call(Null(env->isolate()), 1, &arg);
 }
@@ -3852,10 +3853,11 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 }
 
 
-static void StartDebug(Environment* env, bool wait) {
+static void StartDebug(Environment* env, const char* path, bool wait) {
   CHECK(!debugger_running);
   if (use_inspector) {
-    debugger_running = v8_platform.StartInspector(env, inspector_port, wait);
+    debugger_running = v8_platform.StartInspector(env, path, inspector_port,
+                                                  wait);
   } else {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
@@ -3917,7 +3919,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
       Environment* env = Environment::GetCurrent(isolate);
       Context::Scope context_scope(env->context());
 
-      StartDebug(env, false);
+      StartDebug(env, nullptr, false);
       EnableDebug(env);
     }
 
@@ -4566,7 +4568,10 @@ static void StartNodeInstance(void* arg) {
 
     // Start debug agent when argv has --debug
     if (instance_data->use_debug_agent()) {
-      StartDebug(env, debug_wait_connect);
+      const char* path = instance_data->argc() > 1
+                         ? instance_data->argv()[1]
+                         : nullptr;
+      StartDebug(env, path, debug_wait_connect);
       if (use_inspector && !debugger_running) {
         exit(12);
       }

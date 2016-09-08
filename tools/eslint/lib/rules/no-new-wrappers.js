@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            NewExpression: function(node) {
+            NewExpression(node) {
                 const wrapperObjects = ["String", "Number", "Boolean", "Math", "JSON"];
 
                 if (wrapperObjects.indexOf(node.callee.name) > -1) {

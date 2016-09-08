@@ -241,8 +241,8 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
 
         parsedBlocks.forEach(function(block) {
             unprocessedMessages.push(eslint.verify(block, config, {
-                filename: filename,
-                allowInlineConfig: allowInlineConfig
+                filename,
+                allowInlineConfig
             }));
         });
 
@@ -254,14 +254,14 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
 
         if (fix) {
             fixedResult = multipassFix(text, config, {
-                filename: filename,
-                allowInlineConfig: allowInlineConfig
+                filename,
+                allowInlineConfig
             });
             messages = fixedResult.messages;
         } else {
             messages = eslint.verify(text, config, {
-                filename: filename,
-                allowInlineConfig: allowInlineConfig
+                filename,
+                allowInlineConfig
             });
         }
     }
@@ -270,7 +270,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
 
     const result = {
         filePath: filename,
-        messages: messages,
+        messages,
         errorCount: stats.errorCount,
         warningCount: stats.warningCount
     };
@@ -329,7 +329,7 @@ function createIgnoreResult(filePath, baseDir) {
             {
                 fatal: false,
                 severity: 1,
-                message: message
+                message
             }
         ],
         errorCount: 0,
@@ -559,7 +559,7 @@ CLIEngine.prototype = {
      * @param {Object} pluginobject Plugin configuration object.
      * @returns {void}
      */
-    addPlugin: function(name, pluginobject) {
+    addPlugin(name, pluginobject) {
         Plugins.define(name, pluginobject);
     },
 
@@ -569,7 +569,7 @@ CLIEngine.prototype = {
      * @param {string[]} patterns The file patterns passed on the command line.
      * @returns {string[]} The equivalent glob patterns.
      */
-    resolveFileGlobPatterns: function(patterns) {
+    resolveFileGlobPatterns(patterns) {
         return globUtil.resolveFileGlobPatterns(patterns, this.options);
     },
 
@@ -578,7 +578,7 @@ CLIEngine.prototype = {
      * @param {string[]} patterns An array of file and directory names.
      * @returns {Object} The results for all files that were linted.
      */
-    executeOnFiles: function(patterns) {
+    executeOnFiles(patterns) {
         const results = [],
             options = this.options,
             fileCache = this._fileCache,
@@ -716,7 +716,7 @@ CLIEngine.prototype = {
         debug("Linting complete in: " + (Date.now() - startTime) + "ms");
 
         return {
-            results: results,
+            results,
             errorCount: stats.errorCount,
             warningCount: stats.warningCount
         };
@@ -729,7 +729,7 @@ CLIEngine.prototype = {
      * @param {boolean} warnIgnored Always warn when a file is ignored
      * @returns {Object} The results for the linting.
      */
-    executeOnText: function(text, filename, warnIgnored) {
+    executeOnText(text, filename, warnIgnored) {
 
         const results = [],
             options = this.options,
@@ -752,7 +752,7 @@ CLIEngine.prototype = {
         const stats = calculateStatsPerRun(results);
 
         return {
-            results: results,
+            results,
             errorCount: stats.errorCount,
             warningCount: stats.warningCount
         };
@@ -765,7 +765,7 @@ CLIEngine.prototype = {
      * @param {string} filePath The path of the file to retrieve a config object for.
      * @returns {Object} A configuration object for the file.
      */
-    getConfigForFile: function(filePath) {
+    getConfigForFile(filePath) {
         const configHelper = new Config(this.options);
 
         return configHelper.getConfig(filePath);
@@ -776,7 +776,7 @@ CLIEngine.prototype = {
      * @param {string} filePath The path of the file to check.
      * @returns {boolean} Whether or not the given path is ignored.
      */
-    isPathIgnored: function(filePath) {
+    isPathIgnored(filePath) {
         const resolvedPath = path.resolve(this.options.cwd, filePath);
         const ignoredPaths = new IgnoredPaths(this.options);
 

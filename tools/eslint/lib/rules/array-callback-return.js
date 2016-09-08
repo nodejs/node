@@ -142,7 +142,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let funcInfo = {
             upper: null,
             codePath: null,
@@ -165,7 +165,7 @@ module.exports = {
                 funcInfo.codePath.currentSegments.some(isReachable)
             ) {
                 context.report({
-                    node: node,
+                    node,
                     loc: getLocation(node, context.getSourceCode()).loc.start,
                     message: funcInfo.hasReturn
                         ? "Expected to return a value at the end of this function."
@@ -177,10 +177,10 @@ module.exports = {
         return {
 
             // Stacks this function's information.
-            onCodePathStart: function(codePath, node) {
+            onCodePathStart(codePath, node) {
                 funcInfo = {
                     upper: funcInfo,
-                    codePath: codePath,
+                    codePath,
                     hasReturn: false,
                     shouldCheck:
                         TARGET_NODE_TYPE.test(node.type) &&
@@ -190,18 +190,18 @@ module.exports = {
             },
 
             // Pops this function's information.
-            onCodePathEnd: function() {
+            onCodePathEnd() {
                 funcInfo = funcInfo.upper;
             },
 
             // Checks the return statement is valid.
-            ReturnStatement: function(node) {
+            ReturnStatement(node) {
                 if (funcInfo.shouldCheck) {
                     funcInfo.hasReturn = true;
 
                     if (!node.argument) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Expected a return value."
                         });
                     }

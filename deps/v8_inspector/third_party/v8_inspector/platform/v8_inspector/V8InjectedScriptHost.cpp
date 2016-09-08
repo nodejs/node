@@ -4,7 +4,6 @@
 
 #include "platform/v8_inspector/V8InjectedScriptHost.h"
 
-#include "platform/inspector_protocol/String16.h"
 #include "platform/v8_inspector/InjectedScriptNative.h"
 #include "platform/v8_inspector/V8Compat.h"
 #include "platform/v8_inspector/V8Debugger.h"
@@ -13,7 +12,7 @@
 #include "platform/v8_inspector/V8StringUtil.h"
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 
-namespace blink {
+namespace v8_inspector {
 
 namespace {
 
@@ -43,6 +42,8 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(v8::Local<v8::Context> contex
 {
     v8::Isolate* isolate = inspector->isolate();
     v8::Local<v8::Object> injectedScriptHost = v8::Object::New(isolate);
+    bool success = injectedScriptHost->SetPrototype(context, v8::Null(isolate)).FromMaybe(false);
+    DCHECK(success);
     v8::Local<v8::External> debuggerExternal = v8::External::New(isolate, inspector);
     setFunctionProperty(context, injectedScriptHost, "internalConstructorName", V8InjectedScriptHost::internalConstructorNameCallback, debuggerExternal);
     setFunctionProperty(context, injectedScriptHost, "formatAccessorsAsProperties", V8InjectedScriptHost::formatAccessorsAsProperties, debuggerExternal);
@@ -183,4 +184,4 @@ void V8InjectedScriptHost::proxyTargetValueCallback(const v8::FunctionCallbackIn
     info.GetReturnValue().Set(target);
 }
 
-} // namespace blink
+} // namespace v8_inspector

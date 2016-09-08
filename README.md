@@ -183,6 +183,8 @@ more information about the governance of the Node.js project, see
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
+* [TheAlphaNerd](https://github.com/TheAlphaNerd) -
+**Myles Borins** &lt;myles.borins@gmail.com&gt;
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
@@ -208,6 +210,8 @@ more information about the governance of the Node.js project, see
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
+* [danbev](https://github.com/danbev) -
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [domenic](https://github.com/domenic) -
 **Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
@@ -242,6 +246,8 @@ more information about the governance of the Node.js project, see
 **Minwoo Jung** &lt;jmwsoft@gmail.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
+* [lpinca](https://github.com/lpinca) -
+**Luigi Pinca** &lt;luigipinca@gmail.com&gt;
 * [lxe](https://github.com/lxe) -
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
@@ -299,11 +305,9 @@ more information about the governance of the Node.js project, see
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) -
-**Michaël Zasso** &lt;mic.besace@gmail.com&gt;
+**Michaël Zasso** &lt;targos@protonmail.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
-* [thealphanerd](https://github.com/thealphanerd) -
-**Myles Borins** &lt;myles.borins@gmail.com&gt;
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [thekemkid](https://github.com/thekemkid) -

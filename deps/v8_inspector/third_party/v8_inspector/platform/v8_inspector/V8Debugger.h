@@ -5,9 +5,7 @@
 #ifndef V8Debugger_h
 #define V8Debugger_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/Maybe.h"
-#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/JavaScriptCallFrame.h"
 #include "platform/v8_inspector/V8DebuggerScript.h"
 #include "platform/v8_inspector/protocol/Runtime.h"
@@ -17,12 +15,14 @@
 #include <v8.h>
 #include <vector>
 
-namespace blink {
+namespace v8_inspector {
 
 struct ScriptBreakpoint;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
 class V8StackTraceImpl;
+
+namespace protocol = blink::protocol;
 
 class V8Debugger {
     PROTOCOL_DISALLOW_COPY(V8Debugger);
@@ -36,7 +36,7 @@ public:
 
     bool enabled() const;
 
-    String16 setBreakpoint(const String16& sourceID, const ScriptBreakpoint&, int* actualLineNumber, int* actualColumnNumber, bool interstatementLocation);
+    String16 setBreakpoint(const String16& sourceID, const ScriptBreakpoint&, int* actualLineNumber, int* actualColumnNumber);
     void removeBreakpoint(const String16& breakpointId);
     void setBreakpointsActivated(bool);
     bool breakpointsActivated() const { return m_breakpointsActivated; }
@@ -57,7 +57,7 @@ public:
     void stepOutOfFunction();
     void clearStepping();
 
-    bool setScriptSource(const String16& sourceID, v8::Local<v8::String> newSource, bool preview, ErrorString*, protocol::Maybe<protocol::Runtime::ExceptionDetails>*, JavaScriptCallFrames* newCallFrames, protocol::Maybe<bool>* stackChanged);
+    bool setScriptSource(const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun, ErrorString*, protocol::Maybe<protocol::Runtime::ExceptionDetails>*, JavaScriptCallFrames* newCallFrames, protocol::Maybe<bool>* stackChanged);
     JavaScriptCallFrames currentCallFrames(int limit = 0);
 
     // Each script inherits debug data from v8::Context where it has been compiled.
@@ -76,7 +76,6 @@ public:
     std::unique_ptr<V8StackTraceImpl> createStackTrace(v8::Local<v8::StackTrace>);
     std::unique_ptr<V8StackTraceImpl> captureStackTrace(bool fullStack);
 
-    v8::MaybeLocal<v8::Value> functionScopes(v8::Local<v8::Function>);
     v8::MaybeLocal<v8::Array> internalProperties(v8::Local<v8::Context>, v8::Local<v8::Value>);
 
     void asyncTaskScheduled(const String16& taskName, void* task, bool recurring);
@@ -102,8 +101,9 @@ private:
     void handleV8AsyncTaskEvent(v8::Local<v8::Context>, v8::Local<v8::Object> executionState, v8::Local<v8::Object> eventData);
 
     v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>, v8::Local<v8::Object>);
-    v8::Local<v8::Value> generatorObjectLocation(v8::Local<v8::Object>);
+    v8::Local<v8::Value> generatorObjectLocation(v8::Local<v8::Context>, v8::Local<v8::Object>);
     v8::Local<v8::Value> functionLocation(v8::Local<v8::Context>, v8::Local<v8::Function>);
+    v8::MaybeLocal<v8::Value> functionScopes(v8::Local<v8::Context>, v8::Local<v8::Function>);
 
     v8::Isolate* m_isolate;
     V8InspectorImpl* m_inspector;
@@ -126,6 +126,6 @@ private:
     protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // V8Debugger_h
