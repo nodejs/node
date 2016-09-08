@@ -62,7 +62,7 @@
   var commandCache = {}
   var aliasNames = Object.keys(aliases)
 
-  var littleGuys = [ 'isntall', 'verison' ]
+  var littleGuys = [ 'install', 'verison' ]
   var fullList = cmdList.concat(aliasNames).filter(function (c) {
     return plumbing.indexOf(c) === -1
   })
