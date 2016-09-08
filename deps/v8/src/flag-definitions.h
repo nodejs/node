@@ -235,6 +235,20 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 // and associated tests are moved from the harmony directory to the appropriate
 // esN directory.
 
+// no-op flags added back for V8 5.0 compatibility for Node.js v6.x.
+#define NODE_NOP_HARMONY_FEATURES(V)                                      \
+  V(harmony_default_parameters, "harmony default parameters")             \
+  V(harmony_destructuring_assignment, "harmony destructuring assignment") \
+  V(harmony_destructuring_bind, "harmony destructuring bind")             \
+  V(harmony_regexps, "harmony regular expression extensions")             \
+  V(harmony_proxies, "harmony proxies")                                   \
+  V(harmony_reflect, "harmony Reflect API")                               \
+  V(harmony_tostring, "harmony toString")
+
+#define FLAG_NODE_NOP_HARMONY_FEATURES(id, description) \
+  DEFINE_BOOL(id, true, "nop flag for " #description)
+NODE_NOP_HARMONY_FEATURES(FLAG_NODE_NOP_HARMONY_FEATURES)
+#undef FLAG_NODE_NOP_HARMONY_FEATURES
 
 #define FLAG_INPROGRESS_FEATURES(id, description) \
   DEFINE_BOOL(id, false, "enable " #description " (in progress)")
