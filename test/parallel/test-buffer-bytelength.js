@@ -4,6 +4,7 @@ require('../common');
 const assert = require('assert');
 const Buffer = require('buffer').Buffer;
 const SlowBuffer = require('buffer').SlowBuffer;
+const vm = require('vm');
 
 // coerce values to string
 assert.strictEqual(Buffer.byteLength(32, 'latin1'), 2);
@@ -87,3 +88,7 @@ assert.strictEqual(Buffer.byteLength('Il était tué', 'binary'), 12);
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
   assert.strictEqual(24, Buffer.byteLength('Il était tué', encoding));
 });
+
+// Test that ArrayBuffer from a different context is detected correctly
+const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
+assert.strictEqual(Buffer.byteLength(arrayBuf), 0);

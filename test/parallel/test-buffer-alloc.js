@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const vm = require('vm');
 
 const Buffer = require('buffer').Buffer;
 const SlowBuffer = require('buffer').SlowBuffer;
@@ -1048,6 +1049,11 @@ assert.throws(() => {
 
 // Regression test
 assert.doesNotThrow(() => Buffer.from(new ArrayBuffer()));
+
+// Test that ArrayBuffer from a different context is detected correctly
+const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
+assert.doesNotThrow(() => Buffer.from(arrayBuf));
+assert.doesNotThrow(() => Buffer.from({ buffer: arrayBuf }));
 
 assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
               /"size" argument must be a number/);
