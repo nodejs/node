@@ -10,7 +10,7 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 
 const BENCHMARK_FUNC_PATH =
-  '../fixtures/crypto-timing-safe-equal-benchmark-func';
+  `${common.fixturesDir}/crypto-timing-safe-equal-benchmark-func`;
 function runOneBenchmark(...args) {
   const benchmarkFunc = require(BENCHMARK_FUNC_PATH);
   const result = benchmarkFunc(...args);
