@@ -9,7 +9,7 @@ var responses_recvd = 0;
 var body0 = '';
 var body1 = '';
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   if (responses_sent === 0) {
     assert.strictEqual('GET', req.method);
     assert.strictEqual('/hello', url.parse(req.url).pathname);
@@ -41,7 +41,7 @@ var server = http.Server(function(req, res) {
 server.listen(0);
 
 server.on('listening', function() {
-  var agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
+  const agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
   http.get({
     port: this.address().port,
     path: '/hello',
@@ -56,7 +56,7 @@ server.on('listening', function() {
   });
 
   setTimeout(function() {
-    var req = http.request({
+    const req = http.request({
       port: server.address().port,
       method: 'POST',
       path: '/world',
