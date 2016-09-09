@@ -25,6 +25,8 @@ assert.equal(r1.useGlobal, false);
 assert.equal(r1.ignoreUndefined, false);
 assert.equal(r1.replMode, repl.REPL_MODE_SLOPPY);
 assert.equal(r1.historySize, 30);
+assert.strictEqual(r1.displayWelcomeMessage, false);
+assert.strictEqual(r1.executeOnTimeout, 50);
 
 // test r1 for backwards compact
 assert.equal(r1.rli.input, stream);
@@ -47,7 +49,9 @@ var r2 = repl.start({
   eval: evaler,
   writer: writer,
   replMode: repl.REPL_MODE_STRICT,
-  historySize: 50
+  historySize: 50,
+  displayWelcomeMessage: true,
+  executeOnTimeout: 500
 });
 assert.equal(r2.input, stream);
 assert.equal(r2.output, stream);
@@ -59,6 +63,8 @@ assert.equal(r2.useGlobal, true);
 assert.equal(r2.ignoreUndefined, true);
 assert.equal(r2.writer, writer);
 assert.equal(r2.replMode, repl.REPL_MODE_STRICT);
+assert.strictEqual(r2.displayWelcomeMessage, false);
+assert.strictEqual(r2.executeOnTimeout, 500);
 
 // test r2 for backwards compact
 assert.equal(r2.rli.input, stream);
@@ -80,4 +86,6 @@ assert.strictEqual(r4.useGlobal, false);
 assert.strictEqual(r4.ignoreUndefined, false);
 assert.strictEqual(r4.replMode, repl.REPL_MODE_SLOPPY);
 assert.strictEqual(r4.historySize, 30);
+assert.strictEqual(r4.displayWelcomeMessage, false);
+assert.strictEqual(r4.executeOnTimeout, 50);
 r4.close();
