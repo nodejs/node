@@ -8,7 +8,7 @@ if (!common.hasCrypto) {
 }
 
 if (!common.enoughTestMem) {
-  common.skip('skipping memory-intensive test');
+  common.skip('memory-intensive test');
   return;
 }
 
