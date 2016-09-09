@@ -7,6 +7,11 @@ if (!common.hasCrypto) {
   return;
 }
 
+if (!common.enoughTestMem) {
+  common.skip('skipping memory-intensive test');
+  return;
+}
+
 const crypto = require('crypto');
 
 const BENCHMARK_FUNC_PATH =
