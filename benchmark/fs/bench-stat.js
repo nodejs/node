@@ -14,11 +14,11 @@ function main(conf) {
   const fn = fs[conf.kind];
 
   bench.start();
-  (function r(cntr) {
+  (function r(cntr, fn) {
     if (cntr-- <= 0)
       return bench.end(n);
     fn(__filename, function() {
-      r(cntr);
+      r(cntr, fn);
     });
-  }(n));
+  }(n, fn));
 }
