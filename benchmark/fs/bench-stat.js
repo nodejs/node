@@ -11,7 +11,6 @@ const bench = common.createBenchmark(main, {
 
 function main(conf) {
   const n = conf.n >>> 0;
-  const fn = fs[conf.kind];
 
   bench.start();
   (function r(cntr, fn) {
@@ -20,5 +19,5 @@ function main(conf) {
     fn(__filename, function() {
       r(cntr, fn);
     });
-  }(n, fn));
+  }(n, fs[conf.kind]));
 }
