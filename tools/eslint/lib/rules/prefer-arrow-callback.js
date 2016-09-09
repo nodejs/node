@@ -143,7 +143,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
 
         const allowUnboundThis = options.allowUnboundThis !== false;  // default to true
@@ -176,12 +176,12 @@ module.exports = {
         return {
 
             // Reset internal state.
-            Program: function() {
+            Program() {
                 stack = [];
             },
 
             // If there are below, it cannot replace with arrow functions merely.
-            ThisExpression: function() {
+            ThisExpression() {
                 const info = stack[stack.length - 1];
 
                 if (info) {
@@ -189,7 +189,7 @@ module.exports = {
                 }
             },
 
-            Super: function() {
+            Super() {
                 const info = stack[stack.length - 1];
 
                 if (info) {
@@ -197,7 +197,7 @@ module.exports = {
                 }
             },
 
-            MetaProperty: function(node) {
+            MetaProperty(node) {
                 const info = stack[stack.length - 1];
 
                 if (info && checkMetaProperty(node, "new", "target")) {
@@ -211,7 +211,7 @@ module.exports = {
 
             // Main.
             FunctionExpression: enterScope,
-            "FunctionExpression:exit": function(node) {
+            "FunctionExpression:exit"(node) {
                 const scopeInfo = exitScope();
 
                 // Skip named function expressions

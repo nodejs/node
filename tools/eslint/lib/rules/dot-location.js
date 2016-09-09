@@ -26,7 +26,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0];
 

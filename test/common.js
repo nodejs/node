@@ -241,7 +241,7 @@ exports.spawnPwd = function(options) {
   var spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
-    return spawn('cmd.exe', ['/c', 'cd'], options);
+    return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
   }
@@ -252,7 +252,7 @@ exports.spawnSyncPwd = function(options) {
   const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
-    return spawnSync('cmd.exe', ['/c', 'cd'], options);
+    return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawnSync('pwd', [], options);
   }
@@ -497,4 +497,13 @@ exports.busyLoop = function busyLoop(time) {
   var startTime = Timer.now();
   var stopTime = startTime + time;
   while (Timer.now() < stopTime) {}
+};
+
+exports.isAlive = function isAlive(pid) {
+  try {
+    process.kill(pid, 'SIGCONT');
+    return true;
+  } catch (e) {
+    return false;
+  }
 };

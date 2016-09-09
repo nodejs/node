@@ -75,9 +75,9 @@ function renderMessages(messages, parentIndex) {
         const columnNumber = message.column || 0;
 
         return messageTemplate({
-            parentIndex: parentIndex,
-            lineNumber: lineNumber,
-            columnNumber: columnNumber,
+            parentIndex,
+            lineNumber,
+            columnNumber,
             severityNumber: message.severity,
             severityName: message.severity === 1 ? "Warning" : "Error",
             message: message.message,
@@ -93,7 +93,7 @@ function renderMessages(messages, parentIndex) {
 function renderResults(results) {
     return lodash.map(results, function(result, index) {
         return resultTemplate({
-            index: index,
+            index,
             color: renderColor(result.errorCount, result.warningCount),
             filePath: result.filePath,
             summary: renderSummary(result.errorCount, result.warningCount)

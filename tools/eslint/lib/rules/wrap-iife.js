@@ -24,7 +24,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const style = context.options[0] || "outside";
 
@@ -46,7 +46,7 @@ module.exports = {
 
         return {
 
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (node.callee.type === "FunctionExpression") {
                     const callExpressionWrapped = wrapped(node),
                         functionExpressionWrapped = wrapped(node.callee);

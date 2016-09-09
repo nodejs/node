@@ -4,10 +4,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "{{output_package}}/{{domain.domain}}.h"
-
-#include "platform/inspector_protocol/DispatcherBase.h"
-#include "platform/inspector_protocol/Parser.h"
+#include "{{config.protocol.package}}/{{domain.domain}}.h"
 
 namespace blink {
 namespace protocol {
@@ -17,6 +14,7 @@ namespace {{domain.domain}} {
 
 const char Metainfo::domainName[] = "{{domain.domain}}";
 const char Metainfo::commandPrefix[] = "{{domain.domain}}.";
+const char Metainfo::version[] = "{{domain.version}}";
   {% for type in domain.types %}
     {% if "enum" in type %}
 
@@ -40,7 +38,7 @@ const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
       {% if "enum" in property %}
 
         {% for literal in property.enum %}
-const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{ literal | dash_to_camelcase}} = "{{literal}}";
+const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{literal | dash_to_camelcase}} = "{{literal}}";
         {% endfor %}
       {% endif %}
     {% endfor %}

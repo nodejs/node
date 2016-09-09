@@ -132,7 +132,7 @@ added: v0.1.90
   * `encoding` {String} (Default: `'utf8'`)
   * `shell` {String} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
-     understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
+     understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {Number} (Default: `0`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
@@ -263,6 +263,8 @@ added: v0.5.0
     [`stdio`][] for more details (Default: `false`)
   * `stdio` {Array} Supports the array version of [`child_process.spawn()`][]'s
     [`stdio`][] option. When this option is provided, it overrides `silent`.
+    The array must contain exactly one item with value `'ipc'` or an error will
+    be thrown. For instance `[0, 1, 2, 'ipc']`.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: {ChildProcess}
@@ -315,7 +317,7 @@ added: v0.1.90
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
-    or `/s /c` on Windows. Defaults to `false` (no shell).
+    or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * return: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -617,7 +619,7 @@ added: v0.11.12
   * `env` {Object} Environment key-value pairs
   * `shell` {String} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
-     understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
+     understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -670,7 +672,7 @@ added: v0.11.12
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
-    or `/s /c` on Windows. Defaults to `false` (no shell).
+    or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * return: {Object}
   * `pid` {Number} Pid of the child process
   * `output` {Array} Array of results from stdio output

@@ -87,7 +87,8 @@ uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 clean:
-	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
+	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
+                out/$(BUILDTYPE)/node.exp
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
 	-rm -rf node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
@@ -134,7 +135,13 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.docbuildstamp: tools/doc/addon-verify.js doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
+
+ifeq ($(OSTYPE),aix)
+DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
+endif
+
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS)
 	$(RM) -r test/addons/??_*/
 	$(NODE) $<
 	touch $@
@@ -460,7 +467,8 @@ PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacO
 PKGDIR=out/dist-osx
 
 release-only:
-	@if `grep -q REPLACEME doc/api/*.md`; then \
+	@if [ "$(DISTTYPE)" != "nightly" ] && [ "$(DISTTYPE)" != "next-nightly" ] && \
+		`grep -q REPLACEME doc/api/*.md`; then \
 		echo 'Please update Added: tags in the documentation first.' ; \
 		exit 1 ; \
 	fi
@@ -620,13 +628,6 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
-haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
-wrk:
-ifneq ($(haswrk), 0)
-	@echo "please install wrk before proceeding. More information can be found in benchmark/README.md." >&2
-	@exit 1
-endif
-
 bench-net: all
 	@$(NODE) benchmark/run.js net
 
@@ -636,7 +637,7 @@ bench-crypto: all
 bench-tls: all
 	@$(NODE) benchmark/run.js tls
 
-bench-http: wrk all
+bench-http: all
 	@$(NODE) benchmark/run.js http
 
 bench-fs: all
@@ -671,7 +672,8 @@ bench: bench-net bench-http bench-fs bench-tls
 bench-ci: bench
 
 jslint:
-	$(NODE) tools/jslint.js -J benchmark lib test tools
+	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules \
+	  benchmark lib test tools
 
 jslint-ci:
 	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \

@@ -33,7 +33,6 @@ set noperfctr=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
-set release_urls_arg=
 set build_release=
 set enable_vtune_arg=
 set configure_flags=
@@ -82,7 +81,8 @@ if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&got
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
 
-echo Warning: ignoring invalid command line option `%1`.
+echo Error: invalid command line option `%1`.
+exit /b 1
 
 :arg-ok
 :arg-ok
@@ -107,7 +107,7 @@ if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
 if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
 if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
-if defined release_urlbase set release_urlbase_arg=--release-urlbase=%release_urlbase%
+if defined release_urlbase set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 if defined dll set configure_flags=%configure_flags% --shared
@@ -127,6 +127,8 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 call :getnodeversion || exit /b 1
 
 if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+
+if defined noprojgen if defined nobuild if defined nosign if not defined msi goto licensertf
 
 @rem Set environment for msbuild
 
@@ -340,12 +342,16 @@ for /d %%F in (test\addons\??_*) do (
 )
 :: generate
 "%node_exe%" tools\doc\addon-verify.js
+if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
+SetLocal EnableDelayedExpansion
 for /d %%F in (test\addons\*) do (
   "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
     --directory="%%F" ^
     --nodedir="%cd%"
+  if !errorlevel! neq 0 exit /b !errorlevel!
 )
+EndLocal
 goto run-tests
 
 :run-tests
@@ -363,7 +369,7 @@ if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
 if not exist tools\eslint\lib\eslint.js goto no-lint
 echo running jslint
-%config%\node tools\jslint.js -J benchmark lib test tools
+%config%\node tools\eslint\bin\eslint.js --cache --rulesdir=tools\eslint-rules benchmark lib test tools
 goto exit
 
 :jslint-ci

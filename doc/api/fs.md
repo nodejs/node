@@ -347,6 +347,93 @@ fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
 });
 ```
 
+Using `fs.access()` to check for the accessibility of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+so introduces a race condition, since other processes may change the file's
+state between the two calls. Instead, user code should open/read/write the
+file directly and handle the error raised if the file is not accessible.
+
+For example:
+
+
+**write (NOT RECOMMENDED)**
+
+```js
+fs.access('myfile', (err) => {
+  if (!err) {
+    console.error('myfile already exists');
+    return;
+  }
+
+  fs.open('myfile', 'wx', (err, fd) => {
+    if (err) throw err;
+    writeMyData(fd);
+  });
+});
+```
+
+**write (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'wx', (err, fd) => {
+  if (err) {
+    if (err.code === "EEXIST") {
+      console.error('myfile already exists');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  writeMyData(fd);
+});
+```
+
+**read (NOT RECOMMENDED)**
+
+```js
+fs.access('myfile', (err) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  fs.open('myfile', 'r', (err, fd) => {
+    if (err) throw err;
+    readMyData(fd);
+  });
+});
+```
+
+**read (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'r', (err, fd) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  readMyData(fd);
+});
+```
+
+The "not recommended" examples above check for accessibility and then use the
+file; the "recommended" examples are better because they use the file directly
+and handle the error, if any.
+
+In general, check for the accessibility of a file only if the file won’t be
+used directly, for example when its accessibility is a signal from another
+process.
+
 ## fs.accessSync(path[, mode])
 <!-- YAML
 added: v0.11.15
@@ -606,11 +693,83 @@ fs.exists('/etc/passwd', (exists) => {
 });
 ```
 
-`fs.exists()` should not be used to check if a file exists before calling
-`fs.open()`. Doing so introduces a race condition since other processes may
-change the file's state between the two calls. Instead, user code should
-call `fs.open()` directly and handle the error raised if the file is
-non-existent.
+Using `fs.exists()` to check for the existence of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+so introduces a race condition, since other processes may change the file's
+state between the two calls. Instead, user code should open/read/write the
+file directly and handle the error raised if the file does not exist.
+
+For example:
+
+**write (NOT RECOMMENDED)**
+
+```js
+fs.exists('myfile', (exists) => {
+  if (exists) {
+    console.error('myfile already exists');
+  } else {
+    fs.open('myfile', 'wx', (err, fd) => {
+      if (err) throw err;
+      writeMyData(fd);
+    });
+  }
+});
+```
+
+**write (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'wx', (err, fd) => {
+  if (err) {
+    if (err.code === "EEXIST") {
+      console.error('myfile already exists');
+      return;
+    } else {
+      throw err;
+    }
+  }
+  writeMyData(fd);
+});
+```
+
+**read (NOT RECOMMENDED)**
+
+```js
+fs.exists('myfile', (exists) => {
+  if (exists) {
+    fs.open('myfile', 'r', (err, fd) => {
+      readMyData(fd);
+    });
+  } else {
+    console.error('myfile does not exist');
+  }
+});
+```
+
+**read (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'r', (err, fd) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  } else {
+    readMyData(fd);
+  }
+});
+```
+
+The "not recommended" examples above check for existence and then use the
+file; the "recommended" examples are better because they use the file directly
+and handle the error, if any.
+
+In general, check for the existence of a file only if the file won’t be
+used directly, for example when its existence is a signal from another
+process.
 
 ## fs.existsSync(path)
 <!-- YAML
@@ -739,11 +898,52 @@ added: v0.8.6
 -->
 
 * `fd` {Integer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 * `callback` {Function}
 
 Asynchronous ftruncate(2). No arguments other than a possible exception are
 given to the completion callback.
+
+If the file referred to by the file descriptor was larger than `len` bytes, only
+the first `len` bytes will be retained in the file.
+
+For example, the following program retains only the first four bytes of the file
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf8'));
+  // prints Node.js
+
+// get the file descriptor of the file to be truncated
+const fd = fs.openSync('temp.txt', 'r+');
+
+// truncate the file to first four bytes
+fs.ftruncate(fd, 4, (err) => {
+  assert.ifError(err);
+  console.log(fs.readFileSync('temp.txt', 'utf8'));
+});
+  // prints Node
+```
+
+If the file previously was shorter than `len` bytes, it is extended, and the
+extended part is filled with null bytes ('\0'). For example,
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf-8'));
+  // prints Node.js
+
+// get the file descriptor of the file to be truncated
+const fd = fs.openSync('temp.txt', 'r+');
+
+// truncate the file to 10 bytes, whereas the actual size is 7 bytes
+fs.ftruncate(fd, 10, (err) => {
+  assert.ifError(!err);
+  console.log(fs.readFileSync('temp.txt'));
+});
+  // prints <Buffer 4e 6f 64 65 2e 6a 73 00 00 00>
+  // ('Node.js\0\0\0' in UTF8)
+```
+
+The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 
 ## fs.ftruncateSync(fd, len)
 <!-- YAML
@@ -751,7 +951,7 @@ added: v0.8.6
 -->
 
 * `fd` {Integer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 
 Synchronous ftruncate(2). Returns `undefined`.
 
@@ -1368,7 +1568,7 @@ added: v0.8.6
 -->
 
 * `path` {String | Buffer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 * `callback` {Function}
 
 Asynchronous truncate(2). No arguments other than a possible exception are
@@ -1381,9 +1581,10 @@ added: v0.8.6
 -->
 
 * `path` {String | Buffer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 
-Synchronous truncate(2). Returns `undefined`.
+Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
+passed as the first argument. In this case, `fs.ftruncateSync()` is called.
 
 ## fs.unlink(path, callback)
 <!-- YAML

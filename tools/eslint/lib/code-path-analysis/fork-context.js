@@ -150,7 +150,7 @@ ForkContext.prototype = {
      * @param {number} end - The last index of previous segments.
      * @returns {CodePathSegment[]} New segments.
      */
-    makeNext: function(begin, end) {
+    makeNext(begin, end) {
         return makeSegments(this, begin, end, CodePathSegment.newNext);
     },
 
@@ -162,7 +162,7 @@ ForkContext.prototype = {
      * @param {number} end - The last index of previous segments.
      * @returns {CodePathSegment[]} New segments.
      */
-    makeUnreachable: function(begin, end) {
+    makeUnreachable(begin, end) {
         return makeSegments(this, begin, end, CodePathSegment.newUnreachable);
     },
 
@@ -175,7 +175,7 @@ ForkContext.prototype = {
      * @param {number} end - The last index of previous segments.
      * @returns {CodePathSegment[]} New segments.
      */
-    makeDisconnected: function(begin, end) {
+    makeDisconnected(begin, end) {
         return makeSegments(this, begin, end, CodePathSegment.newDisconnected);
     },
 
@@ -186,7 +186,7 @@ ForkContext.prototype = {
      * @param {CodePathSegment[]} segments - Segments to add.
      * @returns {void}
      */
-    add: function(segments) {
+    add(segments) {
         assert(segments.length >= this.count, segments.length + " >= " + this.count);
 
         this.segmentsList.push(mergeExtraSegments(this, segments));
@@ -199,7 +199,7 @@ ForkContext.prototype = {
      * @param {CodePathSegment[]} segments - Segments to add.
      * @returns {void}
      */
-    replaceHead: function(segments) {
+    replaceHead(segments) {
         assert(segments.length >= this.count, segments.length + " >= " + this.count);
 
         this.segmentsList.splice(-1, 1, mergeExtraSegments(this, segments));
@@ -211,7 +211,7 @@ ForkContext.prototype = {
      * @param {ForkContext} context - A fork context to add.
      * @returns {void}
      */
-    addAll: function(context) {
+    addAll(context) {
         assert(context.count === this.count);
 
         const source = context.segmentsList;
@@ -226,7 +226,7 @@ ForkContext.prototype = {
      *
      * @returns {void}
      */
-    clear: function() {
+    clear() {
         this.segmentsList = [];
     }
 };

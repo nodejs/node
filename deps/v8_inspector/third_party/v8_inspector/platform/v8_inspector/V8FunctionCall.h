@@ -31,13 +31,15 @@
 #ifndef V8FunctionCall_h
 #define V8FunctionCall_h
 
-#include "platform/inspector_protocol/String16.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 class V8InspectorImpl;
+
+namespace protocol = blink::protocol;
 
 class V8FunctionCall {
 public:
@@ -59,6 +61,6 @@ protected:
     v8::Local<v8::Value> m_value;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 #endif // V8FunctionCall

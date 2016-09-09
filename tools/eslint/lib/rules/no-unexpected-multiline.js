@@ -18,7 +18,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         const FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
         const PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
@@ -55,21 +55,21 @@ module.exports = {
 
         return {
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 if (!node.computed) {
                     return;
                 }
                 checkForBreakAfter(node.object, PROPERTY_MESSAGE);
             },
 
-            TaggedTemplateExpression: function(node) {
+            TaggedTemplateExpression(node) {
                 if (node.tag.loc.end.line === node.quasi.loc.start.line) {
                     return;
                 }
                 context.report(node, node.loc.start, TAGGED_TEMPLATE_MESSAGE);
             },
 
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (node.arguments.length === 0) {
                     return;
                 }

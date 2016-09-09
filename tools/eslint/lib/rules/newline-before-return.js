@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
@@ -137,10 +137,10 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            ReturnStatement: function(node) {
+            ReturnStatement(node) {
                 if (!isFirstNode(node) && !hasNewlineBefore(node)) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Expected newline before return statement."
                     });
                 }

@@ -25,7 +25,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Public
@@ -41,19 +41,19 @@ module.exports = {
 
                 if (!sourceCode.hasBOM && (requireBOM === "always")) {
                     context.report({
-                        node: node,
+                        node,
                         loc: location,
                         message: "Expected Unicode BOM (Byte Order Mark).",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextBefore(node, "\uFEFF");
                         }
                     });
                 } else if (sourceCode.hasBOM && (requireBOM === "never")) {
                     context.report({
-                        node: node,
+                        node,
                         loc: location,
                         message: "Unexpected Unicode BOM (Byte Order Mark).",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.removeRange([-1, 0]);
                         }
                     });

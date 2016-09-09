@@ -1,0 +1,3 @@
+[$system==aix]
+# test issue only, covered under https://github.com/nodejs/node/issues/7973
+no_dropped_stdio           : PASS, FLAKY

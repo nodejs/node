@@ -477,6 +477,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`Buffer`]: buffer.html
 [`'close'`]: #dgram_event_close
 [`close()`]: #dgram_socket_close_callback
+[`cluster`]: cluster.html
 [`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
 [`dgram.Socket#bind()`]: #dgram_socket_bind_options_callback
 [`Error`]: errors.html#errors_class_error

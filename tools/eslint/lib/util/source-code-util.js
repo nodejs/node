@@ -106,5 +106,5 @@ function getSourceCodeOfFiles(patterns, options, cb) {
 }
 
 module.exports = {
-    getSourceCodeOfFiles: getSourceCodeOfFiles
+    getSourceCodeOfFiles
 };

@@ -31,16 +31,14 @@
 #ifndef V8InspectorImpl_h
 #define V8InspectorImpl_h
 
-#include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/Collections.h"
-#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/InspectorProtocol.h"
 #include "platform/v8_inspector/public/V8Inspector.h"
 
 #include <v8-debug.h>
 #include <v8.h>
 #include <vector>
 
-namespace blink {
+namespace v8_inspector {
 
 class InspectedContext;
 class V8ConsoleMessageStorage;
@@ -49,6 +47,8 @@ class V8DebuggerAgentImpl;
 class V8InspectorSessionImpl;
 class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
+
+namespace protocol = blink::protocol;
 
 class V8InspectorImpl : public V8Inspector {
     PROTOCOL_DISALLOW_COPY(V8InspectorImpl);
@@ -85,6 +85,7 @@ public:
     void asyncTaskFinished(void* task) override;
     void allAsyncTasksCanceled() override;
 
+    unsigned nextExceptionId() { return ++m_lastExceptionId; }
     void enableStackCapturingIfNeeded();
     void disableStackCapturingIfNeeded();
     void muteExceptions(int contextGroupId);
@@ -120,7 +121,7 @@ private:
     ConsoleStorageMap m_consoleStorageMap;
 };
 
-} // namespace blink
+} // namespace v8_inspector
 
 
 #endif // V8InspectorImpl_h

@@ -173,6 +173,9 @@ server.listen({
 });
 ```
 
+*Note*: The `server.listen()` method may be called multiple times. Each
+subsequent call will *re-open* the server using the provided options.
+
 ### server.listen(path[, backlog][, callback])
 <!-- YAML
 added: v0.1.90
@@ -209,6 +212,9 @@ double-backslashes, such as:
 
 The parameter `backlog` behaves the same as in
 [`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+
+*Note*: The `server.listen()` method may be called multiple times. Each
+subsequent call will *re-open* the server using the provided options.
 
 ### server.listen([port][, hostname][, backlog][, callback])
 <!-- YAML
@@ -248,6 +254,9 @@ server.on('error', (e) => {
 ```
 
 (Note: All sockets in Node.js are set `SO_REUSEADDR`.)
+
+*Note*: The `server.listen()` method may be called multiple times. Each
+subsequent call will *re-open* the server using the provided options.
 
 ### server.listening
 <!-- YAML

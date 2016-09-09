@@ -43,7 +43,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const option = context.options[0];
         let numParams = 3;

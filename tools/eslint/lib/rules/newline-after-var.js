@@ -24,7 +24,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
             NEVER_MESSAGE = "Unexpected blank line after variable declarations.";

@@ -2279,7 +2279,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     size_t len = Buffer::Length(obj);
 
     // OpenSSL takes control of the pointer after accepting it
-    char* data = reinterpret_cast<char*>(malloc(len));
+    char* data = reinterpret_cast<char*>(node::Malloc(len));
     CHECK_NE(data, nullptr);
     memcpy(data, resp, len);
 
@@ -3330,7 +3330,7 @@ bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
   if (initialised_ || kind_ != kCipher || !auth_tag_)
     return false;
   *out_len = auth_tag_len_;
-  *out = static_cast<char*>(malloc(auth_tag_len_));
+  *out = static_cast<char*>(node::Malloc(auth_tag_len_));
   CHECK_NE(*out, nullptr);
   memcpy(*out, auth_tag_, auth_tag_len_);
   return true;
@@ -4906,7 +4906,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   // NOTE: field_size is in bits
   int field_size = EC_GROUP_get_degree(ecdh->group_);
   size_t out_len = (field_size + 7) / 8;
-  char* out = static_cast<char*>(malloc(out_len));
+  char* out = static_cast<char*>(node::Malloc(out_len));
   CHECK_NE(out, nullptr);
 
   int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, nullptr);
@@ -4942,7 +4942,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (size == 0)
     return env->ThrowError("Failed to get public key length");
 
-  unsigned char* out = static_cast<unsigned char*>(malloc(size));
+  unsigned char* out = static_cast<unsigned char*>(node::Malloc(size));
   CHECK_NE(out, nullptr);
 
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
@@ -4968,7 +4968,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH private key");
 
   int size = BN_num_bytes(b);
-  unsigned char* out = static_cast<unsigned char*>(malloc(size));
+  unsigned char* out = static_cast<unsigned char*>(node::Malloc(size));
   CHECK_NE(out, nullptr);
 
   if (size != BN_bn2bin(b, out)) {
@@ -5099,7 +5099,7 @@ class PBKDF2Request : public AsyncWrap {
         saltlen_(saltlen),
         salt_(salt),
         keylen_(keylen),
-        key_(static_cast<char*>(malloc(keylen))),
+        key_(static_cast<char*>(node::Malloc(keylen))),
         iter_(iter) {
     if (key() == nullptr)
       FatalError("node::PBKDF2Request()", "Out of Memory");
@@ -5262,7 +5262,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Salt");
 
-  pass = static_cast<char*>(malloc(passlen));
+  pass = static_cast<char*>(node::Malloc(passlen));
   if (pass == nullptr) {
     FatalError("node::PBKDF2()", "Out of Memory");
   }
@@ -5274,7 +5274,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  salt = static_cast<char*>(malloc(saltlen));
+  salt = static_cast<char*>(node::Malloc(saltlen));
   if (salt == nullptr) {
     FatalError("node::PBKDF2()", "Out of Memory");
   }
@@ -5367,8 +5367,8 @@ class RandomBytesRequest : public AsyncWrap {
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         error_(0),
         size_(size),
-        data_(static_cast<char*>(malloc(size))) {
-    if (data() == nullptr)
+        data_(static_cast<char*>(node::Malloc(size))) {
+    if (data() == nullptr && size > 0)
       FatalError("node::RandomBytesRequest()", "Out of Memory");
     Wrap(object, this);
   }
@@ -5596,7 +5596,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 
   if (num_curves) {
     alloc_size = sizeof(*curves) * num_curves;
-    curves = static_cast<EC_builtin_curve*>(malloc(alloc_size));
+    curves = static_cast<EC_builtin_curve*>(node::Malloc(alloc_size));
 
     CHECK_NE(curves, nullptr);
 
@@ -5771,6 +5771,22 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(outString);
 }
 
+void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "First argument");
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Second argument");
+
+  size_t buf_length = Buffer::Length(args[0]);
+  if (buf_length != Buffer::Length(args[1])) {
+    return env->ThrowTypeError("Input buffers must have the same length");
+  }
+
+  const char* buf1 = Buffer::Data(args[0]);
+  const char* buf2 = Buffer::Data(args[1]);
+
+  return args.GetReturnValue().Set(CRYPTO_memcmp(buf1, buf2, buf_length) == 0);
+}
 
 void InitCryptoOnce() {
   OPENSSL_config(NULL);
@@ -5903,6 +5919,7 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
   env->SetMethod(target, "PBKDF2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
+  env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);

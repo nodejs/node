@@ -30,7 +30,6 @@
 
 #include "platform/v8_inspector/V8FunctionCall.h"
 
-#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/V8Compat.h"
 #include "platform/v8_inspector/V8Debugger.h"
 #include "platform/v8_inspector/V8InspectorImpl.h"
@@ -39,7 +38,7 @@
 
 #include <v8.h>
 
-namespace blink {
+namespace v8_inspector {
 
 V8FunctionCall::V8FunctionCall(V8InspectorImpl* inspector, v8::Local<v8::Context> context, v8::Local<v8::Value> value, const String16& name)
     : m_inspector(inspector)
@@ -113,4 +112,4 @@ v8::Local<v8::Value> V8FunctionCall::callWithoutExceptionHandling()
     return result;
 }
 
-} // namespace blink
+} // namespace v8_inspector

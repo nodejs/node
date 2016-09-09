@@ -77,6 +77,7 @@
       'lib/internal/child_process.js',
       'lib/internal/cluster.js',
       'lib/internal/freelist.js',
+      'lib/internal/fs.js',
       'lib/internal/linkedlist.js',
       'lib/internal/net.js',
       'lib/internal/module.js',
@@ -906,7 +907,6 @@
         },
         {
           'target_name': 'node_exp',
-          'process_outputs_as_sources': 1,
           'type': 'none',
           'dependencies': [
             '<(node_core_target_name)',

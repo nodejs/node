@@ -14,9 +14,25 @@ This folder contains benchmarks to measure the performance of the Node.js APIs.
 
 ## Prerequisites
 
-Most of the http benchmarks require [`wrk`][wrk] to be installed. It may be
-available through your preferred package manager. If not, `wrk` can be built
-[from source][wrk] via `make`.
+Most of the HTTP benchmarks require a benchmarker to be installed, this can be
+either [`wrk`][wrk] or [`autocannon`][autocannon].
+
+`Autocannon` is a Node script that can be installed using
+`npm install -g autocannon`. It will use the Node executable that is in the
+path, hence if you want to compare two HTTP benchmark runs make sure that the
+Node version in the path is not altered.
+
+`wrk` may be available through your preferred package manger. If not, you can
+easily build it [from source][wrk] via `make`.
+
+By default `wrk` will be used as benchmarker. If it is not available
+`autocannon` will be used in it its place. When creating a HTTP benchmark you
+can specify which benchmarker should be used. You can force a specific
+benchmarker to be used by providing it as an argument, e. g.:
+
+`node benchmark/run.js --set benchmarker=autocannon http`
+
+`node benchmark/http/simple.js benchmarker=autocannon`
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
@@ -287,5 +303,48 @@ function main(conf) {
 }
 ```
 
+## Creating HTTP benchmark
+
+The `bench` object returned by `createBenchmark` implements
+`http(options, callback)` method. It can be used to run external tool to
+benchmark HTTP servers.
+
+```js
+'use strict';
+
+const common = require('../common.js');
+
+const bench = common.createBenchmark(main, {
+  kb: [64, 128, 256, 1024],
+  connections: [100, 500]
+});
+
+function main(conf) {
+  const http = require('http');
+  const len = conf.kb * 1024;
+  const chunk = Buffer.alloc(len, 'x'); 
+  const server = http.createServer(function(req, res) {
+    res.end(chunk);
+  });
+
+  server.listen(common.PORT, function() {
+    bench.http({
+      connections: conf.connections,
+    }, function() {
+      server.close();
+    });
+  });
+}
+```
+
+Supported options keys are:
+* `port` - defaults to `common.PORT`
+* `path` - defaults to `/`
+* `connections` - number of concurrent connections to use, defaults to 100
+* `duration` - duration of the benchmark in seconds, defaults to 10
+* `benchmarker` - benchmarker to use, defaults to
+`common.default_http_benchmarker`
+
+[autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances

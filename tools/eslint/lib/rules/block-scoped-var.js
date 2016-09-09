@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let stack = [];
 
         /**
@@ -92,7 +92,7 @@ module.exports = {
         }
 
         return {
-            Program: function(node) {
+            Program(node) {
                 stack = [node.range];
             },
 

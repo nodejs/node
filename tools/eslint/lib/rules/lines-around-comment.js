@@ -106,7 +106,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0] ? Object.assign({}, context.options[0]) : {};
 
@@ -316,9 +316,9 @@ module.exports = {
                 const range = [lineStart, lineStart];
 
                 context.report({
-                    node: node,
+                    node,
                     message: "Expected line before comment.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.insertTextBeforeRange(range, "\n");
                     }
                 });
@@ -328,9 +328,9 @@ module.exports = {
             if (!exceptionEndAllowed && after && !lodash.includes(commentAndEmptyLines, nextLineNum) &&
                     !(isCommentNodeType(nextTokenOrComment) && astUtils.isTokenOnSameLine(node, nextTokenOrComment))) {
                 context.report({
-                    node: node,
+                    node,
                     message: "Expected line after comment.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.insertTextAfter(node, "\n");
                     }
                 });
@@ -344,7 +344,7 @@ module.exports = {
 
         return {
 
-            LineComment: function(node) {
+            LineComment(node) {
                 if (options.beforeLineComment || options.afterLineComment) {
                     checkForEmptyLine(node, {
                         after: options.afterLineComment,
@@ -353,7 +353,7 @@ module.exports = {
                 }
             },
 
-            BlockComment: function(node) {
+            BlockComment(node) {
                 if (options.beforeBlockComment || options.afterBlockComment) {
                     checkForEmptyLine(node, {
                         after: options.afterBlockComment,

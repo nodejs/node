@@ -30,8 +30,6 @@
 
 #include "platform/v8_inspector/V8RuntimeAgentImpl.h"
 
-#include "platform/inspector_protocol/Parser.h"
-#include "platform/inspector_protocol/Values.h"
 #include "platform/v8_inspector/InjectedScript.h"
 #include "platform/v8_inspector/InspectedContext.h"
 #include "platform/v8_inspector/RemoteObjectId.h"
@@ -45,14 +43,13 @@
 #include "platform/v8_inspector/V8StringUtil.h"
 #include "platform/v8_inspector/public/V8InspectorClient.h"
 
-namespace blink {
+namespace v8_inspector {
 
 namespace V8RuntimeAgentImplState {
 static const char customObjectFormatterEnabled[] = "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
 };
 
-using protocol::Runtime::ExceptionDetails;
 using protocol::Runtime::RemoteObject;
 
 static bool hasInternalError(ErrorString* errorString, bool hasError)
@@ -99,7 +96,7 @@ private:
         ProtocolPromiseHandler<Callback>* handler = static_cast<ProtocolPromiseHandler<Callback>*>(info.Data().As<v8::External>()->Value());
         DCHECK(handler);
         v8::Local<v8::Value> value = info.Length() > 0 ? info[0] : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
-        handler->m_callback->sendSuccess(handler->wrapObject(value), Maybe<bool>(), Maybe<protocol::Runtime::ExceptionDetails>());
+        handler->m_callback->sendSuccess(handler->wrapObject(value), Maybe<protocol::Runtime::ExceptionDetails>());
     }
 
     static void catchCallback(const v8::FunctionCallbackInfo<v8::Value>& info)
@@ -108,18 +105,19 @@ private:
         DCHECK(handler);
         v8::Local<v8::Value> value = info.Length() > 0 ? info[0] : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
 
-        std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
         std::unique_ptr<V8StackTraceImpl> stack = handler->m_inspector->debugger()->captureStackTrace(true);
-        if (stack) {
-            exceptionDetails = protocol::Runtime::ExceptionDetails::create()
-                .setText("Promise was rejected")
-                .setLineNumber(!stack->isEmpty() ? stack->topLineNumber() : 0)
-                .setColumnNumber(!stack->isEmpty() ? stack->topColumnNumber() : 0)
-                .setScriptId(!stack->isEmpty() ? stack->topScriptId() : String16())
-                .setStackTrace(stack->buildInspectorObjectImpl())
-                .build();
-        }
-        handler->m_callback->sendSuccess(handler->wrapObject(value), true, std::move(exceptionDetails));
+        std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails = protocol::Runtime::ExceptionDetails::create()
+            .setExceptionId(handler->m_inspector->nextExceptionId())
+            .setText("Uncaught (in promise)")
+            .setLineNumber(stack && !stack->isEmpty() ? stack->topLineNumber() : 0)
+            .setColumnNumber(stack && !stack->isEmpty() ? stack->topColumnNumber() : 0)
+            .setException(handler->wrapObject(value))
+            .build();
+        if (stack)
+            exceptionDetails->setStackTrace(stack->buildInspectorObjectImpl());
+        if (stack && !stack->isEmpty())
+            exceptionDetails->setScriptId(stack->topScriptId());
+        handler->m_callback->sendSuccess(handler->wrapObject(value), std::move(exceptionDetails));
     }
 
     ProtocolPromiseHandler(V8InspectorImpl* inspector, int contextGroupId, int executionContextId, const String16& objectGroup, bool returnByValue, bool generatePreview, std::unique_ptr<Callback> callback)
@@ -176,7 +174,6 @@ template<typename Callback>
 bool wrapEvaluateResultAsync(InjectedScript* injectedScript, v8::MaybeLocal<v8::Value> maybeResultValue, const v8::TryCatch& tryCatch, const String16& objectGroup, bool returnByValue, bool generatePreview, Callback* callback)
 {
     std::unique_ptr<RemoteObject> result;
-    Maybe<bool> wasThrown;
     Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
 
     ErrorString errorString;
@@ -187,10 +184,9 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript, v8::MaybeLocal<v8::
         returnByValue,
         generatePreview,
         &result,
-        &wasThrown,
         &exceptionDetails);
     if (errorString.isEmpty()) {
-        callback->sendSuccess(std::move(result), wasThrown, exceptionDetails);
+        callback->sendSuccess(std::move(result), exceptionDetails);
         return true;
     }
     callback->sendFailure(errorString);
@@ -233,7 +229,7 @@ void V8RuntimeAgentImpl::evaluate(
     const String16& expression,
     const Maybe<String16>& objectGroup,
     const Maybe<bool>& includeCommandLineAPI,
-    const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+    const Maybe<bool>& silent,
     const Maybe<int>& executionContextId,
     const Maybe<bool>& returnByValue,
     const Maybe<bool>& generatePreview,
@@ -254,7 +250,7 @@ void V8RuntimeAgentImpl::evaluate(
         return;
     }
 
-    if (doNotPauseOnExceptionsAndMuteConsole.fromMaybe(false))
+    if (silent.fromMaybe(false))
         scope.ignoreExceptionsAndMuteConsole();
     if (userGesture.fromMaybe(false))
         scope.pretendUserGesture();
@@ -329,7 +325,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     const String16& objectId,
     const String16& expression,
     const Maybe<protocol::Array<protocol::Runtime::CallArgument>>& optionalArguments,
-    const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+    const Maybe<bool>& silent,
     const Maybe<bool>& returnByValue,
     const Maybe<bool>& generatePreview,
     const Maybe<bool>& userGesture,
@@ -359,7 +355,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
         }
     }
 
-    if (doNotPauseOnExceptionsAndMuteConsole.fromMaybe(false))
+    if (silent.fromMaybe(false))
         scope.ignoreExceptionsAndMuteConsole();
     if (userGesture.fromMaybe(false))
         scope.pretendUserGesture();
@@ -415,7 +411,7 @@ void V8RuntimeAgentImpl::getProperties(
     const Maybe<bool>& generatePreview,
     std::unique_ptr<protocol::Array<protocol::Runtime::PropertyDescriptor>>* result,
     Maybe<protocol::Array<protocol::Runtime::InternalPropertyDescriptor>>* internalProperties,
-    Maybe<ExceptionDetails>* exceptionDetails)
+    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails)
 {
     using protocol::Runtime::InternalPropertyDescriptor;
 
@@ -469,9 +465,9 @@ void V8RuntimeAgentImpl::releaseObjectGroup(ErrorString*, const String16& object
     m_session->releaseObjectGroup(objectGroup);
 }
 
-void V8RuntimeAgentImpl::run(ErrorString* errorString)
+void V8RuntimeAgentImpl::runIfWaitingForDebugger(ErrorString* errorString)
 {
-    m_inspector->client()->resumeStartup(m_session->contextGroupId());
+    m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
 }
 
 void V8RuntimeAgentImpl::setCustomObjectFormatterEnabled(ErrorString*, bool enabled)
@@ -492,7 +488,7 @@ void V8RuntimeAgentImpl::compileScript(ErrorString* errorString,
     bool persistScript,
     const Maybe<int>& executionContextId,
     Maybe<String16>* scriptId,
-    Maybe<ExceptionDetails>* exceptionDetails)
+    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails)
 {
     if (!m_enabled) {
         *errorString = "Runtime agent is not enabled";
@@ -511,9 +507,8 @@ void V8RuntimeAgentImpl::compileScript(ErrorString* errorString,
     if (!persistScript)
         m_inspector->debugger()->unmuteScriptParsedEvents();
     if (script.IsEmpty()) {
-        v8::Local<v8::Message> message = scope.tryCatch().Message();
-        if (!message.IsEmpty())
-            *exceptionDetails = scope.injectedScript()->createExceptionDetails(message);
+        if (scope.tryCatch().HasCaught())
+            *exceptionDetails = scope.injectedScript()->createExceptionDetails(errorString, scope.tryCatch(), String16(), false);
         else
             *errorString = "Script compilation failed";
         return;
@@ -532,7 +527,7 @@ void V8RuntimeAgentImpl::runScript(
     const String16& scriptId,
     const Maybe<int>& executionContextId,
     const Maybe<String16>& objectGroup,
-    const Maybe<bool>& doNotPauseOnExceptionsAndMuteConsole,
+    const Maybe<bool>& silent,
     const Maybe<bool>& includeCommandLineAPI,
     const Maybe<bool>& returnByValue,
     const Maybe<bool>& generatePreview,
@@ -563,7 +558,7 @@ void V8RuntimeAgentImpl::runScript(
         return;
     }
 
-    if (doNotPauseOnExceptionsAndMuteConsole.fromMaybe(false))
+    if (silent.fromMaybe(false))
         scope.ignoreExceptionsAndMuteConsole();
 
     std::unique_ptr<v8::Global<v8::Script>> scriptWrapper = std::move(it->second);
@@ -689,4 +684,4 @@ void V8RuntimeAgentImpl::reportMessage(V8ConsoleMessage* message, bool generateP
     m_frontend.flush();
 }
 
-} // namespace blink
+} // namespace v8_inspector

@@ -32,7 +32,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -77,13 +77,13 @@ module.exports = {
         function report(node) {
             context.report(node, "Identifier '{{name}}' does not match the pattern '{{pattern}}'.", {
                 name: node.name,
-                pattern: pattern
+                pattern
             });
         }
 
         return {
 
-            Identifier: function(node) {
+            Identifier(node) {
                 const name = node.name,
                     parent = node.parent,
                     effectiveParent = (parent.type === "MemberExpression") ? parent.parent : parent;

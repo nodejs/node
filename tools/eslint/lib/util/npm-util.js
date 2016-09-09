@@ -139,8 +139,8 @@ function checkPackageJson(startDir) {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    installSyncSaveDev: installSyncSaveDev,
-    checkDeps: checkDeps,
-    checkDevDeps: checkDevDeps,
-    checkPackageJson: checkPackageJson
+    installSyncSaveDev,
+    checkDeps,
+    checkDevDeps,
+    checkPackageJson
 };

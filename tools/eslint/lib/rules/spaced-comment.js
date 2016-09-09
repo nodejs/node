@@ -227,7 +227,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // Unless the first option is never, require a space
         const requireSpace = context.options[0] !== "never";
@@ -268,8 +268,8 @@ module.exports = {
                 commentIdentifier = type === "block" ? "/*" : "//";
 
             context.report({
-                node: node,
-                fix: function(fixer) {
+                node,
+                fix(fixer) {
                     const start = node.range[0];
                     let end = start + 2;
 
@@ -283,7 +283,7 @@ module.exports = {
                         return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
                     }
                 },
-                message: message
+                message
             });
         }
 
@@ -296,8 +296,8 @@ module.exports = {
          */
         function reportEnd(node, message, match) {
             context.report({
-                node: node,
-                fix: function(fixer) {
+                node,
+                fix(fixer) {
                     if (requireSpace) {
                         return fixer.insertTextAfterRange([node.start, node.end - 2], " ");
                     } else {
@@ -307,7 +307,7 @@ module.exports = {
                         return fixer.replaceTextRange([start, end], "");
                     }
                 },
-                message: message
+                message
             });
         }
 

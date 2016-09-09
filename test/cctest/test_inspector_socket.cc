@@ -178,7 +178,7 @@ struct expectations {
 
 static void grow_expects_buffer(uv_handle_t* stream, size_t size, uv_buf_t* b) {
   expectations* expects = static_cast<expectations*>(
-      (static_cast<inspector_socket_t*>(stream->data))->data);
+      inspector_from_stream(stream)->data);
   size_t end = expects->actual_end;
   // Grow the buffer in chunks of 64k.
   size_t new_length = (end + size + 65535) & ~((size_t) 0xFFFF);
@@ -213,7 +213,7 @@ static void grow_expects_buffer(uv_handle_t* stream, size_t size, uv_buf_t* b) {
 static void save_read_data(uv_stream_t* stream, ssize_t nread,
                            const uv_buf_t* buf) {
   expectations* expects =static_cast<expectations*>(
-      (static_cast<inspector_socket_t*>(stream->data))->data);
+      inspector_from_stream(stream)->data);
   expects->err_code = nread < 0 ? nread : 0;
   if (nread > 0) {
     expects->actual_end += nread;
@@ -254,8 +254,7 @@ static void expect_on_server(const char* data, size_t len) {
 
 static void inspector_record_error_code(uv_stream_t* stream, ssize_t nread,
                                         const uv_buf_t* buf) {
-  inspector_socket_t *inspector =
-      reinterpret_cast<inspector_socket_t*>(stream->data);
+  inspector_socket_t *inspector = inspector_from_stream(stream);
   // Increment instead of assign is to ensure the function is only called once
   *(static_cast<int *>(inspector->data)) += nread;
 }
@@ -760,8 +759,7 @@ static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
 static void CleanupSocketAfterEOF_read_cb(uv_stream_t* stream, ssize_t nread,
                                           const uv_buf_t* buf) {
   EXPECT_EQ(UV_EOF, nread);
-  inspector_socket_t* insp =
-      reinterpret_cast<inspector_socket_t*>(stream->data);
+  inspector_socket_t* insp = inspector_from_stream(stream);
   inspector_close(insp, CleanupSocketAfterEOF_close_cb);
 }
 

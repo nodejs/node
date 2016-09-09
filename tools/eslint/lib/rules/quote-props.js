@@ -64,7 +64,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         const MODE = context.options[0],
             KEYWORDS = context.options[1] && context.options[1].keywords,
@@ -208,7 +208,7 @@ module.exports = {
         }
 
         return {
-            Property: function(node) {
+            Property(node) {
                 if (MODE === "always" || !MODE) {
                     checkOmittedQuotes(node);
                 }
@@ -216,7 +216,7 @@ module.exports = {
                     checkUnnecessaryQuotes(node);
                 }
             },
-            ObjectExpression: function(node) {
+            ObjectExpression(node) {
                 if (MODE === "consistent") {
                     checkConsistency(node, false);
                 }
