@@ -118,7 +118,7 @@ const repl = require('repl');
 var msg = 'message';
 
 const r = repl.start('> ');
-Object.defineProperty(r, 'm', {
+Object.defineProperty(r.context, 'm', {
   configurable: false,
   enumerable: true,
   value: msg
