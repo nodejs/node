@@ -124,8 +124,19 @@ const interactive = childProcess.exec(
   })
 );
 
-interactive.stdin.write('a\n');
-interactive.stdin.write('process.exit()\n');
+const commands = [
+  'a'
+];
+
+const run = ([cmd, ...rest]) => {
+  if (!cmd) {
+    interactive.stdin.end();
+    return;
+  }
+  interactive.stdin.write(`${cmd}\n`);
+  setTimeout(() => run(rest), 200);
+};
+run(commands);
 
 childProcess.exec(
   nodeBinary + ' ' + '--require ' + fixture('cluster-preload.js') + ' ' +

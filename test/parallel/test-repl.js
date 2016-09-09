@@ -32,7 +32,6 @@ const repl = require('repl');
 const message = 'Read, Eval, Print Loop';
 const prompt_unix = 'node via Unix socket> ';
 const prompt_tcp = 'node via TCP socket> ';
-const prompt_multiline = '... ';
 const prompt_npm = 'npm should be run outside of the ' +
                    'node repl, in your normal shell.\n' +
                    '(Press Control-D to exit.)\n';
@@ -92,9 +91,7 @@ function error_test() {
     if (read_buffer.indexOf(prompt_unix) !== -1) {
       // if it's an exact match, then don't do the regexp
       if (read_buffer !== client_unix.expect) {
-        let expect = client_unix.expect;
-        if (expect === prompt_multiline)
-          expect = /[.]{3} /;
+        const expect = client_unix.expect;
         assert.ok(read_buffer.match(expect));
         console.error('match');
       }
@@ -110,21 +107,6 @@ function error_test() {
         tcp_test();
       }
 
-    } else if (read_buffer.indexOf(prompt_multiline) !== -1) {
-      // Check that you meant to send a multiline test
-      assert.strictEqual(prompt_multiline, client_unix.expect);
-      read_buffer = '';
-      if (client_unix.list && client_unix.list.length > 0) {
-        send_expect(client_unix.list);
-      } else if (run_strict_test) {
-        replServer.replMode = repl.REPL_MODE_STRICT;
-        run_strict_test = false;
-        strict_mode_error_test();
-      } else {
-        console.error('End of Error test, running TCP test.\n');
-        tcp_test();
-      }
-
     } else {
       console.error('didn\'t see prompt yet, buffering.');
     }
@@ -134,9 +116,9 @@ function error_test() {
     // Uncaught error throws and prints out
     { client: client_unix, send: 'throw new Error(\'test error\');',
       expect: /^Error: test error/ },
-    // Common syntax error is treated as multiline command
+    // Common syntax error for partial command
     { client: client_unix, send: 'function test_func() {',
-      expect: prompt_multiline },
+      expect: /\bSyntaxError: Unexpected end of input/ },
     // You can recover with the .break command
     { client: client_unix, send: '.break',
       expect: prompt_unix },
@@ -144,20 +126,17 @@ function error_test() {
     { client: client_unix, send: 'eval("function test_func() {")',
       expect: /\bSyntaxError: Unexpected end of input/ },
     // Can handle multiline template literals
-    { client: client_unix, send: '`io.js',
-      expect: prompt_multiline },
+    { client: client_unix, send: '`io.js\n`',
+      expect: `'io.js\\n'\n${prompt_unix}` },
     // Special REPL commands still available
     { client: client_unix, send: '.break',
       expect: prompt_unix },
     // Template expressions can cross lines
-    { client: client_unix, send: '`io.js ${"1.0"',
-      expect: prompt_multiline },
-    { client: client_unix, send: '+ ".2"}`',
+    { client: client_unix, send: '`io.js ${"1.0"\n' + ' + ".2"}`',
       expect: `'io.js 1.0.2'\n${prompt_unix}` },
     // Dot prefix in multiline commands aren't treated as commands
-    { client: client_unix, send: '("a"',
-      expect: prompt_multiline },
-    { client: client_unix, send: '.charAt(0))',
+    { client: client_unix, send: '("a"\n.charAt(0))',
+    // { client: client_unix, send: '.charAt(0))',
       expect: `'a'\n${prompt_unix}` },
     // Floating point numbers are not interpreted as REPL commands.
     { client: client_unix, send: '.1234',
@@ -223,26 +202,14 @@ function error_test() {
     { client: client_unix, send: 'var I = [1,2,3,function() {}]; I.pop()',
       expect: '[Function]' },
     // Multiline object
-    { client: client_unix, send: '{ a: ',
-      expect: prompt_multiline },
-    { client: client_unix, send: '1 }',
+    { client: client_unix, send: '{ a: \n1 }',
       expect: '{ a: 1 }' },
     // Multiline anonymous function with comment
-    { client: client_unix, send: '(function() {',
-      expect: prompt_multiline },
-    { client: client_unix, send: '// blah',
-      expect: prompt_multiline },
-    { client: client_unix, send: 'return 1;',
-      expect: prompt_multiline },
-    { client: client_unix, send: '})()',
+    { client: client_unix, send: ['(function() {', '// blah', 'return 1;', '})()'].join('\n'),
       expect: '1' },
     // Multiline function call
-    { client: client_unix, send: 'function f(){}; f(f(1,',
-      expect: prompt_multiline },
-    { client: client_unix, send: '2)',
-      expect: prompt_multiline },
-    { client: client_unix, send: ')',
-      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: ['function f(){}; f(f(1,', '2)', ')'].join('\n'),
+      expect: `undefined\n${prompt_unix}` },
     // npm prompt error message
     { client: client_unix, send: 'npm install foobar',
       expect: expect_npm },
@@ -267,8 +234,7 @@ function error_test() {
       expect: /\bSyntaxError: Invalid or unexpected token/ },
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'thefourtheye\'\n' + prompt_unix },
+      expect: '\'thefourtheye\'\n' + prompt_unix },
     // Don't fail when a partial String is created and line continuation is used
     // with whitespace characters at the end of the string. We are to ignore it.
     // This test is to make sure that we properly remove the whitespace
@@ -277,93 +243,76 @@ function error_test() {
       expect: prompt_unix },
     // multiline strings preserve whitespace characters in them
     { client: client_unix, send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+      expect: '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
     // more than one multiline strings also should preserve whitespace chars
     { client: client_unix, send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+      expect: '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
     // using REPL commands within a string literal should still work
     { client: client_unix, send: '\'\\\n.break',
       expect: prompt_unix },
-    // using REPL command "help" within a string literal should still work
+    // using REPL command "help" in multiline mode should not work
     { client: client_unix, send: '\'thefourth\\\n.help\neye\'',
-      expect: /'thefourtheye'/ },
+      expect: /\bSyntaxError: Invalid or unexpected token/ },
     // empty lines in the REPL should be allowed
     { client: client_unix, send: '\n\r\n\r\n',
-      expect: prompt_unix + prompt_unix + prompt_unix },
+      expect: prompt_unix },
     // empty lines in the string literals should not affect the string
     { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
-      expect: prompt_multiline + prompt_multiline +
-              '\'thefourtheye\'\n' + prompt_unix },
+      expect: '\'thefourtheye\'\n' + prompt_unix },
     // Regression test for https://github.com/nodejs/node/issues/597
     { client: client_unix,
       send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
       expect: `true\n${prompt_unix}` },
     // the following test's result depends on the RegEx's match from the above
     { client: client_unix,
-      send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
-            'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
-      expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
-               '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+      send: '[RegExp.$1, RegExp.$2, RegExp.$3, RegExp.$4, RegExp.$5,' +
+            ' RegExp.$6, RegExp.$7, RegExp.$8, RegExp.$9]\n',
+      expect: `[ '1', '2', '3', '4', '5', '6', '7', '8', '9' ]\n${prompt_unix}` },
     // regression tests for https://github.com/nodejs/node/issues/2749
     { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     // regression tests for https://github.com/nodejs/node/issues/3421
     { client: client_unix, send: 'function x() {\n//\'\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {\n//"\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {//\'\n }',
-      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {//"\n }',
-      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {\nvar i = "\'";\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x(/*optional*/) {}',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x(/* // 5 */) {}',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '// /* 5 */',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '"//"',
       expect: '\'//\'\n' + prompt_unix },
     { client: client_unix, send: '"data /*with*/ comment"',
       expect: '\'data /*with*/ comment\'\n' + prompt_unix },
     { client: client_unix, send: 'function x(/*fn\'s optional params*/) {}',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '/* \'\n"\n\'"\'\n*/',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     // REPL should get a normal require() function, not one that allows
     // access to internal modules without the --expose_internals flag.
     { client: client_unix, send: 'require("internal/repl")',
       expect: /^Error: Cannot find module 'internal\/repl'/ },
     // REPL should handle quotes within regexp literal in multiline mode
-    { client: client_unix,
-      send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
-    { client: client_unix,
-      send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
-    { client: client_unix,
-      send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
-    { client: client_unix,
-      send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
+      expect: `undefined\n${prompt_unix}` },
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
+      expect: `undefined\n${prompt_unix}` },
+    { client: client_unix, send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
+      expect: `undefined\n${prompt_unix}` },
+    { client: client_unix, send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '{ var x = 4; }',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     // Illegal token is not recoverable outside string literal, RegExp literal,
     // or block comment. https://github.com/nodejs/node/issues/3611
     { client: client_unix, send: 'a = 3.5e',
@@ -396,22 +345,22 @@ function error_test() {
     // https://github.com/nodejs/node/issues/9300
     {
       client: client_unix, send: 'function foo() {\nvar bar = 1 / 1; // "/"\n}',
-      expect: `${prompt_multiline}${prompt_multiline}undefined\n${prompt_unix}`
+      expect: `undefined\n${prompt_unix}`
     },
 
     {
       client: client_unix, send: '(function() {\nreturn /foo/ / /bar/;\n}())',
-      expect: prompt_multiline + prompt_multiline + 'NaN\n' + prompt_unix
+      expect: 'NaN\n' + prompt_unix
     },
 
     {
       client: client_unix, send: '(function() {\nif (false) {} /bar"/;\n}())',
-      expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix
+      expect: 'undefined\n' + prompt_unix
     },
 
     // Newline within template string maintains whitespace.
     { client: client_unix, send: '`foo \n`',
-      expect: prompt_multiline + '\'foo \\n\'\n' + prompt_unix },
+      expect: '\'foo \\n\'\n' + prompt_unix },
     // Whitespace is not evaluated.
     { client: client_unix, send: ' \t  \n',
       expect: prompt_unix }

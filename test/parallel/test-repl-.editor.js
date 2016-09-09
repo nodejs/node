@@ -29,6 +29,7 @@ function run({input, output, event, checkTerminalCodes = true}) {
   });
 
   stream.emit('data', '.editor\n');
+  replServer.forceExecute();
   stream.emit('data', input);
   replServer.write('', event);
   replServer.close();
@@ -44,7 +45,7 @@ function run({input, output, event, checkTerminalCodes = true}) {
 const tests = [
   {
     input: '',
-    output: '\n(To exit, press ^C again or type .exit)',
+    output: '',
     event: {ctrl: true, name: 'c'}
   },
   {
@@ -65,8 +66,7 @@ const tests = [
   {
     input: '',
     output: '',
-    checkTerminalCodes: false,
-    event: null,
+    checkTerminalCodes: false
   }
 ];
 
@@ -87,7 +87,9 @@ function testCodeAligment({input, cursor = 0, line = ''}) {
     useColors: false
   });
 
-  stream.emit('data', '.editor\n');
+  stream.emit('data', '.editor');
+  replServer._sawKeyPress = true;
+  replServer.write('', {name: 'return'});
   input.split('').forEach((ch) => stream.emit('data', ch));
   // Test the content of current line and the cursor position
   assert.strictEqual(line, replServer.line);

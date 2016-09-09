@@ -24,7 +24,16 @@ r.on('exit', common.mustCall(() => {
   assert.deepStrictEqual(results, ['undefined', 'true', 'true', '']);
 }));
 
-inputStream.write('const isObject = (obj) => obj.constructor === Object;\n');
-inputStream.write('isObject({});\n');
-inputStream.write(`require('${fixture}').isObject({});\n`);
-r.close();
+const cmds = [
+  'const isObject = (obj) => obj.constructor === Object;',
+  'isObject({});',
+  `require('${fixture}').isObject({});`
+];
+
+const run = ([cmd, ...rest], cb = () => {}) => {
+  if (!cmd) return cb();
+  inputStream.write(`${cmd}\n`);
+  setTimeout(() => run(rest, cb), 200);
+};
+
+run(cmds, () => r.close());

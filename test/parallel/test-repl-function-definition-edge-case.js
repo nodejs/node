@@ -10,8 +10,11 @@ common.globalCheck = false;
 const r = initRepl();
 
 r.input.emit('data', 'function a() { return 42; } (1)\n');
+r.forceExecute();
 r.input.emit('data', 'a\n');
+r.forceExecute();
 r.input.emit('data', '.exit');
+r.forceExecute();
 
 const expected = '1\n[Function: a]\n';
 const got = r.output.accumulator.join('');

@@ -25,18 +25,25 @@ const globalTest = (useGlobal, cb, output) => (err, repl) => {
   output.on('data', (data) => (str += data));
   global.lunch = 'tacos';
   repl.write('global.lunch;\n');
-  repl.close();
-  delete global.lunch;
-  cb(null, str.trim());
+  setTimeout(() => {
+    delete global.lunch;
+    repl.close();
+    cb(null, str.trim());
+  }, 100);
 };
 
 // Test how the global object behaves in each state for useGlobal
-for (const [option, expected] of globalTestCases) {
+const runGlobalTestCases = ([testCase, ...rest]) => {
+  if (!testCase) return;
+  const [option, expected] = testCase;
   runRepl(option, globalTest, common.mustCall((err, output) => {
     assert.ifError(err);
     assert.strictEqual(output, expected);
+    runGlobalTestCases(rest);
   }));
-}
+};
+
+runGlobalTestCases(globalTestCases);
 
 // Test how shadowing the process object via `let`
 // behaves in each useGlobal state. Note: we can't
@@ -53,19 +60,29 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
   let str = '';
   output.on('data', (data) => (str += data));
 
-  // if useGlobal is false, then `let process` should work
-  repl.write('let process;\n');
+  // if useGlobal is false, then `var process` should work
+  repl.write('var process;\n');
   repl.write('21 * 2;\n');
-  repl.close();
-  cb(null, str.trim());
+  setTimeout(() => {
+    repl.close();
+    cb(null, str.trim());
+  }, 100);
 };
 
-for (const option of processTestCases) {
-  runRepl(option, processTest, common.mustCall((err, output) => {
-    assert.ifError(err);
-    assert.strictEqual(output, 'undefined\n42');
-  }));
-}
+
+const runProcessTestCases = () => {
+  const testCase = processTestCases.splice(0, 1);
+  if (testCase.length) {
+    const option = testCase[0];
+    runRepl(option, processTest, common.mustCall((err, output) => {
+      assert.ifError(err);
+      assert.strictEqual(output, '42');
+      runProcessTestCases();
+    }));
+  }
+};
+
+runProcessTestCases();
 
 function runRepl(useGlobal, testFunc, cb) {
   const inputStream = new stream.PassThrough();
@@ -76,6 +93,7 @@ function runRepl(useGlobal, testFunc, cb) {
     useGlobal: useGlobal,
     useColors: false,
     terminal: false,
+    displayWelcomeMessage: false,
     prompt: ''
   };
 

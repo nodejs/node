@@ -25,8 +25,10 @@ const repl = require('repl');
     // Test to ensure that original input is preserved.
     // Reference: https://github.com/nodejs/node/issues/9743
     r.write('function f() {}\n');
+    r.forceExecute();
   } finally {
     r.write('.exit\n');
+    r.forceExecute();
   }
 
   assert(evalCalledWithExpectedArgs);

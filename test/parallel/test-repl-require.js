@@ -22,9 +22,26 @@ let answer = '';
 server.listen(options, function() {
   options.port = this.address().port;
   const conn = net.connect(options);
+  let cmds = [
+    'require("baz")',
+    'require("./baz")',
+    '.exit'
+  ];
+
+  const run = ([cmd, ...rest]) => {
+    if (!cmd) return;
+    cmds = rest;
+    conn.write(`${cmd}\n`);
+  };
+
   conn.setEncoding('utf8');
-  conn.on('data', (data) => answer += data);
-  conn.write('require("baz")\nrequire("./baz")\n.exit\n');
+  conn.on('data', (data) => {
+    if (data !== '> ') {
+      setTimeout(() => run(cmds), 100);
+    }
+    answer += data;
+  });
+  run(cmds);
 });
 
 process.on('exit', function() {
