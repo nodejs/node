@@ -28,7 +28,8 @@ void NodeTraceWriter::WriteSuffix() {
     Mutex::ScopedLock scoped_lock(stream_mutex_);
     if (total_traces_ > 0) {
       total_traces_ = 0; // so we don't write it again in FlushPrivate
-      stream_ << "]}\n";
+      // Appends "]}\n" to stream_.
+      delete json_trace_writer_;
       should_flush = true;
     }
   }
@@ -67,28 +68,16 @@ void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
   // If this is the first trace event, open a new file for streaming.
   if (total_traces_ == 0) {
     OpenNewFileForStreaming();
-    stream_ << "{\"traceEvents\":[";
-  } else {
-    stream_ << ",\n";
+    // Constructing a new JSONTraceWriter object appends "{\"traceEvents\":["
+    // to stream_.
+    // In other words, the constructor initializes the serialization stream
+    // to a state where we can start writing trace events to it.
+    // Repeatedly constructing and destroying json_trace_writer_ allows
+    // us to use V8's JSON writer instead of implementing our own.
+    json_trace_writer_ = TraceWriter::CreateJSONTraceWriter(stream_);
   }
   ++total_traces_;
-  stream_ << "{\"pid\":" << trace_event->pid()
-          << ",\"tid\":" << trace_event->tid()
-          << ",\"ts\":" << trace_event->ts()
-          << ",\"tts\":" << trace_event->tts() << ",\"ph\":\""
-          << trace_event->phase() << "\",\"cat\":\""
-          << TracingController::GetCategoryGroupName(
-                 trace_event->category_enabled_flag())
-          << "\",\"name\":\"" << trace_event->name()
-          << "\",\"args\":{},\"dur\":" << trace_event->duration()
-          << ",\"tdur\":" << trace_event->cpu_duration();
-  if (trace_event->flags() & TRACE_EVENT_FLAG_HAS_ID) {
-    if (trace_event->scope() != nullptr) {
-      stream_ << ",\"scope\":\"" << trace_event->scope() << "\"";
-    }
-    stream_ << ",\"id\":" << trace_event->id();
-  }
-  stream_ << "}";
+  json_trace_writer_->AppendTraceEvent(trace_event);
 }
 
 void NodeTraceWriter::FlushPrivate() {
@@ -99,7 +88,9 @@ void NodeTraceWriter::FlushPrivate() {
     Mutex::ScopedLock stream_scoped_lock(stream_mutex_);
     if (total_traces_ >= kTracesPerFile) {
       total_traces_ = 0;
-      stream_ << "]}\n";
+      // Destroying the member JSONTraceWriter object appends "]"\n"" to
+      // stream_ - in other words, ending a JSON file.
+      delete json_trace_writer_;
     }
     // str() makes a copy of the contents of the stream.
     str = stream_.str();

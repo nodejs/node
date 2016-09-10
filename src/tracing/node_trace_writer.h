@@ -61,6 +61,7 @@ class NodeTraceWriter : public TraceWriter {
   int total_traces_ = 0;
   int file_num_ = 0;
   std::ostringstream stream_;
+  TraceWriter* json_trace_writer_;
   uv_pipe_t trace_file_pipe_;
 };
 
