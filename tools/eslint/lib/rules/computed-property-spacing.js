@@ -46,7 +46,10 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "There should be no space after '" + token.value + "'.",
+                message: "There should be no space after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
                 fix(fixer) {
                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                 }
@@ -64,7 +67,10 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "There should be no space before '" + token.value + "'.",
+                message: "There should be no space before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
                 fix(fixer) {
                     return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                 }
@@ -81,7 +87,10 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "A space is required after '" + token.value + "'.",
+                message: "A space is required after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
                 fix(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
@@ -98,7 +107,10 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "A space is required before '" + token.value + "'.",
+                message: "A space is required before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
                 fix(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }

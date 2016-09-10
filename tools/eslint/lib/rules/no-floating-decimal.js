@@ -17,7 +17,9 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -27,10 +29,18 @@ module.exports = {
 
                 if (typeof node.value === "number") {
                     if (node.raw.indexOf(".") === 0) {
-                        context.report(node, "A leading decimal point can be confused with a dot.");
+                        context.report({
+                            node,
+                            message: "A leading decimal point can be confused with a dot.",
+                            fix: fixer => fixer.insertTextBefore(node, "0")
+                        });
                     }
                     if (node.raw.indexOf(".") === node.raw.length - 1) {
-                        context.report(node, "A trailing decimal point can be confused with a dot.");
+                        context.report({
+                            node,
+                            message: "A trailing decimal point can be confused with a dot.",
+                            fix: fixer => fixer.insertTextAfter(node, "0")
+                        });
                     }
                 }
             }

@@ -279,16 +279,34 @@ module.exports = {
                 // always
                 if (!hasOnlyOneStatement(type, declarations)) {
                     if (options[type].initialized === MODE_ALWAYS && options[type].uninitialized === MODE_ALWAYS) {
-                        context.report(node, "Combine this with the previous '" + type + "' statement.");
+                        context.report({
+                            node,
+                            message: "Combine this with the previous '{{type}}' statement.",
+                            data: {
+                                type
+                            }
+                        });
                     } else {
                         if (options[type].initialized === MODE_ALWAYS) {
-                            context.report(node, "Combine this with the previous '" + type + "' statement with initialized variables.");
+                            context.report({
+                                node,
+                                message: "Combine this with the previous '{{type}}' statement with initialized variables.",
+                                data: {
+                                    type
+                                }
+                            });
                         }
                         if (options[type].uninitialized === MODE_ALWAYS) {
                             if (node.parent.left === node && (node.parent.type === "ForInStatement" || node.parent.type === "ForOfStatement")) {
                                 return;
                             }
-                            context.report(node, "Combine this with the previous '" + type + "' statement with uninitialized variables.");
+                            context.report({
+                                node,
+                                message: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
+                                data: {
+                                    type
+                                }
+                            });
                         }
                     }
                 }
@@ -302,15 +320,33 @@ module.exports = {
                         if (options[type].initialized === MODE_NEVER && options[type].uninitialized === MODE_NEVER) {
 
                             // both initialized and uninitialized
-                            context.report(node, "Split '" + type + "' declarations into multiple statements.");
+                            context.report({
+                                node,
+                                message: "Split '{{type}}' declarations into multiple statements.",
+                                data: {
+                                    type
+                                }
+                            });
                         } else if (options[type].initialized === MODE_NEVER && declarationCounts.initialized > 0) {
 
                             // initialized
-                            context.report(node, "Split initialized '" + type + "' declarations into multiple statements.");
+                            context.report({
+                                node,
+                                message: "Split initialized '{{type}}' declarations into multiple statements.",
+                                data: {
+                                    type
+                                }
+                            });
                         } else if (options[type].uninitialized === MODE_NEVER && declarationCounts.uninitialized > 0) {
 
                             // uninitialized
-                            context.report(node, "Split uninitialized '" + type + "' declarations into multiple statements.");
+                            context.report({
+                                node,
+                                message: "Split uninitialized '{{type}}' declarations into multiple statements.",
+                                data: {
+                                    type
+                                }
+                            });
                         }
                     }
                 }

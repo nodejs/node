@@ -114,7 +114,7 @@ module.exports = {
                     node = parent;
                     parent = node.parent;
                     value = -value;
-                    raw = "-" + raw;
+                    raw = `-${raw}`;
                 }
 
                 if (shouldIgnoreNumber(value) ||
@@ -131,11 +131,16 @@ module.exports = {
                             message: "Number constants declarations must use 'const'."
                         });
                     }
-                } else if (okTypes.indexOf(parent.type) === -1 ||
-                    (parent.type === "AssignmentExpression" && parent.operator !== "=")) {
+                } else if (
+                    okTypes.indexOf(parent.type) === -1 ||
+                    (parent.type === "AssignmentExpression" && parent.left.type === "Identifier")
+                ) {
                     context.report({
                         node,
-                        message: "No magic number: " + raw + "."
+                        message: "No magic number: {{raw}}.",
+                        data: {
+                            raw
+                        }
                     });
                 }
             }

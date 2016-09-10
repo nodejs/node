@@ -46,7 +46,13 @@ module.exports = {
                 if (allowInForAfterthought && node.parent.type === "ForStatement") {
                     return;
                 }
-                context.report(node, "Unary operator '" + node.operator + "' used.");
+                context.report({
+                    node,
+                    message: "Unary operator '{{operator}}' used.",
+                    data: {
+                        operator: node.operator
+                    }
+                });
             }
 
         };

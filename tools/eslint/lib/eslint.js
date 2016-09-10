@@ -598,10 +598,11 @@ module.exports = (function() {
      * as possible
      * @param {string} text The text to parse.
      * @param {Object} config The ESLint configuration object.
+     * @param {string} filePath The path to the file being parsed.
      * @returns {ASTNode} The AST if successful or null if not.
      * @private
      */
-    function parse(text, config) {
+    function parse(text, config, filePath) {
 
         let parser,
             parserOptions = {
@@ -610,7 +611,8 @@ module.exports = (function() {
                 raw: true,
                 tokens: true,
                 comment: true,
-                attachComment: true
+                attachComment: true,
+                filePath
             };
 
         try {
@@ -783,7 +785,8 @@ module.exports = (function() {
                     shebang = captured;
                     return "//" + captured;
                 }),
-                config
+                config,
+                currentFilename
             );
 
             if (ast) {
@@ -974,7 +977,7 @@ module.exports = (function() {
         }
 
         if (opts) {
-            message = message.replace(/\{\{\s*(.+?)\s*\}\}/g, function(fullMatch, term) {
+            message = message.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, function(fullMatch, term) {
                 if (term in opts) {
                     return opts[term];
                 }

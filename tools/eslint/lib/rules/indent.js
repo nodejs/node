@@ -73,6 +73,46 @@ module.exports = {
                     MemberExpression: {
                         type: "integer",
                         minimum: 0
+                    },
+                    FunctionDeclaration: {
+                        type: "object",
+                        properties: {
+                            parameters: {
+                                oneOf: [
+                                    {
+                                        type: "integer",
+                                        minimum: 0
+                                    },
+                                    {
+                                        enum: ["first"]
+                                    }
+                                ]
+                            },
+                            body: {
+                                type: "integer",
+                                minimum: 0
+                            }
+                        }
+                    },
+                    FunctionExpression: {
+                        type: "object",
+                        properties: {
+                            parameters: {
+                                oneOf: [
+                                    {
+                                        type: "integer",
+                                        minimum: 0
+                                    },
+                                    {
+                                        enum: ["first"]
+                                    }
+                                ]
+                            },
+                            body: {
+                                type: "integer",
+                                minimum: 0
+                            }
+                        }
                     }
                 },
                 additionalProperties: false
@@ -84,6 +124,8 @@ module.exports = {
 
         const MESSAGE = "Expected indentation of {{needed}} {{type}} {{characters}} but found {{gotten}}.";
         const DEFAULT_VARIABLE_INDENT = 1;
+        const DEFAULT_PARAMETER_INDENT = null; // For backwards compatibility, don't check parameter indentation unless specified in the config
+        const DEFAULT_FUNCTION_BODY_INDENT = 1;
 
         let indentType = "space";
         let indentSize = 4;
@@ -94,7 +136,15 @@ module.exports = {
                 let: DEFAULT_VARIABLE_INDENT,
                 const: DEFAULT_VARIABLE_INDENT
             },
-            outerIIFEBody: null
+            outerIIFEBody: null,
+            FunctionDeclaration: {
+                parameters: DEFAULT_PARAMETER_INDENT,
+                body: DEFAULT_FUNCTION_BODY_INDENT
+            },
+            FunctionExpression: {
+                parameters: DEFAULT_PARAMETER_INDENT,
+                body: DEFAULT_FUNCTION_BODY_INDENT
+            }
         };
 
         const sourceCode = context.getSourceCode();
@@ -130,6 +180,14 @@ module.exports = {
 
                 if (typeof opts.MemberExpression === "number") {
                     options.MemberExpression = opts.MemberExpression;
+                }
+
+                if (typeof opts.FunctionDeclaration === "object") {
+                    Object.assign(options.FunctionDeclaration, opts.FunctionDeclaration);
+                }
+
+                if (typeof opts.FunctionExpression === "object") {
+                    Object.assign(options.FunctionExpression, opts.FunctionExpression);
                 }
             }
         }
@@ -168,7 +226,7 @@ module.exports = {
                 let rangeToFix = [];
 
                 if (needed > gotten) {
-                    const spaces = "" + new Array(needed - gotten + 1).join(indentChar);  // replace with repeat in future
+                    const spaces = indentChar.repeat(needed - gotten);
 
                     if (isLastNodeCheck === true) {
                         rangeToFix = [
@@ -492,11 +550,15 @@ module.exports = {
             }
 
             // function body indent should be indent + indent size, unless this
-            // is the outer IIFE and that option is enabled.
+            // is a FunctionDeclaration, FunctionExpression, or outer IIFE and the corresponding options are enabled.
             let functionOffset = indentSize;
 
             if (options.outerIIFEBody !== null && isOuterIIFE(calleeNode)) {
                 functionOffset = options.outerIIFEBody * indentSize;
+            } else if (calleeNode.type === "FunctionExpression") {
+                functionOffset = options.FunctionExpression.body * indentSize;
+            } else if (calleeNode.type === "FunctionDeclaration") {
+                functionOffset = options.FunctionDeclaration.body * indentSize;
             }
             indent += functionOffset;
 
@@ -884,6 +946,28 @@ module.exports = {
                 const caseIndent = expectedCaseIndent(node);
 
                 checkNodesIndent(node.consequent, caseIndent + indentSize);
+            },
+
+            FunctionDeclaration(node) {
+                if (isSingleLineNode(node)) {
+                    return;
+                }
+                if (options.FunctionDeclaration.parameters === "first" && node.params.length) {
+                    checkNodesIndent(node.params.slice(1), node.params[0].loc.start.column);
+                } else if (options.FunctionDeclaration.parameters !== null) {
+                    checkNodesIndent(node.params, indentSize * options.FunctionDeclaration.parameters);
+                }
+            },
+
+            FunctionExpression(node) {
+                if (isSingleLineNode(node)) {
+                    return;
+                }
+                if (options.FunctionExpression.parameters === "first" && node.params.length) {
+                    checkNodesIndent(node.params.slice(1), node.params[0].loc.start.column);
+                } else if (options.FunctionExpression.parameters !== null) {
+                    checkNodesIndent(node.params, indentSize * options.FunctionExpression.parameters);
+                }
             }
         };
 

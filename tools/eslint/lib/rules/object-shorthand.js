@@ -237,17 +237,20 @@ module.exports = {
 
                         context.report({
                             node,
-                            message: "Expected longform " + type + " syntax.",
+                            message: "Expected longform {{type}} syntax.",
+                            data: {
+                                type
+                            },
                             fix(fixer) {
                                 if (node.method) {
                                     if (node.value.generator) {
-                                        return fixer.replaceTextRange([node.range[0], node.key.range[1]], node.key.name + ": function*");
+                                        return fixer.replaceTextRange([node.range[0], node.key.range[1]], `${node.key.name}: function*`);
                                     }
 
                                     return fixer.insertTextAfter(node.key, ": function");
                                 }
 
-                                return fixer.insertTextAfter(node.key, ": " + node.key.name);
+                                return fixer.insertTextAfter(node.key, `: ${node.key.name}`);
                             }
                         });
                     }
@@ -289,7 +292,7 @@ module.exports = {
                                 if (node.value.generator) {
                                     return fixer.replaceTextRange(
                                         [node.key.range[0], node.value.range[0] + "function*".length],
-                                        "*[" + node.key.name + "]"
+                                        `*[${node.key.name}]`
                                     );
                                 }
 
@@ -307,7 +310,7 @@ module.exports = {
                             if (node.value.generator) {
                                 return fixer.replaceTextRange(
                                     [node.key.range[0], node.value.range[0] + "function*".length],
-                                    "*" + node.key.name
+                                    `*${node.key.name}`
                                 );
                             }
 

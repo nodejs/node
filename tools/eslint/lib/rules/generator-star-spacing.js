@@ -87,11 +87,16 @@ module.exports = {
                 const spaceRequired = mode[side];
                 const node = after ? leftToken : rightToken;
                 const type = spaceRequired ? "Missing" : "Unexpected";
-                const message = type + " space " + side + " *.";
+                const message = "{{type}} space {{side}} *.";
+                const data = {
+                    type,
+                    side
+                };
 
                 context.report({
                     node,
                     message,
+                    data,
                     fix(fixer) {
                         if (spaceRequired) {
                             if (after) {

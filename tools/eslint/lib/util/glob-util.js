@@ -104,18 +104,11 @@ function resolveFileGlobPatterns(patterns, options) {
  * @returns {string[]} Resolved absolute filenames.
  */
 function listFilesToProcess(globPatterns, options) {
+    options = options || { ignore: true };
     const files = [],
         added = {};
 
     const cwd = (options && options.cwd) || process.cwd();
-
-    options = options || { ignore: true, dotfiles: true };
-    const ignoredPaths = new IgnoredPaths(options);
-    const globOptions = {
-        nodir: true,
-        cwd
-    };
-    const shouldIgnore = ignoredPaths.getIgnoredFoldersGlobChecker();
 
     /**
      * Executes the linter on a file defined by the `filename`. Skips
@@ -123,9 +116,10 @@ function listFilesToProcess(globPatterns, options) {
      * @param {string} filename The file to be processed
      * @param {boolean} shouldWarnIgnored Whether or not a report should be made if
      *                                    the file is ignored
+     * @param {IgnoredPaths} ignoredPaths An instance of IgnoredPaths
      * @returns {void}
      */
-    function addFile(filename, shouldWarnIgnored) {
+    function addFile(filename, shouldWarnIgnored, ignoredPaths) {
         let ignored = false;
         let isSilentlyIgnored;
 
@@ -160,10 +154,24 @@ function listFilesToProcess(globPatterns, options) {
         const file = path.resolve(cwd, pattern);
 
         if (shell.test("-f", file)) {
-            addFile(fs.realpathSync(file), !shell.test("-d", file));
+            const ignoredPaths = new IgnoredPaths(options);
+
+            addFile(fs.realpathSync(file), !shell.test("-d", file), ignoredPaths);
         } else {
+
+            // regex to find .hidden or /.hidden patterns, but not ./relative or ../relative
+            const globIncludesDotfiles = /(?:(?:^\.)|(?:[\/\\]\.))[^\/\\\.].*/.test(pattern);
+
+            const ignoredPaths = new IgnoredPaths(Object.assign({}, options, {dotfiles: options.dotfiles || globIncludesDotfiles}));
+            const shouldIgnore = ignoredPaths.getIgnoredFoldersGlobChecker();
+            const globOptions = {
+                nodir: true,
+                dot: true,
+                cwd,
+            };
+
             new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(function(globMatch) {
-                addFile(path.resolve(cwd, globMatch), false);
+                addFile(path.resolve(cwd, globMatch), false, ignoredPaths);
             });
         }
     });

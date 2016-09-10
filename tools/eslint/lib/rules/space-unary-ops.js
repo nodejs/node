@@ -100,7 +100,10 @@ module.exports = {
             if (secondToken.range[0] === firstToken.range[1]) {
                 context.report({
                     node,
-                    message: "Unary word operator '" + word + "' must be followed by whitespace.",
+                    message: "Unary word operator '{{word}}' must be followed by whitespace.",
+                    data: {
+                        word
+                    },
                     fix(fixer) {
                         return fixer.insertTextAfter(firstToken, " ");
                     }
@@ -121,7 +124,10 @@ module.exports = {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node,
-                        message: "Unexpected space after unary word operator '" + word + "'.",
+                        message: "Unexpected space after unary word operator '{{word}}'.",
+                        data: {
+                            word
+                        },
                         fix(fixer) {
                             return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                         }
@@ -185,7 +191,10 @@ module.exports = {
                 if (firstToken.range[1] === secondToken.range[0]) {
                     context.report({
                         node,
-                        message: "Unary operator '" + firstToken.value + "' must be followed by whitespace.",
+                        message: "Unary operator '{{operator}}' must be followed by whitespace.",
+                        data: {
+                            operator: firstToken.value
+                        },
                         fix(fixer) {
                             return fixer.insertTextAfter(firstToken, " ");
                         }
@@ -195,7 +204,10 @@ module.exports = {
                 if (firstToken.range[1] === secondToken.range[0]) {
                     context.report({
                         node,
-                        message: "Space is required before unary expressions '" + secondToken.value + "'.",
+                        message: "Space is required before unary expressions '{{token}}'.",
+                        data: {
+                            token: secondToken.value
+                        },
                         fix(fixer) {
                             return fixer.insertTextBefore(secondToken, " ");
                         }
@@ -216,7 +228,10 @@ module.exports = {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node,
-                        message: "Unexpected space after unary operator '" + firstToken.value + "'.",
+                        message: "Unexpected space after unary operator '{{operator}}'.",
+                        data: {
+                            operator: firstToken.value
+                        },
                         fix(fixer) {
                             return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                         }
@@ -226,7 +241,10 @@ module.exports = {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node,
-                        message: "Unexpected space before unary operator '" + secondToken.value + "'.",
+                        message: "Unexpected space before unary operator '{{operator}}'.",
+                        data: {
+                            operator: secondToken.value
+                        },
                         fix(fixer) {
                             return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                         }

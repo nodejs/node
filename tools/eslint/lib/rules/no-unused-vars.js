@@ -514,7 +514,7 @@ module.exports = {
          * @private
          */
         function getColumnInComment(variable, comment) {
-            const namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
+            const namePattern = new RegExp(`[\\s,]${lodash.escapeRegExp(variable.name)}(?:$|[\\s,:])`, "g");
 
             // To ignore the first text "global".
             namePattern.lastIndex = comment.value.indexOf("global") + 6;

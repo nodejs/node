@@ -98,31 +98,59 @@ module.exports = {
                     !astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
 
                 // lone operator
-                context.report(node, {
-                    line: operatorToken.loc.end.line,
-                    column: operatorToken.loc.end.column
-                }, "Bad line breaking before and after '" + operator + "'.");
+                context.report({
+                    node,
+                    loc: {
+                        line: operatorToken.loc.end.line,
+                        column: operatorToken.loc.end.column
+                    },
+                    message: "Bad line breaking before and after '{{operator}}'.",
+                    data: {
+                        operator
+                    }
+                });
 
             } else if (style === "before" && astUtils.isTokenOnSameLine(leftToken, operatorToken)) {
 
-                context.report(node, {
-                    line: operatorToken.loc.end.line,
-                    column: operatorToken.loc.end.column
-                }, "'" + operator + "' should be placed at the beginning of the line.");
+                context.report({
+                    node,
+                    loc: {
+                        line: operatorToken.loc.end.line,
+                        column: operatorToken.loc.end.column
+                    },
+                    message: "'{{operator}}' should be placed at the beginning of the line.",
+                    data: {
+                        operator
+                    }
+                });
 
             } else if (style === "after" && astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
 
-                context.report(node, {
-                    line: operatorToken.loc.end.line,
-                    column: operatorToken.loc.end.column
-                }, "'" + operator + "' should be placed at the end of the line.");
+                context.report({
+                    node,
+                    loc: {
+                        line: operatorToken.loc.end.line,
+                        column: operatorToken.loc.end.column
+                    },
+                    message: "'{{operator}}' should be placed at the end of the line.",
+                    data: {
+                        operator
+                    }
+                });
 
             } else if (style === "none") {
 
-                context.report(node, {
-                    line: operatorToken.loc.end.line,
-                    column: operatorToken.loc.end.column
-                }, "There should be no line break before or after '" + operator + "'.");
+                context.report({
+                    node,
+                    loc: {
+                        line: operatorToken.loc.end.line,
+                        column: operatorToken.loc.end.column
+                    },
+                    message: "There should be no line break before or after '{{operator}}'.",
+                    data: {
+                        operator
+                    }
+                });
 
             }
         }

@@ -37,8 +37,11 @@ function checkAndReport(context, node, value, array, message) {
     if (array.indexOf(value) !== -1) {
         context.report({
             node,
-            message: "'{{module}}' " + message,
-            data: {module: value}
+            message: "'{{module}}' {{message}}",
+            data: {
+                module: value,
+                message
+            }
         });
     }
 }

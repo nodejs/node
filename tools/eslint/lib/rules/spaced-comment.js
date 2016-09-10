@@ -19,7 +19,7 @@ function escape(s) {
     const isOneChar = s.length === 1;
 
     s = lodash.escapeRegExp(s);
-    return isOneChar ? s : "(?:" + s + ")";
+    return isOneChar ? s : `(?:${s})`;
 }
 
 /**
@@ -29,7 +29,7 @@ function escape(s) {
  * @returns {string} An escaped string.
  */
 function escapeAndRepeat(s) {
-    return escape(s) + "+";
+    return `${escape(s)}+`;
 }
 
 /**
@@ -144,7 +144,7 @@ function createAlwaysStylePattern(markers, exceptions) {
  * @returns {RegExp} A RegExp object for `never` mode.
  */
 function createNeverStylePattern(markers) {
-    const pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]+";
+    const pattern = `^(${markers.map(escape).join("|")})?[ \t]+`;
 
     return new RegExp(pattern);
 }
@@ -248,9 +248,9 @@ module.exports = {
             // Create RegExp object for valid patterns.
             rule[type] = {
                 beginRegex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
-                endRegex: balanced && requireSpace ? new RegExp(createExceptionsPattern(exceptions) + "$") : new RegExp(endNeverPattern),
+                endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`) : new RegExp(endNeverPattern),
                 hasExceptions: exceptions.length > 0,
-                markers: new RegExp("^(" + markers.map(escape).join("|") + ")")
+                markers: new RegExp(`^(${markers.map(escape).join("|")})`)
             };
 
             return rule;
@@ -261,9 +261,10 @@ module.exports = {
          * @param {ASTNode} node - A comment node to check.
          * @param {string} message - An error message to report.
          * @param {Array} match - An array of match results for markers.
+         * @param {string} refChar - Character used for reference in the error message.
          * @returns {void}
          */
-        function reportBegin(node, message, match) {
+        function reportBegin(node, message, match, refChar) {
             const type = node.type.toLowerCase(),
                 commentIdentifier = type === "block" ? "/*" : "//";
 
@@ -283,7 +284,8 @@ module.exports = {
                         return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
                     }
                 },
-                message
+                message,
+                data: { refChar }
             });
         }
 
@@ -336,9 +338,9 @@ module.exports = {
                     const marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
 
                     if (rule.hasExceptions) {
-                        reportBegin(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);
+                        reportBegin(node, "Expected exception block, space or tab after '{{refChar}}' in comment.", hasMarker, marker);
                     } else {
-                        reportBegin(node, "Expected space or tab after '" + marker + "' in comment.", hasMarker);
+                        reportBegin(node, "Expected space or tab after '{{refChar}}' in comment.", hasMarker, marker);
                     }
                 }
 
@@ -348,9 +350,9 @@ module.exports = {
             } else {
                 if (beginMatch) {
                     if (!beginMatch[1]) {
-                        reportBegin(node, "Unexpected space or tab after '" + commentIdentifier + "' in comment.", beginMatch);
+                        reportBegin(node, "Unexpected space or tab after '{{refChar}}' in comment.", beginMatch, commentIdentifier);
                     } else {
-                        reportBegin(node, "Unexpected space or tab after marker (" + beginMatch[1] + ") in comment.", beginMatch);
+                        reportBegin(node, "Unexpected space or tab after marker ({{refChar}}) in comment.", beginMatch, beginMatch[1]);
                     }
                 }
 
