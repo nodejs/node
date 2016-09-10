@@ -145,9 +145,16 @@ module.exports = {
                 if (!funcInfo.hasReturn) {
                     funcInfo.hasReturn = true;
                     funcInfo.hasReturnValue = hasReturnValue;
-                    funcInfo.message = "Expected " + (hasReturnValue ? "a" : "no") + " return value.";
+                    funcInfo.message = "Expected {{which}} return value.";
+                    funcInfo.data = {
+                        which: hasReturnValue ? "a" : "no"
+                    };
                 } else if (funcInfo.hasReturnValue !== hasReturnValue) {
-                    context.report({node, message: funcInfo.message});
+                    context.report({
+                        node,
+                        message: funcInfo.message,
+                        data: funcInfo.data
+                    });
                 }
             },
 

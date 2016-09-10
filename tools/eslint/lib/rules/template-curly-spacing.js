@@ -57,7 +57,10 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: prefix + " space(s) before '}'.",
+                    message: "{{prefix}} space(s) before '}'.",
+                    data: {
+                        prefix
+                    },
                     fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(token, " ");
@@ -89,7 +92,10 @@ module.exports = {
                         line: token.loc.end.line,
                         column: token.loc.end.column - 2
                     },
-                    message: prefix + " space(s) after '${'.",
+                    message: "{{prefix}} space(s) after '${'.",
+                    data: {
+                        prefix
+                    },
                     fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(token, " ");

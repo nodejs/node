@@ -146,7 +146,10 @@ module.exports = {
                     context.report({
                         node,
                         loc: node.loc.start,
-                        message: "Too many blank lines at the beginning of file. Max of " + maxBOF + " allowed.",
+                        message: "Too many blank lines at the beginning of file. Max of {{maxBOF}} allowed.",
+                        data: {
+                            maxBOF
+                        },
                         fix
                     });
                 }
@@ -162,7 +165,7 @@ module.exports = {
                     } else {
                         const location = {
                             line: lastLocation + 1,
-                            column: 1
+                            column: 0
                         };
 
                         if (lastLocation < firstOfEndingBlankLines) {
@@ -176,7 +179,11 @@ module.exports = {
                                 context.report({
                                     node,
                                     loc: location,
-                                    message: "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed.",
+                                    message: "More than {{max}} blank {{lines}} not allowed.",
+                                    data: {
+                                        max,
+                                        lines: (max === 1 ? "line" : "lines")
+                                    },
                                     fix
                                 });
                             }
@@ -190,7 +197,10 @@ module.exports = {
                                 context.report({
                                     node,
                                     loc: location,
-                                    message: "Too many blank lines at the end of file. Max of " + maxEOF + " allowed.",
+                                    message: "Too many blank lines at the end of file. Max of {{maxEOF}} allowed.",
+                                    data: {
+                                        maxEOF
+                                    },
                                     fix
                                 });
                             }

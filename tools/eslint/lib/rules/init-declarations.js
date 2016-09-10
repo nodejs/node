@@ -114,9 +114,21 @@ module.exports = {
                     }
 
                     if (mode === MODE_ALWAYS && !initialized) {
-                        context.report(declaration, "Variable '" + id.name + "' should be initialized on declaration.");
+                        context.report({
+                            node: declaration,
+                            message: "Variable '{{idName}}' should be initialized on declaration.",
+                            data: {
+                                idName: id.name
+                            }
+                        });
                     } else if (mode === MODE_NEVER && kind !== "const" && initialized && !isIgnoredForLoop) {
-                        context.report(declaration, "Variable '" + id.name + "' should not be initialized on declaration.");
+                        context.report({
+                            node: declaration,
+                            message: "Variable '{{idName}}' should not be initialized on declaration.",
+                            data: {
+                                idName: id.name
+                            }
+                        });
                     }
                 }
             }

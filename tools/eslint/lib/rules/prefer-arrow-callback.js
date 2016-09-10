@@ -115,6 +115,17 @@ function getCallbackInfo(node) {
     throw new Error("unreachable");
 }
 
+/**
+* Checks whether a simple list of parameters contains any duplicates. This does not handle complex
+parameter lists (e.g. with destructuring), since complex parameter lists are a SyntaxError with duplicate
+parameter names anyway. Instead, it always returns `false` for complex parameter lists.
+* @param {ASTNode[]} paramsList The list of parameters for a function
+* @returns {boolean} `true` if the list of parameters contains any duplicates
+*/
+function hasDuplicateParams(paramsList) {
+    return paramsList.every(param => param.type === "Identifier") && paramsList.length !== new Set(paramsList.map(param => param.name)).size;
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -140,7 +151,9 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -148,6 +161,7 @@ module.exports = {
 
         const allowUnboundThis = options.allowUnboundThis !== false;  // default to true
         const allowNamedFunctions = options.allowNamedFunctions;
+        const sourceCode = context.getSourceCode();
 
         /*
          * {Array<{this: boolean, super: boolean, meta: boolean}>}
@@ -246,7 +260,33 @@ module.exports = {
                     !scopeInfo.super &&
                     !scopeInfo.meta
                 ) {
-                    context.report(node, "Unexpected function expression.");
+                    context.report({
+                        node,
+                        message: "Unexpected function expression.",
+                        fix(fixer) {
+                            if ((!callbackInfo.isLexicalThis && scopeInfo.this) || hasDuplicateParams(node.params)) {
+
+                                // If the callback function does not have .bind(this) and contains a reference to `this`, there
+                                // is no way to determine what `this` should be, so don't perform any fixes.
+                                // If the callback function has duplicates in its list of parameters (possible in sloppy mode),
+                                // don't replace it with an arrow function, because this is a SyntaxError with arrow functions.
+                                return null;
+                            }
+
+                            const paramsLeftParen = node.params.length ? sourceCode.getTokenBefore(node.params[0]) : sourceCode.getTokenBefore(node.body, 1);
+                            const paramsRightParen = sourceCode.getTokenBefore(node.body);
+                            const paramsFullText = sourceCode.text.slice(paramsLeftParen.range[0], paramsRightParen.range[1]);
+
+                            if (callbackInfo.isLexicalThis) {
+
+                                // If the callback function has `.bind(this)`, replace it with an arrow function and remove the binding.
+                                return fixer.replaceText(node.parent.parent, paramsFullText + " => " + sourceCode.getText(node.body));
+                            }
+
+                            // Otherwise, only replace the `function` keyword and parameters with the arrow function parameters.
+                            return fixer.replaceTextRange([node.start, node.body.start], paramsFullText + " => ");
+                        }
+                    });
                 }
             }
         };

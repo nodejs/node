@@ -14,14 +14,14 @@
     ]
   ],
   "_from": "eslint@latest",
-  "_id": "eslint@3.4.0",
+  "_id": "eslint@3.5.0",
   "_inCache": true,
   "_installable": true,
   "_location": "/eslint",
   "_nodeVersion": "4.4.7",
   "_npmOperationalInternal": {
-    "host": "packages-12-west.internal.npmjs.com",
-    "tmp": "tmp/eslint-3.4.0.tgz_1472234173647_0.17217218782752752"
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/eslint-3.5.0.tgz_1473451101299_0.8081250376999378"
   },
   "_npmUser": {
     "name": "eslint",
@@ -41,8 +41,8 @@
   "_requiredBy": [
     "#USER"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-3.4.0.tgz",
-  "_shasum": "af5984007bd3f1fb1b3b6b01a0a22eda0ec7a9f4",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-3.5.0.tgz",
+  "_shasum": "22fc9f780ea5bca1306fab2b6d3336b0fa62c754",
   "_shrinkwrap": null,
   "_spec": "eslint",
   "_where": "/Users/trott/io.js/tools",
@@ -133,8 +133,8 @@
   },
   "directories": {},
   "dist": {
-    "shasum": "af5984007bd3f1fb1b3b6b01a0a22eda0ec7a9f4",
-    "tarball": "https://registry.npmjs.org/eslint/-/eslint-3.4.0.tgz"
+    "shasum": "22fc9f780ea5bca1306fab2b6d3336b0fa62c754",
+    "tarball": "https://registry.npmjs.org/eslint/-/eslint-3.5.0.tgz"
   },
   "engines": {
     "node": ">=4"
@@ -147,7 +147,7 @@
     "lib",
     "messages"
   ],
-  "gitHead": "faab36e519ce8caf428da4567766e699464a2316",
+  "gitHead": "18be52eab695f0d78d19b349fefb09db19751d51",
   "homepage": "http://eslint.org",
   "keywords": [
     "ast",
@@ -194,5 +194,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "3.4.0"
+  "version": "3.5.0"
 }

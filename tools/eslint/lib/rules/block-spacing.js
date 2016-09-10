@@ -97,7 +97,10 @@ module.exports = {
                 context.report({
                     node,
                     loc: openBrace.loc.start,
-                    message: message + " after '{'.",
+                    message: "{{message}} after '{'.",
+                    data: {
+                        message
+                    },
                     fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(firstToken, " ");
@@ -111,7 +114,10 @@ module.exports = {
                 context.report({
                     node,
                     loc: closeBrace.loc.start,
-                    message: message + " before '}'.",
+                    message: "{{message}} before '}'.",
+                    data: {
+                        message
+                    },
                     fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(lastToken, " ");
