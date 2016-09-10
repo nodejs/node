@@ -25,11 +25,7 @@ var stderr = '';
 server.listen(0, '127.0.0.1', function() {
   var address = this.address().address + ':' + this.address().port;
   var args = ['s_client',
-              '-no_ssl2',
               '-ssl3',
-              '-no_tls1',
-              '-no_tls1_1',
-              '-no_tls1_2',
               '-connect', address];
 
   // for the performance and stability issue in s_client on Windows

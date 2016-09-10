@@ -23,7 +23,7 @@ server.listen(0, function() {
   req.end();
 
   req.once('error', common.mustCall(function(err) {
-    assert(/unknown protocol/.test(err.message));
+    assert(/wrong version number/.test(err.message));
     server.close();
   }));
 });

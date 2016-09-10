@@ -72,12 +72,10 @@ assert.notEqual(-1, tls.getCiphers().indexOf('aes256-sha'));
 assert.equal(-1, tls.getCiphers().indexOf('AES256-SHA'));
 assertSorted(tls.getCiphers());
 
-// Assert that we have sha and sha1 but not SHA and SHA1.
+// Assert that we have sha1 but not SHA1.
 assert.notEqual(0, crypto.getHashes().length);
 assert.notEqual(-1, crypto.getHashes().indexOf('sha1'));
-assert.notEqual(-1, crypto.getHashes().indexOf('sha'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA1'));
-assert.equal(-1, crypto.getHashes().indexOf('SHA'));
 assert.notEqual(-1, crypto.getHashes().indexOf('RSA-SHA1'));
 assert.equal(-1, crypto.getHashes().indexOf('rsa-sha1'));
 assertSorted(crypto.getHashes());
@@ -137,7 +135,7 @@ assert.throws(function() {
                                         '/test_bad_rsa_privkey.pem', 'ascii');
   // this would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
-}, /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/);
+}, /asn1 encoding routines:asn1_check_tlen:wrong tag/);
 
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));
