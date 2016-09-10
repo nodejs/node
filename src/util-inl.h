@@ -229,6 +229,14 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
+inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
+  size_t ret = a * b;
+  if (a != 0)
+    CHECK_EQ(b, ret / a);
+
+  return ret;
+}
+
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
 // compiler version specific functionality.
@@ -236,24 +244,28 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-void* Realloc(void* pointer, size_t size) {
-  if (size == 0) {
+void* Realloc(void* pointer, size_t n, size_t size) {
+  size_t full_size = MultiplyWithOverflowCheck(size, n);
+
+  if (full_size == 0) {
     free(pointer);
     return nullptr;
   }
-  return realloc(pointer, size);
+
+  return realloc(pointer, full_size);
 }
 
 // As per spec realloc behaves like malloc if passed nullptr.
-void* Malloc(size_t size) {
+void* Malloc(size_t n, size_t size) {
+  if (n == 0) n = 1;
   if (size == 0) size = 1;
-  return Realloc(nullptr, size);
+  return Realloc(nullptr, n, size);
 }
 
 void* Calloc(size_t n, size_t size) {
   if (n == 0) n = 1;
   if (size == 0) size = 1;
-  CHECK_GE(n * size, n);  // Overflow guard.
+  MultiplyWithOverflowCheck(size, n);
   return calloc(n, size);
 }
 

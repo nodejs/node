@@ -5592,11 +5592,10 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
   Local<Array> arr = Array::New(env->isolate(), num_curves);
   EC_builtin_curve* curves;
-  size_t alloc_size;
 
   if (num_curves) {
-    alloc_size = sizeof(*curves) * num_curves;
-    curves = static_cast<EC_builtin_curve*>(node::Malloc(alloc_size));
+    curves = static_cast<EC_builtin_curve*>(node::Malloc(sizeof(*curves),
+                                                         num_curves));
 
     CHECK_NE(curves, nullptr);
 
