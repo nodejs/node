@@ -22,9 +22,9 @@ namespace node {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-inline void* Realloc(void* pointer, size_t size);
-inline void* Malloc(size_t size);
-inline void* Calloc(size_t n, size_t size);
+inline void* Realloc(void* pointer, size_t n, size_t size = 1);
+inline void* Malloc(size_t n, size_t size = 1);
+inline void* Calloc(size_t n, size_t size = 1);
 
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))
@@ -285,10 +285,7 @@ class MaybeStackBuffer {
     if (storage <= kStackStorageSize) {
       buf_ = buf_st_;
     } else {
-      // Guard against overflow.
-      CHECK_LE(storage, sizeof(T) * storage);
-
-      buf_ = static_cast<T*>(Malloc(sizeof(T) * storage));
+      buf_ = static_cast<T*>(Malloc(sizeof(T), storage));
       CHECK_NE(buf_, nullptr);
     }
 
