@@ -160,7 +160,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
   virtual void* AllocateUninitialized(size_t size)
-    { return node::Malloc(size); }
+    { return node::UncheckedMalloc(size); }
   virtual void Free(void* data, size_t) { free(data); }
 
  private:

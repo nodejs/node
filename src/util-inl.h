@@ -245,7 +245,7 @@ inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
 template <typename T>
-T* Realloc(T* pointer, size_t n) {
+T* UncheckedRealloc(T* pointer, size_t n) {
   size_t full_size = MultiplyWithOverflowCheck(sizeof(T), n);
 
   if (full_size == 0) {
@@ -258,16 +258,37 @@ T* Realloc(T* pointer, size_t n) {
 
 // As per spec realloc behaves like malloc if passed nullptr.
 template <typename T>
-T* Malloc(size_t n) {
+T* UncheckedMalloc(size_t n) {
   if (n == 0) n = 1;
-  return Realloc<T>(nullptr, n);
+  return UncheckedRealloc<T>(nullptr, n);
+}
+
+template <typename T>
+T* UncheckedCalloc(size_t n) {
+  if (n == 0) n = 1;
+  MultiplyWithOverflowCheck(sizeof(T), n);
+  return static_cast<T*>(calloc(n, sizeof(T)));
+}
+
+template <typename T>
+T* Realloc(T* pointer, size_t n) {
+  T* ret = UncheckedRealloc(pointer, n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
+}
+
+template <typename T>
+T* Malloc(size_t n) {
+  T* ret = UncheckedMalloc<T>(n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
 }
 
 template <typename T>
 T* Calloc(size_t n) {
-  if (n == 0) n = 1;
-  MultiplyWithOverflowCheck(sizeof(T), n);
-  return static_cast<T*>(calloc(n, sizeof(T)));
+  T* ret = UncheckedCalloc<T>(n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
 }
 
 }  // namespace node
