@@ -53,7 +53,13 @@ module.exports = {
             const methodUsesThis = stack.pop();
 
             if (isInstanceMethod(node.parent) && !methodUsesThis) {
-                context.report(node, "Expected 'this' to be used by class method '" + node.parent.key.name + "'.");
+                context.report({
+                    node,
+                    message: "Expected 'this' to be used by class method '{{classMethod}}'.",
+                    data: {
+                        classMethod: node.parent.key.name
+                    }
+                });
             }
         }
 

@@ -30,7 +30,7 @@ const KEYS = keywords.concat(["as", "await", "from", "get", "let", "of", "set", 
     KEYS.sort();
     for (let i = 1; i < KEYS.length; ++i) {
         if (KEYS[i] === KEYS[i - 1]) {
-            throw new Error("Duplication was found in the keyword list: " + KEYS[i]);
+            throw new Error(`Duplication was found in the keyword list: ${KEYS[i]}`);
         }
     }
 }());

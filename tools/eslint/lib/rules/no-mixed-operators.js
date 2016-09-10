@@ -173,18 +173,23 @@ module.exports = {
             const left = (parent.left === node) ? node : parent;
             const right = (parent.left !== node) ? node : parent;
             const message =
-                "Unexpected mix of '" + left.operator + "' and '" +
-                right.operator + "'.";
+                "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'.";
+            const data = {
+                leftOperator: left.operator,
+                rightOperator: right.operator
+            };
 
             context.report({
                 node: left,
                 loc: getOperatorToken(left).loc.start,
-                message
+                message,
+                data
             });
             context.report({
                 node: right,
                 loc: getOperatorToken(right).loc.start,
-                message
+                message,
+                data
             });
         }
 

@@ -30,7 +30,13 @@ const OPTIONS_SCHEMA = {
         ignoreComments: {
             type: "boolean"
         },
+        ignoreStrings: {
+            type: "boolean"
+        },
         ignoreUrls: {
+            type: "boolean"
+        },
+        ignoreTemplateLiterals: {
             type: "boolean"
         },
         ignoreTrailingComments: {
@@ -121,6 +127,8 @@ module.exports = {
         const maxLength = options.code || 80,
             tabWidth = options.tabWidth || 4,
             ignoreComments = options.ignoreComments || false,
+            ignoreStrings = options.ignoreStrings || false,
+            ignoreTemplateLiterals = options.ignoreTemplateLiterals || false,
             ignoreTrailingComments = options.ignoreTrailingComments || options.ignoreComments || false,
             ignoreUrls = options.ignoreUrls || false,
             maxCommentLength = options.comments;
@@ -180,6 +188,59 @@ module.exports = {
         }
 
         /**
+         * Ensure that an array exists at [key] on `object`, and add `value` to it.
+         *
+         * @param {Object} object the object to mutate
+         * @param {string} key the object's key
+         * @param {*} value the value to add
+         * @returns {void}
+         * @private
+         */
+        function ensureArrayAndPush(object, key, value) {
+            if (!Array.isArray(object[key])) {
+                object[key] = [];
+            }
+            object[key].push(value);
+        }
+
+        /**
+         * Retrieves an array containing all strings (" or ') in the source code.
+         *
+         * @returns {ASTNode[]} An array of string nodes.
+         */
+        function getAllStrings() {
+            return sourceCode.ast.tokens.filter(function(token) {
+                return token.type === "String";
+            });
+        }
+
+        /**
+         * Retrieves an array containing all template literals in the source code.
+         *
+         * @returns {ASTNode[]} An array of template literal nodes.
+         */
+        function getAllTemplateLiterals() {
+            return sourceCode.ast.tokens.filter(function(token) {
+                return token.type === "Template";
+            });
+        }
+
+
+        /**
+         * A reducer to group an AST node by line number, both start and end.
+         *
+         * @param {Object} acc the accumulator
+         * @param {ASTNode} node the AST node in question
+         * @returns {Object} the modified accumulator
+         * @private
+         */
+        function groupByLineNumber(acc, node) {
+            ensureArrayAndPush(acc, node.loc.start.line, node);
+            ensureArrayAndPush(acc, node.loc.end.line, node);
+            return acc;
+        }
+
+        /**
          * Check the program for max length
          * @param {ASTNode} node Node to examine
          * @returns {void}
@@ -195,6 +256,12 @@ module.exports = {
 
                 // we iterate over comments in parallel with the lines
             let commentsIndex = 0;
+
+            const strings = getAllStrings(sourceCode);
+            const stringsByLine = strings.reduce(groupByLineNumber, {});
+
+            const templateLiterals = getAllTemplateLiterals(sourceCode);
+            const templateLiteralsByLine = templateLiterals.reduce(groupByLineNumber, {});
 
             lines.forEach(function(line, i) {
 
@@ -229,7 +296,10 @@ module.exports = {
                     }
                 }
                 if (ignorePattern && ignorePattern.test(line) ||
-                    ignoreUrls && URL_REGEXP.test(line)) {
+                    ignoreUrls && URL_REGEXP.test(line) ||
+                    ignoreStrings && stringsByLine[lineNumber] ||
+                    ignoreTemplateLiterals && templateLiteralsByLine[lineNumber]
+                ) {
 
                     // ignore this line
                     return;
@@ -242,9 +312,25 @@ module.exports = {
                 }
 
                 if (lineIsComment && lineLength > maxCommentLength) {
-                    context.report(node, { line: lineNumber, column: 0 }, "Line " + (i + 1) + " exceeds the maximum comment line length of " + maxCommentLength + ".");
+                    context.report({
+                        node,
+                        loc: { line: lineNumber, column: 0 },
+                        message: "Line {{lineNumber}} exceeds the maximum comment line length of {{maxCommentLength}}.",
+                        data: {
+                            lineNumber: i + 1,
+                            maxCommentLength
+                        }
+                    });
                 } else if (lineLength > maxLength) {
-                    context.report(node, { line: lineNumber, column: 0 }, "Line " + (i + 1) + " exceeds the maximum line length of " + maxLength + ".");
+                    context.report({
+                        node,
+                        loc: { line: lineNumber, column: 0 },
+                        message: "Line {{lineNumber}} exceeds the maximum line length of {{maxLength}}.",
+                        data: {
+                            lineNumber: i + 1,
+                            maxLength
+                        }
+                    });
                 }
             });
         }

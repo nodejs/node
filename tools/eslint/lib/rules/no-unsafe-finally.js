@@ -83,7 +83,10 @@ module.exports = {
         function check(node) {
             if (isInFinallyBlock(node, node.label)) {
                 context.report({
-                    message: "Unsafe usage of " + node.type + ".",
+                    message: "Unsafe usage of {{nodeType}}.",
+                    data: {
+                        nodeType: node.type
+                    },
                     node,
                     line: node.loc.line,
                     column: node.loc.column

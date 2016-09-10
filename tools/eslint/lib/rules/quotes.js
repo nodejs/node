@@ -56,7 +56,7 @@ QUOTE_SETTINGS.backtick.convert = function(str) {
             return escaped; // unescape
         }
         if (match === newQuote || newQuote === "`" && match === "${") {
-            return "\\" + match; // escape
+            return `\\${match}`; // escape
         }
         if (newline && oldQuote === "`") {
             return "\\n"; // escape newlines
@@ -225,7 +225,10 @@ module.exports = {
                     if (!isValid) {
                         context.report({
                             node,
-                            message: "Strings must use " + settings.description + ".",
+                            message: "Strings must use {{description}}.",
+                            data: {
+                                description: settings.description
+                            },
                             fix(fixer) {
                                 return fixer.replaceText(node, settings.convert(node.raw));
                             }
@@ -246,7 +249,10 @@ module.exports = {
                 if (shouldWarn) {
                     context.report({
                         node,
-                        message: "Strings must use " + settings.description + ".",
+                        message: "Strings must use {{description}}.",
+                        data: {
+                            description: settings.description,
+                        },
                         fix(fixer) {
                             return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
                         }

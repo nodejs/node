@@ -111,6 +111,7 @@ These folks keep the project moving and are resources for help.
 * Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps))
 * Toru Nagashima ([@mysticatea](https://github.com/mysticatea))
 * Alberto Rodríguez ([@alberto](https://github.com/alberto))
+* Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
 
 ### Development Team
 
@@ -118,7 +119,6 @@ These folks keep the project moving and are resources for help.
 * Jamund Ferguson ([@xjamundx](https://github.com/xjamundx))
 * Ian VanSchooten ([@ianvs](https://github.com/ianvs))
 * Burak Yiğit Kaya ([@byk](https://github.com/byk))
-* Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
 * Michael Ficarra ([@michaelficarra](https://github.com/michaelficarra))
 * Mark Pedrotti ([@pedrottimark](https://github.com/pedrottimark))
 * Oleg Gaidarenko ([@markelog](https://github.com/markelog))
@@ -128,6 +128,7 @@ These folks keep the project moving and are resources for help.
 * Alexej Yaroshevich ([@zxqfox](https://github.com/zxqfox))
 * Kevin Partington ([@platinumazure](https://github.com/platinumazure))
 * Vitor Balocco ([@vitorbal](https://github.com/vitorbal))
+* James Henry ([@JamesHenry](https://github.com/JamesHenry))
 
 ## Releases
 

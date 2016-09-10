@@ -15,7 +15,7 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-
+        fixable: "whitespace",
         schema: []
     },
 
@@ -103,14 +103,13 @@ module.exports = {
         }
 
         /**
-         * Checks whether node is preceded by a newline
-         * @param {ASTNode} node - node to check
-         * @returns {boolean} Whether or not the node is preceded by a newline
+         * Returns the line number of the token before the node that is passed in as an argument
+         * @param {ASTNode} node - The node to use as the start of the calculation
+         * @returns {number} Line number of the token before `node`
          * @private
          */
-        function hasNewlineBefore(node) {
-            const tokenBefore = sourceCode.getTokenBefore(node),
-                lineNumNode = node.loc.start.line;
+        function getLineNumberOfTokenBefore(node) {
+            const tokenBefore = sourceCode.getTokenBefore(node);
             let lineNumTokenBefore;
 
             /**
@@ -127,9 +126,56 @@ module.exports = {
                 lineNumTokenBefore = 0;     // global return at beginning of script
             }
 
+            return lineNumTokenBefore;
+        }
+
+        /**
+         * Checks whether node is preceded by a newline
+         * @param {ASTNode} node - node to check
+         * @returns {boolean} Whether or not the node is preceded by a newline
+         * @private
+         */
+        function hasNewlineBefore(node) {
+            const lineNumNode = node.loc.start.line;
+            const lineNumTokenBefore = getLineNumberOfTokenBefore(node);
             const commentLines = calcCommentLines(node, lineNumTokenBefore);
 
             return (lineNumNode - lineNumTokenBefore - commentLines) > 1;
+        }
+
+        /**
+         * Checks whether it is safe to apply a fix to a given return statement.
+         *
+         * The fix is not considered safe if the given return statement has leading comments,
+         * as we cannot safely determine if the newline should be added before or after the comments.
+         * For more information, see: https://github.com/eslint/eslint/issues/5958#issuecomment-222767211
+         *
+         * @param {ASTNode} node - The return statement node to check.
+         * @returns {boolean} `true` if it can fix the node.
+         * @private
+         */
+        function canFix(node) {
+            const leadingComments = sourceCode.getComments(node).leading;
+            const lastLeadingComment = leadingComments[leadingComments.length - 1];
+            const tokenBefore = sourceCode.getTokenBefore(node);
+
+            if (leadingComments.length === 0) {
+                return true;
+            }
+
+            // if the last leading comment ends in the same line as the previous token and
+            // does not share a line with the `return` node, we can consider it safe to fix.
+            // Example:
+            // function a() {
+            //     var b; //comment
+            //     return;
+            // }
+            if (lastLeadingComment.loc.end.line === tokenBefore.loc.end.line &&
+                lastLeadingComment.loc.end.line !== node.loc.start.line) {
+                return true;
+            }
+
+            return false;
         }
 
         //--------------------------------------------------------------------------
@@ -141,7 +187,16 @@ module.exports = {
                 if (!isFirstNode(node) && !hasNewlineBefore(node)) {
                     context.report({
                         node,
-                        message: "Expected newline before return statement."
+                        message: "Expected newline before return statement.",
+                        fix(fixer) {
+                            if (canFix(node)) {
+                                const tokenBefore = sourceCode.getTokenBefore(node);
+                                const newlines = node.loc.start.line === tokenBefore.loc.end.line ? "\n\n" : "\n";
+
+                                return fixer.insertTextBefore(node, newlines);
+                            }
+                            return null;
+                        }
                     });
                 }
             }
