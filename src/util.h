@@ -22,9 +22,16 @@ namespace node {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-inline void* Realloc(void* pointer, size_t n, size_t size = 1);
-inline void* Malloc(size_t n, size_t size = 1);
-inline void* Calloc(size_t n, size_t size = 1);
+template <typename T>
+inline T* Realloc(T* pointer, size_t n);
+template <typename T>
+inline T* Malloc(size_t n);
+template <typename T>
+inline T* Calloc(size_t n);
+
+// Shortcuts for char*.
+inline char* Malloc(size_t n) { return Malloc<char>(n); }
+inline char* Calloc(size_t n) { return Calloc<char>(n); }
 
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))
@@ -285,7 +292,7 @@ class MaybeStackBuffer {
     if (storage <= kStackStorageSize) {
       buf_ = buf_st_;
     } else {
-      buf_ = static_cast<T*>(Malloc(sizeof(T), storage));
+      buf_ = Malloc<T>(storage);
       CHECK_NE(buf_, nullptr);
     }
 

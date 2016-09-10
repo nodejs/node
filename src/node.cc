@@ -979,7 +979,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || zero_fill_all_buffers)
-    return node::Calloc(size, 1);
+    return node::Calloc(size);
   else
     return node::Malloc(size);
 }
