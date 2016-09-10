@@ -1054,9 +1054,9 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
   if (env_ == nullptr ||
       !env_->array_buffer_allocator_info()->no_zero_fill() ||
       zero_fill_all_buffers)
-    return node::Calloc(size);
+    return node::UncheckedCalloc(size);
   env_->array_buffer_allocator_info()->reset_fill_flag();
-  return node::Malloc(size);
+  return node::UncheckedMalloc(size);
 }
 
 static bool DomainHasErrorHandler(const Environment* env,

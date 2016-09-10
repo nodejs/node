@@ -2387,7 +2387,6 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
 
     // OpenSSL takes control of the pointer after accepting it
     char* data = node::Malloc(len);
-    CHECK_NE(data, nullptr);
     memcpy(data, resp, len);
 
     if (!SSL_set_tlsext_status_ocsp_resp(s, data, len))
@@ -3467,7 +3466,6 @@ bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
     return false;
   *out_len = auth_tag_len_;
   *out = node::Malloc(auth_tag_len_);
-  CHECK_NE(*out, nullptr);
   memcpy(*out, auth_tag_, auth_tag_len_);
   return true;
 }
@@ -5139,7 +5137,6 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   int field_size = EC_GROUP_get_degree(ecdh->group_);
   size_t out_len = (field_size + 7) / 8;
   char* out = node::Malloc(out_len);
-  CHECK_NE(out, nullptr);
 
   int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, nullptr);
   EC_POINT_free(pub);
@@ -5175,7 +5172,6 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get public key length");
 
   unsigned char* out = node::Malloc<unsigned char>(size);
-  CHECK_NE(out, nullptr);
 
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
   if (r != size) {
@@ -5201,7 +5197,6 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   int size = BN_num_bytes(b);
   unsigned char* out = node::Malloc<unsigned char>(size);
-  CHECK_NE(out, nullptr);
 
   if (size != BN_bn2bin(b, out)) {
     free(out);
@@ -5335,8 +5330,6 @@ class PBKDF2Request : public AsyncWrap {
         keylen_(keylen),
         key_(node::Malloc(keylen)),
         iter_(iter) {
-    if (key() == nullptr)
-      FatalError("node::PBKDF2Request()", "Out of Memory");
     Wrap(object, this);
   }
 
@@ -5497,9 +5490,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Salt");
 
   pass = node::Malloc(passlen);
-  if (pass == nullptr) {
-    FatalError("node::PBKDF2()", "Out of Memory");
-  }
   memcpy(pass, Buffer::Data(args[0]), passlen);
 
   saltlen = Buffer::Length(args[1]);
@@ -5509,9 +5499,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   }
 
   salt = node::Malloc(saltlen);
-  if (salt == nullptr) {
-    FatalError("node::PBKDF2()", "Out of Memory");
-  }
   memcpy(salt, Buffer::Data(args[1]), saltlen);
 
   if (!args[2]->IsNumber()) {
@@ -5602,8 +5589,6 @@ class RandomBytesRequest : public AsyncWrap {
         error_(0),
         size_(size),
         data_(node::Malloc(size)) {
-    if (data() == nullptr)
-      FatalError("node::RandomBytesRequest()", "Out of Memory");
     Wrap(object, this);
   }
 
@@ -5829,8 +5814,6 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 
   if (num_curves) {
     curves = node::Malloc<EC_builtin_curve>(num_curves);
-
-    CHECK_NE(curves, nullptr);
 
     if (EC_get_builtin_curves(curves, num_curves)) {
       for (size_t i = 0; i < num_curves; i++) {
