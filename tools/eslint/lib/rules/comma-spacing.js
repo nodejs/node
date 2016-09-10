@@ -97,8 +97,11 @@ module.exports = {
                     }
                 },
                 message: options[dir] ?
-                  "A space is required " + dir + " ','." :
-                  "There should be no space " + dir + " ','."
+                  "A space is required {{dir}} ','." :
+                  "There should be no space {{dir}} ','.",
+                data: {
+                    dir
+                }
             });
         }
 

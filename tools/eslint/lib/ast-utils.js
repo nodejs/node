@@ -680,5 +680,40 @@ module.exports = {
         }
 
         return null;
+    },
+
+    /**
+     * Get directives from directive prologue of a Program or Function node.
+     * @param {ASTNode} node - The node to check.
+     * @returns {ASTNode[]} The directives found in the directive prologue.
+     */
+    getDirectivePrologue(node) {
+        const directives = [];
+
+        // Directive prologues only occur at the top of files or functions.
+        if (
+            node.type === "Program" ||
+            node.type === "FunctionDeclaration" ||
+            node.type === "FunctionExpression" ||
+
+            // Do not check arrow functions with implicit return.
+            // `() => "use strict";` returns the string `"use strict"`.
+            (node.type === "ArrowFunctionExpression" && node.body.type === "BlockStatement")
+        ) {
+            const statements = node.type === "Program" ? node.body : node.body.body;
+
+            for (const statement of statements) {
+                if (
+                    statement.type === "ExpressionStatement" &&
+                    statement.expression.type === "Literal"
+                ) {
+                    directives.push(statement);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        return directives;
     }
 };

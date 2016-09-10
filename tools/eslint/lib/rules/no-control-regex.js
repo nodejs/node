@@ -88,13 +88,15 @@ module.exports = {
                         .map(function(x) {
                             const match = x.match(stringControlCharWithoutSlash) || [x];
 
-                            return "\\" + match[0];
+                            return `\\${match[0]}`;
                         });
                 }
             }
 
             return controlChars.map(function(x) {
-                return "\\x" + ("0" + x.charCodeAt(0).toString(16)).slice(-2);
+                const hexCode = `0${x.charCodeAt(0).toString(16)}`.slice(-2);
+
+                return `\\x${hexCode}`;
             }).concat(stringControlChars);
         }
 

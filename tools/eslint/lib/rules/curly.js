@@ -149,7 +149,7 @@ module.exports = {
                 message: "Expected { after '{{name}}'{{suffix}}.",
                 data: {
                     name,
-                    suffix: (suffix ? " " + suffix : "")
+                    suffix: (suffix ? ` ${suffix}` : "")
                 }
             });
         }
@@ -169,7 +169,7 @@ module.exports = {
                 message: "Unnecessary { after '{{name}}'{{suffix}}.",
                 data: {
                     name,
-                    suffix: (suffix ? " " + suffix : "")
+                    suffix: (suffix ? ` ${suffix}` : "")
                 }
             });
         }

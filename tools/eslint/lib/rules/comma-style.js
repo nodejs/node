@@ -18,7 +18,7 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-
+        fixable: "code",
         schema: [
             {
                 enum: ["first", "last"]
@@ -62,6 +62,49 @@ module.exports = {
         }
 
         /**
+         * Modified text based on the style
+         * @param {string} styleType Style type
+         * @param {string} text Source code text
+         * @returns {string} modified text
+         * @private
+         */
+        function getReplacedText(styleType, text) {
+            switch (styleType) {
+                case "between":
+                    return `,${text.replace("\n", "")}`;
+
+                case "first":
+                    return `${text},`;
+
+                case "last":
+                    return `,${text}`;
+
+                default:
+                    return "";
+            }
+        }
+
+        /**
+         * Determines the fixer function for a given style.
+         * @param {string} styleType comma style
+         * @param {ASTNode} previousItemToken The token to check.
+         * @param {ASTNode} commaToken The token to check.
+         * @param {ASTNode} currentItemToken The token to check.
+         * @returns {Function} Fixer function
+         * @private
+         */
+        function getFixerFunction(styleType, previousItemToken, commaToken, currentItemToken) {
+            const text =
+                sourceCode.text.slice(previousItemToken.range[1], commaToken.range[0]) +
+                sourceCode.text.slice(commaToken.range[1], currentItemToken.range[0]);
+            const range = [previousItemToken.range[1], currentItemToken.range[0]];
+
+            return function(fixer) {
+                return fixer.replaceTextRange(range, getReplacedText(styleType, text));
+            };
+        }
+
+        /**
          * Validates the spacing around single items in lists.
          * @param {Token} previousItemToken The last token from the previous item.
          * @param {Token} commaToken The token representing the comma.
@@ -82,21 +125,35 @@ module.exports = {
                     !astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
                 // lone comma
-                context.report(reportItem, {
-                    line: commaToken.loc.end.line,
-                    column: commaToken.loc.start.column
-                }, "Bad line breaking before and after ','.");
+                context.report({
+                    node: reportItem,
+                    loc: {
+                        line: commaToken.loc.end.line,
+                        column: commaToken.loc.start.column
+                    },
+                    message: "Bad line breaking before and after ','.",
+                    fix: getFixerFunction("between", previousItemToken, commaToken, currentItemToken)
+                });
 
             } else if (style === "first" && !astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {
 
-                context.report(reportItem, "',' should be placed first.");
+                context.report({
+                    node: reportItem,
+                    message: "',' should be placed first.",
+                    fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
+                });
 
             } else if (style === "last" && astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {
 
-                context.report(reportItem, {
-                    line: commaToken.loc.end.line,
-                    column: commaToken.loc.end.column
-                }, "',' should be placed last.");
+                context.report({
+                    node: reportItem,
+                    loc: {
+                        line: commaToken.loc.end.line,
+                        column: commaToken.loc.end.column
+                    },
+                    message: "',' should be placed last.",
+                    fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
+                });
             }
         }
 

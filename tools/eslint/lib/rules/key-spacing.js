@@ -136,7 +136,7 @@ function initOptions(toOptions, fromOptions) {
         if (toOptions.multiLine.align) {
             toOptions.align = {
                 on: toOptions.multiLine.align.on,
-                mode: toOptions.multiLine.mode,
+                mode: toOptions.multiLine.align.mode || toOptions.multiLine.mode,
                 beforeColon: toOptions.multiLine.align.beforeColon,
                 afterColon: toOptions.multiLine.align.afterColon
             };
@@ -289,6 +289,9 @@ module.exports = {
                         multiLine: {
                             type: "object",
                             properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
                                 beforeColon: {
                                     type: "boolean"
                                 },

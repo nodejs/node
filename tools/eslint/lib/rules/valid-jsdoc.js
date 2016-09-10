@@ -279,7 +279,13 @@ module.exports = {
                             hasReturns = true;
 
                             if (!requireReturn && !functionData.returnPresent && (tag.type === null || !isValidReturnType(tag)) && !isAbstract) {
-                                context.report(jsdocNode, "Unexpected @" + tag.title + " tag; function has no return statement.");
+                                context.report({
+                                    node: jsdocNode,
+                                    message: "Unexpected @{{title}} tag; function has no return statement.",
+                                    data: {
+                                        title: tag.title
+                                    }
+                                });
                             } else {
                                 if (requireReturnType && !tag.type) {
                                     context.report(jsdocNode, "Missing JSDoc return type.");
@@ -330,7 +336,13 @@ module.exports = {
                     node.parent.kind !== "get" && node.parent.kind !== "constructor" &&
                     node.parent.kind !== "set" && !isTypeClass(node)) {
                     if (requireReturn || functionData.returnPresent) {
-                        context.report(jsdocNode, "Missing JSDoc @" + (prefer.returns || "returns") + " for function.");
+                        context.report({
+                            node: jsdocNode,
+                            message: "Missing JSDoc @{{returns}} for function.",
+                            data: {
+                                returns: prefer.returns || "returns"
+                            }
+                        });
                     }
                 }
 
