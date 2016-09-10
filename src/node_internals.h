@@ -37,6 +37,9 @@ namespace node {
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
 
+// Tells whether it is safe to call v8::Isolate::GetCurrent().
+extern bool v8_initialized;
+
 // Forward declaration
 class Environment;
 

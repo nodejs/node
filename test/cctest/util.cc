@@ -90,6 +90,10 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('A'));
 }
 
+namespace node {
+  void LowMemoryNotification() {}
+}
+
 TEST(UtilTest, Malloc) {
   using node::Malloc;
   EXPECT_NE(nullptr, Malloc<char>(0));

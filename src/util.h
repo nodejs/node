@@ -44,6 +44,11 @@ inline char* Calloc(size_t n) { return Calloc<char>(n); }
 inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
 inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 
+// Used by the allocation functions when allocation fails.
+// Thin wrapper around v8::Isolate::LowMemoryNotification() that checks
+// whether V8 is initialized.
+void LowMemoryNotification();
+
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))
 #else
