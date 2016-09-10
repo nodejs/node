@@ -40,7 +40,7 @@ const fs = require('fs');
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: 'DES-CBC3-SHA'
+  ciphers: 'AES256-SHA'
 };
 
 const reply = 'I AM THE WALRUS'; // something recognizable

@@ -181,7 +181,7 @@ assert.throws(function() {
                                         '/test_bad_rsa_privkey.pem', 'ascii');
   // this would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
-}, /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/);
+}, /asn1 encoding routines:asn1_check_tlen:wrong tag/);
 
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));

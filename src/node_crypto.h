@@ -113,8 +113,6 @@ class SecureContext : public BaseObject {
   static const int kTicketKeyIVIndex = 4;
 
  protected:
-  static const int64_t kExternalSize = sizeof(SSL_CTX);
-
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -134,8 +132,6 @@ class SecureContext : public BaseObject {
   static void LoadPKCS12(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetFreeListLength(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableTicketKeyCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CtxGetter(v8::Local<v8::String> property,
@@ -157,7 +153,6 @@ class SecureContext : public BaseObject {
         cert_(nullptr),
         issuer_(nullptr) {
     MakeWeak<SecureContext>(this);
-    env->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
   }
 
   void FreeCTXMem() {
@@ -165,7 +160,6 @@ class SecureContext : public BaseObject {
       return;
     }
 
-    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
     SSL_CTX_free(ctx_);
     if (cert_ != nullptr)
       X509_free(cert_);
@@ -197,7 +191,6 @@ class SSLWrap {
         cert_cb_arg_(nullptr),
         cert_cb_running_(false) {
     ssl_ = SSL_new(sc->ctx_);
-    env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
     CHECK_NE(ssl_, nullptr);
   }
 
@@ -227,19 +220,20 @@ class SSLWrap {
  protected:
   typedef void (*CertCb)(void* arg);
 
-  // Size allocated by OpenSSL: one for SSL structure, one for SSL3_STATE and
-  // some for buffers.
-  // NOTE: Actually it is much more than this
-  static const int64_t kExternalSize =
-      sizeof(SSL) + sizeof(SSL3_STATE) + 42 * 1024;
-
   static void InitNPN(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          unsigned char* key,
                                          int len,
                                          int* copy);
+#else
+  static SSL_SESSION* GetSessionCallback(SSL* s,
+                                         const unsigned char* key,
+                                         int len,
+                                         int* copy);
+#endif
   static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
   static void OnClientHello(void* arg,
                             const ClientHelloParser::ClientHello& hello);
@@ -433,7 +427,7 @@ class CipherBase : public BaseObject {
     if (!initialised_)
       return;
     delete[] auth_tag_;
-    EVP_CIPHER_CTX_cleanup(&ctx_);
+    EVP_CIPHER_CTX_free(ctx_);
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -480,10 +474,11 @@ class CipherBase : public BaseObject {
         auth_tag_(nullptr),
         auth_tag_len_(0) {
     MakeWeak<CipherBase>(this);
+    ctx_ = EVP_CIPHER_CTX_new();
   }
 
  private:
-  EVP_CIPHER_CTX ctx_; /* coverity[member_decl] */
+  EVP_CIPHER_CTX* ctx_; /* coverity[member_decl] */
   const EVP_CIPHER* cipher_; /* coverity[member_decl] */
   bool initialised_;
   CipherKind kind_;
@@ -496,7 +491,11 @@ class Hmac : public BaseObject {
   ~Hmac() override {
     if (!initialised_)
       return;
-    HMAC_CTX_cleanup(&ctx_);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    free(ctx_);
+#else
+    HMAC_CTX_free(ctx_);
+#endif
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -515,10 +514,15 @@ class Hmac : public BaseObject {
       : BaseObject(env, wrap),
         initialised_(false) {
     MakeWeak<Hmac>(this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ctx_ = reinterpret_cast<HMAC_CTX *>(malloc(sizeof(HMAC_CTX)));
+#else
+    ctx_ = HMAC_CTX_new();
+#endif
   }
 
  private:
-  HMAC_CTX ctx_; /* coverity[member_decl] */
+  HMAC_CTX *ctx_; /* coverity[member_decl] */
   bool initialised_;
 };
 
@@ -527,7 +531,11 @@ class Hash : public BaseObject {
   ~Hash() override {
     if (!initialised_)
       return;
-    EVP_MD_CTX_cleanup(&mdctx_);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    free(mdctx_);
+#else
+    EVP_MD_CTX_free(mdctx_);
+#endif
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -544,10 +552,15 @@ class Hash : public BaseObject {
       : BaseObject(env, wrap),
         initialised_(false) {
     MakeWeak<Hash>(this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    mdctx_ = reinterpret_cast<EVP_MD_CTX *>(malloc(sizeof(EVP_MD_CTX)));
+#else
+    mdctx_ = EVP_MD_CTX_new();
+#endif
   }
 
  private:
-  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
+  EVP_MD_CTX *mdctx_; /* coverity[member_decl] */
   bool initialised_;
   bool finalized_;
 };
@@ -567,18 +580,27 @@ class SignBase : public BaseObject {
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
         initialised_(false) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    mdctx_ = reinterpret_cast<EVP_MD_CTX *>(malloc(sizeof(EVP_MD_CTX)));
+#else
+    mdctx_ = EVP_MD_CTX_new();
+#endif
   }
 
   ~SignBase() override {
     if (!initialised_)
       return;
-    EVP_MD_CTX_cleanup(&mdctx_);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    free(mdctx_);
+#else
+    EVP_MD_CTX_free(mdctx_);
+#endif
   }
 
  protected:
   void CheckThrow(Error error);
 
-  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
+  EVP_MD_CTX *mdctx_; /* coverity[member_decl] */
   bool initialised_;
 };
 

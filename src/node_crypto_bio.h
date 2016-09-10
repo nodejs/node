@@ -38,6 +38,7 @@ class NodeBIO {
   NodeBIO() : env_(nullptr),
               initial_(kInitialBufferLength),
               length_(0),
+              eof_return_(-1),
               read_head_(nullptr),
               write_head_(nullptr) {
   }
@@ -96,30 +97,31 @@ class NodeBIO {
     return length_;
   }
 
+  inline void set_eof_return(int num) {
+    eof_return_ = num;
+  }
+
+  inline int eof_return() {
+    return eof_return_;
+  }
+
   inline void set_initial(size_t initial) {
     initial_ = initial;
   }
 
   static inline NodeBIO* FromBIO(BIO* bio) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     CHECK_NE(bio->ptr, nullptr);
     return static_cast<NodeBIO*>(bio->ptr);
+#else
+    CHECK_NE(BIO_get_data(bio), nullptr);
+    return static_cast<NodeBIO*>(BIO_get_data(bio));
+#endif
   }
-
- private:
-  static int New(BIO* bio);
-  static int Free(BIO* bio);
-  static int Read(BIO* bio, char* out, int len);
-  static int Write(BIO* bio, const char* data, int len);
-  static int Puts(BIO* bio, const char* str);
-  static int Gets(BIO* bio, char* out, int size);
-  static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
-                   void* ptr);
 
   // Enough to handle the most of the client hellos
   static const size_t kInitialBufferLength = 1024;
   static const size_t kThroughputBufferLength = 16384;
-
-  static const BIO_METHOD method;
 
   class Buffer {
    public:
@@ -152,6 +154,7 @@ class NodeBIO {
   Environment* env_;
   size_t initial_;
   size_t length_;
+  int eof_return_;
   Buffer* read_head_;
   Buffer* write_head_;
 };
