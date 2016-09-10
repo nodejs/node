@@ -30,6 +30,7 @@ assert.equal(false, util.isRegExp(Object.create(RegExp.prototype)));
 // isDate
 assert.equal(true, util.isDate(new Date()));
 assert.equal(true, util.isDate(new Date(0)));
+// eslint-disable-next-line new-parens
 assert.equal(true, util.isDate(new (context('Date'))));
 assert.equal(false, util.isDate(Date()));
 assert.equal(false, util.isDate({}));
@@ -41,9 +42,11 @@ assert.equal(false, util.isDate(Object.create(Date.prototype)));
 assert.equal(true, util.isError(new Error()));
 assert.equal(true, util.isError(new TypeError()));
 assert.equal(true, util.isError(new SyntaxError()));
+/* eslint-disable new-parens */
 assert.equal(true, util.isError(new (context('Error'))));
 assert.equal(true, util.isError(new (context('TypeError'))));
 assert.equal(true, util.isError(new (context('SyntaxError'))));
+/* eslint-enable */
 assert.equal(false, util.isError({}));
 assert.equal(false, util.isError({ name: 'Error', message: '' }));
 assert.equal(false, util.isError([]));
