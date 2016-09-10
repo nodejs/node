@@ -43,6 +43,14 @@ runTest(/RunInDebugContext/,
          setTimeout(function() { process.exit(0); }, 2000);
          f();`);
 
+runTest(/Builtin_DateNow/,
+        `function f() {
+           this.ts = Date.now();
+           setImmediate(function() { new f(); });
+         };
+         setTimeout(function() { process.exit(0); }, 2000);
+         f();`);
+
 function runTest(pattern, code) {
   cp.execFileSync(process.execPath, ['-prof', '-pe', code]);
   var matches = fs.readdirSync(common.tmpDir);
