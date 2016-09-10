@@ -176,16 +176,16 @@ Landing a PR
   * The remaining lines (except for metadata lines) should wrap at 72 characters.
   * Add required metadata:
     * `PR-URL: <full-pr-url>`
-    * `Reviewed-By: human <email>`
+    * `Reviewed-By: <collaborator name> <collaborator email>`
       * Easiest to use `git log`, then do a search.
       * In vim: `/Name` + `enter` (+ `n` as much as you need to)
       * Only include collaborators who have commented `LGTM`.
   * Add additional metadata as appropriate:
     * `Fixes: <full-issue-url>`
-      * URL of GitHub issue that the PR fixes.
+      * Full URL of GitHub issue that the PR fixes.
       * This will automatically close the PR when the commit lands in master.
     * `Refs: <full-url>`
-      * URL of material that might provide additional useful information or context to someone trying to understand the change set or the thinking behind it.
+      * Full URL of material that might provide additional useful information or context to someone trying to understand the change set or the thinking behind it.
 * `git push upstream master`
     * Close the pull request with a "Landed in `<commit hash>`" comment.
 
