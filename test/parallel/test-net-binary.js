@@ -5,7 +5,7 @@ const net = require('net');
 
 var binaryString = '';
 for (var i = 255; i >= 0; i--) {
-  const s = '\'\\' + i.toString(8) + '\'';
+  const s = `'\\${i.toString(8)}'`;
   const S = eval(s);
   assert.strictEqual(S.charCodeAt(0), i);
   assert.strictEqual(S, String.fromCharCode(i));
