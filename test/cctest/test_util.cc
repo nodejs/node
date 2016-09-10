@@ -105,3 +105,19 @@ TEST(UtilTest, Calloc) {
   EXPECT_NE(nullptr, Calloc(0));
   EXPECT_NE(nullptr, Calloc(1));
 }
+
+TEST(UtilTest, UncheckedMalloc) {
+  using node::UncheckedMalloc;
+  EXPECT_NE(nullptr, UncheckedMalloc<char>(0));
+  EXPECT_NE(nullptr, UncheckedMalloc<char>(1));
+  EXPECT_NE(nullptr, UncheckedMalloc(0));
+  EXPECT_NE(nullptr, UncheckedMalloc(1));
+}
+
+TEST(UtilTest, UncheckedCalloc) {
+  using node::UncheckedCalloc;
+  EXPECT_NE(nullptr, UncheckedCalloc<char>(0));
+  EXPECT_NE(nullptr, UncheckedCalloc<char>(1));
+  EXPECT_NE(nullptr, UncheckedCalloc(0));
+  EXPECT_NE(nullptr, UncheckedCalloc(1));
+}
