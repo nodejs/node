@@ -90,7 +90,7 @@ The `'pause'` event is emitted when one of the following occur:
 
 * The `input` stream is paused.
 * The `input` stream is not paused and receives the `SIGCONT` event. (See
-  events `SIGTSTP` and `SIGCONT`)
+  events [`SIGTSTP`][] and [`SIGCONT`][])
 
 The listener function is called without passing any arguments.
 
@@ -523,3 +523,5 @@ rl.on('line', (line) => {
 [Writable]: stream.html
 [Readable]: stream.html
 [TTY]: tty.html
+[`SIGTSTP`]: readline.html#readline_event_sigtstp
+[`SIGCONT`]: readline.html#readline_event_sigcont
