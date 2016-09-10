@@ -253,7 +253,15 @@ T* UncheckedRealloc(T* pointer, size_t n) {
     return nullptr;
   }
 
-  return static_cast<T*>(realloc(pointer, full_size));
+  void* allocated = realloc(pointer, full_size);
+
+  if (UNLIKELY(allocated == nullptr)) {
+    // Tell V8 that memory is low and retry.
+    LowMemoryNotification();
+    allocated = realloc(pointer, full_size);
+  }
+
+  return static_cast<T*>(allocated);
 }
 
 // As per spec realloc behaves like malloc if passed nullptr.
