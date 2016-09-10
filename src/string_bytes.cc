@@ -54,7 +54,7 @@ class ExternString: public ResourceType {
       return scope.Escape(String::Empty(isolate));
 
     TypeName* new_data =
-        static_cast<TypeName*>(node::Malloc(length * sizeof(*new_data)));
+        static_cast<TypeName*>(node::Malloc(length, sizeof(*new_data)));
     if (new_data == nullptr) {
       return Local<String>();
     }
