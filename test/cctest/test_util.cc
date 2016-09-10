@@ -92,14 +92,16 @@ TEST(UtilTest, ToLower) {
 
 TEST(UtilTest, Malloc) {
   using node::Malloc;
+  EXPECT_NE(nullptr, Malloc<char>(0));
+  EXPECT_NE(nullptr, Malloc<char>(1));
   EXPECT_NE(nullptr, Malloc(0));
   EXPECT_NE(nullptr, Malloc(1));
 }
 
 TEST(UtilTest, Calloc) {
   using node::Calloc;
-  EXPECT_NE(nullptr, Calloc(0, 0));
-  EXPECT_NE(nullptr, Calloc(1, 0));
-  EXPECT_NE(nullptr, Calloc(0, 1));
-  EXPECT_NE(nullptr, Calloc(1, 1));
+  EXPECT_NE(nullptr, Calloc<char>(0));
+  EXPECT_NE(nullptr, Calloc<char>(1));
+  EXPECT_NE(nullptr, Calloc(0));
+  EXPECT_NE(nullptr, Calloc(1));
 }

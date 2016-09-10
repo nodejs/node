@@ -175,8 +175,7 @@ static void ares_poll_close_cb(uv_handle_t* watcher) {
 
 /* Allocates and returns a new node_ares_task */
 static node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
-  node_ares_task* task =
-    static_cast<node_ares_task*>(node::Malloc(sizeof(*task)));
+  auto task = node::Malloc<node_ares_task>(1);
 
   if (task == nullptr) {
     /* Out of memory. */
@@ -329,11 +328,10 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
       alias_count++) {
   }
 
-  dest->h_aliases = static_cast<char**>(node::Malloc((alias_count + 1) *
-                                                           sizeof(char*)));
+  dest->h_aliases = node::Malloc<char*>(alias_count + 1);
   for (size_t i = 0; i < alias_count; i++) {
     cur_alias_length = strlen(src->h_aliases[i]);
-    dest->h_aliases[i] = static_cast<char*>(node::Malloc(cur_alias_length + 1));
+    dest->h_aliases[i] = node::Malloc(cur_alias_length + 1);
     memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
   }
   dest->h_aliases[alias_count] = nullptr;
@@ -345,10 +343,9 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
       list_count++) {
   }
 
-  dest->h_addr_list = static_cast<char**>(node::Malloc((list_count + 1) *
-                                                             sizeof(char*)));
+  dest->h_addr_list = node::Malloc<char*>(list_count + 1);
   for (size_t i = 0; i < list_count; i++) {
-    dest->h_addr_list[i] = static_cast<char*>(node::Malloc(src->h_length));
+    dest->h_addr_list[i] = node::Malloc(src->h_length);
     memcpy(dest->h_addr_list[i], src->h_addr_list[i], src->h_length);
   }
   dest->h_addr_list[list_count] = nullptr;
@@ -507,7 +504,7 @@ class QueryWrap : public AsyncWrap {
 
     unsigned char* buf_copy = nullptr;
     if (status == ARES_SUCCESS) {
-      buf_copy = static_cast<unsigned char*>(node::Malloc(answer_len));
+      buf_copy = node::Malloc<unsigned char>(answer_len);
       memcpy(buf_copy, answer_buf, answer_len);
     }
 
@@ -534,7 +531,7 @@ class QueryWrap : public AsyncWrap {
 
     struct hostent* host_copy = nullptr;
     if (status == ARES_SUCCESS) {
-      host_copy = static_cast<hostent*>(node::Malloc(sizeof(hostent)));
+      host_copy = node::Malloc<hostent>(1);
       cares_wrap_hostent_cpy(host_copy, host);
     }
 
