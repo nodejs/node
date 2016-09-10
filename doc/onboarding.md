@@ -170,18 +170,24 @@ Landing a PR
 * `git rebase -i upstream/master`
 * squash into logical commits if necessary
 * `./configure && make -j8 test` (`-j8` builds node in parallel with 8 threads. adjust to the number of cores (or processor-level threads) your processor has (or slightly more) for best results.)
-* Amend the commit description
-  * commits should follow `subsystem[,subsystem]: small description\n\nbig description\n\n<metadata>`
-  * first line 50 columns, all others 72
-  * add metadata:
-    * `Fixes: <full-issue-url>`
-    * `Reviewed-By: human <email>`
-      * Easiest to use `git log` then do a search
-      * (`/Name` + `enter` (+ `n` as much as you need to) in vim)
-      * Only include collaborators who have commented `LGTM`
+* Amend the commit description.
+  * Commits should be of the form `subsystem[,subsystem]: small description\n\nbig description\n\n<metadata>`
+  * The first line should not exceed 50 characters.
+  * The remaining lines (except for metadata lines) should wrap at 72 characters.
+  * Add required metadata:
     * `PR-URL: <full-pr-url>`
+    * `Reviewed-By: <collaborator name> <collaborator email>`
+      * Easiest to use `git log`, then do a search.
+      * In vim: `/Name` + `enter` (+ `n` as much as you need to)
+      * Only include collaborators who have commented `LGTM`.
+  * Add additional metadata as appropriate:
+    * `Fixes: <full-issue-url>`
+      * Full URL of GitHub issue that the PR fixes.
+      * This will automatically close the PR when the commit lands in master.
+    * `Refs: <full-url>`
+      * Full URL of material that might provide additional useful information or context to someone trying to understand the change set or the thinking behind it.
 * `git push upstream master`
-    * close the original PR with "Landed in `<commit hash>`".
+    * Close the pull request with a "Landed in `<commit hash>`" comment.
 
 
 ## exercise: make PRs adding yourselves to the README
