@@ -1054,7 +1054,7 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
   if (env_ == nullptr ||
       !env_->array_buffer_allocator_info()->no_zero_fill() ||
       zero_fill_all_buffers)
-    return node::Calloc(size, 1);
+    return node::Calloc(size);
   env_->array_buffer_allocator_info()->reset_fill_flag();
   return node::Malloc(size);
 }

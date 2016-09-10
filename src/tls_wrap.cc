@@ -663,7 +663,7 @@ void TLSWrap::OnDestructImpl(void* ctx) {
 
 
 void TLSWrap::OnAllocSelf(size_t suggested_size, uv_buf_t* buf, void* ctx) {
-  buf->base = static_cast<char*>(node::Malloc(suggested_size));
+  buf->base = node::Malloc(suggested_size);
   CHECK_NE(buf->base, nullptr);
   buf->len = suggested_size;
 }
