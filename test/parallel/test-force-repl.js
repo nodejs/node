@@ -11,7 +11,7 @@ var timeoutId = setTimeout(function() {
 
 cp.stdout.setEncoding('utf8');
 
-cp.stdout.once('dasta', common.mustCall(function(b) {
+cp.stdout.once('data', common.mustCall(function(b) {
   clearTimeout(timeoutId);
   assert.equal(b, '> ');
   cp.kill();
