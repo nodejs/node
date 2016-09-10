@@ -49,9 +49,6 @@
   THROW_AND_RETURN_IF_OOB(end <= end_max);                                  \
   size_t length = end - start;
 
-#define BUFFER_MALLOC(length)                                               \
-  zero_fill_all_buffers ? node::Calloc(length, 1) : node::Malloc(length)
-
 #if defined(__GNUC__) || defined(__clang__)
 #define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
 #define BSWAP_INTRINSIC_4(x) __builtin_bswap32(x)
@@ -88,6 +85,15 @@ namespace node {
 
 // if true, all Buffer and SlowBuffer instances will automatically zero-fill
 bool zero_fill_all_buffers = false;
+
+namespace {
+
+inline void* BufferMalloc(size_t length) {
+  return zero_fill_all_buffers ? node::Calloc(length) :
+                                 node::Malloc(length);
+}
+
+}  // namespace
 
 namespace Buffer {
 
@@ -266,7 +272,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   char* data = nullptr;
 
   if (length > 0) {
-    data = static_cast<char*>(BUFFER_MALLOC(length));
+    data = static_cast<char*>(BufferMalloc(length));
 
     if (data == nullptr)
       return Local<Object>();
@@ -278,7 +284,7 @@ MaybeLocal<Object> New(Isolate* isolate,
       free(data);
       data = nullptr;
     } else if (actual < length) {
-      data = static_cast<char*>(node::Realloc(data, actual));
+      data = node::Realloc(data, actual);
       CHECK_NE(data, nullptr);
     }
   }
@@ -312,7 +318,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   void* data;
   if (length > 0) {
-    data = BUFFER_MALLOC(length);
+    data = BufferMalloc(length);
     if (data == nullptr)
       return Local<Object>();
   } else {
@@ -1080,7 +1086,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           offset,
                           is_forward);
   } else if (enc == LATIN1) {
-    uint8_t* needle_data = static_cast<uint8_t*>(node::Malloc(needle_length));
+    uint8_t* needle_data = node::Malloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
     }

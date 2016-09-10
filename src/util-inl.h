@@ -244,29 +244,30 @@ inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-void* Realloc(void* pointer, size_t n, size_t size) {
-  size_t full_size = MultiplyWithOverflowCheck(size, n);
+template <typename T>
+T* Realloc(T* pointer, size_t n) {
+  size_t full_size = MultiplyWithOverflowCheck(sizeof(T), n);
 
   if (full_size == 0) {
     free(pointer);
     return nullptr;
   }
 
-  return realloc(pointer, full_size);
+  return static_cast<T*>(realloc(pointer, full_size));
 }
 
 // As per spec realloc behaves like malloc if passed nullptr.
-void* Malloc(size_t n, size_t size) {
+template <typename T>
+T* Malloc(size_t n) {
   if (n == 0) n = 1;
-  if (size == 0) size = 1;
-  return Realloc(nullptr, n, size);
+  return Realloc<T>(nullptr, n);
 }
 
-void* Calloc(size_t n, size_t size) {
+template <typename T>
+T* Calloc(size_t n) {
   if (n == 0) n = 1;
-  if (size == 0) size = 1;
-  MultiplyWithOverflowCheck(size, n);
-  return calloc(n, size);
+  MultiplyWithOverflowCheck(sizeof(T), n);
+  return static_cast<T*>(calloc(n, sizeof(T)));
 }
 
 }  // namespace node
