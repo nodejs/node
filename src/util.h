@@ -23,6 +23,15 @@ namespace node {
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
 template <typename T>
+inline T* UncheckedRealloc(T* pointer, size_t n);
+template <typename T>
+inline T* UncheckedMalloc(size_t n);
+template <typename T>
+inline T* UncheckedCalloc(size_t n);
+
+// Same things, but aborts immediately instead of returning nullptr when
+// no memory is available.
+template <typename T>
 inline T* Realloc(T* pointer, size_t n);
 template <typename T>
 inline T* Malloc(size_t n);
@@ -32,6 +41,8 @@ inline T* Calloc(size_t n);
 // Shortcuts for char*.
 inline char* Malloc(size_t n) { return Malloc<char>(n); }
 inline char* Calloc(size_t n) { return Calloc<char>(n); }
+inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
+inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))
@@ -293,7 +304,6 @@ class MaybeStackBuffer {
       buf_ = buf_st_;
     } else {
       buf_ = Malloc<T>(storage);
-      CHECK_NE(buf_, nullptr);
     }
 
     // Remember how much was allocated to check against that in SetLength().

@@ -53,7 +53,7 @@ class ExternString: public ResourceType {
     if (length == 0)
       return scope.Escape(String::Empty(isolate));
 
-    TypeName* new_data = node::Malloc<TypeName>(length);
+    TypeName* new_data = node::UncheckedMalloc<TypeName>(length);
     if (new_data == nullptr) {
       return Local<String>();
     }
@@ -623,7 +623,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
-        char* out = node::Malloc(buflen);
+        char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
           return Local<String>();
         }
@@ -658,7 +658,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case BASE64: {
       size_t dlen = base64_encoded_size(buflen);
-      char* dst = node::Malloc(dlen);
+      char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         return Local<String>();
       }
@@ -677,7 +677,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case HEX: {
       size_t dlen = buflen * 2;
-      char* dst = node::Malloc(dlen);
+      char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         return Local<String>();
       }
