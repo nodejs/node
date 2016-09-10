@@ -126,7 +126,7 @@ The `'SIGCONT'` event is emitted when a Node.js process previously moved into
 the background using `<ctrl>-Z` (i.e. `SIGTSTP`) is then brought back to the
 foreground using `fg(1)`.
 
-If the `input` stream was paused *before* the `SIGSTP` request, this event will
+If the `input` stream was paused *before* the `SIGTSTP` request, this event will
 not be emitted.
 
 The listener function is invoked without passing any arguments.
@@ -169,7 +169,7 @@ rl.on('SIGINT', () => {
 added: v0.7.5
 -->
 
-The `'SIGTSPT'` event is emitted when the `input` stream receives a `<ctrl>-Z`
+The `'SIGTSTP'` event is emitted when the `input` stream receives a `<ctrl>-Z`
 input, typically known as `SIGTSTP`. If there are no `SIGTSTP` event listeners
 registered when the `input` stream receives a `SIGTSTP`, the Node.js process
 will be sent to the background.
