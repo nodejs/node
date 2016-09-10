@@ -1,4 +1,3 @@
-/* eslint no-deepEqual: 0 */
 'use strict';
 
 require('../common');
@@ -46,6 +45,7 @@ const notEqualArrayPairs = [
 ];
 
 equalArrayPairs.forEach((arrayPair) => {
+  // eslint-disable-next-line no-restricted-properties
   assert.deepEqual(arrayPair[0], arrayPair[1]);
 });
 
