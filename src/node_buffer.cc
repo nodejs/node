@@ -89,8 +89,8 @@ bool zero_fill_all_buffers = false;
 namespace {
 
 inline void* BufferMalloc(size_t length) {
-  return zero_fill_all_buffers ? node::Calloc(length) :
-                                 node::Malloc(length);
+  return zero_fill_all_buffers ? node::UncheckedCalloc(length) :
+                                 node::UncheckedMalloc(length);
 }
 
 }  // namespace
@@ -285,7 +285,6 @@ MaybeLocal<Object> New(Isolate* isolate,
       data = nullptr;
     } else if (actual < length) {
       data = node::Realloc(data, actual);
-      CHECK_NE(data, nullptr);
     }
   }
 
@@ -363,7 +362,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   void* new_data;
   if (length > 0) {
     CHECK_NE(data, nullptr);
-    new_data = node::Malloc(length);
+    new_data = node::UncheckedMalloc(length);
     if (new_data == nullptr)
       return Local<Object>();
     memcpy(new_data, data, length);
@@ -1086,7 +1085,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           offset,
                           is_forward);
   } else if (enc == LATIN1) {
-    uint8_t* needle_data = node::Malloc<uint8_t>(needle_length);
+    uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
     }

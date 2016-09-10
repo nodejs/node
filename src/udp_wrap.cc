@@ -376,11 +376,6 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
                       uv_buf_t* buf) {
   buf->base = node::Malloc(suggested_size);
   buf->len = suggested_size;
-
-  if (buf->base == nullptr && suggested_size > 0) {
-    FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t, uv_buf_t*)",
-               "Out Of Memory");
-  }
 }
 
 
@@ -416,7 +411,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     return;
   }
 
-  char* base = node::Realloc(buf->base, nread);
+  char* base = node::UncheckedRealloc(buf->base, nread);
   argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
   wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);

@@ -662,7 +662,6 @@ void TLSWrap::OnReadImpl(ssize_t nread,
 
 void TLSWrap::OnAllocSelf(size_t suggested_size, uv_buf_t* buf, void* ctx) {
   buf->base = node::Malloc(suggested_size);
-  CHECK_NE(buf->base, nullptr);
   buf->len = suggested_size;
 }
 
