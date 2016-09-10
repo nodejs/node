@@ -77,4 +77,13 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
   }
 }
 
+void LowMemoryNotification() {
+  if (v8_initialized) {
+    auto isolate = v8::Isolate::GetCurrent();
+    if (isolate != nullptr) {
+      isolate->LowMemoryNotification();
+    }
+  }
+}
+
 }  // namespace node
