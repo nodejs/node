@@ -43,6 +43,9 @@ extern std::string openssl_config;
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
 
+// Tells whether it is safe to call v8::Isolate::GetCurrent().
+extern bool v8_initialized;
+
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
 // Used in node_config.cc to set a constant on process.binding('config')

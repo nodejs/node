@@ -198,6 +198,7 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+bool v8_initialized = false;
 
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
@@ -4895,6 +4896,7 @@ int Start(int argc, char** argv) {
 
   v8_platform.Initialize(v8_thread_pool_size);
   V8::Initialize();
+  v8_initialized = true;
 
   int exit_code = 1;
   {
@@ -4908,6 +4910,7 @@ int Start(int argc, char** argv) {
     StartNodeInstance(&instance_data);
     exit_code = instance_data.exit_code();
   }
+  v8_initialized = false;
   V8::Dispose();
 
   v8_platform.Dispose();
