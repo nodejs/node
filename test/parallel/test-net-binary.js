@@ -1,14 +1,14 @@
 /* eslint-disable strict */
 require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
 var binaryString = '';
 for (var i = 255; i >= 0; i--) {
-  var s = '\'\\' + i.toString(8) + '\'';
-  var S = eval(s);
-  assert.ok(S.charCodeAt(0) == i);
-  assert.ok(S == String.fromCharCode(i));
+  const s = `'\\${i.toString(8)}'`;
+  const S = eval(s);
+  assert.strictEqual(S.charCodeAt(0), i);
+  assert.strictEqual(S, String.fromCharCode(i));
   binaryString += S;
 }
 
@@ -28,13 +28,13 @@ var recv = '';
 
 echoServer.on('listening', function() {
   var j = 0;
-  var c = net.createConnection({
+  const c = net.createConnection({
     port: this.address().port
   });
 
   c.setEncoding('latin1');
   c.on('data', function(chunk) {
-    var n = j + chunk.length;
+    const n = j + chunk.length;
     while (j < n && j < 256) {
       c.write(String.fromCharCode(j), 'latin1');
       j++;
@@ -57,11 +57,11 @@ echoServer.on('listening', function() {
 process.on('exit', function() {
   assert.equal(2 * 256, recv.length);
 
-  var a = recv.split('');
+  const a = recv.split('');
 
-  var first = a.slice(0, 256).reverse().join('');
+  const first = a.slice(0, 256).reverse().join('');
 
-  var second = a.slice(256, 2 * 256).join('');
+  const second = a.slice(256, 2 * 256).join('');
 
-  assert.equal(first, second);
+  assert.strictEqual(first, second);
 });
