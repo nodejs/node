@@ -202,12 +202,12 @@ The formatting process operates as follows:
 added: v0.1.25
 -->
 
-* `urlString` {string} The URL string to parse.
-* `parseQueryString` {boolean} If `true`, the `query` property will always
+* `urlString` {String} The URL string to parse.
+* `parseQueryString` {Boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
   method. If `false`, the `query` property on the returned URL object will be an
   unparsed, undecoded string. Defaults to `false`.
-* `slashesDenoteHost` {boolean} If `true`, the first token after the literal
+* `slashesDenoteHost` {Boolean} If `true`, the first token after the literal
   string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
@@ -221,8 +221,8 @@ object.
 added: v0.1.25
 -->
 
-* `from` {string} The Base URL being resolved against.
-* `to` {string} The HREF URL being resolved.
+* `from` {String} The Base URL being resolved against.
+* `to` {String} The HREF URL being resolved.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
