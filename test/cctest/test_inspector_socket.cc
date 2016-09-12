@@ -330,6 +330,11 @@ static void manual_inspector_socket_cleanup() {
   inspector.buffer.clear();
 }
 
+static void assert_both_sockets_closed() {
+  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
+  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&inspector.client)));
+}
+
 static void on_connection(uv_connect_t* connect, int status) {
   GTEST_ASSERT_EQ(0, status);
   connect->data = connect;
@@ -503,8 +508,7 @@ TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
+  assert_both_sockets_closed();
 }
 
 TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
@@ -515,8 +519,7 @@ TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
+  assert_both_sockets_closed();
 }
 
 TEST_F(InspectorSocketTest, RequestWithoutKey) {
@@ -530,8 +533,7 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
   do_write(const_cast<char*>(BROKEN_REQUEST), sizeof(BROKEN_REQUEST) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
+  assert_both_sockets_closed();
 }
 
 TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
