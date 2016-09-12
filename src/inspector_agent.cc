@@ -328,7 +328,7 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
   V8NodeInspector(AgentImpl* agent, node::Environment* env,
                   v8::Platform* platform)
                   : agent_(agent),
-                    isolate_(env->isolate()),
+                    env_(env),
                     platform_(platform),
                     terminated_(false),
                     running_nested_loop_(false),
@@ -348,7 +348,7 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
         Mutex::ScopedLock scoped_lock(agent_->pause_lock_);
         agent_->pause_cond_.Wait(scoped_lock);
       }
-      while (v8::platform::PumpMessageLoop(platform_, isolate_))
+      while (v8::platform::PumpMessageLoop(platform_, env_->isolate()))
         {}
     } while (!terminated_);
     terminated_ = false;
@@ -376,13 +376,18 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
     session_->dispatchProtocolMessage(message);
   }
 
+  v8::Local<v8::Context> ensureDefaultContextInGroup(int contextGroupId)
+      override {
+    return env_->context();
+  }
+
   V8Inspector* inspector() {
     return inspector_.get();
   }
 
  private:
   AgentImpl* agent_;
-  v8::Isolate* isolate_;
+  node::Environment* env_;
   v8::Platform* platform_;
   bool terminated_;
   bool running_nested_loop_;

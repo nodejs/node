@@ -141,6 +141,13 @@ function testInspectScope(session) {
         }
       }, setupExpectValue(1002)
     ],
+    [
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': '5 * 5'
+        }
+      }, (message) => assert.strictEqual(25, message['result']['value'])
+    ],
   ]);
 }
 
