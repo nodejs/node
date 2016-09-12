@@ -3700,10 +3700,20 @@ int NumberOfPointerUpdateTasks(int pages) {
 
 template <PointerDirection direction>
 void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
+  // Work-around bug in clang-3.4
+  // https://github.com/nodejs/node/issues/8323
+  struct MemoryChunkVisitor {
+    PageParallelJob<PointerUpdateJobTraits<direction> >& job_;
+    MemoryChunkVisitor(PageParallelJob<PointerUpdateJobTraits<direction> >& job)
+      : job_(job) {}
+    void operator()(MemoryChunk* chunk) {
+      job_.AddPage(chunk, 0);
+    }
+  };
+
   PageParallelJob<PointerUpdateJobTraits<direction> > job(
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
-  RememberedSet<direction>::IterateMemoryChunks(
-      heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
+  RememberedSet<direction>::IterateMemoryChunks(heap, MemoryChunkVisitor(job));
   int num_pages = job.NumberOfPages();
   int num_tasks = NumberOfPointerUpdateTasks(num_pages);
   job.Run(num_tasks, [](int i) { return 0; });
