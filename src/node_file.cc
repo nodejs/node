@@ -433,21 +433,19 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   //     crash();
   //   }
   //
-  // We need to check the return value of Integer::New() and Date::New()
+  // We need to check the return value of Number::New() and Date::New()
   // and make sure that we bail out when V8 returns an empty handle.
 
-  // Integers.
+  // Unsigned integers. It does not actually seem to be specified whether
+  // uid and gid are unsigned or not, but in practice they are unsigned,
+  // and Node’s (F)Chown functions do check their arguments for unsignedness.
 #define X(name)                                                               \
-  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  Local<Value> name = Integer::NewFromUnsigned(env->isolate(), s->st_##name); \
   if (name.IsEmpty())                                                         \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
-  X(dev)
-  X(mode)
-  X(nlink)
   X(uid)
   X(gid)
-  X(rdev)
 # if defined(__POSIX__)
   X(blksize)
 # else
@@ -455,12 +453,24 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 # endif
 #undef X
 
+  // Integers.
+#define X(name)                                                               \
+  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  if (name.IsEmpty())                                                         \
+    return Local<Object>();                                                   \
+
+  X(dev)
+  X(mode)
+  X(nlink)
+  X(rdev)
+#undef X
+
   // Numbers.
 #define X(name)                                                               \
   Local<Value> name = Number::New(env->isolate(),                             \
                                   static_cast<double>(s->st_##name));         \
   if (name.IsEmpty())                                                         \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
   X(ino)
   X(size)
@@ -479,7 +489,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
         (static_cast<double>(s->st_##name.tv_nsec / 1000000)));               \
                                                                               \
   if (name##_msec.IsEmpty())                                                  \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
   X(atim)
   X(mtim)
