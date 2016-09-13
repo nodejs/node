@@ -23,7 +23,7 @@ const Client = require('_debugger').Client;
 
 {
   const client = new Client();
-  client._addHandle({handle: 'not a number'});
+  client._addHandle({ handle: 'not a number' });
   assert.deepStrictEqual(client.handles, {});
 }
 
