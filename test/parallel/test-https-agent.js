@@ -1,30 +1,39 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var options = {
+//Gets SSL Certificate and SSL Key.
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-
-var server = https.Server(options, function(req, res) {
+//Starts up a https server using the SSL Certificate and Key.
+const server = https.Server(options, function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 });
 
 
 var responses = 0;
-var N = 4;
-var M = 4;
+const N = 4;
+const M = 4;
+
+/*
+the part being tested, Loops around 4 times on N,
+Each time it loops around another 4 times on M,
+each time sending a https GET request for route '/'
+each inner loop records the number of responses
+and closes the https server once the https request has been send 16 times.
+ */
 
 server.listen(0, function() {
   for (var i = 0; i < N; i++) {
@@ -37,7 +46,7 @@ server.listen(0, function() {
         }, function(res) {
           res.resume();
           console.log(res.statusCode);
-          if (++responses == N * M) server.close();
+          if (++responses === N * M) server.close();
         }).on('error', function(e) {
           console.log(e.message);
           process.exit(1);
@@ -47,7 +56,11 @@ server.listen(0, function() {
   }
 });
 
+/*
+Asserts the number of responses match the number of loops,
+making sure all responses were sent successfully.
+*/
 
 process.on('exit', function() {
-  assert.equal(N * M, responses);
+  assert.strictEqual(N * M, responses);
 });

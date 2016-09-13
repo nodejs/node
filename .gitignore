@@ -45,6 +45,7 @@ ipch/
 *.VC.opendb
 .vs/
 .vscode/
+.idea/
 
 /config.mk
 /config.gypi
