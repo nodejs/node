@@ -260,6 +260,8 @@ more information about the governance of the Node.js project, see
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
 **Christopher Monsanto** &lt;chris@monsan.to&gt;
+* [not-an-aardvark](https://github.com/not-an-aardvark) -
+**Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [Olegas](https://github.com/Olegas) -
 **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [orangemocha](https://github.com/orangemocha) -
