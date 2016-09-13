@@ -492,7 +492,9 @@ const relativeTests = [
      ['C:\\baz-quux', 'C:\\baz', '..\\baz'],
      ['C:\\baz', 'C:\\baz-quux', '..\\baz-quux'],
      ['\\\\foo\\baz-quux', '\\\\foo\\baz', '..\\baz'],
-     ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux']
+     ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux'],
+     ['C:\\baz', '\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz'],
+     ['\\\\foo\\bar\\baz', 'C:\\baz', 'C:\\baz']
     ]
   ],
   [ path.posix.relative,
