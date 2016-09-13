@@ -455,7 +455,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 
   // Integers.
 #define X(name)                                                               \
-  Local<Value> name = Integer::NewFromUnsigned(env->isolate(), s->st_##name); \
+  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
   if (name.IsEmpty())                                                         \
     return Local<Object>();                                                   \
 
