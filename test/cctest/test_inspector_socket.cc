@@ -9,16 +9,14 @@ static const int MAX_LOOP_ITERATIONS = 10000;
 #define SPIN_WHILE(condition)                                                  \
   {                                                                            \
     bool timed_out = false;                                                    \
-    timeout_timer.data = &timed_out;                                           \
-    uv_timer_start(&timeout_timer, set_timeout_flag, 5000, 0);                 \
+    uv_timer_t* timer = start_timer(&timed_out);                               \
     while (((condition)) && !timed_out) {                                      \
       uv_run(&loop, UV_RUN_NOWAIT);                                            \
     }                                                                          \
     ASSERT_FALSE((condition));                                                 \
-    uv_timer_stop(&timeout_timer);                                             \
+    cleanup_timer(timer);                                                      \
   }
 
-static uv_timer_t timeout_timer;
 static bool connected = false;
 static bool inspector_ready = false;
 static int handshake_events = 0;
@@ -46,8 +44,31 @@ static const char HANDSHAKE_REQ[] = "GET /ws/path HTTP/1.1\r\n"
                                     "Sec-WebSocket-Key: aaa==\r\n"
                                     "Sec-WebSocket-Version: 13\r\n\r\n";
 
+static void dispose_handle(uv_handle_t* handle) {
+  *static_cast<bool*>(handle->data) = true;
+}
+
 static void set_timeout_flag(uv_timer_t* timer) {
   *(static_cast<bool*>(timer->data)) = true;
+}
+
+static uv_timer_t* start_timer(bool* flag) {
+  uv_timer_t* timer = new uv_timer_t();
+  uv_timer_init(&loop, timer);
+  timer->data = flag;
+  uv_timer_start(timer, set_timeout_flag, 5000, 0);
+  return timer;
+}
+
+static void cleanup_timer(uv_timer_t* timer) {
+  bool done = false;
+  timer->data = &done;
+  uv_timer_stop(timer);
+  uv_close(reinterpret_cast<uv_handle_t*>(timer), dispose_handle);
+  while (!done) {
+    uv_run(&loop, UV_RUN_NOWAIT);
+  }
+  delete timer;
 }
 
 static void stop_if_stop_path(enum inspector_handshake_event state,
@@ -87,7 +108,7 @@ static void do_write(const char* data, int len) {
   uv_buf_t buf[1];
   buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
-  uv_write(&req, reinterpret_cast<uv_stream_t *>(&client_socket), buf, 1,
+  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket), buf, 1,
            write_done);
   SPIN_WHILE(req.data);
 }
@@ -124,7 +145,7 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
 static void check_data_cb(uv_stream_t* stream, ssize_t nread,
                           const uv_buf_t* buf) {
   bool retval = false;
-  read_expects* expects = static_cast<read_expects *>(stream->data);
+  read_expects* expects = static_cast<read_expects*>(stream->data);
   expects->callback_called = true;
   check_data_cb(expects, nread, buf, &retval);
   if (retval) {
@@ -154,17 +175,18 @@ static void fail_callback(uv_stream_t* stream, ssize_t nread,
 }
 
 static void expect_nothing_on_client() {
-  int err = uv_read_start(reinterpret_cast<uv_stream_t *>(&client_socket),
-                          buffer_alloc_cb, fail_callback);
+  uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(&client_socket);
+  int err = uv_read_start(stream, buffer_alloc_cb, fail_callback);
   GTEST_ASSERT_EQ(0, err);
   for (int i = 0; i < MAX_LOOP_ITERATIONS; i++)
     uv_run(&loop, UV_RUN_NOWAIT);
+  uv_read_stop(stream);
 }
 
 static void expect_on_client(const char* data, size_t len) {
   read_expects expectation = prepare_expects(data, len);
   client_socket.data = &expectation;
-  uv_read_start(reinterpret_cast<uv_stream_t *>(&client_socket),
+  uv_read_start(reinterpret_cast<uv_stream_t*>(&client_socket),
                 buffer_alloc_cb, check_data_cb);
   SPIN_WHILE(!expectation.read_expected);
 }
@@ -256,7 +278,7 @@ static void inspector_record_error_code(uv_stream_t* stream, ssize_t nread,
                                         const uv_buf_t* buf) {
   inspector_socket_t *inspector = inspector_from_stream(stream);
   // Increment instead of assign is to ensure the function is only called once
-  *(static_cast<int *>(inspector->data)) += nread;
+  *(static_cast<int*>(inspector->data)) += nread;
 }
 
 static void expect_server_read_error() {
@@ -325,18 +347,17 @@ protected:
     client_socket = uv_tcp_t();
     server.data = &inspector;
     sockaddr_in addr;
-    uv_timer_init(&loop, &timeout_timer);
     uv_tcp_init(&loop, &server);
     uv_tcp_init(&loop, &client_socket);
-    uv_ip4_addr("localhost", PORT, &addr);
-    uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr *>(&addr), 0);
-    int err = uv_listen(reinterpret_cast<uv_stream_t *>(&server),
-                        0, on_new_connection);
+    uv_ip4_addr("127.0.0.1", PORT, &addr);
+    uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
+    int err = uv_listen(reinterpret_cast<uv_stream_t*>(&server),
+                        1, on_new_connection);
     GTEST_ASSERT_EQ(0, err);
     uv_connect_t connect;
     connect.data = nullptr;
     uv_tcp_connect(&connect, &client_socket,
-                   reinterpret_cast<const sockaddr *>(&addr), on_connection);
+                   reinterpret_cast<const sockaddr*>(&addr), on_connection);
     uv_tcp_nodelay(&client_socket, 1); // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
     really_close(reinterpret_cast<uv_handle_t*>(&server));
@@ -344,7 +365,6 @@ protected:
 
   virtual void TearDown() {
     really_close(reinterpret_cast<uv_handle_t*>(&client_socket));
-    really_close(reinterpret_cast<uv_handle_t*>(&timeout_timer));
     EXPECT_TRUE(inspector.buffer.empty());
     expectations* expects = static_cast<expectations*>(inspector.data);
     if (expects != nullptr) {
@@ -753,7 +773,7 @@ TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
 
 static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
                                            int status) {
-  *(static_cast<bool *>(inspector->data)) = true;
+  *(static_cast<bool*>(inspector->data)) = true;
 }
 
 static void CleanupSocketAfterEOF_read_cb(uv_stream_t* stream, ssize_t nread,
