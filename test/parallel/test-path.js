@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const child = require('child_process');
 const path = require('path');
 
 const f = __filename;
@@ -443,6 +444,17 @@ resolveTests.forEach(function(test) {
   });
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
+
+if (common.isWindows) {
+  // Test resolving the current Windows drive letter from a spawned process.
+  // See https://github.com/nodejs/node/issues/7215
+  const currentDriveLetter = path.parse(process.cwd()).root.substring(0, 2);
+  const resolveFixture = path.join(common.fixturesDir, 'path-resolve.js');
+  var spawnResult = child.spawnSync(
+    process.argv[0], [resolveFixture, currentDriveLetter]);
+  var resolvedPath = spawnResult.stdout.toString().trim();
+  assert.equal(resolvedPath.toLowerCase(), process.cwd().toLowerCase());
+}
 
 
 // path.isAbsolute tests
