@@ -42,24 +42,24 @@ if (common.isWindows ||
     common.isFreeBSD) {
   common.skip('C++ symbols are not mapped for this os.');
 } else {
-}
-tests.push({
-  pattern: /RunInDebugContext/,
-  code: `function f() {
-           require(\'vm\').runInDebugContext(\'Debug\');
-           setImmediate(function() { f(); });
-         };
-         f();`
-});
+  tests.push({
+    pattern: /RunInDebugContext/,
+    code: `function f() {
+             require(\'vm\').runInDebugContext(\'Debug\');
+             setImmediate(function() { f(); });
+           };
+           f();`
+  });
 
-tests.push({
-  pattern: /Builtin_DateNow/,
-  code: `function f() {
-           this.ts = Date.now();
-           setImmediate(function() { new f(); });
-         };
-         f();`
-});
+  tests.push({
+    pattern: /Builtin_DateNow/,
+    code: `function f() {
+             this.ts = Date.now();
+             setImmediate(function() { new f(); });
+           };
+           f();`
+  });
+}
 
 runTest();
 
