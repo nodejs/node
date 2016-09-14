@@ -4,6 +4,8 @@
 
 #define PORT 9444
 
+using namespace node::inspector;
+
 static const int MAX_LOOP_ITERATIONS = 10000;
 
 #define SPIN_WHILE(condition)                                                  \
@@ -23,7 +25,7 @@ static int handshake_events = 0;
 static enum inspector_handshake_event last_event = kInspectorHandshakeHttpGet;
 static uv_loop_t loop;
 static uv_tcp_t server, client_socket;
-static inspector_socket_t inspector;
+static InspectorSocket inspector;
 static std::string last_path;
 static void (*handshake_delegate)(enum inspector_handshake_event state,
                                   const std::string& path,
@@ -76,7 +78,7 @@ static void stop_if_stop_path(enum inspector_handshake_event state,
   *cont = path.empty() || path != "/close";
 }
 
-static bool connected_cb(inspector_socket_t* socket,
+static bool connected_cb(InspectorSocket* socket,
                          enum inspector_handshake_event state,
                          const std::string& path) {
   inspector_ready = state == kInspectorHandshakeUpgraded;
@@ -95,7 +97,7 @@ static bool connected_cb(inspector_socket_t* socket,
 static void on_new_connection(uv_stream_t* server, int status) {
   GTEST_ASSERT_EQ(0, status);
   connected = true;
-  inspector_accept(server, reinterpret_cast<inspector_socket_t*>(server->data),
+  inspector_accept(server, static_cast<InspectorSocket*>(server->data),
                    connected_cb);
 }
 
@@ -276,7 +278,7 @@ static void expect_on_server(const char* data, size_t len) {
 
 static void inspector_record_error_code(uv_stream_t* stream, ssize_t nread,
                                         const uv_buf_t* buf) {
-  inspector_socket_t *inspector = inspector_from_stream(stream);
+  InspectorSocket *inspector = inspector_from_stream(stream);
   // Increment instead of assign is to ensure the function is only called once
   *(static_cast<int*>(inspector->data)) += nread;
 }
@@ -336,13 +338,13 @@ static void on_connection(uv_connect_t* connect, int status) {
 class InspectorSocketTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
+    inspector.reinit();
     handshake_delegate = stop_if_stop_path;
     handshake_events = 0;
     connected = false;
     inspector_ready = false;
     last_event = kInspectorHandshakeHttpGet;
     uv_loop_init(&loop);
-    inspector = inspector_socket_t();
     server = uv_tcp_t();
     client_socket = uv_tcp_t();
     server.data = &inspector;
@@ -568,7 +570,7 @@ TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
 
 static int inspector_closed = 0;
 
-void inspector_closed_cb(inspector_socket_t *inspector, int code) {
+void inspector_closed_cb(InspectorSocket *inspector, int code) {
   inspector_closed++;
 }
 
@@ -771,7 +773,7 @@ TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
   SPIN_WHILE(inspector_closed == 0);
 }
 
-static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
+static void CleanupSocketAfterEOF_close_cb(InspectorSocket* inspector,
                                            int status) {
   *(static_cast<bool*>(inspector->data)) = true;
 }
@@ -779,7 +781,7 @@ static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
 static void CleanupSocketAfterEOF_read_cb(uv_stream_t* stream, ssize_t nread,
                                           const uv_buf_t* buf) {
   EXPECT_EQ(UV_EOF, nread);
-  inspector_socket_t* insp = inspector_from_stream(stream);
+  InspectorSocket* insp = inspector_from_stream(stream);
   inspector_close(insp, CleanupSocketAfterEOF_close_cb);
 }
 
