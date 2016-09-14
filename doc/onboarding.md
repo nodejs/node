@@ -171,7 +171,7 @@ Landing a PR
 * Squash into logical commits if necessary.
 * `./configure && make -j8 test` (`-j8` builds node in parallel with 8 threads. adjust to the number of cores (or processor-level threads) your processor has (or slightly more) for best results.)
 * Amend the commit description.
-  * The commit message text must conform to the [guidelines for contributing](../CONTRIBUTING.md#step-3-commit).
+  * The commit message text must conform to the [commit message guidelines](../CONTRIBUTING.md#step-3-commit).
   * Add required metadata:
     * `PR-URL: <full-pr-url>`
     * `Reviewed-By: <collaborator name> <collaborator email>`
