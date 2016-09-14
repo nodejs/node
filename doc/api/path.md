@@ -279,7 +279,7 @@ added: v0.1.16
 
 * `...paths` {String} A sequence of path segments
 
-The `path.join()` method join all given `path` segments together using the
+The `path.join()` method joins all given `path` segments together using the
 platform specific separator as a delimiter, then normalizes the resulting path.
 
 Zero-length `path` segments are ignored. If the joined path string is a
