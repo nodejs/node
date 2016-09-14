@@ -16,6 +16,9 @@
 #define DUMP_READS 0
 #define DUMP_WRITES 0
 
+namespace node {
+namespace inspector {
+
 static const char CLOSE_FRAME[] = {'\x88', '\x00'};
 
 enum ws_decode_result {
@@ -53,7 +56,7 @@ static void remove_from_beginning(std::vector<char>* buffer, size_t count) {
 }
 
 static void dispose_inspector(uv_handle_t* handle) {
-  inspector_socket_t* inspector = inspector_from_stream(handle);
+  InspectorSocket* inspector = inspector_from_stream(handle);
   inspector_cb close =
       inspector->ws_mode ? inspector->ws_state->close_cb : nullptr;
   inspector->buffer.clear();
@@ -64,7 +67,7 @@ static void dispose_inspector(uv_handle_t* handle) {
   }
 }
 
-static void close_connection(inspector_socket_t* inspector) {
+static void close_connection(InspectorSocket* inspector) {
   uv_handle_t* socket = reinterpret_cast<uv_handle_t*>(&inspector->client);
   if (!uv_is_closing(socket)) {
     uv_read_stop(reinterpret_cast<uv_stream_t*>(socket));
@@ -73,7 +76,7 @@ static void close_connection(inspector_socket_t* inspector) {
 }
 
 struct WriteRequest {
-  WriteRequest(inspector_socket_t* inspector, const char* data, size_t size)
+  WriteRequest(InspectorSocket* inspector, const char* data, size_t size)
       : inspector(inspector)
       , storage(data, data + size)
       , buf(uv_buf_init(&storage[0], storage.size())) {}
@@ -82,7 +85,7 @@ struct WriteRequest {
     return node::ContainerOf(&WriteRequest::req, req);
   }
 
-  inspector_socket_t* const inspector;
+  InspectorSocket* const inspector;
   std::vector<char> storage;
   uv_write_t req;
   uv_buf_t buf;
@@ -93,7 +96,7 @@ static void write_request_cleanup(uv_write_t* req, int status) {
   delete WriteRequest::from_write_req(req);
 }
 
-static int write_to_client(inspector_socket_t* inspector,
+static int write_to_client(InspectorSocket* inspector,
                            const char* msg,
                            size_t len,
                            uv_write_cb write_cb = write_request_cleanup) {
@@ -246,7 +249,7 @@ static ws_decode_result decode_frame_hybi17(const std::vector<char>& buffer,
   return closed ? FRAME_CLOSE : FRAME_OK;
 }
 
-static void invoke_read_callback(inspector_socket_t* inspector,
+static void invoke_read_callback(InspectorSocket* inspector,
                                  int status, const uv_buf_t* buf) {
   if (inspector->ws_state->read_cb) {
     inspector->ws_state->read_cb(
@@ -254,13 +257,13 @@ static void invoke_read_callback(inspector_socket_t* inspector,
   }
 }
 
-static void shutdown_complete(inspector_socket_t* inspector) {
+static void shutdown_complete(InspectorSocket* inspector) {
   close_connection(inspector);
 }
 
 static void on_close_frame_written(uv_write_t* req, int status) {
   WriteRequest* wr = WriteRequest::from_write_req(req);
-  inspector_socket_t* inspector = wr->inspector;
+  InspectorSocket* inspector = wr->inspector;
   delete wr;
   inspector->ws_state->close_sent = true;
   if (inspector->ws_state->received_close) {
@@ -268,7 +271,7 @@ static void on_close_frame_written(uv_write_t* req, int status) {
   }
 }
 
-static void close_frame_received(inspector_socket_t* inspector) {
+static void close_frame_received(InspectorSocket* inspector) {
   inspector->ws_state->received_close = true;
   if (!inspector->ws_state->close_sent) {
     invoke_read_callback(inspector, 0, 0);
@@ -279,7 +282,7 @@ static void close_frame_received(inspector_socket_t* inspector) {
   }
 }
 
-static int parse_ws_frames(inspector_socket_t* inspector) {
+static int parse_ws_frames(InspectorSocket* inspector) {
   int bytes_consumed = 0;
   std::vector<char> output;
   bool compressed = false;
@@ -314,7 +317,7 @@ static void prepare_buffer(uv_handle_t* stream, size_t len, uv_buf_t* buf) {
   *buf = uv_buf_init(new char[len], len);
 }
 
-static void reclaim_uv_buf(inspector_socket_t* inspector, const uv_buf_t* buf,
+static void reclaim_uv_buf(InspectorSocket* inspector, const uv_buf_t* buf,
                            ssize_t read) {
   if (read > 0) {
     std::vector<char>& buffer = inspector->buffer;
@@ -325,7 +328,7 @@ static void reclaim_uv_buf(inspector_socket_t* inspector, const uv_buf_t* buf,
 
 static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
                                const uv_buf_t* buf) {
-  inspector_socket_t* inspector = inspector_from_stream(stream);
+  InspectorSocket* inspector = inspector_from_stream(stream);
   reclaim_uv_buf(inspector, buf, nread);
   if (nread < 0 || nread == UV_EOF) {
     inspector->connection_eof = true;
@@ -352,7 +355,7 @@ static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
   }
 }
 
-int inspector_read_start(inspector_socket_t* inspector,
+int inspector_read_start(InspectorSocket* inspector,
                           uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
   ASSERT(inspector->ws_mode);
   ASSERT(!inspector->shutting_down || read_cb == nullptr);
@@ -369,7 +372,7 @@ int inspector_read_start(inspector_socket_t* inspector,
   return err;
 }
 
-void inspector_read_stop(inspector_socket_t* inspector) {
+void inspector_read_stop(InspectorSocket* inspector) {
   uv_read_stop(reinterpret_cast<uv_stream_t*>(&inspector->client));
   inspector->ws_state->alloc_cb = nullptr;
   inspector->ws_state->read_cb = nullptr;
@@ -388,7 +391,7 @@ static void generate_accept_string(const std::string& client_key,
 
 static int header_value_cb(http_parser* parser, const char* at, size_t length) {
   static const char SEC_WEBSOCKET_KEY_HEADER[] = "Sec-WebSocket-Key";
-  auto inspector = static_cast<inspector_socket_t*>(parser->data);
+  auto inspector = static_cast<InspectorSocket*>(parser->data);
   auto state = inspector->http_parsing_state;
   state->parsing_value = true;
   if (state->current_header.size() == sizeof(SEC_WEBSOCKET_KEY_HEADER) - 1 &&
@@ -401,7 +404,7 @@ static int header_value_cb(http_parser* parser, const char* at, size_t length) {
 }
 
 static int header_field_cb(http_parser* parser, const char* at, size_t length) {
-  auto inspector = static_cast<inspector_socket_t*>(parser->data);
+  auto inspector = static_cast<InspectorSocket*>(parser->data);
   auto state = inspector->http_parsing_state;
   if (state->parsing_value) {
     state->parsing_value = false;
@@ -412,13 +415,13 @@ static int header_field_cb(http_parser* parser, const char* at, size_t length) {
 }
 
 static int path_cb(http_parser* parser, const char* at, size_t length) {
-  auto inspector = static_cast<inspector_socket_t*>(parser->data);
+  auto inspector = static_cast<InspectorSocket*>(parser->data);
   auto state = inspector->http_parsing_state;
   state->path.append(at, length);
   return 0;
 }
 
-static void handshake_complete(inspector_socket_t* inspector) {
+static void handshake_complete(InspectorSocket* inspector) {
   uv_read_stop(reinterpret_cast<uv_stream_t*>(&inspector->client));
   handshake_cb callback = inspector->http_parsing_state->callback;
   inspector->ws_state = new ws_state_s();
@@ -427,20 +430,20 @@ static void handshake_complete(inspector_socket_t* inspector) {
            inspector->http_parsing_state->path);
 }
 
-static void cleanup_http_parsing_state(inspector_socket_t* inspector) {
+static void cleanup_http_parsing_state(InspectorSocket* inspector) {
   delete inspector->http_parsing_state;
   inspector->http_parsing_state = nullptr;
 }
 
 static void report_handshake_failure_cb(uv_handle_t* handle) {
   dispose_inspector(handle);
-  inspector_socket_t* inspector = inspector_from_stream(handle);
+  InspectorSocket* inspector = inspector_from_stream(handle);
   handshake_cb cb = inspector->http_parsing_state->callback;
   cleanup_http_parsing_state(inspector);
   cb(inspector, kInspectorHandshakeFailed, std::string());
 }
 
-static void close_and_report_handshake_failure(inspector_socket_t* inspector) {
+static void close_and_report_handshake_failure(InspectorSocket* inspector) {
   uv_handle_t* socket = reinterpret_cast<uv_handle_t*>(&inspector->client);
   if (uv_is_closing(socket)) {
     report_handshake_failure_cb(socket);
@@ -451,12 +454,12 @@ static void close_and_report_handshake_failure(inspector_socket_t* inspector) {
 }
 
 static void then_close_and_report_failure(uv_write_t* req, int status) {
-  inspector_socket_t* inspector = WriteRequest::from_write_req(req)->inspector;
+  InspectorSocket* inspector = WriteRequest::from_write_req(req)->inspector;
   write_request_cleanup(req, status);
   close_and_report_handshake_failure(inspector);
 }
 
-static void handshake_failed(inspector_socket_t* inspector) {
+static void handshake_failed(InspectorSocket* inspector) {
   const char HANDSHAKE_FAILED_RESPONSE[] =
       "HTTP/1.0 400 Bad Request\r\n"
       "Content-Type: text/html; charset=UTF-8\r\n\r\n"
@@ -467,11 +470,10 @@ static void handshake_failed(inspector_socket_t* inspector) {
 }
 
 // init_handshake references message_complete_cb
-static void init_handshake(inspector_socket_t* inspector);
+static void init_handshake(InspectorSocket* inspector);
 
 static int message_complete_cb(http_parser* parser) {
-  inspector_socket_t* inspector =
-      reinterpret_cast<inspector_socket_t*>(parser->data);
+  InspectorSocket* inspector = static_cast<InspectorSocket*>(parser->data);
   struct http_parsing_state_s* state = inspector->http_parsing_state;
   if (parser->method != HTTP_GET) {
     handshake_failed(inspector);
@@ -517,7 +519,7 @@ static void data_received_cb(uv_stream_s* client, ssize_t nread,
     printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, uv_err_name(nread));
   }
 #endif
-  inspector_socket_t* inspector = inspector_from_stream(client);
+  InspectorSocket* inspector = inspector_from_stream(client);
   reclaim_uv_buf(inspector, buf, nread);
   if (nread < 0 || nread == UV_EOF) {
     close_and_report_handshake_failure(inspector);
@@ -536,7 +538,7 @@ static void data_received_cb(uv_stream_s* client, ssize_t nread,
   }
 }
 
-static void init_handshake(inspector_socket_t* inspector) {
+static void init_handshake(InspectorSocket* inspector) {
   http_parsing_state_s* state = inspector->http_parsing_state;
   CHECK_NE(state, nullptr);
   state->current_header.clear();
@@ -553,13 +555,13 @@ static void init_handshake(inspector_socket_t* inspector) {
   settings->on_url = path_cb;
 }
 
-int inspector_accept(uv_stream_t* server, inspector_socket_t* inspector,
+int inspector_accept(uv_stream_t* server, InspectorSocket* inspector,
                      handshake_cb callback) {
   ASSERT_NE(callback, nullptr);
   CHECK_EQ(inspector->http_parsing_state, nullptr);
+
   inspector->http_parsing_state = new http_parsing_state_s();
   uv_stream_t* client = reinterpret_cast<uv_stream_t*>(&inspector->client);
-  CHECK_NE(client, nullptr);
   int err = uv_tcp_init(server->loop, &inspector->client);
 
   if (err == 0) {
@@ -577,7 +579,7 @@ int inspector_accept(uv_stream_t* server, inspector_socket_t* inspector,
   return err;
 }
 
-void inspector_write(inspector_socket_t* inspector, const char* data,
+void inspector_write(InspectorSocket* inspector, const char* data,
                      size_t len) {
   if (inspector->ws_mode) {
     std::vector<char> output = encode_frame_hybi17(data, len);
@@ -587,7 +589,7 @@ void inspector_write(inspector_socket_t* inspector, const char* data,
   }
 }
 
-void inspector_close(inspector_socket_t* inspector,
+void inspector_close(InspectorSocket* inspector,
     inspector_cb callback) {
   // libuv throws assertions when closing stream that's already closed - we
   // need to do the same.
@@ -605,8 +607,20 @@ void inspector_close(inspector_socket_t* inspector,
   }
 }
 
-bool inspector_is_active(const struct inspector_socket_s* inspector) {
+bool inspector_is_active(const InspectorSocket* inspector) {
   const uv_handle_t* client =
       reinterpret_cast<const uv_handle_t*>(&inspector->client);
   return !inspector->shutting_down && !uv_is_closing(client);
 }
+
+void InspectorSocket::reinit() {
+  http_parsing_state = nullptr;
+  ws_state = nullptr;
+  buffer.clear();
+  ws_mode = false;
+  shutting_down = false;
+  connection_eof = false;
+}
+
+}  // namespace inspector
+}  // namespace node
