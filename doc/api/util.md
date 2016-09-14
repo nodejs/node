@@ -348,7 +348,7 @@ console.log(arr); // logs the full array
 
 ### util.inspect.custom
 <!-- YAML
-added: REPLACEME
+added: v6.6.0
 -->
 
 A Symbol that can be used to declare custom inspect functions, see
