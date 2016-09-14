@@ -165,15 +165,13 @@ Update your `master` branch (or whichever branch you are landing on, almost alwa
 
 Landing a PR
 
-* if it all looks good, `curl -L 'url-of-pr.patch' | git am`
+* If it all looks good, `curl -L 'url-of-pr.patch' | git am`
   * If `git am` fails, see [the relevant section of the Onboarding Extras doc](./onboarding-extras.md#if-git-am-fails).
 * `git rebase -i upstream/master`
-* squash into logical commits if necessary
+* Squash into logical commits if necessary.
 * `./configure && make -j8 test` (`-j8` builds node in parallel with 8 threads. adjust to the number of cores (or processor-level threads) your processor has (or slightly more) for best results.)
 * Amend the commit description.
-  * Commits should be of the form `subsystem[,subsystem]: small description\n\nbig description\n\n<metadata>`
-  * The first line should not exceed 50 characters.
-  * The remaining lines (except for metadata lines) should wrap at 72 characters.
+  * The commit message text must conform to the [commit message guidelines](../CONTRIBUTING.md#step-3-commit).
   * Add required metadata:
     * `PR-URL: <full-pr-url>`
     * `Reviewed-By: <collaborator name> <collaborator email>`
