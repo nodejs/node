@@ -224,6 +224,8 @@ more information about the governance of the Node.js project, see
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt;
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [imyller](https://github.com/imyller) -
