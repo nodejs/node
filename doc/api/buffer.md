@@ -253,10 +253,10 @@ const buf = Buffer.from(arr.buffer, 0, 16);
 console.log(buf.length);
 ```
 
-The `Buffer.from()` and [`TypedArray.from()`] (e.g. `Uint8Array.from()`) have
-different signatures and implementations. Specifically, the [`TypedArray`] variants
-accept a second argument that is a mapping function that is invoked on every
-element of the typed array:
+The `Buffer.from()` and [`TypedArray.from()`] have different signatures and
+implementations. Specifically, the [`TypedArray`] variants accept a second
+argument that is a mapping function that is invoked on every element of the
+typed array:
 
 * `TypedArray.from(source[, mapFn[, thisArg]])`
 
@@ -538,8 +538,8 @@ A `TypeError` will be thrown if `size` is not a number.
 
 Note that the `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`] that is used as a pool for the fast allocation of new
-`Buffer` instances created using [`Buffer.allocUnsafe()`] (and the deprecated
-`new Buffer(size)` constructor) only when `size` is less than or equal to
+`Buffer` instances created using [`Buffer.allocUnsafe()`] and the deprecated
+`new Buffer(size)` constructor only when `size` is less than or equal to
 `Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`] divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
