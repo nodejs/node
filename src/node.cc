@@ -147,7 +147,9 @@ static const bool use_inspector = false;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static std::string* debug_host;  // coverity[leaked_storage]
-static int debug_port = 5858;
+static const int default_debugger_port = 5858;
+static const int default_inspector_port = 9229;
+static int debug_port = -1;
 static const int v8_default_thread_pool_size = 4;
 static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
@@ -2874,7 +2876,10 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(debug_port);
+  int port = debug_port;
+  if (port < 0)
+    port = use_inspector ? default_inspector_port : default_debugger_port;
+  info.GetReturnValue().Set(port);
 }
 
 
@@ -3765,15 +3770,17 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 static void StartDebug(Environment* env, const char* path, bool wait) {
   CHECK(!debugger_running);
   if (use_inspector) {
-    debugger_running = v8_platform.StartInspector(env, path, debug_port, wait);
+    debugger_running = v8_platform.StartInspector(env, path,
+        debug_port >= 0 ? debug_port : default_inspector_port, wait);
   } else {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
     const char* host = debug_host ? debug_host->c_str() : "127.0.0.1";
+    int port = debug_port >= 0 ? debug_port : default_debugger_port;
     debugger_running =
-        env->debugger_agent()->Start(host, debug_port, wait);
+        env->debugger_agent()->Start(host, port, wait);
     if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger on %s:%d failed\n", host, debug_port);
+      fprintf(stderr, "Starting debugger on %s:%d failed\n", host, port);
       fflush(stderr);
       return;
     }
