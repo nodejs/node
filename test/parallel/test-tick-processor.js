@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const fs = require('fs');
-const assert = require('assert');
 const cp = require('child_process');
 const path = require('path');
 
