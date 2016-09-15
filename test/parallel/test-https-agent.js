@@ -40,8 +40,7 @@ server.listen(0, function() {
           assert.strictEqual(res.statusCode, 200);
           if (++responses === N * M) server.close();
         }).on('error', function(e) {
-          console.log(e.message);
-          process.exit(1);
+          throw e;
         });
       }
     }, i);
