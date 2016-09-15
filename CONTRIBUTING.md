@@ -93,15 +93,19 @@ Writing good commit logs is important. A commit log should describe what
 changed and why. Follow these guidelines when writing one:
 
 1. The first line should be 50 characters or less and contain a short
-   description of the change prefixed with the name of the changed
-   subsystem (e.g. "net: add localAddress and localPort to Socket").
+   description of the change. All words in the description should be in
+   lowercase with the exception of proper nouns, acronyms, and the ones that
+   refer to code, like function/variable names. The description should
+   be prefixed with the name of the changed subsystem and start with an
+   imperative verb, for example, "net: add localAddress and localPort
+   to Socket".
 2. Keep the second line blank.
 3. Wrap all other lines at 72 columns.
 
 A good commit log can look something like this:
 
 ```txt
-subsystem: explaining the commit in one line
+subsystem: explain the commit in one line
 
 Body of commit message is a few lines of text, explaining things
 in more detail, possibly giving some background about the issue
