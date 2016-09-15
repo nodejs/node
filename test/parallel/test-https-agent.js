@@ -37,7 +37,7 @@ server.listen(0, function() {
           rejectUnauthorized: false
         }, function(res) {
           res.resume();
-          console.log(res.statusCode);
+          assert.strictEqual(res.statusCode, 200);
           if (++responses === N * M) server.close();
         }).on('error', function(e) {
           console.log(e.message);
