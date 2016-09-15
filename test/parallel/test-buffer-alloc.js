@@ -26,6 +26,14 @@ assert.strictEqual(512, c.length);
 const d = Buffer.from([]);
 assert.strictEqual(0, d.length);
 
+// Test offset properties
+{
+  const b = Buffer.alloc(128);
+  assert.strictEqual(128, b.length);
+  assert.strictEqual(0, b.byteOffset);
+  assert.strictEqual(0, b.offset);
+}
+
 // Test creating a Buffer from a Uint32Array
 {
   const ui32 = new Uint32Array(4).fill(42);
@@ -49,6 +57,9 @@ assert.throws(() => b.toString('invalid'),
 // invalid encoding for Buffer.write
 assert.throws(() => b.write('test string', 0, 5, 'invalid'),
               /Unknown encoding: invalid/);
+// unsupported arguments for Buffer.write
+assert.throws(() => b.write('test', 'utf8', 0),
+              /is no longer supported/);
 
 
 // try to create 0-length buffers
@@ -704,6 +715,16 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
   assert.strictEqual(buf[4], 0);
   assert.strictEqual(sub.write('12345', 'binary'), 4);
   assert.strictEqual(buf[4], 0);
+}
+
+{
+  // test alloc with fill option
+  const buf = Buffer.alloc(5, '800A', 'hex');
+  assert.strictEqual(buf[0], 128);
+  assert.strictEqual(buf[1], 10);
+  assert.strictEqual(buf[2], 128);
+  assert.strictEqual(buf[3], 10);
+  assert.strictEqual(buf[4], 128);
 }
 
 
