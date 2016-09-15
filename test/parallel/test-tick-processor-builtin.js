@@ -1,7 +1,5 @@
 'use strict';
 const common = require('../common');
-const fs = require('fs');
-const cp = require('child_process');
 const path = require('path');
 
 // TODO(mhdawson) Currently the test-tick-processor functionality in V8
