@@ -196,7 +196,7 @@ Landing a PR
   * Label your pull request with the `doc` subsystem label.
   * Run CI on your PR.
   * After a `LGTM` or two, land the PR.
-    * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Revewed-By:` metadata!
+    * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:` metadata!
 
 
 ## final notes
