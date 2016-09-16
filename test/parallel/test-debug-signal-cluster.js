@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
+const os = require('os');
 const path = require('path');
 
 const port = common.PORT;
@@ -11,13 +12,24 @@ const args = [`--debug-port=${port}`, serverPath];
 const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
 const child = spawn(process.execPath, args, options);
 
-const outputLines = [];
-var waitingForDebuggers = false;
+var expectedContent = [
+  'Starting debugger agent.',
+  'Debugger listening on 127.0.0.1:' + (port + 0),
+  'Starting debugger agent.',
+  'Debugger listening on 127.0.0.1:' + (port + 1),
+  'Starting debugger agent.',
+  'Debugger listening on 127.0.0.1:' + (port + 2),
+].join(os.EOL);
+expectedContent += os.EOL; // the last line also contains an EOL character
+
+var debuggerAgentsOutput = '';
+var debuggerAgentsStarted = false;
 
 var pids;
 
 child.stderr.on('data', function(data) {
-  const lines = data.toString().replace(/\r/g, '').trim().split('\n');
+  const childStderrOutputString = data.toString();
+  const lines = childStderrOutputString.replace(/\r/g, '').trim().split('\n');
 
   lines.forEach(function(line) {
     console.log('> ' + line);
@@ -30,24 +42,26 @@ child.stderr.on('data', function(data) {
         pids = msg.pids;
         console.error('got pids %j', pids);
 
-        waitingForDebuggers = true;
         process._debugProcess(child.pid);
+        debuggerAgentsStarted = true;
       });
 
       child.send({
         type: 'getpids'
       });
-    } else if (waitingForDebuggers) {
-      outputLines.push(line);
     }
-
   });
-  if (outputLines.length === expectedLines.length)
-    onNoMoreLines();
+
+  if (debuggerAgentsStarted) {
+    debuggerAgentsOutput += childStderrOutputString;
+    if (debuggerAgentsOutput.length === expectedContent.length) {
+      onNoMoreDebuggerAgentsOutput();
+    }
+  }
 });
 
-function onNoMoreLines() {
-  assertOutputLines();
+function onNoMoreDebuggerAgentsOutput() {
+  assertDebuggerAgentsOutput();
   process.exit();
 }
 
@@ -63,21 +77,19 @@ process.on('exit', function onExit() {
   });
 });
 
-const expectedLines = [
-  'Starting debugger agent.',
-  'Debugger listening on 127.0.0.1:' + (port + 0),
-  'Starting debugger agent.',
-  'Debugger listening on 127.0.0.1:' + (port + 1),
-  'Starting debugger agent.',
-  'Debugger listening on 127.0.0.1:' + (port + 2),
-];
+function assertDebuggerAgentsOutput() {
+  // Workers can take different amout of time to start up, and child processes'
+  // output may be interleaved arbitrarily. Moreover, child processes' output
+  // may be written using an arbitrary number of system calls, and no assumption
+  // on buffering or atomicity of output should be made. Thus, we process the
+  // output of all child processes' debugger agents character by character, and
+  // remove each character from the set of expected characters. Once all the
+  // output from all debugger agents has been processed, we consider that we got
+  // the content we expected if there's no character left in the initial
+  // expected content.
+  debuggerAgentsOutput.split('').forEach(function gotChar(char) {
+    expectedContent = expectedContent.replace(char, '');
+  });
 
-function assertOutputLines() {
-  // Do not assume any particular order of output messages,
-  // since workers can take different amout of time to
-  // start up
-  outputLines.sort();
-  expectedLines.sort();
-
-  assert.deepStrictEqual(outputLines, expectedLines);
+  assert.strictEqual(expectedContent, '');
 }
