@@ -38,4 +38,30 @@ assert(flatOne === one[0]);
 assert(flatLong.toString() === (new Array(10+1).join('asdf')));
 assert(flatLongLen.toString() === (new Array(10+1).join('asdf')));
 
+var ones = new Buffer(10);
+ones.fill('1');
+var empty = new Buffer(0);
+
+var short = ones.slice(5); // needed for 0.10.x, can't start past the length
+
+assert.equal(Buffer.concat([], 100).toString(), '');
+assert.equal(Buffer.concat([ones], 0).toString(), ones.toString()); // 0.10.x
+assert.equal(Buffer.concat([ones], 10).toString(), ones.toString());
+assert.equal(Buffer.concat([short, ones], 10).toString(), ones.toString());
+assert.equal(Buffer.concat([empty, ones]).toString(), ones.toString());
+assert.equal(Buffer.concat([ones, empty, empty]).toString(), ones.toString());
+
+var zeros100 = new Buffer(100);
+zeros100.fill(0);
+var zeros30 = new Buffer(30);
+zeros30.fill(0);
+
+// The tail should be zero-filled
+assert.equal(
+    Buffer.concat([empty, empty], 100).toString(),
+    zeros100.toString());
+assert.equal(
+    Buffer.concat([empty, ones], 40).toString(),
+    Buffer.concat([ones, zeros30]).toString());
+
 console.log("ok");
