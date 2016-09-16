@@ -82,7 +82,7 @@ function assertDebuggerAgentsOutput() {
   // output may be interleaved arbitrarily. Moreover, child processes' output
   // may be written using an arbitrary number of system calls, and no assumption
   // on buffering or atomicity of output should be made. Thus, we process the
-  // output of all chid processes' debugger agents character by character, and
+  // output of all child processes' debugger agents character by character, and
   // remove each character from the set of expected characters. Once all the
   // output from all debugger agents has been processed, we consider that we got
   // the content we expected if there's no character left in the initial
@@ -91,5 +91,5 @@ function assertDebuggerAgentsOutput() {
     expectedContent = expectedContent.replace(char, '');
   });
 
-  assert.equal(expectedContent, '');
+  assert.strictEqual(expectedContent, '');
 }
