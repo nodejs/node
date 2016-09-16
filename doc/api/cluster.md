@@ -43,7 +43,7 @@ $ NODE_DEBUG=cluster node server.js
 23521,Master Worker 23528 online
 ```
 
-Please note that, on Windows, it is not yet possible to set up a named pipe
+Please note that on Windows, it is not yet possible to set up a named pipe
 server in a worker.
 
 ## How It Works
