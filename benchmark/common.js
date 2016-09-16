@@ -137,7 +137,8 @@ Benchmark.prototype._run = function() {
     }
 
     const child = child_process.fork(require.main.filename, childArgs, {
-      env: childEnv
+      env: childEnv,
+      execArgv: ['--expose_internals'].concat(process.execArgv)
     });
     child.on('message', sendResult);
     child.on('close', function(code) {
