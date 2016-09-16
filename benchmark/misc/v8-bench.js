@@ -23,6 +23,7 @@ load('regexp.js');
 load('splay.js');
 load('navier-stokes.js');
 
+const benchmark_name = path.join('misc', 'v8-bench.js');
 const times = {};
 global.BenchmarkSuite.RunSuites({
   NotifyStart: function(name) {
@@ -31,8 +32,10 @@ global.BenchmarkSuite.RunSuites({
   NotifyResult: function(name, result) {
     const elapsed = process.hrtime(times[name]);
     common.sendResult({
-      name: name,
-      conf: {},
+      name: benchmark_name,
+      conf: {
+        benchmark: name
+      },
       rate: result,
       time: elapsed[0] + elapsed[1] / 1e9
     });
@@ -42,8 +45,10 @@ global.BenchmarkSuite.RunSuites({
   },
   NotifyScore: function(score) {
     common.sendResult({
-      name: 'Score (version ' + global.BenchmarkSuite.version + ')',
-      conf: {},
+      name: benchmark_name,
+      conf: {
+        benchmark: 'Score (version ' + global.BenchmarkSuite.version + ')'
+      },
       rate: score,
       time: 0
     });
