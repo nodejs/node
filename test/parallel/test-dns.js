@@ -7,6 +7,33 @@ const dns = require('dns');
 var existing = dns.getServers();
 assert(existing.length);
 
+// Verify that setServers() handles arrays with holes and other oddities
+assert.doesNotThrow(() => {
+  const servers = [];
+
+  servers[0] = '127.0.0.1';
+  servers[2] = '0.0.0.0';
+  dns.setServers(servers);
+});
+
+assert.doesNotThrow(() => {
+  const servers = ['127.0.0.1', '192.168.1.1'];
+
+  servers[3] = '127.1.0.1';
+  servers[4] = '127.1.0.1';
+  servers[5] = '127.1.1.1';
+
+  Object.defineProperty(servers, 2, {
+    enumerable: true,
+    get: () => {
+      servers.length = 3;
+      return '0.0.0.0';
+    }
+  });
+
+  dns.setServers(servers);
+});
+
 function noop() {}
 
 var goog = [
