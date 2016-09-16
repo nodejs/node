@@ -23,7 +23,9 @@ class ReqWrap : public AsyncWrap {
  private:
   friend class Environment;
   ListNode<ReqWrap> req_wrap_queue_;
-  T req_;
+
+ protected:
+  T req_;  // Must be last.
 };
 
 }  // namespace node

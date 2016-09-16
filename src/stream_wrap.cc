@@ -283,7 +283,7 @@ int StreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
 
 
 void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
-  ShutdownWrap* req_wrap = static_cast<ShutdownWrap*>(req->data);
+  ShutdownWrap* req_wrap = ShutdownWrap::from_req(req);
   CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
@@ -361,7 +361,7 @@ int StreamWrap::DoWrite(WriteWrap* w,
 
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = static_cast<WriteWrap*>(req->data);
+  WriteWrap* req_wrap = WriteWrap::from_req(req);
   CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
