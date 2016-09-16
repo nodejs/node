@@ -188,14 +188,15 @@ Landing a PR
     * Close the pull request with a "Landed in `<commit hash>`" comment.
 
 
-## exercise: make PRs adding yourselves to the README
+## Exercise: Make a PR adding yourself to the README
 
   * Example: https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732
-    * to see full URL: `git log 7b09aade8468e1c930f36b9c81e6ac2ed5bc8732 -1`
-  * Collaborators in alphabetical order by username
-  * Label your pull request with the `doc` subsystem label
-  * If you would like to run CI on your PR, feel free to
-  * Make sure to added the `PR-URL: <full-pr-url>`!
+    * For raw commit message: `git log 7b09aade8468e1c930f36b9c81e6ac2ed5bc8732 -1`
+  * Collaborators are in alphabetical order by GitHub username.
+  * Label your pull request with the `doc` subsystem label.
+  * Run CI on your PR.
+  * After a `LGTM` or two, land the PR.
+    * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:` metadata!
 
 
 ## final notes
