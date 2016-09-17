@@ -89,3 +89,17 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('a'));
   EXPECT_EQ('a', ToLower('A'));
 }
+
+TEST(UtilTest, Malloc) {
+  using node::Malloc;
+  EXPECT_NE(nullptr, Malloc(0));
+  EXPECT_NE(nullptr, Malloc(1));
+}
+
+TEST(UtilTest, Calloc) {
+  using node::Calloc;
+  EXPECT_NE(nullptr, Calloc(0, 0));
+  EXPECT_NE(nullptr, Calloc(1, 0));
+  EXPECT_NE(nullptr, Calloc(0, 1));
+  EXPECT_NE(nullptr, Calloc(1, 1));
+}
