@@ -14,7 +14,10 @@ Watchdog::Watchdog(Environment* env, uint64_t ms) : env_(env),
   loop_ = new uv_loop_t;
   CHECK(loop_);
   rc = uv_loop_init(loop_);
-  CHECK_EQ(0, rc);
+  if (rc != 0) {
+    FatalError("node::Watchdog::Watchdog()",
+               "Failed to initialize uv loop.");
+  }
 
   rc = uv_async_init(loop_, &async_, &Watchdog::Async);
   CHECK_EQ(0, rc);
