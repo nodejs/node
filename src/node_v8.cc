@@ -28,7 +28,10 @@ using v8::Value;
   V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
   V(3, total_available_size, kTotalAvailableSize)                             \
   V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
-  V(5, heap_size_limit, kHeapSizeLimitIndex)
+  V(5, heap_size_limit, kHeapSizeLimitIndex)                                  \
+  V(6, malloced_memory, kMallocedMemoryIndex)                                 \
+  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
+  V(8, does_zap_garbage, kDoesZapGarbageIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapStatisticsPropertiesCount =
