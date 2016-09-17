@@ -58,10 +58,10 @@ if (!common.isWindows && process.getuid() === 0) {
   }
 }
 
-assert(typeof fs.F_OK === 'number');
-assert(typeof fs.R_OK === 'number');
-assert(typeof fs.W_OK === 'number');
-assert(typeof fs.X_OK === 'number');
+assert.strictEqual(typeof fs.F_OK, 'number');
+assert.strictEqual(typeof fs.R_OK, 'number');
+assert.strictEqual(typeof fs.W_OK, 'number');
+assert.strictEqual(typeof fs.X_OK, 'number');
 
 fs.access(__filename, function(err) {
   assert.strictEqual(err, null, 'error should not exist');

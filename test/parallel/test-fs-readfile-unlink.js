@@ -19,7 +19,7 @@ fs.writeFileSync(fileName, buf);
 
 fs.readFile(fileName, function(err, data) {
   assert.ifError(err);
-  assert(data.length == buf.length);
+  assert.equal(data.length, buf.length);
   assert.strictEqual(buf[0], 42);
 
   fs.unlinkSync(fileName);

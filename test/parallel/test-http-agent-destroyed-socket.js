@@ -23,7 +23,7 @@ var server = http.createServer(function(req, res) {
   var request1 = http.get(requestOptions, function(response) {
     // assert request2 is queued in the agent
     var key = agent.getName(requestOptions);
-    assert(agent.requests[key].length === 1);
+    assert.strictEqual(agent.requests[key].length, 1);
     console.log('got response1');
     request1.socket.on('close', function() {
       console.log('request1 socket closed');
@@ -51,7 +51,7 @@ var server = http.createServer(function(req, res) {
         process.nextTick(function() {
           // assert that the same socket was not assigned to request2,
           // since it was destroyed.
-          assert(request1.socket !== request2.socket);
+          assert.notStrictEqual(request1.socket, request2.socket);
           assert(!request2.socket.destroyed, 'the socket is destroyed');
         });
       });
@@ -62,7 +62,7 @@ var server = http.createServer(function(req, res) {
     assert(!request2.socket.destroyed);
     assert(request1.socket.destroyed);
     // assert not reusing the same socket, since it was destroyed.
-    assert(request1.socket !== request2.socket);
+    assert.notStrictEqual(request1.socket, request2.socket);
     console.log('got response2');
     var gotClose = false;
     var gotResponseEnd = false;

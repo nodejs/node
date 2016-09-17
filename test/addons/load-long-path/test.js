@@ -30,5 +30,5 @@ fs.writeFileSync(addonDestinationPath, contents);
 
 // Attempt to load at long path destination
 var addon = require(addonDestinationPath);
-assert(addon != null);
-assert(addon.hello() == 'world');
+assert.notEqual(addon, null);
+assert.equal(addon.hello(), 'world');

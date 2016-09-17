@@ -12,7 +12,11 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-assert(typeof global.gc === 'function', 'Run this test with --expose-gc');
+assert.strictEqual(
+  typeof global.gc,
+  'function',
+  'Run this test with --expose-gc'
+);
 
 tls.createServer({
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),

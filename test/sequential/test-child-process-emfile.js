@@ -31,7 +31,7 @@ for (;;) {
   try {
     openFds.push(fs.openSync(__filename, 'r'));
   } catch (err) {
-    assert(err.code === 'EMFILE');
+    assert.strictEqual(err.code, 'EMFILE');
     break;
   }
 }

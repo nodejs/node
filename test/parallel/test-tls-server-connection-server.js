@@ -24,7 +24,7 @@ const server = tls.createServer(options, function(s) {
   };
 
   server.on('connection', common.mustCall(function(socket) {
-    assert(socket.server === server);
+    assert.strictEqual(socket.server, server);
     server.close();
   }));
 

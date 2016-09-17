@@ -23,4 +23,3 @@ process.on('exit', function() {
     process.kill(persistentPid);
   });
 });
-

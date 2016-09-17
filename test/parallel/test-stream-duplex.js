@@ -27,6 +27,6 @@ stream.push({ val: 1 });
 stream.end({ val: 2 });
 
 process.on('exit', function() {
-  assert(read.val === 1);
-  assert(written.val === 2);
+  assert.strictEqual(read.val, 1);
+  assert.strictEqual(written.val, 2);
 });

@@ -12,7 +12,7 @@ cluster.on('setup', function() {
                realArgs[realArgs.length - 1]);
 });
 
-assert(process.argv[process.argv.length - 1] !== 'OMG,OMG');
+assert.notStrictEqual(process.argv[process.argv.length - 1], 'OMG,OMG');
 process.argv.push('OMG,OMG');
 process.argv.push('OMG,OMG');
 cluster.setupMaster();

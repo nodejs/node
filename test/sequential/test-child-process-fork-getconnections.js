@@ -75,7 +75,7 @@ if (process.argv[2] === 'child') {
     }
 
     child.once('message', function(m) {
-      assert(m.status === 'closed');
+      assert.strictEqual(m.status, 'closed');
       server.getConnections(function(err, num) {
         closeSockets(i + 1);
       });
