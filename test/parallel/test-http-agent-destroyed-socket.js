@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
     path: '/'
   };
 
-  const request1 = http.get(requestOptions, (response) => {
+  const request1 = http.get(requestOptions, common.mustCall((response) => {
     // assert request2 is queued in the agent
     const key = agent.getName(requestOptions);
     assert.strictEqual(agent.requests[key].length, 1);
@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
       // is triggered.
       request1.socket.destroy();
 
-      response.once('close', () => {
+      response.once('close', common.mustCall(() => {
         // assert request2 was removed from the queue
         assert(!agent.requests[key]);
         console.log("waiting for request2.onSocket's nextTick");
@@ -54,11 +54,11 @@ const server = http.createServer((req, res) => {
           assert.notStrictEqual(request1.socket, request2.socket);
           assert(!request2.socket.destroyed, 'the socket is destroyed');
         });
-      });
+      }));
     });
-  });
+  }));
 
-  const request2 = http.get(requestOptions, (response) => {
+  const request2 = http.get(requestOptions, common.mustCall((response) => {
     assert(!request2.socket.destroyed);
     assert(request1.socket.destroyed);
     // assert not reusing the same socket, since it was destroyed.
@@ -66,21 +66,21 @@ const server = http.createServer((req, res) => {
     console.log('got response2');
     let gotClose = false;
     let gotResponseEnd = false;
-    request2.socket.on('close', () => {
+    request2.socket.on('close', common.mustCall(() => {
       console.log('request2 socket closed');
       gotClose = true;
       done();
-    });
+    }));
     response.pipe(process.stdout);
-    response.on('end', () => {
+    response.on('end', common.mustCall(() => {
       console.log('response2 done');
       gotResponseEnd = true;
       done();
-    });
+    }));
 
     function done() {
       if (gotResponseEnd && gotClose)
         server.close();
     }
-  });
+  }));
 });
