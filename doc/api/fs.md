@@ -1524,6 +1524,16 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 `stats` is a [`fs.Stats`][] object.  See the [`fs.Stats`][] section for more
 information.
 
+In case of an error, the `err.code` will be one of [Common System Errors][].
+
+Using `fs.stat()` to check for the existence of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended.
+Instead, user code should open/read/write the file directly and handle the
+error raised if the file is not available.
+
+To check if a file exists without manipulating it afterwards, [`fs.access()`]
+is recommended.
+
 ## fs.statSync(path)
 <!-- YAML
 added: v0.1.21
@@ -2207,3 +2217,4 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`event ports`]: http://illumos.org/man/port_create
 [`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
+[Common System Errors]: errors.html#errors_common_system_errors
