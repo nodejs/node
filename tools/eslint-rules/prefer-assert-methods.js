@@ -29,7 +29,9 @@ module.exports = function(context) {
         const arg = getFirstArg(node.expression);
         if (arg && arg.type === 'BinaryExpression') {
           const assertMethod = preferedAssertMethod[arg.operator];
-          if (assertMethod) context.report(node, parseError(assertMethod, arg.operator));
+          if (assertMethod) {
+            context.report(node, parseError(assertMethod, arg.operator));
+          }
         }
       }
     }
