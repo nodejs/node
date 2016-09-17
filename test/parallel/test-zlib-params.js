@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
+const path = require('path');
+const fs = require('fs');
 
 const file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg'));
 const chunkSize = 12 * 1024;
@@ -20,7 +20,8 @@ deflater.write(chunk1, function() {
   deflater.params(0, zlib.Z_DEFAULT_STRATEGY, function() {
     while (deflater.read());
     deflater.end(chunk2, function() {
-      var bufs = [], buf;
+      const bufs = [];
+      var buf;
       while (buf = deflater.read())
         bufs.push(buf);
       actual = Buffer.concat(bufs);
