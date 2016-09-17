@@ -102,7 +102,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   size_t count = chunks->Length() >> 1;
 
-  MaybeStackBuffer<uv_buf_t> bufs(count);
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
 
   // Determine storage size first
   size_t storage_size = 0;

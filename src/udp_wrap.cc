@@ -275,7 +275,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
-  MaybeStackBuffer<uv_buf_t> bufs(count);
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
 
   // construct uv_buf_t array
   for (size_t i = 0; i < count; i++) {
