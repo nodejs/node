@@ -74,7 +74,13 @@ module.exports = {
 
                 modifiedBuiltins.forEach(function(builtin) {
                     if (lhs.object.object.name === builtin) {
-                        context.report(node, builtin + " prototype is read only, properties should not be added.");
+                        context.report({
+                            node,
+                            message: "{{builtin}} prototype is read only, properties should not be added.",
+                            data: {
+                                builtin
+                            }
+                        });
                     }
                 });
             },
@@ -98,7 +104,13 @@ module.exports = {
                         (modifiedBuiltins.indexOf(object.name) > -1) &&
                         subject.property.name === "prototype") {
 
-                        context.report(node, object.name + " prototype is read only, properties should not be added.");
+                        context.report({
+                            node,
+                            message: "{{objectName}} prototype is read only, properties should not be added.",
+                            data: {
+                                objectName: object.name
+                            }
+                        });
                     }
                 }
 

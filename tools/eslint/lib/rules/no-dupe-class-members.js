@@ -34,7 +34,7 @@ module.exports = {
          */
         function getState(name, isStatic) {
             const stateMap = stack[stack.length - 1];
-            const key = "$" + name; // to avoid "__proto__".
+            const key = `$${name}`; // to avoid "__proto__".
 
             if (!stateMap[key]) {
                 stateMap[key] = {

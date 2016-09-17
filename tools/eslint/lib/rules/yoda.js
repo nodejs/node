@@ -69,7 +69,7 @@ function getNormalizedLiteral(node) {
         return {
             type: "Literal",
             value: -node.argument.value,
-            raw: "-" + node.argument.value
+            raw: `-${node.argument.value}`
         };
     }
 
@@ -234,7 +234,13 @@ module.exports = {
                     isComparisonOperator(node.operator) &&
                     !(exceptRange && isRangeTest(context.getAncestors().pop()))
                 ) {
-                    context.report(node, "Expected literal to be on the left side of " + node.operator + ".");
+                    context.report({
+                        node,
+                        message: "Expected literal to be on the left side of {{operator}}.",
+                        data: {
+                            operator: node.operator
+                        }
+                    });
                 }
 
             } : function(node) {
@@ -247,7 +253,13 @@ module.exports = {
                     isComparisonOperator(node.operator) &&
                     !(exceptRange && isRangeTest(context.getAncestors().pop()))
                 ) {
-                    context.report(node, "Expected literal to be on the right side of " + node.operator + ".");
+                    context.report({
+                        node,
+                        message: "Expected literal to be on the right side of {{operator}}.",
+                        data: {
+                            operator: node.operator
+                        }
+                    });
                 }
 
             }

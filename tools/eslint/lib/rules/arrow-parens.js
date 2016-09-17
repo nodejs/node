@@ -87,7 +87,7 @@ module.exports = {
                         node,
                         message: requireForBlockBodyNoParensMessage,
                         fix(fixer) {
-                            return fixer.replaceText(token, "(" + token.value + ")");
+                            return fixer.replaceText(token, `(${token.value})`);
                         }
                     });
                 }
@@ -123,7 +123,7 @@ module.exports = {
                         node,
                         message,
                         fix(fixer) {
-                            return fixer.replaceText(token, "(" + token.value + ")");
+                            return fixer.replaceText(token, `(${token.value})`);
                         }
                     });
                 }

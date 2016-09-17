@@ -90,7 +90,10 @@ module.exports = {
                         line: node.loc.start.line,
                         column: node.loc.start.column + elm.index
                     },
-                    message: "Unnecessary escape character: " + elm[0] + "."
+                    message: "Unnecessary escape character: {{character}}.",
+                    data: {
+                        character: elm[0]
+                    }
                 });
             }
         }

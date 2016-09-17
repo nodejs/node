@@ -31,7 +31,13 @@ module.exports = {
          */
         function checkForViolation(id) {
             if (RESTRICTED.indexOf(id.name) > -1) {
-                context.report(id, "Shadowing of global property '" + id.name + "'.");
+                context.report({
+                    node: id,
+                    message: "Shadowing of global property '{{idName}}'.",
+                    data: {
+                        idName: id.name
+                    }
+                });
             }
         }
 

@@ -35,7 +35,18 @@ module.exports = {
                 regexResults = multipleSpacesRegex.exec(value);
 
             if (regexResults !== null) {
-                context.report(node, "Spaces are hard to count. Use {" + regexResults[0].length + "}.");
+                context.report({
+                    node,
+                    message: "Spaces are hard to count. Use {{{count}}}.",
+                    data: {
+                        count: regexResults[0].length
+                    }
+                });
+
+                /*
+                 * TODO: (platinumazure) Fix message to use rule message
+                 * substitution when api.report is fixed in lib/eslint.js.
+                 */
             }
         }
 

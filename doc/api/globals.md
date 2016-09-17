@@ -182,19 +182,19 @@ left untouched.
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
-## setImmediate(callback[, arg][, ...])
+## setImmediate(callback[, ...args])
 
 <!-- type=global -->
 
 [`setImmediate`] is described in the [timers][] section.
 
-## setInterval(callback, delay[, arg][, ...])
+## setInterval(callback, delay[, ...args])
 
 <!-- type=global -->
 
 [`setInterval`] is described in the [timers][] section.
 
-## setTimeout(callback, delay[, arg][, ...])
+## setTimeout(callback, delay[, ...args])
 
 <!-- type=global -->
 
@@ -210,7 +210,7 @@ but rather than loading the module, just return the resolved filename.
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout`]: timers.html#timers_cleartimeout_timeout
-[`setImmediate`]: timers.html#timers_setimmediate_callback_arg
-[`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
-[`setTimeout`]: timers.html#timers_settimeout_callback_delay_arg
+[`setImmediate`]: timers.html#timers_setimmediate_callback_args
+[`setInterval`]: timers.html#timers_setinterval_callback_delay_args
+[`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects

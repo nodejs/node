@@ -17,7 +17,9 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -36,7 +38,11 @@ module.exports = {
 
                     if (grandparent.type === "MemberExpression" && grandparent.object === node &&
                         (!source || source.value !== "(")) {
-                        context.report(node, "Wrap the regexp literal in parens to disambiguate the slash.");
+                        context.report({
+                            node,
+                            message: "Wrap the regexp literal in parens to disambiguate the slash.",
+                            fix: fixer => fixer.replaceText(node, `(${sourceCode.getText(node)})`)
+                        });
                     }
                 }
             }

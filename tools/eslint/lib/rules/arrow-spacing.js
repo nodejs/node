@@ -51,16 +51,18 @@ module.exports = {
          * @returns {Object} Tokens of arrow and before/after arrow.
          */
         function getTokens(node) {
-            let t = sourceCode.getFirstToken(node);
-            let before;
+            let arrow = sourceCode.getTokenBefore(node.body);
 
-            while (t.type !== "Punctuator" || t.value !== "=>") {
-                before = t;
-                t = sourceCode.getTokenAfter(t);
+            // skip '(' tokens.
+            while (arrow.value !== "=>") {
+                arrow = sourceCode.getTokenBefore(arrow);
             }
-            const after = sourceCode.getTokenAfter(t);
 
-            return { before, arrow: t, after };
+            return {
+                before: sourceCode.getTokenBefore(arrow),
+                arrow,
+                after: sourceCode.getTokenAfter(arrow)
+            };
         }
 
         /**

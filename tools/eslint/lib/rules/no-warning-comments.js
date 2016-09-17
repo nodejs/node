@@ -117,7 +117,13 @@ module.exports = {
             const matches = commentContainsWarningTerm(node.value);
 
             matches.forEach(function(matchedTerm) {
-                context.report(node, "Unexpected '" + matchedTerm + "' comment.");
+                context.report({
+                    node,
+                    message: "Unexpected '{{matchedTerm}}' comment.",
+                    data: {
+                        matchedTerm
+                    }
+                });
             });
         }
 

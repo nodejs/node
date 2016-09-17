@@ -450,14 +450,20 @@ static void close_and_report_handshake_failure(inspector_socket_t* inspector) {
   }
 }
 
+static void then_close_and_report_failure(uv_write_t* req, int status) {
+  inspector_socket_t* inspector = WriteRequest::from_write_req(req)->inspector;
+  write_request_cleanup(req, status);
+  close_and_report_handshake_failure(inspector);
+}
+
 static void handshake_failed(inspector_socket_t* inspector) {
   const char HANDSHAKE_FAILED_RESPONSE[] =
       "HTTP/1.0 400 Bad Request\r\n"
       "Content-Type: text/html; charset=UTF-8\r\n\r\n"
       "WebSockets request was expected\r\n";
   write_to_client(inspector, HANDSHAKE_FAILED_RESPONSE,
-                  sizeof(HANDSHAKE_FAILED_RESPONSE) - 1);
-  close_and_report_handshake_failure(inspector);
+                  sizeof(HANDSHAKE_FAILED_RESPONSE) - 1,
+                  then_close_and_report_failure);
 }
 
 // init_handshake references message_complete_cb

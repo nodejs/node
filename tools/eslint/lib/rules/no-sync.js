@@ -31,7 +31,13 @@ module.exports = {
                     syncRegex = /.*Sync$/;
 
                 if (syncRegex.exec(propertyName) !== null) {
-                    context.report(node, "Unexpected sync method: '" + propertyName + "'.");
+                    context.report({
+                        node,
+                        message: "Unexpected sync method: '{{propertyName}}'.",
+                        data: {
+                            propertyName
+                        }
+                    });
                 }
             }
         };

@@ -792,7 +792,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 }
 
 {
-  const x = new function() {};
+  const x = new function() {}; // eslint-disable-line new-parens
   assert.strictEqual(util.inspect(x), '{}');
 }
 

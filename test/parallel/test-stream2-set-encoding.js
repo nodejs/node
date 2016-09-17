@@ -22,7 +22,7 @@ function run() {
   var fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     equal: assert.equal,
     end: function() {
       count--;

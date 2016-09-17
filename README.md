@@ -224,8 +224,12 @@ more information about the governance of the Node.js project, see
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt;
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
+* [imyller](https://github.com/imyller) -
+**Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [iWuzHere](https://github.com/iWuzHere) -
@@ -260,6 +264,8 @@ more information about the governance of the Node.js project, see
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
 **Christopher Monsanto** &lt;chris@monsan.to&gt;
+* [not-an-aardvark](https://github.com/not-an-aardvark) -
+**Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [Olegas](https://github.com/Olegas) -
 **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [orangemocha](https://github.com/orangemocha) -

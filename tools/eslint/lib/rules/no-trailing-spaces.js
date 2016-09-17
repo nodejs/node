@@ -35,8 +35,8 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         const BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
-            SKIP_BLANK = "^" + BLANK_CLASS + "*$",
-            NONBLANK = BLANK_CLASS + "+$";
+            SKIP_BLANK = `^${BLANK_CLASS}*$`,
+            NONBLANK = `${BLANK_CLASS}+$`;
 
         const options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false;
