@@ -11,9 +11,9 @@ let returns = 0;
     (after removing traling whitespace)
 */
 function testCwd(options, forCode, forData) {
-  const data = '';
+  let data = '';
 
-  const child = common.spawnPwd(options);
+  let child = common.spawnPwd(options);
 
   child.stdout.setEncoding('utf8');
 
