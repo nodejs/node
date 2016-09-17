@@ -2,13 +2,13 @@
 // test convenience methods with and without options supplied
 
 require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const assert = require('assert');
+const zlib = require('zlib');
 
 var hadRun = 0;
 
-var expect = 'blahblahblahblahblahblah';
-var opts = {
+const expect = 'blahblahblahblahblahblah';
+const opts = {
   level: 9,
   chunkSize: 1024,
 };
