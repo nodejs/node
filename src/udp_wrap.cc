@@ -275,13 +275,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
-  // allocate uv_buf_t of the correct size
-  // if bigger than 16 elements
-  uv_buf_t bufs_[16];
-  uv_buf_t* bufs = bufs_;
-
-  if (arraysize(bufs_) < count)
-    bufs = new uv_buf_t[count];
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
 
   // construct uv_buf_t array
   for (size_t i = 0; i < count; i++) {
@@ -313,15 +307,11 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   if (err == 0) {
     err = uv_udp_send(&req_wrap->req_,
                       &wrap->handle_,
-                      bufs,
+                      *bufs,
                       count,
                       reinterpret_cast<const sockaddr*>(&addr),
                       OnSend);
   }
-
-  // Deallocate space
-  if (bufs != bufs_)
-    delete[] bufs;
 
   req_wrap->Dispatched();
   if (err)
