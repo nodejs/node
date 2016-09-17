@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var returns = 0;
+let returns = 0;
 
 /*
   Spawns 'pwd' with given options, then test
   - whether the exit code equals forCode,
   - optionally whether the stdout result matches forData
-    (after removing traling whitespace)
+    (after removing trailing whitespace)
 */
 function testCwd(options, forCode, forData) {
-  var data = '';
+  let data = '';
 
-  var child = common.spawnPwd(options);
+  const child = common.spawnPwd(options);
 
   child.stdout.setEncoding('utf8');
 
@@ -46,7 +46,7 @@ if (common.isWindows) {
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
 {
   testCwd({cwd: 'does-not-exist'}, -1).on('error', common.mustCall(function(e) {
-    assert.equal(e.code, 'ENOENT');
+    assert.strictEqual(e.code, 'ENOENT');
   }));
 }
 
@@ -58,7 +58,7 @@ testCwd({cwd: undefined}, 0);
 testCwd({cwd: null}, 0);
 
 // Check whether all tests actually returned
-assert.notEqual(0, returns);
+assert.notStrictEqual(returns, 0);
 process.on('exit', function() {
-  assert.equal(0, returns);
+  assert.strictEqual(returns, 0);
 });
