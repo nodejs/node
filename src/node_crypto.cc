@@ -5368,7 +5368,7 @@ class RandomBytesRequest : public AsyncWrap {
         error_(0),
         size_(size),
         data_(static_cast<char*>(node::Malloc(size))) {
-    if (data() == nullptr && size > 0)
+    if (data() == nullptr)
       FatalError("node::RandomBytesRequest()", "Out of Memory");
     Wrap(object, this);
   }
