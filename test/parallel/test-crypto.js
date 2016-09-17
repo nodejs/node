@@ -168,3 +168,42 @@ console.log(crypto.randomBytes(16));
 assert.throws(function() {
   tls.createSecureContext({ crl: 'not a CRL' });
 }, /^Error: Failed to parse CRL$/);
+
+/**
+ * Check if the stream function uses utf8 as a default encoding.
+ **/
+
+function testEncoding(options, assertionHash) {
+  const hash = crypto.createHash('sha256', options);
+  let hashValue = '';
+
+  hash.on('data', (data) => {
+    hashValue += data.toString('hex');
+  });
+
+  hash.on('end', () => {
+    assert.equal(hashValue, assertionHash);
+  });
+
+  hash.write('öäü');
+  hash.end();
+}
+
+// Hash of "öäü" in utf8 format
+const assertionHashUtf8 =
+  '4f53d15bee524f082380e6d7247cc541e7cb0d10c64efdcc935ceeb1e7ea345c';
+
+// Hash of "öäü" in ascii format
+const assertionHashAscii =
+  'cd37bccd5786e2e76d9b18c871e919e6eb11cc12d868f5ae41c40ccff8e44830';
+
+testEncoding(undefined, assertionHashUtf8);
+testEncoding({}, assertionHashUtf8);
+
+testEncoding({
+  defaultEncoding: 'utf8'
+}, assertionHashUtf8);
+
+testEncoding({
+  defaultEncoding: 'ascii'
+}, assertionHashAscii);
