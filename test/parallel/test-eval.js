@@ -4,8 +4,8 @@ const util = require('util');
 const assert = require('assert');
 const exec = require('child_process').exec;
 
-const cmd = ['"' + process.execPath + '"', '-e', '"console.error(process.argv)"',
-           'foo', 'bar'].join(' ');
+const cmd = ['"' + process.execPath + '"', '-e',
+             '"console.error(process.argv)"', 'foo', 'bar'].join(' ');
 const expected = util.format([process.execPath, 'foo', 'bar']) + '\n';
 exec(cmd, common.mustCall(function(err, stdout, stderr) {
   assert.ifError(err);
