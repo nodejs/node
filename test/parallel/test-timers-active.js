@@ -13,7 +13,7 @@ legitTimers.forEach(function(legit) {
   const savedTimeout = legit._idleTimeout;
   active(legit);
   // active() should mutate these objects
-  assert(legit._idleTimeout === savedTimeout);
+  assert.strictEqual(legit._idleTimeout, savedTimeout);
   assert(Number.isInteger(legit._idleStart));
   assert(legit._idleNext);
   assert(legit._idlePrev);
