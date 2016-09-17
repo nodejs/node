@@ -92,7 +92,7 @@
       'lib/internal/util.js',
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
-      'lib/internal/streams/lazy_transform.js',
+      'lib/internal/crypto/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
