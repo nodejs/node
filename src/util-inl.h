@@ -246,11 +246,13 @@ void* Realloc(void* pointer, size_t size) {
 
 // As per spec realloc behaves like malloc if passed nullptr.
 void* Malloc(size_t size) {
+  if (size == 0) size = 1;
   return Realloc(nullptr, size);
 }
 
 void* Calloc(size_t n, size_t size) {
-  if ((n == 0) || (size == 0)) return nullptr;
+  if (n == 0) n = 1;
+  if (size == 0) size = 1;
   CHECK_GE(n * size, n);  // Overflow guard.
   return calloc(n, size);
 }
