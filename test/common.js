@@ -508,3 +508,16 @@ exports.isAlive = function isAlive(pid) {
     return false;
   }
 };
+
+exports.expectWarning = function(name, expected) {
+  if (typeof expected === 'string')
+    expected = [expected];
+  process.on('warning', exports.mustCall((warning) => {
+    assert.strictEqual(warning.name, name);
+    assert.ok(expected.includes(warning.message),
+              `unexpected error message: "${warning.message}"`);
+    // Remove a warning message after it is seen so that we guarantee that we
+    // get each message only once.
+    expected.splice(expected.indexOf(warning.message), 1);
+  }, expected.length));
+};
