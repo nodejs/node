@@ -86,6 +86,6 @@ function sendBADTLSRecord() {
 }
 
 process.on('exit', function() {
-  assert(iter === max_iter);
+  assert.strictEqual(iter, max_iter);
   assert(success);
 });

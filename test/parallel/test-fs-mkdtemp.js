@@ -10,7 +10,7 @@ common.refreshTmpDir();
 
 const tmpFolder = fs.mkdtempSync(path.join(common.tmpDir, 'foo.'));
 
-assert(path.basename(tmpFolder).length === 'foo.XXXXXX'.length);
+assert.strictEqual(path.basename(tmpFolder).length, 'foo.XXXXXX'.length);
 assert(common.fileExists(tmpFolder));
 
 const utf8 = fs.mkdtempSync(path.join(common.tmpDir, '\u0222abc.'));

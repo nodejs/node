@@ -12,7 +12,7 @@ stream.end();
 stream.on('finish', common.mustCall(function() {
   process.nextTick(common.mustCall(function() {
     assert.strictEqual(stream.closed, undefined);
-    assert(stream.fd !== null);
+    assert.notStrictEqual(stream.fd, null);
     next();
   }));
 }));
