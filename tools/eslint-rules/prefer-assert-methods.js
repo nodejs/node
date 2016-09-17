@@ -20,7 +20,7 @@ const preferedAssertMethod = {
   '!==': 'notStrictEqual',
   '==': 'equal',
   '!=': 'notEqual'
-}
+};
 
 module.exports = function(context) {
   return {
