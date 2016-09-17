@@ -21,6 +21,7 @@ If you need help using or installing Node.js, please use the
 ### Official Resources
 
 * [Website][]
+* [Node.js Help][]
 * [Contributing to the project][]
 * IRC (node core development): [#node-dev on chat.freenode.net][]
 
@@ -386,6 +387,7 @@ keys:
 
 [Website]: https://nodejs.org/en/
 [Contributing to the project]: CONTRIBUTING.md
+[Node.js Help]: https://github.com/nodejs/help
 [Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md
 [#node.js on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
 [#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4
