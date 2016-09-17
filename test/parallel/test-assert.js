@@ -1,13 +1,11 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var a = require('assert');
+const assert = require('assert');
+const a = require('assert');
 
 function makeBlock(f) {
-  var args = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    return f.apply(this, args);
-  };
+  const args = [].slice.call(arguments, 1);
+  return () => f.apply(this, args);
 }
 
 assert.ok(a.AssertionError.prototype instanceof Error,
@@ -122,8 +120,8 @@ assert.throws(makeBlock(a.deepEqual, {a: 4}, {a: 4, b: true}),
 assert.doesNotThrow(makeBlock(a.deepEqual, ['a'], {0: 'a'}));
 //(although not necessarily the same order),
 assert.doesNotThrow(makeBlock(a.deepEqual, {a: 4, b: '1'}, {b: '1', a: 4}));
-var a1 = [1, 2, 3];
-var a2 = [1, 2, 3];
+const a1 = [1, 2, 3];
+const a2 = [1, 2, 3];
 a1.a = 'test';
 a1.b = true;
 a2.b = true;
@@ -133,7 +131,7 @@ assert.throws(makeBlock(a.deepEqual, Object.keys(a1), Object.keys(a2)),
 assert.doesNotThrow(makeBlock(a.deepEqual, a1, a2));
 
 // having an identical prototype property
-var nbRoot = {
+const nbRoot = {
   toString: function() { return this.first + ' ' + this.last; }
 };
 
@@ -151,8 +149,8 @@ function nameBuilder2(first, last) {
 }
 nameBuilder2.prototype = nbRoot;
 
-var nb1 = new nameBuilder('Ryan', 'Dahl');
-var nb2 = new nameBuilder2('Ryan', 'Dahl');
+const nb1 = new nameBuilder('Ryan', 'Dahl');
+let nb2 = new nameBuilder2('Ryan', 'Dahl');
 
 assert.doesNotThrow(makeBlock(a.deepEqual, nb1, nb2));
 
@@ -269,8 +267,8 @@ function Constructor2(first, last) {
   this.last = last;
 }
 
-var obj1 = new Constructor1('Ryan', 'Dahl');
-var obj2 = new Constructor2('Ryan', 'Dahl');
+const obj1 = new Constructor1('Ryan', 'Dahl');
+let obj2 = new Constructor2('Ryan', 'Dahl');
 
 assert.throws(makeBlock(a.deepStrictEqual, obj1, obj2), a.AssertionError);
 
@@ -287,7 +285,7 @@ assert.throws(makeBlock(assert.deepStrictEqual, true, 1),
 assert.throws(makeBlock(assert.deepStrictEqual, Symbol(), Symbol()),
               a.AssertionError);
 
-var s = Symbol();
+const s = Symbol();
 assert.doesNotThrow(makeBlock(assert.deepStrictEqual, s, s));
 
 
@@ -328,7 +326,7 @@ assert.throws(makeBlock(thrower, a.AssertionError));
 assert.throws(makeBlock(thrower, TypeError));
 
 // when passing a type, only catch errors of the appropriate type
-var threw = false;
+let threw = false;
 try {
   a.throws(makeBlock(thrower, TypeError), a.AssertionError);
 } catch (e) {
@@ -397,7 +395,7 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
 threw = false;
 
 try {
-  var ES6Error = class extends Error {};
+  const ES6Error = class extends Error {};
 
   var AnotherErrorType = class extends Error {};
 
@@ -438,7 +436,7 @@ assert.ok(threw);
   a.throws(makeBlock(a.deepStrictEqual, d, e), /AssertionError/);
 }
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
-var args = (function() { return arguments; })();
+const args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
 a.throws(makeBlock(a.deepEqual, args, []));
 
@@ -457,14 +455,14 @@ a.throws(makeBlock(a.deepEqual, args, []));
   a.doesNotThrow(makeBlock(a.deepEqual, someArgs, sameArgs));
 }
 
-var circular = {y: 1};
+const circular = {y: 1};
 circular.x = circular;
 
 function testAssertionMessage(actual, expected) {
   try {
     assert.equal(actual, '');
   } catch (e) {
-    assert.equal(e.toString(),
+    assert.strictEqual(e.toString(),
         ['AssertionError:', expected, '==', '\'\''].join(' '));
     assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
@@ -500,7 +498,7 @@ try {
   });
 } catch (e) {
   threw = true;
-  assert.equal(e.message, 'Missing expected exception..');
+  assert.strictEqual(e.message, 'Missing expected exception..');
 }
 assert.ok(threw);
 
@@ -508,27 +506,27 @@ assert.ok(threw);
 try {
   assert.equal(1, 2);
 } catch (e) {
-  assert.equal(e.toString().split('\n')[0], 'AssertionError: 1 == 2');
+  assert.strictEqual(e.toString().split('\n')[0], 'AssertionError: 1 == 2');
   assert.ok(e.generatedMessage, 'Message not marked as generated');
 }
 
 try {
-  assert.equal(1, 2, 'oh no');
+  assert.strictEqual(1, 2, 'oh no');
 } catch (e) {
-  assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no');
+  assert.strictEqual(e.toString().split('\n')[0], 'AssertionError: oh no');
   assert.equal(e.generatedMessage, false,
                'Message incorrectly marked as generated');
 }
 
 // Verify that throws() and doesNotThrow() throw on non-function block
 function testBlockTypeError(method, block) {
-  var threw = true;
+  let threw = true;
 
   try {
     method(block);
     threw = false;
   } catch (e) {
-    assert.equal(e.toString(),
+    assert.strictEqual(e.toString(),
                  'TypeError: "block" argument must be a function');
   }
 
