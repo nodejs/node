@@ -387,7 +387,7 @@ keys:
 
 [Website]: https://nodejs.org/en/
 [Contributing to the project]: CONTRIBUTING.md
-[Node.js Help]: http://github.com/nodejs/help
+[Node.js Help]: https://github.com/nodejs/help
 [Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md
 [#node.js on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
 [#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4
