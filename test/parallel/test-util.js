@@ -121,21 +121,12 @@ assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
-const expected = [
+common.expectWarning('DeprecationWarning', [
   'util.print is deprecated. Use console.log instead.',
   'util.puts is deprecated. Use console.log instead.',
   'util.debug is deprecated. Use console.error instead.',
   'util.error is deprecated. Use console.error instead.'
-];
-
-process.on('warning', common.mustCall((warning) => {
-  assert.strictEqual(warning.name, 'DeprecationWarning');
-  assert.notStrictEqual(expected.indexOf(warning.message), -1,
-                        `unexpected error message: "${warning.message}"`);
-  // Remove a warning message after it is seen so that we guarantee that we get
-  // each message only once.
-  expected.splice(expected.indexOf(warning.message), 1);
-}, expected.length));
+]);
 
 util.print('test');
 util.puts('test');
