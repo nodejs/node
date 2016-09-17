@@ -43,6 +43,12 @@ assert.strictEqual(util.inspect(Object.create({},
   '{ visible: 1 }'
 );
 
+{
+  const regexp = /regexp/;
+  regexp.aprop = 42;
+  assert.strictEqual(util.inspect({a: regexp}, false, 0), '{ a: /regexp/ }');
+}
+
 assert(/Object/.test(
   util.inspect({a: {a: {a: {a: {}}}}}, undefined, undefined, true)
 ));
@@ -244,6 +250,11 @@ assert.strictEqual(util.inspect(value), '[ 1, 2, 3, growingLength: [Getter] ]');
 value = function() {};
 value.aprop = 42;
 assert.strictEqual(util.inspect(value), '{ [Function: value] aprop: 42 }');
+
+// Anonymous function with properties
+value = (() => function() {})();
+value.aprop = 42;
+assert.strictEqual(util.inspect(value), '{ [Function] aprop: 42 }');
 
 // Regular expressions with properties
 value = /123/ig;
@@ -901,4 +912,12 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
     JSON.stringify(util.inspect.defaultOptions),
     JSON.stringify(oldOptions)
   );
+
+  assert.throws(() => {
+    util.inspect.defaultOptions = null;
+  }, /"options" must be an object/);
+
+  assert.throws(() => {
+    util.inspect.defaultOptions = 'bad';
+  }, /"options" must be an object/);
 }
