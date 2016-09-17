@@ -4,8 +4,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const domain = require('domain');
 const crypto = require('crypto');
+const domain = require('domain');
 
 function test(fn) {
   const ex = new Error('BAM');
