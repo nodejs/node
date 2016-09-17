@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var options = {stdio: ['pipe']};
-var child = common.spawnPwd(options);
+let options = {stdio: ['pipe']};
+let child = common.spawnPwd(options);
 
 assert.notEqual(child.stdout, null);
 assert.notEqual(child.stderr, null);
