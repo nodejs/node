@@ -13,7 +13,7 @@ let returns = 0;
 function testCwd(options, forCode, forData) {
   let data = '';
 
-  let child = common.spawnPwd(options);
+  const child = common.spawnPwd(options);
 
   child.stdout.setEncoding('utf8');
 

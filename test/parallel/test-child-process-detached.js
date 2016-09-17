@@ -8,7 +8,7 @@ const childPath = path.join(common.fixturesDir,
                           'parent-process-nonpersistent.js');
 let persistentPid = -1;
 
-let child = spawn(process.execPath, [ childPath ]);
+const child = spawn(process.execPath, [ childPath ]);
 
 child.stdout.on('data', function(data) {
   persistentPid = parseInt(data, 10);

@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
 
 } else {
   // testcase
-  let child = fork(process.argv[1], ['child']);
+  const child = fork(process.argv[1], ['child']);
 
   let childFlag = false;
   let parentFlag = false;
