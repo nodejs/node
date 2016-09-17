@@ -5,7 +5,11 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-assert(typeof global.gc === 'function', 'Run this test with --expose-gc');
+assert.strictEqual(
+  typeof global.gc,
+  'function',
+  'Run this test with --expose-gc'
+);
 net.createServer(function() {}).listen(common.PORT);
 
 var before = 0;

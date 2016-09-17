@@ -15,7 +15,7 @@ child.stdout.on('data', function(data) {
 });
 
 process.on('exit', function() {
-  assert(persistentPid !== -1);
+  assert.notStrictEqual(persistentPid, -1);
   assert.throws(function() {
     process.kill(child.pid);
   });
@@ -23,4 +23,3 @@ process.on('exit', function() {
     process.kill(persistentPid);
   });
 });
-

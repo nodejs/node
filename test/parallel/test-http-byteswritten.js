@@ -9,7 +9,7 @@ var httpServer = http.createServer(common.mustCall(function(req, res) {
   httpServer.close();
 
   res.on('finish', common.mustCall(function() {
-    assert(typeof req.connection.bytesWritten === 'number');
+    assert.strictEqual(typeof req.connection.bytesWritten, 'number');
     assert(req.connection.bytesWritten > 0);
   }));
   res.writeHead(200, { 'Content-Type': 'text/plain' });

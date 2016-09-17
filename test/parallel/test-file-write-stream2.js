@@ -85,6 +85,6 @@ for (var i = 0; i < 11; i++) {
   console.error('%d %j', i, ret);
 
   // return false when i hits 10
-  assert(ret === (i != 10));
+  assert.strictEqual(ret, i != 10);
 }
 cb_occurred += 'write ';

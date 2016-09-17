@@ -168,7 +168,7 @@ test('write no bufferize', function(t) {
   });
 
   tw._write = function(chunk, encoding, cb) {
-    assert(typeof chunk === 'string');
+    assert.strictEqual(typeof chunk, 'string');
     chunk = Buffer.from(chunk, encoding);
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
