@@ -60,7 +60,7 @@ if (typeof SIMD.Uint8x16 === 'function') {
       'Uint8x16 [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]');
 }
 
-// Tests from test-inspect.js that should not fail with --harmony_simd.
+// Tests from test-util-inspect.js that should not fail with --harmony_simd.
 assert.strictEqual(inspect([]), '[]');
 assert.strictEqual(inspect([0]), '[ 0 ]');
 assert.strictEqual(inspect({}), '{}');

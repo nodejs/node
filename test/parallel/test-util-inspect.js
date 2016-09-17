@@ -1,4 +1,5 @@
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 const util = require('util');
@@ -42,6 +43,8 @@ assert.strictEqual(util.inspect(Object.create({},
   {visible: {value: 1, enumerable: true}, hidden: {value: 2}})),
   '{ visible: 1 }'
 );
+assert.strictEqual(util.inspect(new ArrayBuffer(4)),
+  'ArrayBuffer { byteLength: 4 }');
 
 assert(/Object/.test(
   util.inspect({a: {a: {a: {a: {}}}}}, undefined, undefined, true)
