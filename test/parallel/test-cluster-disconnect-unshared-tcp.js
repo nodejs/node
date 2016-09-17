@@ -2,11 +2,11 @@
 require('../common');
 process.env.NODE_CLUSTER_SCHED_POLICY = 'none';
 
-var cluster = require('cluster');
-var net = require('net');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isMaster) {
-  var unbound = cluster.fork().on('online', bind);
+  const unbound = cluster.fork().on('online', bind);
 
   function bind() {
     cluster.fork({BOUND: 'y'}).on('listening', disconnect);
@@ -18,7 +18,7 @@ if (cluster.isMaster) {
   }
 } else {
   if (process.env.BOUND === 'y') {
-    var source = net.createServer();
+    const source = net.createServer();
 
     source.listen(0);
   }
