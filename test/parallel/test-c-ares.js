@@ -1,26 +1,26 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var dns = require('dns');
+const dns = require('dns');
 
 
 // Try resolution without callback
 
-dns.lookup(null, function(error, result, addressType) {
-  assert.equal(null, result);
-  assert.equal(4, addressType);
-});
+dns.lookup(null, common.mustCall(function(error, result, addressType) {
+  assert.strictEqual(null, result);
+  assert.strictEqual(4, addressType);
+}));
 
-dns.lookup('127.0.0.1', function(error, result, addressType) {
-  assert.equal('127.0.0.1', result);
-  assert.equal(4, addressType);
-});
+dns.lookup('127.0.0.1', common.mustCall(function(error, result, addressType) {
+  assert.strictEqual('127.0.0.1', result);
+  assert.strictEqual(4, addressType);
+}));
 
-dns.lookup('::1', function(error, result, addressType) {
-  assert.equal('::1', result);
-  assert.equal(6, addressType);
-});
+dns.lookup('::1', common.mustCall(function(error, result, addressType) {
+  assert.strictEqual('::1', result);
+  assert.strictEqual(6, addressType);
+}));
 
 // Try calling resolve with an unsupported type.
 assert.throws(function() {
@@ -36,8 +36,8 @@ assert.throws(function() {
 // C:\Windows\System32\drivers\etc\hosts
 // so we disable this test on Windows.
 if (!common.isWindows) {
-  dns.reverse('127.0.0.1', function(error, domains) {
-    if (error) throw error;
+  dns.reverse('127.0.0.1', common.mustCall(function(error, domains) {
+    assert.ifError(error);
     assert.ok(Array.isArray(domains));
-  });
+  }));
 }
