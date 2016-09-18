@@ -85,9 +85,9 @@ function testBreakpointOnStart(session) {
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ];
 
-  session.
-    sendInspectorCommands(commands).
-    expectMessages(setupExpectBreakOnLine(0, session.mainScriptPath, session));
+  session
+    .sendInspectorCommands(commands)
+    .expectMessages(setupExpectBreakOnLine(0, session.mainScriptPath, session));
 }
 
 function testSetBreakpointAndResume(session) {
@@ -105,9 +105,9 @@ function testSetBreakpointAndResume(session) {
           'params': { 'scriptId': session.mainScriptId } },
         expectMainScriptSource ],
   ];
-  session.
-    sendInspectorCommands(commands).
-    expectMessages([
+  session
+    .sendInspectorCommands(commands)
+    .expectMessages([
       setupExpectConsoleOutput('log', ['A message', 5]),
       setupExpectBreakOnLine(5, session.mainScriptPath,
                              session, (id) => scopeId = id),
@@ -131,7 +131,7 @@ function testInspectScope(session) {
     [
       {
         'method': 'Debugger.evaluateOnCallFrame', 'params': {
-          'callFrameId': '{\"ordinal\":0,\"injectedScriptId\":1}',
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
           'expression': 'k + t',
           'objectGroup': 'console',
           'includeCommandLineAPI': true,
@@ -153,9 +153,9 @@ function testInspectScope(session) {
 
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
-  session.sendInspectorCommands({ 'method': 'Debugger.resume'}).
-    expectStderrOutput('Waiting for the debugger to disconnect...').
-    disconnect(true);
+  session.sendInspectorCommands({ 'method': 'Debugger.resume'})
+    .expectStderrOutput('Waiting for the debugger to disconnect...')
+    .disconnect(true);
 }
 
 function runTests(harness) {

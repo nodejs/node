@@ -154,7 +154,7 @@ test('write bufferize', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[ i % encodings.length ];
+    var enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
@@ -192,7 +192,7 @@ test('write no bufferize', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[ i % encodings.length ];
+    var enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });

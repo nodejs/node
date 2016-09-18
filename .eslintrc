@@ -30,6 +30,7 @@ rules:
 
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
+  dot-location: [2, property]
   no-fallthrough: 2
   no-global-assign: 2
   no-multi-spaces: 2
@@ -37,6 +38,10 @@ rules:
   no-redeclare: 2
   no-self-assign: 2
   no-unused-labels: 2
+  no-useless-call: 2
+  no-useless-escape: 2
+  no-void: 2
+  no-with: 2
 
   # Strict Mode
   # http://eslint.org/docs/rules/#strict-mode
@@ -64,6 +69,8 @@ rules:
   # http://eslint.org/docs/rules/#stylistic-issues
   brace-style: [2, 1tbs, {allowSingleLine: true}]
   comma-spacing: 2
+  comma-style: 2
+  computed-property-spacing: 2
   eol-last: 2
   func-call-spacing: 2
   indent: [2, 2, {SwitchCase: 1, MemberExpression: 1}]
@@ -74,9 +81,11 @@ rules:
   new-parens: 2
   no-mixed-spaces-and-tabs: 2
   no-multiple-empty-lines: [2, {max: 2}]
+  no-tabs: 2
   no-trailing-spaces: 2
   quotes: [2, single, avoid-escape]
   semi: 2
+  semi-spacing: 2
   space-before-blocks: [2, always]
   space-before-function-paren: [2, never]
   space-in-parens: [2, never]
