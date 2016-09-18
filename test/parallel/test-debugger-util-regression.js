@@ -62,6 +62,6 @@ proc.stdin.on('error', (err) => {
 process.on('exit', (code) => {
   assert.equal(code, 0, 'the program should exit cleanly');
   assert.equal(stdout.includes('{ a: \'b\' }'), true,
-      'the debugger should print the result of util.inspect');
+               'the debugger should print the result of util.inspect');
   assert.equal(stderr, '', 'stderr should be empty');
 });

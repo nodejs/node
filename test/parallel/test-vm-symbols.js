@@ -19,7 +19,7 @@ var context = new Document();
 vm.createContext(context);
 
 assert.equal(context.getSymbolValue(), 'foo',
-    'should return symbol-keyed value from the outside');
+             'should return symbol-keyed value from the outside');
 
 assert.equal(vm.runInContext('this.getSymbolValue()', context), 'foo',
-    'should return symbol-keyed value from the inside');
+             'should return symbol-keyed value from the inside');

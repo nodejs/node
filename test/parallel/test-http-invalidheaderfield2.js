@@ -90,8 +90,8 @@ const checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
   'Ding!\x07'
 ].forEach(function(str) {
   assert.strictEqual(checkInvalidHeaderChar(str),
-                    true,
-                    'checkInvalidHeaderChar(' +
-                      inspect(str) +
-                      ') unexpectedly succeeded');
+                     true,
+                     'checkInvalidHeaderChar(' +
+                       inspect(str) +
+                       ') unexpectedly succeeded');
 });

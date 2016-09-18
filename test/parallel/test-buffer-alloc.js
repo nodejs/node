@@ -243,8 +243,9 @@ assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
   {
     // Length should be 12
     const f = Buffer.from('привет', encoding);
-    assert.deepStrictEqual(f,
-      Buffer.from([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4]));
+    assert.deepStrictEqual(
+      f, Buffer.from([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4])
+    );
     assert.strictEqual(f.toString(encoding), 'привет');
   }
 
