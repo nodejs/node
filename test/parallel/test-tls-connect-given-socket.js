@@ -20,26 +20,26 @@ const options = {
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-const server = tls.createServer(options, function(socket) {
+const server = tls.createServer(options, (socket) => {
   serverConnected++;
   socket.end('Hello');
-}).listen(0, function() {
+}).listen(0, () => {
   let waiting = 2;
   function establish(socket) {
     const client = tls.connect({
       rejectUnauthorized: false,
       socket: socket
-    }, function() {
+    }, () => {
       clientConnected++;
       let data = '';
-      client.on('data', function(chunk) {
+      client.on('data', common.mustCall((chunk) => {
         data += chunk.toString();
-      });
-      client.on('end', function() {
+      }));
+      client.on('end', common.mustCall(() => {
         assert.strictEqual(data, 'Hello');
         if (--waiting === 0)
           server.close();
-      });
+      }));
     });
     assert(client.readable);
     assert(client.writable);
@@ -47,13 +47,14 @@ const server = tls.createServer(options, function(socket) {
     return client;
   }
 
+  const { port } = server.address();
+
   // Immediate death socket
-  const immediateDeath = net.connect(this.address().port);
+  const immediateDeath = net.connect(port);
   establish(immediateDeath).destroy();
 
   // Outliving
-  const outlivingTCP = net.connect(this.address().port);
-  outlivingTCP.on('connect', common.mustCall(function() {
+  const outlivingTCP = net.connect(port, common.mustCall(() => {
     outlivingTLS.destroy();
     next();
   }));
@@ -61,17 +62,17 @@ const server = tls.createServer(options, function(socket) {
 
   function next() {
     // Already connected socket
-    const connected = net.connect(server.address().port, function() {
+    const connected = net.connect(port, common.mustCall(() => {
       establish(connected);
-    });
+    }));
 
     // Connecting socket
-    const connecting = net.connect(server.address().port);
+    const connecting = net.connect(port);
     establish(connecting);
   }
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(serverConnected, 2);
   assert.strictEqual(clientConnected, 2);
 });
