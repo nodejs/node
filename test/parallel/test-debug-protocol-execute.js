@@ -15,6 +15,6 @@ assert.strictEqual(protocol.res.body, undefined);
 
 protocol.state = 'sterrance';
 assert.throws(
-	() => { protocol.execute('grumblecakes'); },
-	/^Error: Unknown state$/
+  () => { protocol.execute('grumblecakes'); },
+  /^Error: Unknown state$/
 );

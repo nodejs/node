@@ -160,7 +160,7 @@ function error_test() {
     // invalid RegExps are a special case of syntax error,
     // should throw
     { client: client_unix, send: '/(/;',
-      expect: /\bSyntaxError: Invalid regular expression\:/ },
+      expect: /\bSyntaxError: Invalid regular expression:/ },
     // invalid RegExp modifiers are a special case of syntax error,
     // should throw (GH-4012)
     { client: client_unix, send: 'new RegExp("foo", "wrong modifier");',
@@ -313,7 +313,7 @@ function error_test() {
     { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
       expect: prompt_multiline + prompt_multiline +
             'undefined\n' + prompt_unix },
-    { client: client_unix, send: "function x(s) {\nreturn s.replace(/\'/,'');\n}",
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
       expect: prompt_multiline + prompt_multiline +
             'undefined\n' + prompt_unix },
     { client: client_unix, send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
