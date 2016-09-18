@@ -14,7 +14,7 @@ var server = net.createServer(function(conn) {
       'Content-Length: ' + body.length + '\r\n' +
       'Content-Type: text/plain;\r\n' +
       ' x-unix-mode=0600;\r\n' +
-      ' name=\"hello.txt\"\r\n' +
+      ' name="hello.txt"\r\n' +
       '\r\n' +
       body;
 

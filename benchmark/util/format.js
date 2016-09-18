@@ -4,8 +4,8 @@ const util = require('util');
 const common = require('../common');
 const v8 = require('v8');
 const bench = common.createBenchmark(main, {
-  n: [1e6]
-, type: ['string',
+  n: [1e6],
+  type: ['string',
          'number',
          'object',
          'unknown',

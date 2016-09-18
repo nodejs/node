@@ -27,7 +27,7 @@ const server = http.createServer((req, res) => {
 var count = 0;
 
 server.listen(0, common.mustCall(() => {
-  for (let n = 1; n <= MAX_COUNT ; n++) {
+  for (let n = 1; n <= MAX_COUNT; n++) {
     // This runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. In either
     // case, the error handler must be called because the client

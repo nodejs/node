@@ -48,7 +48,7 @@ const server = http.createServer(function(req, res) {
 
 server.listen(0, common.mustCall(function() {
   var count = 0;
-  for (let n = 1; n <= 2 ; n++) {
+  for (let n = 1; n <= 2; n++) {
     // this runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. The
     // result on the client side should be the same in

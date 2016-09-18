@@ -4,7 +4,7 @@ const assert = require('assert');
 const net = require('net');
 
 const invalidPort = -1 >>> 0;
-const errorMessage = /"port" argument must be \>= 0 and \< 65536/;
+const errorMessage = /"port" argument must be >= 0 and < 65536/;
 
 net.Server().listen(common.PORT, function() {
   const address = this.address();
