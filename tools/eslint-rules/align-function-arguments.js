@@ -30,7 +30,6 @@ function checkArgumentAlignment(context, node) {
 
   const ignoreTypes = [
     'ArrowFunctionExpression',
-    'CallExpression',
     'FunctionExpression',
     'ObjectExpression',
   ];
@@ -48,18 +47,26 @@ function checkArgumentAlignment(context, node) {
     return;
   }
 
+  var misaligned;
+
   args.slice(1).forEach((argument) => {
-    if (argument.loc.start.line === currentLine + 1) {
-      if (argument.loc.start.column !== firstColumn) {
-        msg = 'Function called with argument in column ' +
-              `${argument.loc.start.column}, expected in ${firstColumn}`;
+    if (!misaligned) {
+      if (argument.loc.start.line === currentLine + 1) {
+        if (argument.loc.start.column !== firstColumn) {
+          if (isNodeFirstInLine(argument)) {
+            msg = 'Function argument in column ' +
+                  `${argument.loc.start.column + 1}, ` +
+                  `expected in ${firstColumn + 1}`;
+            misaligned = argument;
+          }
+        }
       }
     }
     currentLine = argument.loc.start.line;
   });
 
   if (msg)
-    context.report(node, msg);
+    context.report(misaligned, msg);
 }
 
 module.exports = function(context) {
