@@ -60,12 +60,12 @@ assert.strictEqual(path.posix.basename('foo'), 'foo');
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
 const controlCharFilename = 'Icon' + String.fromCharCode(13);
 assert.strictEqual(path.posix.basename('/a/b/' + controlCharFilename),
-             controlCharFilename);
+                   controlCharFilename);
 
 
 // path.dirname tests
 assert.strictEqual(path.dirname(f).substr(-13),
-             common.isWindows ? 'test\\parallel' : 'test/parallel');
+                   common.isWindows ? 'test\\parallel' : 'test/parallel');
 
 assert.strictEqual(path.posix.dirname('/a/b/'), '/a');
 assert.strictEqual(path.posix.dirname('/a/b'), '/a');
@@ -100,11 +100,11 @@ assert.strictEqual(path.win32.dirname('\\\\unc\\share\\foo'),
 assert.strictEqual(path.win32.dirname('\\\\unc\\share\\foo\\'),
                    '\\\\unc\\share\\');
 assert.strictEqual(path.win32.dirname('\\\\unc\\share\\foo\\bar'),
-             '\\\\unc\\share\\foo');
+                   '\\\\unc\\share\\foo');
 assert.strictEqual(path.win32.dirname('\\\\unc\\share\\foo\\bar\\'),
-             '\\\\unc\\share\\foo');
+                   '\\\\unc\\share\\foo');
 assert.strictEqual(path.win32.dirname('\\\\unc\\share\\foo\\bar\\baz'),
-             '\\\\unc\\share\\foo\\bar');
+                   '\\\\unc\\share\\foo\\bar');
 assert.strictEqual(path.win32.dirname('/a/b/'), '/a');
 assert.strictEqual(path.win32.dirname('/a/b'), '/a');
 assert.strictEqual(path.win32.dirname('/a'), '/');
@@ -373,17 +373,17 @@ typeErrorTests.forEach(function(test) {
 
 // path.normalize tests
 assert.strictEqual(path.win32.normalize('./fixtures///b/../b/c.js'),
-             'fixtures\\b\\c.js');
+                   'fixtures\\b\\c.js');
 assert.strictEqual(path.win32.normalize('/foo/../../../bar'), '\\bar');
 assert.strictEqual(path.win32.normalize('a//b//../b'), 'a\\b');
 assert.strictEqual(path.win32.normalize('a//b//./c'), 'a\\b\\c');
 assert.strictEqual(path.win32.normalize('a//b//.'), 'a\\b');
 assert.strictEqual(path.win32.normalize('//server/share/dir/file.ext'),
-             '\\\\server\\share\\dir\\file.ext');
+                   '\\\\server\\share\\dir\\file.ext');
 assert.strictEqual(path.win32.normalize('/a/b/c/../../../x/y/z'), '\\x\\y\\z');
 
 assert.strictEqual(path.posix.normalize('./fixtures///b/../b/c.js'),
-             'fixtures/b/c.js');
+                   'fixtures/b/c.js');
 assert.strictEqual(path.posix.normalize('/foo/../../../bar'), '/bar');
 assert.strictEqual(path.posix.normalize('a//b//../b'), 'a/b');
 assert.strictEqual(path.posix.normalize('a//b//./c'), 'a/b/c');
@@ -561,14 +561,14 @@ if (common.isWindows) {
   // These tests cause resolve() to insert the cwd, so we cannot test them from
   // non-Windows platforms (easily)
   assert.strictEqual(path.win32._makeLong('foo\\bar').toLowerCase(),
-               '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
+                     '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
   assert.strictEqual(path.win32._makeLong('foo/bar').toLowerCase(),
-               '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
+                     '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
   const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
   assert.strictEqual(path.win32._makeLong(currentDeviceLetter).toLowerCase(),
-               '\\\\?\\' + process.cwd().toLowerCase());
+                     '\\\\?\\' + process.cwd().toLowerCase());
   assert.strictEqual(path.win32._makeLong('C').toLowerCase(),
-               '\\\\?\\' + process.cwd().toLowerCase() + '\\c');
+                     '\\\\?\\' + process.cwd().toLowerCase() + '\\c');
 }
 assert.strictEqual(path.win32._makeLong('C:\\foo'), '\\\\?\\C:\\foo');
 assert.strictEqual(path.win32._makeLong('C:/foo'), '\\\\?\\C:\\foo');
