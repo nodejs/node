@@ -125,7 +125,14 @@ class ContextifyContext {
     int length = names->Length();
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
-      bool has = sandbox_obj->HasOwnProperty(context, key).FromJust();
+      auto maybe_has = sandbox_obj->HasOwnProperty(context, key);
+
+      // Check for pending exceptions
+      if (!maybe_has.IsJust())
+        break;
+
+      bool has = maybe_has.FromJust();
+
       if (!has) {
         // Could also do this like so:
         //
