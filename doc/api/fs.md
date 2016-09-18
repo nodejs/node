@@ -1438,7 +1438,7 @@ added: v0.1.31
 Asynchronous realpath(3). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths.
 
-Only paths that can be converted to UTF8 strings are supported. 
+Only paths that can be converted to UTF8 strings are supported.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -1637,13 +1637,15 @@ added: v0.4.2
 
 Change file timestamps of the file referenced by the supplied path.
 
-Note: the arguments `atime` and `mtime` of the following related functions does
-follow the below rules:
+Note: the arguments `atime` and `mtime` of the following related functions
+follow these rules:
 
-- If the value is a numberable string like `'123456789'`, the value would get
-  converted to corresponding number.
-- If the value is `NaN` or `Infinity`, the value would get converted to
-  `Date.now()`.
+- The value should be a Unix timestamp in seconds. For example, `Date.now()`
+  returns milliseconds, so it should be divided by 1000 before passing it in.
+- If the value is a numeric string like `'123456789'`, the value will get
+  converted to the corresponding number.
+- If the value is `NaN` or `Infinity`, the value will get converted to
+  `Date.now() / 1000`.
 
 ## fs.utimesSync(path, atime, mtime)
 <!-- YAML
