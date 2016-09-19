@@ -6,6 +6,8 @@ const http = require('http');
 const path = require('path');
 const spawn = require('child_process').spawn;
 
+const DEBUG = false;
+
 const TIMEOUT = 15 * 1000;
 
 const mainScript = path.join(common.fixturesDir, 'loop.js');
@@ -13,6 +15,8 @@ const mainScript = path.join(common.fixturesDir, 'loop.js');
 function send(socket, message, id, callback) {
   const msg = JSON.parse(JSON.stringify(message)); // Clone!
   msg['id'] = id;
+  if (DEBUG)
+    console.log('[sent]', JSON.stringify(msg));
   const messageBuf = Buffer.from(JSON.stringify(msg));
 
   const wsHeaderBuf = Buffer.allocUnsafe(16);
@@ -61,6 +65,8 @@ function parseWSFrame(buffer, handler) {
     return 0;
   const message = JSON.parse(
       buffer.slice(bodyOffset, bodyOffset + dataLen).toString('utf8'));
+  if (DEBUG)
+    console.log('[received]', JSON.stringify(message));
   handler(message);
   return bodyOffset + dataLen;
 }
@@ -117,7 +123,7 @@ const TestSession = function(socket, harness) {
   this.expectedId_ = 1;
   this.lastMessageResponseCallback_ = null;
 
-  let buffer = Buffer.from('');
+  let buffer = new Buffer(0);
   socket.on('data', (data) => {
     buffer = Buffer.concat([buffer, data]);
     let consumed;
@@ -195,9 +201,10 @@ TestSession.prototype.sendInspectorCommands = function(commands) {
       timeoutId = setTimeout(() => {
         let s = '';
         for (const id in this.messages_) {
-          s += this.messages_[id] + '\n';
+          s += id + ', ';
         }
-        common.fail(s.substring(0, s.length - 1));
+        common.fail('Messages without response: ' +
+                    s.substring(0, s.length - 2));
       }, TIMEOUT);
     });
   });
@@ -269,6 +276,7 @@ TestSession.prototype.disconnect = function(childDone) {
     this.harness_.childInstanceDone =
         this.harness_.childInstanceDone || childDone;
     this.socket_.end();
+    console.log('[test]', 'Connection terminated');
     callback();
   });
 };
@@ -293,7 +301,7 @@ const Harness = function(port, childProcess) {
       if (!filter(message)) pending.push(filter);
     this.stderrFilters_ = pending;
   }));
-  childProcess.on('close', (code, signal) => {
+  childProcess.on('exit', (code, signal) => {
     assert(this.childInstanceDone, 'Child instance died prematurely');
     this.returnCode_ = code;
     this.running_ = false;
