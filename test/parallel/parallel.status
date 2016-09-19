@@ -9,14 +9,10 @@ prefix parallel
 [$system==win32]
 
 [$system==linux]
-test-tick-processor           : PASS,FLAKY
 
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-test-tick-processor-builtin     : PASS,FLAKY
-test-tick-processor-cpp-core    : PASS,FLAKY
-test-tick-processor-unknown     : PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 

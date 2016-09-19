@@ -31,6 +31,10 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
+
+const cpus = os.cpus();
+exports.enoughTestCpu = cpus.length > 1 || cpus[0].speed > 999;
+
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
 
 function rimrafSync(p) {
