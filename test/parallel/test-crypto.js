@@ -181,9 +181,9 @@ function testEncoding(options, assertionHash) {
     hashValue += data.toString('hex');
   });
 
-  hash.on('end', () => {
-    assert.equal(hashValue, assertionHash);
-  });
+  hash.on('end', common.mustCall(() => {
+    assert.strictEqual(hashValue, assertionHash);
+  }));
 
   hash.write('öäü');
   hash.end();
@@ -193,8 +193,8 @@ function testEncoding(options, assertionHash) {
 const assertionHashUtf8 =
   '4f53d15bee524f082380e6d7247cc541e7cb0d10c64efdcc935ceeb1e7ea345c';
 
-// Hash of "öäü" in ascii format
-const assertionHashAscii =
+// Hash of "öäü" in latin1 format
+const assertionHashLatin1 =
   'cd37bccd5786e2e76d9b18c871e919e6eb11cc12d868f5ae41c40ccff8e44830';
 
 testEncoding(undefined, assertionHashUtf8);
@@ -205,5 +205,5 @@ testEncoding({
 }, assertionHashUtf8);
 
 testEncoding({
-  defaultEncoding: 'ascii'
-}, assertionHashAscii);
+  defaultEncoding: 'latin1'
+}, assertionHashLatin1);
