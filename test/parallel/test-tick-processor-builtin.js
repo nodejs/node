@@ -2,18 +2,6 @@
 const common = require('../common');
 const path = require('path');
 
-// TODO(mhdawson) Currently the test-tick-processor functionality in V8
-// depends on addresses being smaller than a full 64 bits.  Aix supports
-// the full 64 bits and the result is that it does not process the
-// addresses correctly and runs out of memory
-// Disabling until we get a fix upstreamed into V8
-if (common.isAix) {
-  common.skip('Aix address range too big for scripts.');
-  return;
-}
-
-const base = require(path.join(common.fixturesDir, 'tick-processor-base.js'));
-
 if (common.isWindows ||
     common.isSunOS ||
     common.isAix ||
@@ -22,6 +10,13 @@ if (common.isWindows ||
   common.skip('C++ symbols are not mapped for this os.');
   return;
 }
+
+if (!common.enoughTestCpu) {
+  common.skip('test is CPU-intensive');
+  return;
+}
+
+const base = require(path.join(common.fixturesDir, 'tick-processor-base.js'));
 
 base.runTest({
   pattern: /Builtin_DateNow/,
