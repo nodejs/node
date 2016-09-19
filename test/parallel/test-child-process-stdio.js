@@ -5,14 +5,14 @@ const assert = require('assert');
 let options = {stdio: ['pipe']};
 let child = common.spawnPwd(options);
 
-assert.notEqual(child.stdout, null);
-assert.notEqual(child.stderr, null);
+assert.notStrictEqual(child.stdout, null);
+assert.notStrictEqual(child.stderr, null);
 
 options = {stdio: 'ignore'};
 child = common.spawnPwd(options);
 
-assert.equal(child.stdout, null);
-assert.equal(child.stderr, null);
+assert.strictEqual(child.stdout, null);
+assert.strictEqual(child.stderr, null);
 
 options = {stdio: 'ignore'};
 child = common.spawnSyncCat(options);
