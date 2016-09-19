@@ -12,6 +12,11 @@ if (common.isAix) {
   return;
 }
 
+if (!common.enoughTestCpu) {
+  common.skip('test is CPU-intensive');
+  return;
+}
+
 const base = require(path.join(common.fixturesDir, 'tick-processor-base.js'));
 
 // Unknown checked for to prevent flakiness, if pattern is not found,
