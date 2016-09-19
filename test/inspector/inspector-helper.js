@@ -269,6 +269,7 @@ TestSession.prototype.disconnect = function(childDone) {
     this.harness_.childInstanceDone =
         this.harness_.childInstanceDone || childDone;
     this.socket_.end();
+    console.log('[test]', 'Connection terminated');
     callback();
   });
 };
@@ -378,7 +379,7 @@ Harness.prototype.runFrontendSession = function(tests) {
 Harness.prototype.expectShutDown = function(errorCode) {
   this.enqueue_((callback) => {
     if (this.running_) {
-      const timeoutId = timeout('Have not terminated');
+      const timeoutId = timeout('Have not terminated', 4);
       this.process_.on('exit', (code) => {
         clearTimeout(timeoutId);
         assert.strictEqual(errorCode, code);
