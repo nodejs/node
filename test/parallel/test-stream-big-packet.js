@@ -1,7 +1,5 @@
 'use strict';
-
 require('../common');
-
 const assert = require('assert');
 const util = require('util');
 const stream = require('stream');

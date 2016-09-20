@@ -1,7 +1,5 @@
 'use strict';
-
 require('../common');
-
 const assert = require('assert');
 const stream = require('stream');
 const str = 'asdfasdfasdfasdfasdf';

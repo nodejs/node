@@ -1,9 +1,7 @@
 'use strict';
 // This test asserts that Stream.prototype.pipe does not leave listeners
 // hanging on the source or dest.
-
 require('../common');
-
 const stream = require('stream');
 const assert = require('assert');
 const util = require('util');

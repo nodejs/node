@@ -1,9 +1,6 @@
 'use strict';
-
 require('../common');
-
 const assert = require('assert');
-
 const Duplex = require('stream').Transform;
 
 const stream = new Duplex({ objectMode: true });

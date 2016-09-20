@@ -1,7 +1,5 @@
 'use strict';
-
 require('../common');
-
 const assert = require('assert');
 const Readable = require('_stream_readable');
 const Writable = require('_stream_writable');
