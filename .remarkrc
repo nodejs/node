@@ -13,7 +13,7 @@
       "file-extension": "md",
       "final-definition": true,
       "final-newline": true,
-      "first-heading-level": false,
+      "first-heading-level": 1,
       "hard-break-spaces": true,
       "heading-increment": false,
       "heading-style": "atx",
