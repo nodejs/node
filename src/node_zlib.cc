@@ -282,8 +282,11 @@ class ZCtx : public AsyncWrap {
       case INFLATERAW:
         ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
 
-        // If data was encoded with dictionary
-        if (ctx->err_ == Z_NEED_DICT && ctx->dictionary_ != nullptr) {
+        // If data was encoded with dictionary (INFLATERAW will have it set in
+        // SetDictionary, don't repeat that here)
+        if (ctx->mode_ != INFLATERAW &&
+            ctx->err_ == Z_NEED_DICT &&
+            ctx->dictionary_ != nullptr) {
           // Load it
           ctx->err_ = inflateSetDictionary(&ctx->strm_,
                                            ctx->dictionary_,
@@ -549,6 +552,13 @@ class ZCtx : public AsyncWrap {
       case DEFLATE:
       case DEFLATERAW:
         ctx->err_ = deflateSetDictionary(&ctx->strm_,
+                                         ctx->dictionary_,
+                                         ctx->dictionary_len_);
+        break;
+      case INFLATERAW:
+        // The other inflate cases will have the dictionary set when inflate()
+        // returns Z_NEED_DICT in Process()
+        ctx->err_ = inflateSetDictionary(&ctx->strm_,
                                          ctx->dictionary_,
                                          ctx->dictionary_len_);
         break;
