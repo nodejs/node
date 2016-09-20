@@ -234,11 +234,12 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
 // compiler version specific functionality.
 // malloc(0) and realloc(ptr, 0) have implementation-defined behavior in
 // that the standard allows them to either return a unique pointer or a
-// nullptr for zero-sized allocation requests.  Normalize by always using
-// a nullptr.
+// nullptr for zero-sized allocation requests. Normalize by always using
+// a static buffer.
+extern void* fake_mem[1];
 void* Realloc(void* pointer, size_t size) {
   if (size == 0) {
-    free(pointer);
+    Free(pointer);
     return nullptr;
   }
   return realloc(pointer, size);
@@ -246,13 +247,24 @@ void* Realloc(void* pointer, size_t size) {
 
 // As per spec realloc behaves like malloc if passed nullptr.
 void* Malloc(size_t size) {
+  if (size == 0) {
+    return fake_mem;
+  }
   return Realloc(nullptr, size);
 }
 
 void* Calloc(size_t n, size_t size) {
-  if ((n == 0) || (size == 0)) return nullptr;
+  if (n == 0 || size == 0) {
+    return fake_mem;
+  }
   CHECK_GE(n * size, n);  // Overflow guard.
   return calloc(n, size);
+}
+
+void Free(void* pointer) {
+  if (pointer != fake_mem) {
+    free(pointer);
+  }
 }
 
 }  // namespace node

@@ -84,3 +84,11 @@ assert.throws(function() {
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256', common.fail);
 }, /Bad key length/);
+
+// Should not get FATAL ERROR with empty password and salt
+// https://github.com/nodejs/node/issues/8571
+assert.doesNotThrow(() => {
+  crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustCall((e) => {
+    assert.ifError(e);
+  }));
+});

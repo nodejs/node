@@ -29,7 +29,7 @@ template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
  public:
   ~ExternString() override {
-    free(const_cast<TypeName*>(data_));
+    node::Free(const_cast<TypeName*>(data_));
     isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
   }
 
@@ -631,7 +631,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
         force_ascii(buf, out, buflen);
         if (buflen < EXTERN_APEX) {
           val = OneByteString(isolate, out, buflen);
-          free(out);
+          node::Free(out);
         } else {
           val = ExternOneByteString::New(isolate, out, buflen);
         }
@@ -669,7 +669,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
       if (dlen < EXTERN_APEX) {
         val = OneByteString(isolate, dst, dlen);
-        free(dst);
+        node::Free(dst);
       } else {
         val = ExternOneByteString::New(isolate, dst, dlen);
       }
@@ -687,7 +687,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
       if (dlen < EXTERN_APEX) {
         val = OneByteString(isolate, dst, dlen);
-        free(dst);
+        node::Free(dst);
       } else {
         val = ExternOneByteString::New(isolate, dst, dlen);
       }

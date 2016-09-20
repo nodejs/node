@@ -136,7 +136,7 @@ static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 static void ares_poll_close_cb(uv_handle_t* watcher) {
   node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher,
                                   reinterpret_cast<uv_poll_t*>(watcher));
-  free(task);
+  node::Free(task);
 }
 
 
@@ -155,7 +155,7 @@ static node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
 
   if (uv_poll_init_socket(env->event_loop(), &task->poll_watcher, sock) < 0) {
     /* This should never happen. */
-    free(task);
+    node::Free(task);
     return nullptr;
   }
 

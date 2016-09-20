@@ -387,7 +387,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
   buf->base = static_cast<char*>(node::Malloc(suggested_size));
   buf->len = suggested_size;
 
-  if (buf->base == nullptr && suggested_size > 0) {
+  if (buf->base == nullptr) {
     FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t, uv_buf_t*)",
                "Out Of Memory");
   }
@@ -400,8 +400,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
                      const struct sockaddr* addr,
                      unsigned int flags) {
   if (nread == 0 && addr == nullptr) {
-    if (buf->base != nullptr)
-      free(buf->base);
+    node::Free(buf->base);
     return;
   }
 
@@ -420,8 +419,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   };
 
   if (nread < 0) {
-    if (buf->base != nullptr)
-      free(buf->base);
+    node::Free(buf->base);
     wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
     return;
   }
