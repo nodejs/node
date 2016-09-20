@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // Make sure we don't miss the end event for paused 0-length streams
 
-var Readable = require('stream').Readable;
-var stream = new Readable();
-var calledRead = false;
+const Readable = require('stream').Readable;
+const stream = new Readable();
+let calledRead = false;
 stream._read = function() {
   assert(!calledRead);
   calledRead = true;
