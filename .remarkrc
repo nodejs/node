@@ -30,7 +30,7 @@
       "no-duplicate-definitions": true,
       "no-duplicate-headings": false,
       "no-emphasis-as-heading": false,
-      "no-file-name-articles": false,
+      "no-file-name-articles": true,
       "no-file-name-consecutive-dashes": true,
       "no-file-name-irregular-characters": false,
       "no-file-name-mixed-case": false,
