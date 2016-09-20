@@ -4202,6 +4202,11 @@ void Init(int* argc,
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
 
+  // Allow for environment set preserving symlinks.
+  if (auto preserve_symlinks = secure_getenv("NODE_PRESERVE_SYMLINKS")) {
+    config_preserve_symlinks = (*preserve_symlinks == '1');
+  }
+
   // Parse a few arguments which are specific to Node.
   int v8_argc;
   const char** v8_argv;

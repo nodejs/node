@@ -287,6 +287,13 @@ added: v0.11.15
 Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small-icu support.
 
+### `NODE_PRESERVE_SYMLINKS=1`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to `1`, instructs the module loader to preserve symbolic links when
+resolving and caching modules.
 
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
