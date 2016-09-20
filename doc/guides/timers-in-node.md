@@ -82,7 +82,7 @@ console.log('after immediate');
 The above function passed to `setImmediate()` will execute after all runnable
 code has executed, and the console output will be:
 
-```shell
+```console
 before immediate
 after immediate
 executing immediate: so immediate
