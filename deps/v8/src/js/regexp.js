@@ -4,8 +4,6 @@
 
 (function(global, utils) {
 
-'use strict';
-
 %CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
