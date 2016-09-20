@@ -12,7 +12,7 @@ fs.read(fd,
         0,
         'utf-8',
         common.mustCall((err, str, bytesRead) => {
-          assert.ok(!err);
+          assert.ifError(err);
           assert.strictEqual(str, expected);
           assert.strictEqual(bytesRead, expected.length);
         }));
