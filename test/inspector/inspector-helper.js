@@ -77,9 +77,9 @@ function checkHttpResponse(port, path, callback) {
   http.get({port, path}, function(res) {
     let response = '';
     res.setEncoding('utf8');
-    res.
-      on('data', (data) => response += data.toString()).
-      on('end', () => callback(JSON.parse(response)));
+    res
+      .on('data', (data) => response += data.toString())
+      .on('end', () => callback(JSON.parse(response)));
   });
 }
 
