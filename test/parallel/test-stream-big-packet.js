@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var util = require('util');
-var stream = require('stream');
+const assert = require('assert');
+const util = require('util');
+const stream = require('stream');
 
-var passed = false;
+let passed = false;
 
 function PassThrough() {
   stream.Transform.call(this);
@@ -27,15 +27,15 @@ TestStream.prototype._transform = function(chunk, encoding, done) {
   done();
 };
 
-var s1 = new PassThrough();
-var s2 = new PassThrough();
-var s3 = new TestStream();
+const s1 = new PassThrough();
+const s2 = new PassThrough();
+const s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3
 s2.pipe(s3, {end: false});
 
 // We must write a buffer larger than highWaterMark
-var big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');
+const big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');
 
 // Since big is larger than highWaterMark, it will be buffered internally.
 assert(!s1.write(big));
