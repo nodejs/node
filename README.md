@@ -193,6 +193,8 @@ more information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [ak239](https://github.com/ak239) -
+**Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
 * [andrasq](https://github.com/andrasq) -
 **Andras** &lt;andras@kinvey.com&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) -
