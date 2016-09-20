@@ -38,9 +38,9 @@ In order for Node.js to stay competitive we need to work on the next generation 
 
 While this constitutes a great leap forward for the platform we will be making this leap without breaking backwards compatibility with the existing ecosystem of modules.
 
-# Immediate Priorities
+## Immediate Priorities
 
-## Debugging and Tracing
+### Debugging and Tracing
 
 Debugging is one of the first things from everyone's mouth, both developer and enterprise, when describing trouble they've had with Node.js.
 
@@ -55,7 +55,7 @@ The [Tracing WG](https://github.com/nodejs/tracing-wg) is driving this effort:
   * [Unify the Tracing endpoint](https://github.com/nodejs/node/issues/729).
   * New Chrome Debugger - Google is working on a version of Chrome's debugger that is without Chrome and can be used with Node.js.
 
-## Ecosystem Automation
+### Ecosystem Automation
 
 In order to maintain a good release cadence without harming compatibility we must do a better job of understanding exactly what impact a particular change or release will have on the ecosystem. This requires new automation.
 
@@ -65,19 +65,19 @@ The initial goals for this automation are relatively simple but will create a ba
 * Produce a list of modules that use a particular core API.
 * Produce detailed code coverage data for the tests in core.
 
-## Improve Installation and Upgrades
+### Improve Installation and Upgrades
 
 * Host and maintain registry endpoints (Homebrew, apt, etc).
 * Document installation and upgrade procedures with an emphasis on using nvm or nave for development and our registry endpoints for traditional package managers and production.
 
-## Streams
+### Streams
 
 * Fix all existing compatibility issues.
 * Simplify stream creation to avoid user error.
 * Explore and identify compatibility issues with [WHATWG Streams](https://github.com/whatwg/streams).
 * Improve stream performance.
 
-## Internationalization / Localization
+### Internationalization / Localization
 
 * Build documentation tooling with localization support built in.
 * Reduce size of ICU and ship with it by default.

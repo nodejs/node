@@ -626,7 +626,7 @@ deprecated: v4.0.0
 
 * `object` {any}
 
-Returns `true` if the given `object` is strictly an `Object` __and__ not a
+Returns `true` if the given `object` is strictly an `Object` **and** not a
 `Function`. Otherwise, returns `false`.
 
 ```js
