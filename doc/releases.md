@@ -34,7 +34,7 @@ A SHASUMS256.txt file is produced for every promoted build, nightly, and release
 
 The GPG keys should be fetchable from a known third-party keyserver. The SKS Keyservers at <https://sks-keyservers.net> are recommended. Use the [submission](https://sks-keyservers.net/i/#submit) form to submit a new GPG key. Keys should be fetchable via:
 
-```sh
+```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys <FINGERPRINT>
 ```
 
@@ -55,7 +55,7 @@ Create a new branch named _"vx.y.z-proposal"_, or something similar. Using `git 
 
 For a list of commits that could be landed in a patch release on v5.x
 
-```sh
+```console
 $ branch-diff v5.x master --exclude-label=semver-major,semver-minor,dont-land-on-v5.x --filter-release --format=simple
 ```
 
@@ -94,13 +94,13 @@ The general rule is to bump this version when there are _breaking ABI_ changes a
 
 Collect a formatted list of commits since the last release. Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this.
 
-```sh
+```console
 $ changelog-maker --group
 ```
 
 Note that changelog-maker counts commits since the last tag and if the last tag in the repository was not on the current branch you may have to supply a `--start-ref` argument:
 
-```sh
+```console
 $ changelog-maker --group --start-ref v2.3.1
 ```
 
@@ -224,7 +224,7 @@ $ npm install -g git-secure-tag
 
 Create a tag using the following command:
 
-```sh
+```console
 $ git secure-tag <vx.y.z> <commit-sha> -sm 'YYYY-MM-DD Node.js vx.y.z (Release Type) Release'
 ```
 
@@ -232,7 +232,7 @@ The tag **must** be signed using the GPG key that's listed for you on the projec
 
 Push the tag to the repo before you promote the builds. If you haven't pushed your tag first, then build promotion won't work properly. Push the tag using the following command:
 
-```sh
+```console
 $ git push <remote> <vx.y.z>
 ```
 

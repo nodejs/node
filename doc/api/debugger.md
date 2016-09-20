@@ -181,7 +181,7 @@ localhost:5858
 
 ## V8 Inspector Integration for Node.js
 
-__NOTE: This is an experimental feature.__
+**NOTE: This is an experimental feature.**
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
 instances for debugging and profiling.
