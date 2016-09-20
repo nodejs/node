@@ -85,5 +85,64 @@ function deflateResetDictionaryTest() {
   });
 }
 
+function rawDictionaryTest() {
+  let output = '';
+  const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
+  const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
+
+  deflate.on('data', function(chunk) {
+    inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', function() {
+    assert.equal(input, output);
+  });
+
+  deflate.write(input);
+  deflate.end();
+}
+
+function deflateRawResetDictionaryTest() {
+  let doneReset = false;
+  let output = '';
+  const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
+  const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
+
+  deflate.on('data', function(chunk) {
+    if (doneReset)
+      inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', function() {
+    assert.equal(input, output);
+  });
+
+  deflate.write(input);
+  deflate.flush(function() {
+    deflate.reset();
+    doneReset = true;
+    deflate.write(input);
+    deflate.end();
+  });
+}
+
 basicDictionaryTest();
 deflateResetDictionaryTest();
+rawDictionaryTest();
+deflateRawResetDictionaryTest();
