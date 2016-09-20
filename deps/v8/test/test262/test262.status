@@ -131,6 +131,22 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=4504
+  # https://bugs.chromium.org/p/chromium/issues/detail?id=624318
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-y-set-lastindex-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-success-g-set-lastindex-err': [SKIP],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-success-y-set-lastindex-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/g-init-lastindex-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/g-match-empty-set-lastindex-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/y-fail-lastindex-no-write': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/g-init-lastindex-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/y-fail-lastindex-no-write': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-init-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [PASS, FAIL],
+  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
+  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [PASS, FAIL],
+
   # SKIP rather than FAIL, as the test checks for an exception which
   # happens to be thrown for some other reason.
   'built-ins/RegExp/prototype/Symbol.split/str-result-get-length-err': [SKIP],
