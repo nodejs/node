@@ -1,4 +1,4 @@
-## Building Node.js
+# Building Node.js
 
 Depending on what platform or features you require, the build process may
 differ slightly. After you've successfully built a binary, running the
