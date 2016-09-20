@@ -48,16 +48,18 @@ def icu_ignore(dir, files):
         ign = ign + files
         # except...
         ign.remove('source')
-        ign.remove('license.html')
-        ign.remove('LICENSE')
+        if 'license.html' in ign:
+            ign.remove('license.html')
+        if 'LICENSE' in ign:
+            ign.remove('LICENSE')
     elif subdir == 'source':
-        ign = ign + ['layout','samples','test','extra','config','layoutex','allinone']
+        ign = ign + ['layout','samples','test','extra','config','layoutex','allinone','data']
         ign = ign + ['runConfigureICU','install-sh','mkinstalldirs','configure']
     elif subdir == 'source/tools':
         ign = ign + ['tzcode','ctestfw','gensprep','gennorm2','gendict','icuswap',
         'genbrk','gencfu','gencolusb','genren','memcheck','makeconv','gencnval','icuinfo','gentest']
-    elif subdir == 'source/data':
-        ign = ign + ['unidata','curr','zone','unit','lang','region','misc','sprep']
+    #elif subdir == 'source/data':
+    #    ign = ign + ['unidata','curr','zone','unit','lang','region','misc','sprep']
     # else:
         # print '!%s! [%s]' % (subdir, files)
     ign = ign + ['.DS_Store', 'Makefile', 'Makefile.in']
@@ -102,6 +104,10 @@ else:
 print '%s --> %s' % (options.icusrc, options.icusmall)
 shutil.copytree(options.icusrc, options.icusmall, ignore=icu_ignore)
 print '%s --> %s' % (src_datafile, dst_datafile)
+
+# now, make the data dir (since we ignored it)
+os.mkdir(os.path.join(os.path.join(options.icusmall, "source", "data")))
+os.mkdir(os.path.join(os.path.join(options.icusmall, "source", "data", "in")))
 
 # OK, now copy the data file
 shutil.copy(src_datafile, dst_datafile)
