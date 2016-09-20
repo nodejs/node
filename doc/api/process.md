@@ -478,7 +478,7 @@ process.argv.forEach((val, index) => {
 
 Launching the Node.js process as:
 
-```sh
+```console
 $ node process-2.js one two=three four
 ```
 
@@ -500,7 +500,7 @@ added: 6.4.0
 The `process.argv0` property stores a read-only copy of the original value of
 `argv[0]` passed when Node.js starts.
 
-```js
+```console
 $ bash -c 'exec -a customArgv0 ./node'
 > process.argv[0]
 '/Volumes/code/external/node/out/Release/node'
@@ -672,7 +672,7 @@ It is possible to modify this object, but such modifications will not be
 reflected outside the Node.js process. In other words, the following example
 would not work:
 
-```sh
+```console
 $ node -e 'process.env.foo = "bar"' && echo $foo
 ```
 
@@ -811,7 +811,7 @@ the same execution environment as the parent.
 
 For example:
 
-```sh
+```console
 $ node --harmony script.js --version
 ```
 
@@ -1461,7 +1461,7 @@ in several ways:
 3. Writes _can_ block when output is redirected to a file.
   - Note that disks are fast and operating systems normally employ write-back
     caching so this is very uncommon.
-4. Writes on UNIX __will__ block by default if output is going to a TTY
+4. Writes on UNIX **will** block by default if output is going to a TTY
    (a terminal).
 5. Windows functionality differs. Writes block except when output is going to a
    TTY.
@@ -1519,7 +1519,7 @@ in several ways:
 3. Writes _can_ block when output is redirected to a file.
   - Note that disks are fast and operating systems normally employ write-back
     caching so this is very uncommon.
-4. Writes on UNIX __will__ block by default if output is going to a TTY
+4. Writes on UNIX **will** block by default if output is going to a TTY
    (a terminal).
 5. Windows functionality differs. Writes block except when output is going to a
    TTY.
@@ -1537,7 +1537,7 @@ To check if Node.js is being run in a [TTY][] context, check the `isTTY`
 property on `process.stderr`, `process.stdout`, or `process.stdin`.
 
 For instance:
-```sh
+```console
 $ node -p "Boolean(process.stdin.isTTY)"
 true
 $ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
