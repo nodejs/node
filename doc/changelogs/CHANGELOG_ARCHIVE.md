@@ -2175,7 +2175,7 @@ https://github.com/nodejs/node/commit/cfba1f59224ff8602c3fe9145181cad4c6df89a9
   --use-http1
 
 * Fixes https host header default port handling. (Mikeal Rogers)
-* [#1440](https://github.com/joyent/node/issues/1440) strip byte order marker when loading *.js and *.json files
+* [#1440](https://github.com/joyent/node/issues/1440) strip byte order marker when loading `*.js` and `*.json` files
   (Ben Noordhuis)
 
 * [#1434](https://github.com/joyent/node/issues/1434) Improve util.format() compatibility with browser. (Koichi Kobayashi)
@@ -3089,8 +3089,9 @@ https://github.com/nodejs/node/commit/61c801413544a50000faa7f58376e9b33ba6254f
 
 https://github.com/nodejs/node/commit/39b63dfe1737d46a8c8818c92773ef181fd174b3
 
-  * API: - Move process.watchFile into fs module
-         - Move process.inherits to sys
+  * API:
+    - Move process.watchFile into fs module
+    - Move process.inherits to sys
 
   * Improve Solaris port
   * tcp.Connection.prototype.write now returns boolean to indicate if
@@ -3424,7 +3425,7 @@ https://github.com/nodejs/node/commit/726865af7bbafe58435986f4a193ff11c84e4bfe
     - __module becomes module
 
   * API: Many namespacing changes
-    - Move node.* into process.*
+    - Move node.\* into process.\*
     - Move node.dns into module "dns"
     - Move node.fs into module "posix"
     - process is no longer the global object. GLOBAL is.

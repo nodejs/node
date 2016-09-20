@@ -207,8 +207,10 @@ persist*, they are removed when the last reference to them is closed. Do not
 forget JavaScript string escaping requires paths to be specified with
 double-backslashes, such as:
 
-    net.createServer().listen(
-        path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+```js
+net.createServer().listen(
+    path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+```
 
 The parameter `backlog` behaves the same as in
 [`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
@@ -363,7 +365,7 @@ Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `socket.setEncoding()`.
 (See the [Readable Stream][] section for more information.)
 
-Note that the __data will be lost__ if there is no listener when a `Socket`
+Note that the **data will be lost** if there is no listener when a `Socket`
 emits a `'data'` event.
 
 ### Event: 'drain'

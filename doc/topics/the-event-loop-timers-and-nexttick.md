@@ -22,24 +22,26 @@ this document) which may make async API calls, schedule timers, or call
 The following diagram shows a simplified overview of the event loop's
 order of operations.
 
-       ┌───────────────────────┐
-    ┌─>│        timers         │
-    │  └──────────┬────────────┘
-    │  ┌──────────┴────────────┐
-    │  │     I/O callbacks     │
-    │  └──────────┬────────────┘
-    │  ┌──────────┴────────────┐
-    │  │     idle, prepare     │
-    │  └──────────┬────────────┘      ┌───────────────┐
-    │  ┌──────────┴────────────┐      │   incoming:   │
-    │  │         poll          │<─────┤  connections, │
-    │  └──────────┬────────────┘      │   data, etc.  │
-    │  ┌──────────┴────────────┐      └───────────────┘
-    │  │        check          │
-    │  └──────────┬────────────┘
-    │  ┌──────────┴────────────┐
-    └──┤    close callbacks    │
-       └───────────────────────┘
+```txt
+   ┌───────────────────────┐
+┌─>│        timers         │
+│  └──────────┬────────────┘
+│  ┌──────────┴────────────┐
+│  │     I/O callbacks     │
+│  └──────────┬────────────┘
+│  ┌──────────┴────────────┐
+│  │     idle, prepare     │
+│  └──────────┬────────────┘      ┌───────────────┐
+│  ┌──────────┴────────────┐      │   incoming:   │
+│  │         poll          │<─────┤  connections, │
+│  └──────────┬────────────┘      │   data, etc.  │
+│  ┌──────────┴────────────┐      └───────────────┘
+│  │        check          │
+│  └──────────┬────────────┘
+│  ┌──────────┴────────────┐
+└──┤    close callbacks    │
+   └───────────────────────┘
+```
 
 *note: each box will be referred to as a "phase" of the event loop.*
 
@@ -238,13 +240,15 @@ setImmediate(function immediate () {
 });
 ```
 
-    $ node timeout_vs_immediate.js
-    timeout
-    immediate
+```console
+$ node timeout_vs_immediate.js
+timeout
+immediate
 
-    $ node timeout_vs_immediate.js
-    immediate
-    timeout
+$ node timeout_vs_immediate.js
+immediate
+timeout
+```
 
 However, if you move the two calls within an I/O cycle, the immediate
 callback is always executed first:
@@ -263,13 +267,15 @@ fs.readFile(__filename, () => {
 })
 ```
 
-    $ node timeout_vs_immediate.js
-    immediate
-    timeout
+```console
+$ node timeout_vs_immediate.js
+immediate
+timeout
 
-    $ node timeout_vs_immediate.js
-    immediate
-    timeout
+$ node timeout_vs_immediate.js
+immediate
+timeout
+```
 
 The main advantage to using `setImmediate()` over `setTimeout()` is
 `setImmediate()` will always be executed before any timers if scheduled
