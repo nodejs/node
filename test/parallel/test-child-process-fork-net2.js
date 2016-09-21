@@ -109,10 +109,6 @@ if (process.argv[2] === 'child') {
         console.error('[m] CLIENT: close event');
         disconnected += 1;
       });
-      // XXX This resume() should be unnecessary.
-      // a stream high water mark should be enough to keep
-      // consuming the input.
-      client.resume();
     }
   });
 
