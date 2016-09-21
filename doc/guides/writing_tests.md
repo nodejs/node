@@ -31,9 +31,9 @@ Let's analyze this very basic test from the Node.js test suite:
 6  const server = http.createServer(common.mustCall((req, res) => {
 7    res.end('ok');
 8  }));
-9  server.listen(common.PORT, () => {
+9  server.listen(0, () => {
 10   http.get({
-11     port: common.PORT,
+11     port: server.address().port,
 12     headers: {'Test': 'Düsseldorf'}
 13   }, common.mustCall((res) => {
 14     assert.equal(res.statusCode, 200);
@@ -78,10 +78,9 @@ This is the body of the test. This test is quite simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
 request. Interesting things to notice:
 
-- The use of `common.PORT` as the listening port. Always use `common.PORT`
-  instead of using an arbitrary value, as it allows to run tests in parallel
-  safely, as they are not trying to reuse the same port another test is already
-  using.
+- The use of 0 as the listening port. Always use 0 instead of using an
+  arbitrary value, as it allows to run tests in parallel safely, as the
+  operating system will assign a random port.
 - The use of `common.mustCall` to check that some callbacks/listeners are
   called.
 - The HTTP server is closed once all the checks have run. This way, the test can
@@ -131,7 +130,7 @@ process.on('exit', function() {
 var server = http.createServer(function(req, res) {
   request++;
   res.end();
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var options = {
     agent: null,
     port: this.address().port
@@ -154,7 +153,7 @@ var http = require('http');
 
 var server = http.createServer(common.mustCall(function(req, res) {
   res.end();
-})).listen(common.PORT, function() {
+})).listen(0, function() {
   var options = {
     agent: null,
     port: this.address().port
