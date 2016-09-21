@@ -10,7 +10,7 @@ const server = http.createServer((req, res) => {
   res.write('abc')
   assert.throws(() => {
     res.removeHeader('header2', 2);
-  }, Error, 'removeHeader after write should throw');
+  }, /Can't remove headers after they are sent/)
   res.end()
 });
 
