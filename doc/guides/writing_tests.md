@@ -78,9 +78,11 @@ This is the body of the test. This test is quite simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
 request. Interesting things to notice:
 
-- The use of 0 as the listening port. Always use 0 instead of using an
-  arbitrary value, as it allows to run tests in parallel safely, as the
-  operating system will assign a random port.
+- If the test doesn't depend on a specific port number then always use 0 instead
+  of an arbitrary value, as it allows to run tests in parallel safely, as the
+  operating system will assign a random port. If the test requires a specific
+  port, for example if the test checks that assigning a specific port works as
+  expected, then it is ok to assign a specific port number.
 - The use of `common.mustCall` to check that some callbacks/listeners are
   called.
 - The HTTP server is closed once all the checks have run. This way, the test can
