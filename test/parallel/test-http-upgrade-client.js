@@ -26,8 +26,8 @@ var srv = net.createServer(function(c) {
 });
 
 srv.listen(0, '127.0.0.1', common.mustCall(function() {
-  var port = this.address().port;
-  var headers = [
+  const port = this.address().port;
+  const headers = [
     {
       connection: 'upgrade',
       upgrade: 'websocket'
@@ -54,11 +54,11 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       });
 
       socket.on('close', common.mustCall(function() {
-        assert.equal(recvData, 'nurtzo');
+        assert.strictEqual(recvData.toString(), 'nurtzo');
       }));
 
       console.log(res.headers);
-      var expectedHeaders = {
+      const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',
         upgrade: 'websocket'
@@ -66,7 +66,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       assert.deepStrictEqual(expectedHeaders, res.headers);
 
       socket.end();
-      if (--left == 0)
+      if (--left === 0)
         srv.close();
     }));
     req.on('close', common.mustCall(function() {
