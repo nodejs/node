@@ -17,4 +17,4 @@ socket.send(buf, 3, 1, common.PORT, '127.0.0.1', ok);
 // Since length of zero means nothing, don't error despite OOB.
 socket.send(buf, 4, 0, common.PORT, '127.0.0.1', ok);
 
-socket.close(); // FIXME should not be necessary
+socket.close();
