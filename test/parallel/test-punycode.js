@@ -62,12 +62,10 @@ var tests = {
       '\uC744\uAE4C',
 
   // (I) Russian (Cyrillic)
-  /* XXX disabled, fails - possibly a bug in the RFC
-  'b1abfaaepdrnnbgefbaDotcwatmq2g4l':
+  'b1abfaaepdrnnbgefbadotcwatmq2g4l':
       '\u043F\u043E\u0447\u0435\u043C\u0443\u0436\u0435\u043E\u043D\u0438' +
       '\u043D\u0435\u0433\u043E\u0432\u043E\u0440\u044F\u0442\u043F\u043E' +
       '\u0440\u0443\u0441\u0441\u043A\u0438',
-  */
 
   // (J) Spanish: Porqu<eacute>nopuedensimplementehablarenEspa<ntilde>ol
   'PorqunopuedensimplementehablarenEspaol-fmd56a':
