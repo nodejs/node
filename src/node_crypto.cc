@@ -2284,7 +2284,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     memcpy(data, resp, len);
 
     if (!SSL_set_tlsext_status_ocsp_resp(s, data, len))
-      free(data);
+      node::Free(data);
     w->ocsp_response_.Reset();
 
     return SSL_TLSEXT_ERR_OK;
@@ -4912,7 +4912,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, nullptr);
   EC_POINT_free(pub);
   if (!r) {
-    free(out);
+    node::Free(out);
     return env->ThrowError("Failed to compute ECDH key");
   }
 
@@ -4947,7 +4947,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
   if (r != size) {
-    free(out);
+    node::Free(out);
     return env->ThrowError("Failed to get public key");
   }
 
@@ -4972,7 +4972,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   CHECK_NE(out, nullptr);
 
   if (size != BN_bn2bin(b, out)) {
-    free(out);
+    node::Free(out);
     return env->ThrowError("Failed to convert ECDH private key to Buffer");
   }
 
@@ -5149,15 +5149,15 @@ class PBKDF2Request : public AsyncWrap {
   }
 
   inline void release() {
-    free(pass_);
+    node::Free(pass_);
     pass_ = nullptr;
     passlen_ = 0;
 
-    free(salt_);
+    node::Free(salt_);
     salt_ = nullptr;
     saltlen_ = 0;
 
-    free(key_);
+    node::Free(key_);
     key_ = nullptr;
     keylen_ = 0;
   }
@@ -5354,8 +5354,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   return;
 
  err:
-  free(salt);
-  free(pass);
+  node::Free(salt);
+  node::Free(pass);
   return env->ThrowTypeError(type_error);
 }
 
@@ -5368,7 +5368,7 @@ class RandomBytesRequest : public AsyncWrap {
         error_(0),
         size_(size),
         data_(static_cast<char*>(node::Malloc(size))) {
-    if (data() == nullptr && size > 0)
+    if (data() == nullptr)
       FatalError("node::RandomBytesRequest()", "Out of Memory");
     Wrap(object, this);
   }
@@ -5391,7 +5391,7 @@ class RandomBytesRequest : public AsyncWrap {
   }
 
   inline void release() {
-    free(data_);
+    node::Free(data_);
     size_ = 0;
   }
 
@@ -5606,7 +5606,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    free(curves);
+    node::Free(curves);
   }
 
   args.GetReturnValue().Set(arr);

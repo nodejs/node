@@ -10,6 +10,9 @@ using v8::Local;
 using v8::String;
 using v8::Value;
 
+// Used by node::Malloc, node::Calloc, node::Free
+void* fake_mem[1];
+
 template <typename T>
 static void MakeUtf8String(Isolate* isolate,
                            Local<Value> value,

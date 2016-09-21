@@ -275,7 +275,7 @@ MaybeLocal<Object> New(Isolate* isolate,
     CHECK(actual <= length);
 
     if (actual == 0) {
-      free(data);
+      node::Free(data);
       data = nullptr;
     } else if (actual < length) {
       data = static_cast<char*>(node::Realloc(data, actual));
@@ -288,7 +288,7 @@ MaybeLocal<Object> New(Isolate* isolate,
     return scope.Escape(buf);
 
   // Object failed to be created. Clean up resources.
-  free(data);
+  node::Free(data);
   return Local<Object>();
 }
 
@@ -331,7 +331,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
     return scope.Escape(ui);
 
   // Object failed to be created. Clean up resources.
-  free(data);
+  node::Free(data);
   return Local<Object>();
 }
 
@@ -377,7 +377,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
     return scope.Escape(ui);
 
   // Object failed to be created. Clean up resources.
-  free(new_data);
+  node::Free(new_data);
   return Local<Object>();
 }
 
@@ -1092,7 +1092,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           needle_length,
                           offset,
                           is_forward);
-    free(needle_data);
+    node::Free(needle_data);
   }
 
   args.GetReturnValue().Set(

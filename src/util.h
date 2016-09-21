@@ -29,11 +29,12 @@ namespace node {
 // compiler version specific functionality
 // malloc(0) and realloc(ptr, 0) have implementation-defined behavior in
 // that the standard allows them to either return a unique pointer or a
-// nullptr for zero-sized allocation requests.  Normalize by always using
-// a nullptr.
+// nullptr for zero-sized allocation requests. Normalize by always using
+// a static buffer.
 inline void* Realloc(void* pointer, size_t size);
 inline void* Malloc(size_t size);
 inline void* Calloc(size_t n, size_t size);
+inline void Free(void* pointer);
 
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))

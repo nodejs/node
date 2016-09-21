@@ -151,7 +151,7 @@ void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
   buf->base = static_cast<char*>(node::Malloc(size));
   buf->len = size;
 
-  if (buf->base == nullptr && size > 0) {
+  if (buf->base == nullptr) {
     FatalError(
         "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
         "Out Of Memory");
@@ -192,15 +192,13 @@ void StreamWrap::OnReadImpl(ssize_t nread,
   Local<Object> pending_obj;
 
   if (nread < 0)  {
-    if (buf->base != nullptr)
-      free(buf->base);
+    node::Free(buf->base);
     wrap->EmitData(nread, Local<Object>(), pending_obj);
     return;
   }
 
   if (nread == 0) {
-    if (buf->base != nullptr)
-      free(buf->base);
+    node::Free(buf->base);
     return;
   }
 
