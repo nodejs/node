@@ -10,7 +10,7 @@ const server = http.createServer((req, res) => {
   res.write('abc');
   assert.throws(() => {
     res.setHeader('header2', 2);
-  }, /Can't set headers after they are sent./);
+  }, /Can't set headers after they are sent\./);
   res.end();
 });
 
