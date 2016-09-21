@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -14,7 +14,7 @@ const server = http.createServer((req, res) => {
   res.end()
 });
 
-server.listen(common.PORT, () => {
+server.listen(0, () => {
   http.get({port: server.address().port}, () => {
     server.close()
   });
