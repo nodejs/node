@@ -26,6 +26,7 @@
  *
  */
 
+#include <string.h>
 #include <openssl/objects.h>
 #include <openssl/engine.h>
 #include <openssl/evp.h>
@@ -934,11 +935,15 @@ static int cryptodev_digest_copy(EVP_MD_CTX *to, const EVP_MD_CTX *from)
         return (0);
     }
 
+    dstate->mac_len = fstate->mac_len;
     if (fstate->mac_len != 0) {
         if (fstate->mac_data != NULL) {
             dstate->mac_data = OPENSSL_malloc(fstate->mac_len);
+            if (dstate->ac_data == NULL) {
+                printf("cryptodev_digest_init: malloc failed\n");
+                return 0;
+            }
             memcpy(dstate->mac_data, fstate->mac_data, fstate->mac_len);
-            dstate->mac_len = fstate->mac_len;
         }
     }
 
@@ -1064,8 +1069,7 @@ static void zapparams(struct crypt_kop *kop)
     int i;
 
     for (i = 0; i < kop->crk_iparams + kop->crk_oparams; i++) {
-        if (kop->crk_param[i].crp_p)
-            free(kop->crk_param[i].crp_p);
+        OPENSSL_free(kop->crk_param[i].crp_p);
         kop->crk_param[i].crp_p = NULL;
         kop->crk_param[i].crp_nbits = 0;
     }
@@ -1078,16 +1082,25 @@ cryptodev_asym(struct crypt_kop *kop, int rlen, BIGNUM *r, int slen,
     int fd, ret = -1;
 
     if ((fd = get_asym_dev_crypto()) < 0)
-        return (ret);
+        return ret;
 
     if (r) {
-        kop->crk_param[kop->crk_iparams].crp_p = calloc(rlen, sizeof(char));
+        kop->crk_param[kop->crk_iparams].crp_p = OPENSSL_malloc(rlen);
+        if (kop->crk_param[kop->crk_iparams].crp_p == NULL)
+            return ret;
+        memset(kop->crk_param[kop->crk_iparams].crp_p, 0, (size_t)rlen);
         kop->crk_param[kop->crk_iparams].crp_nbits = rlen * 8;
         kop->crk_oparams++;
     }
     if (s) {
-        kop->crk_param[kop->crk_iparams + 1].crp_p =
-            calloc(slen, sizeof(char));
+        kop->crk_param[kop->crk_iparams + 1].crp_p = OPENSSL_malloc(slen);
+        /* No need to free the kop->crk_iparams parameter if it was allocated,
+         * callers of this routine have to free allocated parameters through
+         * zapparams both in case of success and failure
+         */
+        if (kop->crk_param[kop->crk_iparams+1].crp_p == NULL)
+            return ret;
+        memset(kop->crk_param[kop->crk_iparams + 1].crp_p, 0, (size_t)slen);
         kop->crk_param[kop->crk_iparams + 1].crp_nbits = slen * 8;
         kop->crk_oparams++;
     }
@@ -1100,7 +1113,7 @@ cryptodev_asym(struct crypt_kop *kop, int rlen, BIGNUM *r, int slen,
         ret = 0;
     }
 
-    return (ret);
+    return ret;
 }
 
 static int

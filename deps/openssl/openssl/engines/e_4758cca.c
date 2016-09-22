@@ -463,6 +463,10 @@ static EVP_PKEY *ibm_4758_load_privkey(ENGINE *e, const char *key_id,
 
     (*(long *)keyToken) = keyTokenLength;
     rtmp = RSA_new_method(e);
+    if (rtmp == NULL) {
+        CCA4758err(CCA4758_F_IBM_4758_LOAD_PRIVKEY, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
     RSA_set_ex_data(rtmp, hndidx, (char *)keyToken);
 
     rtmp->e = BN_bin2bn(exponent, exponentLength, NULL);
@@ -535,6 +539,10 @@ static EVP_PKEY *ibm_4758_load_pubkey(ENGINE *e, const char *key_id,
 
     (*(long *)keyToken) = keyTokenLength;
     rtmp = RSA_new_method(e);
+    if (rtmp == NULL) {
+        CCA4758err(CCA4758_F_IBM_4758_LOAD_PUBKEY, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
     RSA_set_ex_data(rtmp, hndidx, (char *)keyToken);
     rtmp->e = BN_bin2bn(exponent, exponentLength, NULL);
     rtmp->n = BN_bin2bn(modulus, modulusFieldLength, NULL);

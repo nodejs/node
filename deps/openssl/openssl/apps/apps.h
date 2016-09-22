@@ -375,6 +375,8 @@ void store_setup_crl_download(X509_STORE *st);
 # define SERIAL_RAND_BITS        64
 
 int app_isdir(const char *);
+int fileno_stdin(void);
+int fileno_stdout(void);
 int raw_read_stdin(void *, int);
 int raw_write_stdout(const void *, int);
 

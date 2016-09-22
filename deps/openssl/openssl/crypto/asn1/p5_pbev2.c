@@ -120,7 +120,7 @@ X509_ALGOR *PKCS5_pbe2_set_iv(const EVP_CIPHER *cipher, int iter,
     if (EVP_CIPHER_iv_length(cipher)) {
         if (aiv)
             memcpy(iv, aiv, EVP_CIPHER_iv_length(cipher));
-        else if (RAND_pseudo_bytes(iv, EVP_CIPHER_iv_length(cipher)) < 0)
+        else if (RAND_bytes(iv, EVP_CIPHER_iv_length(cipher)) <= 0)
             goto err;
     }
 
@@ -225,7 +225,7 @@ X509_ALGOR *PKCS5_pbkdf2_set(int iter, unsigned char *salt, int saltlen,
 
     if (salt)
         memcpy(osalt->data, salt, saltlen);
-    else if (RAND_pseudo_bytes(osalt->data, saltlen) < 0)
+    else if (RAND_bytes(osalt->data, saltlen) <= 0)
         goto merr;
 
     if (iter <= 0)

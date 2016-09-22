@@ -372,9 +372,9 @@ $code.=<<___;
 .align	16
 .Loop_shaext:
 	dec		$num
-	lea		0x40($inp),%rax		# next input block
+	lea		0x40($inp),%r8		# next input block
 	paddd		@MSG[0],$E
-	cmovne		%rax,$inp
+	cmovne		%r8,$inp
 	movdqa		$ABCD,$ABCD_SAVE	# offload $ABCD
 ___
 for($i=0;$i<20-4;$i+=2) {
