@@ -41,8 +41,8 @@ you should write:
 instead of `"scripts": {"test": "node_modules/.bin/tap test/\*.js"}` to run your tests.
 
 `npm run` sets the `NODE` environment variable to the `node` executable with
-which `npm` is executed, and adds the directory within which it resides to the
-`PATH`, too.
+which `npm` is executed. Also, the directory within which it resides is added to the
+`PATH`, if the `node` executable is not in the `PATH`.
 
 If you try to run a script without having a `node_modules` directory and it fails,
 you will be given a warning to run `npm install`, just in case you've forgotten.

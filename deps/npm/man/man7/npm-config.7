@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "July 2016" "" ""
+.TH "NPM\-CONFIG" "7" "September 2016" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -24,13 +24,15 @@ same\.
 The four relevant files are:
 .RS 0
 .IP \(bu 2
-per\-project config file (/path/to/my/project/\.npmrc)
+per\-project configuration file (\fB/path/to/my/project/\.npmrc\fP)
 .IP \(bu 2
-per\-user config file (~/\.npmrc)
+per\-user configuration file (defaults to \fB$HOME/\.npmrc\fP; configurable via CLI
+option \fB\-\-userconfig\fP or environment variable \fB$NPM_CONF_USERCONFIG\fP)
 .IP \(bu 2
-global config file ($PREFIX/etc/npmrc)
+global configuration file (defaults to \fB$PREFIX/etc/npmrc\fP; configurable via
+CLI option \fB\-\-globalconfig\fP or environment variable \fB$NPM_CONF_GLOBALCONFIG\fP)
 .IP \(bu 2
-npm builtin config file (/path/to/npm/npmrc)
+npm's built\-in configuration file (\fB/path/to/npm/npmrc\fP)
 
 .RE
 .P
