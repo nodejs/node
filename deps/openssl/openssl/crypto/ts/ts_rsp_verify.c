@@ -434,51 +434,58 @@ static int int_TS_RESP_verify_token(TS_VERIFY_CTX *ctx,
     unsigned char *imprint = NULL;
     unsigned imprint_len = 0;
     int ret = 0;
+    int flags = ctx->flags;
+
+    /* Some options require us to also check the signature */
+    if (((flags & TS_VFY_SIGNER) && tsa_name != NULL)
+            || (flags & TS_VFY_TSA_NAME)) {
+        flags |= TS_VFY_SIGNATURE;
+    }
 
     /* Verify the signature. */
-    if ((ctx->flags & TS_VFY_SIGNATURE)
+    if ((flags & TS_VFY_SIGNATURE)
         && !TS_RESP_verify_signature(token, ctx->certs, ctx->store, &signer))
         goto err;
 
     /* Check version number of response. */
-    if ((ctx->flags & TS_VFY_VERSION)
+    if ((flags & TS_VFY_VERSION)
         && TS_TST_INFO_get_version(tst_info) != 1) {
         TSerr(TS_F_INT_TS_RESP_VERIFY_TOKEN, TS_R_UNSUPPORTED_VERSION);
         goto err;
     }
 
     /* Check policies. */
-    if ((ctx->flags & TS_VFY_POLICY)
+    if ((flags & TS_VFY_POLICY)
         && !TS_check_policy(ctx->policy, tst_info))
         goto err;
 
     /* Check message imprints. */
-    if ((ctx->flags & TS_VFY_IMPRINT)
+    if ((flags & TS_VFY_IMPRINT)
         && !TS_check_imprints(ctx->md_alg, ctx->imprint, ctx->imprint_len,
                               tst_info))
         goto err;
 
     /* Compute and check message imprints. */
-    if ((ctx->flags & TS_VFY_DATA)
+    if ((flags & TS_VFY_DATA)
         && (!TS_compute_imprint(ctx->data, tst_info,
                                 &md_alg, &imprint, &imprint_len)
             || !TS_check_imprints(md_alg, imprint, imprint_len, tst_info)))
         goto err;
 
     /* Check nonces. */
-    if ((ctx->flags & TS_VFY_NONCE)
+    if ((flags & TS_VFY_NONCE)
         && !TS_check_nonces(ctx->nonce, tst_info))
         goto err;
 
     /* Check whether TSA name and signer certificate match. */
-    if ((ctx->flags & TS_VFY_SIGNER)
+    if ((flags & TS_VFY_SIGNER)
         && tsa_name && !TS_check_signer_name(tsa_name, signer)) {
         TSerr(TS_F_INT_TS_RESP_VERIFY_TOKEN, TS_R_TSA_NAME_MISMATCH);
         goto err;
     }
 
     /* Check whether the TSA is the expected one. */
-    if ((ctx->flags & TS_VFY_TSA_NAME)
+    if ((flags & TS_VFY_TSA_NAME)
         && !TS_check_signer_name(ctx->tsa_name, signer)) {
         TSerr(TS_F_INT_TS_RESP_VERIFY_TOKEN, TS_R_TSA_UNTRUSTED);
         goto err;
@@ -548,13 +555,15 @@ static int TS_check_status_info(TS_RESP *response)
 static char *TS_get_status_text(STACK_OF(ASN1_UTF8STRING) *text)
 {
     int i;
-    unsigned int length = 0;
+    int length = 0;
     char *result = NULL;
     char *p;
 
     /* Determine length first. */
     for (i = 0; i < sk_ASN1_UTF8STRING_num(text); ++i) {
         ASN1_UTF8STRING *current = sk_ASN1_UTF8STRING_value(text, i);
+        if (ASN1_STRING_length(current) > TS_MAX_STATUS_LENGTH - length - 1)
+            return NULL;
         length += ASN1_STRING_length(current);
         length += 1;            /* separator character */
     }

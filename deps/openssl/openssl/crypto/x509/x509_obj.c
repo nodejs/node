@@ -129,7 +129,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
             type == V_ASN1_VISIBLESTRING ||
             type == V_ASN1_PRINTABLESTRING ||
             type == V_ASN1_TELETEXSTRING ||
-            type == V_ASN1_VISIBLESTRING || type == V_ASN1_IA5STRING) {
+            type == V_ASN1_IA5STRING) {
             if (num > (int)sizeof(ebcdic_buf))
                 num = sizeof(ebcdic_buf);
             ascii2ebcdic(ebcdic_buf, q, num);

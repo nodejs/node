@@ -1,6 +1,6 @@
 /* crypto/x509/x509_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2012 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2016 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,6 +72,7 @@
 static ERR_STRING_DATA X509_str_functs[] = {
     {ERR_FUNC(X509_F_ADD_CERT_DIR), "ADD_CERT_DIR"},
     {ERR_FUNC(X509_F_BY_FILE_CTRL), "BY_FILE_CTRL"},
+    {ERR_FUNC(X509_F_CHECK_NAME_CONSTRAINTS), "CHECK_NAME_CONSTRAINTS"},
     {ERR_FUNC(X509_F_CHECK_POLICY), "CHECK_POLICY"},
     {ERR_FUNC(X509_F_DIR_CTRL), "DIR_CTRL"},
     {ERR_FUNC(X509_F_GET_CERT_BY_SUBJECT), "GET_CERT_BY_SUBJECT"},

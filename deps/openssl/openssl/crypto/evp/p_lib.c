@@ -130,6 +130,14 @@ int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from)
         EVPerr(EVP_F_EVP_PKEY_COPY_PARAMETERS, EVP_R_MISSING_PARAMETERS);
         goto err;
     }
+
+    if (!EVP_PKEY_missing_parameters(to)) {
+        if (EVP_PKEY_cmp_parameters(to, from) == 1)
+            return 1;
+        EVPerr(EVP_F_EVP_PKEY_COPY_PARAMETERS, EVP_R_DIFFERENT_PARAMETERS);
+        return 0;
+    }
+
     if (from->ameth && from->ameth->param_copy)
         return from->ameth->param_copy(to, from);
  err:
