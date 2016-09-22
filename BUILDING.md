@@ -103,7 +103,8 @@ Prerequisites:
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
-* vcbuild is provided by this repo as a batch file so if using powershell, use local syntax `./vcbuild nosign`
+
+Please note that vcbuild is a batch file provided with the Node.js source code. If using PowerShell, use local syntax. For example: ./vcbuild nosign
 
 ```console
 > vcbuild nosign
