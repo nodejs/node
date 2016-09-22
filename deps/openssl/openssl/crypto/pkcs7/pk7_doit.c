@@ -340,7 +340,7 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
         ivlen = EVP_CIPHER_iv_length(evp_cipher);
         xalg->algorithm = OBJ_nid2obj(EVP_CIPHER_type(evp_cipher));
         if (ivlen > 0)
-            if (RAND_pseudo_bytes(iv, ivlen) <= 0)
+            if (RAND_bytes(iv, ivlen) <= 0)
                 goto err;
         if (EVP_CipherInit_ex(ctx, evp_cipher, NULL, NULL, NULL, 1) <= 0)
             goto err;

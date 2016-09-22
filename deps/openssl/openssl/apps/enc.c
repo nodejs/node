@@ -509,7 +509,7 @@ int MAIN(int argc, char **argv)
                             BIO_printf(bio_err, "invalid hex salt value\n");
                             goto end;
                         }
-                    } else if (RAND_pseudo_bytes(salt, sizeof salt) < 0)
+                    } else if (RAND_bytes(salt, sizeof salt) <= 0)
                         goto end;
                     /*
                      * If -P option then don't bother writing

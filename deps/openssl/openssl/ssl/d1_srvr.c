@@ -295,7 +295,7 @@ int dtls1_accept(SSL *s)
         case SSL3_ST_SW_HELLO_REQ_B:
 
             s->shutdown = 0;
-            dtls1_clear_record_buffer(s);
+            dtls1_clear_sent_buffer(s);
             dtls1_start_timer(s);
             ret = dtls1_send_hello_request(s);
             if (ret <= 0)
@@ -866,6 +866,7 @@ int dtls1_accept(SSL *s)
             /* next message is server hello */
             s->d1->handshake_write_seq = 0;
             s->d1->next_handshake_write_seq = 0;
+            dtls1_clear_received_buffer(s);
             goto end;
             /* break; */
 
@@ -1701,7 +1702,10 @@ int dtls1_send_newsession_ticket(SSL *s)
                 return -1;
             }
         } else {
-            RAND_pseudo_bytes(iv, 16);
+            if (RAND_bytes(iv, 16) <= 0) {
+                OPENSSL_free(senc);
+                return -1;
+            }
             EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
                                tctx->tlsext_tick_aes_key, iv);
             HMAC_Init_ex(&hctx, tctx->tlsext_tick_hmac_key, 16,

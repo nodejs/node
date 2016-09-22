@@ -109,6 +109,8 @@
  *                                      <appro@fy.chalmers.se>
  */
 
+#include <openssl/crypto.h>
+
 #if !defined(DATA_ORDER_IS_BIG_ENDIAN) && !defined(DATA_ORDER_IS_LITTLE_ENDIAN)
 # error "DATA_ORDER must be defined!"
 #endif
@@ -311,6 +313,12 @@ int HASH_UPDATE(HASH_CTX *c, const void *data_, size_t len)
             data += n;
             len -= n;
             c->num = 0;
+            /*
+             * We use memset rather than OPENSSL_cleanse() here deliberately.
+             * Using OPENSSL_cleanse() here could be a performance issue. It
+             * will get properly cleansed on finalisation so this isn't a
+             * security problem.
+             */
             memset(p, 0, HASH_CBLOCK); /* keep it zeroed */
         } else {
             memcpy(p + n, data, len);
@@ -366,7 +374,7 @@ int HASH_FINAL(unsigned char *md, HASH_CTX *c)
     p -= HASH_CBLOCK;
     HASH_BLOCK_DATA_ORDER(c, p, 1);
     c->num = 0;
-    memset(p, 0, HASH_CBLOCK);
+    OPENSSL_cleanse(p, HASH_CBLOCK);
 
 #ifndef HASH_MAKE_STRING
 # error "HASH_MAKE_STRING must be defined!"

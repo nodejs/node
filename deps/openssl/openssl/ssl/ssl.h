@@ -2256,6 +2256,7 @@ void ERR_load_SSL_strings(void);
 # define SSL_F_DTLS1_HEARTBEAT                            305
 # define SSL_F_DTLS1_OUTPUT_CERT_CHAIN                    255
 # define SSL_F_DTLS1_PREPROCESS_FRAGMENT                  288
+# define SSL_F_DTLS1_PROCESS_BUFFERED_RECORDS             424
 # define SSL_F_DTLS1_PROCESS_OUT_OF_SEQ_MESSAGE           256
 # define SSL_F_DTLS1_PROCESS_RECORD                       257
 # define SSL_F_DTLS1_READ_BYTES                           258

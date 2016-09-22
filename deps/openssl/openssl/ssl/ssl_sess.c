@@ -382,7 +382,7 @@ static int def_generate_session_id(const SSL *ssl, unsigned char *id,
 {
     unsigned int retry = 0;
     do
-        if (RAND_pseudo_bytes(id, *id_len) <= 0)
+        if (RAND_bytes(id, *id_len) <= 0)
             return 0;
     while (SSL_has_matching_session_id(ssl, id, *id_len) &&
            (++retry < MAX_SESS_ID_ATTEMPTS)) ;
@@ -602,7 +602,7 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
     int r;
 #endif
 
-    if (session_id + len > limit) {
+    if (limit - session_id < len) {
         fatal = 1;
         goto err;
     }

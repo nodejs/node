@@ -23,6 +23,7 @@ B<openssl> B<verify>
 [B<-use_deltas>]
 [B<-policy_print>]
 [B<-no_alt_chains>]
+[B<-allow_proxy_certs>]
 [B<-untrusted file>]
 [B<-help>]
 [B<-issuer_checks>]
@@ -116,6 +117,10 @@ trusted, then OpenSSL will continue to check to see if an alternative chain can
 be found that is trusted. With this option that behaviour is suppressed so that
 only the first chain found is ever used. Using this option will force the
 behaviour to match that of previous OpenSSL versions.
+
+=item B<-allow_proxy_certs>
+
+Allow the verification of proxy certificates.
 
 =item B<-policy_print>
 
