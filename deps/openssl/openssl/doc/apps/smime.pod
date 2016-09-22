@@ -53,6 +53,9 @@ The meaning of the other options varies according to the operation type.
 encrypt mail for the given recipient certificates. Input file is the message
 to be encrypted. The output file is the encrypted mail in MIME format.
 
+Note that no revocation check is done for the recipient cert, so if that
+key has been compromised, others may be able to decrypt the text.
+
 =item B<-decrypt>
 
 decrypt mail using the supplied certificate and private key. Expects an

@@ -588,6 +588,7 @@ void ERR_load_PEM_strings(void);
 # define PEM_R_ERROR_CONVERTING_PRIVATE_KEY               115
 # define PEM_R_EXPECTING_PRIVATE_KEY_BLOB                 119
 # define PEM_R_EXPECTING_PUBLIC_KEY_BLOB                  120
+# define PEM_R_HEADER_TOO_LONG                            128
 # define PEM_R_INCONSISTENT_HEADER                        121
 # define PEM_R_KEYBLOB_HEADER_PARSE_ERROR                 122
 # define PEM_R_KEYBLOB_TOO_SHORT                          123

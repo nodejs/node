@@ -97,15 +97,17 @@ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
     if (!ret->ameth->old_priv_decode ||
         !ret->ameth->old_priv_decode(ret, &p, length)) {
         if (ret->ameth->priv_decode) {
+            EVP_PKEY *tmp;
             PKCS8_PRIV_KEY_INFO *p8 = NULL;
             p8 = d2i_PKCS8_PRIV_KEY_INFO(NULL, &p, length);
             if (!p8)
                 goto err;
-            EVP_PKEY_free(ret);
-            ret = EVP_PKCS82PKEY(p8);
+            tmp = EVP_PKCS82PKEY(p8);
             PKCS8_PRIV_KEY_INFO_free(p8);
-            if (ret == NULL)
+            if (tmp == NULL)
                 goto err;
+            EVP_PKEY_free(ret);
+            ret = tmp;
         } else {
             ASN1err(ASN1_F_D2I_PRIVATEKEY, ERR_R_ASN1_LIB);
             goto err;
