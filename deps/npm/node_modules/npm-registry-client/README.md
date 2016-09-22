@@ -259,6 +259,8 @@ caching logic directly.
   * `etag` {String} The cached ETag. Optional.
   * `lastModified` {String} The cached Last-Modified timestamp. Optional.
   * `follow` {Boolean} Follow 302/301 responses. Optional (default: true).
+  * `streaming` {Boolean} Stream the request body as it comes, handling error
+    responses in a non-streaming way.
   * `auth` {Credentials} Optional.
 * `cb` {Function}
   * `error` {Error | null}

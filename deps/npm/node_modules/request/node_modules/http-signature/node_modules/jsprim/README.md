@@ -19,14 +19,23 @@ Returns whether two objects are equal.
 Returns true if the given object has no properties and false otherwise.  This
 is O(1) (unlike `Object.keys(obj).length === 0`, which is O(N)).
 
+### hasKey(obj, key)
+
+Returns true if the given object has an enumerable, non-inherited property
+called `key`.  [For information on enumerability and ownership of properties, see
+the MDN
+documentation.](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties)
 
 ### forEachKey(obj, callback)
 
-Like Array.forEach, but iterates properties of an object rather than elements
-of an array.  Equivalent to:
+Like Array.forEach, but iterates enumerable, owned properties of an object
+rather than elements of an array.  Equivalent to:
 
-    for (var key in obj)
-            callback(key, obj[key]);
+    for (var key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    callback(key, obj[key]);
+            }
+    }
 
 
 ### flattenObject(obj, depth)

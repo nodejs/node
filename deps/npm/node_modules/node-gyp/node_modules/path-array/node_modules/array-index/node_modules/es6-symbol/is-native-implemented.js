@@ -4,5 +4,5 @@
 
 module.exports = (function () {
 	if (typeof Symbol !== 'function') return false;
-	return (typeof Symbol.iterator === 'symbol');
+	return (typeof Symbol() === 'symbol');
 }());
