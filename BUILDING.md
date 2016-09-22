@@ -104,16 +104,14 @@ Prerequisites:
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
 
-Please note that vcbuild is a batch file provided with the Node.js source code. If using PowerShell, use local syntax. For example: ./vcbuild nosign
-
 ```console
-> vcbuild nosign
+> .\vcbuild nosign
 ```
 
 To run the tests:
 
 ```console
-> vcbuild test
+> .\vcbuild test
 ```
 
 To test if Node.js was built correctly:
@@ -171,7 +169,7 @@ $ ./configure --with-intl=full-icu --download=all
 ##### Windows:
 
 ```console
-> vcbuild full-icu download-all
+> .\vcbuild full-icu download-all
 ```
 
 #### Building without Intl support
@@ -188,7 +186,7 @@ $ ./configure --without-intl
 ##### Windows:
 
 ```console
-> vcbuild without-intl
+> .\vcbuild without-intl
 ```
 
 #### Use existing installed ICU (Unix / OS X only):
@@ -231,7 +229,7 @@ First unpack latest ICU to `deps/icu`
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```console
-> vcbuild full-icu
+> .\vcbuild full-icu
 ```
 
 ## Building Node.js with FIPS-compliant OpenSSL
