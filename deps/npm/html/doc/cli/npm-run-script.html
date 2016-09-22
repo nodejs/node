@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-run-script</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-run-script.html">
   <script async=true src="../../static/toc.js"></script>
@@ -39,8 +39,8 @@ you should write:</p>
 <pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}
 </code></pre><p>instead of <code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}</code> to run your tests.</p>
 <p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable with
-which <code>npm</code> is executed, and adds the directory within which it resides to the
-<code>PATH</code>, too.</p>
+which <code>npm</code> is executed. Also, the directory within which it resides is added to the
+<code>PATH</code>, if the <code>node</code> executable is not in the <code>PATH</code>.</p>
 <p>If you try to run a script without having a <code>node_modules</code> directory and it fails,
 you will be given a warning to run <code>npm install</code>, just in case you&#39;ve forgotten.</p>
 <h2 id="see-also">SEE ALSO</h2>
@@ -63,5 +63,5 @@ you will be given a warning to run <code>npm install</code>, just in case you&#3
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-run-script &mdash; npm@3.10.3</p>
+<p id="footer">npm-run-script &mdash; npm@3.10.8</p>
 

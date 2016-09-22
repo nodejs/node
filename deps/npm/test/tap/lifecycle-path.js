@@ -31,11 +31,33 @@ test('setup', function (t) {
   t.end()
 })
 
-test('make sure the path is correct', function (t) {
+test('make sure the path is correct, without directory of current node', function (t) {
+  checkPath(false, t)
+})
+
+test('make sure the path is correct, with directory of current node', function (t) {
+  checkPath(true, t)
+})
+
+function checkPath (withDirOfCurrentNode, t) {
+  var newPATH = PATH
+  var currentNodeExecPath = process.execPath
+  if (withDirOfCurrentNode) {
+    var newNodeExeDir = path.join(pkg, 'node-bin')
+    mkdirp.sync(newNodeExeDir)
+    currentNodeExecPath = path.join(newNodeExeDir, 'my_bundled_' + path.basename(process.execPath))
+    fs.writeFileSync(currentNodeExecPath, fs.readFileSync(process.execPath))
+    fs.chmodSync(currentNodeExecPath, '755')
+  } else {
+    // Ensure that current node interpreter will be found in the PATH,
+    // so the PATH won't be prepended with its parent directory
+    newPATH = [path.dirname(process.execPath), PATH].join(process.platform === 'win32' ? ';' : ':')
+  }
   common.npm(['run-script', 'env'], {
     cwd: pkg,
+    nodeExecPath: currentNodeExecPath,
     env: {
-      PATH: PATH
+      PATH: newPATH
     },
     stdio: [ 0, 'pipe', 2 ]
   }, function (er, code, stdout) {
@@ -60,17 +82,18 @@ test('make sure the path is correct', function (t) {
     })
 
     // get the ones we tacked on, then the system-specific requirements
-    var expect = [
-      '{{ROOT}}/bin/node-gyp-bin',
-      '{{ROOT}}/test/tap/lifecycle-path/node_modules/.bin',
-      path.dirname(process.execPath)
-    ].concat(PATH.split(pathSplit)).map(function (p) {
+    var expectedPaths = ['{{ROOT}}/bin/node-gyp-bin',
+                         '{{ROOT}}/test/tap/lifecycle-path/node_modules/.bin']
+    if (withDirOfCurrentNode) {
+      expectedPaths.push('{{ROOT}}/test/tap/lifecycle-path/node-bin')
+    }
+    var expect = expectedPaths.concat(newPATH.split(pathSplit)).map(function (p) {
       return p.replace(/\\/g, '/')
     })
     t.same(actual, expect)
     t.end()
   })
-})
+}
 
 test('cleanup', function (t) {
   cleanup()

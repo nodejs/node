@@ -4,6 +4,11 @@
 
 None yet.
 
+## v1.3.0 (2016-06-22)
+
+* #14 add safer version of hasOwnProperty()
+* #15 forEachKey() should ignore inherited properties
+
 ## v1.2.2 (2015-10-15)
 
 * #11 NPM package shouldn't include any code that does `require('JSV')`
