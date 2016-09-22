@@ -504,7 +504,6 @@ TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
   EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
@@ -516,7 +515,6 @@ TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
   EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, RequestWithoutKey) {
@@ -531,7 +529,6 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
   EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
