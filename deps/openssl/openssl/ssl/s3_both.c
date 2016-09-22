@@ -427,21 +427,22 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
         }
         *ok = 1;
         s->state = stn;
-        s->init_msg = s->init_buf->data + 4;
+        s->init_msg = s->init_buf->data + SSL3_HM_HEADER_LENGTH;
         s->init_num = (int)s->s3->tmp.message_size;
         return s->init_num;
     }
 
     p = (unsigned char *)s->init_buf->data;
 
-    if (s->state == st1) {      /* s->init_num < 4 */
+    if (s->state == st1) {      /* s->init_num < SSL3_HM_HEADER_LENGTH */
         int skip_message;
 
         do {
-            while (s->init_num < 4) {
+            while (s->init_num < SSL3_HM_HEADER_LENGTH) {
                 i = s->method->ssl_read_bytes(s, SSL3_RT_HANDSHAKE,
                                               &p[s->init_num],
-                                              4 - s->init_num, 0);
+                                              SSL3_HM_HEADER_LENGTH -
+                                              s->init_num, 0);
                 if (i <= 0) {
                     s->rwstate = SSL_READING;
                     *ok = 0;
@@ -465,12 +466,13 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 
                         if (s->msg_callback)
                             s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE,
-                                            p, 4, s, s->msg_callback_arg);
+                                            p, SSL3_HM_HEADER_LENGTH, s,
+                                            s->msg_callback_arg);
                     }
         }
         while (skip_message);
 
-        /* s->init_num == 4 */
+        /* s->init_num == SSL3_HM_HEADER_LENGTH */
 
         if ((mt >= 0) && (*p != mt)) {
             al = SSL_AD_UNEXPECTED_MESSAGE;
@@ -497,19 +499,20 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
             SSLerr(SSL_F_SSL3_GET_MESSAGE, SSL_R_EXCESSIVE_MESSAGE_SIZE);
             goto f_err;
         }
-        if (l > (INT_MAX - 4)) { /* BUF_MEM_grow takes an 'int' parameter */
-            al = SSL_AD_ILLEGAL_PARAMETER;
-            SSLerr(SSL_F_SSL3_GET_MESSAGE, SSL_R_EXCESSIVE_MESSAGE_SIZE);
-            goto f_err;
-        }
-        if (l && !BUF_MEM_grow_clean(s->init_buf, (int)l + 4)) {
+        /*
+         * Make buffer slightly larger than message length as a precaution
+         * against small OOB reads e.g. CVE-2016-6306
+         */
+        if (l
+            && !BUF_MEM_grow_clean(s->init_buf,
+                                   (int)l + SSL3_HM_HEADER_LENGTH + 16)) {
             SSLerr(SSL_F_SSL3_GET_MESSAGE, ERR_R_BUF_LIB);
             goto err;
         }
         s->s3->tmp.message_size = l;
         s->state = stn;
 
-        s->init_msg = s->init_buf->data + 4;
+        s->init_msg = s->init_buf->data + SSL3_HM_HEADER_LENGTH;
         s->init_num = 0;
     }
 
@@ -538,10 +541,12 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 #endif
 
     /* Feed this message into MAC computation. */
-    ssl3_finish_mac(s, (unsigned char *)s->init_buf->data, s->init_num + 4);
+    ssl3_finish_mac(s, (unsigned char *)s->init_buf->data,
+                    s->init_num + SSL3_HM_HEADER_LENGTH);
     if (s->msg_callback)
         s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE, s->init_buf->data,
-                        (size_t)s->init_num + 4, s, s->msg_callback_arg);
+                        (size_t)s->init_num + SSL3_HM_HEADER_LENGTH, s,
+                        s->msg_callback_arg);
     *ok = 1;
     return s->init_num;
  f_err:
@@ -619,7 +624,10 @@ int ssl_verify_alarm_type(long type)
     case X509_V_ERR_CERT_REVOKED:
         al = SSL_AD_CERTIFICATE_REVOKED;
         break;
+    case X509_V_ERR_UNSPECIFIED:
     case X509_V_ERR_OUT_OF_MEM:
+    case X509_V_ERR_INVALID_CALL:
+    case X509_V_ERR_STORE_LOOKUP:
         al = SSL_AD_INTERNAL_ERROR;
         break;
     case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:

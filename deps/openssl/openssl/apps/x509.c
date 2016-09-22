@@ -1053,6 +1053,10 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
     EVP_PKEY *upkey;
 
     upkey = X509_get_pubkey(xca);
+    if (upkey == NULL)  {
+        BIO_printf(bio_err, "Error obtaining CA X509 public key\n");
+        goto end;
+    }
     EVP_PKEY_copy_parameters(upkey, pkey);
     EVP_PKEY_free(upkey);
 
@@ -1161,6 +1165,8 @@ static int sign(X509 *x, EVP_PKEY *pkey, int days, int clrext,
     EVP_PKEY *pktmp;
 
     pktmp = X509_get_pubkey(x);
+    if (pktmp == NULL)
+        goto err;
     EVP_PKEY_copy_parameters(pktmp, pkey);
     EVP_PKEY_save_parameters(pktmp, 1);
     EVP_PKEY_free(pktmp);

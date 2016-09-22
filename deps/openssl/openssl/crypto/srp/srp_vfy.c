@@ -544,7 +544,7 @@ SRP_user_pwd *SRP_VBASE_get1_by_user(SRP_VBASE *vb, char *username)
     if (!SRP_user_pwd_set_ids(user, username, NULL))
         goto err;
 
-    if (RAND_pseudo_bytes(digv, SHA_DIGEST_LENGTH) < 0)
+    if (RAND_bytes(digv, SHA_DIGEST_LENGTH) <= 0)
         goto err;
     EVP_MD_CTX_init(&ctxt);
     EVP_DigestInit_ex(&ctxt, EVP_sha1(), NULL);
@@ -597,7 +597,7 @@ char *SRP_create_verifier(const char *user, const char *pass, char **salt,
     }
 
     if (*salt == NULL) {
-        if (RAND_pseudo_bytes(tmp2, SRP_RANDOM_SALT_LEN) < 0)
+        if (RAND_bytes(tmp2, SRP_RANDOM_SALT_LEN) <= 0)
             goto err;
 
         s = BN_bin2bn(tmp2, SRP_RANDOM_SALT_LEN, NULL);
@@ -670,7 +670,7 @@ int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
     srp_bn_print(g);
 
     if (*salt == NULL) {
-        if (RAND_pseudo_bytes(tmp2, SRP_RANDOM_SALT_LEN) < 0)
+        if (RAND_bytes(tmp2, SRP_RANDOM_SALT_LEN) <= 0)
             goto err;
 
         salttmp = BN_bin2bn(tmp2, SRP_RANDOM_SALT_LEN, NULL);

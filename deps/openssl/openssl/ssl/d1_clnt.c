@@ -751,6 +751,7 @@ int dtls1_connect(SSL *s)
             /* done with handshaking */
             s->d1->handshake_read_seq = 0;
             s->d1->next_handshake_write_seq = 0;
+            dtls1_clear_received_buffer(s);
             goto end;
             /* break; */
 

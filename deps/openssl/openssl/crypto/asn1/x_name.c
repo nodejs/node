@@ -199,10 +199,8 @@ static int x509_name_ex_d2i(ASN1_VALUE **val,
     int i, j, ret;
     STACK_OF(X509_NAME_ENTRY) *entries;
     X509_NAME_ENTRY *entry;
-    if (len > X509_NAME_MAX) {
-        ASN1err(ASN1_F_X509_NAME_EX_D2I, ASN1_R_TOO_LONG);
-        return 0;
-    }
+    if (len > X509_NAME_MAX)
+        len = X509_NAME_MAX;
     q = p;
 
     /* Get internal representation of Name */

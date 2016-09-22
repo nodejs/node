@@ -145,13 +145,9 @@ static int bnrand(int pseudorand, BIGNUM *rnd, int bits, int top, int bottom)
     time(&tim);
     RAND_add(&tim, sizeof(tim), 0.0);
 
-    if (pseudorand) {
-        if (RAND_pseudo_bytes(buf, bytes) == -1)
-            goto err;
-    } else {
-        if (RAND_bytes(buf, bytes) <= 0)
-            goto err;
-    }
+    /* We ignore the value of pseudorand and always call RAND_bytes */
+    if (RAND_bytes(buf, bytes) <= 0)
+        goto err;
 
 #if 1
     if (pseudorand == 2) {
