@@ -243,6 +243,11 @@ int MAIN(int argc, char **argv)
         argv++;
     }
 
+    if (keyfile != NULL && argc > 1) {
+        BIO_printf(bio_err, "Can only sign or verify one file\n");
+        goto end;
+    }
+
     if (do_verify && !sigfile) {
         BIO_printf(bio_err,
                    "No signature to verify: use the -signature option\n");

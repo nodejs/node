@@ -67,17 +67,19 @@ $arr[ord("?")] |= $PSTRING_CHAR;
 # Now generate the C code
 
 print <<EOF;
-/* Auto generated with chartype.pl script.
- * Mask of various character properties
+/*
+ * Auto generated with chartype.pl script. Mask of various character
+ * properties
  */
 
-static unsigned char char_type[] = {
+static const unsigned char char_type[] = {
 EOF
 
+print "   ";
 for($i = 0; $i < 128; $i++) {
-	print("\n") if($i && (($i % 16) == 0));
-	printf("%2d", $arr[$i]);
+	print("\n   ") if($i && (($i % 16) == 0));
+	printf(" %d", $arr[$i]);
 	print(",") if ($i != 127);
 }
-print("\n};\n\n");
+print("\n};\n");
 

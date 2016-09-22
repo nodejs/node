@@ -2,6 +2,166 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2h and 1.0.2i [22 Sep 2016]
+
+  *) OCSP Status Request extension unbounded memory growth
+
+     A malicious client can send an excessively large OCSP Status Request
+     extension. If that client continually requests renegotiation, sending a
+     large OCSP Status Request extension each time, then there will be unbounded
+     memory growth on the server. This will eventually lead to a Denial Of
+     Service attack through memory exhaustion. Servers with a default
+     configuration are vulnerable even if they do not support OCSP. Builds using
+     the "no-ocsp" build time option are not affected.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6304)
+     [Matt Caswell]
+
+  *) In order to mitigate the SWEET32 attack, the DES ciphers were moved from
+     HIGH to MEDIUM.
+
+     This issue was reported to OpenSSL Karthikeyan Bhargavan and Gaetan
+     Leurent (INRIA)
+     (CVE-2016-2183)
+     [Rich Salz]
+
+  *) OOB write in MDC2_Update()
+
+     An overflow can occur in MDC2_Update() either if called directly or
+     through the EVP_DigestUpdate() function using MDC2. If an attacker
+     is able to supply very large amounts of input data after a previous
+     call to EVP_EncryptUpdate() with a partial block then a length check
+     can overflow resulting in a heap corruption.
+
+     The amount of data needed is comparable to SIZE_MAX which is impractical
+     on most platforms.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6303)
+     [Stephen Henson]
+
+  *) Malformed SHA512 ticket DoS
+
+     If a server uses SHA512 for TLS session ticket HMAC it is vulnerable to a
+     DoS attack where a malformed ticket will result in an OOB read which will
+     ultimately crash.
+
+     The use of SHA512 in TLS session tickets is comparatively rare as it requires
+     a custom server callback and ticket lookup mechanism.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6302)
+     [Stephen Henson]
+
+  *) OOB write in BN_bn2dec()
+
+     The function BN_bn2dec() does not check the return value of BN_div_word().
+     This can cause an OOB write if an application uses this function with an
+     overly large BIGNUM. This could be a problem if an overly large certificate
+     or CRL is printed out from an untrusted source. TLS is not affected because
+     record limits will reject an oversized certificate before it is parsed.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-2182)
+     [Stephen Henson]
+
+  *) OOB read in TS_OBJ_print_bio()
+
+     The function TS_OBJ_print_bio() misuses OBJ_obj2txt(): the return value is
+     the total length the OID text representation would use and not the amount
+     of data written. This will result in OOB reads when large OIDs are
+     presented.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-2180)
+     [Stephen Henson]
+
+  *) Pointer arithmetic undefined behaviour
+
+     Avoid some undefined pointer arithmetic
+
+     A common idiom in the codebase is to check limits in the following manner:
+     "p + len > limit"
+
+     Where "p" points to some malloc'd data of SIZE bytes and
+     limit == p + SIZE
+
+     "len" here could be from some externally supplied data (e.g. from a TLS
+     message).
+
+     The rules of C pointer arithmetic are such that "p + len" is only well
+     defined where len <= SIZE. Therefore the above idiom is actually
+     undefined behaviour.
+
+     For example this could cause problems if some malloc implementation
+     provides an address for "p" such that "p + len" actually overflows for
+     values of len that are too big and therefore p + len < limit.
+
+     This issue was reported to OpenSSL by Guido Vranken
+     (CVE-2016-2177)
+     [Matt Caswell]
+
+  *) Constant time flag not preserved in DSA signing
+
+     Operations in the DSA signing algorithm should run in constant time in
+     order to avoid side channel attacks. A flaw in the OpenSSL DSA
+     implementation means that a non-constant time codepath is followed for
+     certain operations. This has been demonstrated through a cache-timing
+     attack to be sufficient for an attacker to recover the private DSA key.
+
+     This issue was reported by César Pereida (Aalto University), Billy Brumley
+     (Tampere University of Technology), and Yuval Yarom (The University of
+     Adelaide and NICTA).
+     (CVE-2016-2178)
+     [César Pereida]
+
+  *) DTLS buffered message DoS
+
+     In a DTLS connection where handshake messages are delivered out-of-order
+     those messages that OpenSSL is not yet ready to process will be buffered
+     for later use. Under certain circumstances, a flaw in the logic means that
+     those messages do not get removed from the buffer even though the handshake
+     has been completed. An attacker could force up to approx. 15 messages to
+     remain in the buffer when they are no longer required. These messages will
+     be cleared when the DTLS connection is closed. The default maximum size for
+     a message is 100k. Therefore the attacker could force an additional 1500k
+     to be consumed per connection. By opening many simulataneous connections an
+     attacker could cause a DoS attack through memory exhaustion.
+
+     This issue was reported to OpenSSL by Quan Luo.
+     (CVE-2016-2179)
+     [Matt Caswell]
+
+  *) DTLS replay protection DoS
+
+     A flaw in the DTLS replay attack protection mechanism means that records
+     that arrive for future epochs update the replay protection "window" before
+     the MAC for the record has been validated. This could be exploited by an
+     attacker by sending a record for the next epoch (which does not have to
+     decrypt or have a valid MAC), with a very large sequence number. This means
+     that all subsequent legitimate packets are dropped causing a denial of
+     service for a specific DTLS connection.
+
+     This issue was reported to OpenSSL by the OCAP audit team.
+     (CVE-2016-2181)
+     [Matt Caswell]
+
+  *) Certificate message OOB reads
+
+     In OpenSSL 1.0.2 and earlier some missing message length checks can result
+     in OOB reads of up to 2 bytes beyond an allocated buffer. There is a
+     theoretical DoS risk but this has not been observed in practice on common
+     platforms.
+
+     The messages affected are client certificate, client certificate request
+     and server certificate. As a result the attack can only be performed
+     against a client or a server which enables client authentication.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6306)
+     [Stephen Henson]
+
  Changes between 1.0.2g and 1.0.2h [3 May 2016]
 
   *) Prevent padding oracle in AES-NI CBC MAC check
@@ -8669,7 +8829,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) Source code cleanups: use const where appropriate, eliminate casts,
      use void * instead of char * in lhash.
-     [Ulf Möller]
+     [Ulf Möller] 
 
   *) Bugfix: ssl3_send_server_key_exchange was not restartable
      (the state was not changed to SSL3_ST_SW_KEY_EXCH_B, and because of

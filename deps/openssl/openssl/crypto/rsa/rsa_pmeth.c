@@ -545,8 +545,10 @@ static int pkey_rsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_RSA_KEYGEN_PUBEXP:
-        if (!p2)
+        if (p2 == NULL || !BN_is_odd((BIGNUM *)p2) || BN_is_one((BIGNUM *)p2)) {
+            RSAerr(RSA_F_PKEY_RSA_CTRL, RSA_R_BAD_E_VALUE);
             return -2;
+        }
         BN_free(rctx->pub_exp);
         rctx->pub_exp = p2;
         return 1;
