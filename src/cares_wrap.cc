@@ -47,6 +47,38 @@ using v8::String;
 using v8::Value;
 
 
+inline const char* ToErrorCodeString(int status) {
+  switch (status) {
+#define V(code) case ARES_##code: return #code;
+    V(EADDRGETNETWORKPARAMS)
+    V(EBADFAMILY)
+    V(EBADFLAGS)
+    V(EBADHINTS)
+    V(EBADNAME)
+    V(EBADQUERY)
+    V(EBADRESP)
+    V(EBADSTR)
+    V(ECANCELLED)
+    V(ECONNREFUSED)
+    V(EDESTRUCTION)
+    V(EFILE)
+    V(EFORMERR)
+    V(ELOADIPHLPAPI)
+    V(ENODATA)
+    V(ENOMEM)
+    V(ENONAME)
+    V(ENOTFOUND)
+    V(ENOTIMP)
+    V(ENOTINITIALIZED)
+    V(EOF)
+    V(EREFUSED)
+    V(ESERVFAIL)
+    V(ETIMEOUT)
+#undef V
+  }
+  return "UNKNOWN_ARES_ERROR";
+}
+
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
@@ -330,41 +362,8 @@ class QueryWrap : public AsyncWrap {
     CHECK_NE(status, ARES_SUCCESS);
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    Local<Value> arg;
-    switch (status) {
-#define V(code)                                                               \
-      case ARES_ ## code:                                                     \
-        arg = FIXED_ONE_BYTE_STRING(env()->isolate(), #code);                 \
-        break;
-      V(ENODATA)
-      V(EFORMERR)
-      V(ESERVFAIL)
-      V(ENOTFOUND)
-      V(ENOTIMP)
-      V(EREFUSED)
-      V(EBADQUERY)
-      V(EBADNAME)
-      V(EBADFAMILY)
-      V(EBADRESP)
-      V(ECONNREFUSED)
-      V(ETIMEOUT)
-      V(EOF)
-      V(EFILE)
-      V(ENOMEM)
-      V(EDESTRUCTION)
-      V(EBADSTR)
-      V(EBADFLAGS)
-      V(ENONAME)
-      V(EBADHINTS)
-      V(ENOTINITIALIZED)
-      V(ELOADIPHLPAPI)
-      V(EADDRGETNETWORKPARAMS)
-      V(ECANCELLED)
-#undef V
-      default:
-        arg = FIXED_ONE_BYTE_STRING(env()->isolate(), "UNKNOWN_ARES_ERROR");
-        break;
-    }
+    const char* code = ToErrorCodeString(status);
+    Local<Value> arg = OneByteString(env()->isolate(), code);
     MakeCallback(env()->oncomplete_string(), 1, &arg);
   }
 
@@ -1311,7 +1310,8 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   int r = ares_library_init(ARES_LIB_INIT_ALL);
-  CHECK_EQ(r, ARES_SUCCESS);
+  if (r != ARES_SUCCESS)
+    return env->ThrowError(ToErrorCodeString(r));
 
   struct ares_options options;
   memset(&options, 0, sizeof(options));
@@ -1323,7 +1323,10 @@ static void Initialize(Local<Object> target,
   r = ares_init_options(env->cares_channel_ptr(),
                         &options,
                         ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
-  CHECK_EQ(r, ARES_SUCCESS);
+  if (r != ARES_SUCCESS) {
+    ares_library_cleanup();
+    return env->ThrowError(ToErrorCodeString(r));
+  }
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
