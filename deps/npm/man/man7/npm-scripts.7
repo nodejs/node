@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "July 2016" "" ""
+.TH "NPM\-SCRIPTS" "7" "September 2016" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -26,11 +26,14 @@ Run BEFORE the package is uninstalled\.
 postuninstall:
 Run AFTER the package is uninstalled\.
 .IP \(bu 2
-preversion, version:
-Run BEFORE bump the package version\.
+preversion:
+Run BEFORE bumping the package version\.
+.IP \(bu 2
+version:
+Run AFTER bumping the package version, but BEFORE commit\.
 .IP \(bu 2
 postversion:
-Run AFTER bump the package version\.
+Run AFTER bumping the package version, and AFTER commit\.
 .IP \(bu 2
 pretest, test, posttest:
 Run by the \fBnpm test\fP command\.

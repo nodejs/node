@@ -12,7 +12,8 @@ var npm = require('../npm.js')
 var deepSortObject = require('../utils/deep-sort-object.js')
 var parseJSON = require('../utils/parse-json.js')
 var moduleName = require('../utils/module-name.js')
-var isOnlyDev = require('./is-dev.js').isOnlyDev
+var isDevDep = require('./is-dev-dep.js')
+var createShrinkwrap = require('../shrinkwrap.js').createShrinkwrap
 
 // if the -S|--save option is specified, then write installed packages
 // as dependencies to a package.json file.
@@ -49,25 +50,17 @@ function saveShrinkwrap (tree, next) {
     var saveOptional = npm.config.get('save-optional')
 
     var shrinkwrap = tree.package._shrinkwrap || {dependencies: {}}
-    var hasDevOnlyDeps = tree.requires.filter(function (dep) {
-      return isOnlyDev(dep)
-    }).some(function (dep) {
-      return shrinkwrap.dependencies[dep.package.name] != null
+    var shrinkwrapHasAnyDevOnlyDeps = tree.requires.some(function (dep) {
+      var name = moduleName(dep)
+      return isDevDep(tree, name) &&
+             shrinkwrap.dependencies[name] != null
     })
 
-    if (!saveOptional && saveDev && !hasDevOnlyDeps) return next()
-    if (saveOptional || !save) return next()
+    if (!saveOptional && saveDev && !shrinkwrapHasAnyDevOnlyDeps) return next()
+    if (saveOptional || !(save || saveDev)) return next()
 
-    if (hasDevOnlyDeps) {
-      var dev = npm.config.get('dev')
-      npm.config.set('dev', true)
-      npm.commands.shrinkwrap([], true, function () {
-        npm.config.set('dev', dev)
-        next.apply(this, arguments)
-      })
-    } else {
-      npm.commands.shrinkwrap([], true, next)
-    }
+    var silent = false
+    createShrinkwrap(tree.path, tree.package, shrinkwrapHasAnyDevOnlyDeps, silent, next)
   })
 }
 

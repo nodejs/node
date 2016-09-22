@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-install</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-install.html">
   <script async=true src="../../static/toc.js"></script>
@@ -152,6 +152,7 @@ fetch the package by name if it is not valid.
   to the environment when running git:</p>
 <ul>
 <li><code>GIT_ASKPASS</code></li>
+<li><code>GIT_EXEC_PATH</code></li>
 <li><code>GIT_PROXY_COMMAND</code></li>
 <li><code>GIT_SSH</code></li>
 <li><code>GIT_SSH_COMMAND</code></li>
@@ -217,7 +218,7 @@ your local <code>node_modules</code> folder with the same layout it uses with th
 global <code>node_modules</code> folder. Only your direct dependencies will show in
 <code>node_modules</code> and everything they depend on will be flattened in their
 <code>node_modules</code> folders. This obviously will eliminate some deduping.</p>
-<p>The <code>--ignore-scripts</code> argument will cause npm to not execute any
+<p>The <code>--ignore-scripts</code> argument will cause npm to not execute any 
 scripts defined in the package.json. See <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code>.</p>
 <p>The <code>--legacy-bundling</code> argument will cause npm to install the package such
 that versions of npm prior to 1.4, such as the one included with node 0.8,
@@ -312,5 +313,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@3.10.3</p>
+<p id="footer">npm-install &mdash; npm@3.10.8</p>
 

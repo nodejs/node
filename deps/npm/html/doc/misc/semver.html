@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>semver</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/misc/semver.html">
   <script async=true src="../../static/toc.js"></script>
@@ -12,6 +12,8 @@
 <h1><a href="../misc/semver.html">semver</a></h1> <p>The semantic versioner for npm</p>
 <h2 id="usage">Usage</h2>
 <pre><code>$ npm install semver
+$ node
+var semver = require(&#39;semver&#39;)
 
 semver.valid(&#39;1.2.3&#39;) // &#39;1.2.3&#39;
 semver.valid(&#39;a.b.c&#39;) // null
@@ -22,18 +24,35 @@ semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true
 </code></pre><p>As a command-line utility:</p>
 <pre><code>$ semver -h
 
-Usage: semver &lt;version&gt; [&lt;version&gt; [...]] [-r &lt;range&gt; | -i &lt;inc&gt; | --preid &lt;identifier&gt; | -l | -rv]
-Test if version(s) satisfy the supplied range(s), and sort them.
+SemVer 5.1.0
 
-Multiple versions or ranges may be supplied, unless increment
-option is specified.  In that case, only a single version may
-be used, and it is incremented by the specified level
+A JavaScript implementation of the http://semver.org/ specification
+Copyright Isaac Z. Schlueter
+
+Usage: semver [options] &lt;version&gt; [&lt;version&gt; [...]]
+Prints valid versions sorted by SemVer precedence
+
+Options:
+-r --range &lt;range&gt;
+        Print versions that match the specified range.
+
+-i --increment [&lt;level&gt;]
+        Increment a version by the specified level.  Level can
+        be one of: major, minor, patch, premajor, preminor,
+        prepatch, or prerelease.  Default level is &#39;patch&#39;.
+        Only one version may be specified.
+
+--preid &lt;identifier&gt;
+        Identifier to be used to prefix premajor, preminor,
+        prepatch or prerelease version increments.
+
+-l --loose
+        Interpret versions and ranges loosely
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.
 
-If no versions are valid, or ranges are not satisfied,
-then exits failure.
+If no satisfying versions are found, then exits failure.
 
 Versions are printed in ascending order, so supplying
 multiple versions to the utility will just sort them.
@@ -210,7 +229,7 @@ simple     ::= primitive | partial | tilde | caret
 primitive  ::= ( &#39;&lt;&#39; | &#39;&gt;&#39; | &#39;&gt;=&#39; | &#39;&lt;=&#39; | &#39;=&#39; | ) partial
 partial    ::= xr ( &#39;.&#39; xr ( &#39;.&#39; xr qualifier ? )? )?
 xr         ::= &#39;x&#39; | &#39;X&#39; | &#39;*&#39; | nr
-nr         ::= &#39;0&#39; | [&#39;1&#39;-&#39;9&#39;][&#39;0&#39;-&#39;9&#39;]+
+nr         ::= &#39;0&#39; | [&#39;1&#39;-&#39;9&#39;] ( [&#39;0&#39;-&#39;9&#39;] ) *
 tilde      ::= &#39;~&#39; partial
 caret      ::= &#39;^&#39; partial
 qualifier  ::= ( &#39;-&#39; pre )? ( &#39;+&#39; build )?
@@ -239,6 +258,8 @@ prerelease. If the input version is already a prerelease it simply
 increments it.</li>
 </ul>
 </li>
+<li><code>prerelease(v)</code>: Returns an array of prerelease components, or null
+if none exist. Example: <code>prerelease(&#39;1.2.3-alpha.1&#39;) -&gt; [&#39;alpha&#39;, 1]</code></li>
 <li><code>major(v)</code>: Return the major version number.</li>
 <li><code>minor(v)</code>: Return the minor version number.</li>
 <li><code>patch(v)</code>: Return the patch version number.</li>
@@ -272,6 +293,8 @@ or null if the versions are the same.</li>
 range.</li>
 <li><code>maxSatisfying(versions, range)</code>: Return the highest version in the list
 that satisfies the range, or <code>null</code> if none of them do.</li>
+<li><code>minSatisfying(versions, range)</code>: Return the lowest version in the list
+that satisfies the range, or <code>null</code> if none of them do.</li>
 <li><code>gtr(version, range)</code>: Return <code>true</code> if version is greater than all the
 versions possible in the range.</li>
 <li><code>ltr(version, range)</code>: Return <code>true</code> if version is less than all the
@@ -302,5 +325,5 @@ range, use the <code>satisfies(version, range)</code> function.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@3.10.3</p>
+<p id="footer">semver &mdash; npm@3.10.8</p>
 

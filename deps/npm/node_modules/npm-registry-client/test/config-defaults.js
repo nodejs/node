@@ -33,7 +33,7 @@ test('config defaults', function (t) {
 })
 
 test('missing HTTPS proxy defaults to HTTP proxy', function (t) {
-  var client = common.freshClient({ proxy: { http: 'http://proxy.npm:8088/' }})
+  var client = common.freshClient({ proxy: { http: 'http://proxy.npm:8088/' } })
 
   t.equal(client.config.proxy.http, 'http://proxy.npm:8088/', 'HTTP proxy set')
   t.equal(client.config.proxy.http, client.config.proxy.https, 'HTTP === HTTPS')

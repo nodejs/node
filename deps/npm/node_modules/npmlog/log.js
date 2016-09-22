@@ -219,7 +219,9 @@ log.emitLog = function (m) {
   if (l < this.levels[this.level]) return
   if (l > 0 && !isFinite(l)) return
 
-  var disp = log.disp[m.level] || m.level
+  // If 'disp' is null or undefined, use the lvl as a default
+  // Allows: '', 0 as valid disp
+  var disp = log.disp[m.level] != null ? log.disp[m.level] : m.level
   this.clearProgress()
   m.message.split(/\r?\n/).forEach(function (line) {
     if (this.heading) {
@@ -264,7 +266,8 @@ log.write = function (msg, style) {
 }
 
 log.addLevel = function (lvl, n, style, disp) {
-  if (!disp) disp = lvl
+  // If 'disp' is null or undefined, use the lvl as a default
+  if (disp == null) disp = lvl
   this.levels[lvl] = n
   this.style[lvl] = style
   if (!this[lvl]) {
