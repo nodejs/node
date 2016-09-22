@@ -79,7 +79,7 @@ HTTP server accepts `non-ASCII` characters in the headers of an incoming
 request. Interesting things to notice:
 
 - If the test doesn't depend on a specific port number then always use 0 instead
-  of an arbitrary value, as it allows to run tests in parallel safely, as the
+  of an arbitrary value, as it allows tests to be run in parallel safely, as the
   operating system will assign a random port. If the test requires a specific
   port, for example if the test checks that assigning a specific port works as
   expected, then it is ok to assign a specific port number.
