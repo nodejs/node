@@ -799,7 +799,7 @@ my @experimental = ();
 
 # This is what $depflags will look like with the above defaults
 # (we need this to see if we should advise the user to run "make depend"):
-my $default_depflags = " -DOPENSSL_NO_EC_NISTP_64_GCC_128 -DOPENSSL_NO_GMP -DOPENSSL_NO_JPAKE -DOPENSSL_NO_LIBUNBOUND -DOPENSSL_NO_MD2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SCTP -DOPENSSL_NO_SSL_TRACE -DOPENSSL_NO_STORE -DOPENSSL_NO_UNIT_TEST";
+my $default_depflags = " -DOPENSSL_NO_EC_NISTP_64_GCC_128 -DOPENSSL_NO_GMP -DOPENSSL_NO_JPAKE -DOPENSSL_NO_LIBUNBOUND -DOPENSSL_NO_MD2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SCTP -DOPENSSL_NO_SSL_TRACE -DOPENSSL_NO_SSL2 -DOPENSSL_NO_STORE -DOPENSSL_NO_UNIT_TEST -DOPENSSL_NO_WEAK_SSL_CIPHERS";
 
 # Explicit "no-..." options will be collected in %disabled along with the defaults.
 # To remove something from %disabled, use "enable-foo" (unless it's experimental).
@@ -1082,11 +1082,6 @@ if (defined($disabled{"md5"}) || defined($disabled{"sha"})
 	$disabled{"tls1"} = "forced";
 	}
 
-if (defined($disabled{"tls1"}))
-	{
-	$disabled{"tlsext"} = "forced";
-	}
-
 if (defined($disabled{"ec"}) || defined($disabled{"dsa"})
     || defined($disabled{"dh"}))
 	{
@@ -1254,6 +1249,7 @@ my $shared_extension = $fields[$idx_shared_extension];
 my $ranlib = $ENV{'RANLIB'} || $fields[$idx_ranlib];
 my $ar = $ENV{'AR'} || "ar";
 my $arflags = $fields[$idx_arflags];
+my $windres = $ENV{'RC'} || $ENV{'WINDRES'} || "windres";
 my $multilib = $fields[$idx_multilib];
 
 # if $prefix/lib$multilib is not an existing directory, then
@@ -1562,8 +1558,15 @@ $cpuid_obj="mem_clr.o"	unless ($cpuid_obj =~ /\.o$/);
 $des_obj=$des_enc	unless ($des_obj =~ /\.o$/);
 $bf_obj=$bf_enc		unless ($bf_obj =~ /\.o$/);
 $cast_obj=$cast_enc	unless ($cast_obj =~ /\.o$/);
-$rc4_obj=$rc4_enc	unless ($rc4_obj =~ /\.o$/);
 $rc5_obj=$rc5_enc	unless ($rc5_obj =~ /\.o$/);
+if ($rc4_obj =~ /\.o$/)
+	{
+	$cflags.=" -DRC4_ASM";
+	}
+else
+	{
+	$rc4_obj=$rc4_enc;
+	}
 if ($sha1_obj =~ /\.o$/)
 	{
 #	$sha1_obj=$sha1_enc;
@@ -1717,12 +1720,14 @@ while (<IN>)
 		s/^AR=\s*/AR= \$\(CROSS_COMPILE\)/;
 		s/^NM=\s*/NM= \$\(CROSS_COMPILE\)/;
 		s/^RANLIB=\s*/RANLIB= \$\(CROSS_COMPILE\)/;
+		s/^RC=\s*/RC= \$\(CROSS_COMPILE\)/;
 		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= \$\(CROSS_COMPILE\)$cc/ if $cc eq "gcc";
 		}
 	else	{
 		s/^CC=.*$/CC= $cc/;
 		s/^AR=\s*ar/AR= $ar/;
 		s/^RANLIB=.*/RANLIB= $ranlib/;
+		s/^RC=.*/RC= $windres/;
 		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $cc eq "gcc";
 		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $ecc eq "gcc" || $ecc eq "clang";
 		}

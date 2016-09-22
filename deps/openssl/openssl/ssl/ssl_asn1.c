@@ -527,6 +527,9 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
         if (os.length > SSL_MAX_SID_CTX_LENGTH) {
             c.error = SSL_R_BAD_LENGTH;
             c.line = __LINE__;
+            OPENSSL_free(os.data);
+            os.data = NULL;
+            os.length = 0;
             goto err;
         } else {
             ret->sid_ctx_length = os.length;

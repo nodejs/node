@@ -99,7 +99,7 @@ static int rc4_hmac_md5_init_key(EVP_CIPHER_CTX *ctx,
     return 1;
 }
 
-# if     !defined(OPENSSL_NO_ASM) &&     ( \
+# if     defined(RC4_ASM) && defined(MD5_ASM) &&     (	   \
         defined(__x86_64)       || defined(__x86_64__)  || \
         defined(_M_AMD64)       || defined(_M_X64)      || \
         defined(__INTEL__)              ) && \
@@ -253,6 +253,8 @@ static int rc4_hmac_md5_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
                 hmac_key[i] ^= 0x36 ^ 0x5c; /* opad */
             MD5_Init(&key->tail);
             MD5_Update(&key->tail, hmac_key, sizeof(hmac_key));
+
+            OPENSSL_cleanse(hmac_key, sizeof(hmac_key));
 
             return 1;
         }

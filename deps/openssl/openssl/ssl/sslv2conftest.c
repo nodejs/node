@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 {
     BIO *err;
     int testresult = 0;
-    int currtest;
+    int currtest = 0;
 
     SSL_library_init();
     SSL_load_error_strings();

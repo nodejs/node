@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.2h
+VERSION=1.0.2i
 MAJOR=1
 MINOR=0.2
 SHLIB_VERSION_NUMBER=1.0.0
@@ -62,12 +62,13 @@ OPENSSLDIR=/usr/local/ssl
 CC= cc
 CFLAG= -O
 DEPFLAG= -DOPENSSL_NO_EC_NISTP_64_GCC_128 -DOPENSSL_NO_GMP -DOPENSSL_NO_JPAKE -DOPENSSL_NO_LIBUNBOUND -DOPENSSL_NO_MD2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SCTP -DOPENSSL_NO_SSL_TRACE -DOPENSSL_NO_SSL2 -DOPENSSL_NO_STORE -DOPENSSL_NO_UNIT_TEST -DOPENSSL_NO_WEAK_SSL_CIPHERS
-PEX_LIBS=
-EX_LIBS=
-EXE_EXT=
-ARFLAGS=
+PEX_LIBS= 
+EX_LIBS= 
+EXE_EXT= 
+ARFLAGS= 
 AR= ar $(ARFLAGS) r
 RANLIB= /usr/bin/ranlib
+RC= windres
 NM= nm
 PERL= /usr/bin/perl
 TAR= tar
@@ -85,26 +86,26 @@ ASFLAG=$(CFLAG)
 
 # For x86 assembler: Set PROCESSOR to 386 if you want to support
 # the 80386.
-PROCESSOR=
+PROCESSOR= 
 
 # CPUID module collects small commonly used assembler snippets
 CPUID_OBJ= mem_clr.o
 BN_ASM= bn_asm.o
-EC_ASM=
+EC_ASM= 
 DES_ENC= des_enc.o fcrypt_b.o
 AES_ENC= aes_core.o aes_cbc.o
 BF_ENC= bf_enc.o
 CAST_ENC= c_enc.o
 RC4_ENC= rc4_enc.o rc4_skey.o
 RC5_ENC= rc5_enc.o
-MD5_ASM_OBJ=
-SHA1_ASM_OBJ=
-RMD160_ASM_OBJ=
+MD5_ASM_OBJ= 
+SHA1_ASM_OBJ= 
+RMD160_ASM_OBJ= 
 WP_ASM_OBJ= wp_block.o
 CMLL_ENC= camellia.o cmll_misc.o cmll_cbc.o
-MODES_ASM_OBJ=
-ENGINES_ASM_OBJ=
-PERLASM_SCHEME=
+MODES_ASM_OBJ= 
+ENGINES_ASM_OBJ= 
+PERLASM_SCHEME= 
 
 # KRB5 stuff
 KRB5_INCLUDES=
@@ -210,6 +211,7 @@ BUILDENV=	LC_ALL=C PLATFORM='$(PLATFORM)' PROCESSOR='$(PROCESSOR)'\
 		CC='$(CC)' CFLAG='$(CFLAG)' 			\
 		AS='$(CC)' ASFLAG='$(CFLAG) -c'			\
 		AR='$(AR)' NM='$(NM)' RANLIB='$(RANLIB)'	\
+		RC='$(RC)'              			\
 		CROSS_COMPILE='$(CROSS_COMPILE)'	\
 		PERL='$(PERL)' ENGDIRS='$(ENGDIRS)'		\
 		SDIRS='$(SDIRS)' LIBRPATH='$(INSTALLTOP)/$(LIBDIR)'	\
@@ -368,6 +370,7 @@ libcrypto.pc: Makefile
 	    echo 'exec_prefix=$${prefix}'; \
 	    echo 'libdir=$${exec_prefix}/$(LIBDIR)'; \
 	    echo 'includedir=$${prefix}/include'; \
+	    echo 'enginesdir=$${libdir}/engines'; \
 	    echo ''; \
 	    echo 'Name: OpenSSL-libcrypto'; \
 	    echo 'Description: OpenSSL cryptography library'; \
@@ -525,7 +528,7 @@ tar-snap: $(TARFILE).list
 	rm -f $(TARFILE).list
 	ls -l $(TARFILE)
 
-dist:
+dist:   
 	$(PERL) Configure dist
 	@$(MAKE) SDIRS='$(SDIRS)' clean
 	@$(MAKE) TAR='$(TAR)' TARFLAGS='$(TARFLAGS)' $(DISTTARVARS) tar
@@ -582,9 +585,9 @@ install_sw:
 						*ssl*)    i=ssleay32.dll;; \
 					esac; \
 					echo installing $$i; \
-					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i.new; \
-					chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i.new; \
-					mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i ); \
+	 				cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i.new; \
+	 				chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i.new; \
+	 				mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$i ); \
 				fi; \
 			fi; \
 		done; \
