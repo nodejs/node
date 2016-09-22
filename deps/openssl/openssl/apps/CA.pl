@@ -5,10 +5,10 @@
 #      things easier between now and when Eric is convinced to fix it :-)
 #
 # CA -newca ... will setup the right stuff
-# CA -newreq[-nodes] ... will generate a certificate request
-# CA -sign ... will sign the generated request and output
+# CA -newreq[-nodes] ... will generate a certificate request 
+# CA -sign ... will sign the generated request and output 
 #
-# At the end of that grab newreq.pem and newcert.pem (one has the key
+# At the end of that grab newreq.pem and newcert.pem (one has the key 
 # and the other the certificate) and cat them together and that is what
 # you want/need ... I'll make even this a little cleaner later.
 #
@@ -64,7 +64,7 @@ $RET = 0;
 
 foreach (@ARGV) {
 	if ( /^(-\?|-h|-help)$/ ) {
-	    print STDERR "usage: CA -newcert|-newreq|-newreq-nodes|-newca|-sign|-verify\n";
+	    print STDERR "usage: CA -newcert|-newreq|-newreq-nodes|-newca|-sign|-signcert|-verify\n";
 	    exit 0;
 	} elsif (/^-newcert$/) {
 	    # create a certificate
@@ -83,7 +83,7 @@ foreach (@ARGV) {
 	    print "Request is in newreq.pem, private key is in newkey.pem\n";
 	} elsif (/^-newca$/) {
 		# if explicitly asked for or it doesn't exist then setup the
-		# directory structure that Eric likes to manage things
+		# directory structure that Eric likes to manage things 
 	    $NEW="1";
 	    if ( "$NEW" || ! -f "${CATOP}/serial" ) {
 		# create the directory hierarchy
@@ -114,7 +114,7 @@ foreach (@ARGV) {
 		    system ("$REQ -new -keyout " .
 			"${CATOP}/private/$CAKEY -out ${CATOP}/$CAREQ");
 		    system ("$CA -create_serial " .
-			"-out ${CATOP}/$CACERT $CADAYS -batch " .
+			"-out ${CATOP}/$CACERT $CADAYS -batch " . 
 			"-keyfile ${CATOP}/private/$CAKEY -selfsign " .
 			"-extensions v3_ca " .
 			"-infiles ${CATOP}/$CAREQ ");
@@ -160,7 +160,7 @@ foreach (@ARGV) {
 	    } else {
 		    system ("$VERIFY -CAfile $CATOP/$CACERT newcert.pem");
 		    $RET=$?;
-		    exit 0;
+	    	    exit 0;
 	    }
 	} else {
 	    print STDERR "Unknown arg $_\n";
