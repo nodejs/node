@@ -1137,7 +1137,8 @@ static AEP_RV ConvertAEPBigNum(void *ArbBigNum, AEP_U32 BigNumSize,
     /*
      * Expand the result bn so that it can hold our big num. Size is in bits
      */
-    bn_expand(bn, (int)(BigNumSize << 3));
+    if (bn_expand(bn, (int)(BigNumSize << 3)) == NULL)
+        return AEP_R_HOST_MEMORY;
 
 #  ifdef SIXTY_FOUR_BIT_LONG
     bn->top = BigNumSize >> 3;
