@@ -56,7 +56,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
     return;
 
   CHECK_EQ(false, wrap->persistent().IsEmpty());
-  uv_close(wrap->handle__, OnClose);
+  uv_close(wrap->handle_, OnClose);
   wrap->state_ = kClosing;
 
   if (args[0]->IsFunction()) {
@@ -73,8 +73,8 @@ HandleWrap::HandleWrap(Environment* env,
                        AsyncWrap* parent)
     : AsyncWrap(env, object, provider, parent),
       state_(kInitialized),
-      handle__(handle) {
-  handle__->data = this;
+      handle_(handle) {
+  handle_->data = this;
   HandleScope scope(env->isolate());
   Wrap(object, this);
   env->handle_wrap_queue()->PushBack(this);
