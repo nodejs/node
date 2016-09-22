@@ -290,9 +290,9 @@ int ssl_fill_hello_random(SSL *s, int server, unsigned char *result, int len)
         unsigned long Time = (unsigned long)time(NULL);
         unsigned char *p = result;
         l2n(Time, p);
-        return RAND_pseudo_bytes(p, len - 4);
+        return RAND_bytes(p, len - 4);
     } else
-        return RAND_pseudo_bytes(result, len);
+        return RAND_bytes(result, len);
 }
 
 static int ssl23_client_hello(SSL *s)
@@ -460,8 +460,8 @@ static int ssl23_client_hello(SSL *s)
                 i = ch_len;
             s2n(i, d);
             memset(&(s->s3->client_random[0]), 0, SSL3_RANDOM_SIZE);
-            if (RAND_pseudo_bytes
-                (&(s->s3->client_random[SSL3_RANDOM_SIZE - i]), i) <= 0)
+            if (RAND_bytes (&(s->s3->client_random[SSL3_RANDOM_SIZE - i]), i)
+                    <= 0)
                 return -1;
 
             memcpy(p, &(s->s3->client_random[SSL3_RANDOM_SIZE - i]), i);

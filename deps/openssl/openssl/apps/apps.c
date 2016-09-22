@@ -2241,6 +2241,8 @@ int args_verify(char ***pargs, int *pargc,
         flags |= X509_V_FLAG_CHECK_SS_SIGNATURE;
     else if (!strcmp(arg, "-no_alt_chains"))
         flags |= X509_V_FLAG_NO_ALT_CHAINS;
+    else if (!strcmp(arg, "-allow_proxy_certs"))
+        flags |= X509_V_FLAG_ALLOW_PROXY_CERTS;
     else
         return 0;
 

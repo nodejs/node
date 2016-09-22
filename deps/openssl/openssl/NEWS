@@ -5,6 +5,20 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1t and OpenSSL 1.0.1u [22 Sep 2016]
+
+      o OCSP Status Request extension unbounded memory growth (CVE-2016-6304)
+      o SWEET32 Mitigation (CVE-2016-2183)
+      o OOB write in MDC2_Update() (CVE-2016-6303)
+      o Malformed SHA512 ticket DoS (CVE-2016-6302)
+      o OOB write in BN_bn2dec() (CVE-2016-2182)
+      o OOB read in TS_OBJ_print_bio() (CVE-2016-2180)
+      o Pointer arithmetic undefined behaviour (CVE-2016-2177)
+      o Constant time flag not preserved in DSA signing (CVE-2016-2178)
+      o DTLS buffered message DoS (CVE-2016-2179)
+      o DTLS replay protection DoS (CVE-2016-2181)
+      o Certificate message OOB reads (CVE-2016-6306)
+
   Major changes between OpenSSL 1.0.1s and OpenSSL 1.0.1t [3 May 2016]
 
       o Prevent padding oracle in AES-NI CBC MAC check (CVE-2016-2107)

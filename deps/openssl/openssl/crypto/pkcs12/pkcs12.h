@@ -270,7 +270,7 @@ int i2d_PKCS12_bio(BIO *bp, PKCS12 *p12);
 int i2d_PKCS12_fp(FILE *fp, PKCS12 *p12);
 PKCS12 *d2i_PKCS12_bio(BIO *bp, PKCS12 **p12);
 PKCS12 *d2i_PKCS12_fp(FILE *fp, PKCS12 **p12);
-int PKCS12_newpass(PKCS12 *p12, char *oldpass, char *newpass);
+int PKCS12_newpass(PKCS12 *p12, const char *oldpass, const char *newpass);
 
 /* BEGIN ERROR CODES */
 /*

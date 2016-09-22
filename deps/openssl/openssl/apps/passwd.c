@@ -416,7 +416,7 @@ static int do_passwd(int passed_salt, char **salt_p, char **salt_malloc_p,
                 if (*salt_malloc_p == NULL)
                     goto err;
             }
-            if (RAND_pseudo_bytes((unsigned char *)*salt_p, 2) < 0)
+            if (RAND_bytes((unsigned char *)*salt_p, 2) <= 0)
                 goto err;
             (*salt_p)[0] = cov_2char[(*salt_p)[0] & 0x3f]; /* 6 bits */
             (*salt_p)[1] = cov_2char[(*salt_p)[1] & 0x3f]; /* 6 bits */
@@ -437,7 +437,7 @@ static int do_passwd(int passed_salt, char **salt_p, char **salt_malloc_p,
                 if (*salt_malloc_p == NULL)
                     goto err;
             }
-            if (RAND_pseudo_bytes((unsigned char *)*salt_p, 8) < 0)
+            if (RAND_bytes((unsigned char *)*salt_p, 8) <= 0)
                 goto err;
 
             for (i = 0; i < 8; i++)

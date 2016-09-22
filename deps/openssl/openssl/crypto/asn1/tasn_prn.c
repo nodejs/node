@@ -446,6 +446,8 @@ static int asn1_print_integer_ctx(BIO *out, ASN1_INTEGER *str,
     char *s;
     int ret = 1;
     s = i2s_ASN1_INTEGER(NULL, str);
+    if (s == NULL)
+        return 0;
     if (BIO_puts(out, s) <= 0)
         ret = 0;
     OPENSSL_free(s);

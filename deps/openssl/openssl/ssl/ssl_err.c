@@ -1,6 +1,6 @@
 /* ssl/ssl_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2016 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -93,6 +93,8 @@ static ERR_STRING_DATA SSL_str_functs[] = {
     {ERR_FUNC(SSL_F_DTLS1_HEARTBEAT), "DTLS1_HEARTBEAT"},
     {ERR_FUNC(SSL_F_DTLS1_OUTPUT_CERT_CHAIN), "DTLS1_OUTPUT_CERT_CHAIN"},
     {ERR_FUNC(SSL_F_DTLS1_PREPROCESS_FRAGMENT), "DTLS1_PREPROCESS_FRAGMENT"},
+    {ERR_FUNC(SSL_F_DTLS1_PROCESS_BUFFERED_RECORDS),
+     "DTLS1_PROCESS_BUFFERED_RECORDS"},
     {ERR_FUNC(SSL_F_DTLS1_PROCESS_OUT_OF_SEQ_MESSAGE),
      "DTLS1_PROCESS_OUT_OF_SEQ_MESSAGE"},
     {ERR_FUNC(SSL_F_DTLS1_PROCESS_RECORD), "DTLS1_PROCESS_RECORD"},
