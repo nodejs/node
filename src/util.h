@@ -254,7 +254,11 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
-inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+// Swaps bytes in place. nbytes is the number of bytes to swap and must be a
+// multiple of the word size (checked by function).
+inline void SwapBytes16(char* data, size_t nbytes);
+inline void SwapBytes32(char* data, size_t nbytes);
+inline void SwapBytes64(char* data, size_t nbytes);
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
