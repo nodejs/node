@@ -4,6 +4,30 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "util.h"
+#include <cstring>
+
+#if defined(_MSC_VER)
+#include <intrin.h>
+#define BSWAP_2(x) _byteswap_ushort(x)
+#define BSWAP_4(x) _byteswap_ulong(x)
+#define BSWAP_8(x) _byteswap_uint64(x)
+#else
+#define BSWAP_2(x) ((x) << 8) | ((x) >> 8)
+#define BSWAP_4(x)                                                            \
+  (((x) & 0xFF) << 24) |                                                      \
+  (((x) & 0xFF00) << 8) |                                                     \
+  (((x) >> 8) & 0xFF00) |                                                     \
+  (((x) >> 24) & 0xFF)
+#define BSWAP_8(x)                                                            \
+  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
+  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
+  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
+  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
+  (((x) & 0x00000000FF000000ull) << 8) |                                      \
+  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
+  (((x) & 0x000000000000FF00ull) << 40) |                                     \
+  (((x) & 0x00000000000000FFull) << 56)
+#endif
 
 namespace node {
 
@@ -200,9 +224,76 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   return static_cast<TypeName*>(pointer);
 }
 
-void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
-  for (size_t i = 0; i < buflen; i += 1)
-    dst[i] = (src[i] << 8) | (src[i] >> 8);
+void SwapBytes16(char* data, size_t nbytes) {
+  CHECK_EQ(nbytes % 2, 0);
+
+#if defined(_MSC_VER)
+  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint16_t);
+  if (align == 0) {
+    // MSVC has no strict aliasing, and is able to highly optimize this case.
+    uint16_t* data16 = reinterpret_cast<uint16_t*>(data);
+    size_t len16 = nbytes / sizeof(*data16);
+    for (size_t i = 0; i < len16; i++) {
+      data16[i] = BSWAP_2(data16[i]);
+    }
+    return;
+  }
+#endif
+
+  uint16_t temp;
+  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+    memcpy(&temp, &data[i], sizeof(temp));
+    temp = BSWAP_2(temp);
+    memcpy(&data[i], &temp, sizeof(temp));
+  }
+}
+
+void SwapBytes32(char* data, size_t nbytes) {
+  CHECK_EQ(nbytes % 4, 0);
+
+#if defined(_MSC_VER)
+  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint32_t);
+  // MSVC has no strict aliasing, and is able to highly optimize this case.
+  if (align == 0) {
+    uint32_t* data32 = reinterpret_cast<uint32_t*>(data);
+    size_t len32 = nbytes / sizeof(*data32);
+    for (size_t i = 0; i < len32; i++) {
+      data32[i] = BSWAP_4(data32[i]);
+    }
+    return;
+  }
+#endif
+
+  uint32_t temp;
+  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+    memcpy(&temp, &data[i], sizeof(temp));
+    temp = BSWAP_4(temp);
+    memcpy(&data[i], &temp, sizeof(temp));
+  }
+}
+
+void SwapBytes64(char* data, size_t nbytes) {
+  CHECK_EQ(nbytes % 8, 0);
+
+#if defined(_MSC_VER)
+  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint64_t);
+  if (align == 0) {
+    // MSVC has no strict aliasing, and is able to highly optimize this case.
+    uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
+    size_t len64 = nbytes / sizeof(*data64);
+    for (size_t i = 0; i < len64; i++) {
+      data64[i] = BSWAP_8(data64[i]);
+    }
+    return;
+  }
+#endif
+
+  uint64_t temp;
+  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+    memcpy(&temp, &data[i], sizeof(temp));
+    temp = BSWAP_8(temp);
+    memcpy(&data[i], &temp, sizeof(temp));
+  }
 }
 
 char ToLower(char c) {

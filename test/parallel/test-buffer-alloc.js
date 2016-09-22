@@ -585,6 +585,12 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
   assert.strictEqual(b.toString(encoding), 'あいうえお');
 });
 
+['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach((encoding) => {
+  const b = Buffer.allocUnsafe(11);
+  b.write('あいうえお', 1, encoding);
+  assert.strictEqual(b.toString(encoding, 1), 'あいうえお');
+});
+
 {
   // latin1 encoding should write only one byte per character.
   const b = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
