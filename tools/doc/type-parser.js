@@ -29,6 +29,7 @@ const typeMap = {
   'cluster.Worker': 'cluster.html#cluster_class_worker',
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
   'net.Socket': 'net.html#net_class_net_socket',
+  'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
   'EventEmitter': 'events.html#events_class_eventemitter',
   'Timer': 'timers.html#timers_timers'
 };

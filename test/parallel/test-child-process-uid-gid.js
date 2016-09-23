@@ -11,7 +11,7 @@ if (process.getuid() === 0) {
 const expectedError = common.isWindows ? /\bENOTSUP\b/ : /\bEPERM\b/;
 
 assert.throws(() => {
-  spawn('echo', ['`fhqwhgads`'], {uid: 0});
+  spawn('echo', ['fhqwhgads'], {uid: 0});
 }, expectedError);
 
 assert.throws(() => {
