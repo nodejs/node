@@ -9,17 +9,11 @@ namespace tracing {
 
 using v8::platform::tracing::TraceConfig;
 using v8::platform::tracing::TraceRecordMode;
-using v8::Array;
-using v8::Boolean;
 using v8::Context;
-using v8::HandleScope;
 using v8::Isolate;
-using v8::JSON;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::Value;
-using v8::String;
 
 class TraceConfigParser {
  public:

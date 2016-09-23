@@ -1,3 +1,7 @@
+// Copyright 2015 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #ifndef SRC_TRACING_TRACE_EVENT_H_
 #define SRC_TRACING_TRACE_EVENT_H_
 

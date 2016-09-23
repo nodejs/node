@@ -5,17 +5,24 @@
 namespace node {
 namespace tracing {
 
-// String options that can be used to initialize TraceOptions.
-const char* kRecordUntilFull = "record-until-full";
-const char* kRecordContinuously = "record-continuously";
-const char* kRecordAsMuchAsPossible = "record-as-much-as-possible";
+using v8::Array;
+using v8::Boolean;
+using v8::HandleScope;
+using v8::JSON;
+using v8::NewStringType;
+using v8::String;
 
-const char* kRecordModeParam = "record_mode";
-const char* kEnableSamplingParam = "enable_sampling";
-const char* kEnableSystraceParam = "enable_systrace";
-const char* kEnableArgumentFilterParam = "enable_argument_filter";
-const char* kIncludedCategoriesParam = "included_categories";
-const char* kExcludedCategoriesParam = "excluded_categories";
+// String options that can be used to initialize TraceOptions.
+static const char* kRecordUntilFull = "record-until-full";
+static const char* kRecordContinuously = "record-continuously";
+static const char* kRecordAsMuchAsPossible = "record-as-much-as-possible";
+
+static const char* kRecordModeParam = "record_mode";
+static const char* kEnableSamplingParam = "enable_sampling";
+static const char* kEnableSystraceParam = "enable_systrace";
+static const char* kEnableArgumentFilterParam = "enable_argument_filter";
+static const char* kIncludedCategoriesParam = "included_categories";
+static const char* kExcludedCategoriesParam = "excluded_categories";
 
 void TraceConfigParser::FillTraceConfig(
     Isolate* isolate, TraceConfig* trace_config, const char* json_str) {

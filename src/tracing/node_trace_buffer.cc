@@ -87,7 +87,7 @@ void InternalTraceBuffer::ExtractHandle(
 
 NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
     NodeTraceWriter* trace_writer, uv_loop_t* tracing_loop)
-    : trace_writer_(trace_writer), tracing_loop_(tracing_loop),
+    : tracing_loop_(tracing_loop), trace_writer_(trace_writer),
       buffer1_(max_chunks, trace_writer, this),
       buffer2_(max_chunks, trace_writer, this) {
   current_buf_.store(&buffer1_);
