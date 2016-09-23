@@ -90,13 +90,13 @@ function checkHttpResponse(port, path, callback) {
 }
 
 function makeBufferingDataCallback(dataCallback) {
-  let buffer = new Buffer(0);
+  let buffer = Buffer.alloc(0);
   return (data) => {
     const newData = Buffer.concat([buffer, data]);
     const str = newData.toString('utf8');
     const lines = str.split('\n');
     if (str.endsWith('\n'))
-      buffer = new Buffer(0);
+      buffer = Buffer.alloc(0);
     else
       buffer = Buffer.from(lines.pop(), 'utf8');
     for (var line of lines)
@@ -123,7 +123,7 @@ const TestSession = function(socket, harness) {
   this.expectedId_ = 1;
   this.lastMessageResponseCallback_ = null;
 
-  let buffer = new Buffer(0);
+  let buffer = Buffer.alloc(0);
   socket.on('data', (data) => {
     buffer = Buffer.concat([buffer, data]);
     let consumed;
