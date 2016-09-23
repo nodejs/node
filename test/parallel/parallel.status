@@ -30,8 +30,5 @@ test-tick-processor-unknown     : PASS,FLAKY
 test-fs-watch-enoent                 : FAIL, PASS
 test-fs-watch-encoding               : FAIL, PASS
 
-#being worked under https://github.com/nodejs/node/issues/7973
-test-stdio-closed                        : PASS, FLAKY
-
 #covered by https://github.com/nodejs/node/issues/8271
 test-child-process-fork-dgram            : PASS, FLAKY
