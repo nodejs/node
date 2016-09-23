@@ -34,7 +34,6 @@ test-fs-watch-enoent                 : FAIL, PASS
 # Disable so we don't get failures now that AIX has been
 # added to regular CI runs
 test-regress-GH-1899                 : FAIL, PASS
-test-stdio-closed                    : FAIL, PASS
 
 # Flaky until https://github.com/nodejs/build/issues/415 is resolved.
 # On some of the buildbots, AAAA queries for localhost don't resolve
