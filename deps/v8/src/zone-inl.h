@@ -39,7 +39,7 @@ namespace v8 {
 namespace internal {
 
 
-inline void* Zone::New(int size) {
+inline void* Zone::New(size_t size) {
   ASSERT(scope_nesting_ > 0);
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
@@ -72,7 +72,7 @@ inline void* Zone::New(int size) {
 
 
 template <typename T>
-T* Zone::NewArray(int length) {
+T* Zone::NewArray(size_t length) {
   return static_cast<T*>(New(length * sizeof(T)));
 }
 
@@ -98,18 +98,18 @@ ZoneSplayTree<Config>::~ZoneSplayTree() {
 
 
 void* ZoneObject::operator new(size_t size, Zone* zone) {
-  return zone->New(static_cast<int>(size));
+  return zone->New(size);
 }
 
 inline void* ZoneAllocationPolicy::New(size_t size) {
   ASSERT(zone_);
-  return zone_->New(static_cast<int>(size));
+  return zone_->New(size);
 }
 
 
 template <typename T>
 void* ZoneList<T>::operator new(size_t size, Zone* zone) {
-  return zone->New(static_cast<int>(size));
+  return zone->New(size);
 }
 
 

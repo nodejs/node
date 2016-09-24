@@ -68,10 +68,10 @@ class Zone {
   ~Zone() { DeleteKeptSegment(); }
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
-  inline void* New(int size);
+  inline void* New(size_t size);
 
   template <typename T>
-  inline T* NewArray(int length);
+  inline T* NewArray(size_t length);
 
   // Deletes all objects and free all memory allocated in the Zone. Keeps one
   // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
