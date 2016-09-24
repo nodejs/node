@@ -202,7 +202,8 @@ class Differencer {
 
   static const int kDirectionSizeBits = 2;
   static const int kDirectionMask = (1 << kDirectionSizeBits) - 1;
-  static const int kEmptyCellValue = -1 << kDirectionSizeBits;
+  static const int kEmptyCellValue =
+      static_cast<unsigned int>(-1) << kDirectionSizeBits;
 
   // This method only holds static assert statement (unfortunately you cannot
   // place one in class scope).
