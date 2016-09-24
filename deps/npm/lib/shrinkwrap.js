@@ -15,11 +15,12 @@ var npm = require('./npm.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var validatePeerDeps = require('./install/deps.js').validatePeerDeps
 var isExtraneous = require('./install/is-extraneous.js')
-var isOnlyDev = require('./install/is-dev.js').isOnlyDev
 var packageId = require('./utils/package-id.js')
 var moduleName = require('./utils/module-name.js')
 var output = require('./utils/output.js')
 var lifecycle = require('./utils/lifecycle.js')
+var isDevDep = require('./install/is-dev-dep.js')
+var isProdDep = require('./install/is-prod-dep.js')
 
 shrinkwrap.usage = 'npm shrinkwrap'
 
@@ -35,23 +36,29 @@ function shrinkwrap (args, silent, cb) {
 
   var dir = path.resolve(npm.dir, '..')
   var packagePath = path.join(npm.localPrefix, 'package.json')
-  npm.config.set('production', true)
+  var dev = !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
 
-  readPackageJson(packagePath, iferr(cb, function (data) {
-    lifecycle(data, 'preshrinkwrap', function () {
-      readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
-        var pkginfo = treeToShrinkwrap(tree, !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also')))
-
-        chain([
-          [lifecycle, tree.package, 'shrinkwrap'],
-          [shrinkwrap_, pkginfo, silent],
-          [lifecycle, tree.package, 'postshrinkwrap']
-        ], iferr(cb, function (data) {
-          cb(null, data[0])
-        }))
-      })))
-    })
+  readPackageJson(packagePath, iferr(cb, function (pkg) {
+    createShrinkwrap(dir, pkg, dev, silent, cb)
   }))
+}
+
+module.exports.createShrinkwrap = createShrinkwrap
+
+function createShrinkwrap (dir, pkg, dev, silent, cb) {
+  lifecycle(pkg, 'preshrinkwrap', function () {
+    readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
+      var pkginfo = treeToShrinkwrap(tree, dev)
+
+      chain([
+        [lifecycle, tree.package, 'shrinkwrap'],
+        [shrinkwrap_, pkginfo, silent],
+        [lifecycle, tree.package, 'postshrinkwrap']
+      ], iferr(cb, function (data) {
+        cb(null, data[0])
+      }))
+    })))
+  })
 }
 
 function andRecalculateMetadata (next) {
@@ -93,7 +100,7 @@ function shrinkwrapDeps (dev, problems, deps, tree, seen) {
   })
   tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
     if (!dev && isOnlyDev(child)) {
-      log.warn('shrinkwrap', 'Excluding devDependency: %s', packageId(child), child.parent.package.dependencies)
+      log.warn('shrinkwrap', 'Excluding devDependency: %s', child.location)
       return
     }
     var pkginfo = deps[moduleName(child)] = {}
@@ -142,4 +149,33 @@ function save (pkginfo, silent, cb) {
     output('wrote npm-shrinkwrap.json')
     cb(null, pkginfo)
   })
+}
+
+// Returns true if the module `node` is only required direcctly as a dev
+// dependency of the top level or transitively _from_ top level dev
+// dependencies.
+// Dual mode modules (that are both dev AND prod) should return false.
+function isOnlyDev (node, seen) {
+  if (!seen) seen = {}
+  return node.requiredBy.length && node.requiredBy.every(andIsOnlyDev(moduleName(node), seen))
+}
+
+// There is a known limitation with this implementation: If a dependency is
+// ONLY required by cycles that are detached from the top level then it will
+// ultimately return ture.
+//
+// This is ok though: We don't allow shrinkwraps with extraneous deps and
+// these situation is caught by the extraneous checker before we get here.
+function andIsOnlyDev (name, seen) {
+  return function (req) {
+    var isDev = isDevDep(req, name)
+    var isProd = isProdDep(req, name)
+    if (req.isTop) {
+      return isDev && !isProd
+    } else {
+      if (seen[req.path]) return true
+      seen[req.path] = true
+      return isOnlyDev(req, seen)
+    }
+  }
 }

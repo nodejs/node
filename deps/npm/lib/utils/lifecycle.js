@@ -15,6 +15,7 @@ var uidNumber = require('uid-number')
 var umask = require('./umask')
 var usage = require('./usage')
 var output = require('./output.js')
+var which = require('which')
 
 // windows calls it's path 'Path' usually, but this is not guaranteed.
 if (process.platform === 'win32') {
@@ -101,8 +102,10 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, '..', '..', 'bin', 'node-gyp-bin'))
 
-  // prefer current node interpreter in child scripts
-  pathArr.push(path.dirname(process.execPath))
+  if (shouldPrependCurrentNodeDirToPATH()) {
+    // prefer current node interpreter in child scripts
+    pathArr.push(path.dirname(process.execPath))
+  }
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === 'win32' ? ';' : ':')
@@ -136,6 +139,16 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
     ],
     done
   )
+}
+
+function shouldPrependCurrentNodeDirToPATH () {
+  var isWindows = process.platform === 'win32'
+  try {
+    var foundExecPath = which.sync(path.basename(process.execPath), {pathExt: isWindows ? ';' : ':'})
+    return process.execPath.toUpperCase() !== foundExecPath.toUpperCase()
+  } catch (e) {
+    return true
+  }
 }
 
 function validWd (d, cb) {
