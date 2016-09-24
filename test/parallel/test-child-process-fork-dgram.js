@@ -32,10 +32,10 @@ if (process.argv[2] === 'child') {
 
       server.on('message', function() {
         process.send('gotMessage');
+        server.close();
       });
 
     } else if (msg === 'stop') {
-      server.close();
       process.removeListener('message', removeMe);
     }
   });
