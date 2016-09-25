@@ -1,0 +1,39 @@
+{
+  "name": "platform-tools",
+  "version": "0.3.3",
+  "description": "A toolchain to build and compile native dependencies with and for Node.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/test-runner.js",
+    "doc": "jsdoc2md lib/platform_tools.js > doc/API.md && node -e \"const fs = require('fs');fs.writeFile('README.md', fs.readFileSync('doc/README.md'));['doc/README.md', 'doc/API.md', 'doc/LICENSE.md'].forEach(function(el){fs.appendFileSync('README.md',fs.readFileSync(el))})\"",
+    "smoke-deps": "git clone -b feature/platform-tools --depth=1 https://github.com/eljefedelrodeodeljefe/node test/fixtures/sources/smoke/node",
+    "smoke-node": "cd test/fixtures/sources/smoke/node && ./configure --no-target-type && make -j8 > pt_debug_log.txt && cd ../../../../../ && node test/smoke/node.js",
+    "smoke": "npm run smoke-deps && npm run smoke-node"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eljefedelrodeodeljefe/platform-tools.git"
+  },
+  "keywords": [
+    "compiler",
+    "toolchain",
+    "linker",
+    "c",
+    "c++",
+    "cpp",
+    "native",
+    "addons"
+  ],
+  "author": "Robert Jefe Lindstaedt <robert.lindstaedt@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/eljefedelrodeodeljefe/platform-tools/issues"
+  },
+  "homepage": "https://github.com/eljefedelrodeodeljefe/platform-tools#readme",
+  "devDependencies": {
+    "jsdoc-to-markdown": "^1.3.6",
+    "nan": "^2.3.5",
+    "tape": "^4.6.0"
+  },
+  "dependencies": {}
+}
