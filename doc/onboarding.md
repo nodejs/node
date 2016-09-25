@@ -184,6 +184,7 @@ Landing a PR
       * This will automatically close the PR when the commit lands in master.
     * `Refs: <full-url>`
       * Full URL of material that might provide additional useful information or context to someone trying to understand the change set or the thinking behind it.
+* Optional: Force push the amended commit to the branch you used to open the pull request. If your branch is called `bugfix`, then the command would be `git push --force-with-lease origin master:bugfix`. When the pull request is closed, this will cause the pull request to show the purple merged status rather than the red closed status that is usually used for pull requests that weren't merged. Only do this when landing your own contributions.
 * `git push upstream master`
     * Close the pull request with a "Landed in `<commit hash>`" comment.
 
