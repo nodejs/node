@@ -9,9 +9,9 @@ var fs = require('fs');
 var filepath = path.join(common.tmpDir, 'write.txt');
 var file;
 
-var EXPECTED = '012345678910';
+const EXPECTED = '012345678910';
 
-var cb_expected = 'write open drain write drain close error ';
+const cb_expected = 'write open drain write drain close error ';
 var cb_occurred = '';
 
 var countDrains = 0;
@@ -48,7 +48,7 @@ file = fs.createWriteStream(filepath, {
 file.on('open', function(fd) {
   console.error('open');
   cb_occurred += 'open ';
-  assert.equal(typeof fd, 'number');
+  assert.strictEqual(typeof fd, 'number');
 });
 
 file.on('drain', function() {
@@ -57,12 +57,12 @@ file.on('drain', function() {
   ++countDrains;
   if (countDrains === 1) {
     console.error('drain=1, write again');
-    assert.equal(fs.readFileSync(filepath, 'utf8'), EXPECTED);
+    assert.strictEqual(fs.readFileSync(filepath, 'utf8'), EXPECTED);
     console.error('ondrain write ret=%j', file.write(EXPECTED));
     cb_occurred += 'write ';
-  } else if (countDrains == 2) {
+  } else if (countDrains === 2) {
     console.error('second drain, end');
-    assert.equal(fs.readFileSync(filepath, 'utf8'), EXPECTED + EXPECTED);
+    assert.strictEqual(fs.readFileSync(filepath, 'utf8'), EXPECTED + EXPECTED);
     file.end();
   }
 });
@@ -85,6 +85,6 @@ for (var i = 0; i < 11; i++) {
   console.error('%d %j', i, ret);
 
   // return false when i hits 10
-  assert.strictEqual(ret, i != 10);
+  assert.strictEqual(ret, i !== 10);
 }
 cb_occurred += 'write ';
