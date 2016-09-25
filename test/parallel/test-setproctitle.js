@@ -2,7 +2,6 @@
 // Original test written by Jakub Lekstan <kuebzky@gmail.com>
 const common = require('../common');
 
-require('../common');
 if (!(common.isFreeBSD || common.isOSX || common.isLinux || common.isSunOS)) {
   common.skip(`Unsupported platform [${process.platform}]`);
   return;
