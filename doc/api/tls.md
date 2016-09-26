@@ -1191,7 +1191,7 @@ As with checking for the server [`secureConnection`](#tls_event_secureconnection
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
-## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
+### tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3
