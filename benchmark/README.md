@@ -34,6 +34,10 @@ benchmarker to be used by providing it as an argument, e. g.:
 
 `node benchmark/http/simple.js benchmarker=autocannon`
 
+Basic Unix tools are required for some benchmarks.
+[Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
+which need to be included in the global Windows `PATH`.
+
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
 
@@ -348,3 +352,4 @@ Supported options keys are:
 [autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
+[git-for-windows]: http://git-scm.com/download/win
