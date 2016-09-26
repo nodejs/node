@@ -8,9 +8,9 @@
  * Because it's not really possible to predict how the messages will be
  * distributed among the parent and the child processes, we keep sending
  * messages until both the parent and the child received at least one
- * message. The worst case scenario is when either one never receives
- * a message. In this case the test runner will timeout after 60 secs
- * and the test will fail.
+ * message. When either the parent or child receives a message we close
+ * the server on that side so the next message is guaranteed to be
+ * received by the other.
  */
 
 const common = require('../common');
@@ -26,22 +26,30 @@ if (common.isWindows) {
 
 var server;
 if (process.argv[2] === 'child') {
+  var serverClosed = false;
   process.on('message', function removeMe(msg, clusterServer) {
     if (msg === 'server') {
       server = clusterServer;
 
       server.on('message', function() {
         process.send('gotMessage');
+        // got a message so close the server to make sure
+        // the parent also gets a message
+        serverClosed = true;
+        server.close();
       });
 
     } else if (msg === 'stop') {
-      server.close();
       process.removeListener('message', removeMe);
+      if (!serverClosed) {
+        server.close();
+      }
     }
   });
 
 } else {
   server = dgram.createSocket('udp4');
+  var serverPort = null;
   var client = dgram.createSocket('udp4');
   var child = fork(__filename, ['child']);
 
@@ -52,9 +60,13 @@ if (process.argv[2] === 'child') {
 
   server.on('message', function(msg, rinfo) {
     parentGotMessage = true;
+    // got a message so close the server to make sure
+    // the child also gets a message
+    server.close();
   });
 
   server.on('listening', function() {
+    serverPort = server.address().port;
     child.send('server', server);
 
     child.once('message', function(msg) {
@@ -66,13 +78,16 @@ if (process.argv[2] === 'child') {
     sendMessages();
   });
 
+  var iterations = 0;
   var sendMessages = function() {
     var timer = setInterval(function() {
+      iterations++;
+
       client.send(
         msg,
         0,
         msg.length,
-        server.address().port,
+        serverPort,
         '127.0.0.1',
         function(err) {
           if (err) throw err;
@@ -83,7 +98,8 @@ if (process.argv[2] === 'child') {
        * Both the parent and the child got at least one message,
        * test passed, clean up everyting.
        */
-      if (parentGotMessage && childGotMessage) {
+      if ((parentGotMessage && childGotMessage) ||
+          ((iterations / 1000) > 45)) {
         clearInterval(timer);
         shutdown();
       }
@@ -94,7 +110,9 @@ if (process.argv[2] === 'child') {
   var shutdown = function() {
     child.send('stop');
 
-    server.close();
+    if (!parentGotMessage) {
+      server.close();
+    }
     client.close();
   };
 
