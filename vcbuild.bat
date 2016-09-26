@@ -345,7 +345,7 @@ if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
 if not exist tools\eslint\lib\eslint.js goto no-lint
 echo running jslint
-%config%\node tools\eslint\bin\eslint.js --cache --rulesdir=tools\eslint-rules benchmark lib test tools
+%config%\node tools\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules benchmark lib test tools
 goto exit
 
 :jslint-ci
