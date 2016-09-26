@@ -2,6 +2,18 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2i and 1.0.2j [26 Sep 2016]
+
+  *) Missing CRL sanity check
+
+     A bug fix which included a CRL sanity check was added to OpenSSL 1.1.0
+     but was omitted from OpenSSL 1.0.2i. As a result any attempt to use
+     CRLs in OpenSSL 1.0.2i will crash with a null pointer exception.
+
+     This issue only affects the OpenSSL 1.0.2i
+     (CVE-2016-7052)
+     [Matt Caswell]
+
  Changes between 1.0.2h and 1.0.2i [22 Sep 2016]
 
   *) OCSP Status Request extension unbounded memory growth
