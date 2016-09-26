@@ -18,7 +18,7 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define CHECK_NOT_OOB(r)                                                    \
+#define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
     if (!(r)) return env->ThrowRangeError("out of range index");            \
   } while (0)
@@ -43,10 +43,10 @@
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
   size_t end;                                                               \
-  CHECK_NOT_OOB(ParseArrayIndex(start_arg, 0, &start));                     \
-  CHECK_NOT_OOB(ParseArrayIndex(end_arg, end_max, &end));                   \
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(start_arg, 0, &start));           \
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(end_arg, end_max, &end));         \
   if (end < start) end = start;                                             \
-  CHECK_NOT_OOB(end <= end_max);                                            \
+  THROW_AND_RETURN_IF_OOB(end <= end_max);                                  \
   size_t length = end - start;
 
 #define BUFFER_MALLOC(length)                                               \
@@ -578,9 +578,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   size_t source_start;
   size_t source_end;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &target_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], ts_obj_length, &source_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &target_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], 0, &source_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[3], ts_obj_length, &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
@@ -709,11 +709,12 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t offset;
   size_t max_length;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &offset));
   if (offset > ts_obj_length)
     return env->ThrowRangeError("Offset is out of bounds");
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], ts_obj_length - offset, &max_length));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], ts_obj_length - offset,
+                                          &max_length));
 
   max_length = MIN(ts_obj_length - offset, max_length);
 
@@ -838,8 +839,8 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   size_t memcpy_num = sizeof(T);
 
   if (should_assert) {
-    CHECK_NOT_OOB(offset + memcpy_num >= memcpy_num);
-    CHECK_NOT_OOB(offset + memcpy_num <= ts_obj_length);
+    THROW_AND_RETURN_IF_OOB(offset + memcpy_num >= memcpy_num);
+    THROW_AND_RETURN_IF_OOB(offset + memcpy_num <= ts_obj_length);
   }
 
   if (offset + memcpy_num > ts_obj_length)
@@ -915,10 +916,10 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   size_t source_end;
   size_t target_end;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[4], target_length, &target_end));
-  CHECK_NOT_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[4], target_length, &target_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
 
   if (source_start > ts_obj_length)
     return env->ThrowRangeError("out of range index");
