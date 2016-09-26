@@ -180,13 +180,6 @@ typedef unsigned int u_int;
 # include <fcntl.h>
 #endif
 
-/* Use Windows API with STD_INPUT_HANDLE when checking for input?
-   Don't look at OPENSSL_SYS_MSDOS for this, since it is always defined if
-   OPENSSL_SYS_WINDOWS is defined */
-#if defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_WINCE) && defined(STD_INPUT_HANDLE)
-#define OPENSSL_USE_STD_INPUT_HANDLE
-#endif
-
 #undef PROG
 #define PROG    s_client_main
 
@@ -236,7 +229,6 @@ static BIO *bio_c_msg = NULL;
 static int c_quiet = 0;
 static int c_ign_eof = 0;
 static int c_brief = 0;
-static int c_no_rand_screen = 0;
 
 #ifndef OPENSSL_NO_PSK
 /* Default PSK identity and key */
@@ -452,10 +444,6 @@ static void sc_usage(void)
                " -keymatexport label   - Export keying material using label\n");
     BIO_printf(bio_err,
                " -keymatexportlen len  - Export len bytes of keying material (default 20)\n");
-#ifdef OPENSSL_SYS_WINDOWS
-    BIO_printf(bio_err,
-               " -no_rand_screen  - Do not use RAND_screen() to initialize random state\n");
-#endif
 }
 
 #ifndef OPENSSL_NO_TLSEXT
@@ -1148,10 +1136,6 @@ int MAIN(int argc, char **argv)
             keymatexportlen = atoi(*(++argv));
             if (keymatexportlen == 0)
                 goto bad;
-#ifdef OPENSSL_SYS_WINDOWS
-        } else if (strcmp(*argv, "-no_rand_screen") == 0) {
-          c_no_rand_screen = 1;
-#endif
         } else {
             BIO_printf(bio_err, "unknown option %s\n", *argv);
             badop = 1;
@@ -1268,7 +1252,7 @@ int MAIN(int argc, char **argv)
     if (!load_excert(&exc, bio_err))
         goto end;
 
-    if (!app_RAND_load_file(NULL, bio_err, ++c_no_rand_screen) && inrand == NULL
+    if (!app_RAND_load_file(NULL, bio_err, 1) && inrand == NULL
         && !RAND_status()) {
         BIO_printf(bio_err,
                    "warning, not much extra random data, consider using the -rand option\n");
@@ -1806,7 +1790,10 @@ int MAIN(int argc, char **argv)
                     tv.tv_usec = 0;
                     i = select(width, (void *)&readfds, (void *)&writefds,
                                NULL, &tv);
-#if defined(OPENSSL_USE_STD_INPUT_HANDLE)
+# if defined(OPENSSL_SYS_WINCE) || defined(OPENSSL_SYS_MSDOS)
+                    if (!i && (!_kbhit() || !read_tty))
+                        continue;
+# else
                     if (!i && (!((_kbhit())
                                  || (WAIT_OBJECT_0 ==
                                      WaitForSingleObject(GetStdHandle
@@ -1814,8 +1801,6 @@ int MAIN(int argc, char **argv)
                                                          0)))
                                || !read_tty))
                         continue;
-#else
-                    if(!i && (!_kbhit() || !read_tty) ) continue;
 # endif
                 } else
                     i = select(width, (void *)&readfds, (void *)&writefds,
@@ -2017,12 +2002,12 @@ int MAIN(int argc, char **argv)
             }
         }
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
-#if defined(OPENSSL_USE_STD_INPUT_HANDLE)
+# if defined(OPENSSL_SYS_WINCE) || defined(OPENSSL_SYS_MSDOS)
+        else if (_kbhit())
+# else
         else if ((_kbhit())
                  || (WAIT_OBJECT_0 ==
                      WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0)))
-#else
-        else if (_kbhit())
 # endif
 #elif defined (OPENSSL_SYS_NETWARE)
         else if (_kbhit())

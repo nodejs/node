@@ -939,7 +939,7 @@ static int cryptodev_digest_copy(EVP_MD_CTX *to, const EVP_MD_CTX *from)
     if (fstate->mac_len != 0) {
         if (fstate->mac_data != NULL) {
             dstate->mac_data = OPENSSL_malloc(fstate->mac_len);
-            if (dstate->ac_data == NULL) {
+            if (dstate->mac_data == NULL) {
                 printf("cryptodev_digest_init: malloc failed\n");
                 return 0;
             }
