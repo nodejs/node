@@ -26,20 +26,20 @@ const linkData = path.join(common.fixturesDir, '/cycles/root.js');
 const linkPath = path.join(common.tmpDir, 'symlink1.js');
 
 fs.symlink(linkData, linkPath, common.mustCall(function(err) {
-  if (err) throw err;
+  assert.ifError(err);
 
   fs.lstat(linkPath, common.mustCall(function(err, stats) {
-    if (err) throw err;
+    assert.ifError(err);
     linkTime = stats.mtime.getTime();
   }));
 
   fs.stat(linkPath, common.mustCall(function(err, stats) {
-    if (err) throw err;
+    assert.ifError(err);
     fileTime = stats.mtime.getTime();
   }));
 
   fs.readlink(linkPath, common.mustCall(function(err, destination) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.strictEqual(destination, linkData);
   }));
 }));
