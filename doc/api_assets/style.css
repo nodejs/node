@@ -15,6 +15,31 @@ body {
   background: #fff;
 }
 
+h1, h2, h3, h4 {
+  margin: .8em 0 .5em;
+  line-height: 1.2;
+}
+
+h5, h6 {
+  margin: 1em 0 .8em;
+  line-height: 1.2;
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 2.441em;
+}
+
+h2 {font-size: 1.953em;}
+
+h3 {font-size: 1.563em;}
+
+h4 {font-size: 1.25em;}
+
+h5 {font-size: 1em;}
+
+h6 {font-size: .8em;}
+
 pre, tt, code, .pre, span.type, a.type {
   font-family: Monaco, Consolas, "Lucida Console", monospace;
 }
@@ -127,7 +152,7 @@ abbr {
 p {
   position: relative;
   text-rendering: optimizeLegibility;
-  margin: 0 0 1em 0;
+  margin: 0 0 1.125em 0;
   line-height: 1.5em;
 }
 
@@ -180,10 +205,10 @@ h1, h2, h3, h4, h5, h6 {
   text-rendering: optimizeLegibility;
   font-weight: 700;
   position: relative;
-  margin-bottom: .5em;
 }
 
 header h1 {
+  font-size: 2em;
   line-height: 2em;
   margin: 0;
 }
@@ -198,30 +223,15 @@ header h1 {
   background-color: #ccc;
 }
 
-#toc + h1 {
-  margin-top: 1em;
-  padding-top: 0;
-}
-
-h2 {
-  font-size: 1.5em;
-  margin: 1em 0 .5em;
-}
-
 h2 + h2 {
   margin: 0 0 .5em;
-}
-
-h3 {
-  font-size: 1em;
-  margin: 1.5em 0 .5em;
 }
 
 h3 + h3 {
   margin: 0 0 .5em;
 }
 
-h2, h3, h4 {
+h2, h3, h4, h5 {
   position: relative;
   padding-right: 40px;
 }
@@ -242,16 +252,6 @@ h1 span a, h2 span a, h3 span a, h4 span a {
   color: #000;
   text-decoration: none;
   font-weight: bold;
-}
-
-h5 {
-  font-size: 1.125em;
-  line-height: 1.4em;
-}
-
-h6 {
-  font-size: 1em;
-  line-height: 1.4667em;
 }
 
 pre, tt, code {
@@ -353,7 +353,7 @@ hr {
   margin-bottom: 0;
 }
 
-p tt, p code, li code {
+tt, code {
   font-size: .9em;
   color: #040404;
   background-color: #f2f2f2;
