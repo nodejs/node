@@ -1,13 +1,15 @@
+
 language: node_js
 
 node_js:
   - node
+  - 4
   - 0.12
   - 0.10
 
 after_script:
   - npm run test-cov
-  - cat ./coverage/lcov.info | codecov
+  - codecov
   - cat ./coverage/lcov.info | coveralls
 
 webhooks:

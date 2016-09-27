@@ -1,4 +1,4 @@
-.TH "NPM\-SHRINKWRAP" "1" "July 2016" "" ""
+.TH "NPM\-SHRINKWRAP" "1" "September 2016" "" ""
 .SH "NAME"
 \fBnpm-shrinkwrap\fR \- Lock down dependency versions
 .SH SYNOPSIS
@@ -179,11 +179,11 @@ To add or update a dependency in a shrinkwrapped package:
 Run \fBnpm install\fP in the package root to install the current
 versions of all dependencies\.
 .IP 2. 3
-Add or update dependencies\. \fBnpm install \-\-save\fP each new or updated
-package individually to update the \fBpackage\.json\fP and the shrinkwrap\.
-Note that they must be explicitly named in order to be installed: running
-\fBnpm install\fP with no arguments will merely reproduce the existing
-shrinkwrap\.
+Add or update dependencies\. \fBnpm install \-\-save\fP or \fBnpm install \-\-save\-dev\fP
+each new or updated package individually to update the \fBpackage\.json\fP and
+the shrinkwrap\. Note that they must be explicitly named in order to be
+installed: running \fBnpm install\fP with no arguments will merely reproduce
+the existing shrinkwrap\.
 .IP 3. 3
 Validate that the package works as expected with the new
 dependencies\.
