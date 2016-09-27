@@ -58,7 +58,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V5.md#5.0.0">5.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V4.md#4.5.0">4.5.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V4.md#4.6.0">4.6.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.5.0">4.5.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a></b>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a></b>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a></b>
