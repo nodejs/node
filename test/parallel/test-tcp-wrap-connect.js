@@ -12,10 +12,12 @@ function makeConnection() {
   var err = client.connect(req, '127.0.0.1', this.address().port);
   assert.equal(err, 0);
 
-  req.oncomplete = function(status, client_, req_) {
+  req.oncomplete = function(status, client_, req_, readable, writable) {
     assert.equal(0, status);
     assert.equal(client, client_);
     assert.equal(req, req_);
+    assert.equal(true, readable);
+    assert.equal(true, writable);
 
     console.log('connected');
     var shutdownReq = new ShutdownWrap();
