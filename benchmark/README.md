@@ -35,8 +35,8 @@ benchmarker to be used by providing it as an argument, e. g.:
 `node benchmark/http/simple.js benchmarker=autocannon`
 
 Basic Unix tools are required for some benchmarks.
-[Git for Windows][git-for-windows] includes Git Bash and tools which can be
-included in the global `PATH`.
+[Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
+which need to be included in the global Windows `PATH`.
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
