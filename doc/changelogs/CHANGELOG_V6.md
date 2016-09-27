@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#6.7.0">6.7.0</a><br/>
 <a href="#6.6.0">6.6.0</a><br/>
 <a href="#6.5.0">6.5.0</a><br/>
 <a href="#6.4.0">6.4.0</a><br/>
@@ -31,6 +32,51 @@
 **Note:** The v6 release line will be covered by the
 [Node.js Long Term Support plan](https://github.com/nodejs/LTS) starting in
 October 2016.
+
+<a id="6.7.0"></a>
+## 2016-09-27, Version 6.7.0 (Current), @evanlucas
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes
+
+Semver Minor:
+
+* **openssl**:
+  - Upgrade to 1.0.2i, fixes a number of defects impacting Node.js: CVE-2016-6304 ("OCSP Status Request extension unbounded memory growth", high severity), CVE-2016-2183, CVE-2016-2178 and CVE-2016-6306. (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+  - Upgrade to 1.0.2j, fixes a defect included in 1.0.2i resulting in a crash when using CRLs, CVE-2016-7052. (Shigeki Ohtsu) [#8786](https://github.com/nodejs/node/pull/8786)
+  - Remove support for loading dynamic third-party engine modules. An attacker may be able to hide malicious code to be inserted into Node.js at runtime by masquerading as one of the dynamic engine modules. Originally reported by Ahmed Zaki (Skype). (Ben Noordhuis) [nodejs/node-private#73](https://github.com/nodejs/node-private/pull/73)
+* **http**: CVE-2016-5325 - Properly validate for allowable characters in the `reason` argument in `ServerResponse#writeHead()`. Fixes a possible response splitting attack vector. This introduces a new case where `throw` may occur when configuring HTTP responses, users should already be adopting try/catch here. Originally reported independently by Evan Lucas and Romain Gaucher. (Evan Lucas) [nodejs/node-private#60](https://github.com/nodejs/node-private/pull/60)
+
+Semver Patch:
+
+* **buffer**: Zero-fill excess bytes in new `Buffer` objects created with `Buffer.concat()` while providing a `totalLength` parameter that exceeds the total length of the original `Buffer` objects being concatenated. (Сковорода Никита Андреевич) [nodejs/node-private#64](https://github.com/nodejs/node-private/pull/64)
+* **src**: Fix regression where passing an empty password and/or salt to crypto.pbkdf2() would cause a fatal error (Rich Trott) [#8572](https://github.com/nodejs/node/pull/8572)
+* **tls**: CVE-2016-7099 - Fix invalid wildcard certificate validation check whereby a TLS server may be able to serve an invalid wildcard certificate for its hostname due to improper validation of `*.` in the wildcard string. Originally reported by Alexander Minozhenko and James Bunton (Atlassian). (Ben Noordhuis) [nodejs/node-private#75](https://github.com/nodejs/node-private/pull/75)
+* **v8**: Fix regression where a regex on a frozen object was broken (Myles Borins) [#8673](https://github.com/nodejs/node/pull/8673)
+
+### Commits
+
+* [[`8fb8c46303`](https://github.com/nodejs/node/commit/8fb8c46303)] - **buffer**: zero-fill uninitialized bytes in .concat() (Сковорода Никита Андреевич) [nodejs/node-private#64](https://github.com/nodejs/node-private/pull/64)
+* [[`e5998c44b4`](https://github.com/nodejs/node/commit/e5998c44b4)] - **crypto**: don't build hardware engines (Ben Noordhuis) [nodejs/node-private#73](https://github.com/nodejs/node-private/pull/73)
+* [[`ed4cd2eebe`](https://github.com/nodejs/node/commit/ed4cd2eebe)] - **deps**: cherry-pick 34880eb3dc from V8 upstream (Myles Borins) [#8673](https://github.com/nodejs/node/pull/8673)
+* [[`f8ad0dc0e2`](https://github.com/nodejs/node/commit/f8ad0dc0e2)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`9181def9d4`](https://github.com/nodejs/node/commit/9181def9d4)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`2dee4af5c3`](https://github.com/nodejs/node/commit/2dee4af5c3)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`4255dc82a9`](https://github.com/nodejs/node/commit/4255dc82a9)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#8786](https://github.com/nodejs/node/pull/8786)
+* [[`c08d81df50`](https://github.com/nodejs/node/commit/c08d81df50)] - **deps**: upgrade openssl sources to 1.0.2j (Shigeki Ohtsu) [#8786](https://github.com/nodejs/node/pull/8786)
+* [[`2573efc9df`](https://github.com/nodejs/node/commit/2573efc9df)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`67751f3d7e`](https://github.com/nodejs/node/commit/67751f3d7e)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`4382de338b`](https://github.com/nodejs/node/commit/4382de338b)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`cfa00611b0`](https://github.com/nodejs/node/commit/cfa00611b0)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`3e4ea603b3`](https://github.com/nodejs/node/commit/3e4ea603b3)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`8937fd0dbb`](https://github.com/nodejs/node/commit/8937fd0dbb)] - **deps**: upgrade openssl sources to 1.0.2i (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`c0f13e56a2`](https://github.com/nodejs/node/commit/c0f13e56a2)] - **http**: check reason chars in writeHead (Evan Lucas) [nodejs/node-private#60](https://github.com/nodejs/node-private/pull/60)
+* [[`743f0c9164`](https://github.com/nodejs/node/commit/743f0c9164)] - **lib**: make tls.checkServerIdentity() more strict (Ben Noordhuis) [nodejs/node-private#75](https://github.com/nodejs/node-private/pull/75)
+* [[`38bed98a92`](https://github.com/nodejs/node/commit/38bed98a92)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`a25fc3f715`](https://github.com/nodejs/node/commit/a25fc3f715)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`5902ba3989`](https://github.com/nodejs/node/commit/5902ba3989)] - **src**: Malloc/Calloc size 0 returns non-null pointer (Rich Trott) [#8572](https://github.com/nodejs/node/pull/8572)
+* [[`a14d832884`](https://github.com/nodejs/node/commit/a14d832884)] - **test**: remove openssl options of -no_<prot> (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
 
 <a id="6.6.0"></a>
 ## 2016-09-14, Version 6.6.0 (Current), @Fishrock123
