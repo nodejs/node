@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../../common');
 var assert = require('assert');
-var binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 
 binding(5, common.mustCall(function(err, val) {
   assert.equal(null, err);

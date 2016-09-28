@@ -3,7 +3,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const domain = require('domain');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 const makeCallback = binding.makeCallback;
 
 // Make sure this is run in the future.
