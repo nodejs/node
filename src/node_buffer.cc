@@ -12,7 +12,6 @@
 
 #include <string.h>
 #include <limits.h>
-#include <utility>
 
 #define BUFFER_ID 0xB0E4
 
@@ -51,38 +50,6 @@
 
 #define BUFFER_MALLOC(length)                                               \
   zero_fill_all_buffers ? node::Calloc(length, 1) : node::Malloc(length)
-
-#if defined(__GNUC__) || defined(__clang__)
-#define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
-#define BSWAP_INTRINSIC_4(x) __builtin_bswap32(x)
-#define BSWAP_INTRINSIC_8(x) __builtin_bswap64(x)
-#elif defined(__linux__)
-#include <byteswap.h>
-#define BSWAP_INTRINSIC_2(x) bswap_16(x)
-#define BSWAP_INTRINSIC_4(x) bswap_32(x)
-#define BSWAP_INTRINSIC_8(x) bswap_64(x)
-#elif defined(_MSC_VER)
-#include <intrin.h>
-#define BSWAP_INTRINSIC_2(x) _byteswap_ushort(x);
-#define BSWAP_INTRINSIC_4(x) _byteswap_ulong(x);
-#define BSWAP_INTRINSIC_8(x) _byteswap_uint64(x);
-#else
-#define BSWAP_INTRINSIC_2(x) ((x) << 8) | ((x) >> 8)
-#define BSWAP_INTRINSIC_4(x)                                                  \
-  (((x) & 0xFF) << 24) |                                                      \
-  (((x) & 0xFF00) << 8) |                                                     \
-  (((x) >> 8) & 0xFF00) |                                                     \
-  (((x) >> 24) & 0xFF)
-#define BSWAP_INTRINSIC_8(x)                                                  \
-  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
-  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
-  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
-  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
-  (((x) & 0x00000000FF000000ull) << 8) |                                      \
-  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
-  (((x) & 0x000000000000FF00ull) << 40) |                                     \
-  (((x) & 0x00000000000000FFull) << 56)
-#endif
 
 namespace node {
 
@@ -508,8 +475,7 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   // Node's "ucs2" encoding expects LE character data inside a Buffer, so we
   // need to reorder on BE platforms.  See http://nodejs.org/api/buffer.html
   // regarding Node's "ucs2" encoding specification.
-  const bool aligned = (reinterpret_cast<uintptr_t>(data) % sizeof(*buf) == 0);
-  if (IsLittleEndian() && !aligned) {
+  if (IsLittleEndian() && !IsAlignedTo<uint16_t>(data)) {
     // Make a copy to avoid unaligned accesses in v8::String::NewFromTwoByte().
     // This applies ONLY to little endian platforms, as misalignment will be
     // handled by a byte-swapping operation in StringBytes::Encode on
@@ -1199,23 +1165,8 @@ void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
-
   CHECK_EQ(ts_obj_length % 2, 0);
-
-  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint16_t);
-
-  if (align == 0) {
-    uint16_t* data16 = reinterpret_cast<uint16_t*>(ts_obj_data);
-    size_t len16 = ts_obj_length / 2;
-    for (size_t i = 0; i < len16; i++) {
-      data16[i] = BSWAP_INTRINSIC_2(data16[i]);
-    }
-  } else {
-    for (size_t i = 0; i < ts_obj_length; i += 2) {
-      std::swap(ts_obj_data[i], ts_obj_data[i + 1]);
-    }
-  }
-
+  SwapBytes16(ts_obj_data, ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1224,24 +1175,8 @@ void Swap32(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
-
   CHECK_EQ(ts_obj_length % 4, 0);
-
-  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint32_t);
-
-  if (align == 0) {
-    uint32_t* data32 = reinterpret_cast<uint32_t*>(ts_obj_data);
-    size_t len32 = ts_obj_length / 4;
-    for (size_t i = 0; i < len32; i++) {
-      data32[i] = BSWAP_INTRINSIC_4(data32[i]);
-    }
-  } else {
-    for (size_t i = 0; i < ts_obj_length; i += 4) {
-      std::swap(ts_obj_data[i], ts_obj_data[i + 3]);
-      std::swap(ts_obj_data[i + 1], ts_obj_data[i + 2]);
-    }
-  }
-
+  SwapBytes32(ts_obj_data, ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1250,26 +1185,8 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
-
   CHECK_EQ(ts_obj_length % 8, 0);
-
-  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint64_t);
-
-  if (align == 0) {
-    uint64_t* data64 = reinterpret_cast<uint64_t*>(ts_obj_data);
-    size_t len32 = ts_obj_length / 8;
-    for (size_t i = 0; i < len32; i++) {
-      data64[i] = BSWAP_INTRINSIC_8(data64[i]);
-    }
-  } else {
-    for (size_t i = 0; i < ts_obj_length; i += 8) {
-      std::swap(ts_obj_data[i], ts_obj_data[i + 7]);
-      std::swap(ts_obj_data[i + 1], ts_obj_data[i + 6]);
-      std::swap(ts_obj_data[i + 2], ts_obj_data[i + 5]);
-      std::swap(ts_obj_data[i + 3], ts_obj_data[i + 4]);
-    }
-  }
-
+  SwapBytes64(ts_obj_data, ts_obj_data, ts_obj_length);
   args.GetReturnValue().Set(args[0]);
 }
 

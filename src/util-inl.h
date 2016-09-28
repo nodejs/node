@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "util.h"
+#include <string.h>  // memcpy()
 
 namespace node {
 
@@ -200,9 +201,69 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   return static_cast<TypeName*>(pointer);
 }
 
-void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
-  for (size_t i = 0; i < buflen; i += 1)
-    dst[i] = (src[i] << 8) | (src[i] >> 8);
+template <typename T, typename U>
+bool IsAlignedTo(const U* p) {
+  return reinterpret_cast<uintptr_t>(p) % sizeof(T) == 0;
+}
+
+uint16_t ByteSwap(uint16_t v) {
+  uint16_t a = (v >> 0) & 255;
+  uint16_t b = (v >> 8) & 255;
+  return (a << 8) | b;
+}
+
+uint32_t ByteSwap(uint32_t v) {
+  uint32_t a = (v >> 0) & 255;
+  uint32_t b = (v >> 8) & 255;
+  uint32_t c = (v >> 16) & 255;
+  uint32_t d = (v >> 24) & 255;
+  return (a << 24) | (b << 16) | (c << 8) | d;
+}
+
+uint64_t ByteSwap(uint64_t v) {
+  uint64_t a = (v >> 0) & 255;
+  uint64_t b = (v >> 8) & 255;
+  uint64_t c = (v >> 16) & 255;
+  uint64_t d = (v >> 24) & 255;
+  uint64_t e = (v >> 32) & 255;
+  uint64_t f = (v >> 40) & 255;
+  uint64_t g = (v >> 48) & 255;
+  uint64_t h = (v >> 56) & 255;
+  return (a << 56) | (b << 48) | (c << 40) | (d << 32) |
+         (e << 24) | (f << 16) | (g << 8) | h;
+}
+
+template <typename T>
+inline void DoSwapBytes(char* dst, const char* src, size_t size) {
+  for (size_t i = 0; i < size; i += sizeof(T)) {
+    T v;
+    memcpy(&v, &src[i], sizeof(v));
+    v = ByteSwap(v);
+    memcpy(&dst[i], &v, sizeof(v));
+  }
+}
+
+template <typename T>
+void SwapBytes(char* dst, const char* src, size_t size) {
+  if (src == dst && IsAlignedTo<T>(dst)) {
+    // Hit the compiler over the head with the fact that the source
+    // and the destination are the same and is properly aligned.
+    DoSwapBytes<T>(dst, dst, size);
+  } else {
+    DoSwapBytes<T>(dst, src, size);
+  }
+}
+
+void SwapBytes16(char* dst, const char* src, size_t size) {
+  return SwapBytes<uint16_t>(dst, src, size);
+}
+
+void SwapBytes32(char* dst, const char* src, size_t size) {
+  return SwapBytes<uint32_t>(dst, src, size);
+}
+
+void SwapBytes64(char* dst, const char* src, size_t size) {
+  return SwapBytes<uint64_t>(dst, src, size);
 }
 
 char ToLower(char c) {
