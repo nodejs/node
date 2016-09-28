@@ -6,9 +6,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 42
 42
 [eval]:1
@@ -19,9 +18,8 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 [eval]:1
 throw new Error("hello")
 ^
@@ -30,9 +28,8 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 100
 [eval]:1
 var x = 100; y = x;
@@ -42,9 +39,8 @@ ReferenceError: y is not defined
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^
