@@ -107,6 +107,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
@@ -5532,7 +5533,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     digest = EVP_sha1();
   }
 
-  obj = env->NewInternalFieldObject();
+  obj = env->pbkdf2_constructor_template()->
+      NewInstance(env->context()).ToLocalChecked();
   req = new PBKDF2Request(env,
                           obj,
                           digest,
@@ -5736,7 +5738,8 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (size < 0 || size > Buffer::kMaxLength)
     return env->ThrowRangeError("size is not a valid Smi");
 
-  Local<Object> obj = env->NewInternalFieldObject();
+  Local<Object> obj = env->randombytes_constructor_template()->
+      NewInstance(env->context()).ToLocalChecked();
   char* data = node::Malloc(size);
   RandomBytesRequest* req =
       new RandomBytesRequest(env,
@@ -5774,7 +5777,8 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
   int64_t offset = args[1]->IntegerValue();
   int64_t size = args[2]->IntegerValue();
 
-  Local<Object> obj = env->NewInternalFieldObject();
+  Local<Object> obj = env->randombytes_constructor_template()->
+      NewInstance(env->context()).ToLocalChecked();
   obj->Set(env->context(), env->buffer_string(), args[0]).FromJust();
   char* data = Buffer::Data(args[0]);
   data += offset;
@@ -6251,6 +6255,18 @@ void InitCrypto(Local<Object> target,
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_verify_recover_init,
                                          EVP_PKEY_verify_recover>);
+
+  Local<FunctionTemplate> pb = FunctionTemplate::New(env->isolate());
+  pb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PBKDF2"));
+  Local<ObjectTemplate> pbt = pb->InstanceTemplate();
+  pbt->SetInternalFieldCount(1);
+  env->set_pbkdf2_constructor_template(pbt);
+
+  Local<FunctionTemplate> rb = FunctionTemplate::New(env->isolate());
+  rb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "RandomBytes"));
+  Local<ObjectTemplate> rbt = rb->InstanceTemplate();
+  rbt->SetInternalFieldCount(1);
+  env->set_randombytes_constructor_template(rbt);
 }
 
 }  // namespace crypto
