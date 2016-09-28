@@ -193,4 +193,7 @@ e.g. `--inspect=9222` will accept DevTools connections on port 9222.
 To break on the first line of the application code, provide the `--debug-brk`
 flag in addition to `--inspect`.
 
+To open Chrome automatically, provide the `--auto-open` flag in addition to
+`--inspect`.
+
 [TCP-based protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol
