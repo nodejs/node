@@ -416,8 +416,8 @@ The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 ## The Node.js REPL
 
 Node.js itself uses the `repl` module to provide its own interactive interface
-for executing JavaScript. This can used by executing the Node.js binary without
-passing any arguments (or by passing the `-i` argument):
+for executing JavaScript. This can be used by executing the Node.js binary
+without passing any arguments (or by passing the `-i` argument):
 
 ```js
 $ node
