@@ -209,6 +209,122 @@ function testI18NCharacters(session) {
   ]);
 }
 
+function testCommandLineAPI(session) {
+  const testModulePath = require.resolve('../fixtures/empty.js');
+  const testModuleStr = JSON.stringify(testModulePath);
+  const printModulePath = require.resolve('../fixtures/printA.js');
+  const printModuleStr = JSON.stringify(printModulePath);
+  session.sendInspectorCommands([
+    [ // we can use `require` outside of a callframe with require in scope
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': 'typeof require("fs").readFile === "function"',
+          'includeCommandLineAPI': true
+        }
+      }, (message) => assert.strictEqual(true, message['result']['value'])
+    ],
+    [ // the global require does not have require.cache
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': 'require.cache === undefined',
+          'includeCommandLineAPI': true
+        }
+      }, (message) => assert.strictEqual(true, message['result']['value'])
+    ],
+    [ // the `require` in the module shadows the command line API's `require`
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': 'typeof require.cache',
+          'includeCommandLineAPI': true
+        }
+      }, (message) => assert.strictEqual('object', message['result']['value'])
+    ],
+    [ // `require` twice returns the same value
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          // 1. We require the same module twice
+          // 2. We mutate the exports so we can compare it later on
+          'expression': `
+            Object.assign(
+              require(${testModuleStr}),
+              { old: 'yes' }
+            ) === require(${testModuleStr})`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => assert.strictEqual(true, message['result']['value'])
+    ],
+    [ // after require the module appears in require.cache
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `require.cache[${testModuleStr}].exports`,
+          'generatePreview': true,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        const { properties } = message.result.preview;
+        assert.strictEqual('old', properties[0].name);
+        assert.strictEqual('yes', properties[0].value);
+      }
+    ],
+    [ // remove module from require.cache
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `delete require.cache[${testModuleStr}]`,
+          'includeCommandLineAPI': true
+        }
+      },
+    ],
+    [ // require again, should get fresh (empty) exports
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `require(${testModuleStr})`,
+          'generatePreview': true,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        const { properties } = message.result.preview;
+        assert.strictEqual(0, properties.length);
+      }
+    ],
+    [ // require 2nd module, exports an empty object
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          // 'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `require(${printModuleStr})`,
+          'generatePreview': true,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        const { properties } = message.result.preview;
+        assert.strictEqual(0, properties.length);
+      }
+    ],
+    [ // both modules end up with the same module.parent
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `({
+            parentsEqual:
+              require.cache[${testModuleStr}].parent ===
+              require.cache[${printModuleStr}].parent,
+            parentId: require.cache[${testModuleStr}].parent.id,
+          })`,
+          'generatePreview': true,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        const { properties } = message.result.preview;
+        assert.strictEqual('[consoleAPI]', properties[1].value);
+        assert.strictEqual('true', properties[0].value);
+      }
+    ],
+  ]);
+}
+
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
   session.sendInspectorCommands({ 'method': 'Debugger.resume' })
@@ -231,6 +347,7 @@ function runTests(harness) {
       testSetBreakpointAndResume,
       testInspectScope,
       testI18NCharacters,
+      testCommandLineAPI,
       testWaitsForFrontendDisconnect
     ]).expectShutDown(55);
 }
