@@ -1560,7 +1560,7 @@ to extending the `stream.Readable` *and* `stream.Writable` classes).
 
 *Note*: The `stream.Duplex` class prototypically inherits from `stream.Readable`
 and parasitically from `stream.Writable`, but `instanceof` will work properly
-for both base classes by overriding [`Symbol.hasInstance`][]
+for both base classes by overriding [`Symbol.hasInstance`][].
 
 Custom Duplex streams *must* call the `new stream.Duplex([options])`
 constructor and implement *both* the `readable._read()` and
