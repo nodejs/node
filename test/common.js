@@ -36,6 +36,7 @@ const cpus = os.cpus();
 exports.enoughTestCpu = cpus.length > 1 || cpus[0].speed > 999;
 
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
+exports.buildType = process.config.target_defaults.default_configuration;
 
 function rimrafSync(p) {
   try {
