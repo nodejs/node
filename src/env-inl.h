@@ -207,12 +207,6 @@ inline Environment::Environment(IsolateData* isolate_data,
   set_binding_cache_object(v8::Object::New(isolate()));
   set_module_load_list_array(v8::Array::New(isolate()));
 
-  v8::Local<v8::FunctionTemplate> fn = v8::FunctionTemplate::New(isolate());
-  fn->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "InternalFieldObject"));
-  v8::Local<v8::ObjectTemplate> obj = fn->InstanceTemplate();
-  obj->SetInternalFieldCount(1);
-  set_generic_internal_field_template(obj);
-
   RB_INIT(&cares_task_list_);
   AssignToContext(context);
 
@@ -471,12 +465,6 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
       v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
   that->Set(name_string, t);
   t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
-}
-
-inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
-  v8::MaybeLocal<v8::Object> m_obj =
-      generic_internal_field_template()->NewInstance(context());
-  return m_obj.ToLocalChecked();
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
