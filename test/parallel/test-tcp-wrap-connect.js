@@ -19,13 +19,11 @@ function makeConnection() {
     assert.strictEqual(true, readable);
     assert.strictEqual(true, writable);
 
-    console.log('connected');
     var shutdownReq = new ShutdownWrap();
     var err = client.shutdown(shutdownReq);
     assert.strictEqual(err, 0);
 
     shutdownReq.oncomplete = function(status, client_, req_) {
-      console.log('shutdown complete');
       assert.strictEqual(0, status);
       assert.strictEqual(client, client_);
       assert.strictEqual(shutdownReq, req_);
@@ -42,11 +40,9 @@ var endCount = 0;
 var shutdownCount = 0;
 
 var server = require('net').Server(function(s) {
-  console.log('got connection');
   connectCount++;
   s.resume();
   s.on('end', function() {
-    console.log('got eof');
     endCount++;
     s.destroy();
     server.close();
