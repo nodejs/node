@@ -32,6 +32,8 @@ void TTYWrap::Initialize(Local<Object> target,
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);

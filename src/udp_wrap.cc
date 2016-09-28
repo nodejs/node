@@ -108,6 +108,8 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
 
@@ -115,6 +117,7 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> swt =
       FunctionTemplate::New(env->isolate(), NewSendWrap);
   swt->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(swt, "getAsyncId", AsyncWrap::GetAsyncId);
   swt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"),
               swt->GetFunction());
