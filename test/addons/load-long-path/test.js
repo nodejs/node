@@ -21,7 +21,10 @@ for (var i = 0; i < 10; i++) {
   fs.mkdirSync(addonDestinationDir);
 }
 
-const addonPath = path.join(__dirname, 'build', 'Release', 'binding.node');
+const addonPath = path.join(__dirname,
+                            'build',
+                            common.buildType,
+                            'binding.node');
 const addonDestinationPath = path.join(addonDestinationDir, 'binding.node');
 
 // Copy binary to long path destination

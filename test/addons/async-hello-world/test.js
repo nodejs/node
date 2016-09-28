@@ -1,7 +1,7 @@
 'use strict';
-require('../../common');
+var common = require('../../common');
 var assert = require('assert');
-var binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 var called = false;
 
 process.on('exit', function() {

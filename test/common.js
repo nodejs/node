@@ -28,6 +28,7 @@ exports.isFreeBSD = process.platform === 'freebsd';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
+exports.buildType = process.config.target_defaults.default_configuration;
 
 function rimrafSync(p) {
   try {

@@ -3,7 +3,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const vm = require('vm');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 const makeCallback = binding.makeCallback;
 
 assert.strictEqual(42, makeCallback(process, common.mustCall(function() {
