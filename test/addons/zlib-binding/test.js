@@ -1,9 +1,9 @@
 'use strict';
 
-require('../../common');
+const common = require('../../common');
 const assert = require('assert');
 const zlib = require('zlib');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 
 const input = Buffer.from('Hello, World!');
 
