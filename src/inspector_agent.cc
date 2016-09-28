@@ -22,6 +22,7 @@
 namespace node {
 namespace inspector {
 namespace {
+using v8::Array;
 using v8::Context;
 using v8::External;
 using v8::Function;
@@ -554,6 +555,20 @@ class NodeInspectorClient : public V8InspectorClient {
     return env_->context();
   }
 
+  void installAdditionalCommandLineAPI(Local<Context> context,
+                                       Local<Object> target) override {
+    Local<Object> console_api = env_->inspector_console_api_object();
+
+    Local<Array> properties =
+        console_api->GetOwnPropertyNames(context).ToLocalChecked();
+    for (uint32_t i = 0; i < properties->Length(); ++i) {
+      Local<Value> key = properties->Get(context, i).ToLocalChecked();
+      target->Set(context,
+                  key,
+                  console_api->Get(context, key).ToLocalChecked()).FromJust();
+    }
+  }
+
   void FatalException(Local<Value> error, Local<v8::Message> message) {
     Local<Context> context = env_->context();
 
@@ -682,6 +697,20 @@ bool Agent::StartIoThread(bool wait_for_connect) {
   return true;
 }
 
+static void AddCommandLineAPI(
+    const FunctionCallbackInfo<Value>& info) {
+  auto env = Environment::GetCurrent(info);
+  Local<Context> context = env->context();
+
+  if (info.Length() != 2 || !info[0]->IsString()) {
+    return env->ThrowTypeError("inspector.addCommandLineAPI takes "
+        "exactly 2 arguments: a string and a value.");
+  }
+
+  Local<Object> console_api = env->inspector_console_api_object();
+  console_api->Set(context, info[0], info[1]).FromJust();
+}
+
 void Agent::Stop() {
   if (io_ != nullptr) {
     io_->Stop();
@@ -784,8 +813,16 @@ void Url(const FunctionCallbackInfo<Value>& args) {
 void Agent::InitInspector(Local<Object> target, Local<Value> unused,
                           Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  {
+    auto obj = Object::New(env->isolate());
+    auto null = Null(env->isolate());
+    CHECK(obj->SetPrototype(context, null).FromJust());
+    env->set_inspector_console_api_object(obj);
+  }
+
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
+  env->SetMethod(target, "addCommandLineAPI", AddCommandLineAPI);
   if (agent->debug_options_.wait_for_connect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "connect", ConnectJSBindingsSession);
