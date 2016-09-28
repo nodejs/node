@@ -97,3 +97,18 @@ child.exec(nodejs + ` -e 'require("child_process").fork("${emptyFile}")'`,
       assert.equal(stdout, '');
       assert.equal(stderr, '');
     });
+
+// Regression test for https://github.com/nodejs/node/issues/8534.
+{
+  const script = `
+      // console.log() can revive the event loop so we must be careful
+      // to write from a 'beforeExit' event listener only once.
+      process.once("beforeExit", () => console.log("beforeExit"));
+      process.on("exit", () => console.log("exit"));
+      console.log("start");
+  `;
+  const options = { encoding: 'utf8' };
+  const proc = child.spawnSync(process.execPath, ['-e', script], options);
+  assert.strictEqual(proc.stderr, '');
+  assert.strictEqual(proc.stdout, 'start\nbeforeExit\nexit\n');
+}
