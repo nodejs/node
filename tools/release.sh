@@ -69,15 +69,8 @@ function sign {
 
   local version=$1
 
-  gpgtagkey=$(git tag -v $version 2>&1 | grep 'key ID' | awk '{print $NF}')
-
-  if [ "X${gpgtagkey}" == "X" ]; then
-    echo "Could not find signed tag for \"${version}\""
-    exit 1
-  fi
-
-  if [ "${gpgtagkey}" != "${gpgkey}" ]; then
-    echo "GPG key for \"${version}\" tag is not yours, cannot sign"
+  if ! git tag -v $version 2>&1 | grep "${gpgkey}" | grep key > /dev/null; then
+    echo "Could not find signed tag for \"${version}\" or GPG key is not yours"
     exit 1
   fi
 
