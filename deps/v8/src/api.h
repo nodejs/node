@@ -389,6 +389,7 @@ class HandleScopeImplementer {
         call_depth_(0),
         microtasks_depth_(0),
         microtasks_suppressions_(0),
+        entered_context_count_during_microtasks_(0),
 #ifdef DEBUG
         debug_microtasks_depth_(0),
 #endif
@@ -454,6 +455,11 @@ class HandleScopeImplementer {
   inline void EnterMicrotaskContext(Handle<Context> context);
   inline void LeaveMicrotaskContext();
   inline Handle<Context> MicrotaskContext();
+  inline bool MicrotaskContextIsLastEnteredContext() const {
+    return microtask_context_ &&
+           entered_context_count_during_microtasks_ ==
+               entered_contexts_.length();
+  }
 
   inline void SaveContext(Context* context);
   inline Context* RestoreContext();
@@ -474,6 +480,7 @@ class HandleScopeImplementer {
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
     microtask_context_ = nullptr;
+    entered_context_count_during_microtasks_ = 0;
     spare_ = NULL;
     last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
@@ -508,6 +515,7 @@ class HandleScopeImplementer {
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
+  int entered_context_count_during_microtasks_;
 #ifdef DEBUG
   int debug_microtasks_depth_;
 #endif
@@ -579,11 +587,13 @@ Handle<Context> HandleScopeImplementer::LastEnteredContext() {
 void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
   DCHECK(!microtask_context_);
   microtask_context_ = *context;
+  entered_context_count_during_microtasks_ = entered_contexts_.length();
 }
 
 void HandleScopeImplementer::LeaveMicrotaskContext() {
   DCHECK(microtask_context_);
   microtask_context_ = nullptr;
+  entered_context_count_during_microtasks_ = 0;
 }
 
 Handle<Context> HandleScopeImplementer::MicrotaskContext() {

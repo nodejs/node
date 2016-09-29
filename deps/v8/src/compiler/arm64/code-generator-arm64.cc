@@ -1939,10 +1939,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (src.type() == Constant::kHeapObject) {
         Handle<HeapObject> src_object = src.ToHeapObject();
         Heap::RootListIndex index;
-        int slot;
-        if (IsMaterializableFromFrame(src_object, &slot)) {
-          __ Ldr(dst, g.SlotToMemOperand(slot, masm()));
-        } else if (IsMaterializableFromRoot(src_object, &index)) {
+        if (IsMaterializableFromRoot(src_object, &index)) {
           __ LoadRoot(dst, index);
         } else {
           __ LoadObject(dst, src_object);
