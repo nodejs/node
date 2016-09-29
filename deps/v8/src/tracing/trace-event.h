@@ -6,7 +6,6 @@
 #define SRC_TRACING_TRACE_EVENT_H_
 
 #include <stddef.h>
-#include <memory>
 
 #include "base/trace_event/common/trace_event_common.h"
 #include "include/v8-platform.h"
@@ -121,7 +120,8 @@ enum CategoryGroupEnabledFlags {
 //                    const uint8_t* arg_types,
 //                    const uint64_t* arg_values,
 //                    unsigned int flags)
-#define TRACE_EVENT_API_ADD_TRACE_EVENT v8::internal::tracing::AddTraceEventImpl
+#define TRACE_EVENT_API_ADD_TRACE_EVENT \
+  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform()->AddTraceEvent
 
 // Set the duration field of a COMPLETE trace event.
 // void TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION(
@@ -454,28 +454,6 @@ class TraceStringWithCopy {
   const char* str_;
 };
 
-static V8_INLINE uint64_t AddTraceEventImpl(
-    char phase, const uint8_t* category_group_enabled, const char* name,
-    const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
-    const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values, unsigned int flags) {
-  std::unique_ptr<ConvertableToTraceFormat> arg_convertables[2];
-  if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
-    arg_convertables[0].reset(reinterpret_cast<ConvertableToTraceFormat*>(
-        static_cast<intptr_t>(arg_values[0])));
-  }
-  if (num_args > 1 && arg_types[1] == TRACE_VALUE_TYPE_CONVERTABLE) {
-    arg_convertables[1].reset(reinterpret_cast<ConvertableToTraceFormat*>(
-        static_cast<intptr_t>(arg_values[1])));
-  }
-  DCHECK(num_args <= 2);
-  v8::Platform* platform =
-      v8::internal::tracing::TraceEventHelper::GetCurrentPlatform();
-  return platform->AddTraceEvent(phase, category_group_enabled, name, scope, id,
-                                 bind_id, num_args, arg_names, arg_types,
-                                 arg_values, arg_convertables, flags);
-}
-
 // Define SetTraceValue for each allowed type. It stores the type and
 // value in the return arguments. This allows this API to avoid declaring any
 // structures so that it is portable to third_party libraries.
@@ -516,19 +494,6 @@ INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&, as_string,
 #undef INTERNAL_DECLARE_SET_TRACE_VALUE
 #undef INTERNAL_DECLARE_SET_TRACE_VALUE_INT
 
-static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
-                                    unsigned char* type, uint64_t* value) {
-  *type = TRACE_VALUE_TYPE_CONVERTABLE;
-  *value = static_cast<uint64_t>(reinterpret_cast<intptr_t>(convertable_value));
-}
-
-template <typename T>
-static V8_INLINE typename std::enable_if<
-    std::is_convertible<T*, ConvertableToTraceFormat*>::value>::type
-SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type, uint64_t* value) {
-  SetTraceValue(ptr.release(), type, value);
-}
-
 // These AddTraceEvent template
 // function is defined here instead of in the macro, because the arg_values
 // could be temporary objects, such as std::string. In order to store
@@ -541,38 +506,36 @@ static V8_INLINE uint64_t AddTraceEvent(char phase,
                                         uint64_t id, uint64_t bind_id,
                                         unsigned int flags) {
   return TRACE_EVENT_API_ADD_TRACE_EVENT(phase, category_group_enabled, name,
-                                         scope, id, bind_id, kZeroNumArgs,
-                                         nullptr, nullptr, nullptr, flags);
+                                         scope, id, bind_id, kZeroNumArgs, NULL,
+                                         NULL, NULL, flags);
 }
 
 template <class ARG1_TYPE>
 static V8_INLINE uint64_t AddTraceEvent(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    const char* arg1_name, ARG1_TYPE&& arg1_val) {
+    const char* arg1_name, const ARG1_TYPE& arg1_val) {
   const int num_args = 1;
-  uint8_t arg_type;
-  uint64_t arg_value;
-  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_type, &arg_value);
+  uint8_t arg_types[1];
+  uint64_t arg_values[1];
+  SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
-      &arg1_name, &arg_type, &arg_value, flags);
+      &arg1_name, arg_types, arg_values, flags);
 }
 
 template <class ARG1_TYPE, class ARG2_TYPE>
 static V8_INLINE uint64_t AddTraceEvent(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    const char* arg1_name, ARG1_TYPE&& arg1_val, const char* arg2_name,
-    ARG2_TYPE&& arg2_val) {
+    const char* arg1_name, const ARG1_TYPE& arg1_val, const char* arg2_name,
+    const ARG2_TYPE& arg2_val) {
   const int num_args = 2;
   const char* arg_names[2] = {arg1_name, arg2_name};
   unsigned char arg_types[2];
   uint64_t arg_values[2];
-  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_types[0],
-                &arg_values[0]);
-  SetTraceValue(std::forward<ARG2_TYPE>(arg2_val), &arg_types[1],
-                &arg_values[1]);
+  SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
+  SetTraceValue(arg2_val, &arg_types[1], &arg_values[1]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
       arg_names, arg_types, arg_values, flags);

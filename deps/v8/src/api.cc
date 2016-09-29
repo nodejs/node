@@ -1579,8 +1579,8 @@ void ObjectTemplate::SetNamedPropertyHandler(
 void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
   ObjectTemplateSetNamedPropertyHandler(
-      this, config.getter, config.setter, config.query, config.descriptor,
-      config.deleter, config.enumerator, config.definer, config.data,
+      this, config.getter, config.setter, config.query, nullptr,
+      config.deleter, config.enumerator, nullptr, config.data,
       config.flags);
 }
 
@@ -1641,14 +1641,14 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   SET_FIELD_WRAPPED(info, set_callback, callback);
   auto named_interceptor = CreateInterceptorInfo(
       isolate, named_handler.getter, named_handler.setter, named_handler.query,
-      named_handler.descriptor, named_handler.deleter, named_handler.enumerator,
-      named_handler.definer, named_handler.data, named_handler.flags);
+      nullptr, named_handler.deleter, named_handler.enumerator,
+      nullptr, named_handler.data, named_handler.flags);
   info->set_named_interceptor(*named_interceptor);
   auto indexed_interceptor = CreateInterceptorInfo(
       isolate, indexed_handler.getter, indexed_handler.setter,
-      indexed_handler.query, indexed_handler.descriptor,
+      indexed_handler.query, nullptr,
       indexed_handler.deleter, indexed_handler.enumerator,
-      indexed_handler.definer, indexed_handler.data, indexed_handler.flags);
+      nullptr, indexed_handler.data, indexed_handler.flags);
   info->set_indexed_interceptor(*indexed_interceptor);
 
   if (data.IsEmpty()) {
@@ -1668,9 +1668,9 @@ void ObjectTemplate::SetHandler(
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
   auto obj = CreateInterceptorInfo(isolate, config.getter, config.setter,
-                                   config.query, config.descriptor,
+                                   config.query, nullptr,
                                    config.deleter, config.enumerator,
-                                   config.definer, config.data, config.flags);
+                                   nullptr, config.data, config.flags);
   cons->set_indexed_property_handler(*obj);
 }
 

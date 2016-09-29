@@ -35,8 +35,7 @@ TEST(TestTraceObject) {
   TraceObject trace_object;
   uint8_t category_enabled_flag = 41;
   trace_object.Initialize('X', &category_enabled_flag, "Test.Trace",
-                          "Test.Scope", 42, 123, 0, nullptr, nullptr, nullptr,
-                          nullptr, 0);
+                          "Test.Scope", 42, 123, 0, NULL, NULL, NULL, 0);
   CHECK_EQ('X', trace_object.phase());
   CHECK_EQ(category_enabled_flag, *trace_object.category_enabled_flag());
   CHECK_EQ(std::string("Test.Trace"), std::string(trace_object.name()));
@@ -44,19 +43,6 @@ TEST(TestTraceObject) {
   CHECK_EQ(0, trace_object.duration());
   CHECK_EQ(0, trace_object.cpu_duration());
 }
-
-class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
- public:
-  explicit ConvertableToTraceFormatMock(int value) : value_(value) {}
-  void AppendAsTraceFormat(std::string* out) const override {
-    *out += "[" + std::to_string(value_) + "," + std::to_string(value_) + "]";
-  }
-
- private:
-  int value_;
-
-  DISALLOW_COPY_AND_ASSIGN(ConvertableToTraceFormatMock);
-};
 
 class MockTraceWriter : public TraceWriter {
  public:
@@ -89,8 +75,7 @@ TEST(TestTraceBufferRingBuffer) {
     TraceObject* trace_object = ring_buffer->AddTraceEvent(&handles[i]);
     CHECK_NOT_NULL(trace_object);
     trace_object->Initialize('X', &category_enabled_flag, names[i].c_str(),
-                             "Test.Scope", 42, 123, 0, nullptr, nullptr,
-                             nullptr, nullptr, 0);
+                             "Test.Scope", 42, 123, 0, NULL, NULL, NULL, 0);
     trace_object = ring_buffer->GetEventByHandle(handles[i]);
     CHECK_NOT_NULL(trace_object);
     CHECK_EQ('X', trace_object->phase());
@@ -143,13 +128,13 @@ TEST(TestJSONTraceWriter) {
     TraceObject trace_object;
     trace_object.InitializeForTesting(
         'X', tracing_controller.GetCategoryGroupEnabled("v8-cat"), "Test0",
-        v8::internal::tracing::kGlobalScope, 42, 123, 0, nullptr, nullptr,
-        nullptr, nullptr, TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
+        v8::internal::tracing::kGlobalScope, 42, 123, 0, NULL, NULL, NULL,
+        TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
     writer->AppendTraceEvent(&trace_object);
     trace_object.InitializeForTesting(
         'Y', tracing_controller.GetCategoryGroupEnabled("v8-cat"), "Test1",
-        v8::internal::tracing::kGlobalScope, 43, 456, 0, nullptr, nullptr,
-        nullptr, nullptr, 0, 55, 66, 110, 55, 77, 88);
+        v8::internal::tracing::kGlobalScope, 43, 456, 0, NULL, NULL, NULL, 0,
+        55, 66, 110, 55, 77, 88);
     writer->AppendTraceEvent(&trace_object);
     tracing_controller.StopTracing();
   }
@@ -279,14 +264,6 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     mm = "CHANGED";
     mmm = "CHANGED";
 
-    TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         new ConvertableToTraceFormatMock(42));
-    std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
-        new ConvertableToTraceFormatMock(42));
-    TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         std::move(trace_event_arg), "a2",
-                         new ConvertableToTraceFormatMock(123));
-
     tracing_controller.StopTracing();
   }
 
@@ -297,7 +274,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   GetJSONStrings(all_names, trace_str, "\"name\"", "\"", "\"");
   GetJSONStrings(all_cats, trace_str, "\"cat\"", "\"", "\"");
 
-  CHECK_EQ(all_args.size(), 24);
+  CHECK_EQ(all_args.size(), 22);
   CHECK_EQ(all_args[0], "\"aa\":11");
   CHECK_EQ(all_args[1], "\"bb\":22");
   CHECK_EQ(all_args[2], "\"cc\":33");
@@ -326,8 +303,6 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   CHECK_EQ(all_names[20], "INIT");
   CHECK_EQ(all_names[21], "INIT");
   CHECK_EQ(all_args[21], "\"mm1\":\"INIT\",\"mm2\":\"\\\"INIT\\\"\"");
-  CHECK_EQ(all_args[22], "\"a1\":[42,42]");
-  CHECK_EQ(all_args[23], "\"a1\":[42,42],\"a2\":[123,123]");
 
   i::V8::SetPlatformForTesting(old_platform);
 }

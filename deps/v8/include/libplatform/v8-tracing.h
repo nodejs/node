@@ -36,22 +36,19 @@ class TraceObject {
 
   TraceObject() {}
   ~TraceObject();
-  void Initialize(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      const char* scope, uint64_t id, uint64_t bind_id, int num_args,
-      const char** arg_names, const uint8_t* arg_types,
-      const uint64_t* arg_values,
-      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
-      unsigned int flags);
+  void Initialize(char phase, const uint8_t* category_enabled_flag,
+                  const char* name, const char* scope, uint64_t id,
+                  uint64_t bind_id, int num_args, const char** arg_names,
+                  const uint8_t* arg_types, const uint64_t* arg_values,
+                  unsigned int flags);
   void UpdateDuration();
-  void InitializeForTesting(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      const char* scope, uint64_t id, uint64_t bind_id, int num_args,
-      const char** arg_names, const uint8_t* arg_types,
-      const uint64_t* arg_values,
-      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
-      unsigned int flags, int pid, int tid, int64_t ts, int64_t tts,
-      uint64_t duration, uint64_t cpu_duration);
+  void InitializeForTesting(char phase, const uint8_t* category_enabled_flag,
+                            const char* name, const char* scope, uint64_t id,
+                            uint64_t bind_id, int num_args,
+                            const char** arg_names, const uint8_t* arg_types,
+                            const uint64_t* arg_values, unsigned int flags,
+                            int pid, int tid, int64_t ts, int64_t tts,
+                            uint64_t duration, uint64_t cpu_duration);
 
   int pid() const { return pid_; }
   int tid() const { return tid_; }
@@ -67,9 +64,6 @@ class TraceObject {
   const char** arg_names() { return arg_names_; }
   uint8_t* arg_types() { return arg_types_; }
   ArgValue* arg_values() { return arg_values_; }
-  std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables() {
-    return arg_convertables_;
-  }
   unsigned int flags() const { return flags_; }
   int64_t ts() { return ts_; }
   int64_t tts() { return tts_; }
@@ -85,12 +79,10 @@ class TraceObject {
   const uint8_t* category_enabled_flag_;
   uint64_t id_;
   uint64_t bind_id_;
-  int num_args_ = 0;
+  int num_args_;
   const char* arg_names_[kTraceMaxNumArgs];
   uint8_t arg_types_[kTraceMaxNumArgs];
   ArgValue arg_values_[kTraceMaxNumArgs];
-  std::unique_ptr<v8::ConvertableToTraceFormat>
-      arg_convertables_[kTraceMaxNumArgs];
   char* parameter_copy_storage_ = nullptr;
   unsigned int flags_;
   int64_t ts_;
@@ -238,13 +230,11 @@ class TracingController {
   void Initialize(TraceBuffer* trace_buffer);
   const uint8_t* GetCategoryGroupEnabled(const char* category_group);
   static const char* GetCategoryGroupName(const uint8_t* category_enabled_flag);
-  uint64_t AddTraceEvent(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
-      const char** arg_names, const uint8_t* arg_types,
-      const uint64_t* arg_values,
-      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
-      unsigned int flags);
+  uint64_t AddTraceEvent(char phase, const uint8_t* category_enabled_flag,
+                         const char* name, const char* scope, uint64_t id,
+                         uint64_t bind_id, int32_t num_args,
+                         const char** arg_names, const uint8_t* arg_types,
+                         const uint64_t* arg_values, unsigned int flags);
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle);
 
