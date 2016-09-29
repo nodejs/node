@@ -7,7 +7,6 @@
 #include <cmath>
 
 #include "base/trace_event/common/trace_event_common.h"
-#include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
@@ -113,12 +112,6 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
   }
 }
 
-void JSONTraceWriter::AppendArgValue(ConvertableToTraceFormat* value) {
-  std::string arg_stringified;
-  value->AppendAsTraceFormat(&arg_stringified);
-  stream_ << arg_stringified;
-}
-
 JSONTraceWriter::JSONTraceWriter(std::ostream& stream) : stream_(stream) {
   stream_ << "{\"traceEvents\":[";
 }
@@ -150,16 +143,10 @@ void JSONTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
   const char** arg_names = trace_event->arg_names();
   const uint8_t* arg_types = trace_event->arg_types();
   TraceObject::ArgValue* arg_values = trace_event->arg_values();
-  std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables =
-      trace_event->arg_convertables();
   for (int i = 0; i < trace_event->num_args(); ++i) {
     if (i > 0) stream_ << ",";
     stream_ << "\"" << arg_names[i] << "\":";
-    if (arg_types[i] == TRACE_VALUE_TYPE_CONVERTABLE) {
-      AppendArgValue(arg_convertables[i].get());
-    } else {
-      AppendArgValue(arg_types[i], arg_values[i]);
-    }
+    AppendArgValue(arg_types[i], arg_values[i]);
   }
   stream_ << "}}";
   // TODO(fmeawad): Add support for Flow Events.
