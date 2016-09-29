@@ -5767,7 +5767,23 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitCryptoOnce() {
-  OPENSSL_config(NULL);
+  OPENSSL_no_config();
+
+  // --openssl-config=...
+  if (openssl_config != nullptr) {
+    CONF_modules_load_file(
+        openssl_config,
+        nullptr,
+        CONF_MFLAGS_DEFAULT_SECTION | CONF_MFLAGS_IGNORE_MISSING_FILE);
+    int err = ERR_get_error();
+    if (0 != err) {
+      fprintf(stderr,
+              "openssl config failed: %s\n",
+              ERR_error_string(err, NULL));
+      CHECK_NE(err, 0);
+    }
+  }
+
   SSL_library_init();
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();
