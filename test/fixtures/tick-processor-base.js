@@ -7,7 +7,7 @@ const path = require('path');
 common.refreshTmpDir();
 
 const LOG_FILE = path.join(common.tmpDir, 'tick-processor.log');
-const RETRY_TIMEOUT = 750;
+const RETRY_TIMEOUT = 150;
 
 function runTest(test) {
   const proc = cp.spawn(process.execPath, [
@@ -16,7 +16,7 @@ function runTest(test) {
     '--prof',
     '-pe', test.code
   ], {
-    stdio: [ null, 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ]
   });
 
   let ticks = '';
@@ -37,19 +37,25 @@ function match(pattern, parent, ticks) {
     '--call-graph-size=10',
     LOG_FILE
   ], {
-    stdio: [ null, 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ]
   });
 
   let out = '';
   proc.stdout.on('data', chunk => out += chunk);
-  proc.stdout.on('end', () => {
-    // Retry after timeout
-    if (!pattern.test(out))
-      return setTimeout(() => match(pattern, parent, ticks), RETRY_TIMEOUT);
+  proc.stdout.once('end', () => {
+    proc.once('exit', () => {
+      fs.unlinkSync(LOG_FILE);
 
-    parent.kill('SIGTERM');
+      // Retry after timeout
+      if (!pattern.test(out))
+        return setTimeout(() => match(pattern, parent, ticks), RETRY_TIMEOUT);
 
-    fs.unlinkSync(LOG_FILE);
+      parent.stdout.removeAllListeners();
+      parent.kill();
+    });
+
+    proc.stdout.removeAllListeners();
+    proc.kill();
   });
 }
 
