@@ -1,8 +1,8 @@
 # Table of Contents
-* [test directories](#tests)
-* [common module API](#commonjs)
+* [Test directories](#test-directories)
+* [Common module API](#common-module-api)
 
-## Tests
+## Test Directories
 
 ### abort
 
@@ -132,7 +132,11 @@ and `setInterval`).
 | No         |
 
 
-## Common.js
+## Common module API
+
+The common.js module is used by tests for consistency across repeated
+tasks. It has a number of helpful functions and properties to help with 
+writing tests.
 
 ### allowGlobals(...whitelist)
 * `whitelist` [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) Array of Globals
@@ -369,4 +373,4 @@ Path to the 'tmp' directory.
 ### tmpDirName
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
-Name of the tmpDir, currently 'tmp'
+Name of the temp directory used by tests.
