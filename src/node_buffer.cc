@@ -18,7 +18,7 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define CHECK_NOT_OOB(r)                                                    \
+#define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
     if (!(r)) return env->ThrowRangeError("out of range index");            \
   } while (0)
@@ -43,14 +43,11 @@
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
   size_t end;                                                               \
-  CHECK_NOT_OOB(ParseArrayIndex(start_arg, 0, &start));                     \
-  CHECK_NOT_OOB(ParseArrayIndex(end_arg, end_max, &end));                   \
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(start_arg, 0, &start));           \
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(end_arg, end_max, &end));         \
   if (end < start) end = start;                                             \
-  CHECK_NOT_OOB(end <= end_max);                                            \
+  THROW_AND_RETURN_IF_OOB(end <= end_max);                                  \
   size_t length = end - start;
-
-#define BUFFER_MALLOC(length)                                               \
-  zero_fill_all_buffers ? node::Calloc(length, 1) : node::Malloc(length)
 
 #if defined(__GNUC__) || defined(__clang__)
 #define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
@@ -88,6 +85,15 @@ namespace node {
 
 // if true, all Buffer and SlowBuffer instances will automatically zero-fill
 bool zero_fill_all_buffers = false;
+
+namespace {
+
+inline void* BufferMalloc(size_t length) {
+  return zero_fill_all_buffers ? node::UncheckedCalloc(length) :
+                                 node::UncheckedMalloc(length);
+}
+
+}  // namespace
 
 namespace Buffer {
 
@@ -266,7 +272,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   char* data = nullptr;
 
   if (length > 0) {
-    data = static_cast<char*>(BUFFER_MALLOC(length));
+    data = static_cast<char*>(BufferMalloc(length));
 
     if (data == nullptr)
       return Local<Object>();
@@ -278,8 +284,7 @@ MaybeLocal<Object> New(Isolate* isolate,
       free(data);
       data = nullptr;
     } else if (actual < length) {
-      data = static_cast<char*>(node::Realloc(data, actual));
-      CHECK_NE(data, nullptr);
+      data = node::Realloc(data, actual);
     }
   }
 
@@ -312,7 +317,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   void* data;
   if (length > 0) {
-    data = BUFFER_MALLOC(length);
+    data = BufferMalloc(length);
     if (data == nullptr)
       return Local<Object>();
   } else {
@@ -357,7 +362,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   void* new_data;
   if (length > 0) {
     CHECK_NE(data, nullptr);
-    new_data = node::Malloc(length);
+    new_data = node::UncheckedMalloc(length);
     if (new_data == nullptr)
       return Local<Object>();
     memcpy(new_data, data, length);
@@ -578,9 +583,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   size_t source_start;
   size_t source_end;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &target_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], ts_obj_length, &source_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &target_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], 0, &source_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[3], ts_obj_length, &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
@@ -709,11 +714,12 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t offset;
   size_t max_length;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &offset));
   if (offset > ts_obj_length)
     return env->ThrowRangeError("Offset is out of bounds");
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], ts_obj_length - offset, &max_length));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], ts_obj_length - offset,
+                                          &max_length));
 
   max_length = MIN(ts_obj_length - offset, max_length);
 
@@ -838,8 +844,8 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   size_t memcpy_num = sizeof(T);
 
   if (should_assert) {
-    CHECK_NOT_OOB(offset + memcpy_num >= memcpy_num);
-    CHECK_NOT_OOB(offset + memcpy_num <= ts_obj_length);
+    THROW_AND_RETURN_IF_OOB(offset + memcpy_num >= memcpy_num);
+    THROW_AND_RETURN_IF_OOB(offset + memcpy_num <= ts_obj_length);
   }
 
   if (offset + memcpy_num > ts_obj_length)
@@ -915,10 +921,10 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   size_t source_end;
   size_t target_end;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[4], target_length, &target_end));
-  CHECK_NOT_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[4], target_length, &target_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
 
   if (source_start > ts_obj_length)
     return env->ThrowRangeError("out of range index");
@@ -1079,7 +1085,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           offset,
                           is_forward);
   } else if (enc == LATIN1) {
-    uint8_t* needle_data = static_cast<uint8_t*>(node::Malloc(needle_length));
+    uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
     }

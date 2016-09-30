@@ -284,6 +284,9 @@
     "source": "iana",
     "compressible": false
   },
+  "application/efi": {
+    "source": "iana"
+  },
   "application/emergencycalldata.comment+xml": {
     "source": "iana"
   },
@@ -1217,6 +1220,9 @@
   "application/vnd.3gpp.sms": {
     "source": "iana"
   },
+  "application/vnd.3gpp.sms+xml": {
+    "source": "iana"
+  },
   "application/vnd.3gpp.srvcc-ext+xml": {
     "source": "iana"
   },
@@ -1238,6 +1244,9 @@
   "application/vnd.3gpp2.tcap": {
     "source": "iana",
     "extensions": ["tcap"]
+  },
+  "application/vnd.3lightssoftware.imagescal": {
+    "source": "iana"
   },
   "application/vnd.3m.post-it-notes": {
     "source": "iana",
@@ -1497,6 +1506,10 @@
     "source": "iana",
     "extensions": ["cdbcmsg"]
   },
+  "application/vnd.coreos.ignition+json": {
+    "source": "iana",
+    "compressible": true
+  },
   "application/vnd.cosmocaller": {
     "source": "iana",
     "extensions": ["cmc"]
@@ -1599,6 +1612,9 @@
   },
   "application/vnd.desmume-movie": {
     "source": "iana"
+  },
+  "application/vnd.desmume.movie": {
+    "source": "apache"
   },
   "application/vnd.dir-bi.plate-dl-nosuffix": {
     "source": "iana"
@@ -3138,6 +3154,9 @@
   "application/vnd.omaloc-supl-init": {
     "source": "iana"
   },
+  "application/vnd.onepager": {
+    "source": "iana"
+  },
   "application/vnd.openblox.game+xml": {
     "source": "iana"
   },
@@ -3980,6 +3999,10 @@
   },
   "application/vnd.vectorworks": {
     "source": "iana"
+  },
+  "application/vnd.vel+json": {
+    "source": "iana",
+    "compressible": true
   },
   "application/vnd.verimatrix.vcas": {
     "source": "iana"
@@ -4826,7 +4849,9 @@
     "source": "iana"
   },
   "audio/3gpp": {
-    "source": "iana"
+    "source": "iana",
+    "compressible": false,
+    "extensions": ["3gpp"]
   },
   "audio/3gpp2": {
     "source": "iana"
@@ -5991,6 +6016,9 @@
     "source": "iana",
     "extensions": ["dsc"]
   },
+  "text/prs.prop.logic": {
+    "source": "iana"
+  },
   "text/raptorfec": {
     "source": "iana"
   },
@@ -6282,6 +6310,9 @@
   "video/dv": {
     "source": "apache"
   },
+  "video/encaprtp": {
+    "source": "apache"
+  },
   "video/h261": {
     "source": "apache",
     "extensions": ["h261"]
@@ -6304,6 +6335,12 @@
     "source": "apache"
   },
   "video/h264-svc": {
+    "source": "apache"
+  },
+  "video/h265": {
+    "source": "apache"
+  },
+  "video/iso.segment": {
     "source": "apache"
   },
   "video/jpeg": {
@@ -6369,10 +6406,16 @@
     "compressible": false,
     "extensions": ["qt","mov"]
   },
+  "video/raptorfec": {
+    "source": "apache"
+  },
   "video/raw": {
     "source": "apache"
   },
   "video/rtp-enc-aescm128": {
+    "source": "apache"
+  },
+  "video/rtploopback": {
     "source": "apache"
   },
   "video/rtx": {
@@ -6474,6 +6517,12 @@
   "video/vnd.objectvideo": {
     "source": "apache"
   },
+  "video/vnd.radgamettools.bink": {
+    "source": "apache"
+  },
+  "video/vnd.radgamettools.smacker": {
+    "source": "apache"
+  },
   "video/vnd.sealed.mpeg1": {
     "source": "apache"
   },
@@ -6493,6 +6542,9 @@
   "video/vnd.vivo": {
     "source": "apache",
     "extensions": ["viv"]
+  },
+  "video/vp8": {
+    "source": "apache"
   },
   "video/webm": {
     "source": "apache",

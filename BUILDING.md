@@ -1,4 +1,4 @@
-## Building Node.js
+# Building Node.js
 
 Depending on what platform or features you require, the build process may
 differ slightly. After you've successfully built a binary, running the
@@ -34,14 +34,7 @@ $ ./configure
 $ make
 ```
 
-If your Python binary is in a non-standard location or has a
-non-standard name, run the following instead:
-
-```console
-$ export PYTHON=/path/to/python
-$ $PYTHON ./configure
-$ make
-```
+Note that the above requires that `python` resolve to Python 2.6 or 2.7 and not a newer version.
 
 To run the tests:
 

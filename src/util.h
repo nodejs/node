@@ -22,9 +22,32 @@ namespace node {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-inline void* Realloc(void* pointer, size_t size);
-inline void* Malloc(size_t size);
-inline void* Calloc(size_t n, size_t size);
+template <typename T>
+inline T* UncheckedRealloc(T* pointer, size_t n);
+template <typename T>
+inline T* UncheckedMalloc(size_t n);
+template <typename T>
+inline T* UncheckedCalloc(size_t n);
+
+// Same things, but aborts immediately instead of returning nullptr when
+// no memory is available.
+template <typename T>
+inline T* Realloc(T* pointer, size_t n);
+template <typename T>
+inline T* Malloc(size_t n);
+template <typename T>
+inline T* Calloc(size_t n);
+
+// Shortcuts for char*.
+inline char* Malloc(size_t n) { return Malloc<char>(n); }
+inline char* Calloc(size_t n) { return Calloc<char>(n); }
+inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
+inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
+
+// Used by the allocation functions when allocation fails.
+// Thin wrapper around v8::Isolate::LowMemoryNotification() that checks
+// whether V8 is initialized.
+void LowMemoryNotification();
 
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))
@@ -285,11 +308,7 @@ class MaybeStackBuffer {
     if (storage <= kStackStorageSize) {
       buf_ = buf_st_;
     } else {
-      // Guard against overflow.
-      CHECK_LE(storage, sizeof(T) * storage);
-
-      buf_ = static_cast<T*>(Malloc(sizeof(T) * storage));
-      CHECK_NE(buf_, nullptr);
+      buf_ = Malloc<T>(storage);
     }
 
     // Remember how much was allocated to check against that in SetLength().

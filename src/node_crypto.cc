@@ -2279,8 +2279,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     size_t len = Buffer::Length(obj);
 
     // OpenSSL takes control of the pointer after accepting it
-    char* data = reinterpret_cast<char*>(node::Malloc(len));
-    CHECK_NE(data, nullptr);
+    char* data = node::Malloc(len);
     memcpy(data, resp, len);
 
     if (!SSL_set_tlsext_status_ocsp_resp(s, data, len))
@@ -3330,8 +3329,7 @@ bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
   if (initialised_ || kind_ != kCipher || !auth_tag_)
     return false;
   *out_len = auth_tag_len_;
-  *out = static_cast<char*>(node::Malloc(auth_tag_len_));
-  CHECK_NE(*out, nullptr);
+  *out = node::Malloc(auth_tag_len_);
   memcpy(*out, auth_tag_, auth_tag_len_);
   return true;
 }
@@ -4906,8 +4904,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   // NOTE: field_size is in bits
   int field_size = EC_GROUP_get_degree(ecdh->group_);
   size_t out_len = (field_size + 7) / 8;
-  char* out = static_cast<char*>(node::Malloc(out_len));
-  CHECK_NE(out, nullptr);
+  char* out = node::Malloc(out_len);
 
   int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, nullptr);
   EC_POINT_free(pub);
@@ -4942,8 +4939,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (size == 0)
     return env->ThrowError("Failed to get public key length");
 
-  unsigned char* out = static_cast<unsigned char*>(node::Malloc(size));
-  CHECK_NE(out, nullptr);
+  unsigned char* out = node::Malloc<unsigned char>(size);
 
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
   if (r != size) {
@@ -4968,8 +4964,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH private key");
 
   int size = BN_num_bytes(b);
-  unsigned char* out = static_cast<unsigned char*>(node::Malloc(size));
-  CHECK_NE(out, nullptr);
+  unsigned char* out = node::Malloc<unsigned char>(size);
 
   if (size != BN_bn2bin(b, out)) {
     free(out);
@@ -5099,10 +5094,8 @@ class PBKDF2Request : public AsyncWrap {
         saltlen_(saltlen),
         salt_(salt),
         keylen_(keylen),
-        key_(static_cast<char*>(node::Malloc(keylen))),
+        key_(node::Malloc(keylen)),
         iter_(iter) {
-    if (key() == nullptr)
-      FatalError("node::PBKDF2Request()", "Out of Memory");
     Wrap(object, this);
   }
 
@@ -5262,10 +5255,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Salt");
 
-  pass = static_cast<char*>(node::Malloc(passlen));
-  if (pass == nullptr) {
-    FatalError("node::PBKDF2()", "Out of Memory");
-  }
+  pass = node::Malloc(passlen);
   memcpy(pass, Buffer::Data(args[0]), passlen);
 
   saltlen = Buffer::Length(args[1]);
@@ -5274,10 +5264,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  salt = static_cast<char*>(node::Malloc(saltlen));
-  if (salt == nullptr) {
-    FatalError("node::PBKDF2()", "Out of Memory");
-  }
+  salt = node::Malloc(saltlen);
   memcpy(salt, Buffer::Data(args[1]), saltlen);
 
   if (!args[2]->IsNumber()) {
@@ -5367,9 +5354,7 @@ class RandomBytesRequest : public AsyncWrap {
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         error_(0),
         size_(size),
-        data_(static_cast<char*>(node::Malloc(size))) {
-    if (data() == nullptr)
-      FatalError("node::RandomBytesRequest()", "Out of Memory");
+        data_(node::Malloc(size)) {
     Wrap(object, this);
   }
 
@@ -5592,13 +5577,9 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
   Local<Array> arr = Array::New(env->isolate(), num_curves);
   EC_builtin_curve* curves;
-  size_t alloc_size;
 
   if (num_curves) {
-    alloc_size = sizeof(*curves) * num_curves;
-    curves = static_cast<EC_builtin_curve*>(node::Malloc(alloc_size));
-
-    CHECK_NE(curves, nullptr);
+    curves = node::Malloc<EC_builtin_curve>(num_curves);
 
     if (EC_get_builtin_curves(curves, num_curves)) {
       for (size_t i = 0; i < num_curves; i++) {

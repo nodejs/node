@@ -13,32 +13,38 @@ the result to the changelog.
 */
 const execSync = require('child_process').execSync
 const branch = process.argv[2] || 'master'
-const log = execSync(`git log --pretty='format:%h %H%d %s (%aN)%n%b%n---%n' ${branch}...`).toString().split(/\n/)
-const authormap = {
-  'Rebecca Turner': 'iarna',
-  'Forrest L Norvell': 'othiym23',
-  'Kyle Mitchell': 'kemitchell',
-  'Chris Rebert': 'cvrebert',
-  'Kat Marchán': 'zkat'
-}
+const log = execSync(`git log --reverse --pretty='format:%h %H%d %s (%aN)%n%b%n---%n' ${branch}...`).toString().split(/\n/)
 
 main()
 
+function shortname (url) {
+  let matched = url.match(/https:\/\/github.com\/([^/]+\/[^/]+)\/(?:pull|issues)\/(\d+)/)
+  if (!matched) return false
+  let repo = matched[1]
+  let id = matched[2]
+  if (repo !== 'npm/npm') {
+    return `${repo}#${id}`
+  } else {
+    return `${id}`
+  }
+}
+
 function print_commit (c) {
-  let m
   console.log(`* [\`${c.shortid}\`](https://github.com/npm/npm/commit/${c.fullid})`)
   if (c.fixes) {
-    console.log(`  [#${c.fixes}](https://github.com/npm/npm/issues/${c.fixes})`)
-  } else if (c.prurl && (m = c.prurl.match(/https:\/\/github.com\/([^/]+\/[^/]+)\/pull\/(\d+)/))) {
-    let repo = m[1]
-    let prid = m[2]
-    if (repo !== 'npm/npm') {
-      console.log(`  [${repo}#${prid}](${c.prurl})`)
+    let label = shortname(c.fixes)
+    if (label) {
+      console.log(`  [${label}](${c.fixes})`)
     } else {
-      console.log(`  [#${prid}](${c.prurl})`)
+      console.log(`  [#${c.fixes}](https://github.com/npm/npm/issues/${c.fixes})`)
     }
   } else if (c.prurl) {
-    console.log(`  [#](${c.prurl})`)
+    let label = shortname(c.prurl)
+    if (label) {
+      console.log(`  [${label}](${c.prurl})`)
+    } else {
+      console.log(`  [#](${c.prurl})`)
+    }
   }
   let msg = c.message
     .replace(/^\s+/mg, '')
@@ -74,7 +80,7 @@ function main () {
         fullid: m[2],
         branch: m[3],
         message: m[4],
-        author: authormap[m[5]] || m[5],
+        author: m[5],
         prurl: null,
         fixes: null,
         credit: null
@@ -84,7 +90,7 @@ function main () {
     } else if (m = line.match(/^Credit: @(.*)/)) {
       if (!commit.credit) commit.credit = []
       commit.credit.push(m[1])
-    } else if (m = line.match(/^Fixes: #(.*)/)) {
+    } else if (m = line.match(/^Fixes: (.*)/)) {
       commit.fixes = m[1]
     } else if (m = line.match(/^Reviewed-By: @(.*)/)) {
       commit.reviewed = m[1]

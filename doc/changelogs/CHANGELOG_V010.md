@@ -6,7 +6,8 @@
 </tr>
 <tr>
 <td valign="top">
-<a href="#0.10.45">0.10.46</a><br/>
+<a href="#0.10.47">0.10.47</a><br/>
+<a href="#0.10.46">0.10.46</a><br/>
 <a href="#0.10.45">0.10.45</a><br/>
 <a href="#0.10.44">0.10.44</a><br/>
 <a href="#0.10.43">0.10.43</a><br/>
@@ -70,6 +71,37 @@
 **Note:** Node.js v0.10 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until October 2016.
+
+<a id="0.10.47"></a>
+## 2016-09-27, Version 0.10.47 (Maintenance), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes:
+
+* buffer: Zero-fill excess bytes in new `Buffer` objects created with `Buffer.concat()` while providing a `totalLength` parameter that exceeds the total length of the original `Buffer` objects being concatenated. (Сковорода Никита Андреевич)
+* http:
+  - CVE-2016-5325 - Properly validate for allowable characters in the `reason` argument in `ServerResponse#writeHead()`. Fixes a possible response splitting attack vector. This introduces a new case where `throw` may occur when configuring HTTP responses, users should already be adopting try/catch here. Originally reported independently by Evan Lucas and Romain Gaucher. (Evan Lucas)
+  - Invalid status codes can no longer be sent. Limited to 3 digit numbers between 100 - 999. Lack of proper validation may also serve as a potential response splitting attack vector. Backported from v4.x. (Brian White)
+* openssl: Upgrade to 1.0.1u, fixes a number of defects impacting Node.js: CVE-2016-6304 ("OCSP Status Request extension unbounded memory growth", high severity), CVE-2016-2183, CVE-2016-2183, CVE-2016-2178 and CVE-2016-6306.
+* tls: CVE-2016-7099 - Fix invalid wildcard certificate validation check whereby a TLS server may be able to serve an invalid wildcard certificate for its hostname due to improper validation of `*.` in the wildcard string. Originally reported by Alexander Minozhenko and James Bunton (Atlassian) (Ben Noordhuis)
+
+### Commits:
+
+* [fc259c7dc4] - buffer: zero-fill uninitialized bytes in .concat() (Сковорода Никита Андреевич) https://github.com/nodejs/node-private/pull/67
+* [35b49ed4bb] - build: turn on -fno-delete-null-pointer-checks (Ben Noordhuis) https://github.com/nodejs/node/pull/6738
+* [03f4920d6a] - crypto: don't build hardware engines (Rod Vagg) https://github.com/nodejs/node-private/pull/68
+* [1cbdb1957d] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25368
+* [c66408cd0c] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [68f88ea792] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [884d50b348] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
+* [bfd6cb5699] - deps: upgrade openssl sources to 1.0.1u (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
+* [3614a173d0] - http: check reason chars in writeHead (Evan Lucas) https://github.com/nodejs/node-private/pull/48
+* [f2433430ca] - http: disallow sending obviously invalid status codes (Evan Lucas) https://github.com/nodejs/node-private/pull/48
+* [0d7e21ee7b] - lib: make tls.checkServerIdentity() more strict (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
+* [1f4a6f5bd1] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [88dcc7f5bb] - v8: fix -Wsign-compare warning in Zone::New() (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
+* [fd8ac56c75] - v8: fix build errors with g++ 6.1.1 (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
 
 <a id="0.10.46"></a>
 ## 2016-06-23, Version 0.10.46 (Maintenance), @rvagg

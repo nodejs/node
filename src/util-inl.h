@@ -229,6 +229,14 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
+inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
+  size_t ret = a * b;
+  if (a != 0)
+    CHECK_EQ(b, ret / a);
+
+  return ret;
+}
+
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
 // compiler version specific functionality.
@@ -236,25 +244,59 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-void* Realloc(void* pointer, size_t size) {
-  if (size == 0) {
+template <typename T>
+T* UncheckedRealloc(T* pointer, size_t n) {
+  size_t full_size = MultiplyWithOverflowCheck(sizeof(T), n);
+
+  if (full_size == 0) {
     free(pointer);
     return nullptr;
   }
-  return realloc(pointer, size);
+
+  void* allocated = realloc(pointer, full_size);
+
+  if (UNLIKELY(allocated == nullptr)) {
+    // Tell V8 that memory is low and retry.
+    LowMemoryNotification();
+    allocated = realloc(pointer, full_size);
+  }
+
+  return static_cast<T*>(allocated);
 }
 
 // As per spec realloc behaves like malloc if passed nullptr.
-void* Malloc(size_t size) {
-  if (size == 0) size = 1;
-  return Realloc(nullptr, size);
+template <typename T>
+T* UncheckedMalloc(size_t n) {
+  if (n == 0) n = 1;
+  return UncheckedRealloc<T>(nullptr, n);
 }
 
-void* Calloc(size_t n, size_t size) {
+template <typename T>
+T* UncheckedCalloc(size_t n) {
   if (n == 0) n = 1;
-  if (size == 0) size = 1;
-  CHECK_GE(n * size, n);  // Overflow guard.
-  return calloc(n, size);
+  MultiplyWithOverflowCheck(sizeof(T), n);
+  return static_cast<T*>(calloc(n, sizeof(T)));
+}
+
+template <typename T>
+T* Realloc(T* pointer, size_t n) {
+  T* ret = UncheckedRealloc(pointer, n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
+}
+
+template <typename T>
+T* Malloc(size_t n) {
+  T* ret = UncheckedMalloc<T>(n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
+}
+
+template <typename T>
+T* Calloc(size_t n) {
+  T* ret = UncheckedCalloc<T>(n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
 }
 
 }  // namespace node
