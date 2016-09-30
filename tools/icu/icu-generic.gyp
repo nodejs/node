@@ -67,6 +67,7 @@
           [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
             'cflags': [ '-Wno-deprecated-declarations' ],
             'cflags_cc': [ '-frtti' ],
+            'cflags_cc!': [ '-fno-rtti' ],
           }],
           [ 'OS == "mac" or OS == "ios"', {
             'xcode_settings': {'GCC_ENABLE_CPP_RTTI': 'YES' },
