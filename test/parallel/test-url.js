@@ -158,6 +158,17 @@ var parseTests = {
     path: '/Y'
   },
 
+  // whitespace in the front
+  ' http://www.example.com/': {
+    href: 'http://www.example.com/',
+    protocol: 'http:',
+    slashes: true,
+    host: 'www.example.com',
+    hostname: 'www.example.com',
+    pathname: '/',
+    path: '/'
+  },
+
   // + not an invalid host character
   // per https://url.spec.whatwg.org/#host-parsing
   'http://x.y.com+a/b/c': {
