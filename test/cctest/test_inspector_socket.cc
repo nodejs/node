@@ -10,13 +10,11 @@ static const int MAX_LOOP_ITERATIONS = 10000;
 
 #define SPIN_WHILE(condition)                                                  \
   {                                                                            \
-    bool timed_out = false;                                                    \
-    uv_timer_t* timer = start_timer(&timed_out);                               \
-    while (((condition)) && !timed_out) {                                      \
+    Timeout timeout(&loop);                                                    \
+    while ((condition) && !timeout.timed_out) {                              \
       uv_run(&loop, UV_RUN_NOWAIT);                                            \
     }                                                                          \
     ASSERT_FALSE((condition));                                                 \
-    cleanup_timer(timer);                                                      \
   }
 
 static bool connected = false;
@@ -46,32 +44,36 @@ static const char HANDSHAKE_REQ[] = "GET /ws/path HTTP/1.1\r\n"
                                     "Sec-WebSocket-Key: aaa==\r\n"
                                     "Sec-WebSocket-Version: 13\r\n\r\n";
 
-static void dispose_handle(uv_handle_t* handle) {
-  *static_cast<bool*>(handle->data) = true;
-}
-
-static void set_timeout_flag(uv_timer_t* timer) {
-  *(static_cast<bool*>(timer->data)) = true;
-}
-
-static uv_timer_t* start_timer(bool* flag) {
-  uv_timer_t* timer = new uv_timer_t();
-  uv_timer_init(&loop, timer);
-  timer->data = flag;
-  uv_timer_start(timer, set_timeout_flag, 5000, 0);
-  return timer;
-}
-
-static void cleanup_timer(uv_timer_t* timer) {
-  bool done = false;
-  timer->data = &done;
-  uv_timer_stop(timer);
-  uv_close(reinterpret_cast<uv_handle_t*>(timer), dispose_handle);
-  while (!done) {
-    uv_run(&loop, UV_RUN_NOWAIT);
+class Timeout {
+public:
+  explicit Timeout(uv_loop_t* loop) : timed_out(false), done_(false) {
+    uv_timer_init(loop, &timer_);
+    uv_timer_start(&timer_, Timeout::set_flag, 5000, 0);
   }
-  delete timer;
-}
+
+  ~Timeout() {
+    uv_timer_stop(&timer_);
+    uv_close(reinterpret_cast<uv_handle_t*>(&timer_), mark_done);
+    while (!done_) {
+      uv_run(&loop, UV_RUN_NOWAIT);
+    }
+  }
+  bool timed_out;
+private:
+  static void set_flag(uv_timer_t* timer) {
+    Timeout* t = node::ContainerOf(&Timeout::timer_, timer);
+    t->timed_out = true;
+  }
+
+  static void mark_done(uv_handle_t* timer) {
+    Timeout* t = node::ContainerOf(&Timeout::timer_,
+        reinterpret_cast<uv_timer_t*>(timer));
+    t->done_ = true;
+  }
+
+  bool done_;
+  uv_timer_t timer_;
+};
 
 static void stop_if_stop_path(enum inspector_handshake_event state,
                               const std::string& path, bool* cont) {
