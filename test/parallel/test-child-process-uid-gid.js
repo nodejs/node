@@ -4,7 +4,7 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 if (process.getuid() === 0) {
-  common.skip('as this test should not be run as `root`'); // spawn will not throw
+  common.skip('as this test should not be run as `root`');
   return;
 }
 
