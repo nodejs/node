@@ -103,7 +103,7 @@ rules:
   no-dupe-class-members: 2
   no-new-symbol: 2
   no-this-before-super: 2
-  prefer-const: 2
+  prefer-const: [2, {ignoreReadBeforeAssign: true}]
   rest-spread-spacing: 2
   template-curly-spacing: 2
 
