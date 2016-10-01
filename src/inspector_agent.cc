@@ -88,7 +88,7 @@ void SendHttpResponse(InspectorSocket* socket, const char* response,
   const char HEADERS[] = "HTTP/1.0 200 OK\r\n"
                          "Content-Type: application/json; charset=UTF-8\r\n"
                          "Cache-Control: no-cache\r\n"
-                         "Content-Length: %ld\r\n"
+                         "Content-Length: %zu\r\n"
                          "\r\n";
   char header[sizeof(HEADERS) + 20];
   int header_len = snprintf(header, sizeof(header), HEADERS, len);
@@ -670,7 +670,7 @@ void AgentImpl::OnRemoteDataIO(InspectorSocket* socket,
       uv_sem_post(&start_sem_);
     }
     PostIncomingMessage(str);
-  } else if (read <= 0) {
+  } else {
     // EOF
     if (client_socket_ == socket) {
       String16 message(TAG_DISCONNECT, sizeof(TAG_DISCONNECT) - 1);
