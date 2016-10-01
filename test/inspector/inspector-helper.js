@@ -5,6 +5,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const spawn = require('child_process').spawn;
+const url = require('url');
 
 const DEBUG = false;
 
@@ -349,37 +350,43 @@ Harness.prototype.testHttpResponse = function(path, check) {
   });
 };
 
+Harness.prototype.wsHandshake = function(devtoolsUrl, tests, readyCallback) {
+  http.get({
+    port: this.port,
+    path: url.parse(devtoolsUrl).path,
+    headers: {
+      'Connection': 'Upgrade',
+      'Upgrade': 'websocket',
+      'Sec-WebSocket-Version': 13,
+      'Sec-WebSocket-Key': 'key=='
+    }
+  }).on('upgrade', (message, socket) => {
+    const session = new TestSession(socket, this);
+    if (!(tests instanceof Array))
+      tests = [tests];
+    function enqueue(tests) {
+      session.enqueue((sessionCb) => {
+        if (tests.length) {
+          tests[0](session);
+          session.enqueue((cb2) => {
+            enqueue(tests.slice(1));
+            cb2();
+          });
+        } else {
+          readyCallback();
+        }
+        sessionCb();
+      });
+    }
+    enqueue(tests);
+  }).on('response', () => common.fail('Upgrade was not received'));
+};
+
 Harness.prototype.runFrontendSession = function(tests) {
   return this.enqueue_((callback) => {
-    http.get({
-      port: this.port,
-      path: '/node',
-      headers: {
-        'Connection': 'Upgrade',
-        'Upgrade': 'websocket',
-        'Sec-WebSocket-Version': 13,
-        'Sec-WebSocket-Key': 'key=='
-      }
-    }).on('upgrade', (message, socket) => {
-      const session = new TestSession(socket, this);
-      if (!(tests instanceof Array))
-        tests = [tests];
-      function enqueue(tests) {
-        session.enqueue((sessionCb) => {
-          if (tests.length) {
-            tests[0](session);
-            session.enqueue((cb2) => {
-              enqueue(tests.slice(1));
-              cb2();
-            });
-          } else {
-            callback();
-          }
-          sessionCb();
-        });
-      }
-      enqueue(tests);
-    }).on('response', () => common.fail('Upgrade was not received'));
+    checkHttpResponse(this.port, '/json/list', (response) => {
+      this.wsHandshake(response[0]['webSocketDebuggerUrl'], tests, callback);
+    });
   });
 };
 
