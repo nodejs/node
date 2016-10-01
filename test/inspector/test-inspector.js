@@ -8,8 +8,9 @@ let scopeId;
 function checkListResponse(response) {
   assert.strictEqual(1, response.length);
   assert.ok(response[0]['devtoolsFrontendUrl']);
-  assert.strictEqual('ws://localhost:' + this.port + '/node',
-                     response[0]['webSocketDebuggerUrl']);
+  assert.ok(
+    response[0]['webSocketDebuggerUrl']
+      .match(/ws:\/\/localhost:\d+\/[0-9A-Fa-f]{8}-/));
 }
 
 function expectMainScriptSource(result) {
