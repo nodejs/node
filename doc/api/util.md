@@ -286,13 +286,31 @@ invoke and use the result of when inspecting the object:
 ```js
 const util = require('util');
 
-const obj = { name: 'nate' };
-obj[util.inspect.custom] = function(depth) {
-  return `{${this.name}}`;
-};
+class Box {
+  constructor(value) {
+    this.value = value;
+  }
 
-util.inspect(obj);
-  // "{nate}"
+  inspect(depth, options) {
+    if (depth < 0) {
+      return options.stylize('[Box]', 'special');
+    }
+
+    const newOptions = Object.assign({}, options, {
+      depth: options.depth === null ? null : options.depth - 1
+    });
+
+    // Five space padding because that's the size of "Box< ".
+    const padding = ' '.repeat(5);
+    const inner = util.inspect(this.value, newOptions).replace(/\n/g, '\n' + padding);
+    return options.stylize('Box', 'special') + '< ' + inner + ' >';
+  }
+}
+
+const box = new Box(true);
+
+util.inspect(box);
+  // "Box< true >"
 ```
 
 Custom `[util.inspect.custom](depth, opts)` functions typically return a string
