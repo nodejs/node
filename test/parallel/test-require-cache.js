@@ -30,5 +30,5 @@ var assert = require('assert');
 
   assert.strictEqual(require(relativePath).extraProperty, mod.extraProperty);
   require.cache = {};
-  assert.equal(typeof require(relativePath).extraProperty, 'undefined');
+  assert.strictEqual(require(relativePath).extraProperty, undefined);
 }
