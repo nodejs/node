@@ -22,7 +22,7 @@ file
   .on('open', function(fd) {
     console.error('open!');
     callbacks.open++;
-    assert.equal('number', typeof fd);
+    assert.strictEqual('number', typeof fd);
   })
   .on('error', function(err) {
     throw err;
@@ -30,11 +30,11 @@ file
   .on('drain', function() {
     console.error('drain!', callbacks.drain);
     callbacks.drain++;
-    if (callbacks.drain == -1) {
-      assert.equal(EXPECTED, fs.readFileSync(fn, 'utf8'));
+    if (callbacks.drain === -1) {
+      assert.strictEqual(EXPECTED, fs.readFileSync(fn, 'utf8'));
       file.write(EXPECTED);
-    } else if (callbacks.drain == 0) {
-      assert.equal(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
+    } else if (callbacks.drain === 0) {
+      assert.strictEqual(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
       file.end();
     }
   })
