@@ -44,7 +44,7 @@ The Node.js project maintains multiple types of releases:
   versioned by [SemVer](http://semver.org/) and signed by a member of the
   [Release Team](#release-team).
   Code for Current releases is organized in this repository by major version
-  number, For example, [v4.x](https://github.com/nodejs/node/tree/v4.x).
+  number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
   The major version number of Current releases will increment every 6 months
   allowing for breaking changes to be introduced. This happens in April and
   October every year. Current release lines beginning in October each year have
@@ -73,7 +73,7 @@ Binaries, installers, and source tarballs are available at
 <https://nodejs.org/download/release/>, listed under their version strings.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest LTS release from an LTS
-line is available in the form: latest-_codename_. For example,
+line is available in the form: latest-_codename_. For example:
 <https://nodejs.org/download/release/latest-argon>
 
 **Nightly** builds are available at
