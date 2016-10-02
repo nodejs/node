@@ -9,7 +9,7 @@ source libraries in the world.
 
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies and releases are managed under an
+policies, and releases are managed under an
 [open governance model](./GOVERNANCE.md). We are also bound by a
 [Code of Conduct](./CODE_OF_CONDUCT.md).
 
@@ -44,7 +44,7 @@ The Node.js project maintains multiple types of releases:
   versioned by [SemVer](http://semver.org/) and signed by a member of the
   [Release Team](#release-team).
   Code for Current releases is organized in this repository by major version
-  number, For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
+  number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
   The major version number of Current releases will increment every 6 months
   allowing for breaking changes to be introduced. This happens in April and
   October every year. Current release lines beginning in October each year have
