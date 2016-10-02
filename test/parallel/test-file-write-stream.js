@@ -52,12 +52,12 @@ file
   });
 
 for (let i = 0; i < 11; i++) {
-  file.write('' + i);
+  file.write(`${i}`);
 }
 
 process.on('exit', function() {
   for (const k in callbacks) {
-    assert.equal(0, callbacks[k], k + ' count off by ' + callbacks[k]);
+    assert.equal(0, callbacks[k], `${k} count off by ${callbacks[k]}`);
   }
   console.log('ok');
 });
