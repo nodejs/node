@@ -52,9 +52,7 @@ file
   });
 
 for (let i = 0; i < 11; i++) {
-  (function(i) {
-    file.write('' + i);
-  })(i);
+  file.write('' + i);
 }
 
 process.on('exit', function() {
