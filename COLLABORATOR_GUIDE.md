@@ -291,7 +291,7 @@ being prepared and may be pulled into the LTS branch in a different order
 than they were landed in staging.
 
 Any collaborator may land commits into a staging branch, but only the release
-the team should land commits into the LTS branch while preparing a new
+team should land commits into the LTS branch while preparing a new
 LTS release.
 
 #### How can I help?
