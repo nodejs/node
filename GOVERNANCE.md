@@ -3,7 +3,7 @@
 ## Core Technical Committee
 
 The Node.js project is governed by a Core Technical Committee (CTC) which is
-responsible for high-level guidance of the project.
+responsible for the high-level guidance of the project.
 
 The CTC has final authority over this project including:
 
@@ -26,7 +26,7 @@ CTC on an ongoing basis.
 Individuals making significant and valuable contributions are made
 Collaborators and given commit-access to the project. These
 individuals are identified by the CTC and their addition as
-Collaborators is discussed during the weekly CTC meeting.
+Collaborators are discussed during the weekly CTC meeting.
 
 _Note:_ If you make a significant contribution and are not considered
 for commit-access, log an issue or contact a CTC member directly and it
@@ -125,7 +125,7 @@ The intention of the agenda is not to approve or review all patches.
 That should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
-Any community member or contributor can ask that something be added to
+Any community member or contributor can ask that something is added to
 the next meeting's agenda by logging a GitHub issue. Any Collaborator,
 CTC member or the moderator can add the item to the agenda by adding
 the ***ctc-agenda*** tag to the issue.
