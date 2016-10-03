@@ -2,7 +2,7 @@
 
 Depending on what platform or features you require, the build process may
 differ slightly. After you've successfully built a binary, running the
-test suite to validate that the binary works as intended is a good next step.
+test suite to validate that the binary works as intended are a good next step.
 
 If you consistently can reproduce a test failure, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
@@ -188,7 +188,7 @@ $ ./configure --without-intl
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
-If you are cross compiling, your `pkg-config` must be able to supply a path
+If you are cross-compiling, your `pkg-config` must be able to supply a path
 that works for both your host and target environments.
 
 #### Build with a specific ICU:
@@ -233,7 +233,7 @@ It is possible to build Node.js with
 [OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
 
 **Note**: building in this way does **not** allow you to claim that the
-runtime is FIPS 140-2 validated. Instead you can indicate that the runtime
+runtime is FIPS 140-2 validated. Instead, you can indicate that the runtime
 uses a validated module. See the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
 page 60 for more details. In addition, the validation for the underlying module
 is only valid if it is deployed in accordance with its [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
