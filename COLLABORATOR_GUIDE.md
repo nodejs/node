@@ -57,7 +57,8 @@ Before landing pull requests, sufficient time should be left for input
 from other Collaborators. Leave at least 48 hours during the week and
 72 hours over weekends to account for international time differences
 and work schedules. Trivial changes (e.g. those which fix minor bugs
-or improve performance without affecting API or causing other wide-reaching impacts) may be landed after a shorter delay.
+or improve performance without affecting API or causing other 
+wide-reaching impacts) may be landed after a shorter delay.
 
 For non-breaking changes, if there is no disagreement amongst Collaborators, a
 pull request may be landed given an appropriate review. Where there is a discussion
