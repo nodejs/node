@@ -83,7 +83,7 @@ onboarding session.
         Techniques that provide improved performance today may be unnecessary in
         the future.
     * Be aware: Your opinion carries a lot of weight!
-    * Nits (requests for small changes that are not essential) are fine, but try
+    * Nits (requests for small changes that are not essential) are fine but try
       to avoid stalling the pull request.
       * Note that they are nits when you comment: `Nit: change foo() to bar().`
       * If they are stalling the pull request, fix them yourself on merge.
@@ -108,7 +108,7 @@ onboarding session.
   * what belongs in node:
     * opinions vary, but I find the following helpful:
     * if node itself needs it (due to historic reasons), then it belongs in node
-      * that is to say, url is there because of http, freelist is there because of http, et al
+      * that is to say, URL is there because of HTTP, free list is there because of HTTP, et al
     * also, things that cannot be done outside of core, or only with significant pain (example: async-wrap)
 
 
