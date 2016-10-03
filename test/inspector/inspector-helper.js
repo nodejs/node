@@ -282,6 +282,15 @@ TestSession.prototype.disconnect = function(childDone) {
   });
 };
 
+TestSession.prototype.testHttpResponse = function(path, check) {
+  return this.enqueue((callback) =>
+      checkHttpResponse(this.harness_.port, path, (response) => {
+        check.call(this, response);
+        callback();
+      }));
+};
+
+
 const Harness = function(port, childProcess) {
   this.port = port;
   this.mainScriptPath = mainScript;
