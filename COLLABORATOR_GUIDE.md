@@ -61,7 +61,7 @@ or improve performance without affecting API or causing other
 wide-reaching impacts) may be landed after a shorter delay.
 
 For non-breaking changes, if there is no disagreement amongst Collaborators, a
-pull request may be landed given an appropriate review. Where there is a discussion
+pull request may be landed given appropriate reviews. Where there are discussions
 amongst Collaborators, consensus should be sought if possible. The
 lack of consensus may indicate the need to elevate discussion to the
 CTC for resolution (see below).
