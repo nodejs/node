@@ -4,7 +4,7 @@ This document describes the technical aspects of the Node.js release process. Th
 
 ## Who can make a release?
 
-Release authorization is given by the Node.js TSC. Once authorized, an individual must be have the following:
+Release authorization is given by the Node.js TSC. Once authorized, an individual must have the following:
 
 ### 1. Jenkins Release Access
 
@@ -30,7 +30,7 @@ Release builds require manual promotion by an individual with SSH access to the 
 
 ### 3. A Publicly Listed GPG Key
 
-A SHASUMS256.txt file is produced for every promoted build, nightly, and releases. Additionally for releases, this file is signed by the individual responsible for that release. In order to be able to verify downloaded binaries, the public should be able to check that the SHASUMS256.txt file has been signed by someone who has been authorized to create a release.
+A SHASUMS256.txt file is produced for every promoted build, nightly, and releases. Additionally, for releases, this file is signed by the individual responsible for that release. In order to be able to verify downloaded binaries, the public should be able to check that the SHASUMS256.txt file has been signed by someone who has been authorized to create a release.
 
 The GPG keys should be fetchable from a known third-party keyserver. The SKS Keyservers at <https://sks-keyservers.net> are recommended. Use the [submission](https://sks-keyservers.net/i/#submit) form to submit a new GPG key. Keys should be fetchable via:
 
@@ -59,7 +59,7 @@ For a list of commits that could be landed in a patch release on v5.x
 $ branch-diff v5.x master --exclude-label=semver-major,semver-minor,dont-land-on-v5.x --filter-release --format=simple
 ```
 
-Carefully review the list of commits looking for errors (incorrect `PR-URL`, incorrect semver, etc.). Commits labeled as semver minor or semver major should only be cherry-picked when appropriate for the type of release being made. Previous release commits and version bumps do not need to be cherry-picked.
+Carefully review the list of commits looking for errors (incorrect `PR-URL`, incorrect `semver`, etc.). Commits labeled as semver minor or semver major should only be cherry-picked when appropriate for the type of release being made. Previous release commits and version bumps do not need to be cherry-picked.
 
 ### 2. Update `src/node_version.h`
 
@@ -202,9 +202,9 @@ You can rebuild the release as many times as you need prior to promoting them if
 
 If you have an error on Windows and need to start again, be aware that you'll get immediate failure unless you wait up to 2 minutes for the linker to stop from previous jobs. i.e. if a build fails after having started compiling, that slave will still have a linker process that's running for another couple of minutes which will prevent Jenkins from clearing the workspace to start a new one. This isn't a big deal, it's just a hassle because it'll result in another failed build if you start again!
 
-ARMv7 takes the longest to compile. Unfortunately ccache isn't as effective on release builds, I think it's because of the additional macro settings that go in to a release build that nullify previous builds. Also most of the release build machines are separate to the test build machines so they don't get any benefit from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7 builder to complete and you should normally wait for this to finish. It is possible to rush a release out if you want and add additional builds later but we normally provide ARMv7 from initial promotion.
+ARMv7 takes the longest to compile. Unfortunately, ccache isn't as effective on release builds, I think it's because of the additional macro settings that go into a release build that nullify previous builds. Also, most of the release build machines are separate to the test build machines so they don't get any benefit from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7 builder to complete and you should normally wait for this to finish. It is possible to rush a release out if you want and add additional builds later but we normally provide ARMv7 from the initial promotion.
 
-You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), OS X .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an OS X slave). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
+You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), OS X .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers, and docs (both produced currently by an OS X slave). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
 
 ### 9. Test the Build
 
@@ -228,7 +228,7 @@ Create a tag using the following command:
 $ git secure-tag <vx.y.z> <commit-sha> -sm 'YYYY-MM-DD Node.js vx.y.z (Release Type) Release'
 ```
 
-The tag **must** be signed using the GPG key that's listed for you on the project README.
+The tag **must** be signed using the GPG key that's listed for you in the project README.
 
 Push the tag to the repo before you promote the builds. If you haven't pushed your tag first, then build promotion won't work properly. Push the tag using the following command:
 
@@ -308,7 +308,7 @@ The nodejs.org website will automatically rebuild and include the new version. T
 
 > v5.8.0 of @nodejs is out: https://nodejs.org/en/blog/release/v5.8.0/ … something here about notable changes
 
-To ensure communication goes out with the timing of the blog post, please allow 24 hour prior notice. If known, please include the date and time the release will be shared with the community in the email to coordinate these announcements.
+To ensure communication goes out with the timing of the blog post, please allow 24-hour prior notice. If known, please include the date and time the release will be shared with the community in the email to coordinate these announcements.
 
 ### 16. Cleanup
 
