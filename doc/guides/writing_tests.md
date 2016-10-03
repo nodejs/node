@@ -4,7 +4,7 @@
 
 A test must be a node script that exercises a specific functionality provided
 by node and checks that it behaves as expected. It should return 0 on success,
-otherwise it will fail. A test will fail if:
+otherwise, it will fail. A test will fail if:
 
 - It exits by calling `process.exit(code)` where `code != 0`
 - It exits due to an uncaught exception.
@@ -92,7 +92,7 @@ request. Interesting things to notice:
 
 ### Timers
 
-The use of timers is discouraged, unless timers are being tested. There are
+The use of timers is discouraged unless timers are being tested. There are
 multiple reasons for this. Mainly, they are a source of flakiness. For a thorough
 explanation go [here](https://github.com/nodejs/testing/issues/27).
 
@@ -105,7 +105,7 @@ const timer = setTimeout(fail, common.platformTimeout(4000));
 ```
 
 will create a 4-seconds timeout, except for some platforms where the delay will
-be multiplied for some factor.
+be multiplied by some factor.
 
 ### The *common* API
 
