@@ -152,6 +152,14 @@ function testInspectScope(session) {
   ]);
 }
 
+function testNoUrlsWhenConnected(session) {
+  session.testHttpResponse('/json/list', (response) => {
+    assert.strictEqual(1, response.length);
+    assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'));
+    assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'));
+  });
+}
+
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
   session.sendInspectorCommands({ 'method': 'Debugger.resume'})
@@ -165,6 +173,7 @@ function runTests(harness) {
     .testHttpResponse('/json/list', checkListResponse)
     .testHttpResponse('/json/version', assert.ok)
     .runFrontendSession([
+      testNoUrlsWhenConnected,
       testBreakpointOnStart,
       testSetBreakpointAndResume,
       testInspectScope,

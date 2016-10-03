@@ -20,6 +20,8 @@
 
 #include "libplatform/libplatform.h"
 
+#include <map>
+#include <sstream>
 #include <string.h>
 #include <utility>
 #include <vector>
@@ -53,6 +55,21 @@ void PrintDebuggerReadyMessage(int port, const std::string& id) {
   fflush(stderr);
 }
 
+std::string MapToString(const std::map<std::string, std::string> object) {
+  std::ostringstream json;
+  json << "[ {\n";
+  bool first = true;
+  for (const auto& name_value : object) {
+    if (!first)
+      json << ",\n";
+    json << "  \"" << name_value.first << "\": \"";
+    json << name_value.second << "\"";
+    first = false;
+  }
+  json << "\n} ]";
+  return json.str();
+}
+
 void Escape(std::string* string) {
   for (char& c : *string) {
     c = (c == '\"' || c == '\\') ? '_' : c;
@@ -74,33 +91,23 @@ void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
   buf->len = len;
 }
 
-void SendHttpResponse(InspectorSocket* socket, const char* response,
-                      size_t len) {
+void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
   const char HEADERS[] = "HTTP/1.0 200 OK\r\n"
                          "Content-Type: application/json; charset=UTF-8\r\n"
                          "Cache-Control: no-cache\r\n"
                          "Content-Length: %zu\r\n"
                          "\r\n";
   char header[sizeof(HEADERS) + 20];
-  int header_len = snprintf(header, sizeof(header), HEADERS, len);
+  int header_len = snprintf(header, sizeof(header), HEADERS, response.size());
   inspector_write(socket, header, header_len);
-  inspector_write(socket, response, len);
+  inspector_write(socket, response.data(), response.size());
 }
 
 void SendVersionResponse(InspectorSocket* socket) {
-  const char VERSION_RESPONSE_TEMPLATE[] =
-      "[ {"
-      "  \"Browser\": \"node.js/%s\","
-      "  \"Protocol-Version\": \"1.1\","
-      "  \"User-Agent\": \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-            "(KHTML, like Gecko) Chrome/45.0.2446.0 Safari/537.36\","
-      "  \"WebKit-Version\": \"537.36 (@198122)\""
-      "} ]";
-  char buffer[sizeof(VERSION_RESPONSE_TEMPLATE) + 128];
-  size_t len = snprintf(buffer, sizeof(buffer), VERSION_RESPONSE_TEMPLATE,
-                        NODE_VERSION);
-  ASSERT_LT(len, sizeof(buffer));
-  SendHttpResponse(socket, buffer, len);
+  std::map<std::string, std::string> response;
+  response["Browser"] = "node.js/" NODE_VERSION;
+  response["Protocol-Version"] = "1.1";
+  SendHttpResponse(socket, MapToString(response));
 }
 
 std::string GetProcessTitle() {
@@ -112,47 +119,6 @@ std::string GetProcessTitle() {
   } else {
     return "Node.js";
   }
-}
-
-void SendTargentsListResponse(InspectorSocket* socket,
-                              const std::string& script_name_,
-                              const std::string& script_path_,
-                              const std::string& id,
-                              const std::string& ws_url) {
-  const char LIST_RESPONSE_TEMPLATE[] =
-      "[ {"
-      "  \"description\": \"node.js instance\","
-      "  \"devtoolsFrontendUrl\": "
-            "\"https://chrome-devtools-frontend.appspot.com/serve_file/"
-            "@" V8_INSPECTOR_REVISION
-            "/inspector.html?experiments=true&v8only=true"
-            "&ws=%s\","
-      "  \"faviconUrl\": \"https://nodejs.org/static/favicon.ico\","
-      "  \"id\": \"%s\","
-      "  \"title\": \"%s\","
-      "  \"type\": \"node\","
-      "  \"url\": \"%s\","
-      "  \"webSocketDebuggerUrl\": \"ws://%s\""
-      "} ]";
-  std::string title = script_name_.empty() ? GetProcessTitle() : script_name_;
-
-  // This attribute value is a "best effort" URL that is passed as a JSON
-  // string. It is not guaranteed to resolve to a valid resource.
-  std::string url = "file://" + script_path_;
-
-  Escape(&title);
-  Escape(&url);
-
-  int buf_len = sizeof(LIST_RESPONSE_TEMPLATE) + ws_url.length() * 2 +
-                id.length() + title.length() + url.length();
-  std::string buffer(buf_len, '\0');
-
-  int len = snprintf(&buffer[0], buf_len, LIST_RESPONSE_TEMPLATE,
-                     ws_url.c_str(), id.c_str(), title.c_str(), url.c_str(),
-                     ws_url.c_str());
-  buffer.resize(len);
-  ASSERT_LT(len, buf_len);  // Buffer should be big enough!
-  SendHttpResponse(socket, buffer.data(), len);
 }
 
 void SendProtocolJson(InspectorSocket* socket) {
@@ -167,13 +133,13 @@ void SendProtocolJson(InspectorSocket* socket) {
       PROTOCOL_JSON[2];
   strm.next_in = const_cast<uint8_t*>(PROTOCOL_JSON + 3);
   strm.avail_in = sizeof(PROTOCOL_JSON) - 3;
-  std::vector<char> data(kDecompressedSize);
+  std::string data(kDecompressedSize, '\0');
   strm.next_out = reinterpret_cast<Byte*>(&data[0]);
   strm.avail_out = data.size();
   CHECK_EQ(Z_STREAM_END, inflate(&strm, Z_FINISH));
   CHECK_EQ(0, strm.avail_out);
   CHECK_EQ(Z_OK, inflateEnd(&strm));
-  SendHttpResponse(socket, &data[0], data.size());
+  SendHttpResponse(socket, data);
 }
 
 const char* match_path_segment(const char* path, const char* expected) {
@@ -205,6 +171,12 @@ std::string GenerateID() {
   return uuid;
 }
 
+// std::to_string is not available on Smart OS and ARM flavours
+const std::string to_string(uint64_t number) {
+  std::ostringstream result;
+  result << number;
+  return result.str();
+}
 }  // namespace
 
 
@@ -253,8 +225,9 @@ class AgentImpl {
   void PostIncomingMessage(const String16& message);
   void WaitForFrontendMessage();
   void NotifyMessageReceived();
-  bool RespondToGet(InspectorSocket* socket, const std::string& path);
   State ToState(State state);
+  void SendTargentsListResponse(InspectorSocket* socket);
+  bool RespondToGet(InspectorSocket* socket, const std::string& path);
 
   uv_sem_t start_sem_;
   ConditionVariable incoming_message_cond_;
@@ -673,14 +646,41 @@ void AgentImpl::OnRemoteDataIO(InspectorSocket* socket,
   }
 }
 
+void AgentImpl::SendTargentsListResponse(InspectorSocket* socket) {
+  std::map<std::string, std::string> response;
+  response["description"] = "node.js instance";
+  response["faviconUrl"] = "https://nodejs.org/static/favicon.ico";
+  response["id"] = id_;
+  response["title"] = script_name_.empty() ? GetProcessTitle() : script_name_;
+  Escape(&response["title"]);
+  response["type"] = "node";
+  // This attribute value is a "best effort" URL that is passed as a JSON
+  // string. It is not guaranteed to resolve to a valid resource.
+  response["url"] = "file://" + script_path_;
+  Escape(&response["url"]);
+
+  if (!client_socket_) {
+    std::string address = GetWsUrl(port_, id_);
+
+    std::ostringstream frontend_url;
+    frontend_url << "https://chrome-devtools-frontend.appspot.com/serve_file/@";
+    frontend_url << V8_INSPECTOR_REVISION;
+    frontend_url << "/inspector.html?experiments=true&v8only=true&ws=";
+    frontend_url << address;
+
+    response["devtoolsFrontendUrl"] += frontend_url.str();
+    response["webSocketDebuggerUrl"] = "ws://" + address;
+  }
+  SendHttpResponse(socket, MapToString(response));
+}
+
 bool AgentImpl::RespondToGet(InspectorSocket* socket, const std::string& path) {
   const char* command = match_path_segment(path.c_str(), "/json");
   if (command == nullptr)
     return false;
 
   if (match_path_segment(command, "list") || command[0] == '\0') {
-    SendTargentsListResponse(socket, script_name_, script_path_, id_,
-                             GetWsUrl(port_, id_));
+    SendTargentsListResponse(socket);
   } else if (match_path_segment(command, "protocol")) {
     SendProtocolJson(socket);
   } else if (match_path_segment(command, "version")) {
@@ -689,8 +689,7 @@ bool AgentImpl::RespondToGet(InspectorSocket* socket, const std::string& path) {
     const char* pid = match_path_segment(command, "activate");
     if (pid != id_)
       return false;
-    const char TARGET_ACTIVATED[] = "Target activated";
-    SendHttpResponse(socket, TARGET_ACTIVATED, sizeof(TARGET_ACTIVATED) - 1);
+    SendHttpResponse(socket, "Target activated");
   }
   return true;
 }
