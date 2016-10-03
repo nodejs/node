@@ -76,8 +76,8 @@ Please use these when possible / appropriate
 ### Other Labels
 
 * Operating system labels
-  * `os x`, `windows`, `solaris`
-  * No linux, linux is the implied default
+  * `OS X`, `Windows`, `Solaris`
+  * No Linux, Linux is the implied default
 * Architecture labels
   * `arm`, `mips`
   * No x86{_64}, since that is the implied default
@@ -101,7 +101,7 @@ to update from nodejs/node:
 
 * if `git am` fails – use `git am --abort`
   * this usually means the PR needs updated
-  * prefer to make the originating user update the code, since they have it fresh in mind
+  * prefer to make the originating user update the code since they have it fresh in mind
 * first, reattempt with `git am -3` (3-way merge)`
 * if `-3` still fails, and you need to get it merged:
   * `git fetch upstream pull/N/head:pr-N && git checkout pr-N && git rebase master`
@@ -109,7 +109,7 @@ to update from nodejs/node:
 
 ## best practices
 
-* commit often, out to your github fork (origin), open a PR
+* commit often, out to your GitHub fork (origin), open a PR
 * when making PRs make sure to spend time on the description:
-  * every moment you spend writing a good description quarters the amount of time it takes to understand your code.
+  * every moment you spend writing good description quarters the amount of time it takes to understand your code.
 * usually prefer to only squash at the *end* of your work, depends on the change
