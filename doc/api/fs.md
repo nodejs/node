@@ -1519,24 +1519,12 @@ information.
 
 In case of an error, the `err.code` will be one of [Common System Errors][].
 
-For example:
+Using `fs.stat()` to check for the existence of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended.
+Instead, user code should open/read/write the file directly and handle the
+error raised if the file is not available.
 
-**check for file existence**
-
-```js
-fs.stat('myfile', (err, stats) => {
-  if (err) {
-    if (err.code === 'ENOENT') {
-      console.error('myfile does not exist.');
-      return;
-    } else {
-      throw err;
-    }
-  } else {
-    // work with the file
-  }
-});
-```
+To check if a file exists without manipulating it afterwards, [`fs.access()`] is recommended.
 
 ## fs.statSync(path)
 <!-- YAML
