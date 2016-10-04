@@ -67,7 +67,7 @@ Request can also `pipe` to itself. When doing so, `content-type` and `content-le
 request.get('http://google.com/img.png').pipe(request.put('http://mysite.com/img.png'))
 ```
 
-Request emits a "response" event when a response is received. The `response` argument will be an instance of [http.IncomingMessage](http://nodejs.org/api/http.html#http_http_incomingmessage).
+Request emits a "response" event when a response is received. The `response` argument will be an instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 
 ```js
 request
@@ -601,7 +601,6 @@ var options = {
     key: fs.readFileSync(keyFile),
     passphrase: 'password',
     ca: fs.readFileSync(caFile)
-    }
 };
 
 request.get(options);
@@ -819,7 +818,7 @@ default in Linux can be anywhere from 20-120 seconds][linux-timeout]).
 The callback argument gets 3 arguments:
 
 1. An `error` when applicable (usually from [`http.ClientRequest`](http://nodejs.org/api/http.html#http_class_http_clientrequest) object)
-2. An [`http.IncomingMessage`](http://nodejs.org/api/http.html#http_http_incomingmessage) object
+2. An [`http.IncomingMessage`](https://nodejs.org/api/http.html#http_class_http_incomingmessage) object
 3. The third is the `response` body (`String` or `Buffer`, or JSON object if the `json` option is supplied)
 
 [back to top](#table-of-contents)

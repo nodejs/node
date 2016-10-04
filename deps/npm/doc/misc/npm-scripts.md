@@ -20,9 +20,9 @@ following scripts:
 * postuninstall:
   Run AFTER the package is uninstalled.
 * preversion, version:
-  Run BEFORE bump the package version.
+  Run BEFORE bumping the package version.
 * postversion:
-  Run AFTER bump the package version.
+  Run AFTER bumping the package version.
 * pretest, test, posttest:
   Run by the `npm test` command.
 * prestop, stop, poststop:
