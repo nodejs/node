@@ -1,6 +1,10 @@
 # Changes
 
 
+## v1.2.11
+
+* Prevent changelog script from being included in package
+
 ## v1.2.10
 
 * Use env.PATH only, not env.Path

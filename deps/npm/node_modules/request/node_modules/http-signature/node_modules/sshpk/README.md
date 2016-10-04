@@ -401,6 +401,206 @@ Parameters
 
 Same as `this.toBuffer(format).toString('base64')`.
 
+## Certificates
+
+`sshpk` includes basic support for parsing certificates in X.509 (PEM) format
+and the OpenSSH certificate format. This feature is intended to be used mainly
+to access basic metadata about certificates, extract public keys from them, and
+also to generate simple self-signed certificates from an existing key.
+
+Notably, there is no implementation of CA chain-of-trust verification, and no
+support for key usage restrictions (or other kinds of restrictions). Please do
+the security world a favour, and DO NOT use this code for certificate
+verification in the traditional X.509 CA chain style.
+
+### `parseCertificate(data, format)`
+
+Parameters
+
+ - `data` -- a Buffer or String
+ - `format` -- a String, format to use, one of `'openssh'`, `'pem'` (X.509 in a
+               PEM wrapper), or `'x509'` (raw DER encoded)
+
+### `createSelfSignedCertificate(subject, privateKey[, options])`
+
+Parameters
+
+ - `subject` -- an Identity, the subject of the certificate
+ - `privateKey` -- a PrivateKey, the key of the subject: will be used both to be
+                   placed in the certificate and also to sign it (since this is
+                   a self-signed certificate)
+ - `options` -- optional Object, with keys:
+   - `lifetime` -- optional Number, lifetime of the certificate from now in
+                   seconds
+   - `validFrom`, `validUntil` -- optional Dates, beginning and end of
+                                  certificate validity period. If given
+                                  `lifetime` will be ignored
+   - `serial` -- optional Buffer, the serial number of the certificate
+
+### `createCertificate(subject, key, issuer, issuerKey[, options])`
+
+Parameters
+
+ - `subject` -- an Identity, the subject of the certificate
+ - `key` -- a Key, the public key of the subject
+ - `issuer` -- an Identity, the issuer of the certificate who will sign it
+ - `issuerKey` -- a PrivateKey, the issuer's private key for signing
+ - `options` -- optional Object, with keys:
+   - `lifetime` -- optional Number, lifetime of the certificate from now in
+                   seconds
+   - `validFrom`, `validUntil` -- optional Dates, beginning and end of
+                                  certificate validity period. If given
+                                  `lifetime` will be ignored
+   - `serial` -- optional Buffer, the serial number of the certificate
+
+### `Certificate#subjects`
+
+Array of `Identity` instances describing the subject of this certificate.
+
+### `Certificate#issuer`
+
+The `Identity` of the Certificate's issuer (signer).
+
+### `Certificate#subjectKey`
+
+The public key of the subject of the certificate, as a `Key` instance.
+
+### `Certificate#issuerKey`
+
+The public key of the signing issuer of this certificate, as a `Key` instance.
+May be `undefined` if the issuer's key is unknown (e.g. on an X509 certificate).
+
+### `Certificate#serial`
+
+The serial number of the certificate. As this is normally a 64-bit or wider
+integer, it is returned as a Buffer.
+
+### `Certificate#isExpired([when])`
+
+Tests whether the Certificate is currently expired (i.e. the `validFrom` and
+`validUntil` dates specify a range of time that does not include the current
+time).
+
+Parameters
+
+ - `when` -- optional Date, if specified, tests whether the Certificate was or
+             will be expired at the specified time instead of now
+
+Returns a Boolean.
+
+### `Certificate#isSignedByKey(key)`
+
+Tests whether the Certificate was validly signed by the given (public) Key.
+
+Parameters
+
+ - `key` -- a Key instance
+
+Returns a Boolean.
+
+### `Certificate#isSignedBy(certificate)`
+
+Tests whether this Certificate was validly signed by the subject of the given
+certificate. Also tests that the issuer Identity of this Certificate and the
+subject Identity of the other Certificate are equivalent.
+
+Parameters
+
+ - `certificate` -- another Certificate instance
+
+Returns a Boolean.
+
+### `Certificate#fingerprint([hashAlgo])`
+
+Returns the X509-style fingerprint of the entire certificate (as a Fingerprint
+instance). This matches what a web-browser or similar would display as the
+certificate fingerprint and should not be confused with the fingerprint of the
+subject's public key.
+
+Parameters
+
+ - `hashAlgo` -- an optional String, any hash function name
+
+### `Certificate#toBuffer([format])`
+
+Serializes the Certificate to a Buffer and returns it.
+
+Parameters
+
+ - `format` -- an optional String, output format, one of `'openssh'`, `'pem'` or
+               `'x509'`. Defaults to `'x509'`.
+
+Returns a Buffer.
+
+### `Certificate#toString([format])`
+
+ - `format` -- an optional String, output format, one of `'openssh'`, `'pem'` or
+               `'x509'`. Defaults to `'pem'`.
+
+Returns a String.
+
+## Certificate identities
+
+### `identityForHost(hostname)`
+
+Constructs a host-type Identity for a given hostname.
+
+Parameters
+
+ - `hostname` -- the fully qualified DNS name of the host
+
+Returns an Identity instance.
+
+### `identityForUser(uid)`
+
+Constructs a user-type Identity for a given UID.
+
+Parameters
+
+ - `uid` -- a String, user identifier (login name)
+
+Returns an Identity instance.
+
+### `identityForEmail(email)`
+
+Constructs an email-type Identity for a given email address.
+
+Parameters
+
+ - `email` -- a String, email address
+
+Returns an Identity instance.
+
+### `identityFromDN(dn)`
+
+Parses an LDAP-style DN string (e.g. `'CN=foo, C=US'`) and turns it into an
+Identity instance.
+
+Parameters
+
+ - `dn` -- a String
+
+Returns an Identity instance.
+
+### `Identity#toString()`
+
+Returns the identity as an LDAP-style DN string.
+e.g. `'CN=foo, O=bar corp, C=us'`
+
+### `Identity#type`
+
+The type of identity. One of `'host'`, `'user'`, `'email'` or `'unknown'`
+
+### `Identity#hostname`
+### `Identity#uid`
+### `Identity#email`
+
+Set when `type` is `'host'`, `'user'`, or `'email'`, respectively. Strings.
+
+### `Identity#cn`
+
+The value of the first `CN=` in the DN, if any.
+
 Errors
 ------
 
@@ -433,8 +633,8 @@ The key data given could not be parsed as a valid key.
 
 Properties
 
-- `keyName` -- `filename` that was given to `Key#parse`
-- `format` -- the `format` that was trying to parse the key
+- `keyName` -- `filename` that was given to `parseKey`
+- `format` -- the `format` that was trying to parse the key (see `parseKey`)
 - `innerErr` -- the inner Error thrown by the format parser
 
 ### `KeyEncryptedError`
@@ -444,9 +644,20 @@ parsing operation would succeed if it was given the `passphrase` option.
 
 Properties
 
-- `keyName` -- `filename` that was given to `Key#parse`
+- `keyName` -- `filename` that was given to `parseKey`
 - `format` -- the `format` that was trying to parse the key (currently can only
               be `"pem"`)
+
+### `CertificateParseError`
+
+The certificate data given could not be parsed as a valid certificate.
+
+Properties
+
+- `certName` -- `filename` that was given to `parseCertificate`
+- `format` -- the `format` that was trying to parse the key
+              (see `parseCertificate`)
+- `innerErr` -- the inner Error thrown by the format parser
 
 Friends of sshpk
 ----------------

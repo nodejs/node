@@ -1,0 +1,77 @@
+{
+  "name": "lodash.tostring",
+  "version": "4.1.4",
+  "description": "The lodash method `_.toString` exported as a module.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "keywords": [
+    "lodash-modularized",
+    "tostring"
+  ],
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine.bublitz@gmail.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "_id": "lodash.tostring@4.1.4",
+  "_shasum": "560c27d1f8eadde03c2cce198fef5c031d8298fb",
+  "_from": "lodash.tostring@4.1.4",
+  "_npmVersion": "2.15.9",
+  "_nodeVersion": "4.2.4",
+  "_npmUser": {
+    "name": "jdalton",
+    "email": "john.david.dalton@gmail.com"
+  },
+  "dist": {
+    "shasum": "560c27d1f8eadde03c2cce198fef5c031d8298fb",
+    "tarball": "https://registry.npmjs.org/lodash.tostring/-/lodash.tostring-4.1.4.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "jdalton",
+      "email": "john.david.dalton@gmail.com"
+    },
+    {
+      "name": "mathias",
+      "email": "mathias@qiwi.be"
+    },
+    {
+      "name": "phated",
+      "email": "blaine.bublitz@gmail.com"
+    }
+  ],
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/lodash.tostring-4.1.4.tgz_1469458352677_0.677248232299462"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/lodash.tostring/-/lodash.tostring-4.1.4.tgz"
+}

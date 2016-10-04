@@ -33,6 +33,10 @@ exports.timeouts = function(options) {
     timeouts.push(this.createTimeout(i, opts));
   }
 
+  if (options && options.forever && !timeouts.length) {
+    timeouts.push(this.createTimeout(i, opts));
+  }
+
   // sort the array numerically ascending
   timeouts.sort(function(a,b) {
     return a - b;

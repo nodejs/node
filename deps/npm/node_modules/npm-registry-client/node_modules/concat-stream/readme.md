@@ -89,6 +89,8 @@ By default `concat-stream` will give you back the same data type as the type of 
 
 If you don't specify an encoding, and the types can't be inferred (e.g. you write things that aren't in the list above), it will try to convert concat them into a `Buffer`.
 
+If nothing is written to `writable` then `data` will be an empty array `[]`.
+
 # error handling
 
 `concat-stream` does not handle errors for you, so you must handle errors on whatever streams you pipe into `concat-stream`. This is a general rule when programming with node.js streams: always handle errors on each and every stream. Since `concat-stream` is not itself a stream it does not emit errors.
