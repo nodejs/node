@@ -153,8 +153,9 @@ function putNext (registry, newVersion, root, current, auth, cb) {
       case 'dist-tags':
       case 'versions':
       case '_attachments':
-        for (var j in root[i])
+        for (var j in root[i]) {
           current[i][j] = root[i][j]
+        }
         break
 
       // ignore these
