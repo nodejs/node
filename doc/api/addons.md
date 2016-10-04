@@ -138,8 +138,7 @@ Once built, the binary Addon can be used from within Node.js by pointing
 
 ```js
 // hello.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 console.log(addon.hello()); // 'world'
 ```
@@ -317,8 +316,7 @@ Once compiled, the example Addon can be required and used from within Node.js:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 console.log('This should be eight:', addon.add(3, 5));
 ```
@@ -371,8 +369,7 @@ To test it, run the following JavaScript:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 addon((msg) => {
   console.log(msg); // 'hello world'
@@ -422,8 +419,7 @@ To test it in JavaScript:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 var obj1 = addon('hello');
 var obj2 = addon('world');
@@ -481,8 +477,7 @@ To test:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 var fn = addon();
 console.log(fn()); // 'hello world'
@@ -644,8 +639,7 @@ Test it with:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 var obj = new addon.MyObject(10);
 console.log(obj.plusOne()); // 11
@@ -837,8 +831,7 @@ Test it with:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const createObject = require(`./build/${buildType}/addon`);
+const createObject = require('./build/Release/addon');
 
 var obj = createObject(10);
 console.log(obj.plusOne()); // 11
@@ -1014,8 +1007,7 @@ Test it with:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 
 var obj1 = addon.createObject(10);
 var obj2 = addon.createObject(20);
@@ -1099,8 +1091,7 @@ Test in JavaScript by running:
 
 ```js
 // test.js
-const buildType = process.config.target_defaults.default_configuration;
-const addon = require(`./build/${buildType}/addon`);
+const addon = require('./build/Release/addon');
 ```
 
 [bindings]: https://github.com/TooTallNate/node-bindings
