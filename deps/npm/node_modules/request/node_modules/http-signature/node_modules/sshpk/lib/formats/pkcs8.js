@@ -42,10 +42,12 @@ function readPkcs8(alg, type, der) {
 	}
 
 	der.readSequence();
+	var next = der.offset + der.length;
 
 	var oid = der.readOID();
 	switch (oid) {
 	case '1.2.840.113549.1.1.1':
+		der._offset = next;
 		if (type === 'public')
 			return (readPkcs8RSAPublic(der));
 		else
@@ -66,10 +68,6 @@ function readPkcs8(alg, type, der) {
 }
 
 function readPkcs8RSAPublic(der) {
-	// Null -- XXX this probably isn't good practice
-	der.readByte();
-	der.readByte();
-
 	// bit string sequence
 	der.readSequence(asn1.Ber.BitString);
 	der.readByte();
@@ -93,9 +91,6 @@ function readPkcs8RSAPublic(der) {
 }
 
 function readPkcs8RSAPrivate(der) {
-	der.readByte();
-	der.readByte();
-
 	der.readSequence(asn1.Ber.OctetString);
 	der.readSequence();
 

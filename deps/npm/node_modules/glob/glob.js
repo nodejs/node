@@ -100,6 +100,10 @@ glob.hasMagic = function (pattern, options_) {
 
   var g = new Glob(pattern, options)
   var set = g.minimatch.set
+
+  if (!pattern)
+    return false
+
   if (set.length > 1)
     return true
 

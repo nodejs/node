@@ -249,6 +249,10 @@ would be the same as this:
     , "version": "1.2.5"
     , "bin" : { "my-program" : "./path/to/program" } }
 
+Please make sure that your file(s) referenced in `bin` starts with
+`#!/usr/bin/env node`, otherwise the scripts are started without the node
+executable!
+
 ## man
 
 Specify either a single file or an array of filenames to put in place for the

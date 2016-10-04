@@ -68,9 +68,6 @@ var LOOSE_COOKIE_PAIR = /^((?:=)?([^=;]*)\s*=\s*)?([^\n\r\0]*)/;
 // Note ';' is \x3B
 var PATH_VALUE = /[\x20-\x3A\x3C-\x7E]+/;
 
-// Used for checking whether or not there is a trailing semi-colon
-var TRAILING_SEMICOLON = /;+$/;
-
 var DAY_OF_MONTH = /^(\d{1,2})[^\d]*$/;
 var TIME = /^(\d{1,2})[^\d]*:(\d{1,2})[^\d]*:(\d{1,2})[^\d]*$/;
 var MONTH = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i;
@@ -327,12 +324,6 @@ function parse(str, options) {
   }
   str = str.trim();
 
-  // S4.1.1 Trailing semi-colons are not part of the specification.
-  var semiColonCheck = TRAILING_SEMICOLON.exec(str);
-  if (semiColonCheck) {
-    str = str.slice(0, semiColonCheck.index);
-  }
-
   // We use a regex to parse the "name-value-pair" part of S5.2
   var firstSemi = str.indexOf(';'); // S5.2 step 1
   var pairRe = options.loose ? LOOSE_COOKIE_PAIR : COOKIE_PAIR;
@@ -362,7 +353,7 @@ function parse(str, options) {
   // S5.2.3 "unparsed-attributes consist of the remainder of the set-cookie-string
   // (including the %x3B (";") in question)." plus later on in the same section
   // "discard the first ";" and trim".
-  var unparsed = str.slice(firstSemi).replace(/^\s*;\s*/,'').trim();
+  var unparsed = str.slice(firstSemi + 1).trim();
 
   // "If the unparsed-attributes string is empty, skip the rest of these
   // steps."
@@ -378,9 +369,12 @@ function parse(str, options) {
    * cookie-attribute-list".  Therefore, in this implementation, we overwrite
    * the previous value.
    */
-  var cookie_avs = unparsed.split(/\s*;\s*/);
+  var cookie_avs = unparsed.split(';');
   while (cookie_avs.length) {
-    var av = cookie_avs.shift();
+    var av = cookie_avs.shift().trim();
+    if (av.length === 0) { // happens if ";;" appears
+      continue;
+    }
     var av_sep = av.indexOf('=');
     var av_key, av_value;
 
