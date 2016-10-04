@@ -65,4 +65,3 @@ function test(clazz, cb) {
 test(net.Stream, function() {
   test(net.Socket);
 });
-

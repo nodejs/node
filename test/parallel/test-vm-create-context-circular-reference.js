@@ -11,4 +11,3 @@ sbx = vm.createContext(sbx);
 sbx.test = 123;
 
 assert.equal(sbx.window.window.window.window.window.test, 123);
-
