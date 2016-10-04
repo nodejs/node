@@ -130,4 +130,3 @@ function nextTest() {
 process.on('exit', function() {
   assert.equal(4, testsComplete);
 });
-

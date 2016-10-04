@@ -10,4 +10,3 @@ var child = spawn(process.execPath, ['-e', 'require("foo")'], options);
 child.on('exit', function(code) {
   assert.equal(code, 0);
 });
-
