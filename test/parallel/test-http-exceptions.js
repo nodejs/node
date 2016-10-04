@@ -22,4 +22,3 @@ process.on('uncaughtException', function(err) {
   if (err.name === 'AssertionError') throw err;
   if (++exception_count === 4) process.exit(0);
 });
-
