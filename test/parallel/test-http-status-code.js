@@ -44,4 +44,3 @@ function nextTest() {
 process.on('exit', function() {
   assert.equal(5, testsComplete);
 });
-

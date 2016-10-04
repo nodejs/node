@@ -17,4 +17,3 @@ child.on('exit', function(code, signal) {
   assert.equal(code, 0);
   assert.equal(output, 'hello, world!\n');
 });
-

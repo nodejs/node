@@ -33,4 +33,3 @@ process.on('__proto__', common.mustCall(function(val) {
   assert.strictEqual(val, 1);
 }));
 process.emit('__proto__', 1);
-
