@@ -19,4 +19,3 @@ process.on('beforeExit', common.mustCall(function onBeforeExit() {
 d.run(function() {
   throw new Error('boom');
 });
-
