@@ -171,6 +171,7 @@ after packing it up into a tarball (b).
     to the environment when running git:
 
     * `GIT_ASKPASS`
+    * `GIT_EXEC_PATH`
     * `GIT_PROXY_COMMAND`
     * `GIT_SSH`
     * `GIT_SSH_COMMAND`

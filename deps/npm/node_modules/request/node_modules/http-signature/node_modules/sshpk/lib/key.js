@@ -117,6 +117,7 @@ Key.prototype.fingerprint = function (algo) {
 		algo = 'sha256';
 	assert.string(algo, 'algorithm');
 	var opts = {
+		type: 'key',
 		hash: this.hash(algo),
 		algorithm: algo
 	};
