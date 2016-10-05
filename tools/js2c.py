@@ -255,6 +255,9 @@ def JS2C(source, target):
     else:
       id = s
 
+    if id.endswith('node.1'):
+      id = id.replace('node.1', 'manual')
+
     if '.' in id:
       id = id.split('.', 1)[0]
 
