@@ -120,7 +120,7 @@ It is also possible to set a breakpoint in a file (module) that
 isn't loaded yet:
 
 ```txt
-$ ./node debug test/fixtures/break-in-module/main.js
+$ node debug test/fixtures/break-in-module/main.js
 < debugger listening on port 5858
 connecting to port 5858... ok
 break in test/fixtures/break-in-module/main.js:1
