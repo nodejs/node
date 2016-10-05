@@ -1,0 +1,24 @@
+// Copyright 2016 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef {{"_".join(config.protocol.namespace)}}_FrontendChannel_h
+#define {{"_".join(config.protocol.namespace)}}_FrontendChannel_h
+
+{% for namespace in config.protocol.namespace %}
+namespace {{namespace}} {
+{% endfor %}
+
+class {{config.lib.export_macro}} FrontendChannel {
+public:
+    virtual ~FrontendChannel() { }
+    virtual void sendProtocolResponse(int callId, const String& message) = 0;
+    virtual void sendProtocolNotification(const String& message) = 0;
+    virtual void flushProtocolNotifications() = 0;
+};
+
+{% for namespace in config.protocol.namespace %}
+} // namespace {{namespace}}
+{% endfor %}
+
+#endif // !defined({{"_".join(config.protocol.namespace)}}_FrontendChannel_h)

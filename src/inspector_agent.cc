@@ -7,21 +7,17 @@
 #include "node_crypto.h"
 #include "node_mutex.h"
 #include "node_version.h"
+#include "v8-inspector.h"
 #include "v8-platform.h"
 #include "util.h"
 #include "zlib.h"
-
-#include "platform/v8_inspector/public/InspectorVersion.h"
-#include "platform/v8_inspector/public/V8Inspector.h"
-#include "platform/v8_inspector/public/V8InspectorClient.h"
-#include "platform/v8_inspector/public/V8InspectorSession.h"
-#include "platform/v8_inspector/public/V8StackTrace.h"
-#include "platform/inspector_protocol/InspectorProtocol.h"
 
 #include "libplatform/libplatform.h"
 
 #include <map>
 #include <sstream>
+#include <unicode/unistr.h>
+
 #include <string.h>
 #include <utility>
 #include <vector>
@@ -30,6 +26,9 @@
 namespace node {
 namespace inspector {
 namespace {
+
+using v8_inspector::StringBuffer;
+using v8_inspector::StringView;
 
 const char TAG_CONNECT[] = "#connect";
 const char TAG_DISCONNECT[] = "#disconnect";
@@ -48,10 +47,9 @@ void PrintDebuggerReadyMessage(int port, const std::string& id) {
   fprintf(stderr, "Debugger listening on port %d.\n"
     "Warning: This is an experimental feature and could change at any time.\n"
     "To start debugging, open the following URL in Chrome:\n"
-    "    chrome-devtools://devtools/remote/serve_file/"
-    "@" V8_INSPECTOR_REVISION "/inspector.html?"
+    "    chrome-devtools://devtools/bundled/inspector.html?"
     "experiments=true&v8only=true&ws=%s\n",
-      port, GetWsUrl(port, id).c_str());
+    port, GetWsUrl(port, id).c_str());
   fflush(stderr);
 }
 
@@ -170,8 +168,40 @@ std::string GenerateID() {
            buffer[7]);
   return uuid;
 }
-}  // namespace
 
+std::string StringViewToUtf8(const StringView& view) {
+  if (view.is8Bit()) {
+    return std::string(reinterpret_cast<const char*>(view.characters8()),
+                       view.length());
+  }
+  const uint16_t* source = view.characters16();
+  const UChar* unicodeSource = reinterpret_cast<const UChar*>(source);
+  static_assert(sizeof(*source) == sizeof(*unicodeSource),
+                "sizeof(*source) == sizeof(*unicodeSource)");
+
+  size_t result_length = view.length() * sizeof(*source);
+  std::string result(result_length, '\0');
+  UnicodeString utf16(unicodeSource, view.length());
+  // ICU components for std::string compatibility are not enabled in build...
+  bool done = false;
+  while (!done) {
+    CheckedArrayByteSink sink(&result[0], result_length);
+    utf16.toUTF8(sink);
+    result_length = sink.NumberOfBytesAppended();
+    result.resize(result_length);
+    done = !sink.Overflowed();
+  }
+  return result;
+}
+
+std::unique_ptr<StringBuffer> Utf8ToStringView(const char* source,
+                                               size_t length) {
+  UnicodeString utf16 = UnicodeString::fromUTF8(StringPiece(source, length));
+  StringView view(reinterpret_cast<const uint16_t*>(utf16.getBuffer()),
+                  utf16.length());
+  return StringBuffer::create(view);
+}
+}  // namespace
 
 class V8NodeInspector;
 
@@ -193,7 +223,8 @@ class AgentImpl {
                       v8::Local<v8::Message> message);
 
  private:
-  using MessageQueue = std::vector<std::pair<int, String16>>;
+  using MessageQueue =
+      std::vector<std::pair<int, std::unique_ptr<StringBuffer>>>;
   enum class State { kNew, kAccepting, kConnected, kDone, kError };
 
   static void ThreadCbIO(void* agent);
@@ -211,11 +242,11 @@ class AgentImpl {
                       const uv_buf_t* b);
   void SetConnected(bool connected);
   void DispatchMessages();
-  void Write(int session_id, const String16& message);
+  void Write(int session_id, const StringView& message);
   bool AppendMessage(MessageQueue* vector, int session_id,
-                     const String16& message);
+                     std::unique_ptr<StringBuffer> buffer);
   void SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2);
-  void PostIncomingMessage(const String16& message);
+  void PostIncomingMessage(const char* message, size_t len);
   void WaitForFrontendMessage();
   void NotifyMessageReceived();
   State ToState(State state);
@@ -279,22 +310,22 @@ class DispatchOnInspectorBackendTask : public v8::Task {
   AgentImpl* agent_;
 };
 
-class ChannelImpl final : public blink::protocol::FrontendChannel {
+class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
  public:
   explicit ChannelImpl(AgentImpl* agent): agent_(agent) {}
   virtual ~ChannelImpl() {}
  private:
-  void sendProtocolResponse(int callId, const String16& message) override {
+  void sendProtocolResponse(int callId, const StringView& message) override {
     sendMessageToFrontend(message);
   }
 
-  void sendProtocolNotification(const String16& message) override {
+  void sendProtocolNotification(const StringView& message) override {
     sendMessageToFrontend(message);
   }
 
   void flushProtocolNotifications() override { }
 
-  void sendMessageToFrontend(const String16& message) {
+  void sendMessageToFrontend(const StringView& message) {
     agent_->Write(agent_->frontend_session_id_, message);
   }
 
@@ -316,8 +347,10 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
                     terminated_(false),
                     running_nested_loop_(false),
                     inspector_(V8Inspector::create(env->isolate(), this)) {
-    inspector_->contextCreated(
-        v8_inspector::V8ContextInfo(env->context(), 1, "NodeJS Main Context"));
+    const uint8_t CONTEXT_NAME[] = "Node.js Main Context";
+    StringView context_name(CONTEXT_NAME, sizeof(CONTEXT_NAME) - 1);
+    v8_inspector::V8ContextInfo info(env->context(), 1, context_name);
+    inspector_->contextCreated(info);
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -343,14 +376,14 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
   }
 
   void connectFrontend() {
-    session_ = inspector_->connect(1, new ChannelImpl(agent_), nullptr);
+    session_ = inspector_->connect(1, new ChannelImpl(agent_), StringView());
   }
 
   void disconnectFrontend() {
     session_.reset();
   }
 
-  void dispatchMessageFromFrontend(const String16& message) {
+  void dispatchMessageFromFrontend(const StringView& message) {
     CHECK(session_);
     session_->dispatchProtocolMessage(message);
   }
@@ -530,15 +563,16 @@ void AgentImpl::InstallInspectorOnProcess() {
   env->SetMethod(inspector, "wrapConsoleCall", InspectorWrapConsoleCall);
 }
 
-String16 ToProtocolString(v8::Local<v8::Value> value) {
+std::unique_ptr<StringBuffer> ToProtocolString(v8::Local<v8::Value> value) {
   if (value.IsEmpty() || value->IsNull() || value->IsUndefined() ||
       !value->IsString()) {
-    return String16();
+    return StringBuffer::create(StringView());
   }
   v8::Local<v8::String> string_value = v8::Local<v8::String>::Cast(value);
-  std::basic_string<uint16_t> buffer(string_value->Length(), '\0');
-  string_value->Write(&buffer[0], 0, string_value->Length());
-  return String16(buffer);
+  size_t len = string_value->Length();
+  std::basic_string<uint16_t> buffer(len, '\0');
+  string_value->Write(&buffer[0], 0, len);
+  return StringBuffer::create(StringView(buffer.data(), len));
 }
 
 void AgentImpl::FatalException(v8::Local<v8::Value> error,
@@ -549,23 +583,26 @@ void AgentImpl::FatalException(v8::Local<v8::Value> error,
   v8::Local<v8::Context> context = env->context();
 
   int script_id = message->GetScriptOrigin().ScriptID()->Value();
-  std::unique_ptr<v8_inspector::V8StackTrace> stack_trace =
-      inspector_->inspector()->createStackTrace(message->GetStackTrace());
 
-  if (stack_trace && !stack_trace->isEmpty() &&
-      String16::fromInteger(script_id) == stack_trace->topScriptId()) {
+  v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
+
+  if (!stack_trace.IsEmpty() &&
+      stack_trace->GetFrameCount() > 0 &&
+      script_id == stack_trace->GetFrame(0)->GetScriptId()) {
     script_id = 0;
   }
 
+  const uint8_t DETAILS[] = "Uncaught";
+
   inspector_->inspector()->exceptionThrown(
       context,
-      "Uncaught",
+      StringView(DETAILS, sizeof(DETAILS) - 1),
       error,
-      ToProtocolString(message->Get()),
-      ToProtocolString(message->GetScriptResourceName()),
+      ToProtocolString(message->Get())->string(),
+      ToProtocolString(message->GetScriptResourceName())->string(),
       message->GetLineNumber(context).FromMaybe(0),
       message->GetStartColumn(context).FromMaybe(0),
-      std::move(stack_trace),
+      inspector_->inspector()->createStackTrace(stack_trace),
       script_id);
   WaitForDisconnect();
 }
@@ -614,23 +651,24 @@ void AgentImpl::OnRemoteDataIO(InspectorSocket* socket,
                                ssize_t read,
                                const uv_buf_t* buf) {
   if (read > 0) {
-    String16 str = String16::fromUTF8(buf->base, read);
     // TODO(pfeldman): Instead of blocking execution while debugger
     // engages, node should wait for the run callback from the remote client
     // and initiate its startup. This is a change to node.cc that should be
     // upstreamed separately.
-    if (wait_&& str.find("\"Runtime.runIfWaitingForDebugger\"")
-        != std::string::npos) {
-      wait_ = false;
-      uv_sem_post(&start_sem_);
+    if (wait_) {
+      std::string message(buf->base, read);
+      if (message.find("\"Runtime.runIfWaitingForDebugger\"") !=
+          std::string::npos) {
+        wait_ = false;
+        uv_sem_post(&start_sem_);
+      }
     }
-    PostIncomingMessage(str);
+    PostIncomingMessage(buf->base, read);
   } else {
     // EOF
     if (client_socket_ == socket) {
-      String16 message(TAG_DISCONNECT, sizeof(TAG_DISCONNECT) - 1);
       client_socket_ = nullptr;
-      PostIncomingMessage(message);
+      PostIncomingMessage(TAG_DISCONNECT, sizeof(TAG_DISCONNECT) - 1);
     }
     DisconnectAndDisposeIO(socket);
   }
@@ -656,8 +694,7 @@ void AgentImpl::SendTargentsListResponse(InspectorSocket* socket) {
     std::string address = GetWsUrl(port_, id_);
 
     std::ostringstream frontend_url;
-    frontend_url << "https://chrome-devtools-frontend.appspot.com/serve_file/@";
-    frontend_url << V8_INSPECTOR_REVISION;
+    frontend_url << "chrome-devtools://devtools/bundled";
     frontend_url << "/inspector.html?experiments=true&v8only=true&ws=";
     frontend_url << address;
 
@@ -699,8 +736,9 @@ void AgentImpl::WriteCbIO(uv_async_t* async) {
     agent->SwapBehindLock(&agent->outgoing_message_queue_, &outgoing_messages);
     for (const MessageQueue::value_type& outgoing : outgoing_messages) {
       if (outgoing.first == agent->frontend_session_id_) {
-        std::string message = outgoing.second.utf8();
-        inspector_write(socket, message.c_str(), message.length());
+        StringView message = outgoing.second->string();
+        std::string utf8Message = StringViewToUtf8(message);
+        inspector_write(socket, utf8Message.c_str(), utf8Message.length());
       }
     }
   }
@@ -752,10 +790,10 @@ void AgentImpl::WorkerRunIO() {
 }
 
 bool AgentImpl::AppendMessage(MessageQueue* queue, int session_id,
-                              const String16& message) {
+                              std::unique_ptr<StringBuffer> buffer) {
   Mutex::ScopedLock scoped_lock(state_lock_);
   bool trigger_pumping = queue->empty();
-  queue->push_back(std::make_pair(session_id, message));
+  queue->push_back(std::make_pair(session_id, std::move(buffer)));
   return trigger_pumping;
 }
 
@@ -764,8 +802,9 @@ void AgentImpl::SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2) {
   vector1->swap(*vector2);
 }
 
-void AgentImpl::PostIncomingMessage(const String16& message) {
-  if (AppendMessage(&incoming_message_queue_, frontend_session_id_, message)) {
+void AgentImpl::PostIncomingMessage(const char* message, size_t len) {
+  if (AppendMessage(&incoming_message_queue_, frontend_session_id_,
+                    Utf8ToStringView(message, len))) {
     v8::Isolate* isolate = parent_env_->isolate();
     platform_->CallOnForegroundThread(isolate,
                                       new DispatchOnInspectorBackendTask(this));
@@ -794,7 +833,7 @@ void AgentImpl::OnInspectorConnectionIO(InspectorSocket* socket) {
   client_socket_ = socket;
   inspector_read_start(socket, OnBufferAlloc, DataCallback);
   frontend_session_id_++;
-  PostIncomingMessage(String16(TAG_CONNECT, sizeof(TAG_CONNECT) - 1));
+  PostIncomingMessage(TAG_CONNECT, sizeof(TAG_CONNECT) - 1);
 }
 
 void AgentImpl::DispatchMessages() {
@@ -810,14 +849,20 @@ void AgentImpl::DispatchMessages() {
     tasks.clear();
     SwapBehindLock(&incoming_message_queue_, &tasks);
     for (const MessageQueue::value_type& pair : tasks) {
-      const String16& message = pair.second;
-      if (message == TAG_CONNECT) {
+      StringView message = pair.second->string();
+      std::string tag;
+      if (message.length() == sizeof(TAG_CONNECT) - 1 ||
+          message.length() == sizeof(TAG_DISCONNECT) - 1) {
+        tag = StringViewToUtf8(message);
+      }
+
+      if (tag == TAG_CONNECT) {
         CHECK_EQ(State::kAccepting, state_);
         backend_session_id_++;
         state_ = State::kConnected;
         fprintf(stderr, "Debugger attached.\n");
         inspector_->connectFrontend();
-      } else if (message == TAG_DISCONNECT) {
+      } else if (tag == TAG_DISCONNECT) {
         CHECK_EQ(State::kConnected, state_);
         if (shutting_down_) {
           state_ = State::kDone;
@@ -836,8 +881,9 @@ void AgentImpl::DispatchMessages() {
   dispatching_messages_ = false;
 }
 
-void AgentImpl::Write(int session_id, const String16& message) {
-  AppendMessage(&outgoing_message_queue_, session_id, message);
+void AgentImpl::Write(int session_id, const StringView& inspector_message) {
+  AppendMessage(&outgoing_message_queue_, session_id,
+                StringBuffer::create(inspector_message));
   int err = uv_async_send(&io_thread_req_);
   CHECK_EQ(0, err);
 }
