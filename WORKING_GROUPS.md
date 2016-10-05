@@ -7,14 +7,14 @@ Working Groups can be formed at any time but must be ratified by the CTC.
 Once formed the work defined in the Working Group charter is the
 responsibility of the WG rather than the CTC.
 
-It is important that Working Groups are not formed pre-maturely. Working
+It is important that Working Groups are not formed prematurely. Working
 Groups are not formed to *begin* a set of tasks but instead are formed
 once that work is already underway and the contributors
 think it would benefit from being done as an autonomous project.
 
 If the work defined in a Working Group charter is completed the Working
 Group should be dissolved and the responsibility for governance absorbed
-back in to the CTC.
+back into the CTC.
 
 ## Current Working Groups
 
@@ -56,7 +56,7 @@ The Streams WG is dedicated to the support and improvement of the Streams API
 as used in Node.js and the npm ecosystem. We seek to create a composable API that
 solves the problem of representing multiple occurrences of an event over time
 in a humane, low-overhead fashion. Improvements to the API will be driven by
-the needs of the ecosystem; interoperability and backwards compatibility with
+the needs of the ecosystem; interoperability and backward compatibility with
 other solutions and prior versions are paramount in importance. Our
 responsibilities include:
 
@@ -99,7 +99,7 @@ The i18n working groups handle more than just translations. They
 are endpoints for community members to collaborate with each
 other in their language of choice.
 
-Each team is organized around a common spoken language. Each
+Each team is organized around a commonly spoken language. Each
 language community might then produce multiple localizations for
 various project resources.
 

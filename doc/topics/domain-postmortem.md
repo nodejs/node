@@ -89,8 +89,8 @@ d.run(() => {
 ```
 
 It may be expected that nested domains always remain nested, and will always
-propagate the exception up the domain stack. Or that exceptions will never
-automatically bubble. Unfortunately both these situations occur, leading to
+propagate the exception up the domain stack. Or that exception will never
+automatically bubble. Unfortunately, both these situations occur, leading to
 potentially confusing behavior that may even be prone to difficult to debug
 timing conflicts.
 
@@ -109,7 +109,7 @@ leverage the implicit mechanisms already in place.
 
 Propagating errors across nested domains is not straight forward, if even
 possible. Existing documentation shows a simple example of how to `close()` an
-`http` server if there is an error in the request handler. What it does not
+`HTTP` server if there is an error in the request handler. What it does not
 explain is how to close the server if the request handler creates another
 domain instance for another async request. Using the following as a simple
 example of the failing of error propagation:
@@ -145,7 +145,7 @@ contains `d2`.
 This may be considered a failing of the API, but even if it did operate in this
 way there is still the issue of transmitting the fact that a branch in the
 asynchronous execution has failed, and that all further operations in that
-branch must cease. In the example of the http request handler, if we fire off
+branch must cease. In the example of the HTTP request handler, if we fire off
 several asynchronous requests and each one then `write()`'s data back to the
 client many more errors will arise from attempting to `write()` to a closed
 handle. More on this in _Resource Cleanup on Exception_.
@@ -182,7 +182,7 @@ Attempting proper resource cleanup on unexpected exception becomes more complex
 as the application itself grows in complexity. This example only has 3 basic
 resources in play, and all of them with a clear dependency path. If an
 application uses something like shared resources or resource reuse the ability
-to cleanup, and properly test that cleanup has been done, grows greatly.
+to cleanup and properly test that cleanup has been done, grows greatly.
 
 In the end, in terms of handling errors, domains aren't much more than a
 glorified `'uncaughtException'` handler. Except with more implicit and
@@ -198,7 +198,7 @@ the async stack works with other modules). Also the conflict between being
 able to depend on a domain for error handling while also having it available to
 retrieve the necessary data.
 
-The following is a involved example demonstrating the failing using domains to
+The following is an involved example demonstrating the failing using domains to
 propagate data along asynchronous stacks:
 
 ```js
@@ -267,10 +267,10 @@ adhere to a set of guidelines that would be difficult to enforce or test.
 ## Performance Issues
 
 A significant deterrent from using domains is the overhead. Using node's
-built-in http benchmark, `http_simple.js`, without domains it can handle over
+built-in HTTP benchmark, `http_simple.js`, without domains it can handle over
 22,000 requests/second. Whereas if it's run with `NODE_USE_DOMAINS=1` that
-number drops down to under 17,000 requests/second. In this case there is only
-a single global domain. If we edit the benchmark so the http request callback
+number drops down to under 17,000 requests/second. In this case, there is only
+a single global domain. If we edit the benchmark so the HTTP request callback
 creates a new domain instance performance drops further to 15,000
 requests/second.
 
@@ -291,9 +291,9 @@ mechanism such as domain to be as cheap to run as possible.
 
 ## Looking Ahead
 
-The domain module has been soft deprecated since Dec 2014, but has not yet been
+The domain module has been soft deprecated since Dec 2014 but has not yet been
 removed because node offers no alternative functionality at the moment. As of
-this writing there is ongoing work building out the `AsyncWrap` API and a
+this writing, there is ongoing work building out the `AsyncWrap` API and a
 proposal for Zones being prepared for the TC39. At such time there is suitable
 functionality to replace domains it will undergo the full deprecation cycle and
 eventually be removed from core.

@@ -11,7 +11,7 @@
  - [Long Term Support](#long-term-support)
 
 This document contains information for Collaborators of the Node.js
-project regarding maintaining the code, documentation and issues.
+project regarding maintaining the code, documentation, and issues.
 
 Collaborators should be familiar with the guidelines for new
 contributors in [CONTRIBUTING.md](./CONTRIBUTING.md) and also
@@ -57,11 +57,11 @@ Before landing pull requests, sufficient time should be left for input
 from other Collaborators. Leave at least 48 hours during the week and
 72 hours over weekends to account for international time differences
 and work schedules. Trivial changes (e.g. those which fix minor bugs
-or improve performance without affecting API or causing other
-wide-reaching impact) may be landed after a shorter delay.
+or improve performance without affecting API or causing other 
+wide-reaching impacts) may be landed after a shorter delay.
 
 For non-breaking changes, if there is no disagreement amongst Collaborators, a
-pull request may be landed given appropriate review. Where there is discussion
+pull request may be landed given appropriate reviews. Where there are discussions
 amongst Collaborators, consensus should be sought if possible. The
 lack of consensus may indicate the need to elevate discussion to the
 CTC for resolution (see below).
@@ -75,7 +75,7 @@ CTC members or objections from one or more Collaborators, `semver-major` pull
 requests should be put on the CTC meeting agenda.
 
 All bugfixes require a test case which demonstrates the defect. The
-test should *fail* before the change, and *pass* after the change.
+test should *fail* before the change and *pass* after the change.
 
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
@@ -184,7 +184,7 @@ pick 7d6f433 test for feature B
 #
 # Commands:
 #  p, pick = use commit
-#  r, reword = use commit, but edit the commit message
+#  r, reword = use commit but edit the commit message
 #  e, edit = use commit, but stop for amending
 #  s, squash = use commit, but meld into previous commit
 #  f, fixup = like "squash", but discard this commit's log message
@@ -204,7 +204,7 @@ previous commit:
 
 ```text
 pick 6928fc1 crypto: add feature A
-fixup 8120c4c add test for feature A
+fixup 8120c4c add a test for feature A
 pick 51759dc feature B
 fixup 7d6f433 test for feature B
 ```
@@ -213,7 +213,7 @@ Replace `pick` with `reword` to change the commit message:
 
 ```text
 reword 6928fc1 crypto: add feature A
-fixup 8120c4c add test for feature A
+fixup 8120c4c add the test for feature A
 reword 51759dc feature B
 fixup 7d6f433 test for feature B
 ```
@@ -237,7 +237,7 @@ you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typos in commit
 messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
-pushes to the branch or the 10 minute period passes, consider the
+pushes to the branch or the 10-minute period passes, consider the
 commit final.
 
 ### Long Term Support
@@ -245,7 +245,7 @@ commit final.
 #### What is LTS?
 
 Long Term Support (often referred to as *LTS*) guarantees application developers
-a 30 month support cycle with specific versions of Node.js.
+a 30-month support cycle with specific versions of Node.js.
 
 You can find more information [in the full LTS plan](https://github.com/nodejs/lts#lts-plan).
 
@@ -260,7 +260,7 @@ Committee (CTC) review. Semver-major changes are permitted only if required for
 security related fixes.
 
 Once a stable branch moves into Maintenance mode, only **critical** bugs,
-**critical** security fixes, and documentation updates will be permitted.
+**critical** security fixes and documentation updates will be permitted.
 
 #### Landing semver-minor commits in LTS
 

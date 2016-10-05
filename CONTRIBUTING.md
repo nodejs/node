@@ -16,7 +16,7 @@ For general help using Node.js, please file an issue at the
 [Node.js help repository](https://github.com/nodejs/help/issues).
 
 Discussion of non-technical topics including subjects like intellectual
-property, trademark and high level project questions should move to the
+property, trademark and high-level project questions should move to the
 [Technical Steering Committee (TSC)](https://github.com/nodejs/TSC/issues)
 instead.
 
@@ -24,7 +24,7 @@ instead.
 
 The Node.js project has an open governance model and welcomes new contributors.
 Individuals making significant and valuable contributions are made
-_Collaborators_ and given commit-access to the project. See the
+_Collaborators_ and given commit access to the project. See the
 [GOVERNANCE.md](./GOVERNANCE.md) document for more information about how this
 works.
 
@@ -69,7 +69,7 @@ Especially do so if you plan to work on something big. Nothing is more
 frustrating than seeing your hard work go to waste because your vision
 does not align with the project team. Node.js has two IRC channels,
 [#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and questions, and
-[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of node core specifically.
+[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for the development of node core specifically.
 
 
 ### Step 2: Branch
@@ -94,7 +94,7 @@ changed and why. Follow these guidelines when writing one:
 
 1. The first line should be 50 characters or less and contain a short
    description of the change. All words in the description should be in
-   lowercase with the exception of proper nouns, acronyms, and the ones that
+   lower case with the exception of proper nouns, acronyms, and the ones that
    refer to code, like function/variable names. The description should
    be prefixed with the name of the changed subsystem and start with an
    imperative verb, for example, "net: add localAddress and localPort
@@ -196,7 +196,7 @@ Click the 'Pull Request' button and fill out the form.
 
 Pull requests are usually reviewed within a few days. If there are comments
 to address, apply your changes in a separate commit and push that to your
-branch. Post a comment in the pull request afterwards; GitHub does
+branch. Post a comment in the pull request afterward; GitHub does
 not send out notifications when you add commits.
 
 <a id="developers-certificate-of-origin"></a>

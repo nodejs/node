@@ -3,10 +3,10 @@
 ## Conduct
 
 * We are committed to providing a friendly, safe and welcoming
-  environment for all, regardless of level of experience, gender
+  environment for all, regardless of the level of experience, gender
   identity and expression, sexual orientation, disability,
   personal appearance, body size, race, ethnicity, age, religion,
-  nationality, or other similar characteristic.
+  nationality, or other similar characteristics.
 * Please avoid using overtly sexual nicknames or other nicknames that
   might detract from a friendly, safe and welcoming environment for
   all.

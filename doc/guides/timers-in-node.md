@@ -6,17 +6,16 @@ layout: docs.hbs
 # Timers in Node.js and beyond
 
 The Timers module in Node.js contains functions that execute code after a set
-period of time. Timers do not need to be imported via `require()`, since
+period of time. Timers do not need to be imported via `require()` since
 all the methods are available globally to emulate the browser JavaScript API.
 To fully understand when timer functions will be executed, it's a good idea to
-read up on the the Node.js
+read up on the Node.js
 [Event Loop](../topics/event-loop-timers-and-nexttick).
 
 ## Controlling the Time Continuum with Node.js
 
 The Node.js API provides several ways of scheduling code to execute at
-some point after the present moment. The functions below may seem familiar,
-since they are available in most browsers, but Node.js actually provides
+some point after the present moment. The functions below may seem familiar since they are available in most browsers, but Node.js actually provides
 its own implementation of these methods. Timers integrate very closely
 with the system, and despite the fact that the API mirrors the browser
 API, there are some differences in implementation.
@@ -26,7 +25,7 @@ API, there are some differences in implementation.
 `setTimeout()` can be used to schedule code execution after a designated
 amount of milliseconds. This function is similar to
 [`window.setTimeout()`](https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setTimeout)
-from the browser JavaScript API, however a string of code cannot be passed
+from the browser JavaScript API, however, a string of code cannot be passed
 to be executed.
 
 `setTimeout()` accepts a function to execute as its first argument and the

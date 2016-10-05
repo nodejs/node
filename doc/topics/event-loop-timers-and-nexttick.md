@@ -9,7 +9,7 @@ offloading operations to the system kernel whenever possible.
 Since most modern kernels are multi-threaded, they can handle multiple
 operations executing in the background. When one of these operations
 completes, the kernel tells Node.js so that the appropriate callback
-may added to the **poll** queue to eventually be executed. We'll explain
+may add to the **poll** queue to eventually be executed. We'll explain
 this in further detail later in this topic.
 
 ## Event Loop Explained
@@ -56,7 +56,7 @@ loop will move to the next phase, and so on.
 Since any of these operations may schedule _more_ operations and new
 events processed in the **poll** phase are queued by the kernel, poll
 events can be queued while polling events are being processed. As a
-result, long running callbacks can allow the poll phase to run much
+result, long-running callbacks can allow the poll phase to run much
 longer than a timer's threshold. See the [**timers**](#timers) and
 [**poll**](#poll) sections for more details.
 
@@ -151,7 +151,7 @@ more events.
 ### I/O callbacks
 
 This phase executes callbacks for some system operations such as types
-of TCP errors. For example if a TCP socket receives `ECONNREFUSED` when
+of TCP errors. For example, if a TCP socket receives `ECONNREFUSED` when
 attempting to connect, some \*nix systems want to wait to report the
 error. This will be queued to execute in the **I/O callbacks** phase.
 
@@ -190,7 +190,7 @@ those timers' callbacks.
 This phase allows a person to execute callbacks immediately after the
 **poll** phase has completed. If the **poll** phase becomes idle and
 scripts have been queued with `setImmediate()`, the event loop may
-continue to the **check** phase rather than waiting.
+continue to the **check** phase rather than wait.
 
 `setImmediate()` is actually a special timer that runs in a separate
 phase of the event loop. It uses a libuv API that schedules callbacks to
@@ -205,7 +205,7 @@ and the **poll** phase becomes idle, it will end and continue to the
 ### close callbacks
 
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
-`'close'` event will be emitted in this phase. Otherwise it will be
+`'close'` event will be emitted in this phase. Otherwise, it will be
 emitted via `process.nextTick()`.
 
 ## `setImmediate()` vs `setTimeout()`
@@ -350,7 +350,7 @@ but it actually operates synchronously. When it is called, the callback
 provided to `someAsyncApiCall()` is called in the same phase of the
 event loop because `someAsyncApiCall()` doesn't actually do anything
 asynchronously. As a result, the callback tries to reference `bar` even
-though it may not have that variable in scope yet, because the script has not
+though it may not have that variable in scope yet because the script has not
 been able to run to completion.
 
 By placing the callback in a `process.nextTick()`, the script still has the
@@ -412,7 +412,7 @@ wider variety of environments, like browser JS.)*
 
 There are two main reasons:
 
-1. Allow users to handle errors, cleanup any then unneeded resources, or
+1. Allow users to handle errors, clean up any then unneeded resources, or
 perhaps try the request again before the event loop continues.
 
 2. At times it's necessary to allow a callback to run after the call
