@@ -9,23 +9,19 @@ const net = require('net');
 // and the last 10 connections are rejected.
 
 const N = 20;
-var count = 0;
 var closes = 0;
 const waits = [];
 
-const server = net.createServer(function(connection) {
-  console.error('connect %d', count++);
+const server = net.createServer(common.mustCall(function(connection) {
   connection.write('hello');
   waits.push(function() { connection.end(); });
-});
+}, N / 2));
 
 server.listen(0, function() {
   makeConnection(0);
 });
 
 server.maxConnections = N / 2;
-
-console.error('server.maxConnections = %d', server.maxConnections);
 
 
 function makeConnection(index) {
