@@ -2199,7 +2199,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[inode]: http://www.linux.org/threads/intro-to-inodes.4130
+[inode]: https://en.wikipedia.org/wiki/Inode
 [FS Constants]: #fs_fs_constants
 [`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
