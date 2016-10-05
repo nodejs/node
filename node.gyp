@@ -314,8 +314,6 @@
         [ 'v8_inspector=="true"', {
           'defines': [
             'HAVE_INSPECTOR=1',
-            'V8_INSPECTOR_USE_STL=1',
-            'V8_INSPECTOR_USE_OLD_STL=1',
           ],
           'sources': [
             'src/inspector_agent.cc',
@@ -324,13 +322,13 @@
             'src/inspector_agent.h',
           ],
           'dependencies': [
-            'deps/v8_inspector/third_party/v8_inspector/platform/'
-                'v8_inspector/v8_inspector.gyp:v8_inspector_stl',
+            'deps/v8_inspector/src/inspector/inspector.gyp:standalone_inspector',
             'v8_inspector_compress_protocol_json#host',
           ],
           'include_dirs': [
-            'deps/v8_inspector/third_party/v8_inspector',
-            '<(SHARED_INTERMEDIATE_DIR)/blink', # for inspector
+            'deps/v8_inspector/include',
+            '<(SHARED_INTERMEDIATE_DIR)/include', # for inspector
+            '<(SHARED_INTERMEDIATE_DIR)',
           ],
         }, {
           'defines': [ 'HAVE_INSPECTOR=0' ]
@@ -666,8 +664,7 @@
               'action_name': 'v8_inspector_compress_protocol_json',
               'process_outputs_as_sources': 1,
               'inputs': [
-                'deps/v8_inspector/third_party/'
-                    'v8_inspector/platform/v8_inspector/js_protocol.json',
+                'deps/v8_inspector/src/inspector/js_protocol.json',
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/v8_inspector_protocol_json.h',

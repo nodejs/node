@@ -173,6 +173,26 @@ function testNoUrlsWhenConnected(session) {
   });
 }
 
+function testI18NCharacters(session) {
+  console.log('[test]', 'Verify sending and receiving UTF8 characters');
+  const chars = 'טֶ字и';
+  session.sendInspectorCommands([
+    {
+      'method': 'Debugger.evaluateOnCallFrame', 'params': {
+        'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+        'expression': 'console.log("' + chars + '")',
+        'objectGroup': 'console',
+        'includeCommandLineAPI': true,
+        'silent': false,
+        'returnByValue': false,
+        'generatePreview': true
+      }
+    }
+  ]).expectMessages([
+    setupExpectConsoleOutput('log', [chars]),
+  ]);
+}
+
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
   session.sendInspectorCommands({ 'method': 'Debugger.resume'})
@@ -193,6 +213,7 @@ function runTests(harness) {
       testBreakpointOnStart,
       testSetBreakpointAndResume,
       testInspectScope,
+      testI18NCharacters,
       testWaitsForFrontendDisconnect
     ]).expectShutDown(55);
 }
