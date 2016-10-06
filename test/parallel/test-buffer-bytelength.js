@@ -7,10 +7,14 @@ const SlowBuffer = require('buffer').SlowBuffer;
 const vm = require('vm');
 
 // coerce values to string
-assert.strictEqual(Buffer.byteLength(32, 'latin1'), 2);
-assert.strictEqual(Buffer.byteLength(NaN, 'utf8'), 3);
-assert.strictEqual(Buffer.byteLength({}, 'latin1'), 15);
-assert.strictEqual(Buffer.byteLength(), 9);
+assert.throws(() => { Buffer.byteLength(32, 'latin1'); },
+              '"string" must be a string, Buffer, or ArrayBuffer');
+assert.throws(() => { Buffer.byteLength(NaN, 'utf8'); },
+              '"string" must be a string, Buffer, or ArrayBuffer');
+assert.throws(() => { Buffer.byteLength({}, 'latin1'); },
+              '"string" must be a string, Buffer, or ArrayBuffer');
+assert.throws(() => { Buffer.byteLength(); },
+              '"string" must be a string, Buffer, or ArrayBuffer');
 
 assert(ArrayBuffer.isView(new Buffer(10)));
 assert(ArrayBuffer.isView(new SlowBuffer(10)));
