@@ -49,14 +49,19 @@ var server = net.createServer(function(s) {
     server.close();
   }));
 
-  send();
-  send(function(err) {
-    // Ignore errors when sending the second handle because the worker
-    // may already have exited.
-    if (err) {
-      if (err.code !== 'ECONNREFUSED') {
-        throw err;
-      }
-    }
+  worker.on('online', function() {
+    send(function(err) {
+      assert.ifError(err);
+      send(function(err) {
+        // Ignore errors when sending the second handle because the worker
+        // may already have exited.
+        if (err) {
+          if ((err.message !== 'channel closed') &&
+             (err.code !== 'ECONNREFUSED')) {
+            throw err;
+          }
+        }
+      });
+    });
   });
 });
