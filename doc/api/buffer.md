@@ -631,8 +631,6 @@ console.log(`${str}: ${str.length} characters, ` +
 When `string` is a `Buffer`/[`DataView`]/[`TypedArray`]/[`ArrayBuffer`], the
 actual byte length is returned.
 
-Otherwise, converts to `String` and returns the byte length of string.
-
 ### Class Method: Buffer.compare(buf1, buf2)
 <!-- YAML
 added: v0.11.13
