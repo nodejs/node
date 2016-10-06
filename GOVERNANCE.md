@@ -23,14 +23,11 @@ The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
 maintained by the CTC and additional Collaborators who are added by the
 CTC on an ongoing basis.
 
-Individuals making significant and valuable contributions are made
-Collaborators and given commit-access to the project. These
-individuals are identified by the CTC and their addition as
-Collaborators is discussed during the weekly CTC meeting.
+Individuals identified by the CTC as making significant and valuable
+contributions are made Collaborators and given commit access to the project.
 
 _Note:_ If you make a significant contribution and are not considered
-for commit-access, log an issue or contact a CTC member directly and it
-will be brought up in the next CTC meeting.
+for commit access, log an issue or contact a CTC member directly.
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
@@ -44,11 +41,9 @@ participate and there is disagreement around a particular
 modification. See [Consensus Seeking Process](#consensus-seeking-process) below
 for further detail on the consensus model used for governance.
 
-Collaborators may opt to elevate significant or controversial
-modifications, or modifications that have not found consensus to the
-CTC for discussion by assigning the ***ctc-agenda*** tag to a pull
-request or issue. The CTC should serve as the final arbiter where
-required.
+Collaborators may opt to elevate significant or controversial modifications to
+the CTC by assigning the ***ctc-agenda*** tag to a pull request or issue. The
+CTC should serve as the final arbiter where required.
 
 For the current list of Collaborators, see the project
 [README.md](./README.md#current-project-team-members).
@@ -127,7 +122,7 @@ group of Collaborators.
 
 Any community member or contributor can ask that something be added to
 the next meeting's agenda by logging a GitHub issue. Any Collaborator,
-CTC member or the moderator can add the item to the agenda by adding
+CTC member, or the moderator can add the item to the agenda by adding
 the ***ctc-agenda*** tag to the issue.
 
 Prior to each CTC meeting, the moderator will share the agenda with
@@ -140,6 +135,20 @@ participate in a non-voting capacity.
 
 The moderator is responsible for summarizing the discussion of each agenda item
 and sending it as a pull request after the meeting.
+
+Due to the challenges of scheduling a global meeting with participants in
+several timezones, the CTC will seek to resolve as many agenda items as possible
+outside of meetings using
+[the CTC issue tracker](https://github.com/nodejs/CTC/issues). The process in
+the issue tracker is:
+
+* A CTC member opens an issue explaining the proposal/issue and @-mentions
+  @nodejs/ctc.
+* After 72 hours, if there are two or more `LGTM`s from other CTC members and no
+  explicit opposition from other CTC members, then the proposal is approved.
+* If there are any CTC members objecting, then a conversation ensues until
+  either the proposal is dropped or the objecting members are persuaded. If
+  there is an extended impasse, a motion for a vote may be made.
 
 ## Consensus Seeking Process
 
