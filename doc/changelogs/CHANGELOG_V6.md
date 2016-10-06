@@ -2,10 +2,14 @@
 
 <table>
 <tr>
+<th>LTS 'Boron'</th>
 <th title="Previously called 'Stable'">Current</th>
 </tr>
 <tr>
-<td>
+<td valign="top">
+<a href="#6.9.0">6.9.0</a><br/>
+</td>
+<td valign="top">
 <a href="#6.8.1">6.8.1</a><br/>
 <a href="#6.8.0">6.8.0</a><br/>
 <a href="#6.7.0">6.7.0</a><br/>
@@ -31,9 +35,33 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** The v6 release line will be covered by the
-[Node.js Long Term Support plan](https://github.com/nodejs/LTS) starting in
-October 2016.
+**Note:** Node.js v6 is covered by the
+[Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
+will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.9.0"></a>
+## 2016-10-18, Version 6.9.0 'Boron' (LTS), @rvagg
+
+This release marks the transition of Node.js v6 into Long Term Support (LTS) with the codename 'Boron'. The v6 release line now moves in to "Active LTS" and will remain so until April 2018. After that time it will move in to "Maintenance" until end of life in April 2019.
+
+This is also a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes
+
+* **crypto**: Don't automatically attempt to load an OpenSSL configuration file, from the `OPENSSL_CONF` environment variable or from the default location for the current platform. Always triggering a configuration file load attempt may allow an attacker to load compromised OpenSSL configuration into a Node.js process if they are able to place a file in a default location. (Fedor Indutny, Rod Vagg)
+* **node**: Introduce the `process.release.lts` property, set to `"Boron"`. This value is `"Argon"` for v4 LTS releases and `undefined` for all other releases. (Rod Vagg)
+* **V8**: Backport fix for CVE-2016-5172, an arbitrary memory read. The parser in V8 mishandled scopes, potentially allowing an attacker to obtain sensitive information from arbitrary memory locations via crafted JavaScript code. This vulnerability would require an attacker to be able to execute arbitrary JavaScript code in a Node.js process. (Rod Vagg)
+* **v8_inspector**: Generate a UUID for each execution of the inspector. This provides additional security to prevent unauthorized clients from connecting to the Node.js process via the v8_inspector port when running with `--inspect`. Since the debugging protocol allows extensive access to the internals of a running process, and the execution of arbitrary code, it is important to limit connections to authorized tools only. Vulnerability originally reported by Jann Horn. (Eugene Ostroukhov)
+
+### Commits
+
+* [[`99e4eee8ef`](https://github.com/nodejs/node/commit/99e4eee8ef)] - **build**: do not define ZLIB_CONST (Bradley T. Hughes) [#9122](https://github.com/nodejs/node/pull/9122)
+* [[`cae9eb35f0`](https://github.com/nodejs/node/commit/cae9eb35f0)] - **crypto**: fix openssl.cnf FIPS handling & testing (Rod Vagg) [nodejs/node-private#82](https://github.com/nodejs/node-private/pull/82)
+* [[`c947d448da`](https://github.com/nodejs/node/commit/c947d448da)] - **deps**: cherry-pick 0e14baf712 from V8 upstream (Rod Vagg) [nodejs/node-private#80](https://github.com/nodejs/node-private/pull/80)
+* [[`647afe9d9a`](https://github.com/nodejs/node/commit/647afe9d9a)] - **inspector**: generate UUID for debug targets (Eugene Ostroukhov) [nodejs/node-private#79](https://github.com/nodejs/node-private/pull/79)
+* [[`1ea0358a91`](https://github.com/nodejs/node/commit/1ea0358a91)] - **node**: --openssl-config cli argument (Fedor Indutny) [nodejs/node-private#78](https://github.com/nodejs/node-private/pull/78)
+* [[`455272ad33`](https://github.com/nodejs/node/commit/455272ad33)] - **(SEMVER-MINOR)** **src**: add process.release.lts property (Rod Vagg) [#3212](https://github.com/nodejs/node/pull/3212)
+* [[`9ace073949`](https://github.com/nodejs/node/commit/9ace073949)] - **win,build**: try multiple timeservers when signing (Rod Vagg) [#9155](https://github.com/nodejs/node/pull/9155)
 
 <a id="6.8.1"></a>
 ## 2016-10-14, Version 6.8.1 (Current), @evanlucas
