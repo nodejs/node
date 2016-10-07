@@ -1200,6 +1200,17 @@ var formatTests = {
     pathname: '/'
   },
 
+  // more than 255 characters in hostname which exceeds the limit
+  [`http://${'a'.repeat(255)}.com/node`]: {
+    href: 'http:///node',
+    protocol: 'http:',
+    slashes: true,
+    host: '',
+    hostname: '',
+    pathname: '/node',
+    path: '/node'
+  },
+
   // https://github.com/nodejs/node/issues/3361
   'file:///home/user': {
     href: 'file:///home/user',
