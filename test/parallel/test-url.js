@@ -1000,9 +1000,6 @@ for (const u in parseTestsWithQueryString) {
 // some extra formatting tests, just to verify
 // that it'll format slightly wonky content to a valid url.
 
-// Example of url which has more than 255 characters in hostname and excesses the limit.
-const excessHostnameUrl = 'http://' + 'a'.repeat(255) + '.com/node';
-
 var formatTests = {
   'http://example.com?': {
     href: 'http://example.com/?',
@@ -1204,8 +1201,8 @@ var formatTests = {
     pathname: '/'
   },
 
-  // more than 255 characters in hostname which excesses the limit
-  [excessHostnameUrl]: {
+  // more than 255 characters in hostname which exceeds the limit
+  [`http://${'a'.repeat(255)}.com/node`]: {
     href: 'http:///node',
     protocol: 'http:',
     slashes: true,
