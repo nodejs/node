@@ -24,10 +24,10 @@ maintained by the CTC and additional Collaborators who are added by the
 CTC on an ongoing basis.
 
 Individuals identified by the CTC as making significant and valuable
-contributions are made Collaborators and given commit-access to the project.
+contributions are made Collaborators and given commit access to the project.
 
 _Note:_ If you make a significant contribution and are not considered
-for commit-access, log an issue or contact a CTC member directly.
+for commit access, log an issue or contact a CTC member directly.
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
@@ -107,7 +107,7 @@ Typical activities of a CTC member include:
 Note that CTC members are also Collaborators and therefore typically perform
 Collaborator activities as well.
 
-### CTC Meetings 
+### CTC Meetings
 
 The CTC meets weekly in a voice conference call. The meeting is run by a
 designated moderator approved by the CTC. Each meeting is streamed on YouTube.
@@ -142,7 +142,7 @@ outside of meetings using
 [the CTC issue tracker](https://github.com/nodejs/CTC/issues). The process in
 the issue tracker is:
 
-* A CTC member opens an issue explaining the propoosal/issue and @-mentions
+* A CTC member opens an issue explaining the proposal/issue and @-mentions
   @nodejs/ctc.
 * After 72 hours, if there are two or more `LGTM`s from other CTC members and no
   explicit opposition from other CTC members, then the proposal is approved.
