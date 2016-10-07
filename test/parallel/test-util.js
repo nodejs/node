@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var util = require('util');
-var context = require('vm').runInNewContext;
+const assert = require('assert');
+const util = require('util');
+const context = require('vm').runInNewContext;
 
 // isArray
 assert.equal(true, util.isArray([]));
@@ -83,3 +83,42 @@ assert.deepStrictEqual(util._extend({a: 1}, true), {a: 1});
 assert.deepStrictEqual(util._extend({a: 1}, false), {a: 1});
 assert.deepStrictEqual(util._extend({a: 1}, {b: 2}), {a: 1, b: 2});
 assert.deepStrictEqual(util._extend({a: 1, b: 2}, {b: 3}), {a: 1, b: 3});
+
+// deprecated
+assert.strictEqual(util.isBoolean(true), true);
+assert.strictEqual(util.isBoolean(false), true);
+assert.strictEqual(util.isBoolean('string'), false);
+
+assert.strictEqual(util.isNull(null), true);
+assert.strictEqual(util.isNull(), false);
+assert.strictEqual(util.isNull('string'), false);
+
+assert.strictEqual(util.isUndefined(), true);
+assert.strictEqual(util.isUndefined(null), false);
+assert.strictEqual(util.isUndefined('string'), false);
+
+assert.strictEqual(util.isNullOrUndefined(null), true);
+assert.strictEqual(util.isNullOrUndefined(), true);
+assert.strictEqual(util.isNullOrUndefined('string'), false);
+
+assert.strictEqual(util.isNumber(42), true);
+assert.strictEqual(util.isNumber(), false);
+assert.strictEqual(util.isNumber('string'), false);
+
+assert.strictEqual(util.isString('string'), true);
+assert.strictEqual(util.isString(), false);
+assert.strictEqual(util.isString(42), false);
+
+assert.strictEqual(util.isSymbol(Symbol()), true);
+assert.strictEqual(util.isSymbol(), false);
+assert.strictEqual(util.isSymbol('string'), false);
+
+assert.strictEqual(util.isFunction(() => {}), true);
+assert.strictEqual(util.isFunction(function() {}), true);
+assert.strictEqual(util.isFunction(), false);
+assert.strictEqual(util.isFunction('string'), false);
+
+util.print('test');
+util.puts('test');
+util.debug('test');
+util.error('test');
