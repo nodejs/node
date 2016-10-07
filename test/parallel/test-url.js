@@ -999,7 +999,6 @@ for (const u in parseTestsWithQueryString) {
 
 // some extra formatting tests, just to verify
 // that it'll format slightly wonky content to a valid url.
-
 var formatTests = {
   'http://example.com?': {
     href: 'http://example.com/?',
