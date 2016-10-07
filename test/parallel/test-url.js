@@ -1189,6 +1189,17 @@ var formatTests = {
     search: '?foo=bar#1#2#3&abc=#4##5',
     query: {},
     pathname: '/'
+  },
+
+  // more than 255 characters in hostname which exceeds the limit
+  [`http://${'a'.repeat(255)}.com/node`]: {
+    href: 'http:///node',
+    protocol: 'http:',
+    slashes: true,
+    host: '',
+    hostname: '',
+    pathname: '/node',
+    path: '/node'
   }
 };
 for (const u in formatTests) {
