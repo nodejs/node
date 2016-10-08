@@ -1811,7 +1811,7 @@ added: v0.1.90
 -->
 
 * `encoding` {String} The character encoding to decode to. **Default:** `'utf8'`
-* `start` {Integer} They byte offset to start decoding at. **Default:** `0`
+* `start` {Integer} The byte offset to start decoding at. **Default:** `0`
 * `end` {Integer} The byte offset to stop decoding at (not inclusive). **Default:** [`buf.length`]
 * Return: {String}
 
