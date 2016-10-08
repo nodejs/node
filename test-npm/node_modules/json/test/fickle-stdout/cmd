@@ -1,0 +1,1 @@
+cat input | ../../lib/json.js | head -1

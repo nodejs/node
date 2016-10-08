@@ -1,0 +1,19 @@
+[
+  { "method"   : "delete"
+  , "path"     : "/mydb"
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "get"
+  , "path"     : "/_db_updates"
+  , "response" : "{\"ok\":true,\"type\":\"created\",\"db_name\":\"mydb\"}"
+  }
+, { "method"   : "put"
+  , "path"     : "/mydb"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/mydb"
+  , "response" : "{ \"ok\": true }"
+  }
+]

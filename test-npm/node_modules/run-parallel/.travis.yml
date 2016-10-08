@@ -1,0 +1,7 @@
+language: node_js
+node_js:
+- 'iojs'
+env:
+  global:
+  - secure: T7mCjAOoVie1FZmArsemYTcZcw7qCBwmZAZG1s0nRZNEoa5HilHRntUtIUzKf8Kd9lpibAjcF2DBDieq5AiaQIANfcPhxzp31nDRwPEsF5rFhHKYdWRsPyRrv3D387VH/X5xZ5I1Mk9vAvZzqd6mGdlPYZ0YPAG0aNOalQnRXOM=
+  - secure: NwZOvg2y84GTit1rL6P+mhfrju8yua0lZ/+i4Pp5sQhI/bU2nCt1Gpr4UtaogevQAYZKtlTlW0GI+iuph67Qx9lq4Uf9HvuhFeEz3fRBiR3KzLbzlDXaWyRo9W86sjUiO/giVaWty7OQSsFRgXDzkZd7sbVjGhWIbqLBvSss1Yo=

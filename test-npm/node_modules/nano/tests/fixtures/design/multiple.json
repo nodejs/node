@@ -1,0 +1,41 @@
+[
+  { "method"   : "put"
+  , "path"     : "/design_multiple"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/design_multiple/_design/alice"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"_design/alice\",\"rev\":\"1-14e6bc\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_multiple/foobar"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_multiple/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_multiple/barfoo"
+  , "body"     : "{\"bar\":\"foo\"}"
+  , "response" : "{\"ok\":true,\"id\":\"barfoo\",\"rev\":\"1-3cde10\"}"
+  }
+, { "path"     : "/design_multiple/_design/alice/_view/by_id?include_docs=true"
+  , "body"     : "{\"keys\":[\"foobar\",\"barfoo\"]}"
+  , "method"   : "post"
+  , "response" : "{\"total_rows\":3,\"offset\":2,\"rows\":[\r\n{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"},\"doc\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"}},\r\n{\"id\":\"barfoo\",\"key\":\"barfoo\",\"value\":{\"_id\":\"barfoo\",\"_rev\":\"1-41412c293dade3fe73279cba8b4cece4\",\"bar\":\"foo\"},\"doc\":{\"_id\":\"barfoo\",\"_rev\":\"1-41412c293dade3fe73279cba8b4cece4\",\"bar\":\"foo\"}}\r\n]}\n"
+  }
+, { "method"   : "delete"
+  , "path"     : "/design_multiple"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

@@ -1,0 +1,1 @@
+{"name":"modA","version":"1.0.0","dependencies":{"modB":"/home/feelcoder/dev/node/node/test-npm/test/tap/tree-style/modB"},"readme":"ERROR: No README data found!","_id":"modA@1.0.0","scripts":{},"_shasum":"d1a634352f5012080387198fa4be183634fb66c7","_from":"../modA","_resolved":"file:../modA"}

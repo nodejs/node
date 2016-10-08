@@ -1,0 +1,9 @@
+# no args
+json: error: input is not JSON: Bad string at
+        {'foo'}
+        .^
+{'foo'}
+# -q
+{'foo'}
+# --quiet
+{'foo'}

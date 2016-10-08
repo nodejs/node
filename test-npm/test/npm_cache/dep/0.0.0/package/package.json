@@ -1,0 +1,1 @@
+{"name":"dep","version":"0.0.0","bin":{"hello":"./world.js"},"readme":"ERROR: No README data found!","_id":"dep@0.0.0","scripts":{},"_shasum":"3474e68590ca629476b07c9782814c59eaa4316a","_from":"../dep","_resolved":"file:../dep"}

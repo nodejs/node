@@ -1,0 +1,183 @@
+Usage:
+  tap [options] <files>
+
+Executes all the files and interprets their output as TAP
+formatted test result data.
+
+To parse TAP data from stdin, specify "-" as a filename.
+
+Short options are parsed gnu-style, so for example '-bCRspec' would be
+equivalent to '--bail --no-color --reporter=spec'
+
+If the --check-coverage or --coverage-report options are provided, but
+no test files are specified, then a coverage report or coverage check
+will be run on the data from the last test run.
+
+Coverage is never enabled for stdin.
+
+Options:
+
+  -c --color                  Use colors (Default for TTY)
+
+  -C --no-color               Do not use colors (Default for non-TTY)
+
+  -b --bail                   Bail out on first failure
+
+  -B --no-bail                Do not bail out on first failure (Default)
+
+  -R<type> --reporter=<type>  Use the specified reporter.  Defaults to
+                              'classic' when colors are in use, or 'tap'
+                              when colors are disabled.
+
+                              Available reporters:
+@@REPORTERS@@
+
+  -s<file> --save=<file>      If <file> exists, then it should be a line-
+                              delimited list of test files to run.  If
+                              <file> is not present, then all command-line
+                              positional arguments are run.
+
+                              After the set of test files are run, any
+                              failed test files are written back to the
+                              save file.
+
+                              This way, repeated runs with -s<file> will
+                              re-run failures until all the failures are
+                              passing, and then once again run all tests.
+
+                              It's a good idea to .gitignore the file
+                              used for this purpose, as it will churn a
+                              lot.
+
+  --coverage --cov            Capture coverage information using 'nyc'
+
+                              If a COVERALLS_REPO_TOKEN environment
+                              variable is set, then coverage is
+                              captured by default and sent to the
+                              coveralls.io service.
+
+  --no-coverage --no-cov      Do not capture coverage information.
+                              Note that if nyc is already loaded, then
+                              the coverage info will still be captured.
+
+  --coverage-report=<type>    Output coverage information using the
+                              specified istanbul/nyc reporter type.
+
+                              Default is 'text' when running on the
+                              command line, or 'text-lcov' when piping
+                              to coveralls.
+
+                              If 'html' is used, then the report will
+                              be opened in a web browser after running.
+
+                              This can be run on its own at any time
+                              after a test run that included coverage.
+
+  --no-coverage-report        Do not output a coverage report.
+
+  --no-browser                Do not open a web browser after
+                              generating an html coverage report.
+
+  -t<n> --timeout=<n>         Time out test files after <n> seconds.
+                              Defaults to 30, or the value of the
+                              TAP_TIMEOUT environment variable.
+
+  -h --help                   print this thing you're looking at
+
+  -v --version                show the version of this program
+
+  --node-arg=<arg>            Pass an argument to Node binary in all
+                              child processes.  Run 'node --help' to
+                              see a list of all relevant arguments.
+                              This can be specified multiple times to
+                              pass multiple args to Node.
+
+  -gc --expose-gc             Expose the gc() function to Node tests
+
+  --debug                     Run JavaScript tests with node --debug
+
+  --debug-brk                 Run JavaScript tests with node --debug-brk
+
+  --harmony                   Enable all Harmony flags in JavaScript tests
+
+  --strict                    Run JS tests in 'use strict' mode
+
+  --test-arg=<arg>            Pass an argument to test files spawned
+                              by the tap command line executable.
+                              This can be specified multiple times to
+                              pass multiple args to test scripts.
+
+  --nyc-arg=<arg>             Pass an argument to nyc when running
+                              child processes with coverage enabled.
+                              This can be specified multiple times to
+                              pass multiple args to nyc.
+
+  --check-coverage            Check whether coverage is within
+                              thresholds provided.  Setting this
+                              explicitly will default --coverage to
+                              true.
+
+                              This can be run on its own any time
+                              after a test run that included coverage.
+
+  --branches                  what % of branches must be covered?
+                              Setting this will default both
+                              --check-coverage and --coverage to true.
+                              [default: 0]
+
+  --functions                 what % of functions must be covered?
+                              Setting this explicitly will default both
+                              --check-coverage and --coverage to true.
+                              [default: 0]
+
+  --lines                     what % of lines must be covered?
+                              Setting this explicitly will default both
+                              --check-coverage and --coverage to true.
+                              [default: 90]
+
+  --statements                what % of statements must be covered?
+                              Setting this explicitly will default both
+                              --check-coverage and --coverage to true.
+                              [default: 0]
+
+  --100                       Full coverage, 100%.
+                              Sets branches, statements, functions,
+                              and lines to 100.
+
+  --nyc-help                  Print nyc usage banner.  Useful for
+                              viewing options for --nyc-arg.
+
+  --nyc-version               Print version of nyc used by tap.
+
+  --dump-config               Dump the config options in JSON format.
+
+  --                          Stop parsing flags, and treat any additional
+                              command line arguments as filenames.
+
+Environment Variables:
+
+  TAP_RCFILE                  A yaml formatted file which can set any
+                              of the above options.  Defaults to
+                              $HOME/.taprc
+
+  TAP_TIMEOUT                 Default value for --timeout option.
+
+  TAP_COLORS                  Set to '1' to force color output, or '0'
+                              to prevent color output.
+
+  TAP_BAIL                    Bail out on the first test failure.
+                              Used internally when '--bailout' is set.
+
+  TAP                         Set to '1' to force standard TAP output,
+                              and suppress any reporters.  Used when
+                              running child tests so that their output
+                              is parseable by the test harness.
+
+Config Files:
+
+You can create a yaml file with any of the options above.  By default,
+the file at ~/.taprc will be loaded, but the TAP_RCFILE environment
+variable can modify this.
+
+Run 'tap --dump-config' for a listing of what can be set in that file.
+Each of the keys corresponds to one of the options above.

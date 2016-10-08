@@ -1,0 +1,45 @@
+JSON=../../lib/json.js
+
+echo '{"name":"trent", "age":38}' | $JSON name
+echo '{"name":"trent", "age":38}' | $JSON name age
+
+echo ''
+echo '{"name":"trent", "age":38}' | $JSON name missing
+
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -a name
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -a name age
+
+echo ''
+echo '{"error":{"code":42,"message":"answer"}}' | $JSON error.code
+echo '{"error":{"code":42,"message":"answer"}}' | $JSON error.code error.message
+
+echo ''
+echo '[{"error":{"code":42,"message":"answer"}}]' | $JSON -a error.code
+echo '[{"error":{"code":42,"message":"answer"}}]' | $JSON -a error.code error.message
+
+echo ''
+echo '# lookup errors'
+echo '{"foo": "bar"}' | $JSON 'foo'
+#   bar
+echo '{"foo": "bar"}' | $JSON 'fool'
+#   (empty)
+echo '{"foo": "bar"}' | $JSON 'fool.bar'
+#   (empty)
+echo 'done'
+
+echo ''
+echo '# double-quotes in lookup (issue 30)'
+echo '{"\"a\"": "first letter"}' | $JSON '"a"'
+#    first letter
+
+echo ''
+echo '# negative array indeces'
+echo '["a", "b", "c"]' | $JSON -- 0
+echo '["a", "b", "c"]' | $JSON -- 1
+echo '["a", "b", "c"]' | $JSON -- 2
+echo '["a", "b", "c"]' | $JSON -- -1
+echo '["a", "b", "c"]' | $JSON -- -2
+echo '["a", "b", "c"]' | $JSON -- -3
+echo '# this one is undefined, i.e. no output'
+echo '["a", "b", "c"]' | $JSON -- -4

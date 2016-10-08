@@ -1,0 +1,20 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_get"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_get/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "path"     : "/document_get/foobaz?revs_info=true"
+  , "response" : "{\"_id\":\"foobaz\", \"_rev\": \"1-611488\", \"foo\": \"baz\", \"_revs_info\": [] }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_get"
+  , "response" : "{ \"ok\": true }"
+  }
+]

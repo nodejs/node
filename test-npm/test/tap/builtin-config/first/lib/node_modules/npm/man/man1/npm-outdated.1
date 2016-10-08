@@ -1,0 +1,151 @@
+.TH "NPM\-OUTDATED" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm-outdated\fR \- Check for outdated packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm outdated [[<@scope>/]<pkg> \.\.\.]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command will check the registry to see if any (or, specific) installed
+packages are currently outdated\.
+.P
+In the output:
+.RS 0
+.IP \(bu 2
+\fBwanted\fP is the maximum version of the package that satisfies the semver
+range specified in \fBpackage\.json\fP\|\. If there's no available semver range (i\.e\.
+you're running \fBnpm outdated \-\-global\fP, or the package isn't included in
+\fBpackage\.json\fP), then \fBwanted\fP shows the currently\-installed version\.
+.IP \(bu 2
+\fBlatest\fP is the version of the package tagged as latest in the registry\.
+Running \fBnpm publish\fP with no special configuration will publish the package
+with a dist\-tag of \fBlatest\fP\|\. This may or may not be the maximum version of
+the package, or the most\-recently published version of the package, depending
+on how the package's developer manages the latest npm help dist\-tag\.
+.IP \(bu 2
+\fBlocation\fP is where in the dependency tree the package is located\. Note that
+\fBnpm outdated\fP defaults to a depth of 0, so unless you override that, you'll
+always be seeing only top\-level dependencies that are outdated\.
+.IP \(bu 2
+\fBpackage type\fP (when using \fB\-\-long\fP / \fB\-l\fP) tells you whether this package is
+a \fBdependency\fP or a \fBdevDependency\fP\|\. Packages not included in \fBpackage\.json\fP
+are always marked \fBdependencies\fP\|\.
+
+.RE
+.SS An example
+.P
+.RS 2
+.nf
+$ npm outdated
+Package      Current   Wanted   Latest  Location
+glob          5\.0\.15   5\.0\.15    6\.0\.1  test\-outdated\-output
+nothingness    0\.0\.3      git      git  test\-outdated\-output
+npm            3\.5\.1    3\.5\.2    3\.5\.1  test\-outdated\-output
+local\-dev      0\.0\.3   linked   linked  test\-outdated\-output
+once           1\.3\.2    1\.3\.3    1\.3\.3  test\-outdated\-output
+.fi
+.RE
+.P
+With these \fBdependencies\fP:
+.P
+.RS 2
+.nf
+{
+  "glob": "^5\.0\.15",
+  "nothingness": "github:othiym23/nothingness#master",
+  "npm": "^3\.5\.1",
+  "once": "^1\.3\.1"
+}
+.fi
+.RE
+.P
+A few things to note:
+.RS 0
+.IP \(bu 2
+\fBglob\fP requires \fB^5\fP, which prevents npm from installing \fBglob@6\fP, which is
+outside the semver range\.
+.IP \(bu 2
+Git dependencies will always be reinstalled, because of how they're specified\.
+The installed committish might satisfy the dependency specifier (if it's
+something immutable, like a commit SHA), or it might not, so \fBnpm outdated\fP and
+\fBnpm update\fP have to fetch Git repos to check\. This is why currently doing a
+reinstall of a Git dependency always forces a new clone and install\.
+.IP \(bu 2
+\fBnpm@3\.5\.2\fP is marked as "wanted", but "latest" is \fBnpm@3\.5\.1\fP because npm
+uses dist\-tags to manage its \fBlatest\fP and \fBnext\fP release channels\. \fBnpm update\fP
+will install the \fInewest\fR version, but \fBnpm install npm\fP (with no semver range)
+will install whatever's tagged as \fBlatest\fP\|\.
+.IP \(bu 2
+\fBonce\fP is just plain out of date\. Reinstalling \fBnode_modules\fP from scratch or
+running \fBnpm update\fP will bring it up to spec\.
+
+.RE
+.SH CONFIGURATION
+.SS json
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show information in JSON format\.
+.SS long
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information\.
+.SS parseable
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show parseable output instead of tree view\.
+.SS global
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Check packages in the global install prefix instead of in the current
+project\.
+.SS depth
+.RS 0
+.IP \(bu 2
+Default: 0
+.IP \(bu 2
+Type: Int
+
+.RE
+.P
+Max depth for checking dependency tree\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help update
+.IP \(bu 2
+npm help dist\-tag
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help 5 folders
+
+.RE
+

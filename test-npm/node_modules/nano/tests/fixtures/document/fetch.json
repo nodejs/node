@@ -1,0 +1,45 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_fetch"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_fetch/foobar"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_fetch/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_fetch/barfoo"
+  , "body"     : "{\"bar\":\"foo\"}"
+  , "response" : "{\"ok\":true,\"id\":\"barfoo\",\"rev\":\"1-3cde10\"}"
+  }
+, { "method"   : "post"
+  , "path"     : "/document_fetch/_all_docs?include_docs=true"
+  , "body"     : "{\"keys\":[\"foobar\"]}"
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[\r\n{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"rev\":\"1-4c6114c65e295552ab1019e2b046b10e\"},\"doc\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"}}\r\n]}\n"
+  }
+, { "method"   : "post"
+  , "path"     : "/document_fetch/_all_docs?not=important&include_docs=true"
+  , "body"     : "{\"keys\":[\"foobar\"]}"
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[\r\n{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"rev\":\"1-4c6114c65e295552ab1019e2b046b10e\"},\"doc\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"}}\r\n]}\n"
+  }
+, { "method"   : "post"
+  , "path"     : "/document_fetch/_all_docs?include_docs=true"
+  , "body"     : "{\"keys\":[\"foobar\",\"barfoo\"]}"
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[\r\n{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"rev\":\"1-4c6114c65e295552ab1019e2b046b10e\"},\"doc\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"}},\r\n{\"id\":\"barfoo\",\"key\":\"barfoo\",\"value\":{\"rev\":\"1-41412c293dade3fe73279cba8b4cece4\"},\"doc\":{\"_id\":\"barfoo\",\"_rev\":\"1-41412c293dade3fe73279cba8b4cece4\",\"bar\":\"foo\"}}\r\n]}\n"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_fetch"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

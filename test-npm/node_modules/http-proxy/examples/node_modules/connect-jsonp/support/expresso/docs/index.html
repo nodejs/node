@@ -1,0 +1,377 @@
+<html>
+	<head>
+		<title>Expresso - TDD Framework For Node</title>
+		<style>
+			body {
+				font: 13px/1.4 "Helvetica", "Lucida Grande", Arial, sans-serif;
+				text-align: center;
+			}
+			#ribbon {
+				position: absolute;
+				top: 0;
+				right: 0;
+				z-index: 10;
+			}
+			#wrapper {
+			  margin: 0 auto;
+				padding: 50px 80px;
+				width: 700px;
+				text-align: left;
+			}
+			h1, h2, h3 {
+				margin: 25px 0 15px 0;
+			}
+			h1 {
+			  font-size: 35px;
+			}
+			pre {
+				margin: 0 5px;
+				padding: 15px;
+				border: 1px solid #eee;
+			}
+			a {
+			  color: #00aaff;
+			}
+		</style>
+	</head>
+	<body>
+		<a href="http://github.com/visionmedia/expresso">
+			<img alt="Fork me on GitHub" id="ribbon" src="http://s3.amazonaws.com/github/ribbons/forkme_right_white_ffffff.png" />
+		</a>
+		<div id="wrapper">
+			<h1>Expresso</h1>
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>index</code>
+</p>
+<p><a href="http://github.com/visionmedia/expresso">Expresso</a> is a JavaScript <a href="http://en.wikipedia.org/wiki/Test-driven_development">TDD</a> framework written for <a href="http://nodejs.org">nodejs</a>. Expresso is extremely fast, and is packed with features such as additional assertion methods, code coverage reporting, CI support, and more.</p>
+
+<h2 id="Features">Features</h2>
+
+<ul>
+<li>light-weight</li>
+<li>intuitive async support</li>
+<li>intuitive test runner executable</li>
+<li>test coverage support and reporting via <a href="http://github.com/visionmedia/node-jscoverage">node-jscoverage</a></li>
+<li>uses and extends the core <em>assert</em> module</li>
+<li><code>assert.eql()</code> alias of <code>assert.deepEqual()</code></li>
+<li><code>assert.response()</code> http response utility</li>
+<li><code>assert.includes()</code></li>
+<li><code>assert.isNull()</code></li>
+<li><code>assert.isUndefined()</code></li>
+<li><code>assert.isNotNull()</code></li>
+<li><code>assert.isDefined()</code></li>
+<li><code>assert.match()</code></li>
+<li><code>assert.length()</code></li>
+</ul>
+
+
+<h2 id="Installation">Installation</h2>
+
+<p>To install both expresso <em>and</em> node-jscoverage run
+the command below, which will first compile node-jscoverage:</p>
+
+<pre><code>$ make install
+</code></pre>
+
+<p>To install expresso alone without coverage reporting run:</p>
+
+<pre><code>$ make install-expresso
+</code></pre>
+
+<p>Install via npm:</p>
+
+<pre><code>$ npm install expresso
+</code></pre>
+
+<h2 id="Examples">Examples</h2>
+
+<p>To define tests we simply export several functions:</p>
+
+<pre><code>exports['test String#length'] = function(){
+    assert.equal(6, 'foobar'.length);
+};
+</code></pre>
+
+<p>Alternatively for large numbers of tests you may want to
+export your own object containing the tests, however this
+is essentially the as above:</p>
+
+<pre><code>module.exports = {
+    'test String#length': function(){
+        assert.equal(6, 'foobar'.length);
+    }
+};
+</code></pre>
+
+<p>If you prefer not to use quoted keys:</p>
+
+<pre><code>exports.testsStringLength = function(){
+    assert.equal(6, 'foobar'.length);
+};
+</code></pre>
+
+<p>The argument passed to each callback is <em>beforeExit</em>,
+which is typically used to assert that callbacks have been
+invoked.</p>
+
+<pre><code>exports.testAsync = function(beforeExit){
+    var n = 0;
+    setTimeout(function(){
+        ++n;
+        assert.ok(true);
+    }, 200);
+    setTimeout(function(){
+        ++n;
+        assert.ok(true);
+    }, 200);
+    beforeExit(function(){
+        assert.equal(2, n, 'Ensure both timeouts are called');
+    });
+};
+</code></pre>
+
+<h2 id="Assert-Utilities">Assert Utilities</h2>
+
+<h3 id="assert-isNull-val-msg-">assert.isNull(val[, msg])</h3>
+
+<p>Asserts that the given <em>val</em> is <em>null</em>.</p>
+
+<pre><code>assert.isNull(null);
+</code></pre>
+
+<h3 id="assert-isNotNull-val-msg-">assert.isNotNull(val[, msg])</h3>
+
+<p>Asserts that the given <em>val</em> is not <em>null</em>.</p>
+
+<pre><code>assert.isNotNull(undefined);
+assert.isNotNull(false);
+</code></pre>
+
+<h3 id="assert-isUndefined-val-msg-">assert.isUndefined(val[, msg])</h3>
+
+<p>Asserts that the given <em>val</em> is <em>undefined</em>.</p>
+
+<pre><code>assert.isUndefined(undefined);
+</code></pre>
+
+<h3 id="assert-isDefined-val-msg-">assert.isDefined(val[, msg])</h3>
+
+<p>Asserts that the given <em>val</em> is not <em>undefined</em>.</p>
+
+<pre><code>assert.isDefined(null);
+assert.isDefined(false);
+</code></pre>
+
+<h3 id="assert-match-str-regexp-msg-">assert.match(str, regexp[, msg])</h3>
+
+<p>Asserts that the given <em>str</em> matches <em>regexp</em>.</p>
+
+<pre><code>assert.match('foobar', /^foo(bar)?/);
+assert.match('foo', /^foo(bar)?/);
+</code></pre>
+
+<h3 id="assert-length-val-n-msg-">assert.length(val, n[, msg])</h3>
+
+<p>Assert that the given <em>val</em> has a length of <em>n</em>.</p>
+
+<pre><code>assert.length([1,2,3], 3);
+assert.length('foo', 3);
+</code></pre>
+
+<h3 id="assert-type-obj-type-msg-">assert.type(obj, type[, msg])</h3>
+
+<p>Assert that the given <em>obj</em> is typeof <em>type</em>.</p>
+
+<pre><code>assert.type(3, 'number');
+</code></pre>
+
+<h3 id="assert-eql-a-b-msg-">assert.eql(a, b[, msg])</h3>
+
+<p>Assert that object <em>b</em> is equal to object <em>a</em>. This is an
+alias for the core <em>assert.deepEqual()</em> method which does complex
+comparisons, opposed to <em>assert.equal()</em> which uses <em>==</em>.</p>
+
+<pre><code>assert.eql('foo', 'foo');
+assert.eql([1,2], [1,2]);
+assert.eql({ foo: 'bar' }, { foo: 'bar' });
+</code></pre>
+
+<h3 id="assert-includes-obj-val-msg-">assert.includes(obj, val[, msg])</h3>
+
+<p>Assert that <em>obj</em> is within <em>val</em>. This method supports <em>Array_s
+and </em>Strings_s.</p>
+
+<pre><code>assert.includes([1,2,3], 3);
+assert.includes('foobar', 'foo');
+assert.includes('foobar', 'bar');
+</code></pre>
+
+<h3 id="assert-response-server-req-res-fn-msg-fn-">assert.response(server, req, res|fn[, msg|fn])</h3>
+
+<p>Performs assertions on the given <em>server</em>, which should <em>not</em> call
+listen(), as this is handled internally by expresso and the server
+is killed after all responses have completed. This method works with
+any <em>http.Server</em> instance, so <em>Connect</em> and <em>Express</em> servers will work
+as well.</p>
+
+<p>The <em>req</em> object may contain:</p>
+
+<ul>
+<li><em>url</em> request url</li>
+<li><em>timeout</em> timeout in milliseconds</li>
+<li><em>method</em> HTTP method</li>
+<li><em>data</em> request body</li>
+<li><em>headers</em> headers object</li>
+</ul>
+
+
+<p>The <em>res</em> object may be a callback function which
+receives the response for assertions, or an object
+which is then used to perform several assertions
+on the response with the following properties:</p>
+
+<ul>
+<li><em>body</em> assert response body (regexp or string)</li>
+<li><em>status</em> assert response status code</li>
+<li><em>header</em> assert that all given headers match (unspecified are ignored, use a regexp or string)</li>
+</ul>
+
+
+<p>When providing <em>res</em> you may then also pass a callback function
+as the fourth argument for additional assertions.</p>
+
+<p>Below are some examples:</p>
+
+<pre><code>assert.response(server, {
+    url: '/', timeout: 500
+}, {
+    body: 'foobar'
+});
+
+assert.response(server, {
+    url: '/',
+    method: 'GET'
+},{
+    body: '{"name":"tj"}',
+    status: 200,
+    headers: {
+        'Content-Type': 'application/json; charset=utf8',
+        'X-Foo': 'bar'
+    }
+});
+
+assert.response(server, {
+    url: '/foo',
+    method: 'POST',
+    data: 'bar baz'
+},{
+    body: '/foo bar baz',
+    status: 200
+}, 'Test POST');
+
+assert.response(server, {
+    url: '/foo',
+    method: 'POST',
+    data: 'bar baz'
+},{
+    body: '/foo bar baz',
+    status: 200
+}, function(res){
+    // All done, do some more tests if needed
+});
+
+assert.response(server, {
+    url: '/'
+}, function(res){
+    assert.ok(res.body.indexOf('tj') &gt;= 0, 'Test assert.response() callback');
+});
+</code></pre>
+
+<h2 id="expresso-1-">expresso(1)</h2>
+
+<p>To run a single test suite (file) run:</p>
+
+<pre><code>$ expresso test/a.test.js
+</code></pre>
+
+<p>To run several suites we may simply append another:</p>
+
+<pre><code>$ expresso test/a.test.js test/b.test.js
+</code></pre>
+
+<p>We can also pass a whitelist of tests to run within all suites:</p>
+
+<pre><code>$ expresso --only "foo()" --only "bar()"
+</code></pre>
+
+<p>Or several with one call:</p>
+
+<pre><code>$ expresso --only "foo(), bar()"
+</code></pre>
+
+<p>Globbing is of course possible as well:</p>
+
+<pre><code>$ expresso test/*
+</code></pre>
+
+<p>When expresso is called without any files, <em>test/*</em> is the default,
+so the following is equivalent to the command above:</p>
+
+<pre><code>$ expresso
+</code></pre>
+
+<p>If you wish to unshift a path to <code>require.paths</code> before
+running tests, you may use the <code>-I</code> or <code>--include</code> flag.</p>
+
+<pre><code>$ expresso --include lib test/*
+</code></pre>
+
+<p>The previous example is typically what I would recommend, since expresso
+supports test coverage via <a href="http://github.com/visionmedia/node-jscoverage">node-jscoverage</a> (bundled with expresso),
+so you will need to expose an instrumented version of you library.</p>
+
+<p>To instrument your library, simply run <a href="http://github.com/visionmedia/node-jscoverage">node-jscoverage</a>,
+passing the <em>src</em> and <em>dest</em> directories:</p>
+
+<pre><code>$ node-jscoverage lib lib-cov
+</code></pre>
+
+<p>Now we can run our tests again, using the <em>lib-cov</em> directory that has been
+instrumented with coverage statements:</p>
+
+<pre><code>$ expresso -I lib-cov test/*
+</code></pre>
+
+<p>The output will look similar to below, depending on your test coverage of course :)</p>
+
+<p><img src="http://dl.dropbox.com/u/6396913/cov.png" alt="node coverage" /></p>
+
+<p>To make this process easier expresso has the <em>-c</em> or <em>--cov</em> which essentially
+does the same as the two commands above. The following two commands will
+run the same tests, however one will auto-instrument, and unshift <em>lib-cov</em>,
+and the other will run tests normally:</p>
+
+<pre><code>$ expresso -I lib test/*
+$ expresso -I lib --cov test/*
+</code></pre>
+
+<p>Currently coverage is bound to the <em>lib</em> directory, however in the
+future <code>--cov</code> will most likely accept a path.</p>
+
+<h2 id="Async-Exports">Async Exports</h2>
+
+<p>Sometimes it is useful to postpone running of tests until a callback or event has fired, currently the <em>exports.foo = function(){};</em> syntax is supported for this:</p>
+
+<pre><code>setTimeout(function(){
+    exports['test async exports'] = function(){
+        assert.ok('wahoo');
+    };
+}, 100);
+</code></pre>
+
+</div>
+		</div>
+	</body>
+</html>

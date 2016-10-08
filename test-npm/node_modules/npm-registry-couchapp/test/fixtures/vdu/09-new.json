@@ -1,0 +1,51 @@
+{
+  "_id": "@npm/npm-test-blerg",
+  "name": "@npm/npm-test-blerg",
+  "description": "just an npm test",
+  "dist-tags": {
+    "latest": "0.0.2"
+  },
+  "versions": {
+    "0.0.2": {
+      "name": "@npm/npm-test-blerg",
+      "version": "0.0.2",
+      "scripts": {
+        "test": "node test.js"
+      },
+      "publishConfig": {
+        "tag": "foo"
+      },
+      "description": "just an npm test",
+      "_id": "@npm/npm-test-blerg@0.0.2",
+      "dist": {
+        "shasum": "b8cb2269c44197fc3f37bd8b0b8edc82a79ef674",
+        "tarball": "http://registry.npmjs.org/@npm/npm-test-blerg/-/npm-test-blerg-0.0.2.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.4.3",
+      "_npmUser": {
+        "name": "testuser",
+        "email": "i@izs.me"
+      },
+      "maintainers": [
+        {
+          "name": "testuser",
+          "email": "i@izs.me"
+        }
+      ]
+    }
+  },
+  "readme": "just an npm test\n",
+  "maintainers": [
+    {
+      "name": "testuser",
+      "email": "i@izs.me"
+    }
+  ],
+  "time": {
+    "modified": "2014-02-17T22:58:03.202Z",
+    "created": "2014-02-17T22:58:03.202Z",
+    "0.0.2": "2014-02-17T22:58:03.202Z"
+  },
+  "readmeFilename": "README"
+}

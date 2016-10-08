@@ -1,0 +1,59 @@
+var log = console.log,
+    assert = require( 'assert' ),
+    BlockStream = require("../block-stream.js"),
+    isize = 0, tsize = 0, fsize = 0, psize = 0, i = 0,
+    filter = null, paper = null, stack = null,
+
+// a source data buffer
+tsize = 1 * 1024; // <- 1K
+stack = new Buffer( tsize );
+for ( ; i < tsize; i++) stack[i] = "x".charCodeAt(0);
+
+isize = 1 * 1024; // <- initial packet size with 4K no bug!
+fsize = 2 * 1024 ; // <- first block-stream size 
+psize = Math.ceil( isize / 6 ); // <- second block-stream size
+
+fexpected = Math.ceil( tsize / fsize ); // <- packets expected for first 
+pexpected = Math.ceil( tsize / psize ); // <- packets expected for second
+
+
+filter = new BlockStream( fsize, { nopad : true } );
+paper = new BlockStream( psize, { nopad : true } );
+
+
+var fcounter = 0;
+filter.on( 'data', function (c) {
+  // verify that they're not null-padded
+  for (var i = 0; i < c.length; i ++) {
+    assert.strictEqual(c[i], "x".charCodeAt(0))
+  }
+    ++fcounter;
+} );
+
+var pcounter = 0;
+paper.on( 'data', function (c) {
+  // verify that they're not null-padded
+  for (var i = 0; i < c.length; i ++) {
+    assert.strictEqual(c[i], "x".charCodeAt(0))
+  }
+    ++pcounter;
+} );
+
+filter.pipe( paper );
+
+filter.on( 'end', function () {
+  log("fcounter: %s === %s", fcounter, fexpected)
+    assert.strictEqual( fcounter, fexpected );
+} );
+
+paper.on( 'end', function () {
+  log("pcounter: %s === %s", pcounter, pexpected);
+    assert.strictEqual( pcounter, pexpected );
+} );
+
+
+for ( i = 0, j = isize; j <= tsize; j += isize ) {
+    filter.write( stack.slice( j - isize, j ) );
+}
+
+filter.end();

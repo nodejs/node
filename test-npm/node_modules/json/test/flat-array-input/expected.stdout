@@ -1,0 +1,40 @@
+# simple
+[{"one":1},{"two":2}]
+
+# simple (-f)
+[{"one":1},{"two":2}]
+
+# separate
+[{"one":1},{"two":2}]
+
+# separate (-f)
+[{"one":1},{"two":2}]
+
+# objects on same line
+[{"one":1},{"two":2}]
+
+# more complex
+[{"one":1},{"two":2},{"three":3},{"four":4},{"five":5}]
+
+# simple arrays
+["a","b","c","d"]
+
+# more complex
+["one",1,"two",2,"three",3,"four",4,"five",5]
+
+# surprise array content in string (issue #55)
+["foo","boom][","bar"]
+
+# cat json files
+[{"a":"A"},{"b":"B"},{"c":"C"}]
+
+# objects on same line (space FAIL)
+{"one": 1} {"two": 2}
+
+# arrays on same line (support dropped in v6)
+["a", "b"]["c", "d"]
+
+# mixed objects and arrays FAIL
+{"one": 1}
+["a", "b"]
+{"two": 2}

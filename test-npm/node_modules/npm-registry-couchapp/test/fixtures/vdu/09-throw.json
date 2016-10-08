@@ -1,0 +1,3 @@
+{
+  "forbidden": "user: testuser not authorized to modify @npm/npm-test-blerg\nAdded: _id\nAdded: name\nAdded: description\nAdded: dist-tags\nAdded: versions\nAdded: readme\nAdded: maintainers\nAdded: time\nAdded: readmeFilename\nAdded: users"
+}

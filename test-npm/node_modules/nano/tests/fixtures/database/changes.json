@@ -1,0 +1,34 @@
+[
+  { "method"   : "put"
+  , "path"     : "/database_changes"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_changes/foobar"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_changes/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_changes/barfoo"
+  , "body"     : "{\"bar\":\"foo\"}"
+  , "response" : "{\"ok\":true,\"id\":\"barfoo\",\"rev\":\"1-3cde10\"}"
+  }
+, { "status"   : 200
+  , "path"     : "/database_changes/_changes?since=2"
+  , "response" : "{\"results\":[\n{\"seq\":3,\"id\":\"foobaz\",\"changes\":[{\"rev\":\"1-cfa20dddac397da5bf0be2b50fb472fe\"}]}\n],\n\"last_seq\":3}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_changes"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

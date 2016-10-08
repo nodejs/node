@@ -1,0 +1,17 @@
+# simple
+json: updated "a1.json" in-place
+json: updated "a1.json" in-place
+# bogus
+json: error: "bogus.json" is not JSON: Unexpected 'a' at line 1, column 10:
+        {"name": a1"}
+        .........^
+# http header block
+json: updated "http-header-block.json" in-place
+# does not exist
+json: error: Error: ENOENT, no such file or directory 'does-not-exist.json'
+# multiple files
+json: error: must specify exactly one file with "-f FILE" to use -I/--in-place
+# -e
+json: updated "a1.json" in-place
+# -c
+json: updated "users.json" in-place

@@ -1,0 +1,1 @@
+{"name":"package","version":"0.0.0","bin":{"hello":"./world.js"},"dependencies":{"dep":"file:../dep"},"readme":"ERROR: No README data found!","_id":"package@0.0.0","scripts":{},"_shasum":"b510996761dee69e735beccd1711be9a80f2131b","_from":"../uninstall-link-clean","_resolved":"file:../uninstall-link-clean"}

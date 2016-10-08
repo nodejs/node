@@ -1,0 +1,15 @@
+[
+  { "method"   : "put"
+  , "path"     : "/database_list"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "get"
+  , "path"     : "/_all_dbs"
+  , "response" : "[\"database_list\", \"_users\", \"_replicator\"]"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_list"
+  , "response" : "{ \"ok\": true }"
+  }
+]

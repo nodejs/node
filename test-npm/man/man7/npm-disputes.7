@@ -1,0 +1,124 @@
+.TH "NPM\-DISPUTES" "7" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-disputes\fR \- Handling Module Name Disputes
+.SH SYNOPSIS
+.RS 0
+.IP 1. 3
+Get the author email with \fBnpm owner ls <pkgname>\fP
+.IP 2. 3
+Email the author, CC support@npmjs\.com
+.IP 3. 3
+After a few weeks, if there's no resolution, we'll sort it out\.
+
+.RE
+.P
+Don't squat on package names\.  Publish code or move out of the way\.
+.SH DESCRIPTION
+.P
+There sometimes arise cases where a user publishes a module, and then
+later, some other user wants to use that name\.  Here are some common
+ways that happens (each of these is based on actual events\.)
+.RS 0
+.IP 1. 3
+Joe writes a JavaScript module \fBfoo\fP, which is not node\-specific\.
+Joe doesn't use node at all\.  Bob   wants to use \fBfoo\fP in node, so he
+wraps it in an npm module\.  Some time later, Joe starts using node,
+and wants to take over management of his program\.
+.IP 2. 3
+Bob writes an npm module \fBfoo\fP, and publishes it\.  Perhaps much
+later, Joe finds a bug in \fBfoo\fP, and fixes it\.  He sends a pull
+request to Bob, but Bob doesn't have the time to deal with it,
+because he has a new job and a new baby and is focused on his new
+erlang project, and kind of not involved with node any more\.  Joe
+would like to publish a new \fBfoo\fP, but can't, because the name is
+taken\.
+.IP 3. 3
+Bob writes a 10\-line flow\-control library, and calls it \fBfoo\fP, and
+publishes it to the npm registry\.  Being a simple little thing, it
+never really has to be updated\.  Joe works for Foo Inc, the makers
+of the critically acclaimed and widely\-marketed \fBfoo\fP JavaScript
+toolkit framework\.  They publish it to npm as \fBfoojs\fP, but people are
+routinely confused when \fBnpm install foo\fP is some different thing\.
+.IP 4. 3
+Bob writes a parser for the widely\-known \fBfoo\fP file format, because
+he needs it for work\.  Then, he gets a new job, and never updates the
+prototype\.  Later on, Joe writes a much more complete \fBfoo\fP parser,
+but can't publish, because Bob's \fBfoo\fP is in the way\.
+
+.RE
+.P
+The validity of Joe's claim in each situation can be debated\.  However,
+Joe's appropriate course of action in each case is the same\.
+.RS 0
+.IP 1. 3
+\fBnpm owner ls foo\fP\|\.  This will tell Joe the email address of the
+owner (Bob)\.
+.IP 2. 3
+Joe emails Bob, explaining the situation \fBas respectfully as
+possible\fR, and what he would like to do with the module name\.  He
+adds the npm support staff support@npmjs\.com to the CC list of
+the email\.  Mention in the email that Bob can run \fBnpm owner add
+joe foo\fP to add Joe as an owner of the \fBfoo\fP package\.
+.IP 3. 3
+After a reasonable amount of time, if Bob has not responded, or if
+Bob and Joe can't come to any sort of resolution, email support
+support@npmjs\.com and we'll sort it out\.  ("Reasonable" is
+usually at least 4 weeks, but extra time is allowed around common
+holidays\.)
+
+.RE
+.SH REASONING
+.P
+In almost every case so far, the parties involved have been able to reach
+an amicable resolution without any major intervention\.  Most people
+really do want to be reasonable, and are probably not even aware that
+they're in your way\.
+.P
+Module ecosystems are most vibrant and powerful when they are as
+self\-directed as possible\.  If an admin one day deletes something you
+had worked on, then that is going to make most people quite upset,
+regardless of the justification\.  When humans solve their problems by
+talking to other humans with respect, everyone has the chance to end up
+feeling good about the interaction\.
+.SH EXCEPTIONS
+.P
+Some things are not allowed, and will be removed without discussion if
+they are brought to the attention of the npm registry admins, including
+but not limited to:
+.RS 0
+.IP 1. 3
+Malware (that is, a package designed to exploit or harm the machine on
+which it is installed)\.
+.IP 2. 3
+Violations of copyright or licenses (for example, cloning an
+MIT\-licensed program, and then removing or changing the copyright and
+license statement)\.
+.IP 3. 3
+Illegal content\.
+.IP 4. 3
+"Squatting" on a package name that you \fIplan\fR to use, but aren't
+actually using\.  Sorry, I don't care how great the name is, or how
+perfect a fit it is for the thing that someday might happen\.  If
+someone wants to use it today, and you're just taking up space with
+an empty tarball, you're going to be evicted\.
+.IP 5. 3
+Putting empty packages in the registry\.  Packages must have SOME
+functionality\.  It can be silly, but it can't be \fInothing\fR\|\.  (See
+also: squatting\.)
+.IP 6. 3
+Doing weird things with the registry, like using it as your own
+personal application database or otherwise putting non\-packagey
+things into it\.
+
+.RE
+.P
+If you see bad behavior like this, please report it right away\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help owner
+
+.RE
+

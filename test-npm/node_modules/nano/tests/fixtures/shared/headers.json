@@ -1,0 +1,29 @@
+[
+  { "method"   : "put"
+  , "path"     : "/shared_headers"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/shared_headers/new/att"
+  , "body"     : "Hello"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"new\",\"rev\":\"1-5142a2\"}"
+  }
+, { "path"       : "/shared_headers/new"
+  , "status"     : 304
+  , "response"   : ""
+  , "reqheaders" : {
+      "If-None-Match": "\"1-5142a2\""
+    }
+  }
+, { "path"     : "/shared_headers/new/att"
+  , "status"   : 200
+  , "response" : "\"Hello\""
+  }
+, { "method"   : "delete"
+  , "path"     : "/shared_headers"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

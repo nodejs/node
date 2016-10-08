@@ -1,0 +1,11 @@
+language: node_js
+sudo: false
+node_js:
+  - '0.8'
+  - '0.10'
+  - '0.12'
+  - 'iojs-2.5.0'
+before_install:
+  - npm install -g npm@latest
+  - npm install -g pangyp
+  - npm config set node-gyp pangyp

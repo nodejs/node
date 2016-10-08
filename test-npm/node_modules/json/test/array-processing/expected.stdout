@@ -1,0 +1,45 @@
+Trent
+trent@example.com
+
+Trent trent@example.com
+Mark mark@example.com
+
+Trent trent@example.com
+
+Trent,trent@example.com
+Mark,mark@example.com
+
+# comma
+trent,38
+ewan,4
+# tab
+trent	38
+ewan	4
+# newline
+trent
+38
+ewan
+4
+# nul to xargs
+trent 38
+ewan 4
+
+end-of-xargs-output
+
+{
+  "foo": "bar"
+}
+{
+  "foo": "baz"
+}
+bar
+baz
+
+[
+  {
+    "foo": "bar"
+  },
+  {
+    "foo": "baz"
+  }
+]

@@ -1,0 +1,15 @@
+.TH "A" "1" "January 1979" "" ""
+.SH "NAME"
+\fBa\fR
+.RS 0
+.IP \(bu 2
+\fBtoggle_status\fP
+.RS 0
+.IP \(bu 2
+Toggle the display of the status bar\.
+
+.RE
+.IP \(bu 2
+\fBspawn <executable> <additional args>\fP TODO explain path\-alike expansion
+
+.RE

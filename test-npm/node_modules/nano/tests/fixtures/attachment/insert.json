@@ -1,0 +1,18 @@
+[
+  { "method"   : "put"
+  , "path"     : "/attachment_insert"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_insert/new/att"
+  , "body"     : "Hello World!"
+  , "status"   : 201
+  , "response" : "{\"ok\": true, \"id\": \"new\", \"rev\": \"1-921bd51\" }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/attachment_insert"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

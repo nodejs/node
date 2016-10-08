@@ -1,0 +1,95 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "cryptiles@2.x.x",
+        "scope": null,
+        "escapedName": "cryptiles",
+        "name": "cryptiles",
+        "rawSpec": "2.x.x",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/hawk"
+    ]
+  ],
+  "_from": "cryptiles@>=2.0.0 <3.0.0",
+  "_id": "cryptiles@2.0.5",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/hawk/cryptiles",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "name": "hueniverse",
+    "email": "eran@hammer.io"
+  },
+  "_npmVersion": "2.14.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "cryptiles@2.x.x",
+    "scope": null,
+    "escapedName": "cryptiles",
+    "name": "cryptiles",
+    "rawSpec": "2.x.x",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/hawk"
+  ],
+  "_resolved": "https://registry.npmjs.org/cryptiles/-/cryptiles-2.0.5.tgz",
+  "_shasum": "3bdfecdc608147c1c67202fa291e7dca59eaa3b8",
+  "_shrinkwrap": null,
+  "_spec": "cryptiles@2.x.x",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/hawk",
+  "bugs": {
+    "url": "https://github.com/hapijs/cryptiles/issues"
+  },
+  "dependencies": {
+    "boom": "2.x.x"
+  },
+  "description": "General purpose crypto utilities",
+  "devDependencies": {
+    "code": "1.x.x",
+    "lab": "5.x.x"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "3bdfecdc608147c1c67202fa291e7dca59eaa3b8",
+    "tarball": "https://registry.npmjs.org/cryptiles/-/cryptiles-2.0.5.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.40"
+  },
+  "gitHead": "9bc5a852f01cd51e615814e1cb255fe2df810649",
+  "homepage": "https://github.com/hapijs/cryptiles#readme",
+  "keywords": [
+    "cryptography",
+    "security",
+    "utilites"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "lib/index.js",
+  "maintainers": [
+    {
+      "name": "hueniverse",
+      "email": "eran@hueniverse.com"
+    },
+    {
+      "name": "ceejbot",
+      "email": "ceejceej@gmail.com"
+    }
+  ],
+  "name": "cryptiles",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hapijs/cryptiles.git"
+  },
+  "scripts": {
+    "test": "lab -a code -t 100 -L",
+    "test-cov-html": "lab -a code -r html -o coverage.html"
+  },
+  "version": "2.0.5"
+}

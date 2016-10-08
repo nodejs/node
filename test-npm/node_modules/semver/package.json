@@ -1,0 +1,102 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "semver@5.3.0",
+        "scope": null,
+        "escapedName": "semver",
+        "name": "semver",
+        "rawSpec": "5.3.0",
+        "spec": "5.3.0",
+        "type": "version"
+      },
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "semver@5.3.0",
+  "_id": "semver@5.3.0",
+  "_inCache": true,
+  "_location": "/semver",
+  "_nodeVersion": "4.4.4",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/semver-5.3.0.tgz_1468515166602_0.9155273644719273"
+  },
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "_npmVersion": "3.10.6",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "semver@5.3.0",
+    "scope": null,
+    "escapedName": "semver",
+    "name": "semver",
+    "rawSpec": "5.3.0",
+    "spec": "5.3.0",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/init-package-json",
+    "/node-gyp",
+    "/normalize-package-data",
+    "/npm-install-checks",
+    "/npm-package-arg",
+    "/npm-registry-client",
+    "/read-installed"
+  ],
+  "_resolved": "https://registry.npmjs.org/semver/-/semver-5.3.0.tgz",
+  "_shasum": "9b2ce5d3de02d17c6012ad326aa6b4d0cf54f94f",
+  "_shrinkwrap": null,
+  "_spec": "semver@5.3.0",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "bin": {
+    "semver": "./bin/semver"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/node-semver/issues"
+  },
+  "dependencies": {},
+  "description": "The semantic version parser used by npm.",
+  "devDependencies": {
+    "tap": "^2.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "9b2ce5d3de02d17c6012ad326aa6b4d0cf54f94f",
+    "tarball": "https://registry.npmjs.org/semver/-/semver-5.3.0.tgz"
+  },
+  "files": [
+    "bin",
+    "range.bnf",
+    "semver.js"
+  ],
+  "gitHead": "d21444a0658224b152ce54965d02dbe0856afb84",
+  "homepage": "https://github.com/npm/node-semver#readme",
+  "license": "ISC",
+  "main": "semver.js",
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "name": "semver",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/node-semver.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "5.3.0"
+}

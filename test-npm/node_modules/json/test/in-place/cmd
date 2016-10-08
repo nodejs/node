@@ -1,0 +1,40 @@
+JSON=../../lib/json.js
+
+# setup
+rm -f *.json
+cp corpus/*.json .
+
+echo '# simple' >&2
+echo '# simple'
+$JSON -I -f a1.json
+cat a1.json
+$JSON -I -f a1.json -o json-4
+cat a1.json
+
+echo '# bogus' >&2
+echo '# bogus'
+$JSON -I -f bogus.json
+
+echo '# http header block' >&2
+echo '# http header block'
+$JSON -I -f http-header-block.json
+cat http-header-block.json
+
+echo '# does not exist' >&2
+echo '# does not exist'
+$JSON -I -f does-not-exist.json
+
+echo '# multiple files' >&2
+echo '# multiple files'
+$JSON -I -f a1.json -f a2.json
+
+echo '# -e' >&2
+echo '# -e'
+$JSON -I -f a1.json -e 'this.foo=42'
+cat a1.json
+
+echo '# -c' >&2
+echo '# -c'
+$JSON -I -f users.json -c 'this.age < 30'
+cat users.json
+

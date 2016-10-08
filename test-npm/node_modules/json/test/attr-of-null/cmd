@@ -1,0 +1,5 @@
+echo "# foo"
+cat input | ../../lib/json.js foo
+
+echo "# foo.bar"
+cat input | ../../lib/json.js foo.bar

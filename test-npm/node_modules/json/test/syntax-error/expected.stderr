@@ -1,0 +1,3 @@
+json: error: input is not JSON: Bad string at line 2, column 2:
+         ,"spam": "eggs"}
+        .^

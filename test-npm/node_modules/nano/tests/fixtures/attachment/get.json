@@ -1,0 +1,32 @@
+[
+  { "method"   : "put"
+  , "path"     : "/attachment_get"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_get/new_string/att"
+  , "body"     : "Hello"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"new_string\",\"rev\":\"1-5142a2\"}"
+  }
+, { "path"     : "/attachment_get/new_string/att"
+  , "status"   : 200
+  , "response" : "Hello"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_get/new_binary/att"
+  , "base64"   : "MTIz"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"new_binary\",\"rev\":\"1-5142ff\"}"
+  }
+, { "path"     : "/attachment_get/new_binary/att"
+  , "status"   : 200
+  , "buffer"   : "MTIz"
+  }
+, { "method"   : "delete"
+  , "path"     : "/attachment_get"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

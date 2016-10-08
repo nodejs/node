@@ -1,0 +1,3 @@
+JSON=../../lib/json.js
+
+cat last-index-err.json | $JSON -- -1.timeLastEvent

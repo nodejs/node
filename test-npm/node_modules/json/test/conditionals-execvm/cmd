@@ -1,0 +1,48 @@
+JSON="env JSON_EXEC=vm ../../lib/json.js"
+JSON0="env JSON_EXEC=vm ../../lib/json.js -o json-0"
+
+# Basic -c usage:
+# 1. Filter based on the check.
+echo '{"age": 38}' | $JSON0 -c 'this.age > 30'
+#        {
+#          "age": 38
+#        }
+echo '{"age": 38}' | $JSON0 -c 'this.age < 30'
+#        empty
+echo '(empty output)'
+
+# 2. -c switches mode to look at each array item if top-level input is an array
+echo ''
+echo '[{"age":38}, {"age": 42}, {"age":21}]' | $JSON0 -c 'this.age > 30'
+#       [{"age":38},{"age": 42}]
+
+# 3. -a still does its thing (flatten)
+echo ''
+echo '[{"age":38}, {"age": 42}, {"age":21}]' | $JSON -a -c 'this.age > 30'
+#        {
+#          "age": 38
+#        }
+#        {
+#          "age": 42
+#        }
+echo '[{"age":38}, {"age": 42}, {"age":21}]' | $JSON -a -c 'this.age > 30' age
+#        38
+#        42
+
+# Other stuff.
+# Can filter on presence of a key.
+echo ''
+echo '[{"name":"apple", "fruit":"yes"}, {"name":"carrot"}]' | $JSON0 -c 'this.fruit'
+#        [{"name":"apple","fruit":"yes"}]
+echo '[{"name":"apple", "fruit":"yes"}, {"name":"carrot"}]' | $JSON -a -c 'this.fruit'
+#        {
+#          "name": "apple",
+#          "fruit": "yes"
+#        }
+echo '[{"name":"apple", "fruit":"yes"}, {"name":"carrot"}]' | $JSON -a -c 'this.fruit' name
+#        apple
+
+# Syntax Error
+echo ''
+echo '{"foo": "bar"}' | $JSON -c 'foo foo' 2>&1 | grep SyntaxError
+#    SyntaxError: Unexpected identifier

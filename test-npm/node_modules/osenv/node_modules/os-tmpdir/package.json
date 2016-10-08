@@ -1,0 +1,53 @@
+{
+  "name": "os-tmpdir",
+  "version": "1.0.1",
+  "description": "Node.js os.tmpdir() ponyfill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/os-tmpdir.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "built-in",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim",
+    "os",
+    "tmpdir",
+    "tempdir",
+    "tmp",
+    "temp",
+    "dir",
+    "directory",
+    "env",
+    "environment"
+  ],
+  "devDependencies": {
+    "ava": "0.0.4"
+  },
+  "readme": "# os-tmpdir [![Build Status](https://travis-ci.org/sindresorhus/os-tmpdir.svg?branch=master)](https://travis-ci.org/sindresorhus/os-tmpdir)\n\n> Node.js [`os.tmpdir()`](https://nodejs.org/api/os.html#os_os_tmpdir) ponyfill\n\n> Ponyfill: A polyfill that doesn't overwrite the native method\n\nUse this instead of `require('os').tmpdir()` to get a consistent behaviour on different Node.js versions (even 0.8).\n\n*This is actually taken from io.js 2.0.2 as it contains some fixes that haven't bubbled up to Node.js yet.*\n\n\n## Install\n\n```\n$ npm install --save os-tmpdir\n```\n\n\n## Usage\n\n```js\nvar osTmpdir = require('os-tmpdir');\n\nosTmpdir();\n//=> /var/folders/m3/5574nnhn0yj488ccryqr7tc80000gn/T\n```\n\n\n## API\n\nSee the [`os.tmpdir()` docs](https://nodejs.org/api/os.html#os_os_tmpdir).\n\n\n## License\n\nMIT © [Sindre Sorhus](http://sindresorhus.com)\n",
+  "readmeFilename": "readme.md",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/os-tmpdir/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/os-tmpdir#readme",
+  "_id": "os-tmpdir@1.0.1",
+  "_shasum": "e9b423a1edaf479882562e92ed71d7743a071b6e",
+  "_resolved": "https://registry.npmjs.org/os-tmpdir/-/os-tmpdir-1.0.1.tgz",
+  "_from": "os-tmpdir@>=1.0.0 <2.0.0"
+}

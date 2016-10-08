@@ -1,0 +1,101 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "npm-user-validate@0.1.5",
+        "scope": null,
+        "escapedName": "npm-user-validate",
+        "name": "npm-user-validate",
+        "rawSpec": "0.1.5",
+        "spec": "0.1.5",
+        "type": "version"
+      },
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "npm-user-validate@0.1.5",
+  "_id": "npm-user-validate@0.1.5",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/npm-user-validate",
+  "_nodeVersion": "5.11.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/npm-user-validate-0.1.5.tgz_1466436459441_0.15483755711466074"
+  },
+  "_npmUser": {
+    "name": "aredridel",
+    "email": "aria@npmjs.com"
+  },
+  "_npmVersion": "3.10.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "npm-user-validate@0.1.5",
+    "scope": null,
+    "escapedName": "npm-user-validate",
+    "name": "npm-user-validate",
+    "rawSpec": "0.1.5",
+    "spec": "0.1.5",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-user-validate/-/npm-user-validate-0.1.5.tgz",
+  "_shasum": "52465d50c2d20294a57125b996baedbf56c5004b",
+  "_shrinkwrap": null,
+  "_spec": "npm-user-validate@0.1.5",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Robert Kowalski",
+    "email": "rok@kowalski.gd"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-user-validate/issues"
+  },
+  "dependencies": {},
+  "description": "User validations for npm",
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "52465d50c2d20294a57125b996baedbf56c5004b",
+    "tarball": "https://registry.npmjs.org/npm-user-validate/-/npm-user-validate-0.1.5.tgz"
+  },
+  "gitHead": "688552a47e6c22cd07206894dcd21b9d7a37ee56",
+  "homepage": "https://github.com/npm/npm-user-validate#readme",
+  "keywords": [
+    "npm",
+    "validation",
+    "registry"
+  ],
+  "license": "BSD-2-Clause",
+  "main": "npm-user-validate.js",
+  "maintainers": [
+    {
+      "name": "aredridel",
+      "email": "aria@npmjs.com"
+    },
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "robertkowalski",
+      "email": "rok@kowalski.gd"
+    }
+  ],
+  "name": "npm-user-validate",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-user-validate.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "0.1.5"
+}

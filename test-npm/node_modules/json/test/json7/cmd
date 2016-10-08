@@ -1,0 +1,9 @@
+JSON=../../lib/json.js
+
+# Possible subtlety from json6: is the lookup parsed as an int
+echo '{"1e6": "one"}' | $JSON 1e6
+echo '{"1e6": "two"}' | $JSON '[1e6]'
+echo '{"1e6": "three"}' | $JSON '["1e6"]'
+
+# Ensure that fancy eval of the lookups still works:
+echo '{"foobar": "four"}' | $JSON '["foo" + "bar" ]'

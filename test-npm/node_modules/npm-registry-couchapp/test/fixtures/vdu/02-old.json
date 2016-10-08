@@ -1,0 +1,115 @@
+{
+  "_id": "flexpmd",
+  "_rev": "4-432e2aec1fd4a3a85025e832e7a51316",
+  "name": "flexpmd",
+  "description": "A Node.js module to download and \"install\" the FlexPMD infrastructure for linting/analyzing ActionScript/Flash/Flex/AIR code.",
+  "dist-tags": {
+    "latest": "1.3.0"
+  },
+  "versions": {
+    "1.3.0": {
+      "name": "flexpmd",
+      "description": "A Node.js module to download and \"install\" the FlexPMD infrastructure for linting/analyzing ActionScript/Flash/Flex/AIR code.",
+      "version": "1.3.0",
+      "flexPmd": {
+        "url": "https://github.com/JamesMGreene/adobe-flex-pmd/releases/download/v1.3/adobe-flex-pmd.zip"
+      },
+      "homepage": "https://github.com/JamesMGreene/node-flexpmd",
+      "author": {
+        "name": "James M. Greene",
+        "email": "the-email@example.com",
+        "url": "http://jamesgreene.net/"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/JamesMGreene/node-flexpmd.git"
+      },
+      "bugs": {
+        "url": "https://github.com/JamesMGreene/node-flexpmd/issues"
+      },
+      "licenses": [
+        {
+          "type": "MIT",
+          "url": "https://github.com/JamesMGreene/node-flexpmd/blob/master/LICENSE-MIT"
+        }
+      ],
+      "main": "lib/flexpmd",
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "scripts": {
+        "prepublish": "node prepublish.js",
+        "test": "grunt travis --verbose"
+      },
+      "devDependencies": {
+        "grunt-contrib-jshint": "~0.8.0",
+        "grunt-contrib-nodeunit": "~0.3.0",
+        "grunt-contrib-watch": "~0.5.3",
+        "grunt": "~0.4.2",
+        "xpath": "0.0.6",
+        "xmldom": "~0.1.19"
+      },
+      "keywords": [
+        "download",
+        "install",
+        "apache",
+        "adobe",
+        "flexpmd",
+        "aslint",
+        "open source",
+        "compiler",
+        "flex",
+        "mxml",
+        "actionscript",
+        "flv",
+        "flash",
+        "air"
+      ],
+      "dependencies": {
+        "follow-redirects": "0.0.3",
+        "glob": "~3.2.8"
+      },
+      "_id": "flexpmd@1.3.0",
+      "dist": {
+        "shasum": "9376062b1fa373e65f301c40079cadee52390590",
+        "tarball": "http://registry.npmjs.org/flexpmd/-/flexpmd-1.3.0.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.2.24",
+      "_npmUser": {
+        "name": "jamesmgreene",
+        "email": "the-email@example.com"
+      },
+      "maintainers": [
+        {
+          "name": "jamesmgreene",
+          "email": "the-email@example.com"
+        }
+      ],
+      "directories": {}
+    }
+  },
+  "readme": "# flexpmd [![Build Status](https://secure.travis-ci.org/JamesMGreene/node-flexpmd.png?branch=master)](http://travis-ci.org/JamesMGreene/node-flexpmd)\r\n\r\nA Node.js module to download and \"install\" the FlexPMD infrastructure for linting/analyzing ActionScript/Flash/Flex/AIR code.\r\n\r\n\r\n## Getting Started\r\nInstall the module with: `npm install flexpmd`\r\n\r\n```javascript\r\nvar flexlint = require('flexpmd');\r\nconsole.log(flexlint.path);  // path to the main directory of JARs\r\nconsole.log(flexlint.cmd);   // path to the JAR to use like a command line executable\r\n```\r\n\r\n\r\n## External Dependencies\r\nWhile this Node/NPM module does not have any external dependencies itself, the FlexPMD tool requires Java.\r\n\r\n\r\n## Examples\r\nSee the unit tests for example usage.\r\n\r\n\r\n## Contributing\r\nIn lieu of a formal styleguide, take care to maintain the existing coding style.\r\nAdd unit tests for any new or changed functionality.\r\nLint and test your code using [Grunt](http://gruntjs.com/).\r\n\r\n\r\n## Release History\r\n- 1.3.0: Published to NPM on 2014-02-17.\r\n    - Initial release. Version number aligned with FlexPMD version number.\r\n\r\n\r\n## License\r\nCopyright (c) 2014 James M. Greene  \r\nLicensed under the MIT license.\r\n\r\n\r\n## Background Information on FlexPMD\r\n - [Home](http://sourceforge.net/adobe/flexpmd/)\r\n - [Overview](http://sourceforge.net/adobe/flexpmd/wiki/Overview/)\r\n - [About](http://sourceforge.net/adobe/flexpmd/wiki/About/)\r\n - [How to invoke FlexPMD](http://sourceforge.net/adobe/flexpmd/wiki/How%20to%20invoke%20FlexPMD/)\r\n - [How to interpret FlexPMD results](http://sourceforge.net/adobe/flexpmd/wiki/How%20to%20interpret%20results/)\r\n - [How to add your own rule](http://sourceforge.net/adobe/flexpmd/wiki/How%20to%20add%20your%20own%20rule/)\r\n - [Developer documentation](http://sourceforge.net/adobe/flexpmd/wiki/Developer%20documentation/)\r\n - [Mind Map: \"What is FlexPMD?\"](http://www.xmind.net/m/F2Ft/)\r\n - [FlashDevelop4's integrated FlexPMD source folder](http://flashdevelop.googlecode.com/svn/trunk/FD4/FlashDevelop/Bin/Debug/Tools/flexpmd/) _(&rarr; Tools &rarr; Flash Tools &rarr; Analyse Project Source code.)_\r\n - [FlashDevelop3's FlexPMD plugin wrapper and usage discussion](http://www.flashdevelop.org/community/viewtopic.php?f=4&t=5403)\r\n - [FlashDevelop3's FlexPMD plugin wrapper setup guide](http://www.swfgeek.net/2009/09/18/using-flex-pmd-in-flashdevelop-3/)\r\n",
+  "maintainers": [
+    {
+      "name": "jamesmgreene",
+      "email": "the-email@example.com"
+    }
+  ],
+  "time": {
+    "modified": "2014-02-17T16:20:03.577Z",
+    "created": "2014-02-17T16:20:02.181Z",
+    "1.3.0": "2014-02-17T16:20:03.577Z"
+  },
+  "readmeFilename": "README.md",
+  "author": {
+    "name": "James M. Greene",
+    "email": "the-email@example.com",
+    "url": "http://jamesgreene.net/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/JamesMGreene/node-flexpmd.git"
+  },
+  "_attachments": {}
+}

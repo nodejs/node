@@ -1,0 +1,74 @@
+{{# def.definitions }}
+{{# def.errors }}
+{{# def.setupKeyword }}
+
+{{## def.skipFormat:
+  {{? $breakOnError }} if (true) { {{?}}
+  {{ return out; }}
+#}}
+
+{{? it.opts.format === false }}{{# def.skipFormat }}{{?}}
+
+
+{{# def.$data }}
+
+
+{{## def.$dataCheckFormat:
+  {{# def.$dataNotType:'string' }}
+  ({{=$format}} && !(typeof {{=$format}} == 'function'
+                     ? {{? it.async}}
+                        (async{{=$lvl}} ? {{=it.yieldAwait}} {{=$format}}({{=$data}}) : {{=$format}}({{=$data}}))
+                       {{??}}
+                        {{=$format}}({{=$data}})
+                       {{?}}
+                     : {{=$format}}.test({{=$data}})))
+#}}
+
+{{## def.checkFormat:
+  {{
+    var $formatRef = 'formats' + it.util.getProperty($schema);
+    if ($isObject) $formatRef += '.validate';
+  }}
+  {{? typeof $format == 'function' }}
+    {{=$formatRef}}({{=$data}})
+  {{??}}
+    {{=$formatRef}}.test({{=$data}})
+  {{?}}
+#}}
+
+
+{{? $isData }}
+  {{ var $format = 'format' + $lvl; }}
+  var {{=$format}} = formats[{{=$schemaValue}}];
+  var isObject{{=$lvl}} = typeof {{=$format}} == 'object'
+                          && !({{=$format}} instanceof RegExp)
+                          && {{=$format}}.validate;
+  if (isObject{{=$lvl}}) {
+    var async{{=$lvl}} = {{=$format}}.async;
+    {{=$format}} = {{=$format}}.validate;
+  }
+  if ({{# def.$dataCheckFormat }}) {
+{{??}}
+  {{ var $format = it.formats[$schema]; }}
+  {{? !$format }}{{# def.skipFormat }}{{?}}
+  {{
+    var $isObject = typeof $format == 'object'
+                    && !($format instanceof RegExp)
+                    && $format.validate;
+    if ($isObject) {
+      var $async = $format.async === true;
+      $format = $format.validate;
+    }
+  }}
+  {{? $async }}
+    {{
+      if (!it.async) throw new Error('async format in sync schema');
+      var $formatRef = 'formats' + it.util.getProperty($schema) + '.validate';
+    }}
+    if (!({{=it.yieldAwait}} {{=$formatRef}}({{=$data}}))) {
+  {{??}}
+    if (!{{# def.checkFormat }}) {
+  {{?}}
+{{?}}
+    {{# def.error:'format' }}
+  } {{? $breakOnError }} else { {{?}}

@@ -1,0 +1,86 @@
+.TH "NPM\-CACHE" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm-cache\fR \- Manipulates packages cache
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm cache add <tarball file>
+npm cache add <folder>
+npm cache add <tarball url>
+npm cache add <name>@<version>
+
+npm cache ls [<path>]
+
+npm cache clean [<path>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Used to add, list, or clear the npm cache folder\.
+.RS 0
+.IP \(bu 2
+add:
+Add the specified package to the local cache\.  This command is primarily
+intended to be used internally by npm, but it can provide a way to
+add data to the local installation cache explicitly\.
+.IP \(bu 2
+ls:
+Show the data in the cache\.  Argument is a path to show in the cache
+folder\.  Works a bit like the \fBfind\fP program, but limited by the
+\fBdepth\fP config\.
+.IP \(bu 2
+clean:
+Delete data out of the cache folder\.  If an argument is provided, then
+it specifies a subpath to delete\.  If no argument is provided, then
+the entire cache is cleared\.
+
+.RE
+.SH DETAILS
+.P
+npm stores cache data in the directory specified in \fBnpm config get cache\fP\|\.
+For each package that is added to the cache, three pieces of information are
+stored in \fB{cache}/{name}/{version}\fP:
+.RS 0
+.IP \(bu 2
+\|\.\.\./package/package\.json:
+The package\.json file, as npm sees it\.
+.IP \(bu 2
+\|\.\.\./package\.tgz:
+The tarball for that version\.
+
+.RE
+.P
+Additionally, whenever a registry request is made, a \fB\|\.cache\.json\fP file
+is placed at the corresponding URI, to store the ETag and the requested
+data\.  This is stored in \fB{cache}/{hostname}/{path}/\.cache\.json\fP\|\.
+.P
+Commands that make non\-essential registry requests (such as \fBsearch\fP and
+\fBview\fP, or the completion scripts) generally specify a minimum timeout\.
+If the \fB\|\.cache\.json\fP file is younger than the specified timeout, then
+they do not make an HTTP request to the registry\.
+.SH CONFIGURATION
+.SS cache
+.P
+Default: \fB~/\.npm\fP on Posix, or \fB%AppData%/npm\-cache\fP on Windows\.
+.P
+The root cache folder\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help pack
+
+.RE
+

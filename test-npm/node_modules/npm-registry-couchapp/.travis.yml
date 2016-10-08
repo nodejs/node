@@ -1,0 +1,17 @@
+language: "node_js"
+node_js:
+  - "5"
+  - "4"
+  - iojs
+  - "0.12"
+  - "0.10"
+  - "0.8"
+sudo: false
+before_install:
+  - "npm config set spin false"
+  - "npm install -g npm"
+env:
+  - DEPLOY_VERSION=testing
+script: "npm test"
+notifications:
+  email: false

@@ -1,0 +1,13 @@
+{"foo":"baz"}
+{"foo":"baz"}
+{"age":39}
+{"age":39}
+{"two":2}
+{"two":2}
+
+{"one":2,"two":3}
+2
+
+[{"name":"Trent Mick"},{"name":"Andrew Dlugan"}]
+
+SyntaxError: Unexpected identifier

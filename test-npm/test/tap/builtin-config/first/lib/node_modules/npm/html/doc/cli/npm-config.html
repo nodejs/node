@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <title>npm-config</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-config.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-config.html">npm-config</a></h1> <p>Manage the npm configuration files</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm config set &lt;key&gt; &lt;value&gt; [-g|--global]
+npm config get &lt;key&gt;
+npm config delete &lt;key&gt;
+npm config list
+npm config edit
+npm get &lt;key&gt;
+npm set &lt;key&gt; &lt;value&gt; [-g|--global]
+
+aliases: c
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>npm gets its config settings from the command line, environment
+variables, <code>npmrc</code> files, and in some cases, the <code>package.json</code> file.</p>
+<p>See <a href="../files/npmrc.html">npmrc(5)</a> for more information about the npmrc files.</p>
+<p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for a more thorough discussion of the mechanisms
+involved.</p>
+<p>The <code>npm config</code> command can be used to update and edit the contents
+of the user and global npmrc files.</p>
+<h2 id="sub-commands">Sub-commands</h2>
+<p>Config supports the following sub-commands:</p>
+<h3 id="set">set</h3>
+<pre><code>npm config set key value
+</code></pre><p>Sets the config key to the value.</p>
+<p>If value is omitted, then it sets it to &quot;true&quot;.</p>
+<h3 id="get">get</h3>
+<pre><code>npm config get key
+</code></pre><p>Echo the config value to stdout.</p>
+<h3 id="list">list</h3>
+<pre><code>npm config list
+</code></pre><p>Show all the config settings.</p>
+<h3 id="delete">delete</h3>
+<pre><code>npm config delete key
+</code></pre><p>Deletes the key from all configuration files.</p>
+<h3 id="edit">edit</h3>
+<pre><code>npm config edit
+</code></pre><p>Opens the config file in an editor.  Use the <code>--global</code> flag to edit the
+global config.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../cli/npm.html">npm(1)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-config &mdash; npm@3.10.8</p>
+

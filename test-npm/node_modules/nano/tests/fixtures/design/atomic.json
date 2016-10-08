@@ -1,0 +1,39 @@
+[
+  { "method"   : "put"
+  , "path"     : "/design_atomic"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/design_atomic/_design/update"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"_design/update\",\"rev\":\"1-14e6bc\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_atomic/foobar"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "path"     : "/design_atomic/_design/update/_update/inplace/foobar"
+  , "body"     : "{\"field\":\"foo\",\"value\":\"bar\"}"
+  , "response" : "{\"foo\": \"bar\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_atomic/wat%2Fwat"
+  , "body"     : "{\"wat\":\"wat\"}"
+  , "response" : "{\"ok\":true,\"id\":\"wat%2Fwat\",\"rev\":\"1-511488\"}"
+  }
+, { "method"   : "put"
+  , "path"     : "/design_atomic/_design/update/_update/inplace/wat%2Fwat"
+  , "body"     : "{\"field\":\"wat\",\"value\":\"dawg\"}"
+  , "response" : "{\"wat\": \"dawg\"}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/design_atomic"
+  , "response" : "{ \"ok\": true }"
+  }
+]

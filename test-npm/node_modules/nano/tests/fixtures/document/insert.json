@@ -1,0 +1,48 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_insert"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_insert/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 409
+  , "path"     : "/document_insert/foobaz"
+  , "body"     : "*"
+  , "response" : "{\"error\":\"conflict\",\"reason\":\"Document update conflict.\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_insert/foobaz?new_edits=false"
+  , "body"     : "{\"foo\":\"baz\",\"_rev\":\"1-611488\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"2-123456\"}"
+  }
+, { "method"   : "post"
+  , "status"   : 201
+  , "path"     : "/document_insert"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"123\",\"rev\":\"1-611488\"}"
+  }
+, { "path"     : "/document_insert/123"
+  , "response" : "{\"fn\":\"function() { return true; }\",\"fn2\":\"function() { return true; }\",\"id\":\"123\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "post"
+  , "status"   : 201
+  , "path"     : "/document_insert"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"234\",\"rev\":\"1-333231\"}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_insert/foobaz?rev=1-611488"
+  , "response" : "{\"ok\":true}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_insert"
+  , "response" : "{ \"ok\": true }"
+  }
+]

@@ -1,0 +1,105 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "jodid25519@^1.0.0",
+        "scope": null,
+        "escapedName": "jodid25519",
+        "name": "jodid25519",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk"
+    ]
+  ],
+  "_from": "jodid25519@>=1.0.0 <2.0.0",
+  "_id": "jodid25519@1.0.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/sshpk/jodid25519",
+  "_nodeVersion": "4.1.1",
+  "_npmUser": {
+    "name": "arekinath",
+    "email": "alex@cooperi.net"
+  },
+  "_npmVersion": "2.14.4",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "jodid25519@^1.0.0",
+    "scope": null,
+    "escapedName": "jodid25519",
+    "name": "jodid25519",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/jodid25519/-/jodid25519-1.0.2.tgz",
+  "_shasum": "06d4912255093419477d425633606e0e90782967",
+  "_shrinkwrap": null,
+  "_spec": "jodid25519@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk",
+  "author": {
+    "name": "Michele Bini, Ron Garret, Guy K. Kloss"
+  },
+  "bugs": {
+    "url": "https://github.com/meganz/jodid25519/issues"
+  },
+  "dependencies": {
+    "jsbn": "~0.1.0"
+  },
+  "description": "jodid25519 - Curve 25519-based cryptography",
+  "devDependencies": {
+    "almond": "~0.3.1",
+    "chai": "^3.0.0",
+    "dateformat": "~1.0.7-1.2.3",
+    "ibrik": "~2.0.0",
+    "istanbul": "~0.3.5",
+    "jsdoc": "<=3.3.0",
+    "mocha": "~2.0.1",
+    "sinon": "~1.10.3",
+    "sinon-chai": "^2.8.0"
+  },
+  "directories": {
+    "src": "src",
+    "test": "test",
+    "doc": "doc"
+  },
+  "dist": {
+    "shasum": "06d4912255093419477d425633606e0e90782967",
+    "tarball": "https://registry.npmjs.org/jodid25519/-/jodid25519-1.0.2.tgz"
+  },
+  "gitHead": "a83b9fcf7fd3be4f27cd4a57817aff171c7cd918",
+  "homepage": "https://github.com/meganz/jodid25519",
+  "keywords": [
+    "Curve25519",
+    "Ed25519",
+    "ECDH",
+    "EdDSA",
+    "ECDSA",
+    "encryption",
+    "signing"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "arekinath",
+      "email": "alex@cooperi.net"
+    }
+  ],
+  "name": "jodid25519",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meganz/jodid25519.git"
+  },
+  "scripts": {
+    "test": "mocha test/*_test.js"
+  },
+  "version": "1.0.2"
+}

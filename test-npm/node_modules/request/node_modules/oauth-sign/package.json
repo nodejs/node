@@ -1,0 +1,99 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "oauth-sign@~0.8.1",
+        "scope": null,
+        "escapedName": "oauth-sign",
+        "name": "oauth-sign",
+        "rawSpec": "~0.8.1",
+        "spec": ">=0.8.1 <0.9.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request"
+    ]
+  ],
+  "_from": "oauth-sign@>=0.8.1 <0.9.0",
+  "_id": "oauth-sign@0.8.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/oauth-sign",
+  "_nodeVersion": "5.9.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/oauth-sign-0.8.2.tgz_1462396399020_0.8175400267355144"
+  },
+  "_npmUser": {
+    "name": "simov",
+    "email": "simeonvelichkov@gmail.com"
+  },
+  "_npmVersion": "2.15.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "oauth-sign@~0.8.1",
+    "scope": null,
+    "escapedName": "oauth-sign",
+    "name": "oauth-sign",
+    "rawSpec": "~0.8.1",
+    "spec": ">=0.8.1 <0.9.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/oauth-sign/-/oauth-sign-0.8.2.tgz",
+  "_shasum": "46a6ab7f0aead8deae9ec0565780b7d4efeb9d43",
+  "_shrinkwrap": null,
+  "_spec": "oauth-sign@~0.8.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/request",
+  "author": {
+    "name": "Mikeal Rogers",
+    "email": "mikeal.rogers@gmail.com",
+    "url": "http://www.futurealoof.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mikeal/oauth-sign/issues"
+  },
+  "dependencies": {},
+  "description": "OAuth 1 signing. Formerly a vendor lib in mikeal/request, now a standalone module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "46a6ab7f0aead8deae9ec0565780b7d4efeb9d43",
+    "tarball": "https://registry.npmjs.org/oauth-sign/-/oauth-sign-0.8.2.tgz"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "0b034206316132f57e26970152c2fb18e71bddd5",
+  "homepage": "https://github.com/mikeal/oauth-sign#readme",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    },
+    {
+      "name": "nylen",
+      "email": "jnylen@gmail.com"
+    },
+    {
+      "name": "simov",
+      "email": "simeonvelichkov@gmail.com"
+    }
+  ],
+  "name": "oauth-sign",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "url": "git+https://github.com/mikeal/oauth-sign.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "0.8.2"
+}

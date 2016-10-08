@@ -1,0 +1,34 @@
+.TH "NPM\-PRUNE" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm-prune\fR \- Remove extraneous packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm prune [[<@scope>/]<pkg>\.\.\.] [\-\-production]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command removes "extraneous" packages\.  If a package name is
+provided, then only packages matching one of the supplied names are
+removed\.
+.P
+Extraneous packages are packages that are not listed on the parent
+package's dependencies list\.
+.P
+If the \fB\-\-production\fP flag is specified or the \fBNODE_ENV\fP environment
+variable is set to \fBproduction\fP, this command will remove the packages
+specified in your \fBdevDependencies\fP\|\. Setting \fB\-\-production=false\fP will
+negate \fBNODE_ENV\fP being set to \fBproduction\fP\|\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help uninstall
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help ls
+
+.RE
+

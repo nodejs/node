@@ -1,0 +1,27 @@
+TAP version 13
+    # Subtest: slow.js
+    TAP version 13
+        # Subtest: slow test
+        1..0
+    ok 1 - slow test # time=5009.061ms
+
+    1..1
+    # time=5016.629ms
+ok 1 - slow.js # time=5177.92ms
+
+    # Subtest: fast.js
+    TAP version 13
+        # Subtest: fast test
+            # Subtest: nested suite
+            1..0
+        ok 1 - nested suite # time=0.888ms
+
+        1..1
+    ok 1 - fast test # time=7.314ms
+
+    1..1
+    # time=11.966ms
+ok 2 - fast.js # time=162.889ms
+
+1..2
+# time=5346.957ms

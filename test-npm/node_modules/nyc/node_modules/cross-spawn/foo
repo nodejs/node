@@ -1,0 +1,14 @@
+var spawn = require('child_process').spawn;
+var fs = require('fs');
+
+var out = fs.openSync('run.log', 'a');
+   var childProcess =   spawn('ls', {
+      stdio: [ 'ignore', out, out ], // piping stdout and stderr to run.log
+      detached: true
+    });
+    childProcess.unref();
+setTimeout(() => {}, 2300);
+
+//    sleep(2300); // delay needed for the "myserver run" to start
+//    var run_output = fs.readFileSync(path.join(working_dir, 'run.log')).toString();
+  //  expect(run_output).includes("listening on 100101");

@@ -1,0 +1,6 @@
+.TH "TEST" "" "January 1979" "" ""
+.SH "NAME"
+\fBtest\fR
+.SH this title \fBwill render\fP strangely
+.P
+This is the body text\.

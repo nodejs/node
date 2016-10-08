@@ -1,0 +1,5 @@
+node_modules/
+coverage/
+lib-cov/
+coverage.json
+npm-debug.log

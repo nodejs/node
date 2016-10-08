@@ -1,0 +1,95 @@
+.documentation a {
+  color: #1184CE;
+}
+
+.documentation .suppress-p-margin p {
+  margin:0;
+}
+
+.force-inline, .force-inline p {
+  display: inline;
+  color: #222;
+}
+
+.container-small {
+  max-width: 58rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.max-height-100 {
+  max-height: 100%;
+}
+
+.fade {
+  opacity:0.50;
+}
+
+.button-indent {
+  padding: .25rem 1.5rem;
+  font-size: 90%;
+}
+
+.section-indent {
+  border-left: 2px solid #eee;
+}
+
+.bg-cloudy {
+  background: #fafafa;
+}
+
+.force-inline * {
+  display:inline;
+}
+
+section:target h3 {
+  font-weight:700;
+}
+
+.documentation,
+.documentation h1,
+.documentation h2,
+.documentation h3,
+.documentation h4,
+.documentation h5,
+.documentation h6 {
+    font-family: 'Source Sans Pro', Helvetica, sans-serif;
+}
+
+.documentation pre,
+.documentation code,
+.documentation samp {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 90%;
+}
+
+.documentation td,
+.documentation th {
+    padding: .25rem .25rem;
+}
+
+h1:hover .anchorjs-link,
+h2:hover .anchorjs-link,
+h3:hover .anchorjs-link,
+h4:hover .anchorjs-link {
+  opacity: 1;
+}
+
+.collapsible .collapser {
+  display:none;
+}
+
+.collapsible:target .collapser {
+  display: block;
+}
+
+.fix-3 {
+  width: 25%;
+  max-width: 244px;
+}
+
+@media (min-width: 52em) {
+  .fix-margin-3 {
+    margin-left: 25%;
+  }
+}

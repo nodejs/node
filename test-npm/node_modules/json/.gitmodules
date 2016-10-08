@@ -1,0 +1,3 @@
+[submodule "deps/JSON-js"]
+	path = deps/JSON-js
+	url = https://github.com/douglascrockford/JSON-js.git

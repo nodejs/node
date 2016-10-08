@@ -1,0 +1,26 @@
+.TH "NPM\-REBUILD" "1" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-rebuild\fR \- Rebuild a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm rebuild [[<@scope>/<name>]\.\.\.]
+
+alias: npm rb
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command runs the \fBnpm build\fP command on the matched folders\.  This is useful
+when you install a new version of node, and must recompile all your C++ addons with
+the new binary\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help build
+.IP \(bu 2
+npm help install
+
+.RE
+

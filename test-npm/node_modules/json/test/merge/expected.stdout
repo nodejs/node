@@ -1,0 +1,74 @@
+# basic
+{
+  "foo": "bar",
+  "one": "two"
+}
+{
+  "foo": "bar",
+  "one": "two"
+}
+
+# override
+{
+  "one": "uno",
+  "two": "deux",
+  "three": "tres"
+}
+
+# shallow merge
+{
+  "trent": {
+    "email": "trent@example.com"
+  }
+}
+
+# deep merge
+{
+  "trent": {
+    "name": "Trent Mick",
+    "age": 38,
+    "email": "trent@example.com"
+  }
+}
+
+# deep merge
+{
+  "trent": {
+    "name": "Trent Mick",
+    "age": 38,
+    "email": "trent@example.com"
+  },
+  "kevin": {
+    "name": "Kevin Chan",
+    "email": "kevin@example.com"
+  }
+}
+
+# edge cases
+{
+  "trent": {
+    "name": "Trent Mick",
+    "age": 38,
+    "email": "trent@example.com"
+  },
+  "kevin": null
+}
+{
+  "trent": {
+    "name": "Trent Mick",
+    "age": 38,
+    "email": "trent@example.com"
+  },
+  "kevin": [
+    "a",
+    "name"
+  ]
+}
+{
+  "trent": {
+    "name": "Trent Mick",
+    "age": 38,
+    "email": "trent@example.com"
+  },
+  "kevin": true
+}

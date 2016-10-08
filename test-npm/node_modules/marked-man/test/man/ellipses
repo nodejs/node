@@ -1,0 +1,9 @@
+.TH "ELLIPSES" "7" "January 1979" "" ""
+.SH "NAME"
+\fBellipses\fR \- testing ellipses
+.P
+Ellipses should be replaced\.\.\.
+.P
+\|\.\.\.also, they shouldn't interfere with regular dots at the beginning
+.br
+of a line\.

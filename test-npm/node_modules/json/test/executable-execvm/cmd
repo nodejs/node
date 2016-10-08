@@ -1,0 +1,31 @@
+JSON="env JSON_EXEC=vm ../../lib/json.js"
+JSON0="env JSON_EXEC=vm ../../lib/json.js -o json-0"
+
+echo '{"foo": "bar"}' | $JSON0 -e 'this.foo="baz"'
+#    {"foo":"baz"}
+echo '{"foo": "bar"}' | $JSON0 -e 'foo="baz"'
+#    {"foo":"baz"}
+echo '{"age": 38}' | $JSON0 -e 'this.age++'
+#    {"age":39}
+echo '{"age": 38}' | $JSON0 -e 'age++'
+#    {"age":39}
+
+echo '{"one": 1, "two": 2}' | $JSON0 -e 'this.one=undefined'
+#    {"two":2}
+echo '{"one": 1, "two": 2}' | $JSON0 -e 'one=undefined'
+#    {"two":2}
+
+echo ''
+echo '{"one": 1, "two": 2}' | $JSON0 -e 'one++' -e 'two++'
+#    {"one":2,"two":3}
+echo '{"one": 1, "two": 2}' | $JSON -e 'one++' one
+#    2
+
+echo ''
+echo '[{"first":"Trent","last":"Mick"},{"first":"Andrew","last":"Dlugan"}]' \
+    | $JSON0 -a -e 'name=[first,last].join(" ");first=undefined;last=undefined'
+#    [{"name":"Trent Mick"},{"name":"Andrew Dlugan"}]
+
+echo ''
+echo '{"foo": "bar"}' | $JSON -e 'foo foo' 2>&1 | grep SyntaxError
+#    SyntaxError: Unexpected identifier

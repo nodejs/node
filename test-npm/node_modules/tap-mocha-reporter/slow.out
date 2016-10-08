@@ -1,0 +1,13 @@
+TAP version 13
+    # Subtest: slow.js
+    TAP version 13
+        # Subtest: slow test
+        1..0
+    ok 1 - slow test # time=5007.887ms
+
+    1..1
+    # time=5015.115ms
+ok 1 - slow.js # time=5172.41ms
+
+1..1
+# time=5177.279ms

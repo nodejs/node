@@ -1,0 +1,5 @@
+{
+  "a": {
+    "exclude": ["**batman.js**"]
+  }
+}

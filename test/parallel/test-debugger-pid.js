@@ -30,7 +30,7 @@ interfacer.on('line', function(line) {
       case 1:
         line = line.replace(/^(debug> *)+/, '');
         const msg = 'There was an internal error in Node\'s debugger.' +
-                    'Please report this bug.';
+                    ' Please report this bug.';
         expected = `(node:${pid}) ${msg}`;
         break;
 

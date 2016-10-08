@@ -1,0 +1,3 @@
+# See <https://github.com/trentm/json/issues#issue/5>
+echo "# bracket notation"
+cat input | ../../lib/json.js '["foo.bar"]'

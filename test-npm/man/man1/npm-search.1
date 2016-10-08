@@ -1,0 +1,60 @@
+.TH "NPM\-SEARCH" "1" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-search\fR \- Search for packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm search [\-l|\-\-long] [search terms \.\.\.]
+
+aliases: s, se, find
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Search the registry for packages matching the search terms\.
+.P
+If a term starts with \fB/\fP, then it's interpreted as a regular expression\.
+A trailing \fB/\fP will be ignored in this case\.  (Note that many regular
+expression characters must be escaped or quoted in most shells\.)
+.SH CONFIGURATION
+.SS long
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Display full package descriptions and other long text across multiple
+lines\. When disabled (default) search results are truncated to fit
+neatly on a single line\. Modules with extremely long names will
+fall on multiple lines\.
+.SS registry
+.RS 0
+.IP \(bu 2
+Default: https://registry\.npmjs\.org/
+.IP \(bu 2
+Type   : url
+
+.RE
+.P
+Search the specified registry for modules\. If you have configured npm to point to a different default registry,
+such as your internal private module repository, \fBnpm search\fP will default to that registry when searching\.
+Pass a different registry url such as the default above in order to override this setting\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help view
+
+.RE
+

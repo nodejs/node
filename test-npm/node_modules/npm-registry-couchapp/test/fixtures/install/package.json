@@ -1,0 +1,7 @@
+{
+  "name": "install",
+  "version": "1.2.3",
+  "dependencies": {
+    "package": "0.2"
+  }
+}

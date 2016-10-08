@@ -1,0 +1,12 @@
+{
+  "_id":"org.couchdb.user:pbkdfsha",
+  "email":"pbkdfsha@trolol.lol",
+  "name":"pbkdfsha",
+  "password_sha":"deadbeefdeadbeefdeadbeefdeadbeef",
+  "derived_key":"deadbeefdeadbeefdeadbeefdeadbeef",
+  "password_scheme": "pbkdf2",
+  "iterations":10,
+  "salt":"deadbeef",
+  "type":"user",
+  "roles":[]
+}

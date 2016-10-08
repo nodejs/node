@@ -1,0 +1,84 @@
+{
+  "_args": [
+    [
+      "isexe@^1.1.1",
+      "/Users/rebecca/code/npm/node_modules/which"
+    ]
+  ],
+  "_from": "isexe@>=1.1.1 <2.0.0",
+  "_id": "isexe@1.1.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/which/isexe",
+  "_nodeVersion": "4.0.0",
+  "_npmOperationalInternal": {
+    "host": "packages-9-west.internal.npmjs.com",
+    "tmp": "tmp/isexe-1.1.2.tgz_1454992795963_0.7608721863944083"
+  },
+  "_npmUser": {
+    "email": "i@izs.me",
+    "name": "isaacs"
+  },
+  "_npmVersion": "3.7.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "isexe",
+    "raw": "isexe@^1.1.1",
+    "rawSpec": "^1.1.1",
+    "scope": null,
+    "spec": ">=1.1.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/which"
+  ],
+  "_resolved": "https://registry.npmjs.org/isexe/-/isexe-1.1.2.tgz",
+  "_shasum": "36f3e22e60750920f5e7241a476a8c6a42275ad0",
+  "_shrinkwrap": null,
+  "_spec": "isexe@^1.1.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/which",
+  "author": {
+    "email": "i@izs.me",
+    "name": "Isaac Z. Schlueter",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/isexe/issues"
+  },
+  "dependencies": {},
+  "description": "Minimal module to check if a file is executable.",
+  "devDependencies": {
+    "mkdirp": "^0.5.1",
+    "rimraf": "^2.5.0",
+    "tap": "^5.1.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "36f3e22e60750920f5e7241a476a8c6a42275ad0",
+    "tarball": "http://registry.npmjs.org/isexe/-/isexe-1.1.2.tgz"
+  },
+  "gitHead": "1882eed72c2ba152f4dd1336d857b0755ae306d9",
+  "homepage": "https://github.com/isaacs/isexe#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "i@izs.me",
+      "name": "isaacs"
+    }
+  ],
+  "name": "isexe",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/isexe.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js --branches=100 --statements=100 --functions=100 --lines=100"
+  },
+  "version": "1.1.2"
+}

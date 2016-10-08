@@ -1,0 +1,1361 @@
+.TH "MARKDOWN" "5" "January 1979" "" ""
+.SH "NAME"
+\fBmarkdown\fR \- humane markup syntax
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+# Header 1 #
+## Header 2 ##
+### Header 3 ###             (Hashes on right are optional)
+#### Header 4 ####
+##### Header 5 #####
+
+This is a paragraph, which is text surrounded by whitespace\.
+Paragraphs can be on one line (or many), and can drone on for
+hours\.
+
+[Reference style links][1] and [inline links](http://example\.com)
+[1]: http://example\.com "Title is optional"
+
+Inline markup like _italics_,  **bold**, and `code()`\.
+
+![picture alt](/images/photo\.jpeg "Title is optional")
+
+> Blockquotes are like quoted text in email replies
+>> And, they can be nested
+
+    code blocks are for preformatted
+    text and must be indented with four spaces
+
+* Bullet lists are easy too
+  * You can
+  * even
+  * nest them
+\- Another one
++ Another one
+.fi
+.RE
+.SH DESCRIPTION
+.SS Philosophy
+.P
+Markdown is intended to be as easy\-to\-read and easy\-to\-write as is feasible\.
+.P
+Readability, however, is emphasized above all else\. A Markdown\-formatted
+.br
+document should be publishable as\-is, as plain text, without looking
+.br
+like it's been marked up with tags or formatting instructions\. While
+.br
+Markdown's syntax has been influenced by several existing text\-to\-HTML
+.br
+filters \-\- including Setext \fIhttp://docutils\.sourceforge\.net/mirror/setext\.html\fR, atx \fIhttp://www\.aaronsw\.com/2002/atx/\fR, Textile \fIhttp://textism\.com/tools/textile/\fR, reStructuredText \fIhttp://docutils\.sourceforge\.net/rst\.html\fR,
+.br
+Grutatext \fIhttp://www\.triptico\.com/software/grutatxt\.html\fR, and EtText \fIhttp://ettext\.taint\.org/doc/\fR \-\- the single biggest source of
+.br
+inspiration for Markdown's syntax is the format of plain text email\.
+.P
+To this end, Markdown's syntax is comprised entirely of punctuation
+.br
+characters, which punctuation characters have been carefully chosen so
+.br
+as to look like what they mean\. E\.g\., asterisks around a word actually
+.br
+look like *emphasis*\|\. Markdown lists look like, well, lists\. Even
+.br
+blockquotes look like quoted passages of text, assuming you've ever
+.br
+used email\.
+.SS Inline HTML
+.P
+Markdown's syntax is intended for one purpose: to be used as a
+.br
+format for \fIwriting\fR for the web\.
+.P
+Markdown is not a replacement for HTML, or even close to it\. Its
+.br
+syntax is very small, corresponding only to a very small subset of
+.br
+HTML tags\. The idea is \fInot\fR to create a syntax that makes it easier
+.br
+to insert HTML tags\. In my opinion, HTML tags are already easy to
+.br
+insert\. The idea for Markdown is to make it easy to read, write, and
+.br
+edit prose\. HTML is a \fIpublishing\fR format; Markdown is a \fIwriting\fR
+.br
+format\. Thus, Markdown's formatting syntax only addresses issues that
+.br
+can be conveyed in plain text\.
+.P
+For any markup that is not covered by Markdown's syntax, you simply
+.br
+use HTML itself\. There's no need to preface it or delimit it to
+.br
+indicate that you're switching from Markdown to HTML; you just use
+.br
+the tags\.
+.P
+The only restrictions are that block\-level HTML elements \-\- e\.g\. \fB<div>\fP,
+.br
+\fB<table>\fP, \fB<pre>\fP, \fB<p>\fP, etc\. \-\- must be separated from surrounding
+.br
+content by blank lines, and the start and end tags of the block should
+.br
+not be indented with tabs or spaces\. Markdown is smart enough not
+.br
+to add extra (unwanted) \fB<p>\fP tags around HTML block\-level tags\.
+.P
+For example, to add an HTML table to a Markdown article:
+.P
+.RS 2
+.nf
+This is a regular paragraph\.
+
+<table>
+    <tr>
+        <td>Foo</td>
+    </tr>
+</table>
+
+This is another regular paragraph\.
+.fi
+.RE
+.P
+Note that Markdown formatting syntax is not processed within block\-level
+.br
+HTML tags\. E\.g\., you can't use Markdown\-style \fB*emphasis*\fP inside an
+.br
+HTML block\.
+.P
+Span\-level HTML tags \-\- e\.g\. \fB<span>\fP, \fB<cite>\fP, or \fB<del>\fP \-\- can be
+.br
+used anywhere in a Markdown paragraph, list item, or header\. If you
+.br
+want, you can even use HTML tags instead of Markdown formatting; e\.g\. if
+.br
+you'd prefer to use HTML \fB<a>\fP or \fB<img>\fP tags instead of Markdown's
+.br
+link or image syntax, go right ahead\.
+.P
+Unlike block\-level HTML tags, Markdown syntax \fIis\fR processed within
+.br
+span\-level tags\.
+.SS Automatic Escaping for Special Characters
+.P
+In HTML, there are two characters that demand special treatment: \fB<\fP
+.br
+and \fB&\fP\|\. Left angle brackets are used to start tags; ampersands are
+.br
+used to denote HTML entities\. If you want to use them as literal
+.br
+characters, you must escape them as entities, e\.g\. \fB&lt;\fP, and
+.br
+\fB&\fP\|\.
+.P
+Ampersands in particular are bedeviling for web writers\. If you want to
+.br
+write about 'AT&T', you need to write '\fBAT&T\fP\|'\. You even need to
+.br
+escape ampersands within URLs\. Thus, if you want to link to:
+.P
+.RS 2
+.nf
+http://images\.google\.com/images?num=30&q=larry+bird
+.fi
+.RE
+.P
+you need to encode the URL as:
+.P
+.RS 2
+.nf
+http://images\.google\.com/images?num=30&q=larry+bird
+.fi
+.RE
+.P
+in your anchor tag \fBhref\fP attribute\. Needless to say, this is easy to
+.br
+forget, and is probably the single most common source of HTML validation
+.br
+errors in otherwise well\-marked\-up web sites\.
+.P
+Markdown allows you to use these characters naturally, taking care of
+.br
+all the necessary escaping for you\. If you use an ampersand as part of
+.br
+an HTML entity, it remains unchanged; otherwise it will be translated
+.br
+into \fB&\fP\|\.
+.P
+So, if you want to include a copyright symbol in your article, you can write:
+.P
+.RS 2
+.nf
+\(co
+.fi
+.RE
+.P
+and Markdown will leave it alone\. But if you write:
+.P
+.RS 2
+.nf
+AT&T
+.fi
+.RE
+.P
+Markdown will translate it to:
+.P
+.RS 2
+.nf
+AT&T
+.fi
+.RE
+.P
+Similarly, because Markdown supports inline HTML \fI#html\fR, if you use
+.br
+angle brackets as delimiters for HTML tags, Markdown will treat them as
+.br
+such\. But if you write:
+.P
+.RS 2
+.nf
+4 < 5
+.fi
+.RE
+.P
+Markdown will translate it to:
+.P
+.RS 2
+.nf
+4 &lt; 5
+.fi
+.RE
+.P
+However, inside Markdown code spans and blocks, angle brackets and
+.br
+ampersands are \fIalways\fR encoded automatically\. This makes it easy to use
+.br
+Markdown to write about HTML code\. (As opposed to raw HTML, which is a
+.br
+terrible format for writing about HTML syntax, because every single \fB<\fP
+.br
+and \fB&\fP in your example code needs to be escaped\.)
+.SH BLOCK ELEMENTS
+.SS Paragraphs and Line Breaks
+.P
+A paragraph is simply one or more consecutive lines of text, separated
+.br
+by one or more blank lines\. (A blank line is any line that looks like a
+.br
+blank line \-\- a line containing nothing but spaces or tabs is considered
+.br
+blank\.) Normal paragraphs should not be indented with spaces or tabs\.
+.P
+The implication of the "one or more consecutive lines of text" rule is
+.br
+that Markdown supports "hard\-wrapped" text paragraphs\. This differs
+.br
+significantly from most other text\-to\-HTML formatters (including Movable
+.br
+Type's "Convert Line Breaks" option) which translate every line break
+.br
+character in a paragraph into a \fB<br />\fP tag\.
+.P
+When you \fIdo\fR want to insert a \fB<br />\fP break tag using Markdown, you
+.br
+end a line with two or more spaces, then type return\.
+.P
+Yes, this takes a tad more effort to create a \fB<br />\fP, but a simplistic
+.br
+"every line break is a \fB<br />\fP" rule wouldn't work for Markdown\.
+.br
+Markdown's email\-style blockquoting \fI#blockquote\fR and multi\-paragraph list items \fI#list\fR
+.br
+work best \-\- and look better \-\- when you format them with hard breaks\.
+.SS Headers
+.P
+Markdown supports two styles of headers, Setext \fIhttp://docutils\.sourceforge\.net/mirror/setext\.html\fR and atx \fIhttp://www\.aaronsw\.com/2002/atx/\fR\|\.
+.P
+Setext\-style headers are "underlined" using equal signs (for first\-level
+.br
+headers) and dashes (for second\-level headers)\. For example:
+.P
+.RS 2
+.nf
+This is an H1
+=============
+
+This is an H2
+\-\-\-\-\-\-\-\-\-\-\-\-\-
+.fi
+.RE
+.P
+Any number of underlining \fB=\fP\|'s or \fB\-\fP\|'s will work\.
+.P
+Atx\-style headers use 1\-6 hash characters at the start of the line,
+.br
+corresponding to header levels 1\-6\. For example:
+.P
+.RS 2
+.nf
+# This is an H1
+
+## This is an H2
+
+###### This is an H6
+.fi
+.RE
+.P
+Optionally, you may "close" atx\-style headers\. This is purely
+.br
+cosmetic \-\- you can use this if you think it looks better\. The
+.br
+closing hashes don't even need to match the number of hashes
+.br
+used to open the header\. (The number of opening hashes
+.br
+determines the header level\.) :
+.P
+.RS 2
+.nf
+# This is an H1 #
+
+## This is an H2 ##
+
+### This is an H3 ######
+.fi
+.RE
+.SS Blockquotes
+.P
+Markdown uses email\-style \fB>\fP characters for blockquoting\. If you're
+.br
+familiar with quoting passages of text in an email message, then you
+.br
+know how to create a blockquote in Markdown\. It looks best if you hard
+.br
+wrap the text and put a \fB>\fP before every line:
+.P
+.RS 2
+.nf
+> This is a blockquote with two paragraphs\. Lorem ipsum dolor sit amet,
+> consectetuer adipiscing elit\. Aliquam hendrerit mi posuere lectus\.
+> Vestibulum enim wisi, viverra nec, fringilla in, laoreet vitae, risus\.
+>
+> Donec sit amet nisl\. Aliquam semper ipsum sit amet velit\. Suspendisse
+> id sem consectetuer libero luctus adipiscing\.
+.fi
+.RE
+.P
+Markdown allows you to be lazy and only put the \fB>\fP before the first
+.br
+line of a hard\-wrapped paragraph:
+.P
+.RS 2
+.nf
+> This is a blockquote with two paragraphs\. Lorem ipsum dolor sit amet,
+consectetuer adipiscing elit\. Aliquam hendrerit mi posuere lectus\.
+Vestibulum enim wisi, viverra nec, fringilla in, laoreet vitae, risus\.
+
+> Donec sit amet nisl\. Aliquam semper ipsum sit amet velit\. Suspendisse
+id sem consectetuer libero luctus adipiscing\.
+.fi
+.RE
+.P
+Blockquotes can be nested (i\.e\. a blockquote\-in\-a\-blockquote) by
+.br
+adding additional levels of \fB>\fP:
+.P
+.RS 2
+.nf
+> This is the first level of quoting\.
+>
+> > This is nested blockquote\.
+>
+> Back to the first level\.
+.fi
+.RE
+.P
+Blockquotes can contain other Markdown elements, including headers, lists,
+.br
+and code blocks:
+.P
+.RS 2
+.nf
+> ## This is a header\.
+>
+> 1\.   This is the first list item\.
+> 2\.   This is the second list item\.
+>
+> Here's some example code:
+>
+>     return shell_exec("echo $input | $markdown_script");
+.fi
+.RE
+.P
+Any decent text editor should make email\-style quoting easy\. For
+.br
+example, with BBEdit, you can make a selection and choose Increase
+.br
+Quote Level from the Text menu\.
+.SS Lists
+.P
+Markdown supports ordered (numbered) and unordered (bulleted) lists\.
+.P
+Unordered lists use asterisks, pluses, and hyphens \-\- interchangably
+.br
+\-\- as list markers:
+.P
+.RS 2
+.nf
+*   Red
+*   Green
+*   Blue
+.fi
+.RE
+.P
+is equivalent to:
+.P
+.RS 2
+.nf
++   Red
++   Green
++   Blue
+.fi
+.RE
+.P
+and:
+.P
+.RS 2
+.nf
+\-   Red
+\-   Green
+\-   Blue
+.fi
+.RE
+.P
+Ordered lists use numbers followed by periods:
+.P
+.RS 2
+.nf
+1\.  Bird
+2\.  McHale
+3\.  Parish
+.fi
+.RE
+.P
+It's important to note that the actual numbers you use to mark the
+.br
+list have no effect on the HTML output Markdown produces\. The HTML
+.br
+Markdown produces from the above list is:
+.P
+.RS 2
+.nf
+<ol>
+<li>Bird</li>
+<li>McHale</li>
+<li>Parish</li>
+</ol>
+.fi
+.RE
+.P
+If you instead wrote the list in Markdown like this:
+.P
+.RS 2
+.nf
+1\.  Bird
+1\.  McHale
+1\.  Parish
+.fi
+.RE
+.P
+or even:
+.P
+.RS 2
+.nf
+3\. Bird
+1\. McHale
+8\. Parish
+.fi
+.RE
+.P
+you'd get the exact same HTML output\. The point is, if you want to,
+.br
+you can use ordinal numbers in your ordered Markdown lists, so that
+.br
+the numbers in your source match the numbers in your published HTML\.
+.br
+But if you want to be lazy, you don't have to\.
+.P
+If you do use lazy list numbering, however, you should still start the
+.br
+list with the number 1\. At some point in the future, Markdown may support
+.br
+starting ordered lists at an arbitrary number\.
+.P
+List markers typically start at the left margin, but may be indented by
+.br
+up to three spaces\. List markers must be followed by one or more spaces
+.br
+or a tab\.
+.P
+To make lists look nice, you can wrap items with hanging indents:
+.P
+.RS 2
+.nf
+*   Lorem ipsum dolor sit amet, consectetuer adipiscing elit\.
+    Aliquam hendrerit mi posuere lectus\. Vestibulum enim wisi,
+    viverra nec, fringilla in, laoreet vitae, risus\.
+*   Donec sit amet nisl\. Aliquam semper ipsum sit amet velit\.
+    Suspendisse id sem consectetuer libero luctus adipiscing\.
+.fi
+.RE
+.P
+But if you want to be lazy, you don't have to:
+.P
+.RS 2
+.nf
+*   Lorem ipsum dolor sit amet, consectetuer adipiscing elit\.
+Aliquam hendrerit mi posuere lectus\. Vestibulum enim wisi,
+viverra nec, fringilla in, laoreet vitae, risus\.
+*   Donec sit amet nisl\. Aliquam semper ipsum sit amet velit\.
+Suspendisse id sem consectetuer libero luctus adipiscing\.
+.fi
+.RE
+.P
+If list items are separated by blank lines, Markdown will wrap the
+.br
+items in \fB<p>\fP tags in the HTML output\. For example, this input:
+.P
+.RS 2
+.nf
+*   Bird
+*   Magic
+.fi
+.RE
+.P
+will turn into:
+.P
+.RS 2
+.nf
+<ul>
+<li>Bird</li>
+<li>Magic</li>
+</ul>
+.fi
+.RE
+.P
+But this:
+.P
+.RS 2
+.nf
+*   Bird
+
+*   Magic
+.fi
+.RE
+.P
+will turn into:
+.P
+.RS 2
+.nf
+<ul>
+<li><p>Bird</p></li>
+<li><p>Magic</p></li>
+</ul>
+.fi
+.RE
+.P
+List items may consist of multiple paragraphs\. Each subsequent
+.br
+paragraph in a list item must be indented by either 4 spaces
+.br
+or one tab:
+.P
+.RS 2
+.nf
+1\.  This is a list item with two paragraphs\. Lorem ipsum dolor
+    sit amet, consectetuer adipiscing elit\. Aliquam hendrerit
+    mi posuere lectus\.
+
+    Vestibulum enim wisi, viverra nec, fringilla in, laoreet
+    vitae, risus\. Donec sit amet nisl\. Aliquam semper ipsum
+    sit amet velit\.
+
+2\.  Suspendisse id sem consectetuer libero luctus adipiscing\.
+.fi
+.RE
+.P
+It looks nice if you indent every line of the subsequent
+.br
+paragraphs, but here again, Markdown will allow you to be
+.br
+lazy:
+.P
+.RS 2
+.nf
+*   This is a list item with two paragraphs\.
+
+    This is the second paragraph in the list item\. You're
+only required to indent the first line\. Lorem ipsum dolor
+sit amet, consectetuer adipiscing elit\.
+
+*   Another item in the same list\.
+.fi
+.RE
+.P
+To put a blockquote within a list item, the blockquote's \fB>\fP
+.br
+delimiters need to be indented:
+.P
+.RS 2
+.nf
+*   A list item with a blockquote:
+
+    > This is a blockquote
+    > inside a list item\.
+.fi
+.RE
+.P
+To put a code block within a list item, the code block needs
+.br
+to be indented \fItwice\fR \-\- 8 spaces or two tabs:
+.P
+.RS 2
+.nf
+*   A list item with a code block:
+
+        <code goes here>
+.fi
+.RE
+.P
+It's worth noting that it's possible to trigger an ordered list by
+.br
+accident, by writing something like this:
+.P
+.RS 2
+.nf
+1986\. What a great season\.
+.fi
+.RE
+.P
+In other words, a \fInumber\-period\-space\fR sequence at the beginning of a
+.br
+line\. To avoid this, you can backslash\-escape the period:
+.P
+.RS 2
+.nf
+1986\\\. What a great season\.
+.fi
+.RE
+.SS Code Blocks
+.P
+Pre\-formatted code blocks are used for writing about programming or
+.br
+markup source code\. Rather than forming normal paragraphs, the lines
+.br
+of a code block are interpreted literally\. Markdown wraps a code block
+.br
+in both \fB<pre>\fP and \fB<code>\fP tags\.
+.P
+To produce a code block in Markdown, simply indent every line of the
+.br
+block by at least 4 spaces or 1 tab\. For example, given this input:
+.P
+.RS 2
+.nf
+This is a normal paragraph:
+
+    This is a code block\.
+.fi
+.RE
+.P
+Markdown will generate:
+.P
+.RS 2
+.nf
+<p>This is a normal paragraph:</p>
+
+<pre><code>This is a code block\.
+</code></pre>
+.fi
+.RE
+.P
+One level of indentation \-\- 4 spaces or 1 tab \-\- is removed from each
+.br
+line of the code block\. For example, this:
+.P
+.RS 2
+.nf
+Here is an example of AppleScript:
+
+    tell application "Foo"
+        beep
+    end tell
+.fi
+.RE
+.P
+will turn into:
+.P
+.RS 2
+.nf
+<p>Here is an example of AppleScript:</p>
+
+<pre><code>tell application "Foo"
+    beep
+end tell
+</code></pre>
+.fi
+.RE
+.P
+A code block continues until it reaches a line that is not indented
+.br
+(or the end of the article)\.
+.P
+Within a code block, ampersands (\fB&\fP) and angle brackets (\fB<\fP and \fB>\fP)
+.br
+are automatically converted into HTML entities\. This makes it very
+.br
+easy to include example HTML source code using Markdown \-\- just paste
+.br
+it and indent it, and Markdown will handle the hassle of encoding the
+.br
+ampersands and angle brackets\. For example, this:
+.P
+.RS 2
+.nf
+    <div class="footer">
+        \(co 2004 Foo Corporation
+    </div>
+.fi
+.RE
+.P
+will turn into:
+.P
+.RS 2
+.nf
+<pre><code>&lt;div class="footer"&gt;
+    &copy; 2004 Foo Corporation
+&lt;/div&gt;
+</code></pre>
+.fi
+.RE
+.P
+Regular Markdown syntax is not processed within code blocks\. E\.g\.,
+.br
+asterisks are just literal asterisks within a code block\. This means
+.br
+it's also easy to use Markdown to write about Markdown's own syntax\.
+.SS Horizontal Rules
+.P
+You can produce a horizontal rule tag (\fB<hr />\fP) by placing three or
+.br
+more hyphens, asterisks, or underscores on a line by themselves\. If you
+.br
+wish, you may use spaces between the hyphens or asterisks\. Each of the
+.br
+following lines will produce a horizontal rule:
+.P
+.RS 2
+.nf
+* * *
+
+***
+
+*****
+
+\- \- \-
+
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+.fi
+.RE
+.SH SPAN ELEMENTS
+.SS Links
+.P
+Markdown supports two style of links: \fIinline\fR and \fIreference\fR\|\.
+.P
+In both styles, the link text is delimited by [square brackets]\.
+.P
+To create an inline link, use a set of regular parentheses immediately
+.br
+after the link text's closing square bracket\. Inside the parentheses,
+.br
+put the URL where you want the link to point, along with an \fIoptional\fR
+.br
+title for the link, surrounded in quotes\. For example:
+.P
+.RS 2
+.nf
+This is [an example](http://example\.com/ "Title") inline link\.
+
+[This link](http://example\.net/) has no title attribute\.
+.fi
+.RE
+.P
+Will produce:
+.P
+.RS 2
+.nf
+<p>This is <a href="http://example\.com/" title="Title">
+an example</a> inline link\.</p>
+
+<p><a href="http://example\.net/">This link</a> has no
+title attribute\.</p>
+.fi
+.RE
+.P
+If you're referring to a local resource on the same server, you can
+.br
+use relative paths:
+.P
+.RS 2
+.nf
+See my [About](/about/) page for details\.
+.fi
+.RE
+.P
+Reference\-style links use a second set of square brackets, inside
+.br
+which you place a label of your choosing to identify the link:
+.P
+.RS 2
+.nf
+This is [an example][id] reference\-style link\.
+.fi
+.RE
+.P
+You can optionally use a space to separate the sets of brackets:
+.P
+.RS 2
+.nf
+This is [an example] [id] reference\-style link\.
+.fi
+.RE
+.P
+Then, anywhere in the document, you define your link label like this,
+.br
+on a line by itself:
+.P
+.RS 2
+.nf
+[id]: http://example\.com/  "Optional Title Here"
+.fi
+.RE
+.P
+That is:
+.RS 0
+.IP \(bu 2
+Square brackets containing the link identifier (optionally
+.br
+indented from the left margin using up to three spaces);
+.IP \(bu 2
+followed by a colon;
+.IP \(bu 2
+followed by one or more spaces (or tabs);
+.IP \(bu 2
+followed by the URL for the link;
+.IP \(bu 2
+optionally followed by a title attribute for the link, enclosed
+.br
+in double or single quotes, or enclosed in parentheses\.
+
+.RE
+.P
+The following three link definitions are equivalent:
+.P
+.RS 2
+.nf
+[foo]: http://example\.com/  "Optional Title Here"
+[foo]: http://example\.com/  'Optional Title Here'
+[foo]: http://example\.com/  (Optional Title Here)
+.fi
+.RE
+.P
+\fBNote:\fR There is a known bug in Markdown\.pl 1\.0\.1 which prevents
+.br
+single quotes from being used to delimit link titles\.
+.P
+The link URL may, optionally, be surrounded by angle brackets:
+.P
+.RS 2
+.nf
+[id]: <http://example\.com/>  "Optional Title Here"
+.fi
+.RE
+.P
+You can put the title attribute on the next line and use extra spaces
+.br
+or tabs for padding, which tends to look better with longer URLs:
+.P
+.RS 2
+.nf
+[id]: http://example\.com/longish/path/to/resource/here
+    "Optional Title Here"
+.fi
+.RE
+.P
+Link definitions are only used for creating links during Markdown
+.br
+processing, and are stripped from your document in the HTML output\.
+.P
+Link definition names may consist of letters, numbers, spaces, and
+.br
+punctuation \-\- but they are \fInot\fR case sensitive\. E\.g\. these two
+.br
+links:
+.P
+.RS 2
+.nf
+[link text][a]
+[link text][A]
+.fi
+.RE
+.P
+are equivalent\.
+.P
+The \fIimplicit link name\fR shortcut allows you to omit the name of the
+.br
+link, in which case the link text itself is used as the name\.
+.br
+Just use an empty set of square brackets \-\- e\.g\., to link the word
+.br
+"Google" to the google\.com web site, you could simply write:
+.P
+.RS 2
+.nf
+[Google][]
+.fi
+.RE
+.P
+And then define the link:
+.P
+.RS 2
+.nf
+[Google]: http://google\.com/
+.fi
+.RE
+.P
+Because link names may contain spaces, this shortcut even works for
+.br
+multiple words in the link text:
+.P
+.RS 2
+.nf
+Visit [Daring Fireball][] for more information\.
+.fi
+.RE
+.P
+And then define the link:
+.P
+.RS 2
+.nf
+[Daring Fireball]: http://daringfireball\.net/
+.fi
+.RE
+.P
+Link definitions can be placed anywhere in your Markdown document\. I
+.br
+tend to put them immediately after each paragraph in which they're
+.br
+used, but if you want, you can put them all at the end of your
+.br
+document, sort of like footnotes\.
+.P
+Here's an example of reference links in action:
+.P
+.RS 2
+.nf
+I get 10 times more traffic from [Google] [1] than from
+[Yahoo] [2] or [MSN] [3]\.
+
+  [1]: http://google\.com/        "Google"
+  [2]: http://search\.yahoo\.com/  "Yahoo Search"
+  [3]: http://search\.msn\.com/    "MSN Search"
+.fi
+.RE
+.P
+Using the implicit link name shortcut, you could instead write:
+.P
+.RS 2
+.nf
+I get 10 times more traffic from [Google][] than from
+[Yahoo][] or [MSN][]\.
+
+  [google]: http://google\.com/        "Google"
+  [yahoo]:  http://search\.yahoo\.com/  "Yahoo Search"
+  [msn]:    http://search\.msn\.com/    "MSN Search"
+.fi
+.RE
+.P
+Both of the above examples will produce the following HTML output:
+.P
+.RS 2
+.nf
+<p>I get 10 times more traffic from <a href="http://google\.com/"
+title="Google">Google</a> than from
+<a href="http://search\.yahoo\.com/" title="Yahoo Search">Yahoo</a>
+or <a href="http://search\.msn\.com/" title="MSN Search">MSN</a>\.</p>
+.fi
+.RE
+.P
+For comparison, here is the same paragraph written using
+.br
+Markdown's inline link style:
+.P
+.RS 2
+.nf
+I get 10 times more traffic from [Google](http://google\.com/ "Google")
+than from [Yahoo](http://search\.yahoo\.com/ "Yahoo Search") or
+[MSN](http://search\.msn\.com/ "MSN Search")\.
+.fi
+.RE
+.P
+The point of reference\-style links is not that they're easier to
+.br
+write\. The point is that with reference\-style links, your document
+.br
+source is vastly more readable\. Compare the above examples: using
+.br
+reference\-style links, the paragraph itself is only 81 characters
+.br
+long; with inline\-style links, it's 176 characters; and as raw HTML,
+.br
+it's 234 characters\. In the raw HTML, there's more markup than there
+.br
+is text\.
+.P
+With Markdown's reference\-style links, a source document much more
+.br
+closely resembles the final output, as rendered in a browser\. By
+.br
+allowing you to move the markup\-related metadata out of the paragraph,
+.br
+you can add links without interrupting the narrative flow of your
+.br
+prose\.
+.SS Emphasis
+.P
+Markdown treats asterisks (\fB*\fP) and underscores (\fB_\fP) as indicators of
+.br
+emphasis\. Text wrapped with one \fB*\fP or \fB_\fP will be wrapped with an
+.br
+HTML \fB<em>\fP tag; double \fB*\fP\|'s or \fB_\fP\|'s will be wrapped with an HTML
+.br
+\fB<strong>\fP tag\. E\.g\., this input:
+.P
+.RS 2
+.nf
+*single asterisks*
+
+_single underscores_
+
+**double asterisks**
+
+__double underscores__
+.fi
+.RE
+.P
+will produce:
+.P
+.RS 2
+.nf
+<em>single asterisks</em>
+
+<em>single underscores</em>
+
+<strong>double asterisks</strong>
+
+<strong>double underscores</strong>
+.fi
+.RE
+.P
+You can use whichever style you prefer; the lone restriction is that
+.br
+the same character must be used to open and close an emphasis span\.
+.P
+Emphasis can be used in the middle of a word:
+.P
+.RS 2
+.nf
+un*frigging*believable
+.fi
+.RE
+.P
+But if you surround an \fB*\fP or \fB_\fP with spaces, it'll be treated as a
+.br
+literal asterisk or underscore\.
+.P
+To produce a literal asterisk or underscore at a position where it
+.br
+would otherwise be used as an emphasis delimiter, you can backslash
+.br
+escape it:
+.P
+.RS 2
+.nf
+\\*this text is surrounded by literal asterisks\\*
+.fi
+.RE
+.SS Code
+.P
+To indicate a span of code, wrap it with backtick quotes (\fB` \fP)\.
+.br
+Unlike a pre\-formatted code block, a code span indicates code within a
+.br
+normal paragraph\. For example:
+.P
+.RS 2
+.nf
+Use the `printf()` function\.
+.fi
+.RE
+.P
+will produce:
+.P
+.RS 2
+.nf
+<p>Use the <code>printf()</code> function\.</p>
+.fi
+.RE
+.P
+To include a literal backtick character within a code span, you can use
+.br
+multiple backticks as the opening and closing delimiters:
+.P
+.RS 2
+.nf
+``There is a literal backtick (`) here\.``
+.fi
+.RE
+.P
+which will produce this:
+.P
+.RS 2
+.nf
+<p><code>There is a literal backtick (`) here\.</code></p>
+.fi
+.RE
+.P
+The backtick delimiters surrounding a code span may include spaces \-\-
+.br
+one after the opening, one before the closing\. This allows you to place
+.br
+literal backtick characters at the beginning or end of a code span:
+.P
+.RS 2
+.nf
+A single backtick in a code span: `` ` ``
+
+A backtick\-delimited string in a code span: `` `foo` ``
+.fi
+.RE
+.P
+will produce:
+.P
+.RS 2
+.nf
+<p>A single backtick in a code span: <code>`</code></p>
+
+<p>A backtick\-delimited string in a code span: <code>`foo`</code></p>
+.fi
+.RE
+.P
+With a code span, ampersands and angle brackets are encoded as HTML
+.br
+entities automatically, which makes it easy to include example HTML
+.br
+tags\. Markdown will turn this:
+.P
+.RS 2
+.nf
+Please don't use any `<blink>` tags\.
+.fi
+.RE
+.P
+into:
+.P
+.RS 2
+.nf
+<p>Please don't use any <code>&lt;blink&gt;</code> tags\.</p>
+.fi
+.RE
+.P
+You can write this:
+.P
+.RS 2
+.nf
+`&#8212;` is the decimal\-encoded equivalent of `\(em`\.
+.fi
+.RE
+.P
+to produce:
+.P
+.RS 2
+.nf
+<p><code>&#8212;</code> is the decimal\-encoded
+equivalent of <code>&amp;mdash;</code>\.</p>
+.fi
+.RE
+.SS Images
+.P
+Admittedly, it's fairly difficult to devise a "natural" syntax for
+.br
+placing images into a plain text document format\.
+.P
+Markdown uses an image syntax that is intended to resemble the syntax
+.br
+for links, allowing for two styles: \fIinline\fR and \fIreference\fR\|\.
+.P
+Inline image syntax looks like this:
+.P
+.RS 2
+.nf
+![Alt text](/path/to/img\.jpg)
+
+![Alt text](/path/to/img\.jpg "Optional title")
+.fi
+.RE
+.P
+That is:
+.RS 0
+.IP \(bu 2
+An exclamation mark: \fB!\fP;
+.IP \(bu 2
+followed by a set of square brackets, containing the \fBalt\fP
+.br
+attribute text for the image;
+.IP \(bu 2
+followed by a set of parentheses, containing the URL or path to
+.br
+the image, and an optional \fBtitle\fP attribute enclosed in double
+.br
+or single quotes\.
+
+.RE
+.P
+Reference\-style image syntax looks like this:
+.P
+.RS 2
+.nf
+![Alt text][id]
+.fi
+.RE
+.P
+Where "id" is the name of a defined image reference\. Image references
+.br
+are defined using syntax identical to link references:
+.P
+.RS 2
+.nf
+[id]: url/to/image  "Optional title attribute"
+.fi
+.RE
+.P
+As of this writing, Markdown has no syntax for specifying the
+.br
+dimensions of an image; if this is important to you, you can simply
+.br
+use regular HTML \fB<img>\fP tags\.
+.SH MISCELLANEOUS
+.SS Automatic Links
+.P
+Markdown supports a shortcut style for creating "automatic" links for URLs and email addresses: simply surround the URL or email address with angle brackets\. What this means is that if you want to show the actual text of a URL or email address, and also have it be a clickable link, you can do this:
+.P
+.RS 2
+.nf
+<http://example\.com/>
+.fi
+.RE
+.P
+Markdown will turn this into:
+.P
+.RS 2
+.nf
+<a href="http://example\.com/">http://example\.com/</a>
+.fi
+.RE
+.P
+Automatic links for email addresses work similarly, except that
+.br
+Markdown will also perform a bit of randomized decimal and hex
+.br
+entity\-encoding to help obscure your address from address\-harvesting
+.br
+spambots\. For example, Markdown will turn this:
+.P
+.RS 2
+.nf
+<address@example\.com>
+.fi
+.RE
+.P
+into something like this:
+.P
+.RS 2
+.nf
+<a href="&#x6D;&#x61;i&#x6C;&#x74;&#x6F;:&#x61;&#x64;&#x64;&#x72;&#x65;
+&#115;&#115;&#64;&#101;&#120;&#x61;&#109;&#x70;&#x6C;e&#x2E;&#99;&#111;
+&#109;">&#x61;&#x64;&#x64;&#x72;&#x65;&#115;&#115;&#64;&#101;&#120;&#x61;
+&#109;&#x70;&#x6C;e&#x2E;&#99;&#111;&#109;</a>
+.fi
+.RE
+.P
+which will render in a browser as a clickable link to "address@example\.com"\.
+.P
+(This sort of entity\-encoding trick will indeed fool many, if not
+.br
+most, address\-harvesting bots, but it definitely won't fool all of
+.br
+them\. It's better than nothing, but an address published in this way
+.br
+will probably eventually start receiving spam\.)
+.SS Backslash Escapes
+.P
+Markdown allows you to use backslash escapes to generate literal
+.br
+characters which would otherwise have special meaning in Markdown's
+.br
+formatting syntax\. For example, if you wanted to surround a word
+.br
+with literal asterisks (instead of an HTML \fB<em>\fP tag), you can use
+.br
+backslashes before the asterisks, like this:
+.P
+.RS 2
+.nf
+\\*literal asterisks\\*
+.fi
+.RE
+.P
+Markdown provides backslash escapes for the following characters:
+.P
+.RS 2
+.nf
+\\   backslash
+`   backtick
+*   asterisk
+_   underscore
+{}  curly braces
+[]  square brackets
+()  parentheses
+#   hash mark
++   plus sign
+\-   minus sign (hyphen)
+\|\.   dot
+!   exclamation mark
+.fi
+.RE
+.SH AUTHOR
+.P
+Markdown was created by John Gruber\.
+.P
+Manual page by Ryan Tomayko\. It's pretty much a direct copy of the
+.br
+Markdown Syntax Reference \fIhttp://daringfireball\.net/projects/markdown/syntax\fR,
+.br
+also by John Gruber\.
+.SH SEE ALSO
+.P
+ronn(5)
+.br
+http://daringfireball\.net/projects/markdown/

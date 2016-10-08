@@ -1,0 +1,13 @@
+{
+  "_id": "nopt",
+  "_rev": "47-53cb2cfc4b22238ec73f12e4f4812266",
+  "users": {
+    "agnat": true,
+    "fgribreau": true,
+    "lupomontero": true,
+    "chrisdickinson": true,
+    "pid": true,
+    "kastor": true,
+    "testuser": true
+  }
+}

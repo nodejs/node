@@ -1,0 +1,2 @@
+{"forbidden":
+"may not mix password_sha and pbkdf2\nYou may need to upgrade your version of npm:\n  npm install npm -g\nNote that this may need to be run as root/admin (sudo, etc.)\n\n"}

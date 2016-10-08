@@ -1,0 +1,77 @@
+{
+  "_args": [
+    [
+      "cmd-shim@2.0.2",
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "cmd-shim@2.0.2",
+  "_id": "cmd-shim@2.0.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/cmd-shim",
+  "_nodeVersion": "1.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-6-west.internal.npmjs.com",
+    "tmp": "tmp/cmd-shim-2.0.2.tgz_1455116566936_0.7582207734230906"
+  },
+  "_npmUser": {
+    "email": "forbes@lindesay.co.uk",
+    "name": "forbeslindesay"
+  },
+  "_npmVersion": "2.7.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "cmd-shim",
+    "raw": "cmd-shim@2.0.2",
+    "rawSpec": "2.0.2",
+    "scope": null,
+    "spec": "2.0.2",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/cmd-shim/-/cmd-shim-2.0.2.tgz",
+  "_shasum": "6fcbda99483a8fd15d7d30a196ca69d688a2efdb",
+  "_shrinkwrap": null,
+  "_spec": "cmd-shim@2.0.2",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "bugs": {
+    "url": "https://github.com/ForbesLindesay/cmd-shim/issues"
+  },
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "mkdirp": "~0.5.0"
+  },
+  "description": "Used in npm for command line application support",
+  "devDependencies": {
+    "rimraf": "~2.2.8",
+    "tap": "~0.4.11"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "6fcbda99483a8fd15d7d30a196ca69d688a2efdb",
+    "tarball": "http://registry.npmjs.org/cmd-shim/-/cmd-shim-2.0.2.tgz"
+  },
+  "gitHead": "8492e2a92b5062bb02a9eec509e57eea94b110a7",
+  "homepage": "https://github.com/ForbesLindesay/cmd-shim",
+  "license": "BSD-2-Clause",
+  "maintainers": [
+    {
+      "email": "forbes@lindesay.co.uk",
+      "name": "forbeslindesay"
+    }
+  ],
+  "name": "cmd-shim",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ForbesLindesay/cmd-shim.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "2.0.2"
+}

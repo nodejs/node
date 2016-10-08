@@ -1,0 +1,2 @@
+push:
+	npm start

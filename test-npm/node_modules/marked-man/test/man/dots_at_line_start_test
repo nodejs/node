@@ -1,0 +1,9 @@
+.TH "DOTS_AT_LINE_START_TEST" "" "January 1979" "" ""
+.SH "NAME"
+\fBdots_at_line_start_test\fR
+.P
+There's a weird issue where dots at the beginning of a line
+.br
+generate troff warnings due to escaping\.
+.P
+\|\.\. let's see what happens\.

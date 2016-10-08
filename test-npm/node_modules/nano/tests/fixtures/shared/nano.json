@@ -1,0 +1,11 @@
+[
+  { "method"   : "put"
+  , "path"     : "/shared_nano"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/shared_nano"
+  , "response" : "{ \"ok\": true }"
+  }
+]

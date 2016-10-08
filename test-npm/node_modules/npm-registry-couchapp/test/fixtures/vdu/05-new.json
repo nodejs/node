@@ -1,0 +1,103 @@
+{
+  "_id": "package",
+  "_rev": "5-76fdaadbe33c912a9b96c070170a5595",
+  "name": "package",
+  "description": "just an npm test, but with a **markdown** readme.",
+  "dist-tags": {
+    "latest": "0.2.3"
+  },
+  "versions": {
+    "0.0.2": {
+      "name": "package",
+      "version": "0.0.2",
+      "description": "just an npm test",
+      "_id": "package@0.0.2",
+      "dist": {
+        "shasum": "c633471c3673ac68d432670cef7c5c0263ae524b",
+        "tarball": "http://127.0.0.1:15986/package/-/package-0.0.2.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.4.4",
+      "_npmUser": {
+        "name": "user",
+        "email": "email@example.com"
+      },
+      "maintainers": [
+        {
+          "name": "user",
+          "email": "email@example.com"
+        }
+      ]
+    },
+    "0.2.3-alpha": {
+      "name": "package",
+      "version": "0.2.3-alpha",
+      "description": "just an npm test, but with a **markdown** readme.",
+      "_id": "package@0.2.3-alpha",
+      "dist": {
+        "shasum": "b145d84e98f8b506d02038a6842d25c70236c6e5",
+        "tarball": "http://127.0.0.1:15986/package/-/package-0.2.3-alpha.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.4.4",
+      "_npmUser": {
+        "name": "user",
+        "email": "email@example.com"
+      },
+      "maintainers": [
+        {
+          "name": "user",
+          "email": "email@example.com"
+        }
+      ]
+    },
+    "0.2.3": {
+      "name": "package",
+      "version": "0.2.3",
+      "description": "just an npm test, but with a **markdown** readme.",
+      "_id": "package@0.2.3",
+      "dist": {
+        "shasum": "40c38d32b5c6642c6256b44a00b0f3bd6ac6cea2",
+        "tarball": "http://127.0.0.1:15986/package/-/package-0.2.3.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.4.4",
+      "_npmUser": {
+        "name": "other",
+        "email": "other@example.com"
+      },
+      "maintainers": [
+        {
+          "name": "user",
+          "email": "email@example.com"
+        },
+        {
+          "name": "other",
+          "email": "other@example.com"
+        }
+      ]
+    }
+  },
+  "readme": "just an npm test, but with a **markdown** readme.\n",
+  "maintainers": [
+    {
+      "name": "user",
+      "email": "email@example.com"
+    },
+    {
+      "name": "other",
+      "email": "other@example.com"
+    }
+  ],
+  "time": {
+    "modified": "2014-02-21T22:29:35.449Z",
+    "created": "2014-02-21T22:29:33.772Z",
+    "0.0.2": "2014-02-21T22:29:33.772Z",
+    "0.2.3-alpha": "2014-02-21T22:29:34.809Z",
+    "0.2.3": "2014-02-21T22:29:35.449Z"
+  },
+  "readmeFilename": "README.md",
+  "users": {
+    "third": "this is not a boolean value"
+  }
+}

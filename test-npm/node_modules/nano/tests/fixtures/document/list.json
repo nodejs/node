@@ -1,0 +1,39 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_list"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_list/foobar"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_list/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_list/barfoo"
+  , "body"     : "{\"bar\":\"foo\"}"
+  , "response" : "{\"ok\":true,\"id\":\"barfoo\",\"rev\":\"1-3cde10\"}"
+  }
+, { "path"     : "/document_list/_all_docs"
+  , "response" : "{\"total_rows\":3,\"offset\": 0, \"rows\": []}"
+  }
+, { "path"     : "/document_list/_all_docs?limit=1"
+  , "response" : "{\"total_rows\":3,\"offset\": 0,\"rows\":[\r\n{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"}}]}"
+  }
+, { "path"     : "/document_list/_all_docs?startkey=%22c%22"
+  , "response" : "{\"total_rows\":3,\"offset\": 1,\"rows\":[\r\n{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"},\"doc\":{\"_id\":\"foobar\",\"_rev\":\"1-4c6114c65e295552ab1019e2b046b10e\",\"foo\":\"bar\"}},\r\n{\"id\":\"barfoo\",\"key\":\"barfoo\",\"value\":{\"_id\":\"barfoo\",\"_rev\":\"1-41412c293dade3fe73279cba8b4cece4\",\"bar\":\"foo\"},\"doc\":{\"_id\":\"barfoo\",\"_rev\":\"1-41412c293dade3fe73279cba8b4cece4\",\"bar\":\"foo\"}}\r\n]}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_list"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

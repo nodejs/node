@@ -1,0 +1,12 @@
+# Test the -0, -2, -4 convenience options.
+JSON=../../lib/json.js
+
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -0
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -2
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -4
+
+echo ''
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -0a
+
+echo ''
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -j4 -- -2

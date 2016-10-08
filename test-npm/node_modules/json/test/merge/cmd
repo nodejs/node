@@ -1,0 +1,37 @@
+JSON=../../lib/json.js
+
+echo '# basic'
+echo '{"foo":"bar"}{"one":"two"}' | $JSON --merge
+echo '{"foo":"bar"}
+{"one":"two"}' | $JSON --merge
+
+echo ''
+echo '# override'
+echo '{"one":"un","two":"deux"}
+{"one":"uno","three":"tres"}' | $JSON --merge
+
+echo ''
+echo '# shallow merge'
+echo '{"trent":{"name":"Trent Mick","age":38}}
+{"trent":{"email":"trent@example.com"}}' | $JSON --merge
+
+echo ''
+echo '# deep merge'
+echo '{"trent":{"name":"Trent Mick","age":38}}
+{"trent":{"email":"trent@example.com"}}' | $JSON --deep-merge
+
+echo ''
+echo '# deep merge'
+echo '{"trent":{"name":"Trent Mick","age":38},"kevin":{"name":"Kevin Chan"}}
+{"trent":{"email":"trent@example.com"},"kevin":{"email":"kevin@example.com"}}' | $JSON --deep-merge
+
+echo ''
+echo '# edge cases'
+echo '{"trent":{"name":"Trent Mick","age":38},"kevin":{"name":"Kevin Chan"}}
+{"trent":{"email":"trent@example.com"},"kevin":null}' | $JSON --deep-merge
+
+echo '{"trent":{"name":"Trent Mick","age":38},"kevin":{"name":"Kevin Chan"}}
+{"trent":{"email":"trent@example.com"},"kevin":["a", "name"]}' | $JSON --deep-merge
+
+echo '{"trent":{"name":"Trent Mick","age":38},"kevin":{"name":"Kevin Chan"}}
+{"trent":{"email":"trent@example.com"},"kevin":true}' | $JSON --deep-merge

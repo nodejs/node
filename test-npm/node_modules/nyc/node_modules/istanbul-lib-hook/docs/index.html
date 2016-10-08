@@ -1,0 +1,265 @@
+<html>
+<head>
+  <meta charset='utf-8' />
+  <title>istanbul-lib-hook 1.0.0-alpha.2 | Documentation</title>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Source+Code+Pro:400,500,700' rel='stylesheet' type='text/css'>
+  <link href='assets/bass.css' type='text/css' rel='stylesheet' />
+  <link href='assets/style.css' type='text/css' rel='stylesheet' />
+  <link href='assets/github.css' type='text/css' rel='stylesheet' />
+</head>
+<body class='documentation'>
+  <div class='container'>
+    <div class='clearfix md-mxn2'>
+      <div class='fixed md-show fix-3 overflow-auto max-height-100'>
+        <div class='py1 px2'>
+          <h3 class='mb0 no-anchor'>istanbul-lib-hook</h3>
+          <div class='mb1'><code>1.0.0-alpha.2</code></div>
+          <input
+            placeholder='Filter'
+            id='filter-input'
+            class='col12 block field'
+            type='text' />
+          <div id='toc'>
+              <a
+                href='#Exports'
+                class='block bold'>
+                Exports
+              </a>
+              <a
+                href='#hookCreateScript'
+                class='block bold'>
+                hookCreateScript
+              </a>
+              <a
+                href='#hookRequire'
+                class='block bold'>
+                hookRequire
+              </a>
+              <a
+                href='#hookRunInThisContext'
+                class='block bold'>
+                hookRunInThisContext
+              </a>
+              <a
+                href='#unhookCreateScript'
+                class='block bold'>
+                unhookCreateScript
+              </a>
+              <a
+                href='#unhookRequire'
+                class='block bold'>
+                unhookRequire
+              </a>
+              <a
+                href='#unhookRunInThisContext'
+                class='block bold'>
+                unhookRunInThisContext
+              </a>
+              <a
+                href='#unloadRequireCache'
+                class='block bold'>
+                unloadRequireCache
+              </a>
+          </div>
+        </div>
+      </div>
+      <div class='fix-margin-3'>
+        <div class='px2'>
+<div class='py1'><section class='py2 clearfix'>
+  <h2 id='Exports' class='mt0'>
+    Exports<span class='gray'></span>
+  </h2>
+  <p>istanbul-lib-hook provides mechanisms to transform code in the scope of <code>require</code>,
+<code>vm.createScript</code>, <code>vm.runInThisContext</code> etc.</p>
+<p>This mechanism is general and relies on a user-supplied <code>matcher</code> function that
+determines when transformations should be performed and a user-supplied <code>transformer</code>
+function that performs the actual transform. Instrumenting code for coverage is
+one specific example of useful hooking.</p>
+<p>Note that both the <code>matcher</code> and <code>transformer</code> must execute synchronously.</p>
+
+    <h4>Examples</h4>
+<pre class='overflow-auto'><span class="hljs-keyword">var</span> hook = <span class="hljs-built_in">require</span>(<span class="hljs-string">'istanbul-lib-hook'</span>),
+    myMatcher = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">file</span>) </span>{ <span class="hljs-keyword">return</span> file.match(<span class="hljs-regexp">/foo/</span>); },
+    myTransformer = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">code, file</span>) </span>{
+        <span class="hljs-keyword">return</span> <span class="hljs-string">'console.log("'</span> + file + <span class="hljs-string">'");'</span> + code;
+    };
+
+hook.hookRequire(myMatcher, myTransformer);
+<span class="hljs-keyword">var</span> foo = <span class="hljs-built_in">require</span>(<span class="hljs-string">'foo'</span>); <span class="hljs-comment">//will now print foo's module path to console</span></pre>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='hookCreateScript' class='mt0'>
+    hookCreateScript<span class='gray'>(matcher, transformer, options, opts)</span>
+  </h2>
+  <p>hooks <code>vm.createScript</code> to return transformed code out of which a <code>Script</code> object will be created.
+Exceptions in the transform result in the original code being used instead.</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>matcher</strong>
+          :
+          <span class='force-inline'>
+            <p>{Function(filePath)} a function that is called with the filename passed to <code>vm.createScript</code>
+Should return a truthy value when transformations need to be applied to the code, a falsy value otherwise</p>
+
+          </span>
+        </li>
+        <li> <strong>transformer</strong>
+          :
+          <span class='force-inline'>
+            <p>{Function(code, filePath)} a function called with the original code and the filename passed to
+<code>vm.createScript</code>. Should return the transformed code.</p>
+
+          </span>
+        </li>
+        <li> <strong>options</strong>
+          :
+          <span class='force-inline'>
+            <p>{Object} options Optional.</p>
+
+          </span>
+        </li>
+          <ul>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a></code>]</code> options.verbose
+                <p>write a line to standard error every time the transformer is called</p>
+</li>
+          </ul>
+        <li> <strong>opts</strong>
+          :
+          <span class='force-inline'>
+            
+          </span>
+        </li>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='hookRequire' class='mt0'>
+    hookRequire<span class='gray'>(matcher, transformer, options)</span>
+  </h2>
+  <p>hooks <code>require</code> to return transformed code to the node module loader.
+Exceptions in the transform result in the original code being used instead.</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>matcher</strong>
+          :
+          <span class='force-inline'>
+            <p>{Function(filePath)} a function that is called with the absolute path to the file being
+<code>require</code>-d. Should return a truthy value when transformations need to be applied to the code, a falsy value otherwise</p>
+
+          </span>
+        </li>
+        <li> <strong>transformer</strong>
+          :
+          <span class='force-inline'>
+            <p>{Function(code, filePath)} a function called with the original code and the associated path of the file
+from where the code was loaded. Should return the transformed code.</p>
+
+          </span>
+        </li>
+        <li> <strong>options</strong>
+          :
+          <span class='force-inline'>
+            <p>{Object} options Optional.</p>
+
+          </span>
+        </li>
+          <ul>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a></code>]</code> options.verbose
+                <p>write a line to standard error every time the transformer is called</p>
+</li>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function">Function</a></code>]</code> options.postLoadHook
+                <p>a function that is called with the name of the file being
+required. This is called after the require is processed irrespective of whether it was transformed.</p>
+</li>
+          </ul>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='hookRunInThisContext' class='mt0'>
+    hookRunInThisContext<span class='gray'>(matcher, transformer, opts)</span>
+  </h2>
+  <p>hooks <code>vm.runInThisContext</code> to return transformed code.</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>matcher</strong>
+          :
+          <span class='force-inline'>
+            <p>{Function(filePath)} a function that is called with the filename passed to <code>vm.createScript</code>
+Should return a truthy value when transformations need to be applied to the code, a falsy value otherwise</p>
+
+          </span>
+        </li>
+        <li> <strong>transformer</strong>
+          :
+          <span class='force-inline'>
+            <p>{Function(code, filePath)} a function called with the original code and the filename passed to
+<code>vm.createScript</code>. Should return the transformed code.</p>
+
+          </span>
+        </li>
+        <li> <strong>opts</strong>
+          :
+          <span class='force-inline'>
+            <p>{Object} [opts={}] options</p>
+
+          </span>
+        </li>
+          <ul>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a></code>]</code> opts.verbose
+                <p>write a line to standard error every time the transformer is called</p>
+</li>
+          </ul>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='unhookCreateScript' class='mt0'>
+    unhookCreateScript<span class='gray'></span>
+  </h2>
+  <p>unhooks vm.createScript, restoring it to its original state.</p>
+
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='unhookRequire' class='mt0'>
+    unhookRequire<span class='gray'></span>
+  </h2>
+  <p>unhook <code>require</code> to restore it to its original state.</p>
+
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='unhookRunInThisContext' class='mt0'>
+    unhookRunInThisContext<span class='gray'></span>
+  </h2>
+  <p>unhooks vm.runInThisContext, restoring it to its original state.</p>
+
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='unloadRequireCache' class='mt0'>
+    unloadRequireCache<span class='gray'>(matcher)</span>
+  </h2>
+  <p>unloads the required caches, removing all files that would have matched
+the supplied matcher.</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function">Function</a></code> <strong>matcher</strong>
+          :
+          <span class='force-inline'>
+            <p>the match function that accepts a file name and
+returns if that file should be unloaded from the cache.</p>
+
+          </span>
+        </li>
+    </ul>
+</section>
+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src='assets/anchor.js'></script>
+  <script src='assets/site.js'></script>
+</body>
+</html>

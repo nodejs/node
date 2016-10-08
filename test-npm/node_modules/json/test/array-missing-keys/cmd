@@ -1,0 +1,6 @@
+JSON=../../lib/json.js
+echo '[{"a":1}, {"a":2, "b":3}]' | $JSON -a a
+echo ""
+echo '[{"a":1}, {"a":2, "b":3}]' | $JSON -a a b
+echo ""
+echo '[{"a":1}, {"a":2, "b":3}]' | $JSON -a a b -d,

@@ -1,0 +1,50 @@
+[
+  { "method"   : "put"
+  , "path"     : "/multipart_insert"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/multipart_insert/foobaz"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\": true, \"id\": \"foobaz\", \"rev\": \"1-921bd51\" }"
+  }
+, { "method"   : "put"
+  , "path"     : "/multipart_insert/foobar"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\": true, \"id\": \"foobar\", \"rev\": \"1-921bd51\" }"
+  }
+, { "method"   : "put"
+  , "path"     : "/multipart_insert/mydoc/one"
+  , "body"     : "Hello World!"
+  , "status"   : 201
+  , "response" : "{\"ok\": true, \"id\": \"one\", \"rev\": \"1-921bd51\" }"
+  }
+, { "path"     : "/multipart_insert/mydoc"
+  , "status"   : 200
+  , "response" : "{\"_id\": \"mydoc\", \"_rev\": \"1-921bd51\", \"_attachments\": { \"one\": { \"stub\": true } } }"
+  }
+, { "method"   : "put"
+  , "path"     : "/multipart_insert/mydoc"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\": true, \"id\": \"mydoc\", \"rev\": \"2-921bd51\""
+  }
+, { "path"     : "/multipart_insert/mydoc"
+  , "status"   : 200
+  , "response" : "{\"_id\": \"mydoc\", \"_rev\": \"2-921bd51\", \"_attachments\": {  \"one\": { \"stub\": true }, \"two\": { \"stub\": true } } }"
+  }
+, { "method"   : "put"
+  , "path"     : "/multipart_insert/otherdoc"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\": true, \"id\": \"foobar\", \"rev\": \"1-921bd51\" }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/multipart_insert"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

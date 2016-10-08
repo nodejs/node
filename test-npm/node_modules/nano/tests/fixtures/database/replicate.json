@@ -1,0 +1,76 @@
+[
+  { "method"   : "put"
+  , "path"     : "/database_replicate"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/database_replica"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/database_replica2"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_replicate/foobar"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_replicate/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_replicate/barfoo"
+  , "body"     : "{\"bar\":\"foo\"}"
+  , "response" : "{\"ok\":true,\"id\":\"barfoo\",\"rev\":\"1-3cde10\"}"
+  }
+, { "method"   : "post"
+  , "status"   : 201
+  , "path"     : "/_replicate"
+  , "body"     : "{\"source\":\"database_replicate\",\"target\":\"database_replica\"}"
+  , "response" : "{\"ok\":true}"
+  }
+, { "path"     : "/database_replica/_all_docs"
+  , "status"   : 200
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[{\"id\":\"barfoo\",\"key\":\"barfoo\",\"value\":{\"rev\":\"1-41412c293dade3fe73279cba8b4cece4\"}},{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"rev\":\"1-4c6114c65e295552ab1019e2b046b10e\"}},{\"id\":\"foobaz\",\"key\":\"foobaz\",\"value\":{\"rev\":\"1-cfa20dddac397da5bf0be2b50fb472fe\"}}]}"
+  }
+, { "method"   : "post"
+  , "status"   : 201
+  , "path"     : "/_replicate"
+  , "body"     : "{\"source\":\"http://localhost:5984/database_replicate\",\"target\":\"http://localhost:5984/database_replica2\"}"
+  , "response" : "{\"ok\":true}"
+  }
+, { "method"   : "post"
+  , "status"   : 201
+  , "path"     : "/_replicate"
+  , "body"     : "{\"source\":\"database_replicate\",\"target\":\"database_replica\"}"
+  , "response" : "{\"ok\":true}"
+  }
+, { "path"     : "/database_replica2/_all_docs"
+  , "status"   : 200
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[{\"id\":\"barfoo\",\"key\":\"barfoo\",\"value\":{\"rev\":\"1-41412c293dade3fe73279cba8b4cece4\"}},{\"id\":\"foobar\",\"key\":\"foobar\",\"value\":{\"rev\":\"1-4c6114c65e295552ab1019e2b046b10e\"}},{\"id\":\"foobaz\",\"key\":\"foobaz\",\"value\":{\"rev\":\"1-cfa20dddac397da5bf0be2b50fb472fe\"}}]}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_replicate"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_replica"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_replica2"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

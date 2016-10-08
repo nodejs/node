@@ -1,0 +1,85 @@
+{
+  "_id": "googalytics",
+  "_rev": "5-7cee349987ab75585b4815bd7ee893fa",
+  "name": "googalytics",
+  "description": "Google Analytics API for Node projects",
+  "dist-tags": {
+    "latest": "0.0.1"
+  },
+  "versions": {
+    "0.0.1": {
+      "author": {
+        "name": "Raquel Velez",
+        "email": "raquel@skookum.com"
+      },
+      "name": "googalytics",
+      "description": "Google Analytics API for Node projects",
+      "version": "0.0.1",
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/rockbot/googalytics.git"
+      },
+      "main": "lib/main.js",
+      "scripts": {
+        "test": "mocha tests/*.js"
+      },
+      "engines": {
+        "node": "*"
+      },
+      "dependencies": {
+        "request": "2.9.203"
+      },
+      "devDependencies": {
+        "should": "1.0.0",
+        "mocha": "1.3.0",
+        "underscore": "1.3.3"
+      },
+      "optionalDependencies": {},
+      "_npmUser": {
+        "name": "rockbot",
+        "email": "hiya@raquelvelez.com"
+      },
+      "_id": "googalytics@0.0.1",
+      "_engineSupported": true,
+      "_npmVersion": "1.1.12",
+      "_nodeVersion": "v0.6.6",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "51d8341ceca37a01ac3f987667969ab39c89eb92",
+        "tarball": "http://registry.npmjs.org/googalytics/-/googalytics-0.0.1.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "rockbot",
+          "email": "hiya@raquelvelez.com"
+        }
+      ],
+      "directories": {}
+    }
+  },
+  "readme": "# Googalytics\n\nSimple node module to send custom server-side events to Google Analytics\n\nHeavily influenced by the Gabba project from the guys at the Hybrid Group (http://github.com/hybridgroup/gabba)\n\n## Examples\n\n### Initialize\n\n```javascript\nvar GA = require(\"googalytics\");\nGA.initialize('UA-12345678-1', 'someplace.com', function () {\n  GA.trackPage('page title', 'pageName', function (err, resp) {\n    if (!err, resp.statusCode === 200) {\n      console.log('it worked!');\n    }\n  });\n});\n```\n\n### What do those variables mean?!\n\nThe answers, as per usual, can be learned from the Google: https://developers.google.com/analytics/resources/articles/gaTrackingTroubleshooting#gifParameters",
+  "maintainers": [
+    {
+      "name": "third",
+      "email": "3@example.com"
+    },
+    {
+      "name": "rockbot",
+      "email": "hiya@raquelvelez.com"
+    }
+  ],
+  "time": {
+    "modified": "2012-08-30T01:24:55.224Z",
+    "created": "2012-08-30T01:24:54.725Z",
+    "0.0.1": "2012-08-30T01:24:55.224Z"
+  },
+  "author": {
+    "name": "Raquel Velez",
+    "email": "raquel@skookum.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/rockbot/googalytics.git"
+  },
+  "_attachments": {}
+}

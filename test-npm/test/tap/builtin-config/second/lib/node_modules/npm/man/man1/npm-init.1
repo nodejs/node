@@ -1,0 +1,49 @@
+.TH "NPM\-INIT" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm-init\fR \- Interactively create a package\.json file
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm init [\-f|\-\-force|\-y|\-\-yes]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This will ask you a bunch of questions, and then write a package\.json for you\.
+.P
+It attempts to make reasonable guesses about what you want things to be set to,
+and then writes a package\.json file with the options you've selected\.
+.P
+If you already have a package\.json file, it'll read that first, and default to
+the options in there\.
+.P
+It is strictly additive, so it does not delete options from your package\.json
+without a really good reason to do so\.
+.P
+If you invoke it with \fB\-f\fP, \fB\-\-force\fP, \fB\-y\fP, or \fB\-\-yes\fP, it will use only
+defaults and not prompt you for any options\.
+.SH CONFIGURATION
+.SS scope
+.RS 0
+.IP \(bu 2
+Default: none
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The scope under which the new module should be created\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+https://github\.com/isaacs/init\-package\-json
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help version
+.IP \(bu 2
+npm help 7 scope
+
+.RE
+

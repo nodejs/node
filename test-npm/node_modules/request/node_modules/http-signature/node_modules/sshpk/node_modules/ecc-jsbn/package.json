@@ -1,0 +1,91 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "ecc-jsbn@~0.1.1",
+        "scope": null,
+        "escapedName": "ecc-jsbn",
+        "name": "ecc-jsbn",
+        "rawSpec": "~0.1.1",
+        "spec": ">=0.1.1 <0.2.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk"
+    ]
+  ],
+  "_from": "ecc-jsbn@>=0.1.1 <0.2.0",
+  "_id": "ecc-jsbn@0.1.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/sshpk/ecc-jsbn",
+  "_nodeVersion": "0.12.6",
+  "_npmUser": {
+    "name": "quartzjer",
+    "email": "jeremie@jabber.org"
+  },
+  "_npmVersion": "2.11.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "ecc-jsbn@~0.1.1",
+    "scope": null,
+    "escapedName": "ecc-jsbn",
+    "name": "ecc-jsbn",
+    "rawSpec": "~0.1.1",
+    "spec": ">=0.1.1 <0.2.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/ecc-jsbn/-/ecc-jsbn-0.1.1.tgz",
+  "_shasum": "0fc73a9ed5f0d53c38193398523ef7e543777505",
+  "_shrinkwrap": null,
+  "_spec": "ecc-jsbn@~0.1.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk",
+  "author": {
+    "name": "Jeremie Miller",
+    "email": "jeremie@jabber.org",
+    "url": "http://jeremie.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/quartzjer/ecc-jsbn/issues"
+  },
+  "dependencies": {
+    "jsbn": "~0.1.0"
+  },
+  "description": "ECC JS code based on JSBN",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "0fc73a9ed5f0d53c38193398523ef7e543777505",
+    "tarball": "https://registry.npmjs.org/ecc-jsbn/-/ecc-jsbn-0.1.1.tgz"
+  },
+  "gitHead": "d35a360352496721030da645e8054f07efc22487",
+  "homepage": "https://github.com/quartzjer/ecc-jsbn",
+  "keywords": [
+    "jsbn",
+    "ecc",
+    "browserify"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "quartzjer",
+      "email": "jeremie@jabber.org"
+    },
+    {
+      "name": "rynomad",
+      "email": "nomad.ry@gmail.com"
+    }
+  ],
+  "name": "ecc-jsbn",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quartzjer/ecc-jsbn.git"
+  },
+  "scripts": {},
+  "version": "0.1.1"
+}

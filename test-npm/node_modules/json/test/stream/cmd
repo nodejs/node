@@ -1,0 +1,11 @@
+JSON=../../lib/json.js
+
+node ../docstream.js 3 | $JSON -ga >stream.log &
+sleep 2.5
+cat stream.log
+
+
+echo ""
+# With some randomized emits.
+node ../docstream.js 10 100 randomize | $JSON -ga foo
+

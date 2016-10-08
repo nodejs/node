@@ -1,0 +1,11 @@
+[
+  { "method"   : "put"
+  , "path"     : "/shared_log"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/shared_log"
+  , "response" : "{ \"ok\": true }"
+  }
+]
