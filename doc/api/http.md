@@ -1015,6 +1015,9 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
+Note that in `http` module, the response body is omitted when the request is a 
+HEAD. Similarly, The 204 and 304 responses MUST NOT include a message body.
+
 `chunk` can be a string or a buffer. If `chunk` is a string,
 the second parameter specifies how to encode it into a byte stream.
 By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
