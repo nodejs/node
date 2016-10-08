@@ -248,7 +248,7 @@ static void setup_inspector_expecting() {
   if (inspector.data) {
     return;
   }
-  expectations* expects = new expectations();
+  expectations* expects = new expectations({});
   inspector.data = expects;
   inspector_read_start(&inspector, grow_expects_buffer, save_read_data);
 }
