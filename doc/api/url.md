@@ -230,11 +230,28 @@ manner similar to that of a Web browser resolving an anchor tag HREF.
 For example:
 
 ```js
-url.resolve('/one/two/three', 'four')         // '/one/two/four'
-url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
-url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
+url.resolve('/one/two/three', 'four');         // '/one/two/four'
+url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
+url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
+Some protocols (`http`, `https`, `ftp`, `gopher` and `file`) are treated as special cases.
+Every other (for instance ftps or wss) is treated differently whether its URL 
+ends in a slash or not.
+
+For example:
+
+```js
+url.resolve('https://foo.tld', 'bar');   // 'https://foo.tld/bar'
+url.resolve('wss://foo.tld', 'bar');     // 'wss://bar'
+url.resolve('ftps://foo.tld', 'bar');    // 'ftps://bar'
+```
+
+Although, the uniform behaviour of the method is achieved when the URL ends with a slash.
+
+```js
+url.resolve("ftps://foo.tld/", "bar");   // 'ftps://foo.tld/bar'
+```
 ## Escaped Characters
 
 URLs are only permitted to contain a certain range of characters. Spaces (`' '`)
