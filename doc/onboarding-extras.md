@@ -76,10 +76,10 @@ Please use these when possible / appropriate
 ### Other Labels
 
 * Operating system labels
-  * `os x`, `windows`, `solaris`
+  * `os x`, `windows`, `solaris`, `aix`
   * No linux, linux is the implied default
 * Architecture labels
-  * `arm`, `mips`
+  * `arm`, `mips`, `s390`, `ppc`
   * No x86{_64}, since that is the implied default
 * `lts-agenda`, `lts-watch-v*`
   * tag things that should be discussed to go into LTS or should go into a specific LTS branch
