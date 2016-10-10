@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
-var fs = require('fs');
+const path = require('path');
+const fs = require('fs');
 
 
-var filepath = path.join(common.tmpDir, 'write.txt');
+const filepath = path.join(common.tmpDir, 'write.txt');
 var file;
 
 const EXPECTED = '012345678910';
@@ -76,12 +76,12 @@ file.on('close', function() {
 
 file.on('error', function(err) {
   cb_occurred += 'error ';
-  assert.ok(err.message.indexOf('write after end') >= 0);
+  assert.ok(err.message.includes('write after end'));
 });
 
 
 for (var i = 0; i < 11; i++) {
-  var ret = file.write(i + '');
+  const ret = file.write(i + '');
   console.error('%d %j', i, ret);
 
   // return false when i hits 10
