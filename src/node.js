@@ -266,6 +266,22 @@
     process.config = JSON.parse(config, function(key, value) {
       if (value === 'true') return true;
       if (value === 'false') return false;
+
+      // Intl.v8BreakIterator() would crash w/ fatal error, so throw instead.
+      if (value.icu_small &&
+          global.hasOwnProperty('Intl') &&
+          Intl.hasOwnProperty('v8BreakIterator') &&
+          !process.icu_data_dir) {
+        const des = Object.getOwnPropertyDescriptor(Intl, 'v8BreakIterator');
+        des.value = function v8BreakIterator() {
+          throw new Error('v8BreakIterator: full ICU data not installed. ' +
+                          'See https://github.com/nodejs/node/wiki/Intl');
+        };
+        Object.defineProperty(Intl, 'v8BreakIterator', des);
+      }
+      // Don’t let icu_data_dir leak through.
+      delete process.icu_data_dir;
+
       return value;
     });
   };
