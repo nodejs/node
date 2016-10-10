@@ -1,0 +1,35 @@
+[
+  { "method"   : "put"
+  , "path"     : "/attachment_update"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_update/new/att"
+  , "body"     : "Hello"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"new\",\"rev\":\"1-5142a2\"}"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_update/new/att?rev=1-5142a2"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"new\",\"rev\":\"2-3b1f88\"}\n"
+  }
+, { "method"   : "get"
+  , "path"     : "/attachment_update/new"
+  , "status"   : 200
+  , "response" : "{ \"_id\": \"new\", \"_rev\": \"2-3b1f88\", \"_attachments\": { \"att\": { \"content_type\": \"image/bmp\", \"revpos\": 2, \"digest\": \"md5-Ow9j2dR0Qm58Qi3z8p2w3A==\", \"length\": 58, \"stub\": true }}}"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_update/new"
+  , "status"   : 201
+  , "body"     : "{\"_id\":\"new\",\"_rev\":\"2-3b1f88\",\"_attachments\":{\"att\":{\"content_type\":\"image/bmp\",\"revpos\":2,\"digest\":\"md5-Ow9j2dR0Qm58Qi3z8p2w3A==\",\"length\":58,\"stub\":true}},\"works\":true}"
+  , "response" : "{\"ok\":true,\"id\":\"new\",\"rev\":\"3-19e2de\"}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/attachment_update"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

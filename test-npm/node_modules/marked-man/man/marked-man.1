@@ -1,0 +1,56 @@
+.TH "MARKED\-MAN" "1" "January 2014" "" ""
+.SH "NAME"
+\fBmarked-man\fR \- markdown to roff
+.SH SYNOPSIS
+.P
+.RS 2
+.EX
+marked\-man README\.md > doc/marked\-man\.1
+.EE
+.RE
+.P
+See marked README \fIhttps://github\.com/chjj/marked\fR for documentation about how to use marked\.
+.P
+Note that \fBmarked\-man \-\-format=html\fR is the same as \fBmarked\fR\|\.
+.SH DESCRIPTION
+.P
+\fBmarked\-man\fR wraps \fBmarked\fR to extend it with groff output support\.
+.SH OPTIONS
+.P
+\fBmarked\-man\fR adds some options to \fBmarked\fR existing options:
+.RS 0
+.IP \(bu 2
+format
+Sets the output format\. Outputs html if different from \fBroff\fR\|\.
+Defaults to \fBroff\fR\|\.
+.IP \(bu 2
+name
+The name shown in the manpage header, if it isn\'t given in the ronn header like in this README\.
+Defaults to empty string\.
+.IP \(bu 2
+section
+The section shown in the manpage header, if it isn\'t given in the ronn header like in this README\.
+Defaults to empty string\.
+.IP \(bu 2
+version
+The version shown in the manpage header\.
+Defaults to empty string\.
+.IP \(bu 2
+manual
+The MANUAL string shown in the manpage header\.
+Defaults to empty string\.
+.IP \(bu 2
+date
+The date shown in the manpage header\.
+Defaults to now, must be acceptable by new Date(string)\.
+
+.RE
+.P
+\fBmarked\-man\fR invokes \fBmarked \-\-gfm \-\-sanitize\fR\|\.
+The \-\-breaks option can be helpful to match default \fBronn\fR behavior\.
+.SH SEE ALSO
+.P
+Ryan Tomayko \fIhttps://github\.com/rtomayko/ronn\fR
+.SH REPORTING BUGS
+.P
+See marked\-man repository \fIhttps://github\.com/kapouer/marked\-man\fR\|\.

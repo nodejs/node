@@ -1,0 +1,16 @@
+language: node_js
+before_install:
+  - curl --location http://git.io/1OcIZA | bash -s
+services:
+  - couchdb
+node_js:
+  - "0.8"
+  - "0.10"
+  - "0.12"
+  - "iojs"
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - node_js: "0.12"
+    - node_js: "iojs"

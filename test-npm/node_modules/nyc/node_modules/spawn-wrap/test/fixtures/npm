@@ -1,0 +1,5 @@
+#!/bin/sh
+// 2>/dev/null; exec "`dirname "$0"`/node" "$0" "$@"
+console.log('%j', process.execArgv)
+console.log('%j', process.argv.slice(2))
+setTimeout(function () {}, 100)

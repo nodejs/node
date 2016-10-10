@@ -1,0 +1,4 @@
+{ "timeout" : 5000
+, "couch"   : "http://localhost:5984"
+, "admin"   : "http://admin:password@localhost:5984"
+}

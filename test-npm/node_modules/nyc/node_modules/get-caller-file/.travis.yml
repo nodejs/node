@@ -1,0 +1,20 @@
+sudo: false
+language: node_js
+node_js:
+  - "0.10"
+  - "0.12"
+  - "4.2"
+  - "5"
+  - node
+
+os:
+  - linux
+script: npm test
+before_install:
+  - curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.29.0/install.sh | bash
+  - npm config set spin false
+install:
+  - node --version
+  - npm --version
+  - git --version
+  - npm install --no-optional

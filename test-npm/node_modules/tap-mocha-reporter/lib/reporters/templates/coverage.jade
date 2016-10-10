@@ -1,0 +1,51 @@
+doctype html
+html
+  head
+    title Coverage
+    meta(charset='utf-8')
+    include script.html
+    include style.html
+  body
+    #coverage
+      h1#overview Coverage
+      include menu
+
+      #stats(class=coverageClass(cov.coverage))
+        .percentage #{cov.coverage | 0}%
+        .sloc= cov.sloc
+        .hits= cov.hits
+        .misses= cov.misses
+
+      #files
+        for file in cov.files
+          .file
+            h2(id=file.filename)= file.filename
+            #stats(class=coverageClass(file.coverage))
+              .percentage #{file.coverage | 0}%
+              .sloc= file.sloc
+              .hits= file.hits
+              .misses= file.misses
+
+            table#source
+              thead
+                tr
+                  th Line
+                  th Hits
+                  th Source
+              tbody
+                for line, number in file.source
+                  if line.coverage > 0
+                    tr.hit
+                      td.line= number
+                      td.hits= line.coverage
+                      td.source= line.source
+                  else if 0 === line.coverage
+                    tr.miss
+                      td.line= number
+                      td.hits 0
+                      td.source= line.source
+                  else
+                    tr
+                      td.line= number
+                      td.hits
+                      td.source= line.source || ' '

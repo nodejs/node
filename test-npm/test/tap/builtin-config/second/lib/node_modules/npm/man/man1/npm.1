@@ -1,0 +1,205 @@
+.TH "NPM" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm\fR \- javascript package manager
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm <command> [args]
+.fi
+.RE
+.SH VERSION
+.P
+3.10.8
+.SH DESCRIPTION
+.P
+npm is the package manager for the Node JavaScript platform\.  It puts
+modules in place so that node can find them, and manages dependency
+conflicts intelligently\.
+.P
+It is extremely configurable to support a wide variety of use cases\.
+Most commonly, it is used to publish, discover, install, and develop node
+programs\.
+.P
+Run \fBnpm help\fP to get a list of available commands\.
+.SH INTRODUCTION
+.P
+You probably got npm because you want to install stuff\.
+.P
+Use \fBnpm install blerg\fP to install the latest version of "blerg"\.  Check out
+npm help \fBnpm\-install\fP for more info\.  It can do a lot of stuff\.
+.P
+Use the \fBnpm search\fP command to show everything that's available\.
+Use \fBnpm ls\fP to show everything you've installed\.
+.SH DEPENDENCIES
+.P
+If a package references to another package with a git URL, npm depends
+on a preinstalled git\.
+.P
+If one of the packages npm tries to install is a native node module and
+requires compiling of C++ Code, npm will use
+node\-gyp \fIhttps://github\.com/TooTallNate/node\-gyp\fR for that task\.
+For a Unix system, node\-gyp \fIhttps://github\.com/TooTallNate/node\-gyp\fR
+needs Python, make and a buildchain like GCC\. On Windows,
+Python and Microsoft Visual Studio C++ are needed\. Python 3 is
+not supported by node\-gyp \fIhttps://github\.com/TooTallNate/node\-gyp\fR\|\.
+For more information visit
+the node\-gyp repository \fIhttps://github\.com/TooTallNate/node\-gyp\fR and
+the node\-gyp Wiki \fIhttps://github\.com/TooTallNate/node\-gyp/wiki\fR\|\.
+.SH DIRECTORIES
+.P
+See npm help 5 \fBnpm\-folders\fP to learn about where npm puts stuff\.
+.P
+In particular, npm has two modes of operation:
+.RS 0
+.IP \(bu 2
+global mode:
+.br
+npm installs packages into the install prefix at
+\fBprefix/lib/node_modules\fP and bins are installed in \fBprefix/bin\fP\|\.
+.IP \(bu 2
+local mode:
+.br
+npm installs packages into the current project directory, which
+defaults to the current working directory\.  Packages are installed to
+\fB\|\./node_modules\fP, and bins are installed to \fB\|\./node_modules/\.bin\fP\|\.
+
+.RE
+.P
+Local mode is the default\.  Use \fB\-g\fP or \fB\-\-global\fP on any command to
+operate in global mode instead\.
+.SH DEVELOPER USAGE
+.P
+If you're using npm to develop and publish your code, check out the
+following help topics:
+.RS 0
+.IP \(bu 2
+json:
+Make a package\.json file\.  See npm help 5 \fBpackage\.json\fP\|\.
+.IP \(bu 2
+link:
+For linking your current working code into Node's path, so that you
+don't have to reinstall every time you make a change\.  Use
+\fBnpm link\fP to do this\.
+.IP \(bu 2
+install:
+It's a good idea to install things if you don't need the symbolic link\.
+Especially, installing other peoples code from the registry is done via
+\fBnpm install\fP
+.IP \(bu 2
+adduser:
+Create an account or log in\.  Credentials are stored in the
+user config file\.
+.IP \(bu 2
+publish:
+Use the \fBnpm publish\fP command to upload your code to the registry\.
+
+.RE
+.SH CONFIGURATION
+.P
+npm is extremely configurable\.  It reads its configuration options from
+5 places\.
+.RS 0
+.IP \(bu 2
+Command line switches:
+.br
+Set a config with \fB\-\-key val\fP\|\.  All keys take a value, even if they
+are booleans (the config parser doesn't know what the options are at
+the time of parsing\.)  If no value is provided, then the option is set
+to boolean \fBtrue\fP\|\.
+.IP \(bu 2
+Environment Variables:
+.br
+Set any config by prefixing the name in an environment variable with
+\fBnpm_config_\fP\|\.  For example, \fBexport npm_config_key=val\fP\|\.
+.IP \(bu 2
+User Configs:
+.br
+The file at $HOME/\.npmrc is an ini\-formatted list of configs\.  If
+present, it is parsed\.  If the \fBuserconfig\fP option is set in the cli
+or env, then that will be used instead\.
+.IP \(bu 2
+Global Configs:
+.br
+The file found at \.\./etc/npmrc (from the node executable, by default
+this resolves to /usr/local/etc/npmrc) will be parsed if it is found\.
+If the \fBglobalconfig\fP option is set in the cli, env, or user config,
+then that file is parsed instead\.
+.IP \(bu 2
+Defaults:
+.br
+npm's default configuration options are defined in
+lib/utils/config\-defs\.js\.  These must not be changed\.
+
+.RE
+.P
+See npm help 7 \fBnpm\-config\fP for much much more information\.
+.SH CONTRIBUTIONS
+.P
+Patches welcome!
+.RS 0
+.IP \(bu 2
+code:
+Read through npm help 7 \fBnpm\-coding\-style\fP if you plan to submit code\.
+You don't have to agree with it, but you do have to follow it\.
+.IP \(bu 2
+docs:
+If you find an error in the documentation, edit the appropriate markdown
+file in the "doc" folder\.  (Don't worry about generating the man page\.)
+
+.RE
+.P
+Contributors are listed in npm's \fBpackage\.json\fP file\.  You can view them
+easily by doing \fBnpm view npm contributors\fP\|\.
+.P
+If you would like to contribute, but don't know what to work on, read
+the contributing guidelines and check the issues list\.
+.RS 0
+.IP \(bu 2
+https://github\.com/npm/npm/wiki/Contributing\-Guidelines
+.IP \(bu 2
+https://github\.com/npm/npm/issues
+
+.RE
+.SH BUGS
+.P
+When you find issues, please report them:
+.RS 0
+.IP \(bu 2
+web:
+https://github\.com/npm/npm/issues
+
+.RE
+.P
+Be sure to include \fIall\fR of the output from the npm command that didn't work
+as expected\.  The \fBnpm\-debug\.log\fP file is also helpful to provide\.
+.P
+You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
+will no doubt tell you to put the output in a gist or email\.
+.SH AUTHOR
+.P
+Isaac Z\. Schlueter \fIhttp://blog\.izs\.me/\fR ::
+isaacs \fIhttps://github\.com/isaacs/\fR ::
+@izs \fIhttp://twitter\.com/izs\fR ::
+i@izs\.me
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help help
+.IP \(bu 2
+README
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help 7 index
+
+.RE
+

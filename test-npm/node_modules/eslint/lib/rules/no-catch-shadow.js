@@ -1,0 +1,58 @@
+/**
+ * @fileoverview Rule to flag variable leak in CatchClauses in IE 8 and earlier
+ * @author Ian Christian Myers
+ */
+
+"use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
+// Rule Definition
+//------------------------------------------------------------------------------
+
+module.exports = function(context) {
+
+    //--------------------------------------------------------------------------
+    // Helpers
+    //--------------------------------------------------------------------------
+
+    /**
+     * Check if the parameters are been shadowed
+     * @param {object} scope current scope
+     * @param {string} name parameter name
+     * @returns {boolean} True is its been shadowed
+     */
+    function paramIsShadowing(scope, name) {
+        return astUtils.getVariableByName(scope, name) !== null;
+    }
+
+    //--------------------------------------------------------------------------
+    // Public API
+    //--------------------------------------------------------------------------
+
+    return {
+
+        "CatchClause": function(node) {
+            var scope = context.getScope();
+
+            // When blockBindings is enabled, CatchClause creates its own scope
+            // so start from one upper scope to exclude the current node
+            if (scope.block === node) {
+                scope = scope.upper;
+            }
+
+            if (paramIsShadowing(scope, node.param.name)) {
+                context.report(node, "Value of '{{name}}' may be overwritten in IE 8 and earlier.",
+                        { name: node.param.name });
+            }
+        }
+    };
+
+};
+
+module.exports.schema = [];

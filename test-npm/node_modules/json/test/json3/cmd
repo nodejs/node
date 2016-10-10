@@ -1,0 +1,86 @@
+JSON=../../lib/json.js
+
+# Change from json2: '-j' means JSON output.
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -j -a name   # json
+#       [{"name": "trent"}, {"name": "ewan"}]
+
+# Can't break this from json 2.
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -a name   # jsony
+#       trent
+#       ewan
+
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -a    # jsony
+#       {
+#         "name": "trent",
+#         "age": 38
+#       }
+#       {
+#         "name": "ewan",
+#         "age": 4
+#       }
+
+# Change from json2: '-j' forces JSON output.
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -aj   # json
+#       [
+#         {
+#           "name": "trent",
+#           "age": 38
+#         },
+#         {
+#           "name": "ewan",
+#           "age": 4
+#         }
+#       ]
+
+# Can't break this from json 2.
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON 0  # jsony
+#       {"name":"trent","age":38}
+
+
+# Change from json 2: Showing auto array processing (and change to 'json'
+# output mode).
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -e 'this.age++'   # auto json
+#      [{"name":"trent", "age":39}, {"name":"ewan", "age":5}]
+
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -c 'this.age>30' 0  # auto json
+#      {"name":"trent","age":38}
+
+# If the "lookups" are indeces into an array, then *json*-mode output will
+# be an array of selected items (more likely to be the user's desire) instead
+# of the usual "JSON table" structure.
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON 0
+#   {
+#     "name": "trent",
+#     "age": 38
+#   }
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -o json-0 0
+#   [{"name":"trent","age":38}]
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -o json-0 0 1
+#   [{"name":"trent", "age":38}, {"name":"ewan", "age":4}]
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -o json-0 0 2
+#   [{"name":"trent", "age":38}]
+echo -n 'index 2:'
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -o json-0 2
+echo
+#   (empty)
+echo -n 'index 2,3:'
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON -o json-0 2 3
+#   []
+echo '{"0": "zero", "1": "one"}' | $JSON 0 1
+#   zero
+#   one
+echo '{"0": "zero", "1": "one"}' | $JSON 0 1 -o json-0
+#   {"0":"zero","1":"one"}
+
+
+# This was broken in json3 dev at one point:
+echo ''
+echo '[{"name":"trent", "age":38}, {"name":"ewan", "age":4}]' | $JSON 0.name
+#   trent

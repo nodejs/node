@@ -1,0 +1,34 @@
+<script>
+
+headings = [];
+
+onload = function(){
+  headings = document.querySelectorAll('h2');
+};
+
+onscroll = function(e){
+  var heading = find(window.scrollY);
+  if (!heading) return;
+  var links = document.querySelectorAll('#menu a')
+    , link;
+
+  for (var i = 0, len = links.length; i < len; ++i) {
+    link = links[i];
+    link.className = link.getAttribute('href') == '#' + heading.id
+      ? 'active'
+      : '';
+  }
+};
+
+function find(y) {
+  var i = headings.length
+    , heading;
+
+  while (i--) {
+    heading = headings[i];
+    if (y >= heading.offsetTop) {
+      return heading;
+    }
+  }
+}
+</script>

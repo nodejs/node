@@ -1,0 +1,762 @@
+{
+  "_id": "nopt",
+  "_rev": "47-53cb2cfc4b22238ec73f12e4f4812266",
+  "name": "nopt",
+  "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+  "dist-tags": {
+    "latest": "2.2.0"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "nopt",
+      "version": "1.0.0",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/optparse.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@1.0.0",
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.1rc0",
+      "_nodeVersion": "v0.5.0-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "a786d439b09c142dca74b0b29ef1458da50e37d8",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.0.tgz",
+        "bin": {
+          "0.4-darwin-10.7.0": {
+            "shasum": "e0864df8d3e4d2b81ef268d8a50b2f1bccd39e54",
+            "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.0-0.4-darwin-10.7.0.tgz"
+          }
+        }
+      },
+      "directories": {}
+    },
+    "1.0.1": {
+      "name": "nopt",
+      "version": "1.0.1",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/optparse.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@1.0.1",
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.1rc2",
+      "_nodeVersion": "v0.4.4",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "585e38c61508b02b1ea2cc0028eef8c303079285",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.1.tgz"
+      },
+      "directories": {}
+    },
+    "1.0.2": {
+      "name": "nopt",
+      "version": "1.0.2",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@1.0.2",
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.1rc3",
+      "_nodeVersion": "v0.5.0-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "bb26ab771fb09411f716b122c12cd98fdc98f4d1",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.2.tgz"
+      },
+      "directories": {}
+    },
+    "1.0.3": {
+      "name": "nopt",
+      "version": "1.0.3",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@1.0.3",
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.1rc3",
+      "_nodeVersion": "v0.5.0-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "a5557211e05f4baad09bbf8e9d798072bff69166",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.3.tgz"
+      },
+      "directories": {}
+    },
+    "1.0.4": {
+      "name": "nopt",
+      "version": "1.0.4",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@1.0.4",
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.1rc4",
+      "_nodeVersion": "v0.5.0-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "023fc93f439094e662e2e4186345bfabda8eceda",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.4.tgz"
+      },
+      "directories": {}
+    },
+    "1.0.5": {
+      "name": "nopt",
+      "version": "1.0.5",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "devDependencies": {},
+      "_id": "nopt@1.0.5",
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.1rcFINAL",
+      "_nodeVersion": "v0.4.8-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "fc79e34a4e8862e9c413d2e1cac07ee645ac4cc8",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.5.tgz"
+      },
+      "directories": {}
+    },
+    "1.0.6": {
+      "name": "nopt",
+      "version": "1.0.6",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_npmJsonOpts": {
+        "file": "/Users/isaacs/.npm/nopt/1.0.6/package/package.json",
+        "wscript": false,
+        "contributors": false,
+        "serverjs": false
+      },
+      "_id": "nopt@1.0.6",
+      "devDependencies": {},
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.15",
+      "_nodeVersion": "v0.4.10-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "37307cafcdccf78b954ec06dcef31b936b4d03df",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.6.tgz"
+      },
+      "directories": {}
+    },
+    "1.0.7": {
+      "name": "nopt",
+      "version": "1.0.7",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_npmJsonOpts": {
+        "file": "/Users/isaacs/.npm/nopt/1.0.7/package/package.json",
+        "wscript": false,
+        "contributors": false,
+        "serverjs": false
+      },
+      "_id": "nopt@1.0.7",
+      "devDependencies": {},
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.28-pre-DEV-UNSTABLE",
+      "_nodeVersion": "v0.4.11",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "cc72658b52a3f653a70883a1823dd8f3ddc57f75",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.7.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.8": {
+      "name": "nopt",
+      "version": "1.0.8",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_npmJsonOpts": {
+        "file": "/Users/isaacs/.npm/nopt/1.0.8/package/package.json",
+        "wscript": false,
+        "contributors": false,
+        "serverjs": false
+      },
+      "_id": "nopt@1.0.8",
+      "devDependencies": {},
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.28-pre-DEV-UNSTABLE",
+      "_nodeVersion": "v0.5.7-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "d4ac752df307f1a02eb771c40ed23188e7ca44c6",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.8.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.9": {
+      "name": "nopt",
+      "version": "1.0.9",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_npmUser": {
+        "name": "isaacs",
+        "email": "i@izs.me"
+      },
+      "_id": "nopt@1.0.9",
+      "devDependencies": {},
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.30",
+      "_nodeVersion": "v0.5.8-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "3bc0d7cba7bfb0d5a676dbed7c0ebe48a4fd454e",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.9.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.10": {
+      "name": "nopt",
+      "version": "1.0.10",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git://github.com/isaacs/nopt.git"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_npmUser": {
+        "name": "isaacs",
+        "email": "i@izs.me"
+      },
+      "_id": "nopt@1.0.10",
+      "devDependencies": {},
+      "engines": {
+        "node": "*"
+      },
+      "_engineSupported": true,
+      "_npmVersion": "1.0.93",
+      "_nodeVersion": "v0.5.9-pre",
+      "_defaultsLoaded": true,
+      "dist": {
+        "shasum": "6ddd21bd2a31417b92727dd585f8a6f37608ebee",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-1.0.10.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "2.0.0": {
+      "name": "nopt",
+      "version": "2.0.0",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/isaacs/nopt"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@2.0.0",
+      "dist": {
+        "shasum": "ca7416f20a5e3f9c3b86180f96295fa3d0b52e0d",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-2.0.0.tgz"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "2.1.0": {
+      "name": "nopt",
+      "version": "2.1.0",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/isaacs/nopt"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@2.1.0",
+      "dist": {
+        "shasum": "2334c03a00c1dcb22eb1c4a4c34ebde213ee49e2",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-2.1.0.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.2.1",
+      "_npmUser": {
+        "name": "isaacs",
+        "email": "i@izs.me"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "2.1.1": {
+      "name": "nopt",
+      "version": "2.1.1",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/isaacs/nopt"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "_id": "nopt@2.1.1",
+      "dist": {
+        "shasum": "91eb7c4b017e7c00adcad1fd6d63944d0fdb75c1",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-2.1.1.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.2.1",
+      "_npmUser": {
+        "name": "isaacs",
+        "email": "i@izs.me"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "2.1.2": {
+      "name": "nopt",
+      "version": "2.1.2",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "node lib/nopt.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/isaacs/nopt"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "bugs": {
+        "url": "https://github.com/isaacs/nopt/issues"
+      },
+      "_id": "nopt@2.1.2",
+      "dist": {
+        "shasum": "6cccd977b80132a07731d6e8ce58c2c8303cf9af",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-2.1.2.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.4",
+      "_npmUser": {
+        "name": "isaacs",
+        "email": "i@izs.me"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    },
+    "2.2.0": {
+      "name": "nopt",
+      "version": "2.2.0",
+      "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+      "author": {
+        "name": "Isaac Z. Schlueter",
+        "email": "i@izs.me",
+        "url": "http://blog.izs.me/"
+      },
+      "main": "lib/nopt.js",
+      "scripts": {
+        "test": "tap test/*.js"
+      },
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/isaacs/nopt"
+      },
+      "bin": {
+        "nopt": "./bin/nopt.js"
+      },
+      "license": {
+        "type": "MIT",
+        "url": "https://github.com/isaacs/nopt/raw/master/LICENSE"
+      },
+      "dependencies": {
+        "abbrev": "1"
+      },
+      "devDependencies": {
+        "tap": "~0.4.8"
+      },
+      "bugs": {
+        "url": "https://github.com/isaacs/nopt/issues"
+      },
+      "homepage": "https://github.com/isaacs/nopt",
+      "_id": "nopt@2.2.0",
+      "dist": {
+        "shasum": "3d106676f3607ac466af9bf82bd707b1501d3bd5",
+        "tarball": "http://registry.npmjs.org/nopt/-/nopt-2.2.0.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.4.2",
+      "_npmUser": {
+        "name": "isaacs",
+        "email": "i@izs.me"
+      },
+      "maintainers": [
+        {
+          "name": "isaacs",
+          "email": "i@izs.me"
+        }
+      ],
+      "directories": {}
+    }
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "time": {
+    "modified": "2014-02-16T20:54:31.122Z",
+    "created": "2011-03-30T03:23:55.464Z",
+    "1.0.0": "2011-03-30T03:23:56.092Z",
+    "1.0.1": "2011-03-30T06:58:18.917Z",
+    "1.0.2": "2011-03-31T01:07:58.593Z",
+    "1.0.3": "2011-03-31T01:12:32.481Z",
+    "1.0.4": "2011-03-31T04:42:56.217Z",
+    "1.0.5": "2011-04-29T19:50:02.032Z",
+    "1.0.6": "2011-07-06T03:49:31.397Z",
+    "1.0.7": "2011-09-08T17:49:45.337Z",
+    "1.0.8": "2011-09-15T21:26:19.372Z",
+    "1.0.9": "2011-09-22T21:20:18.314Z",
+    "1.0.10": "2011-10-05T21:47:05.876Z",
+    "2.0.0": "2012-07-23T22:36:57.179Z",
+    "2.1.0": "2013-01-17T20:23:13.858Z",
+    "2.1.1": "2013-01-18T16:26:25.780Z",
+    "2.1.2": "2013-07-17T15:24:56.574Z",
+    "2.2.0": "2014-02-16T20:54:31.122Z"
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/isaacs/nopt"
+  },
+  "users": {
+    "agnat": true,
+    "fgribreau": true,
+    "lupomontero": true,
+    "chrisdickinson": true,
+    "pid": true,
+    "kastor": true
+  },
+  "readme": "If you want to write an option parser, and have it be good, there are\ntwo ways to do it.  The Right Way, and the Wrong Way.\n\nThe Wrong Way is to sit down and write an option parser.  We've all done\nthat.\n\nThe Right Way is to write some complex configurable program with so many\noptions that you go half-insane just trying to manage them all, and put\nit off with duct-tape solutions until you see exactly to the core of the\nproblem, and finally snap and write an awesome option parser.\n\nIf you want to write an option parser, don't write an option parser.\nWrite a package manager, or a source control system, or a service\nrestarter, or an operating system.  You probably won't end up with a\ngood one of those, but if you don't give up, and you are relentless and\ndiligent enough in your procrastination, you may just end up with a very\nnice option parser.\n\n## USAGE\n\n    // my-program.js\n    var nopt = require(\"nopt\")\n      , Stream = require(\"stream\").Stream\n      , path = require(\"path\")\n      , knownOpts = { \"foo\" : [String, null]\n                    , \"bar\" : [Stream, Number]\n                    , \"baz\" : path\n                    , \"bloo\" : [ \"big\", \"medium\", \"small\" ]\n                    , \"flag\" : Boolean\n                    , \"pick\" : Boolean\n                    , \"many\" : [String, Array]\n                    }\n      , shortHands = { \"foofoo\" : [\"--foo\", \"Mr. Foo\"]\n                     , \"b7\" : [\"--bar\", \"7\"]\n                     , \"m\" : [\"--bloo\", \"medium\"]\n                     , \"p\" : [\"--pick\"]\n                     , \"f\" : [\"--flag\"]\n                     }\n                 // everything is optional.\n                 // knownOpts and shorthands default to {}\n                 // arg list defaults to process.argv\n                 // slice defaults to 2\n      , parsed = nopt(knownOpts, shortHands, process.argv, 2)\n    console.log(parsed)\n\nThis would give you support for any of the following:\n\n```bash\n$ node my-program.js --foo \"blerp\" --no-flag\n{ \"foo\" : \"blerp\", \"flag\" : false }\n\n$ node my-program.js ---bar 7 --foo \"Mr. Hand\" --flag\n{ bar: 7, foo: \"Mr. Hand\", flag: true }\n\n$ node my-program.js --foo \"blerp\" -f -----p\n{ foo: \"blerp\", flag: true, pick: true }\n\n$ node my-program.js -fp --foofoo\n{ foo: \"Mr. Foo\", flag: true, pick: true }\n\n$ node my-program.js --foofoo -- -fp  # -- stops the flag parsing.\n{ foo: \"Mr. Foo\", argv: { remain: [\"-fp\"] } }\n\n$ node my-program.js --blatzk -fp # unknown opts are ok.\n{ blatzk: true, flag: true, pick: true }\n\n$ node my-program.js --blatzk=1000 -fp # but you need to use = if they have a value\n{ blatzk: 1000, flag: true, pick: true }\n\n$ node my-program.js --no-blatzk -fp # unless they start with \"no-\"\n{ blatzk: false, flag: true, pick: true }\n\n$ node my-program.js --baz b/a/z # known paths are resolved.\n{ baz: \"/Users/isaacs/b/a/z\" }\n\n# if Array is one of the types, then it can take many\n# values, and will always be an array.  The other types provided\n# specify what types are allowed in the list.\n\n$ node my-program.js --many 1 --many null --many foo\n{ many: [\"1\", \"null\", \"foo\"] }\n\n$ node my-program.js --many foo\n{ many: [\"foo\"] }\n```\n\nRead the tests at the bottom of `lib/nopt.js` for more examples of\nwhat this puppy can do.\n\n## Types\n\nThe following types are supported, and defined on `nopt.typeDefs`\n\n* String: A normal string.  No parsing is done.\n* path: A file system path.  Gets resolved against cwd if not absolute.\n* url: A url.  If it doesn't parse, it isn't accepted.\n* Number: Must be numeric.\n* Date: Must parse as a date. If it does, and `Date` is one of the options,\n  then it will return a Date object, not a string.\n* Boolean: Must be either `true` or `false`.  If an option is a boolean,\n  then it does not need a value, and its presence will imply `true` as\n  the value.  To negate boolean flags, do `--no-whatever` or `--whatever\n  false`\n* NaN: Means that the option is strictly not allowed.  Any value will\n  fail.\n* Stream: An object matching the \"Stream\" class in node.  Valuable\n  for use when validating programmatically.  (npm uses this to let you\n  supply any WriteStream on the `outfd` and `logfd` config options.)\n* Array: If `Array` is specified as one of the types, then the value\n  will be parsed as a list of options.  This means that multiple values\n  can be specified, and that the value will always be an array.\n\nIf a type is an array of values not on this list, then those are\nconsidered valid values.  For instance, in the example above, the\n`--bloo` option can only be one of `\"big\"`, `\"medium\"`, or `\"small\"`,\nand any other value will be rejected.\n\nWhen parsing unknown fields, `\"true\"`, `\"false\"`, and `\"null\"` will be\ninterpreted as their JavaScript equivalents, and numeric values will be\ninterpreted as a number.\n\nYou can also mix types and values, or multiple types, in a list.  For\ninstance `{ blah: [Number, null] }` would allow a value to be set to\neither a Number or null.  When types are ordered, this implies a\npreference, and the first type that can be used to properly interpret\nthe value will be used.\n\nTo define a new type, add it to `nopt.typeDefs`.  Each item in that\nhash is an object with a `type` member and a `validate` method.  The\n`type` member is an object that matches what goes in the type list.  The\n`validate` method is a function that gets called with `validate(data,\nkey, val)`.  Validate methods should assign `data[key]` to the valid\nvalue of `val` if it can be handled properly, or return boolean\n`false` if it cannot.\n\nYou can also call `nopt.clean(data, types, typeDefs)` to clean up a\nconfig object and remove its invalid properties.\n\n## Error Handling\n\nBy default, nopt outputs a warning to standard error when invalid\noptions are found.  You can change this behavior by assigning a method\nto `nopt.invalidHandler`.  This method will be called with\nthe offending `nopt.invalidHandler(key, val, types)`.\n\nIf no `nopt.invalidHandler` is assigned, then it will console.error\nits whining.  If it is assigned to boolean `false` then the warning is\nsuppressed.\n\n## Abbreviations\n\nYes, they are supported.  If you define options like this:\n\n```javascript\n{ \"foolhardyelephants\" : Boolean\n, \"pileofmonkeys\" : Boolean }\n```\n\nThen this will work:\n\n```bash\nnode program.js --foolhar --pil\nnode program.js --no-f --pileofmon\n# etc.\n```\n\n## Shorthands\n\nShorthands are a hash of shorter option names to a snippet of args that\nthey expand to.\n\nIf multiple one-character shorthands are all combined, and the\ncombination does not unambiguously match any other option or shorthand,\nthen they will be broken up into their constituent parts.  For example:\n\n```json\n{ \"s\" : [\"--loglevel\", \"silent\"]\n, \"g\" : \"--global\"\n, \"f\" : \"--force\"\n, \"p\" : \"--parseable\"\n, \"l\" : \"--long\"\n}\n```\n\n```bash\nnpm ls -sgflp\n# just like doing this:\nnpm ls --loglevel silent --global --force --long --parseable\n```\n\n## The Rest of the args\n\nThe config object returned by nopt is given a special member called\n`argv`, which is an object with the following fields:\n\n* `remain`: The remaining args after all the parsing has occurred.\n* `original`: The args as they originally appeared.\n* `cooked`: The args after flags and shorthands are expanded.\n\n## Slicing\n\nNode programs are called with more or less the exact argv as it appears\nin C land, after the v8 and node-specific options have been plucked off.\nAs such, `argv[0]` is always `node` and `argv[1]` is always the\nJavaScript program being run.\n\nThat's usually not very useful to you.  So they're sliced off by\ndefault.  If you want them, then you can pass in `0` as the last\nargument, or any other number that you'd like to slice off the start of\nthe list.\n",
+  "readmeFilename": "README.md",
+  "_attachments": {}
+}

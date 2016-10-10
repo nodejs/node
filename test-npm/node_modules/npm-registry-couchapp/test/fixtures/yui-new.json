@@ -1,0 +1,68 @@
+{
+  "name": "yui",
+  "description": "YUI 3 Source",
+  "dist-tags": {
+    "latest": "3.15.0-rc-1"
+  },
+  "maintainers": [
+    {
+      "name": "ezequiel",
+      "email": "ezequiel@yahoo-inc.com"
+    }
+  ],
+  "versions": {
+    "3.15.0-rc-1": {
+      "name": "yui",
+      "version": "3.15.0-rc-1",
+      "description": "YUI 3 Source",
+      "author": {
+        "name": "Dav Glass",
+        "email": "davglass@gmail.com"
+      },
+      "bugs": {
+        "url": "https://github.com/yui/yui3/issues"
+      },
+      "engines": {
+        "node": ">=0.8.0"
+      },
+      "directories": {
+        "lib": "."
+      },
+      "main": "./index.js",
+      "dependencies": {
+        "request": "~2.21.0"
+      },
+      "devDependencies": {
+        "yogi": "~0.1.0",
+        "parserlib": "~0.2.2",
+        "grunt": "~0.4.1",
+        "grunt-cli": "~0.1.7",
+        "grunt-yui-contrib": "~0.0.17",
+        "grunt-lib-contrib": "~0.5.3",
+        "grunt-contrib-compress": "0.4.10",
+        "grunt-css-selectors": "~0.1.2",
+        "bower": "~1.2.8",
+        "archiver": "0.4.10"
+      },
+      "licenses": [
+        {
+          "type": "BSD",
+          "url": "http://yuilibrary.com/license/"
+        }
+      ],
+      "repository": {
+        "type": "git",
+        "url": "http://github.com/yui/yui3.git"
+      },
+      "readme": "YUI 3: blerg",
+      "readmeFilename": "README.md",
+      "homepage": "https://github.com/yui/yui3",
+      "_id": "yui@3.15.0-rc-1",
+      "dist": {
+        "tarball": "http://registry.npmjs.org/yui/-/yui-3.15.0-rc-1.tgz",
+        "shasum": "87cabefaf0742a2da45bdd9dd553a29ce29ca94b"
+      },
+      "_from": "npm"
+    }
+  }
+}

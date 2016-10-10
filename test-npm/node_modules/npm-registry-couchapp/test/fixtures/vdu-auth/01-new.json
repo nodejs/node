@@ -1,0 +1,8 @@
+{
+  "_id":"org.couchdb.user:noemail",
+  "name":"noemail",
+  "password_sha":"deadbeefdeadbeefdeadbeefdeadbeef",
+  "salt":"deadbeef",
+  "type":"user",
+  "roles":[]
+}

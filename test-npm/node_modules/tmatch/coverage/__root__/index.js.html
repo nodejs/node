@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Code coverage report for index.js</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../prettify.css">
+    <link rel="stylesheet" href="../base.css">
+    <style type='text/css'>
+        div.coverage-summary .sorter {
+            background-image: url(../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+<body>
+<div class="header medium">
+    <h1>Code coverage report for <span class="entity">index.js</span></h1>
+    <h2>
+        Statements: <span class="metric">69% <small>(69 / 100)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Branches: <span class="metric">74.42% <small>(64 / 86)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Functions: <span class="metric">100% <small>(4 / 4)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Lines: <span class="metric">69.23% <small>(63 / 91)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Ignored: <span class="metric"><span class="ignore-none">none</span></span> &nbsp;&nbsp;&nbsp;&nbsp;
+    </h2>
+    <div class="path"><a href="../index.html">All files</a> &#187; <a href="index.html">__root__/</a> &#187; index.js</div>
+</div>
+<div class="body">
+<pre><table class="coverage">
+<tr><td class="line-count">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">108</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">49</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">105</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">105</span>
+<span class="cline-any cline-yes">40</span>
+<span class="cline-any cline-yes">40</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">65</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-yes">1</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">64</span>
+<span class="cline-any cline-yes">5</span>
+<span class="cline-any cline-yes">5</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">59</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">55</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">55</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">53</span>
+<span class="cline-any cline-yes">10</span>
+<span class="cline-any cline-yes">10</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">43</span>
+<span class="cline-any cline-yes">4</span>
+<span class="cline-any cline-yes">4</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">39</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">37</span>
+<span class="cline-any cline-yes">37</span>
+<span class="cline-any cline-yes">37</span>
+<span class="cline-any cline-yes">36</span>
+<span class="cline-any cline-yes">36</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">36</span>
+<span class="cline-any cline-yes">36</span>
+<span class="cline-any cline-yes">54</span>
+<span class="cline-any cline-yes">54</span>
+<span class="cline-any cline-yes">54</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">30</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">30</span>
+<span class="cline-any cline-yes">30</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">'use strict'
+&nbsp;
+function isArguments (obj) {
+  return Object.prototype.toString.call(obj) === '[object Arguments]'
+}
+&nbsp;
+module.exports = match
+&nbsp;
+function match (obj, pattern) {
+  return match_(obj, pattern, [], [])
+}
+&nbsp;
+try {
+  match.fastEqual = require('buffertools').equals
+} catch (e) {
+  // whoops, nobody told buffertools it wasn't installed
+}
+&nbsp;
+/**
+1. If the object is a string, and the pattern is a RegExp, then return
+   true if `pattern.test(object)`.
+2. Use loose equality (`==`) only for all other value types
+   (non-objects).  `tmatch` cares more about shape and contents than
+   type. This step will also catch functions, with the useful
+   (default) property that only references to the same function are
+   considered equal.  'Ware the halting problem!
+3. `null` *is* an object – a singleton value object, in fact – so if
+   either is `null`, return object == pattern.
+4. Since the only way to make it this far is for `object` or `pattern`
+   to be an object, if `object` or `pattern` is *not* an object,
+   they're clearly not a match.
+5. It's much faster to compare dates by numeric value (`.getTime()`)
+   than by lexical value.
+6. Compare RegExps by their components, not the objects themselves.
+7. The parts of an arguments list most people care about are the
+   arguments themselves, not the callee, which you shouldn't be
+   looking at anyway.
+8. Objects are more complex:
+   1. Return `true` if `object` and `pattern` both have no properties.
+   2. Ensure that cyclical references don't blow up the stack.
+   3. Ensure that all the key names in `pattern` exist in `object`.
+   4. Ensure that all of the associated values match, recursively.
+*/
+&nbsp;
+var log = (/\btmatch\b/.test(process.env.NODE_DEBUG || '')) ?
+<span class="branch-0 cbranch-no" title="branch not covered" >  console.error </span>: function () {}
+&nbsp;
+function match_ (obj, pattern, ca, cb) {
+  log('TMATCH', typeof obj, pattern)
+  /*eslint eqeqeq:0*/
+  if (obj == pattern) {
+    log('TMATCH same object or simple value, true')
+    return true
+&nbsp;
+  } else if (obj === null || pattern === null) {
+    log('TMATCH null test')
+    return obj == pattern
+&nbsp;
+  } else if (typeof obj === 'string' &amp;&amp; pattern instanceof RegExp) {
+    log('TMATCH string~=regexp test')
+    return pattern.test(obj)
+&nbsp;
+  } else if (typeof obj === 'string' &amp;&amp; typeof pattern === 'string' &amp;&amp; pattern) {
+    log('TMATCH string~=string test')
+    return obj.indexOf(pattern) !== -1
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern === Buffer) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH Buffer ctor')</span>
+<span class="cstat-no" title="statement not covered" >    return Buffer.isBuffer(obj)</span>
+&nbsp;
+  } else if (obj instanceof Date &amp;&amp; pattern instanceof Date) {
+    log('TMATCH date test')
+    return obj.getTime() === pattern.getTime()
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (obj instanceof Date &amp;&amp; typeof pattern === 'string') {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH date~=string test')</span>
+<span class="cstat-no" title="statement not covered" >    return obj.getTime() === new Date(pattern).getTime()</span>
+&nbsp;
+  } else if (isArguments(obj) || isArguments(pattern)) {
+    log('TMATCH arguments test')
+    var slice = Array.prototype.slice
+    return match_(slice.call(obj), slice.call(pattern), ca, cb)
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern === Function) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH Function ctor')</span>
+<span class="cstat-no" title="statement not covered" >    return typeof obj === 'function'</span>
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern === Number) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH Number ctor')</span>
+<span class="cstat-no" title="statement not covered" >    return typeof obj === 'number' &amp;&amp; obj === obj</span>
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern !== pattern) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH NaN')</span>
+<span class="cstat-no" title="statement not covered" >    return obj !== obj</span>
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern === String) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH String ctor')</span>
+<span class="cstat-no" title="statement not covered" >    return typeof obj === 'string'</span>
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern === Boolean) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH Boolean ctor')</span>
+<span class="cstat-no" title="statement not covered" >    return typeof obj === 'boolean'</span>
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (pattern === Array) {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH Array ctor')</span>
+<span class="cstat-no" title="statement not covered" >    return Array.isArray(pattern)</span>
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof pattern === 'function' &amp;&amp; typeof obj === 'object') {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH object~=function')</span>
+<span class="cstat-no" title="statement not covered" >    return obj instanceof pattern</span>
+&nbsp;
+  } else if (typeof obj !== 'object' || typeof pattern !== 'object') {
+    log('TMATCH obj is not object, pattern is not object, false')
+    return false
+&nbsp;
+  } else if (obj instanceof RegExp &amp;&amp; pattern instanceof RegExp) {
+    log('TMATCH regexp~=regexp test')
+    return obj.source === pattern.source &amp;&amp;
+    obj.global === pattern.global &amp;&amp;
+    obj.multiline === pattern.multiline &amp;&amp;
+    obj.lastIndex === pattern.lastIndex &amp;&amp;
+    obj.ignoreCase === pattern.ignoreCase
+&nbsp;
+  } else <span class="missing-if-branch" title="if path not taken" >I</span>if (Buffer.isBuffer(obj) &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >Buffer.isBuffer(pattern))</span> {
+<span class="cstat-no" title="statement not covered" >    log('TMATCH buffer test')</span>
+<span class="cstat-no" title="statement not covered" >    if (obj.equals) {</span>
+<span class="cstat-no" title="statement not covered" >      return obj.equals(pattern)</span>
+    } else <span class="cstat-no" title="statement not covered" >if (match.fastEqual) {</span>
+<span class="cstat-no" title="statement not covered" >      return match.fastEqual.call(obj, pattern)</span>
+    } else {
+<span class="cstat-no" title="statement not covered" >      if (obj.length !== pattern.length) <span class="cstat-no" title="statement not covered" >return false</span></span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >      for (var j = 0; j &lt; obj.length; j++) <span class="cstat-no" title="statement not covered" >if (obj[j] != pattern[j]) <span class="cstat-no" title="statement not covered" >return false</span></span></span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >      return true</span>
+    }
+&nbsp;
+  } else {
+    // both are objects.  interesting case!
+    log('TMATCH object~=object test')
+    var kobj = Object.keys(obj)
+    var kpat = Object.keys(pattern)
+    log('  TMATCH patternkeys=%j objkeys=%j', kpat, kobj)
+&nbsp;
+    // don't bother with stack acrobatics if there's nothing there
+    if (kobj.length === 0 &amp;&amp; kpat.length === 0) return true
+&nbsp;
+    // if we've seen this exact pattern and object already, then
+    // it means that pattern and obj have matching cyclicalness
+    // however, non-cyclical patterns can match cyclical objects
+    log('  TMATCH check seen objects...')
+    var cal = ca.length
+    while (cal--) if (ca[cal] === obj &amp;&amp; cb[cal] === pattern) return true
+    ca.push(obj); cb.push(pattern)
+    log('  TMATCH not seen previously')
+&nbsp;
+    var key
+    for (var l = kpat.length - 1; l &gt;= 0; l--) {
+      key = kpat[l]
+      log('  TMATCH test obj[%j]', key, obj[key], pattern[key])
+      if (!match_(obj[key], pattern[key], ca, cb)) return false
+    }
+&nbsp;
+    ca.pop(); cb.pop()
+&nbsp;
+    log('  TMATCH object pass')
+    return true
+  }
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  log('TMATCH no way to match')</span>
+<span class="cstat-no" title="statement not covered" >  return false</span>
+}
+&nbsp;</pre></td></tr>
+</table></pre>
+
+</div>
+<div class="footer">
+    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Tue Feb 16 2016 13:45:26 GMT-0800 (PST)</div>
+</div>
+<script src="../prettify.js"></script>
+<script>
+window.onload = function () {
+        if (typeof prettyPrint === 'function') {
+            prettyPrint();
+        }
+};
+</script>
+<script src="../sorter.js"></script>
+</body>
+</html>

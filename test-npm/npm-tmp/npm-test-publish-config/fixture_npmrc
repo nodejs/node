@@ -1,0 +1,4 @@
+//localhost:1337/:email = fancy@feast.net
+//localhost:1337/:username = fancy
+//localhost:1337/:_password = ZmVhc3Q=
+registry = http://localhost:1337/

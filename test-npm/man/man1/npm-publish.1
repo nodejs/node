@@ -1,0 +1,77 @@
+.TH "NPM\-PUBLISH" "1" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-publish\fR \- Publish a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm publish [<tarball>|<folder>] [\-\-tag <tag>] [\-\-access <public|restricted>]
+
+Publishes '\.' if no argument supplied
+Sets tag 'latest' if no \-\-tag specified
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Publishes a package to the registry so that it can be installed by name\. All
+files in the package directory are included if no local \fB\|\.gitignore\fP or
+\fB\|\.npmignore\fP file exists\. If both files exist and a file is ignored by
+\fB\|\.gitignore\fP but not by \fB\|\.npmignore\fP then it will be included\.  See
+npm help 7 \fBnpm\-developers\fP for full details on what's included in the published
+package, as well as details on how the package is built\.
+.P
+By default npm will publish to the public registry\. This can be overridden by
+specifying a different default registry or using a npm help 7 \fBnpm\-scope\fP in the name
+(see npm help 5 \fBpackage\.json\fP)\.
+.RS 0
+.IP \(bu 2
+\fB<folder>\fP:
+A folder containing a package\.json file
+.IP \(bu 2
+\fB<tarball>\fP:
+A url or file path to a gzipped tar archive containing a single folder
+with a package\.json file inside\.
+.IP \(bu 2
+\fB[\-\-tag <tag>]\fP
+Registers the published package with the given tag, such that \fBnpm install
+<name>@<tag>\fP will install this version\.  By default, \fBnpm publish\fP updates
+and \fBnpm install\fP installs the \fBlatest\fP tag\. See npm help \fBnpm\-dist\-tag\fP for
+details about tags\.
+.IP \(bu 2
+\fB[\-\-access <public|restricted>]\fP
+Tells the registry whether this package should be published as public or
+restricted\. Only applies to scoped packages, which default to \fBrestricted\fP\|\.
+If you don't have a paid account, you must publish with \fB\-\-access public\fP
+to publish scoped packages\.
+
+.RE
+.P
+Fails if the package name and version combination already exists in
+the specified registry\.
+.P
+Once a package is published with a given name and version, that
+specific name and version combination can never be used again, even if
+it is removed with npm help unpublish\.
+.P
+For a "dry run" that does everything except actually publishing to the
+registry, see npm help \fBnpm\-pack\fP, which figures out the files to be included and
+packs them into a tarball to be uploaded to the registry\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help 7 scope
+.IP \(bu 2
+npm help adduser
+.IP \(bu 2
+npm help owner
+.IP \(bu 2
+npm help deprecate
+.IP \(bu 2
+npm help tag
+.IP \(bu 2
+npm help pack
+
+.RE
+

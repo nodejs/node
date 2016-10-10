@@ -1,0 +1,47 @@
+.TH "HELLO" "1" "January 1979" "" ""
+.SH "NAME"
+\fBhello\fR \- hello world
+.P
+Your output &lt;i&gt;might&lt;/i&gt; look like this:
+.P
+.RS 2
+.nf
+* Chris
+*
+* &lt;b&gt;GitHub&lt;/b&gt;
+* <b>GitHub</b>
+.fi
+.RE
+.P
+Here's some special entities:
+.RS 0
+.IP \(bu 2
+&bull;       \[ci]
+.IP \(bu 2
+&nbsp;       \~
+.IP \(bu 2
+&copy;       \(co
+.IP \(bu 2
+&rdquo;      \(rs
+.IP \(bu 2
+&mdash;      \(em
+.IP \(bu 2
+&reg;        \(rg
+.IP \(bu 2
+&sect;       \(sc
+.IP \(bu 2
+&ge;         \(>=
+.IP \(bu 2
+&le;         \(<=
+.IP \(bu 2
+&ne;         \(!=
+.IP \(bu 2
+&equiv;      \(==
+.IP \(bu 2
+&plusmn;     \(+-
+
+.RE
+.P
+Here's a line that uses non\-breaking spaces to force the
+.br
+last\~few\~words\~to\~wrap\~together\.

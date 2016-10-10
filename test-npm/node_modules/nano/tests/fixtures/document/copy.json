@@ -1,0 +1,43 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_copy"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_copy/foo_src"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"foo_src\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_copy/foo_dest"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"foo_dest\",\"rev\":\"1-351431\"}"
+  }
+, { "method"   : "head"
+  , "status"   : 200
+  , "path"     : "/document_copy/foo_dest"
+  , "headers"  : {"etag": "\"1-aa43f0\""}
+  }
+, { "method"     : "copy"
+  , "path"       : "/document_copy/foo_src"
+  , "response"   : "{ \"id\": \"foo_dest\", \"rev\": \"2-e66edd\" }"
+  , "status"     : 201
+  }
+, { "method"     : "copy"
+  , "path"       : "/document_copy/foo_src"
+  , "response"   : "{ \"error\": \"conflict\", \"reason\": \"Document update conflict.\" }"
+  , "status"     : 409
+  }
+, { "method"     : "copy"
+  , "path"       : "/document_copy/foo_src"
+  , "response"   : "{ \"id\": \"baz_dest\", \"rev\": \"1-36645f\" }"
+  , "status"     : 201
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_copy"
+  , "response" : "{ \"ok\": true }"
+  }
+]

@@ -1,0 +1,91 @@
+{
+  "_args": [
+    [
+      "nopt@~3.0.6",
+      "/Users/ogd/Documents/projects/npm/npm"
+    ]
+  ],
+  "_from": "nopt@>=3.0.6 <3.1.0",
+  "_id": "nopt@3.0.6",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/nopt",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "email": "ogd@aoaioxxysz.net",
+    "name": "othiym23"
+  },
+  "_npmVersion": "2.14.10",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "nopt",
+    "raw": "nopt@~3.0.6",
+    "rawSpec": "~3.0.6",
+    "scope": null,
+    "spec": ">=3.0.6 <3.1.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/",
+    "/node-gyp",
+    "/standard/standard-format/esformatter-jsx/js-beautify",
+    "/tap/nyc/istanbul"
+  ],
+  "_resolved": "https://registry.npmjs.org/nopt/-/nopt-3.0.6.tgz",
+  "_shasum": "c6465dbf08abcd4db359317f79ac68a646b28ff9",
+  "_shrinkwrap": null,
+  "_spec": "nopt@~3.0.6",
+  "_where": "/Users/ogd/Documents/projects/npm/npm",
+  "author": {
+    "email": "i@izs.me",
+    "name": "Isaac Z. Schlueter",
+    "url": "http://blog.izs.me/"
+  },
+  "bin": {
+    "nopt": "./bin/nopt.js"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/nopt/issues"
+  },
+  "dependencies": {
+    "abbrev": "1"
+  },
+  "description": "Option parsing for Node, supporting types, shorthands, etc. Used by npm.",
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "c6465dbf08abcd4db359317f79ac68a646b28ff9",
+    "tarball": "http://registry.npmjs.org/nopt/-/nopt-3.0.6.tgz"
+  },
+  "gitHead": "10a750c9bb99c1950160353459e733ac2aa18cb6",
+  "homepage": "https://github.com/npm/nopt#readme",
+  "license": "ISC",
+  "main": "lib/nopt.js",
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "name": "nopt",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/nopt.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "3.0.6"
+}

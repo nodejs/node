@@ -1,0 +1,61 @@
+.TH "NPM\-RESTART" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm-restart\fR \- Restart a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm restart [\-\- <args>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This restarts a package\.
+.P
+This runs a package's "stop", "restart", and "start" scripts, and associated
+pre\- and post\- scripts, in the order given below:
+.RS 0
+.IP 1. 3
+prerestart
+.IP 2. 3
+prestop
+.IP 3. 3
+stop
+.IP 4. 3
+poststop
+.IP 5. 3
+restart
+.IP 6. 3
+prestart
+.IP 7. 3
+start
+.IP 8. 3
+poststart
+.IP 9. 3
+postrestart
+
+.RE
+.SH NOTE
+.P
+Note that the "restart" script is run \fBin addition to\fR the "stop"
+and "start" scripts, not instead of them\.
+.P
+This is the behavior as of \fBnpm\fP major version 2\.  A change in this
+behavior will be accompanied by an increase in major version number
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help stop
+.IP \(bu 2
+npm apihelp restart
+
+.RE
+

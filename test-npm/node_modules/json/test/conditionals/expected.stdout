@@ -1,0 +1,23 @@
+{"age":38}
+(empty output)
+
+[{"age":38},{"age":42}]
+[{"age":42}]
+
+{
+  "age": 38
+}
+{
+  "age": 42
+}
+38
+42
+
+[{"name":"apple","fruit":"yes"}]
+{
+  "name": "apple",
+  "fruit": "yes"
+}
+apple
+
+SyntaxError: Unexpected identifier

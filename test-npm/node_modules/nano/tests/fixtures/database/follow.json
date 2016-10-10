@@ -1,0 +1,30 @@
+[
+  { "method"   : "put"
+  , "path"     : "/database_follow"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_follow/foobar"
+  , "body"     : "{\"foo\":\"bar\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_follow/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_follow/barfoo"
+  , "body"     : "{\"bar\":\"foo\"}"
+  , "response" : "{\"ok\":true,\"id\":\"barfoo\",\"rev\":\"1-3cde10\"}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_follow"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

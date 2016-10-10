@@ -1,0 +1,20 @@
+[
+  { "method"   : "put"
+  , "path"     : "/shared_config"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "path"     : "/"
+  , "response" : "{\"ok\": true, \"version\": \"1.1.0\"}"
+  }
+, { "path"     : "/"
+  , "response" : "{\"ok\": true, \"version\": \"1.1.0\"}"
+  }
+, { "path"     : "/_all_dbs"
+  , "response" : "{}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/shared_config"
+  , "response" : "{ \"ok\": true }"
+  }
+]

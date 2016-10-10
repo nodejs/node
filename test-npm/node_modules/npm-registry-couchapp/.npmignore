@@ -1,0 +1,6 @@
+npm-debug.log
+couch.log
+.delete
+test/fixtures/npmrc*
+.*.swp
+node_modules

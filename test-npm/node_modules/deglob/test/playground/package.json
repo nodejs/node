@@ -1,0 +1,8 @@
+{
+  "config": {
+    "ignore": "ignored-by-package-json.txt"
+  },
+  "custom-ignore-blah": {
+    "ignore": "blah.txt"
+  }
+}

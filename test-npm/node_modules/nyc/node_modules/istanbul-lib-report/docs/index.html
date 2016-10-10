@@ -1,0 +1,1238 @@
+<html>
+<head>
+  <meta charset='utf-8' />
+  <title>istanbul-lib-report 1.0.0-alpha.1 | Documentation</title>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Source+Code+Pro:400,500,700' rel='stylesheet' type='text/css'>
+  <link href='assets/bass.css' type='text/css' rel='stylesheet' />
+  <link href='assets/style.css' type='text/css' rel='stylesheet' />
+  <link href='assets/github.css' type='text/css' rel='stylesheet' />
+</head>
+<body class='documentation'>
+  <div class='container'>
+    <div class='clearfix md-mxn2'>
+      <div class='fixed md-show fix-3 overflow-auto max-height-100'>
+        <div class='py1 px2'>
+          <h3 class='mb0 no-anchor'>istanbul-lib-report</h3>
+          <div class='mb1'><code>1.0.0-alpha.1</code></div>
+          <input
+            placeholder='Filter'
+            id='filter-input'
+            class='col12 block field'
+            type='text' />
+          <div id='toc'>
+              <a
+                href='#Exports'
+                class='block bold'>
+                Exports
+              </a>
+                <a
+                  href='#Exports.createContext'
+                  class='regular block'>
+                  .createContext
+                </a>
+                <a
+                  href='#Exports.createReportSource'
+                  class='regular block'>
+                  .createReportSource
+                </a>
+                <a
+                  href='#Exports.summarizers'
+                  class='regular block'>
+                  .summarizers
+                </a>
+                <a
+                  href='#Exports.getDefaultWatermarks'
+                  class='regular block'>
+                  .getDefaultWatermarks
+                </a>
+              <a
+                href='#ConsoleWriter'
+                class='block bold'>
+                ConsoleWriter
+              </a>
+              <a
+                href='#ContentWriter'
+                class='block bold'>
+                ContentWriter
+              </a>
+                <a
+                  href='#ContentWriter.close'
+                  class='regular block'>
+                  #close
+                </a>
+                <a
+                  href='#ContentWriter.colorize'
+                  class='regular block'>
+                  #colorize
+                </a>
+                <a
+                  href='#ContentWriter.println'
+                  class='regular block'>
+                  #println
+                </a>
+                <a
+                  href='#ContentWriter.write'
+                  class='regular block'>
+                  #write
+                </a>
+              <a
+                href='#Context'
+                class='block bold'>
+                Context
+              </a>
+                <a
+                  href='#Context.classForPercent'
+                  class='regular block'>
+                  #classForPercent
+                </a>
+                <a
+                  href='#Context.getSource'
+                  class='regular block'>
+                  #getSource
+                </a>
+                <a
+                  href='#Context.getVisitor'
+                  class='regular block'>
+                  #getVisitor
+                </a>
+                <a
+                  href='#Context.getWriter'
+                  class='regular block'>
+                  #getWriter
+                </a>
+                <a
+                  href='#Context.getXMLWriter'
+                  class='regular block'>
+                  #getXMLWriter
+                </a>
+              <a
+                href='#FileContentWriter'
+                class='block bold'>
+                FileContentWriter
+              </a>
+              <a
+                href='#FileWriter'
+                class='block bold'>
+                FileWriter
+              </a>
+                <a
+                  href='#FileWriter.copyFile'
+                  class='regular block'>
+                  #copyFile
+                </a>
+                <a
+                  href='#FileWriter.writeFile'
+                  class='regular block'>
+                  #writeFile
+                </a>
+                <a
+                  href='#FileWriter.writerForDir'
+                  class='regular block'>
+                  #writerForDir
+                </a>
+              <a
+                href='#ReportSource'
+                class='block bold'>
+                ReportSource
+              </a>
+              <a
+                href='#Tree'
+                class='block bold'>
+                Tree
+              </a>
+                <a
+                  href='#Tree.getRoot'
+                  class='regular block'>
+                  #getRoot
+                </a>
+                <a
+                  href='#Tree.visit'
+                  class='regular block'>
+                  #visit
+                </a>
+              <a
+                href='#Visitor'
+                class='block bold'>
+                Visitor
+              </a>
+              <a
+                href='#XMLWriter'
+                class='block bold'>
+                XMLWriter
+              </a>
+                <a
+                  href='#XMLWriter.closeAll'
+                  class='regular block'>
+                  #closeAll
+                </a>
+                <a
+                  href='#XMLWriter.closeTag'
+                  class='regular block'>
+                  #closeTag
+                </a>
+                <a
+                  href='#XMLWriter.inlineTag'
+                  class='regular block'>
+                  #inlineTag
+                </a>
+                <a
+                  href='#XMLWriter.openTag'
+                  class='regular block'>
+                  #openTag
+                </a>
+              <a
+                href='#visit'
+                class='block bold'>
+                visit
+              </a>
+          </div>
+        </div>
+      </div>
+      <div class='fix-margin-3'>
+        <div class='px2'>
+<div class='py1'><section class='py2 clearfix'>
+  <h2 id='Exports' class='mt0'>
+    Exports<span class='gray'></span>
+  </h2>
+  
+      <h4>Static members</h4>
+        <div class='collapsible' id='Exports.createContext'>
+          <a href='#Exports.createContext'>
+            <code>
+              .createContext<span class='gray'>([opts])</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns a reporting context for the supplied options</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2 m2'>
+            <section class='py2 clearfix'>
+              <h2 id='Exports.createContext' class='mt0'>
+                createContext<span class='gray'>([opts])</span>
+              </h2>
+              <p>returns a reporting context for the supplied options</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code>]</code> <strong>opts</strong>
+                        (default <code>null</code>)
+                      :
+                      <span class='force-inline'>
+                        <p>opts</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="#Context">Context</a></code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Exports.createReportSource'>
+          <a href='#Exports.createReportSource'>
+            <code>
+              .createReportSource<span class='gray'>(a, coverageMap, [opts])</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns a report source for the supplied coverage map and options</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2 m2'>
+            <section class='py2 clearfix'>
+              <h2 id='Exports.createReportSource' class='mt0'>
+                createReportSource<span class='gray'>(a, coverageMap, [opts])</span>
+              </h2>
+              <p>returns a report source for the supplied coverage map and options</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code>CoverageMap</code> <strong>a</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>coverage map</p>
+            
+                      </span>
+                    </li>
+                    <li> <strong>coverageMap</strong>
+                      :
+                      <span class='force-inline'>
+                        
+                      </span>
+                    </li>
+                    <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code>]</code> <strong>opts</strong>
+                        (default <code>null</code>)
+                      :
+                      <span class='force-inline'>
+                        <p>report source options</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="#ReportSource">ReportSource</a></code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Exports.summarizers'>
+          <a href='#Exports.summarizers'>
+            <code>
+              .summarizers<span class='gray'></span>
+            </code>
+            <span class='force-inline'>
+              <p>standard summary functions</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2 m2'>
+            <section class='py2 clearfix'>
+              <h2 id='Exports.summarizers' class='mt0'>
+                summarizers<span class='gray'></span>
+              </h2>
+              <p>standard summary functions</p>
+            
+                  <h4>Static members</h4>
+                    <div class='collapsible' id='Exports.summarizers.flat'>
+                      <a href='#Exports.summarizers.flat'>
+                        <code>
+                          .flat<span class='gray'></span>
+                        </code>
+                        <span class='force-inline'>
+                          <p>a summarizer that creates a flat tree with one root node and bunch of
+            files directly under it</p>
+            
+                        </span>
+                      </a>
+                      <div class='collapser border px2 m2'>
+                        <section class='py2 clearfix'>
+                          <h2 id='Exports.summarizers.flat' class='mt0'>
+                            flat<span class='gray'></span>
+                          </h2>
+                          <p>a summarizer that creates a flat tree with one root node and bunch of
+                        files directly under it</p>
+                        
+                        </section>
+                      </div>
+                    </div>
+                    <div class='collapsible' id='Exports.summarizers.nested'>
+                      <a href='#Exports.summarizers.nested'>
+                        <code>
+                          .nested<span class='gray'></span>
+                        </code>
+                        <span class='force-inline'>
+                          <p>a summarizer that creates a hierarchical tree where the coverage summaries
+            of each directly reflect the summaries of all subdirectories and files in it</p>
+            
+                        </span>
+                      </a>
+                      <div class='collapser border px2 m2'>
+                        <section class='py2 clearfix'>
+                          <h2 id='Exports.summarizers.nested' class='mt0'>
+                            nested<span class='gray'></span>
+                          </h2>
+                          <p>a summarizer that creates a hierarchical tree where the coverage summaries
+                        of each directly reflect the summaries of all subdirectories and files in it</p>
+                        
+                        </section>
+                      </div>
+                    </div>
+                    <div class='collapsible' id='Exports.summarizers.pkg'>
+                      <a href='#Exports.summarizers.pkg'>
+                        <code>
+                          .pkg<span class='gray'></span>
+                        </code>
+                        <span class='force-inline'>
+                          <p>a summarizer that creates a tree in which directories are not nested.
+            Every subdirectory is a child of the root node and only reflects the
+            coverage numbers for the files in it (i.e. excludes subdirectories).
+            This is the default summarizer used by the report source.</p>
+            
+                        </span>
+                      </a>
+                      <div class='collapser border px2 m2'>
+                        <section class='py2 clearfix'>
+                          <h2 id='Exports.summarizers.pkg' class='mt0'>
+                            pkg<span class='gray'></span>
+                          </h2>
+                          <p>a summarizer that creates a tree in which directories are not nested.
+                        Every subdirectory is a child of the root node and only reflects the
+                        coverage numbers for the files in it (i.e. excludes subdirectories).
+                        This is the default summarizer used by the report source.</p>
+                        
+                        </section>
+                      </div>
+                    </div>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Exports.getDefaultWatermarks'>
+          <a href='#Exports.getDefaultWatermarks'>
+            <code>
+              .getDefaultWatermarks<span class='gray'></span>
+            </code>
+            <span class='force-inline'>
+              <p>returns the default watermarks that would be used when not
+overridden</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2 m2'>
+            <section class='py2 clearfix'>
+              <h2 id='Exports.getDefaultWatermarks' class='mt0'>
+                getDefaultWatermarks<span class='gray'></span>
+              </h2>
+              <p>returns the default watermarks that would be used when not
+            overridden</p>
+            
+                  <h4>Returns</h4>
+                  <code><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code></code>
+                  :
+                  <span class='force-inline'>
+                    <p>an object with <code>statements</code>, <code>functions</code>, <code>branches</code>,
+            and <code>line</code> keys. Each value is a 2 element array that has the low and
+            high watermark as percentages.</p>
+            
+                  </span>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='ConsoleWriter' class='mt0'>
+    ConsoleWriter<span class='gray'></span>
+  </h2>
+    <p>
+      Extends
+        <a href="#ContentWriter">ContentWriter</a>
+    </p>
+  <p>a content writer that writes to the console</p>
+
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='ContentWriter' class='mt0'>
+    ContentWriter<span class='gray'></span>
+  </h2>
+  <p>abstract interface for writing content</p>
+
+      <h4>Instance members</h4>
+        <div class='collapsible' id='ContentWriter.close'>
+          <a href='#ContentWriter.close'>
+            <code>
+              #close<span class='gray'></span>
+            </code>
+            <span class='force-inline'>
+              <p>closes this content writer. Should be called after all writes are complete.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='ContentWriter.close' class='mt0'>
+                close<span class='gray'></span>
+              </h2>
+              <p>closes this content writer. Should be called after all writes are complete.</p>
+            
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='ContentWriter.colorize'>
+          <a href='#ContentWriter.colorize'>
+            <code>
+              #colorize<span class='gray'>(str, clazz)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns the colorized version of a string. Typically,
+content writers that write to files will return the
+same string and ones writing to a tty will wrap it in
+appropriate escape sequences.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='ContentWriter.colorize' class='mt0'>
+                colorize<span class='gray'>(str, clazz)</span>
+              </h2>
+              <p>returns the colorized version of a string. Typically,
+            content writers that write to files will return the
+            same string and ones writing to a tty will wrap it in
+            appropriate escape sequences.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>str</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the string to colorize</p>
+            
+                      </span>
+                    </li>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>clazz</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>one of <code>high</code>, <code>medium</code> or <code>low</code></p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code></code>
+                  :
+                  <span class='force-inline'>
+                    <p>the colorized form of the string</p>
+            
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='ContentWriter.println'>
+          <a href='#ContentWriter.println'>
+            <code>
+              #println<span class='gray'>(str)</span>
+            </code>
+            <span class='force-inline'>
+              <p>writes a string appended with a newline to the destination</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='ContentWriter.println' class='mt0'>
+                println<span class='gray'>(str)</span>
+              </h2>
+              <p>writes a string appended with a newline to the destination</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>str</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the string to write</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='ContentWriter.write'>
+          <a href='#ContentWriter.write'>
+            <code>
+              #write<span class='gray'>(str)</span>
+            </code>
+            <span class='force-inline'>
+              <p>writes a string as-is to the destination</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='ContentWriter.write' class='mt0'>
+                write<span class='gray'>(str)</span>
+              </h2>
+              <p>writes a string as-is to the destination</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>str</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the string to write</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='Context' class='mt0'>
+    Context<span class='gray'>([opts])</span>
+  </h2>
+  <p>A reporting context that is passed to report implementations</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code>]</code> <strong>opts</strong>
+            (default <code>null</code>)
+          :
+          <span class='force-inline'>
+            <p>opts options</p>
+
+          </span>
+        </li>
+          <ul>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code>]</code> opts.dir
+                  (default <code>&#x27;coverage&#x27;</code>)
+                <p>opts.dir the reporting directory</p>
+</li>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code>]</code> opts.watermarks
+                  (default <code>null</code>)
+                <p>opts.watermarks watermarks for
+statements, lines, branches and functions</p>
+</li>
+              <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function">Function</a></code>]</code> opts.sourceFinder
+                  (default <code>fsLookup</code>)
+                <p>opts.sourceFinder a
+function that returns source code given a file path. Defaults to
+filesystem lookups based on path.</p>
+</li>
+          </ul>
+    </ul>
+      <h4>Instance members</h4>
+        <div class='collapsible' id='Context.classForPercent'>
+          <a href='#Context.classForPercent'>
+            <code>
+              #classForPercent<span class='gray'>(type, value)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns the coverage class given a coverage
+types and a percentage value.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Context.classForPercent' class='mt0'>
+                classForPercent<span class='gray'>(type, value)</span>
+              </h2>
+              <p>returns the coverage class given a coverage
+            types and a percentage value.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>type</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the coverage type, one of <code>statements</code>, <code>functions</code>,
+            <code>branches</code>, or <code>lines</code></p>
+            
+                      </span>
+                    </li>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">Number</a></code> <strong>value</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the percentage value</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code></code>
+                  :
+                  <span class='force-inline'>
+                    <p>one of <code>high</code>, <code>medium</code> or <code>low</code></p>
+            
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Context.getSource'>
+          <a href='#Context.getSource'>
+            <code>
+              #getSource<span class='gray'>(filePath)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns the source code for the specified file path or throws if
+the source could not be found.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Context.getSource' class='mt0'>
+                getSource<span class='gray'>(filePath)</span>
+              </h2>
+              <p>returns the source code for the specified file path or throws if
+            the source could not be found.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>filePath</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the file path as found in a file coverage object</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code></code>
+                  :
+                  <span class='force-inline'>
+                    <p>the source code</p>
+            
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Context.getVisitor'>
+          <a href='#Context.getVisitor'>
+            <code>
+              #getVisitor<span class='gray'>(partialVisitor)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns a full visitor given a partial one.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Context.getVisitor' class='mt0'>
+                getVisitor<span class='gray'>(partialVisitor)</span>
+              </h2>
+              <p>returns a full visitor given a partial one.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code> <strong>partialVisitor</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>a partial visitor only having the functions of
+            interest to the caller. These functions are called with a scope that is the
+            supplied object.</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="#Visitor">Visitor</a></code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Context.getWriter'>
+          <a href='#Context.getWriter'>
+            <code>
+              #getWriter<span class='gray'></span>
+            </code>
+            <span class='force-inline'>
+              <p>returns a FileWriter implementation for reporting use. Also available
+as the <code>writer</code> property on the context.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Context.getWriter' class='mt0'>
+                getWriter<span class='gray'></span>
+              </h2>
+              <p>returns a FileWriter implementation for reporting use. Also available
+            as the <code>writer</code> property on the context.</p>
+            
+                  <h4>Returns</h4>
+                  <code><code>Writer</code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Context.getXMLWriter'>
+          <a href='#Context.getXMLWriter'>
+            <code>
+              #getXMLWriter<span class='gray'>(contentWriter)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns an XML writer for the supplied content writer</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Context.getXMLWriter' class='mt0'>
+                getXMLWriter<span class='gray'>(contentWriter)</span>
+              </h2>
+              <p>returns an XML writer for the supplied content writer</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="#ContentWriter">ContentWriter</a></code> <strong>contentWriter</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the content writer to which the returned XML writer
+            writes data</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="#XMLWriter">XMLWriter</a></code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='FileContentWriter' class='mt0'>
+    FileContentWriter<span class='gray'>(fd)</span>
+  </h2>
+    <p>
+      Extends
+        <a href="#ContentWriter">ContentWriter</a>
+    </p>
+  <p>a content writer that writes to a file</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">Number</a></code> <strong>fd</strong>
+          :
+          <span class='force-inline'>
+            <p>the file descriptor</p>
+
+          </span>
+        </li>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='FileWriter' class='mt0'>
+    FileWriter<span class='gray'>(baseDir)</span>
+  </h2>
+  <p>utility for writing files under a specific directory</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>baseDir</strong>
+          :
+          <span class='force-inline'>
+            <p>the base directory under which files should be written</p>
+
+          </span>
+        </li>
+    </ul>
+      <h4>Instance members</h4>
+        <div class='collapsible' id='FileWriter.copyFile'>
+          <a href='#FileWriter.copyFile'>
+            <code>
+              #copyFile<span class='gray'>(source, dest)</span>
+            </code>
+            <span class='force-inline'>
+              <p>copies a file from a source directory to a destination name</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='FileWriter.copyFile' class='mt0'>
+                copyFile<span class='gray'>(source, dest)</span>
+              </h2>
+              <p>copies a file from a source directory to a destination name</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>source</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>path to source file</p>
+            
+                      </span>
+                    </li>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>dest</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>relative path to destination file</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='FileWriter.writeFile'>
+          <a href='#FileWriter.writeFile'>
+            <code>
+              #writeFile<span class='gray'>(file)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns a content writer for writing content to the supplied file.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='FileWriter.writeFile' class='mt0'>
+                writeFile<span class='gray'>(file)</span>
+              </h2>
+              <p>returns a content writer for writing content to the supplied file.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> or  <strong>file</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the relative path to the file or the special
+            values <code>&quot;-&quot;</code> or <code>null</code> for writing to the console</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="#ContentWriter">ContentWriter</a></code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='FileWriter.writerForDir'>
+          <a href='#FileWriter.writerForDir'>
+            <code>
+              #writerForDir<span class='gray'>(subdir)</span>
+            </code>
+            <span class='force-inline'>
+              <p>returns a FileWriter that is rooted at the supplied subdirectory</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='FileWriter.writerForDir' class='mt0'>
+                writerForDir<span class='gray'>(subdir)</span>
+              </h2>
+              <p>returns a FileWriter that is rooted at the supplied subdirectory</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>subdir</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the subdirectory under which to root the
+            returned FileWriter</p>
+            
+                      </span>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="#FileWriter">FileWriter</a></code></code>
+                  
+                  <span class='force-inline'>
+                    
+                  </span>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='ReportSource' class='mt0'>
+    ReportSource<span class='gray'>(coverageMap, opts)</span>
+  </h2>
+  <p>WIP</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>coverageMap</strong>
+          :
+          <span class='force-inline'>
+            
+          </span>
+        </li>
+        <li> <strong>opts</strong>
+          :
+          <span class='force-inline'>
+            
+          </span>
+        </li>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='Tree' class='mt0'>
+    Tree<span class='gray'></span>
+  </h2>
+  <p>abstract base class for a coverage tree.</p>
+
+      <h4>Instance members</h4>
+        <div class='collapsible' id='Tree.getRoot'>
+          <a href='#Tree.getRoot'>
+            <code>
+              #getRoot<span class='gray'></span>
+            </code>
+            <span class='force-inline'>
+              <p>returns the root node of the tree</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Tree.getRoot' class='mt0'>
+                getRoot<span class='gray'></span>
+              </h2>
+              <p>returns the root node of the tree</p>
+            
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='Tree.visit'>
+          <a href='#Tree.visit'>
+            <code>
+              #visit<span class='gray'>(visitor, state)</span>
+            </code>
+            <span class='force-inline'>
+              <p>visits the tree depth-first with the supplied partial visitor</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='Tree.visit' class='mt0'>
+                visit<span class='gray'>(visitor, state)</span>
+              </h2>
+              <p>visits the tree depth-first with the supplied partial visitor</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li> <strong>visitor</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>a potentially partial visitor</p>
+            
+                      </span>
+                    </li>
+                    <li> <strong>state</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>the state to be passed around during tree traversal</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='Visitor' class='mt0'>
+    Visitor<span class='gray'>(delegate)</span>
+  </h2>
+  <p>An object with methods that are called during the traversal of the coverage tree.
+A visitor has the following methods that are called during tree traversal.</p>
+<ul>
+<li><code>onStart(root, state)</code> - called before traversal begins</li>
+<li><code>onSummary(node, state)</code> - called for every summary node</li>
+<li><code>onDetail(node, state)</code> - called for every detail node</li>
+<li><code>onSummaryEnd(node, state)</code> - called after all children have been visited for
+a summary node.</li>
+<li><code>onEnd(root, state)</code> - called after traversal ends</li>
+</ul>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>delegate</strong>
+          :
+          <span class='force-inline'>
+            <p>a partial visitor that only implements the methods of interest
+The visitor object supplies the missing methods as noops. For example, reports
+that only need the final coverage summary need implement <code>onStart</code> and nothing
+else. Reports that use only detailed coverage information need implement <code>onDetail</code>
+and nothing else.</p>
+
+          </span>
+        </li>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='XMLWriter' class='mt0'>
+    XMLWriter<span class='gray'>(contentWriter)</span>
+  </h2>
+  <p>a utility class to produce well-formed, indented XML</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code><a href="#ContentWriter">ContentWriter</a></code> <strong>contentWriter</strong>
+          :
+          <span class='force-inline'>
+            <p>the content writer that this utility wraps</p>
+
+          </span>
+        </li>
+    </ul>
+      <h4>Instance members</h4>
+        <div class='collapsible' id='XMLWriter.closeAll'>
+          <a href='#XMLWriter.closeAll'>
+            <code>
+              #closeAll<span class='gray'></span>
+            </code>
+            <span class='force-inline'>
+              <p>closes all open tags and ends the document</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='XMLWriter.closeAll' class='mt0'>
+                closeAll<span class='gray'></span>
+              </h2>
+              <p>closes all open tags and ends the document</p>
+            
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='XMLWriter.closeTag'>
+          <a href='#XMLWriter.closeTag'>
+            <code>
+              #closeTag<span class='gray'>(name)</span>
+            </code>
+            <span class='force-inline'>
+              <p>closes an open XML tag.</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='XMLWriter.closeTag' class='mt0'>
+                closeTag<span class='gray'>(name)</span>
+              </h2>
+              <p>closes an open XML tag.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>name</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>tag name to close. This must match the writer&apos;s
+            notion of the tag that is currently open.</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='XMLWriter.inlineTag'>
+          <a href='#XMLWriter.inlineTag'>
+            <code>
+              #inlineTag<span class='gray'>(name, [attrs], [content])</span>
+            </code>
+            <span class='force-inline'>
+              <p>writes a tag and its value opening and closing it at the same time</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='XMLWriter.inlineTag' class='mt0'>
+                inlineTag<span class='gray'>(name, [attrs], [content])</span>
+              </h2>
+              <p>writes a tag and its value opening and closing it at the same time</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>name</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>tag name</p>
+            
+                      </span>
+                    </li>
+                    <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code>]</code> <strong>attrs</strong>
+                        (default <code>null</code>)
+                      :
+                      <span class='force-inline'>
+                        <p>attrs tag attributes</p>
+            
+                      </span>
+                    </li>
+                    <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code>]</code> <strong>content</strong>
+                        (default <code>null</code>)
+                      :
+                      <span class='force-inline'>
+                        <p>content optional tag content</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='XMLWriter.openTag'>
+          <a href='#XMLWriter.openTag'>
+            <code>
+              #openTag<span class='gray'>(name, [attrs])</span>
+            </code>
+            <span class='force-inline'>
+              <p>writes the opening XML tag with the supplied attributes</p>
+
+            </span>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='XMLWriter.openTag' class='mt0'>
+                openTag<span class='gray'>(name, [attrs])</span>
+              </h2>
+              <p>writes the opening XML tag with the supplied attributes</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> <strong>name</strong>
+                      :
+                      <span class='force-inline'>
+                        <p>tag name</p>
+            
+                      </span>
+                    </li>
+                    <li><code>[<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code>]</code> <strong>attrs</strong>
+                        (default <code>null</code>)
+                      :
+                      <span class='force-inline'>
+                        <p>attrs attributes for the tag</p>
+            
+                      </span>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='visit' class='mt0'>
+    visit<span class='gray'>(visitor, state)</span>
+  </h2>
+  <p>visit all nodes depth-first from this node down. Note that <code>onStart</code>
+and <code>onEnd</code> are never called on the visitor even if the current
+node is the root of the tree.</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>visitor</strong>
+          :
+          <span class='force-inline'>
+            <p>a full visitor that is called during tree traversal</p>
+
+          </span>
+        </li>
+        <li> <strong>state</strong>
+          :
+          <span class='force-inline'>
+            <p>optional state that is passed around</p>
+
+          </span>
+        </li>
+    </ul>
+</section>
+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src='assets/anchor.js'></script>
+  <script src='assets/site.js'></script>
+</body>
+</html>

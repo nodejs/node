@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8' />
+  <title>istanbul-lib-source-maps 1.0.0-alpha.9 | Documentation</title>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Source+Code+Pro:400,500,700' rel='stylesheet' type='text/css'>
+  <link href='assets/bass.css' type='text/css' rel='stylesheet' />
+  <link href='assets/style.css' type='text/css' rel='stylesheet' />
+  <link href='assets/github.css' type='text/css' rel='stylesheet' />
+</head>
+<body class='documentation'>
+  <div class='container'>
+    <div class='clearfix md-mxn2'>
+      <div class='fixed md-show fix-3 overflow-auto max-height-100'>
+        <div class='py1 px2'>
+          <h3 class='mb0 no-anchor'>istanbul-lib-source-maps</h3>
+          <div class='mb1'><code>1.0.0-alpha.9</code></div>
+          <input
+            placeholder='Filter'
+            id='filter-input'
+            class='col12 block field'
+            type='text' />
+          <div id='toc'>
+              <a
+                href='#MapStore'
+                class='block bold'>
+                MapStore
+              </a>
+                <a
+                  href='#MapStore.dispose'
+                  class='regular block'>
+                  #dispose
+                </a>
+                <a
+                  href='#MapStore.registerMap'
+                  class='regular block'>
+                  #registerMap
+                </a>
+                <a
+                  href='#MapStore.registerURL'
+                  class='regular block'>
+                  #registerURL
+                </a>
+                <a
+                  href='#MapStore.transformCoverage'
+                  class='regular block'>
+                  #transformCoverage
+                </a>
+              <a
+                href='#Exports'
+                class='block bold'>
+                Exports
+              </a>
+              <a
+                href='#getMapping'
+                class='block bold'>
+                getMapping
+              </a>
+          </div>
+        </div>
+      </div>
+      <div class='fix-margin-3'>
+        <div class='px2'>
+<div class='py1'><section class='py2 clearfix'>
+  <h2 id='MapStore' class='mt0'>
+    MapStore<span class='gray'>(opts)</span>
+  </h2>
+  <p>tracks source maps for registered files</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code> <strong>opts</strong>
+          :
+          <div class='force-inline'>
+            <p>[opts=undefined] options.</p>
+
+          </div>
+            <ul>
+                <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a></code> opts.verbose
+                  <p>[opts.verbose=false] verbose mode</p>
+</li>
+                <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> opts.baseDir
+                  <p>[opts.baseDir=null] alternate base directory
+to resolve sourcemap files</p>
+</li>
+                <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> opts.sourceStore
+                  <p>[opts.sourceStore=&apos;memory&apos;] - store that tracks
+embedded sources found in source maps, one of &apos;memory&apos; or &apos;file&apos;</p>
+</li>
+                <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">String</a></code> opts.tmpdir
+                  <p>[opts.tmpdir=undefined] - temporary directory
+to use for storing files.</p>
+</li>
+            </ul>
+        </li>
+    </ul>
+      <h4>Instance members</h4>
+        <div class='collapsible' id='MapStore.dispose'>
+          <a href='#MapStore.dispose'>
+            <code>
+              #dispose<span class='gray'></span>
+            </code>
+            <div class='force-inline'>
+              <p>disposes temporary resources allocated by this map store</p>
+
+            </div>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='MapStore.dispose' class='mt0'>
+                dispose<span class='gray'></span>
+              </h2>
+              <p>disposes temporary resources allocated by this map store</p>
+            
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='MapStore.registerMap'>
+          <a href='#MapStore.registerMap'>
+            <code>
+              #registerMap<span class='gray'>(transformedFilePath, sourceMap)</span>
+            </code>
+            <div class='force-inline'>
+              <p>registers a source map object with this store. Makes some basic sanity checks
+and silently fails on malformed input.</p>
+
+            </div>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='MapStore.registerMap' class='mt0'>
+                registerMap<span class='gray'>(transformedFilePath, sourceMap)</span>
+              </h2>
+              <p>registers a source map object with this store. Makes some basic sanity checks
+            and silently fails on malformed input.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li> <strong>transformedFilePath</strong>
+                      :
+                      <div class='force-inline'>
+                        <p>the file path for which the source map is valid</p>
+            
+                      </div>
+                    </li>
+                    <li> <strong>sourceMap</strong>
+                      :
+                      <div class='force-inline'>
+                        <p>the source map object</p>
+            
+                      </div>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='MapStore.registerURL'>
+          <a href='#MapStore.registerURL'>
+            <code>
+              #registerURL<span class='gray'>(transformedFilePath, sourceMapUrl)</span>
+            </code>
+            <div class='force-inline'>
+              <p>registers a source map URL with this store. It makes some input sanity checks
+and silently fails on malformed input.</p>
+
+            </div>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='MapStore.registerURL' class='mt0'>
+                registerURL<span class='gray'>(transformedFilePath, sourceMapUrl)</span>
+              </h2>
+              <p>registers a source map URL with this store. It makes some input sanity checks
+            and silently fails on malformed input.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li> <strong>transformedFilePath</strong>
+                      :
+                      <div class='force-inline'>
+                        <p>the file path for which the source map is valid.
+            This must <em>exactly</em> match the path stashed for the coverage object to be
+            useful.</p>
+            
+                      </div>
+                    </li>
+                    <li> <strong>sourceMapUrl</strong>
+                      :
+                      <div class='force-inline'>
+                        <p>the source map URL, <strong>not</strong> a comment</p>
+            
+                      </div>
+                    </li>
+                </ul>
+            </section>
+          </div>
+        </div>
+        <div class='collapsible' id='MapStore.transformCoverage'>
+          <a href='#MapStore.transformCoverage'>
+            <code>
+              #transformCoverage<span class='gray'>(coverageMap)</span>
+            </code>
+            <div class='force-inline'>
+              <p>transforms the coverage map provided into one that refers to original
+sources when valid mappings have been registered with this store.</p>
+
+            </div>
+          </a>
+          <div class='collapser border px2'>
+            <section class='py2 clearfix'>
+              <h2 id='MapStore.transformCoverage' class='mt0'>
+                transformCoverage<span class='gray'>(coverageMap)</span>
+              </h2>
+              <p>transforms the coverage map provided into one that refers to original
+            sources when valid mappings have been registered with this store.</p>
+            
+                <h4>Parameters</h4>
+                <ul class='suppress-p-margin'>
+                    <li><code>CoverageMap</code> <strong>coverageMap</strong>
+                      :
+                      <div class='force-inline'>
+                        <p>the coverage map to transform</p>
+            
+                      </div>
+                    </li>
+                </ul>
+                  <h4>Returns</h4>
+                  <code><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code></code>
+                  :
+                  <div class='force-inline'>
+                    <p>an object with 2 properties. <code>map</code> for the transformed
+            coverage map and <code>sourceFinder</code> which is a function to return the source
+            text for a file.</p>
+            
+                  </div>
+            </section>
+          </div>
+        </div>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='Exports' class='mt0'>
+    Exports<span class='gray'>(opts)</span>
+  </h2>
+  
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li> <strong>opts</strong>
+          :
+          <div class='force-inline'>
+            
+          </div>
+        </li>
+    </ul>
+</section>
+</div><div class='py1'><section class='py2 clearfix'>
+  <h2 id='getMapping' class='mt0'>
+    getMapping<span class='gray'>(sourceMap, location, origFile)</span>
+  </h2>
+  <p>determines the original position for a given location</p>
+
+    <h4>Parameters</h4>
+    <ul class='suppress-p-margin'>
+        <li><code>SourceMapConsumer</code> <strong>sourceMap</strong>
+          :
+          <div class='force-inline'>
+            <p>the source map</p>
+
+          </div>
+        </li>
+        <li><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code> <strong>location</strong>
+          :
+          <div class='force-inline'>
+            <p>the original location Object</p>
+
+          </div>
+        </li>
+        <li> <strong>origFile</strong>
+          :
+          <div class='force-inline'>
+            
+          </div>
+        </li>
+    </ul>
+      <h4>Returns</h4>
+      <code><code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Object</a></code></code>
+      :
+      <div class='force-inline'>
+        <p>the remapped location Object</p>
+
+      </div>
+</section>
+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src='assets/anchor.js'></script>
+  <script src='assets/site.js'></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+JSON="../../lib/json.js"
+JSON0="../../lib/json.js -o json-0"
+
+# Basic --items usage:
+# 1. Map an object(key,value) into an array of objects {key: key, value: value}
+echo '{"foo":1,"bar":2,"baz":3}' | $JSON0 --items
+# [{"key":"foo","value":1},{"key":"bar","value":2},{"key":"baz","value":3}]
+
+# 2. Pass array input through
+echo '[1,2,3]' | $JSON0 --items
+echo ''
+
+# 3. Lookup values in the resulting array
+echo '{"foo":{"data":1},"bar":{"data":2}}' | $JSON --items -a key value.data
+echo ''
+
+# 4. Alias to -M
+echo '{"foo":1,"bar":2,"baz":3}' | $JSON0 -M
+

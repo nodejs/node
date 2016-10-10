@@ -1,0 +1,2 @@
+# See <http://code.google.com/p/v8/issues/detail?id=855>
+cat input | ../../lib/json.js

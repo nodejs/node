@@ -1,0 +1,21 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_head"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_head/foobaz"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "path"     : "/document_head/foobaz"
+  , "method"   : "head"
+  , "headers"  : { "statusCode" : 200 }
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_head"
+  , "response" : "{ \"ok\": true }"
+  }
+]

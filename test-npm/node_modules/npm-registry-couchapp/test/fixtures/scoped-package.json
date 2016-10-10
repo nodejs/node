@@ -1,0 +1,10 @@
+{
+  "name": "@npm/package",
+  "version": "0.2.5",
+  "maintainers": [
+    {
+      "name": "seldo",
+      "email": "laurie@npmjs.com"
+    }
+  ]
+}

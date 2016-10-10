@@ -1,0 +1,67 @@
+[
+  {
+    "name": "trent"
+  },
+  {
+    "name": "ewan"
+  }
+]
+
+trent
+ewan
+
+{
+  "name": "trent",
+  "age": 38
+}
+{
+  "name": "ewan",
+  "age": 4
+}
+
+[
+  {
+    "name": "trent",
+    "age": 38
+  },
+  {
+    "name": "ewan",
+    "age": 4
+  }
+]
+
+{
+  "name": "trent",
+  "age": 38
+}
+
+[
+  {
+    "name": "trent",
+    "age": 39
+  },
+  {
+    "name": "ewan",
+    "age": 5
+  }
+]
+
+{
+  "name": "trent",
+  "age": 38
+}
+
+{
+  "name": "trent",
+  "age": 38
+}
+{"name":"trent","age":38}
+[{"name":"trent","age":38},{"name":"ewan","age":4}]
+[{"name":"trent","age":38}]
+index 2:
+index 2,3:[]
+zero
+one
+{"0":"zero","1":"one"}
+
+trent

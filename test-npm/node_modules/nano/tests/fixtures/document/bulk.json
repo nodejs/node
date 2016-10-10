@@ -1,0 +1,16 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_bulk"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "post"
+  , "path"     : "/document_bulk/_bulk_docs"
+  , "body"     : "{\"docs\":[{\"key\":\"baz\",\"name\":\"bazzel\"},{\"key\":\"bar\",\"name\":\"barry\"}]}"
+  , "response" : "[{\"id\":\"84600661a1f8f8dd1428851bb5002449\",\"rev\": \"1-f5f3f3e496c72307975a69c73fd53d42\"},{\"id\":\"84600661a1f8f8dd1428851bb5002dd8\",\"rev\":\"1-8ad0e70d5e6edd474ec190eac2376bde\"}]"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_bulk"
+  , "response" : "{ \"ok\": true }"
+  }
+]

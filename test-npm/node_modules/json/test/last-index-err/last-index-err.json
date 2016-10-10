@@ -1,0 +1,88 @@
+[
+  {
+    "user": "6232d723-4ba8-4fc9-93c5-5d3270e0d74a",
+    "id": 681,
+    "probeGroup": "3040afe0-8e68-4468-b1b3-2b59230ccf47",
+    "closed": false,
+    "suppressed": false,
+    "timeOpened": 1363053864198,
+    "timeClosed": null,
+    "timeLastEvent": 1363105882278,
+    "faults": [
+      {
+        "type": "probe",
+        "probe": "61966877-60a4-44f2-9fa8-b6737adec13b",
+        "event": {
+          "v": 1,
+          "type": "probe",
+          "user": "6232d723-4ba8-4fc9-93c5-5d3270e0d74a",
+          "probeUuid": "61966877-60a4-44f2-9fa8-b6737adec13b",
+          "clear": false,
+          "data": {
+            "message": "Log \"/var/svc/log/sds-application-manatee-sitter:default.log\" matched /finished transition/.",
+            "value": 2,
+            "details": {
+              "matches": [
+                {
+                  "match": "finished transition",
+                  "context": "\"newStandby\",\"msg\":\"finished transition\",\"time\":\"2013-03-12"
+                }
+              ]
+            }
+          },
+          "machine": "99f62b05-b6ba-4d06-a496-354aef6a7dbc",
+          "uuid": "62090b60-f468-4e5c-9371-9050cdc66d8e",
+          "time": 1363105882278,
+          "agent": "99f62b05-b6ba-4d06-a496-354aef6a7dbc",
+          "agentAlias": "3.pg.us-beta-2.joyent.us-99f62b05"
+        }
+      }
+    ],
+    "maintFaults": [],
+    "numEvents": 544,
+    "v": 1
+  },
+  {
+    "user": "6232d723-4ba8-4fc9-93c5-5d3270e0d74a",
+    "id": 682,
+    "probeGroup": "053c66e3-3a17-4959-8725-2e1088b214b6",
+    "closed": false,
+    "suppressed": false,
+    "timeOpened": 1363053993373,
+    "timeClosed": null,
+    "timeLastEvent": 1363105949117,
+    "faults": [
+      {
+        "type": "probe",
+        "probe": "cbbf01e3-8b0c-4818-9c54-f94ab4a4883e",
+        "event": {
+          "v": 1,
+          "type": "probe",
+          "user": "6232d723-4ba8-4fc9-93c5-5d3270e0d74a",
+          "probeUuid": "cbbf01e3-8b0c-4818-9c54-f94ab4a4883e",
+          "clear": false,
+          "data": {
+            "message": "Log \"/var/svc/log/sds-application-manatee-sitter:default.log\" matched /finished transition/.",
+            "value": 2,
+            "details": {
+              "matches": [
+                {
+                  "match": "finished transition",
+                  "context": "\"newStandby\",\"msg\":\"finished transition\",\"time\":\"2013-03-12"
+                }
+              ]
+            }
+          },
+          "machine": "19cbfbe9-a842-4785-b564-6bce7f9501ab",
+          "uuid": "59db5e47-2d16-465e-a845-d573775f463c",
+          "time": 1363105949117,
+          "agent": "19cbfbe9-a842-4785-b564-6bce7f9501ab",
+          "agentAlias": "4.pg.us-beta-2.joyent.us-19cbfbe9"
+        }
+      }
+    ],
+    "maintFaults": [],
+    "numEvents": 522,
+    "v": 1
+  }
+]

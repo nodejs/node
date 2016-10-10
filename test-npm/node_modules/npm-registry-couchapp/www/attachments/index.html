@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="">
+    <meta name="description" content="">
+
+    <title>npm registry</title>
+    <link href="layout.css" rel="stylesheet" type="text/css">
+    <!-- could also go to
+         http://registry.npmjs.org/-/rss?descending=true&limit=50 -->
+    <link rel="alternate" type="application/rss+xml"
+      href="/api/_design/app/_rewrite/-/rss?descending=true&limit=50"
+      title="npm publish feed (RSS)">
+    <script language="javascript" type="text/javascript" src="jquery-1.4.4.min.js"></script>
+    <script language="javascript" type="text/javascript" src="sammy/sammy.js"></script>
+    <script language="javascript" type="text/javascript" src="site.js"></script>
+    <link href="http://npmjs.org/favicon.ico" rel="shortcut icon" type="image/x-icon">
+  </head>
+
+  <body>
+    <div id="body-container">
+      <div id="title"><a href="/" title="Home">npm registry</a></div>
+      <div id="totals"></div>
+
+      <div id="content"></div>
+    </div>
+    <div id="footer">
+      <div id="howto">
+        <div class="howto-link">How To:</div> 
+        <div class="howto-link"><a href="http://npmjs.org/doc/README.html">Install npm</a></div>
+        <div class="howto-link"><a href="http://npmjs.org/doc/publish.html">Publish a package</a></div>
+      </div>
+      <div id="more"><a href="/#/_more">more</a></div>
+    </div>
+    <div id="bottom-liner">&nbsp;</div>
+  </body>
+</html>

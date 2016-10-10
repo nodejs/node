@@ -1,0 +1,69 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "tar",
+  "description": "tar for node",
+  "version": "2.2.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/node-tar.git"
+  },
+  "main": "tar.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "dependencies": {
+    "block-stream": "*",
+    "fstream": "^1.0.2",
+    "inherits": "2"
+  },
+  "devDependencies": {
+    "graceful-fs": "^4.1.2",
+    "rimraf": "1.x",
+    "tap": "0.x",
+    "mkdirp": "^0.5.0"
+  },
+  "license": "ISC",
+  "gitHead": "52237e39d2eb68d22a32d9a98f1d762189fe6a3d",
+  "bugs": {
+    "url": "https://github.com/isaacs/node-tar/issues"
+  },
+  "homepage": "https://github.com/isaacs/node-tar#readme",
+  "_id": "tar@2.2.1",
+  "_shasum": "8e4d2a256c0e2185c6b18ad694aec968b83cb1d1",
+  "_from": "tar@>=2.2.1 <2.3.0",
+  "_npmVersion": "2.14.3",
+  "_nodeVersion": "2.2.2",
+  "_npmUser": {
+    "name": "zkat",
+    "email": "kat@sykosomatic.org"
+  },
+  "dist": {
+    "shasum": "8e4d2a256c0e2185c6b18ad694aec968b83cb1d1",
+    "tarball": "http://registry.npmjs.org/tar/-/tar-2.2.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "soldair",
+      "email": "soldair@gmail.com"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/tar/-/tar-2.2.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

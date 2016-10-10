@@ -1,0 +1,3 @@
+json: error: input is not JSON: Expected ',' instead of '{' at line 5, column 9:
+                {"foo": "bar"}
+        ........^

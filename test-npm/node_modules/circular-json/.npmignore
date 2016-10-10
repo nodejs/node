@@ -1,0 +1,7 @@
+src/*
+test/*
+template/*
+node_modules/*
+build/*.amd.js
+Makefile
+index.html

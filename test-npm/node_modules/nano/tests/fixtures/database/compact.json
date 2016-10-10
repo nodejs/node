@@ -1,0 +1,34 @@
+[
+  { "method"   : "put"
+  , "path"     : "/database_compact"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/database_compact/goofy"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobaz\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_compact/goofy?rev=1-611488"
+  , "response" : "{\"ok\":true}"
+  }
+, { "method"   : "post"
+  , "path"     : "/database_compact/_compact"
+  , "response" : "{\"ok\":true}"
+  , "status"   : 202
+  }
+, { "method"   : "get"
+  , "path"     : "/database_compact"
+  , "response" : "{ \"db_name\": \"db_compact\", \"doc_count\": 0, \"doc_del_count\": 1, \"update_seq\": 2, \"purge_seq\": 0, \"compact_running\": true, \"disk_size\": 523, \"instance_start_time\": \"1336855750104121\", \"disk_format_version\": 5, \"committed_update_seq\": 0 }"
+  }
+, { "method"   : "get"
+  , "path"     : "/database_compact"
+  , "response" : "{ \"db_name\": \"db_compact\", \"compact_running\": false }"
+  }
+, { "method"   : "delete"
+  , "path"     : "/database_compact"
+  , "response" : "{ \"ok\": true }"
+  }
+]

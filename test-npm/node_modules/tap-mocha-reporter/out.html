@@ -1,0 +1,33 @@
+    <section class="suite">
+      <h1>first</h1>
+      <dl>
+        <dt>true is ok</dt>
+        <dd><pre><code></code></pre></dd>
+        <dt>doag is also okay</dt>
+        <dd><pre><code></code></pre></dd>
+      </dl>
+    </section>
+    <section class="suite">
+      <h1>second</h1>
+      <dl>
+        <dt>but that is ok</dt>
+        <dd><pre><code></code></pre></dd>
+        <dt>this passes</dt>
+        <dd><pre><code></code></pre></dd>
+        <dt class="error">nested failure</dt>
+        <dd class="error"><pre><code>tt.equal(1, '1', 'nested failure')</code></pre></dd>
+        <dd class="error">Error: nested failure</dd>
+      </dl>
+    </section>
+    <dt>this passes</dt>
+    <dd><pre><code></code></pre></dd>
+    <dt class="error">this fails</dt>
+    <dd class="error"><pre><code>t.fail('this fails')</code></pre></dd>
+    <dd class="error">Error: this fails</dd>
+    <dt>second timeout</dt>
+    <dd><pre><code></code></pre></dd>
+    <dt class="error">first timeout</dt>
+    <dd class="error"><pre><code>t.ok(false, 'first timeout', { foo: 'blz' })</code></pre></dd>
+    <dd class="error">Error: first timeout</dd>
+    <dt>pass after async kid</dt>
+    <dd><pre><code></code></pre></dd>

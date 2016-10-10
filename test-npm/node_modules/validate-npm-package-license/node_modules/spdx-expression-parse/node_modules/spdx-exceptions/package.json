@@ -1,0 +1,75 @@
+{
+  "_args": [
+    [
+      "spdx-exceptions@^1.0.4",
+      "/Users/rebecca/code/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse"
+    ]
+  ],
+  "_from": "spdx-exceptions@>=1.0.4 <2.0.0",
+  "_id": "spdx-exceptions@1.0.4",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/validate-npm-package-license/spdx-expression-parse/spdx-exceptions",
+  "_nodeVersion": "5.0.0",
+  "_npmUser": {
+    "email": "kyle@kemitchell.com",
+    "name": "kemitchell"
+  },
+  "_npmVersion": "3.3.6",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "spdx-exceptions",
+    "raw": "spdx-exceptions@^1.0.4",
+    "rawSpec": "^1.0.4",
+    "scope": null,
+    "spec": ">=1.0.4 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/validate-npm-package-license/spdx-expression-parse"
+  ],
+  "_resolved": "https://registry.npmjs.org/spdx-exceptions/-/spdx-exceptions-1.0.4.tgz",
+  "_shasum": "220b84239119ae9045a892db81a83f4ce16f80fd",
+  "_shrinkwrap": null,
+  "_spec": "spdx-exceptions@^1.0.4",
+  "_where": "/Users/rebecca/code/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse",
+  "author": {
+    "name": "The Linux Foundation"
+  },
+  "bugs": {
+    "url": "https://github.com/kemitchell/spdx-exceptions.json/issues"
+  },
+  "contributors": [
+    {
+      "name": "Kyle E. Mitchell",
+      "email": "kyle@kemitchell.com",
+      "url": "https://kemitchell.com/"
+    }
+  ],
+  "dependencies": {},
+  "description": "list of SPDX standard license exceptions",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "220b84239119ae9045a892db81a83f4ce16f80fd",
+    "tarball": "http://registry.npmjs.org/spdx-exceptions/-/spdx-exceptions-1.0.4.tgz"
+  },
+  "gitHead": "770316d6c946417ab6efa8533b82d0b61779092b",
+  "homepage": "https://github.com/kemitchell/spdx-exceptions.json#readme",
+  "license": "CC-BY-3.0",
+  "maintainers": [
+    {
+      "name": "kemitchell",
+      "email": "kyle@kemitchell.com"
+    }
+  ],
+  "name": "spdx-exceptions",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kemitchell/spdx-exceptions.json.git"
+  },
+  "scripts": {},
+  "version": "1.0.4"
+}

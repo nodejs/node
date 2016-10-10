@@ -1,0 +1,6 @@
+[submodule "deps/jsstyle"]
+	path = deps/jsstyle
+	url = git://github.com/davepacheco/jsstyle
+[submodule "deps/javascriptlint"]
+	path = deps/javascriptlint
+	url = git://github.com/davepacheco/javascriptlint

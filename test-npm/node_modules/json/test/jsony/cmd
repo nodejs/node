@@ -1,0 +1,6 @@
+JSON=../../lib/json.js
+
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -o jsony-0 -a
+
+echo ''
+echo '[{"foo": "bar"},{"baz": "bat"}]' | $JSON -0a

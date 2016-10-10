@@ -1,0 +1,39 @@
+[
+  { "method"   : "put"
+  , "path"     : "/shared_cookie"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "path"     : "/_config/admins/admin"
+  , "method"   : "put"
+  , "body"     : "*"
+  , "response" : "{\"ok\": true}"
+  }
+, { "method"   : "post"
+  , "path"     : "/_session"
+  , "body"     : "name=admin&password=password"
+  , "headers"  : {"set-cookie" : ["AuthSession=YWRtaW46NEZCMzFERDk6BJyusEcy3SgfI9xD4Mptl0N0gh0;Version=1;Path=/;HttpOnly"]}
+  , "status"   : 201
+  , "response" : "{ \"ok\": true,\"name\": null,\"roles\": [ \"_admin\" ] }"
+  }
+, { "method"   : "get"
+  , "path"     : "/_session"
+  , "headers"  : {"set-cookie" : ["AuthSession=YWRtaW46NEZCMzFERDk6BJyusEcy3SgfI9xD4Mptl0N0gh0;Version=1;Path=/;HttpOnly"]}
+  , "status"   : 201
+  , "response" : "{ \"ok\": true,\"userCtx\": {\"name\":\"admin\",\"roles\": [ \"_admin\" ]} }"
+  }
+, { "method"   : "post"
+  , "status"   : 201
+  , "path"     : "/shared_cookie"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"234\",\"rev\":\"1-333231\"}"
+  }
+, { "path"     : "/_config/admins/admin"
+  , "method"   : "delete"
+  , "response" : "{\"ok\": true}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/shared_cookie"
+  , "response" : "{ \"ok\": true }"
+  }
+]

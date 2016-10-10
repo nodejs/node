@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv='content-type' value='text/html;charset=utf8'>
+  <meta name='generator' value='Ronn/v0.7.3 (http://github.com/rtomayko/ronn/tree/0.7.3)'>
+  <title>json(1) - JSON love for your command line</title>
+  <style type='text/css' media='all'>
+  /* style: man */
+  body#manpage {margin:0}
+  .mp {max-width:100ex;padding:0 9ex 1ex 4ex}
+  .mp p,.mp pre,.mp ul,.mp ol,.mp dl {margin:0 0 20px 0}
+  .mp h2 {margin:10px 0 0 0}
+  .mp > p,.mp > pre,.mp > ul,.mp > ol,.mp > dl {margin-left:8ex}
+  .mp h3 {margin:0 0 0 4ex}
+  .mp dt {margin:0;clear:left}
+  
+  .mp dd {margin:0 0 0 9ex}
+  .mp h1,.mp h2,.mp h3,.mp h4 {clear:left}
+  .mp pre {margin-bottom:20px}
+  .mp pre+h2,.mp pre+h3 {margin-top:22px}
+  .mp h2+pre,.mp h3+pre {margin-top:5px}
+  .mp img {display:block;margin:auto}
+  .mp h1.man-title {display:none}
+  .mp,.mp code,.mp pre,.mp tt,.mp kbd,.mp samp,.mp h3,.mp h4 {font-family:monospace;font-size:14px;line-height:1.42857142857143}
+  .mp h2 {font-size:16px;line-height:1.25}
+  .mp h1 {font-size:20px;line-height:2}
+  .mp {text-align:justify;background:#fff}
+  .mp,.mp code,.mp pre,.mp pre code,.mp tt,.mp kbd,.mp samp {color:#131211}
+  .mp h1,.mp h2,.mp h3,.mp h4 {color:#030201}
+  .mp u {text-decoration:underline}
+  .mp code,.mp strong,.mp b {font-weight:bold;color:#131211}
+  .mp em,.mp var {font-style:italic;color:#232221;text-decoration:none}
+  .mp a,.mp a:link,.mp a:hover,.mp a code,.mp a pre,.mp a tt,.mp a kbd,.mp a samp {color:#0000ff}
+  .mp b.man-ref {font-weight:normal;color:#434241}
+  .mp pre {padding:0 4ex}
+  .mp pre code {font-weight:normal;color:#434241}
+  .mp h2+pre,h3+pre {padding-left:0}
+  ol.man-decor,ol.man-decor li {margin:3px 0 10px 0;padding:0;float:left;width:33%;list-style-type:none;text-transform:uppercase;color:#999;letter-spacing:1px}
+  ol.man-decor {width:100%}
+  ol.man-decor li.tl {text-align:left}
+  ol.man-decor li.tc {text-align:center;letter-spacing:4px}
+  ol.man-decor li.tr {text-align:right;float:right}
+  </style>
+  <style type='text/css' media='all'>
+  /* style: toc */
+  .man-navigation {display:block !important;position:fixed;top:0;left:113ex;height:100%;width:100%;padding:48px 0 0 0;border-left:1px solid #dbdbdb;background:#eee}
+  .man-navigation a,.man-navigation a:hover,.man-navigation a:link,.man-navigation a:visited {display:block;margin:0;padding:5px 2px 5px 30px;color:#999;text-decoration:none}
+  .man-navigation a:hover {color:#111;text-decoration:underline}
+  </style>
+</head>
+<!--
+  The following styles are deprecated and will be removed at some point:
+  div#man, div#man ol.man, div#man ol.head, div#man ol.man.
+
+  The .man-page, .man-decor, .man-head, .man-foot, .man-title, and
+  .man-navigation should be used instead.
+-->
+<body id='manpage'>
+  <div class='mp' id='man'>
+
+  <div class='man-navigation' style='display:none'>
+    <a href="#NAME">NAME</a>
+    <a href="#SYNOPSIS">SYNOPSIS</a>
+    <a href="#DESCRIPTION">DESCRIPTION</a>
+    <a href="#FEATURE-HTTP-Header-Stripping">FEATURE: HTTP Header Stripping</a>
+    <a href="#FEATURE-Grouping">FEATURE: Grouping</a>
+    <a href="#FEATURE-Streaming">FEATURE: Streaming</a>
+    <a href="#FEATURE-Merging">FEATURE: Merging</a>
+    <a href="#FEATURE-Itemizing">FEATURE: Itemizing</a>
+    <a href="#FEATURE-Validation">FEATURE: Validation</a>
+    <a href="#FEATURE-Execution">FEATURE: Execution</a>
+    <a href="#FEATURE-Conditional-filtering">FEATURE: Conditional filtering</a>
+    <a href="#FEATURE-Lookups">FEATURE: Lookups</a>
+    <a href="#FEATURE-Pretty-printing">FEATURE: Pretty-printing</a>
+    <a href="#FEATURE-Listing-keys">FEATURE: Listing keys</a>
+    <a href="#FEATURE-In-place-editing">FEATURE: In-place editing</a>
+    <a href="#OPTIONS">OPTIONS</a>
+    <a href="#ENVIRONMENT">ENVIRONMENT</a>
+    <a href="#EXAMPLES">EXAMPLES</a>
+    <a href="#COMPATIBILITY">COMPATIBILITY</a>
+    <a href="#INSTALL-PROJECT-BUGS">INSTALL, PROJECT, BUGS</a>
+    <a href="#LICENSE">LICENSE</a>
+    <a href="#COPYRIGHT">COPYRIGHT</a>
+  </div>
+
+  <ol class='man-decor man-head man head'>
+    <li class='tl'>json(1)</li>
+    <li class='tc'>json tool manual</li>
+    <li class='tr'>json(1)</li>
+  </ol>
+
+  <h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>json</code> - <span class="man-whatis">JSON love for your command line</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p>something-generating-JSON-on-stdout | <code>json</code> [OPTIONS] [LOOKUPS]</p>
+
+<p><code>json</code> -f FILE [OPTIONS] [LOOKUPS...]</p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>json</code> is a fast command-line tool for working with JSON content from the
+command line. Among its features: streaming stdin/stdout or working with JSON
+files, pretty-printing with control over output formats, JSON validation,
+filtering, modification, in-place JSON file modification, field extraction,
+tabular output, skipping HTTP header blocks for use with REST API responses,
+JSON stream ('\n'-separated JSON objects) processing.</p>
+
+<p>Read on for details and examples. The FEATURE sections describe <code>json</code>
+features roughly in the order of processing.</p>
+
+<h2 id="FEATURE-HTTP-Header-Stripping">FEATURE: HTTP Header Stripping</h2>
+
+<p><code>json</code> roots are as a tool to assist working with REST APIs. Often results
+being parsed include HTTP headers, as from <code>curl -i</code>, with a JSON payload.
+By default <code>json</code> passes through HTTP header blocks. Use <code>-H</code> to strip a
+leading HTTP header block.</p>
+
+<h2 id="FEATURE-Grouping">FEATURE: Grouping</h2>
+
+<p>(Added in json v4.) Use '-g' or '--group' to group adjacent objects into a
+single JSON array or to concatenate adjacent arrays into a single array. E.g.:</p>
+
+<pre><code>$ echo '{"a":1}
+{"b": 2}' | json -g
+[
+  {
+    "a": 1
+  },
+  {
+    "b": 2
+  }
+]
+
+$ echo '["one"]
+["two"]' | json -g
+[
+  "one",
+  "two"
+]
+</code></pre>
+
+<p>"Adjacent" objects means objects separated by a newline, or by no space at all.
+Adjacent <em>arrays</em> means separate by a newline. These conditions are chosen as
+a balance between (a) not being ambiguous to parse with a simple regex and
+(b) enough to be useful for common cases.</p>
+
+<p><em>Compatibility note:</em> In json v3 and earlier, this used to be called
+"auto-arrayification" and was implicit. In json v4 and v5 grouping of adjacent
+arrays separated by no space was allowed. That was dropped in v6 (see
+<a href="https://github.com/trentm/json/issues/55">issue #55</a>). See the
+<a href="#COMPATIBILITY" title="COMPATIBILITY" data-bare-link="true">COMPATIBILITY</a> section below.</p>
+
+<h2 id="FEATURE-Streaming">FEATURE: Streaming</h2>
+
+<p>Grouping can be helpful for "one JSON object per line" formats or for things
+such as:</p>
+
+<pre><code>$ cat *.json | json -g ...
+</code></pre>
+
+<p>However, when the size of the input is large practically one must do stream
+processing. As of json v5.1, <code>json -ga</code> will <strong>stream</strong>. An extreme example is:</p>
+
+<pre><code>$ yes '{"foo":"bar"}' | json -ga
+</code></pre>
+
+<p>But a more practical example would be a large file of newline-separated
+JSON objects, such as a <a href="https://github.com/trentm/node-bunyan">Bunyan</a>
+log file:</p>
+
+<pre><code>$ cat foo.log | json -ga req.method req.url res.headers.x-response-time
+GET /ping 1
+POST /images 43
+...
+</code></pre>
+
+<h2 id="FEATURE-Merging">FEATURE: Merging</h2>
+
+<p>(Added in json v4.) Use '--merge' or '--deep-merge' to <strong>merge adjacent JSON
+objects</strong> in the input. Keys in the last object win.</p>
+
+<pre><code>$ echo '{"one":"un","two":"deux"}
+{"one":"uno","three":"tres"}' | json --merge
+{
+  "one": "uno",
+  "two": "deux",
+  "three": "tres"
+}
+</code></pre>
+
+<p>This could be useful for merging multiple config files, e.g.:</p>
+
+<pre><code>$ cat /opt/app/etc/defaults.json \
+    /etc/app/config.json \
+    ~/.app/config.json | json --merge
+...
+</code></pre>
+
+<h2 id="FEATURE-Itemizing">FEATURE: Itemizing</h2>
+
+<p>(Added in json v9.) Looking up fields in an array of object is easy with <code>json</code>:</p>
+
+<pre><code>$ echo '[{"name":"trent","age":38},
+         {"name":"ewan","age":4}]' | json -a name age
+trent 38
+ewan 4
+</code></pre>
+
+<p>but less so when a set of objects is indexed by key in an object:</p>
+
+<pre><code>$ echo '{"trent":{"age":38},
+         "ewan": {"age":4}}' | ...    # How to list ages?
+</code></pre>
+
+<p>The <code>-M, --items</code> option allows one to <strong>itemize the key/value pairs of
+an object</strong> for convenient iteration with <code>-a</code>:</p>
+
+<pre><code>$ echo '{"trent":{"age":38},
+         "ewan": {"age":4}}' | json -M
+[
+  {
+    "key": "trent",
+    "value": {
+      "age": 38
+    }
+  },
+  {
+    "key": "ewan",
+    "value": {
+      "age": 4
+    }
+  }
+]
+
+$ echo '{"trent":{"age":38},
+         "ewan": {"age":4}}' | json -Ma key value.age
+trent 38
+ewan 4
+
+# List people that can vote.
+$ echo '{"trent":{"age":38},
+         "ewan": {"age":4}}' | json -M -c 'this.value.age &gt; 18' -a key
+trent
+</code></pre>
+
+<h2 id="FEATURE-Validation">FEATURE: Validation</h2>
+
+<p><code>json</code> will give position information and context for JSON syntax errors
+(<code>SyntaxError</code>). This can be handy for validating data and config files:</p>
+
+<pre><code>$ cat config.json | json
+json: error: input is not JSON: Unexpected ',' at line 17, column 5:
+            , { "name": "smartos64-1.4.7"
+        ....^
+{
+    "use-proxy": false
+...
+$ echo $?
+1
+</code></pre>
+
+<p>Processing and output of the input JSON can be suppressed with the
+<code>-n, --validate</code> option:</p>
+
+<pre><code>$ cat config.json | json --validate
+json: error: input is not JSON: Unexpected ',' at line 17, column 5:
+            , { "name": "smartos64-1.4.7"
+        ....^
+</code></pre>
+
+<p>Together with the <code>-q</code> you can get silent, exit-status-only, JSON validation:</p>
+
+<pre><code>$ cat config.json | json -nq
+$ echo $?
+1
+</code></pre>
+
+<h2 id="FEATURE-Execution">FEATURE: Execution</h2>
+
+<p>Use the <code>-e CODE</code> option to execute (JavaScript) code on the input JSON.</p>
+
+<pre><code>$ echo '{"name":"trent","age":38}' | json -e 'this.age++'
+{
+  "name": "trent",
+  "age": 39
+}
+</code></pre>
+
+<p>If input is an array, this will automatically process each item separately:</p>
+
+<pre><code>$ echo '[{"age":38},{"age":4}]' | json -e this.age++
+[
+  {
+    "age": 39
+  },
+  {
+    "age": 5
+  }
+]
+</code></pre>
+
+<p>That can be overriden with <code>-A</code>:</p>
+
+<pre><code>$ echo '[{"age":38},{"age":4}]' | json -A -e 'this[0].age = "unknown"'
+[
+  {
+    "age": "unknown"
+  },
+  {
+    "age": 4
+  }
+]
+</code></pre>
+
+<p>The given CODE is executed in a function bound to the input object (i.e.
+<code>this</code> is the input object).</p>
+
+<p><em>Security note:</em> <code>CODE</code> is <em>not</em> executed in a sandbox, so <code>json</code>'s globals are
+available and unguarded. You can shoot yourself in the foot. <em>Do not pass
+untrusted user-supplied strings here.</em></p>
+
+<p><em>Compatibility note:</em> In versions before v9 <code>-e CODE</code> used an alternate
+implementation (with slightly different semantics for the CODE). It is still
+supported for backward compatibility by using the <code>JSON_EXEC=vm</code> environment
+variable. However it is deprecated because it can cause processing to be <em>10x</em>
+or more slower for large inputs. See the <a href="#COMPATIBILITY" title="COMPATIBILITY" data-bare-link="true">COMPATIBILITY</a> section below.</p>
+
+<h2 id="FEATURE-Conditional-filtering">FEATURE: Conditional filtering</h2>
+
+<p>Use the <code>-c CODE</code> option to run JavaScript code ending with a statement
+returning a boolean to filter the input JSON.</p>
+
+<pre><code>$ echo '[{"age":38},{"age":4}]' | json -c 'this.age &gt; 21'
+[{"age":38}]
+</code></pre>
+
+<p>As with <code>-e</code> above, if input is an array, this will automatically process each
+item separately. This can be overriden with <code>-A</code>.</p>
+
+<p>The given CODE is executed in a function bound to the input object (i.e.
+<code>this</code> is the input object). A JavaScript function must use <code>return</code> to return
+a value, so as a convenience if "return" is not in the given CODE it is presumed
+to be a single statement and it is wrapped:</p>
+
+<pre><code>function () {
+    return ( CODE );
+}
+</code></pre>
+
+<p>To use multiple statements in <code>-c CODE</code> you must explicitly use <code>return</code>, e.g.:</p>
+
+<pre><code>$ echo '{"a": 2, "b": 6}' | json -c 'sum = this.a + this.b; return sum &gt; 5'
+{
+  "a": 2,
+  "b": 6
+}
+</code></pre>
+
+<p><em>Security note:</em> <code>CODE</code> is <em>not</em> executed in a sandbox, so <code>json</code>'s globals are
+available and unguarded. You can shoot yourself in the foot. <em>Do not pass
+untrusted user-supplied strings here.</em></p>
+
+<p><em>Compatibility note:</em> In versions before v9 <code>-c CODE</code> used an alternate
+implementation (with slightly different semantics for the CODE). It is still
+supported for backward compatibility by using the <code>JSON_EXEC=vm</code> environment
+variable. However it is deprecated because it can cause processing to be <em>10x</em>
+or more slower for large inputs. See the <a href="#COMPATIBILITY" title="COMPATIBILITY" data-bare-link="true">COMPATIBILITY</a> section below.</p>
+
+<h2 id="FEATURE-Lookups">FEATURE: Lookups</h2>
+
+<p>Use lookup arguments to extract particular values:</p>
+
+<pre><code>$ echo '{"name":"trent","age":38}' | json name
+trent
+</code></pre>
+
+<p>Use '.' in a single lookup to do property access (e.g. <code>name.first</code>) and use
+multiple args to lookup multiple fields.</p>
+
+<pre><code>$ echo '{"name": {"first": "Trent", "last": "Mick"}, "age": 38}' \
+    | json name.first age
+Trent
+38
+</code></pre>
+
+<p>Use <code>-a</code> for <em>Array processing</em> of lookups and <em>tAbular output</em>:</p>
+
+<pre><code>$ echo '{"name":"trent","age":38}' | json name
+trent
+$ echo '[{"name":"trent","age":38},
+         {"name":"ewan","age":4}]' | json -a name age
+trent 38
+ewan 4
+</code></pre>
+
+<p>Integral values work for array index lookups:</p>
+
+<pre><code>$ echo '["a", "b", "c"]' | json 1
+b
+</code></pre>
+
+<p>Negative array indices are also supported for convenience (a la Python array
+indexing):</p>
+
+<pre><code>$ echo '["a", "b", "c"]' | json -- -1
+c
+$ echo '["a", "b", "c"]' | json -- -2
+b
+</code></pre>
+
+<p>If your lookup isn't a number or <a href="https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Values,_variables,_and_literals#Variables">a JS
+indentifier</a>
+you can always use <strong>JavaScript array-style lookups</strong> like this:</p>
+
+<pre><code>$ echo '{"http://example.com": "my-value"}' | json '["http://example.com"]'
+my-value
+</code></pre>
+
+<p>just like you would in JavaScript:</p>
+
+<pre><code>$ node
+&gt; var d = {"http://example.com": "my-value"}
+&gt; d["http://example.com"]
+'my-value'
+</code></pre>
+
+<p>Or it might be easier to set <strong>an alternate lookup delimiter</strong>:</p>
+
+<pre><code>$ echo '{"http://example.com": "my-value"}' | json -D, http://example.com
+my-value
+
+$ echo '{"etc": {"resolv.conf":1, "passwd":2}}' | json -D/ etc/resolv.conf
+1
+</code></pre>
+
+<h2 id="FEATURE-Pretty-printing">FEATURE: Pretty-printing</h2>
+
+<p>Output is "jsony" by default: 2-space indented JSON ...</p>
+
+<pre><code>$ echo '{"name": "trent", "age": 38}' | json
+{
+  "name": "trent",
+  "age": 38
+}
+</code></pre>
+
+<p>... with one exception, a bare string value is printed without quotes (because
+who wants to deal with quotes in your pipeline?).</p>
+
+<pre><code>$ echo '{"name": "trent", "age": 38}' | json name
+trent
+</code></pre>
+
+<p>If pure JSON output is wanted, use <code>-o json</code> or the <code>-j</code> shortcut:</p>
+
+<pre><code>$ echo '{"name": "trent", "age": 38}' | json -o json name
+"trent"
+</code></pre>
+
+<p>Indentations other than 2 can be selected via <code>-o json-N</code></p>
+
+<pre><code>$ echo '{"name": "trent", "age": 38}' | json -o json-0
+{"name":"trent","age":38}
+$ echo '{"name": "trent", "age": 38}' | json -o json-4
+{
+    "name": "trent",
+    "age": 38
+}
+</code></pre>
+
+<p>The "FORMAT-N" suffix can also be useful on "jsony" when selecting multiple
+values and wanting tabular output where some cells are objects:</p>
+
+<pre><code>$ cat users.json
+[
+   {"name": {"first": "Trent", "last": "Mick"}, "age": 38},
+   {"name": {"first": "Ewan", "last": "Mick"}, "age": 4}
+]
+
+$ json -f users.json -a name age -o jsony-0
+{"first":"Trent","last":"Mick"} 38
+{"first":"Ewan","last":"Mick"} 4
+</code></pre>
+
+<p>Further the <code>-0</code>, <code>-2</code>, and <code>-4</code> shortcuts can be used to set the indentation
+without changing the mode. This can be use to make the above shorter:</p>
+
+<pre><code>$ json -f users.json -a name age -0
+{"first":"Trent","last":"Mick"} 38
+{"first":"Ewan","last":"Mick"} 4
+</code></pre>
+
+<p>You can get colored (non-JSON) output using node.js's
+<a href="http://nodejs.org/docs/latest/api/all.html#util.inspect"><code>util.inspect</code></a>:</p>
+
+<pre><code>$ echo '[{"name": "Trent"},{"name": "Ewan"}]' | json -o inspect
+[ { name: 'Trent' },
+  { name: 'Ewan' } ]
+</code></pre>
+
+<h2 id="FEATURE-Listing-keys">FEATURE: Listing keys</h2>
+
+<p>Sometimes you want the list of keys for an object. Use <code>-k</code> or <code>--keys</code> for
+that:</p>
+
+<pre><code>$ echo '{"name": "trent", "age": 38}' | json -k
+[
+  "name",
+  "age"
+]
+$ echo '{"name": "trent", "age": 38}' | json -ka
+name
+age
+</code></pre>
+
+<h2 id="FEATURE-In-place-editing">FEATURE: In-place editing</h2>
+
+<p>You can edit a file in place with <code>-I</code> and <code>-f FILE</code>:</p>
+
+<pre><code>$ cat config.json
+{"hostname":"127.0.0.1"}
+
+$ json -I -f config.json                        # format the file
+json: updated "config.json" in-place
+$ cat config.json
+{
+  "hostname": "127.0.0.1"
+}
+
+$ json -I -f config.json -e 'this.port=8080'    # add port field
+json: updated "config.json" in-place
+$ cat config.json
+{
+  "hostname": "127.0.0.1",
+  "port": 8080
+}
+</code></pre>
+
+<p>Some limitations. Only one file at a time:</p>
+
+<pre><code>$ json -I -f foo.json -f bar.json
+json: error: must specify exactly one file with '-f FILE' to use -I/--in-place
+</code></pre>
+
+<p>Lookups are not allowed:</p>
+
+<pre><code>$ json -I -f foo.json key.subkey
+json: error: lookups cannot be specified with in-place editing (-I/--in-place), too easy to lose content
+</code></pre>
+
+<p>because that can too easily result in data loss, e.g. with something like:</p>
+
+<pre><code>$ json -I -f *.json    # if there is more than one match to the glob
+json: error: lookups cannot be specified with in-place editing (-I/--in-place), too easy to lose content
+</code></pre>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-h</code>, <code>--help</code></dt><dd><p>Print this help info and exit.</p></dd>
+<dt><code>--version</code></dt><dd><p>Print version of this command and exit.</p></dd>
+<dt><code>-q, --quiet</code></dt><dd><p>Don't warn if input isn't valid JSON.</p></dd>
+</dl>
+
+
+<p>By default <code>json</code> will process input from stdin. Alternatively, an input file
+(or files) can be specified:</p>
+
+<dl>
+<dt class="flush"><code>-f FILE</code></dt><dd>Specify an input file (instead of stdin).</dd>
+</dl>
+
+
+<p>By default <code>json</code> output is to stdout. Together with <code>-f FILE</code>, in-place
+editing can be done:</p>
+
+<dl>
+<dt><code>-I</code>, <code>--in-place</code></dt><dd>Edit the file given with <code>-f FILE</code> in-place. Lookups are not allowed
+with in-place editing, because it is too easy to accidentally lose file
+data.</dd>
+</dl>
+
+
+<p>If your JSON output is a REST API response, it might include the headers
+(e.g. when calling with <code>curl -i</code>). By default <code>json</code> will pass those headers
+through (without choking on them). However if you want them stripped you
+can use:</p>
+
+<dl>
+<dt class="flush"><code>-H</code></dt><dd>drop any HTTP header block (as from <code>curl -i ...</code>)</dd>
+</dl>
+
+
+<p>Other pre-JSON input handling:</p>
+
+<dl>
+<dt><code>-g</code>, <code>--group</code></dt><dd><p>Group adjacent objects into an array of objects, or concatenate adjacent
+arrays into a single array.</p></dd>
+<dt><code>--merge</code>, <code>--deep-merge</code></dt><dd><p>Merge adjacent objects into a single object with merged keys. Values
+in later objects win. Use <code>--deep-merge</code> to recursively merge keys in
+objects.</p></dd>
+<dt><code>-M</code>, <code>--items</code></dt><dd><p>Itemize an object into an array of <code>{"key": &lt;key>, "value": &lt;value>}</code>
+objects for easier processing.</p></dd>
+</dl>
+
+
+<p>You can process elements of an input array separately and generate tabular
+output:</p>
+
+<dl>
+<dt><code>-a</code>, <code>--array</code></dt><dd><p>Process input as an array of separate inputs and output in tabular form.</p></dd>
+<dt><code>-d DELIM</code></dt><dd><p>Delimiter character for tabular output (default is ' ').</p></dd>
+<dt class="flush"><code>-A</code></dt><dd><p>Process input as a single object, i.e. stop <code>-e</code> and <code>-c</code> automatically
+processing each item of an input array.</p></dd>
+</dl>
+
+
+<p>You can execute code on (<code>-e</code>) and filter (<code>-c</code>) the input (this is done before
+LOOKUPS are processed, if any).</p>
+
+<dl>
+<dt class="flush"><code>-e CODE</code></dt><dd><p>Execute the given JavaScript code on the input. If input is an array, then
+each item of the array is processed separately (use <code>-A</code> to override). Use
+<code>this.</code> to access fields on the object being processed. (<code>-E CODE</code> is a now
+deprecated synonym.)</p></dd>
+<dt class="flush"><code>-c CODE</code></dt><dd><p>Filter the input with JavaScript <code>CODE</code>. If <code>CODE</code> returns false-y, then
+the item is filtered out. If input is an array, then each item of the array
+is processed separately (use <code>-A</code> to override). Use <code>this.</code> to access fields
+on the object being processed. An explicit <code>return</code> is required if <code>CODE</code>
+includes multiple statements. (<code>-C CODE</code> is a now deprecated synonym.)</p></dd>
+</dl>
+
+
+<p>Finally, if <code>LOOKUP</code> arguments are given, these are extracted from the
+JSON. By default <code>.</code> is used as a separator for nested object lookup.
+This can be overridden:</p>
+
+<dl>
+<dt><code>-D DELIM</code></dt><dd>Delimiter char between LOOKUPS (default is '.'). For example:
+<code>$ echo '{"a.b": {"b": 1}}' | json -D / a.b/b</code></dd>
+</dl>
+
+
+<p>An alternative to lookups is to output the keys of the input object:</p>
+
+<dl>
+<dt><code>-k</code>, <code>--keys</code></dt><dd>Output the input object's keys.</dd>
+</dl>
+
+
+<p><code>json</code> can be restricting to just validating its input, i.e. processing
+and output of the input is skipped:</p>
+
+<dl>
+<dt><code>-n</code>, <code>--validate</code></dt><dd>Just validate the input, no processing or output of the JSON content.</dd>
+</dl>
+
+
+<p>By default <code>json</code> outputs in "jsony" mode. Basically this is JSON output,
+with the exception that a single string output value is emitted without the
+quotes. The intention here is to be of most use to the UNIX command-line.
+Other output formats are supported:</p>
+
+<dl>
+<dt><code>-o MODE</code>, <code>--output MODE</code></dt><dd><p>Specify an output mode. One of <code>jsony</code> (the default; JSON, if a single
+string then quotes are elided), <code>json</code> (JSON output, 2-space indent),
+or <code>inspect</code> (node.js <code>util.inspect</code> output). <code>json</code> and <code>jsony</code> modes can
+specify an indentation via <code>json-N</code> or <code>jsony-N</code> for N-space indentation
+(e.g. <code>json-4</code>), or via <code>json-tab</code> or <code>jsony-tab</code> for TAB indentation.</p></dd>
+<dt class="flush"><code>-i</code></dt><dd><p>Shortcut for <code>-o inspect</code>.</p></dd>
+<dt class="flush"><code>-j</code></dt><dd><p>Shortcut for <code>-o json</code>.</p></dd>
+<dt><code>-0</code>, <code>-2</code>, <code>-4</code></dt><dd><p>Set the JSON indentation without changing the mode.</p></dd>
+</dl>
+
+
+<h2 id="ENVIRONMENT">ENVIRONMENT</h2>
+
+<dl>
+<dt><code>JSON_EXEC=vm</code></dt><dd>Set this to turn on the old (pre-v9) behaviour of <code>-e CODE</code> and <code>-c CODE</code>.</dd>
+</dl>
+
+
+<h2 id="EXAMPLES">EXAMPLES</h2>
+
+<p>A typical JSON REST API response:</p>
+
+<pre><code>$ curl -s http://ifconfig.me/all.json
+{"connection":"","ip_addr":"216.57.203.67","lang":"","remote_host":...
+</code></pre>
+
+<p><strong>Nice output by default</strong>:</p>
+
+<pre><code>$ curl -s http://ifconfig.me/all.json | json
+{
+  "connection": "",
+  "ip_addr": "201.73.103.12",
+  "lang": "",
+  "remote_host": "",
+  "user_agent": "curl/7.23.1 (i386-sun-solaris2.11) libcurl/7.23.1 OpenSSL/0.9.8w zlib/1.2.3 libidn/1.23 libssh2/1.2.2",
+  "charset": "",
+  "port": "63713",
+  "via": "",
+  "forwarded": "",
+  "mime": "*/*",
+  "keep_alive": "",
+  "encoding": ""
+}
+</code></pre>
+
+<p>Say you just want to <strong>extract one value</strong>:</p>
+
+<pre><code>$ curl -s http://ifconfig.me/all.json | json ip_addr
+201.73.103.12
+</code></pre>
+
+<p>Or, looking at the <a href="https://github.com/joyent/node">node.js project</a> using
+the Github API:</p>
+
+<pre><code>$ curl -s https://api.github.com/repos/joyent/node | json open_issues
+517
+</code></pre>
+
+<p>If you use <code>curl -i</code> to get HTTP headers (because perhaps they contain
+relevant information), <strong>json will skip the HTTP headers automatically</strong>:</p>
+
+<pre><code>$ curl -is https://api.github.com/repos/joyent/node | json
+HTTP/1.1 200 OK
+Server: nginx/1.0.13
+Date: Tue, 24 Jul 2012 04:01:08 GMT
+Content-Type: application/json; charset=utf-8
+Connection: keep-alive
+Status: 200 OK
+ETag: "1a21d980a01768dde42145ce2b58694c"
+X-RateLimit-Remaining: 4997
+Content-Length: 1513
+Cache-Control: public, max-age=60
+Vary: Accept
+X-RateLimit-Limit: 5000
+Last-Modified: Tue, 24 Jul 2012 03:50:11 GMT
+
+{
+  "master_branch": "master",
+  "has_issues": true,
+  "has_downloads": false,
+  "homepage": "http://nodejs.org/",
+  "html_url": "https://github.com/joyent/node",
+...
+</code></pre>
+
+<p>Or, say you are stuck with the headers in your pipeline, <strong>'json -H' will
+drop HTTP headers</strong>:</p>
+
+<pre><code>$ curl -is https://api.github.com/repos/joyent/node | json -H forks
+2158
+</code></pre>
+
+<p>Here is <strong>an example that shows indexing a list</strong>. (The given "lookup"
+argument is basically JavaScript code appended, with '.' if necessary, to the
+JSON data and eval'd.)</p>
+
+<pre><code>$ curl -s https://api.github.com/legacy/repos/search/nodejs \
+    | json 'repositories[2].name'
+socket.io
+</code></pre>
+
+<p>Having the quote to avoid shell interpretation of '[' is annoying, so <code>json</code>
+allows a special case for an integer lookup:</p>
+
+<pre><code>$ curl -s https://api.github.com/legacy/repos/search/nodejs \
+    | json 'repositories.2.name'
+socket.io
+</code></pre>
+
+<h3 id="Array-processing-with-a">Array processing with -a</h3>
+
+<p><code>json</code> includes the <code>-a</code> (aka <code>--array</code>) option for <strong>processing each element of
+an input JSON array independently</strong> and <strong>using tabular output</strong>. Let's first
+get a list of open node.js issues (note that this is a subset because of
+<a href="http://developer.github.com/v3/#pagination">GH API pagination</a>):</p>
+
+<pre><code>$ curl -s https://api.github.com/repos/joyent/node/issues?state=open\&amp;per_page=100
+[
+  {
+    "number": 3757,
+    "html_url": "https://github.com/joyent/node/issues/3757",
+    "body": "Fix #3756.\n\nReview, please: @TooTallNate",
+    "milestone": null,
+    "user": {
+      "gravatar_id": "73a2b24daecb976af81e010b7a3ce3c6",
+      "login": "isaacs",
+      "avatar_url": "https://secure.gravatar.com/avatar/73a2b24dae...
+...
+</code></pre>
+
+<p>We can then print a table with just some fields as follows:</p>
+
+<pre><code>$ curl -s https://api.github.com/repos/joyent/node/issues?state=open\&amp;per_page=100 \
+    | json -a comments number title
+0 3757 readline: Remove event listeners on close
+0 3756 readline: No way to completely unhook interface from input/output
+1 3755 node-v0.6.20 hello example segfaults on RaspberryPi (w/Arch + bash)
+0 3753 Prohibit same listeners in EventEmitter. Closes #964.
+1 3752 Auto-detect hardfloat eabi and armv7 variables on ARM based on compiler
+3 3751 persistent REPL history
+0 3749 glibc errors on SheevaPlug / Debian Squeeze
+...
+</code></pre>
+
+<p>Ultimately this can be useful for then using other command-line tools. For
+example, we could get the list of top-five most commented open node issues:</p>
+
+<pre><code>$ curl -s https://api.github.com/repos/joyent/node/issues?state=open\&amp;per_page=100 \
+    | json -a comments number title | sort -n  | tail -5
+9 3510 Automatically `.toString()` functions in REPL.
+11 3668 JSON documentation index listing
+12 3624 Add a return value to Buffer.write* methods that returns the ...
+12 3655 defer dgram listening event
+14 3613 Connections closed by node stay permanently in FIN_WAIT2
+</code></pre>
+
+<p>Or get a breakdown by ISO language code of the recent tweets mentioning "nodejs":</p>
+
+<pre><code>$ curl -s http://search.twitter.com/search.json?q=nodejs\&amp;rpp=100 \
+    | json results | json -a iso_language_code | sort | uniq -c | sort
+   1 es
+   1 no
+   1 th
+   4 ru
+  12 ja
+  23 pt
+  58 en
+</code></pre>
+
+<p>The <strong><code>-d</code> option can be used to specify a delimiter</strong>:</p>
+
+<pre><code>$ curl -s https://api.github.com/repos/joyent/node/issues?state=open \
+        | json -a created_at number title -d,
+2012-07-24T03:45:03Z,3757,readline: Remove event listeners on close
+2012-07-24T03:32:10Z,3756,readline: No way to completely unhook inte...
+2012-07-23T21:17:50Z,3755,node-v0.6.20 hello example segfaults on Ra...
+2012-07-22T16:17:49Z,3753,Prohibit same listeners in EventEmitter. C...
+2012-07-22T13:43:40Z,3752,Auto-detect hardfloat eabi and armv7 varia...
+</code></pre>
+
+<h2 id="COMPATIBILITY">COMPATIBILITY</h2>
+
+<p>The json tool major version is incremented when there is a backward incompatible
+change. An overview of those changes is here.</p>
+
+<ul>
+<li>v9: <code>-e CODE</code> and <code>-c CODE</code> switch away from using <code>vm.runInNewContext</code> for
+processing. In other words they now do what <code>-E</code> and <code>-C</code> do, and the
+uppercase options are not deprecated synonyms. Use the <code>JSON_EXEC=vm</code>
+environment variable to bring back the old behaviour.</li>
+<li>v8: No incompatible change. The npm registry name changed from 'jsontool' to
+'json'.</li>
+<li>v7: <code>-E CODE</code> and <code>-C CODE</code> were added in favour of <code>-e CODE</code> and <code>-c CODE</code>
+because the former provide a 10x or more performance improvement for
+larger inputs. The latter are still included for backward compatibility.
+<code>-E/-C</code> use a JavaScript function to execute CODE, which <code>-e/-c</code> use node.js's
+<code>vm.runInNewContext</code> which is crazy slow. Use of a JavaScript function
+places slightly different semantics and requirements on the given <code>CODE</code>, so
+new options were required for compat.</li>
+<li>v6: Grouping (via <code>-g</code> or <code>--group</code>) of adjacent <em>arrays</em> no longer groups
+arrays separated by no space. I.e. adjacent arrays must be separated by a
+newline.</li>
+<li>v5: Special case the output for <strong>a single lookup AND JSON output</strong> (i.e. <code>-j</code>
+or <code>-o json*</code>) to only output the value instead of the more general array or
+table that is necessary for multiple lookups.</li>
+<li>v4: Made "auto-arrayification" require an explicit '-g' or '--group' option
+to prefer that implicit processing never magically fix otherwise invalid
+JSON. The feature is now called grouping.</li>
+<li>v3: Cleaned up json and "jsony" output formatting to be more consistent,
+especially for array processing.</li>
+</ul>
+
+
+<p>See the <a href="https://github.com/trentm/json/blob/master/CHANGES.md">changelog</a>
+for full compatibility and change details.</p>
+
+<h2 id="INSTALL-PROJECT-BUGS">INSTALL, PROJECT, BUGS</h2>
+
+<p><code>json</code> is written in JavaScript and requires node.js (<code>node</code>). You can either
+install via <code>npm</code>:</p>
+
+<pre><code>npm install -g json
+</code></pre>
+
+<p>or manually get the script and put it on your PATH somewhere (<code>json</code> is a single
+file with no external deps other than node itself):</p>
+
+<pre><code>cd ~/bin
+curl -L https://github.com/trentm/json/raw/master/lib/json.js &gt; json
+chmod 755 json
+</code></pre>
+
+<p>(Note: Before version 8, this tool was called "jsontool" in the npm
+registry. That name is now defunct.)</p>
+
+<p>This project lives at <a href="https://github.com/trentm/json" data-bare-link="true">https://github.com/trentm/json</a>. Please report bugs
+to <a href="https://github.com/trentm/json/issues" data-bare-link="true">https://github.com/trentm/json/issues</a>. See the full changelog at:
+<a href="https://github.com/trentm/json/blob/master/CHANGES.md" data-bare-link="true">https://github.com/trentm/json/blob/master/CHANGES.md</a>.</p>
+
+<h2 id="LICENSE">LICENSE</h2>
+
+<p>MIT License (see <a href="https://github.com/trentm/json/blob/master/LICENSE.txt" data-bare-link="true">https://github.com/trentm/json/blob/master/LICENSE.txt</a>)</p>
+
+<h2 id="COPYRIGHT">COPYRIGHT</h2>
+
+<p>json is Copyright (c) 2014 Trent Mick and Copyright (c) 2014 Joyent Inc.
+All rights reserved.</p>
+
+
+  <ol class='man-decor man-foot man foot'>
+    <li class='tl'></li>
+    <li class='tc'>August 2014</li>
+    <li class='tr'>json(1)</li>
+  </ol>
+
+  </div>
+<a href="https://github.com/trentm/json"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a></body>
+</html>

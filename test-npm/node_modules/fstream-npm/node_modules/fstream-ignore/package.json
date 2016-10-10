@@ -1,0 +1,103 @@
+{
+  "_args": [
+    [
+      {
+        "name": "fstream-ignore",
+        "raw": "fstream-ignore@^1.0.0",
+        "rawSpec": "^1.0.0",
+        "scope": null,
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/fstream-npm"
+    ]
+  ],
+  "_from": "fstream-ignore@>=1.0.0 <2.0.0",
+  "_id": "fstream-ignore@1.0.5",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/fstream-npm/fstream-ignore",
+  "_nodeVersion": "5.10.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/fstream-ignore-1.0.5.tgz_1463518095640_0.10221575922332704"
+  },
+  "_npmUser": {
+    "email": "kat@sykosomatic.org",
+    "name": "zkat"
+  },
+  "_npmVersion": "3.9.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "fstream-ignore",
+    "raw": "fstream-ignore@^1.0.0",
+    "rawSpec": "^1.0.0",
+    "scope": null,
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/fstream-npm"
+  ],
+  "_resolved": "https://registry.npmjs.org/fstream-ignore/-/fstream-ignore-1.0.5.tgz",
+  "_shasum": "9c31dae34767018fe1d249b24dada67d092da105",
+  "_shrinkwrap": null,
+  "_spec": "fstream-ignore@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/fstream-npm",
+  "author": {
+    "email": "i@izs.me",
+    "name": "Isaac Z. Schlueter",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/fstream-ignore/issues"
+  },
+  "dependencies": {
+    "fstream": "^1.0.0",
+    "inherits": "2",
+    "minimatch": "^3.0.0"
+  },
+  "description": "A thing for ignoring files based on globs",
+  "devDependencies": {
+    "mkdirp": "",
+    "rimraf": "",
+    "tap": "^5.7.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "9c31dae34767018fe1d249b24dada67d092da105",
+    "tarball": "https://registry.npmjs.org/fstream-ignore/-/fstream-ignore-1.0.5.tgz"
+  },
+  "files": [
+    "ignore.js"
+  ],
+  "gitHead": "1438a1a2c25fee71327c36c86de787a14a53ffd4",
+  "homepage": "https://github.com/isaacs/fstream-ignore#readme",
+  "license": "ISC",
+  "main": "ignore.js",
+  "maintainers": [
+    {
+      "email": "i@izs.me",
+      "name": "isaacs"
+    },
+    {
+      "email": "ogd@aoaioxxysz.net",
+      "name": "othiym23"
+    },
+    {
+      "email": "kat@sykosomatic.org",
+      "name": "zkat"
+    }
+  ],
+  "name": "fstream-ignore",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/fstream-ignore.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js --cov"
+  },
+  "version": "1.0.5"
+}

@@ -1,0 +1,40 @@
+[
+  { "method"   : "put"
+  , "path"     : "/design_list"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/design_list/_design/people"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"_design/people\",\"rev\":\"1-14e6bc\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_list/p_derek"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"p_derek\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_list/p_randall"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"p_randall\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_list/p_nuno"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"p_nuno\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "get"
+  , "path"     : "/design_list/_design/people/_list/my_list/by_name_and_city?key=%5B%22Derek%22%2C%22San%20Francisco%22%5D"
+  , "response" : "Hello"
+  }
+, { "method"   : "delete"
+  , "path"     : "/design_list"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

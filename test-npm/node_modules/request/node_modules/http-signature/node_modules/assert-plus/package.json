@@ -1,0 +1,116 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "assert-plus@^0.2.0",
+        "scope": null,
+        "escapedName": "assert-plus",
+        "name": "assert-plus",
+        "rawSpec": "^0.2.0",
+        "spec": ">=0.2.0 <0.3.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature"
+    ]
+  ],
+  "_from": "assert-plus@>=0.2.0 <0.3.0",
+  "_id": "assert-plus@0.2.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/assert-plus",
+  "_nodeVersion": "0.10.36",
+  "_npmUser": {
+    "name": "pfmooney",
+    "email": "patrick.f.mooney@gmail.com"
+  },
+  "_npmVersion": "3.3.8",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "assert-plus@^0.2.0",
+    "scope": null,
+    "escapedName": "assert-plus",
+    "name": "assert-plus",
+    "rawSpec": "^0.2.0",
+    "spec": ">=0.2.0 <0.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature"
+  ],
+  "_resolved": "https://registry.npmjs.org/assert-plus/-/assert-plus-0.2.0.tgz",
+  "_shasum": "d74e1b87e7affc0db8aadb7021f3fe48101ab234",
+  "_shrinkwrap": null,
+  "_spec": "assert-plus@^0.2.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature",
+  "author": {
+    "name": "Mark Cavage",
+    "email": "mcavage@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mcavage/node-assert-plus/issues"
+  },
+  "contributors": [
+    {
+      "name": "Dave Eddy",
+      "email": "dave@daveeddy.com"
+    },
+    {
+      "name": "Fred Kuo",
+      "email": "fred.kuo@joyent.com"
+    },
+    {
+      "name": "Lars-Magnus Skog",
+      "email": "ralphtheninja@riseup.net"
+    },
+    {
+      "name": "Mark Cavage",
+      "email": "mcavage@gmail.com"
+    },
+    {
+      "name": "Patrick Mooney",
+      "email": "pmooney@pfmooney.com"
+    },
+    {
+      "name": "Rob Gulewich",
+      "email": "robert.gulewich@joyent.com"
+    }
+  ],
+  "dependencies": {},
+  "description": "Extra assertions on top of node's assert module",
+  "devDependencies": {
+    "faucet": "0.0.1",
+    "tape": "4.2.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d74e1b87e7affc0db8aadb7021f3fe48101ab234",
+    "tarball": "https://registry.npmjs.org/assert-plus/-/assert-plus-0.2.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.8"
+  },
+  "homepage": "https://github.com/mcavage/node-assert-plus#readme",
+  "license": "MIT",
+  "main": "./assert.js",
+  "maintainers": [
+    {
+      "name": "mcavage",
+      "email": "mcavage@gmail.com"
+    },
+    {
+      "name": "pfmooney",
+      "email": "patrick.f.mooney@gmail.com"
+    }
+  ],
+  "name": "assert-plus",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcavage/node-assert-plus.git"
+  },
+  "scripts": {
+    "test": "tape tests/*.js | ./node_modules/.bin/faucet"
+  },
+  "version": "0.2.0"
+}

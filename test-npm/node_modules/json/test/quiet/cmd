@@ -1,0 +1,7 @@
+echo "# no args"
+# `cut` to avoid v8 version diffs in the SyntaxError message.
+cat input | ../../lib/json.js 2>&1 | cut -c 1-45
+echo "# -q"
+cat input | ../../lib/json.js -q 2>&1
+echo "# --quiet"
+cat input | ../../lib/json.js --quiet 2>&1

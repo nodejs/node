@@ -1,0 +1,22 @@
+[
+  { "method"   : "put"
+  , "path"     : "/document_update"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/document_update/foobar"
+  , "body"     : "{\"foo\":\"baz\"}"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"1-611488\"}"
+  }
+, { "method"   : "put"
+  , "path"     : "/document_update/foobar"
+  , "response" : "{\"ok\":true,\"id\":\"foobar\",\"rev\":\"2-2ff408\"}"
+  , "body"     : "{\"foo\":\"bar\",\"_rev\":\"1-611488\"}"
+  }
+, { "method"   : "delete"
+  , "path"     : "/document_update"
+  , "response" : "{ \"ok\": true }"
+  }
+]

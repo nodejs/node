@@ -1,0 +1,32 @@
+*.swp
+.*.swp
+npm-debug.log
+/test/bin
+/test/output.log
+/test/packages/*/node_modules
+/test/packages/npm-test-depends-on-spark/which-spark.log
+/test/packages/test-package/random-data.txt
+/test/root
+/test/npm_cache
+node_modules/marked
+node_modules/ronn
+node_modules/tap
+node_modules/.bin
+node_modules/npm-registry-mock
+/npmrc
+/release/
+
+# don't need these in the npm package.
+html/*.png
+
+# don't ignore .npmignore files
+# these are used in some tests.
+!.npmignore
+
+/npm-*.tgz
+
+*.pyc
+
+/test/tap/builtin-config
+
+.nyc_output

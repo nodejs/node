@@ -1,0 +1,89 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "forever-agent@~0.6.1",
+        "scope": null,
+        "escapedName": "forever-agent",
+        "name": "forever-agent",
+        "rawSpec": "~0.6.1",
+        "spec": ">=0.6.1 <0.7.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request"
+    ]
+  ],
+  "_from": "forever-agent@>=0.6.1 <0.7.0",
+  "_id": "forever-agent@0.6.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/forever-agent",
+  "_npmUser": {
+    "name": "simov",
+    "email": "simeonvelichkov@gmail.com"
+  },
+  "_npmVersion": "1.4.28",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "forever-agent@~0.6.1",
+    "scope": null,
+    "escapedName": "forever-agent",
+    "name": "forever-agent",
+    "rawSpec": "~0.6.1",
+    "spec": ">=0.6.1 <0.7.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/forever-agent/-/forever-agent-0.6.1.tgz",
+  "_shasum": "fbc71f0c41adeb37f96c577ad1ed42d8fdacca91",
+  "_shrinkwrap": null,
+  "_spec": "forever-agent@~0.6.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/request",
+  "author": {
+    "name": "Mikeal Rogers",
+    "email": "mikeal.rogers@gmail.com",
+    "url": "http://www.futurealoof.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mikeal/forever-agent/issues"
+  },
+  "dependencies": {},
+  "description": "HTTP Agent that keeps socket connections alive between keep-alive requests. Formerly part of mikeal/request, now a standalone module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "fbc71f0c41adeb37f96c577ad1ed42d8fdacca91",
+    "tarball": "https://registry.npmjs.org/forever-agent/-/forever-agent-0.6.1.tgz"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "gitHead": "1b3b6163f2b3c2c4122bbfa288c1325c0df9871d",
+  "homepage": "https://github.com/mikeal/forever-agent",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    },
+    {
+      "name": "nylen",
+      "email": "jnylen@gmail.com"
+    },
+    {
+      "name": "simov",
+      "email": "simeonvelichkov@gmail.com"
+    }
+  ],
+  "name": "forever-agent",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "url": "git+https://github.com/mikeal/forever-agent.git"
+  },
+  "scripts": {},
+  "version": "0.6.1"
+}

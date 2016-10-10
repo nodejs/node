@@ -1,0 +1,13 @@
+.TH "T" "1" "January 1979" "" ""
+.SH "NAME"
+\fBt\fR \- test
+.SH test
+.P
+.RS 2
+.nf
+A blockquote here\.
+Continuing on second line\.
+.fi
+.RE
+.P
+Hello\.

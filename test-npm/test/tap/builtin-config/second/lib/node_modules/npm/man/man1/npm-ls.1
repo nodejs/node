@@ -1,0 +1,143 @@
+.TH "NPM\-LS" "1" "September 2016" "" ""
+.SH "NAME"
+\fBnpm-ls\fR \- List installed packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm ls [[<@scope>/]<pkg> \.\.\.]
+
+aliases: list, la, ll
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command will print to stdout all the versions of packages that are
+installed, as well as their dependencies, in a tree\-structure\.
+.P
+Positional arguments are \fBname@version\-range\fP identifiers, which will
+limit the results to only the paths to the packages named\.  Note that
+nested packages will \fIalso\fR show the paths to the specified packages\.
+For example, running \fBnpm ls promzard\fP in npm's source tree will show:
+.P
+.RS 2
+.nf
+npm@3.10.8 /path/to/npm
+└─┬ init\-package\-json@0\.0\.4
+  └── promzard@0\.1\.5
+.fi
+.RE
+.P
+It will print out extraneous, missing, and invalid packages\.
+.P
+If a project specifies git urls for dependencies these are shown
+in parentheses after the name@version to make it easier for users to
+recognize potential forks of a project\.
+.P
+The tree shown is the logical dependency tree, based on package
+dependencies, not the physical layout of your node_modules folder\.
+.P
+When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
+.SH CONFIGURATION
+.SS json
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show information in JSON format\.
+.SS long
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information\.
+.SS parseable
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show parseable output instead of tree view\.
+.SS global
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+List packages in the global install prefix instead of in the current
+project\.
+.SS depth
+.RS 0
+.IP \(bu 2
+Type: Int
+
+.RE
+.P
+Max display depth of the dependency tree\.
+.SS prod / production
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Display only the dependency tree for packages in \fBdependencies\fP\|\.
+.SS dev
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Display only the dependency tree for packages in \fBdevDependencies\fP\|\.
+.SS only
+.RS 0
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+When "dev" or "development", is an alias to \fBdev\fP\|\.
+.P
+When "prod" or "production", is an alias to \fBproduction\fP\|\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help link
+.IP \(bu 2
+npm help prune
+.IP \(bu 2
+npm help outdated
+.IP \(bu 2
+npm help update
+
+.RE
+

@@ -1,0 +1,7 @@
+[{"key":"foo","value":1},{"key":"bar","value":2},{"key":"baz","value":3}]
+[1,2,3]
+
+foo 1
+bar 2
+
+[{"key":"foo","value":1},{"key":"bar","value":2},{"key":"baz","value":3}]

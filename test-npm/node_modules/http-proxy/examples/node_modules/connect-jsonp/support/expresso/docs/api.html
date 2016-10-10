@@ -1,0 +1,1080 @@
+<a href="http://github.com/visionmedia/expresso"><img alt="Fork me on GitHub" id="ribbon" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a><html>
+	<head>
+		<title>Expresso</title>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+		<style>body {
+    margin: 0;
+    padding: 0;
+    font: 14px/1.5 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;
+    color: #252519;
+}
+a {
+    color: #252519;
+}
+a:hover {
+    text-decoration: underline;
+    color: #19469D;
+}
+p {
+    margin: 12px 0;
+}
+h1, h2, h3 {
+    margin: 0;
+    padding: 0;
+}
+table#source {
+    width: 100%;
+    border-collapse: collapse;
+}
+table#source td:first-child {
+    padding: 30px 40px 30px 40px;
+    vertical-align: top;
+}
+table#source td:first-child,
+table#source td:first-child pre {
+    width: 450px;
+}
+table#source td:last-child {
+    padding: 30px 0 30px 40px;
+    border-left: 1px solid #E5E5EE;
+    background: #F5F5FF;
+}
+table#source tr {
+    border-bottom: 1px solid #E5E5EE;
+}
+table#source tr.filename {
+    padding-top: 40px;
+    border-top: 1px solid #E5E5EE;
+}
+table#source tr.filename td:first-child {
+    text-transform: capitalize;
+}
+table#source tr.filename td:last-child {
+    font-size: 12px;
+}
+table#source tr.filename h2 {
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+table#source tr.code h1,
+table#source tr.code h2,
+table#source tr.code h3 {
+    margin-top: 30px;
+    font-family: "Lucida Grande", "Helvetica Nueue", Arial, sans-serif;
+    font-size: 18px;
+}
+table#source tr.code h2 {
+    font-size: 16px;
+}
+table#source tr.code h3 {
+    font-size: 14px;
+}
+table#source tr.code ul {
+    margin: 15px 0 15px 35px;
+    padding: 0;
+}
+table#source tr.code ul li {
+    margin: 0;
+    padding: 1px 0;
+}
+table#source tr.code ul li p {
+    margin: 0;
+    padding: 0;
+}
+table#source tr.code td:first-child pre {
+    padding: 20px;
+}
+#ribbon {
+    position: fixed;
+    top: 0;
+    right: 0;
+}
+code .string { color: #219161; }
+code .regexp { color: #219161; }
+code .keyword { color: #954121; }
+code .number { color: #19469D; }
+code .comment { color: #bbb; }
+code .this { color: #19469D; }</style>
+		<script>
+			$(function(){
+				$('tr.code').hide();
+				$('tr.filename').toggle(function(){
+					$(this).nextUntil('.filename').fadeIn();
+				}, function(){
+					$(this).nextUntil('.filename').fadeOut();
+				});
+			});
+		</script>
+	</head>
+	<body>
+<table id="source"><tbody><tr><td><h1>Expresso</h1><p>Insanely fast TDD framework for <a href="http://nodejs.org">node</a> featuring code coverage reporting.</p></td><td></td></tr><tr class="filename"><td><h2 id="bin/expresso"><a href="#">expresso</a></h2></td><td>bin/expresso</td></tr><tr class="code">
+<td class="docs">
+<h1>!/usr/bin/env node</h1>
+</td>
+<td class="code">
+<pre><code>
+ * <span class="class">Expresso</span>
+ * <span class="class">Copyright</span>(<span class="variable">c</span>) <span class="class">TJ</span> <span class="class">Holowaychuk</span> &<span class="variable">lt</span>;<span class="variable">tj</span>@<span class="variable">vision</span>-<span class="variable">media</span>.<span class="variable">ca</span>&<span class="variable">gt</span>;
+ * (<span class="class">MIT</span> <span class="class">Licensed</span>)
+ </code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Module dependencies.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">assert</span> = <span class="variable">require</span>(<span class="string">'assert'</span>),
+    <span class="variable">childProcess</span> = <span class="variable">require</span>(<span class="string">'child_process'</span>),
+    <span class="variable">http</span> = <span class="variable">require</span>(<span class="string">'http'</span>),
+    <span class="variable">path</span> = <span class="variable">require</span>(<span class="string">'path'</span>),
+    <span class="variable">sys</span> = <span class="variable">require</span>(<span class="string">'sys'</span>),
+    <span class="variable">cwd</span> = <span class="variable">process</span>.<span class="variable">cwd</span>(),
+    <span class="variable">fs</span> = <span class="variable">require</span>(<span class="string">'fs'</span>),
+    <span class="variable">defer</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Expresso version.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">version</span> = <span class="string">'0.6.4'</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Failure count.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">failures</span> = <span class="number integer">0</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Number of tests executed.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">testcount</span> = <span class="number integer">0</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Whitelist of tests to run.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">only</span> = [];</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Boring output.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">boring</span> = <span class="variable">false</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Growl notifications.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">growl</span> = <span class="variable">false</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Server port.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">port</span> = <span class="number integer">5555</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Watch mode.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">watch</span> = <span class="variable">false</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Execute serially.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">serial</span> = <span class="variable">false</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Default timeout.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">timeout</span> = <span class="number integer">2000</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Usage documentation.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">usage</span> = <span class="string">''</span>
+    + <span class="string">'[bold]{Usage}: expresso [options] &lt;file ...&gt;'</span>
+    + <span class="string">'\n'</span>
+    + <span class="string">'\n[bold]{Options}:'</span>
+    + <span class="string">'\n  -w, --watch          Watch for modifications and re-execute tests'</span>
+    + <span class="string">'\n  -g, --growl          Enable growl notifications'</span>
+    + <span class="string">'\n  -c, --coverage       Generate and report test coverage'</span>
+    + <span class="string">'\n  -t, --timeout MS     Timeout in milliseconds, defaults to 2000'</span>
+    + <span class="string">'\n  -r, --require PATH   Require the given module path'</span>
+    + <span class="string">'\n  -o, --only TESTS     Execute only the comma sperated TESTS (can be set several times)'</span>
+    + <span class="string">'\n  -I, --include PATH   Unshift the given path to require.paths'</span>
+    + <span class="string">'\n  -p, --port NUM       Port number for test servers, starts at 5555'</span>
+    + <span class="string">'\n  -s, --serial         Execute tests serially'</span>
+    + <span class="string">'\n  -b, --boring         Suppress ansi-escape colors'</span>
+    + <span class="string">'\n  -v, --version        Output version number'</span>
+    + <span class="string">'\n  -h, --help           Display help information'</span>
+    + <span class="string">'\n'</span>;
+
+<span class="comment">// Parse arguments</span>
+
+<span class="keyword">var</span> <span class="variable">files</span> = [],
+    <span class="variable">args</span> = <span class="variable">process</span>.<span class="variable">argv</span>.<span class="variable">slice</span>(<span class="number integer">2</span>);
+
+<span class="keyword">while</span> (<span class="variable">args</span>.<span class="variable">length</span>) {
+    <span class="keyword">var</span> <span class="variable">arg</span> = <span class="variable">args</span>.<span class="variable">shift</span>();
+    <span class="keyword">switch</span> (<span class="variable">arg</span>) {
+        <span class="keyword">case</span> <span class="string">'-h'</span>:
+        <span class="keyword">case</span> <span class="string">'--help'</span>:
+            <span class="variable">print</span>(<span class="variable">usage</span> + <span class="string">'\n'</span>);
+            <span class="variable">process</span>.<span class="variable">exit</span>(<span class="number integer">1</span>);
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-v'</span>:
+        <span class="keyword">case</span> <span class="string">'--version'</span>:
+            <span class="variable">sys</span>.<span class="variable">puts</span>(<span class="variable">version</span>);
+            <span class="variable">process</span>.<span class="variable">exit</span>(<span class="number integer">1</span>);
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-i'</span>:
+        <span class="keyword">case</span> <span class="string">'-I'</span>:
+        <span class="keyword">case</span> <span class="string">'--include'</span>:
+            <span class="keyword">if</span> (<span class="variable">arg</span> = <span class="variable">args</span>.<span class="variable">shift</span>()) {
+                <span class="variable">require</span>.<span class="variable">paths</span>.<span class="variable">unshift</span>(<span class="variable">arg</span>);
+            } <span class="keyword">else</span> {
+                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class">Error</span>(<span class="string">'--include requires a path'</span>);
+            }
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-o'</span>:
+        <span class="keyword">case</span> <span class="string">'--only'</span>:
+            <span class="keyword">if</span> (<span class="variable">arg</span> = <span class="variable">args</span>.<span class="variable">shift</span>()) {
+                <span class="variable">only</span> = <span class="variable">only</span>.<span class="variable">concat</span>(<span class="variable">arg</span>.<span class="variable">split</span>(<span class="regexp">/ *, */</span>));
+            } <span class="keyword">else</span> {
+                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class">Error</span>(<span class="string">'--only requires comma-separated test names'</span>);
+            }
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-p'</span>:
+        <span class="keyword">case</span> <span class="string">'--port'</span>:
+            <span class="keyword">if</span> (<span class="variable">arg</span> = <span class="variable">args</span>.<span class="variable">shift</span>()) {
+                <span class="variable">port</span> = <span class="variable">parseInt</span>(<span class="variable">arg</span>, <span class="number integer">10</span>);
+            } <span class="keyword">else</span> {
+                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class">Error</span>(<span class="string">'--port requires a number'</span>);
+            }
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-r'</span>:
+        <span class="keyword">case</span> <span class="string">'--require'</span>:
+            <span class="keyword">if</span> (<span class="variable">arg</span> = <span class="variable">args</span>.<span class="variable">shift</span>()) {
+                <span class="variable">require</span>(<span class="variable">arg</span>);
+            } <span class="keyword">else</span> {
+                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class">Error</span>(<span class="string">'--require requires a path'</span>);
+            }
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-t'</span>:
+        <span class="keyword">case</span> <span class="string">'--timeout'</span>:
+          <span class="keyword">if</span> (<span class="variable">arg</span> = <span class="variable">args</span>.<span class="variable">shift</span>()) {
+            <span class="variable">timeout</span> = <span class="variable">parseInt</span>(<span class="variable">arg</span>, <span class="number integer">10</span>);
+          } <span class="keyword">else</span> {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class">Error</span>(<span class="string">'--timeout requires an argument'</span>);
+          }
+          <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-c'</span>:
+        <span class="keyword">case</span> <span class="string">'--cov'</span>:
+        <span class="keyword">case</span> <span class="string">'--coverage'</span>:
+            <span class="variable">defer</span> = <span class="variable">true</span>;
+            <span class="variable">childProcess</span>.<span class="variable">exec</span>(<span class="string">'rm -fr lib-cov &amp;&amp; node-jscoverage lib lib-cov'</span>, <span class="keyword">function</span>(<span class="variable">err</span>){
+                <span class="keyword">if</span> (<span class="variable">err</span>) <span class="keyword">throw</span> <span class="variable">err</span>;
+                <span class="variable">require</span>.<span class="variable">paths</span>.<span class="variable">unshift</span>(<span class="string">'lib-cov'</span>);
+                <span class="variable">run</span>(<span class="variable">files</span>);
+            })
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-b'</span>:
+        <span class="keyword">case</span> <span class="string">'--boring'</span>:
+        	<span class="variable">boring</span> = <span class="variable">true</span>;
+        	<span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-w'</span>:
+        <span class="keyword">case</span> <span class="string">'--watch'</span>:
+            <span class="variable">watch</span> = <span class="variable">true</span>;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-g'</span>:
+        <span class="keyword">case</span> <span class="string">'--growl'</span>:
+            <span class="variable">growl</span> = <span class="variable">true</span>;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="string">'-s'</span>:
+        <span class="keyword">case</span> <span class="string">'--serial'</span>:
+            <span class="variable">serial</span> = <span class="variable">true</span>;
+            <span class="keyword">break</span>;
+        <span class="keyword">default</span>:
+            <span class="keyword">if</span> (<span class="regexp">/\.js$/</span>.<span class="variable">test</span>(<span class="variable">arg</span>)) {
+                <span class="variable">files</span>.<span class="variable">push</span>(<span class="variable">arg</span>);
+            }
+            <span class="keyword">break</span>;
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Colorized sys.error().</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  str</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">print</span>(<span class="variable">str</span>){
+    <span class="variable">sys</span>.<span class="variable">error</span>(<span class="variable">colorize</span>(<span class="variable">str</span>));
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Colorize the given string using ansi-escape sequences.
+Disabled when --boring is set.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  str</p></li><li><p><strong>return</strong>: <em>String</em> </p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">colorize</span>(<span class="variable">str</span>){
+    <span class="keyword">var</span> <span class="variable">colors</span> = { <span class="variable">bold</span>: <span class="number integer">1</span>, <span class="variable">red</span>: <span class="number integer">31</span>, <span class="variable">green</span>: <span class="number integer">32</span>, <span class="variable">yellow</span>: <span class="number integer">33</span> };
+    <span class="keyword">return</span> <span class="variable">str</span>.<span class="variable">replace</span>(<span class="regexp">/\[(\w+)\]\{([^]*?)\}/g</span>, <span class="keyword">function</span>(<span class="variable">_</span>, <span class="variable">color</span>, <span class="variable">str</span>){
+        <span class="keyword">return</span> <span class="variable">boring</span>
+            ? <span class="variable">str</span>
+            : <span class="string">'\x1B['</span> + <span class="variable">colors</span>[<span class="variable">color</span>] + <span class="string">'m'</span> + <span class="variable">str</span> + <span class="string">'\x1B[0m'</span>;
+    });
+}
+
+<span class="comment">// Alias deepEqual as eql for complex equality</span>
+
+<span class="variable">assert</span>.<span class="variable">eql</span> = <span class="variable">assert</span>.<span class="variable">deepEqual</span>;</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>val</code> is null.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Mixed</em>  val</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">isNull</span> = <span class="keyword">function</span>(<span class="variable">val</span>, <span class="variable">msg</span>) {
+    <span class="variable">assert</span>.<span class="variable">strictEqual</span>(<span class="keyword">null</span>, <span class="variable">val</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>val</code> is not null.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Mixed</em>  val</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">isNotNull</span> = <span class="keyword">function</span>(<span class="variable">val</span>, <span class="variable">msg</span>) {
+    <span class="variable">assert</span>.<span class="variable">notStrictEqual</span>(<span class="keyword">null</span>, <span class="variable">val</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>val</code> is undefined.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Mixed</em>  val</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">isUndefined</span> = <span class="keyword">function</span>(<span class="variable">val</span>, <span class="variable">msg</span>) {
+    <span class="variable">assert</span>.<span class="variable">strictEqual</span>(<span class="variable">undefined</span>, <span class="variable">val</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>val</code> is not undefined.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Mixed</em>  val</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">isDefined</span> = <span class="keyword">function</span>(<span class="variable">val</span>, <span class="variable">msg</span>) {
+    <span class="variable">assert</span>.<span class="variable">notStrictEqual</span>(<span class="variable">undefined</span>, <span class="variable">val</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>obj</code> is <code>type</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Mixed</em>  obj</p></li><li><p><strong>param</strong>: <em>String</em>  type</p></li><li><p><strong>api</strong>: <em>public</em></p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">type</span> = <span class="keyword">function</span>(<span class="variable">obj</span>, <span class="variable">type</span>, <span class="variable">msg</span>){
+    <span class="keyword">var</span> <span class="variable">real</span> = <span class="keyword">typeof</span> <span class="variable">obj</span>;
+    <span class="variable">msg</span> = <span class="variable">msg</span> || <span class="string">'typeof '</span> + <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">obj</span>) + <span class="string">' is '</span> + <span class="variable">real</span> + <span class="string">', expected '</span> + <span class="variable">type</span>;
+    <span class="variable">assert</span>.<span class="variable">ok</span>(<span class="variable">type</span> === <span class="variable">real</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>str</code> matches <code>regexp</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  str</p></li><li><p><strong>param</strong>: <em>RegExp</em>  regexp</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">match</span> = <span class="keyword">function</span>(<span class="variable">str</span>, <span class="variable">regexp</span>, <span class="variable">msg</span>) {
+    <span class="variable">msg</span> = <span class="variable">msg</span> || <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">str</span>) + <span class="string">' does not match '</span> + <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">regexp</span>);
+    <span class="variable">assert</span>.<span class="variable">ok</span>(<span class="variable">regexp</span>.<span class="variable">test</span>(<span class="variable">str</span>), <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert that <code>val</code> is within <code>obj</code>.</p>
+
+<h2>Examples</h2>
+
+<p>   assert.includes('foobar', 'bar');
+   assert.includes(['foo', 'bar'], 'foo');</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String | Array</em>  obj</p></li><li><p><strong>param</strong>: <em>Mixed</em>  val</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">includes</span> = <span class="keyword">function</span>(<span class="variable">obj</span>, <span class="variable">val</span>, <span class="variable">msg</span>) {
+    <span class="variable">msg</span> = <span class="variable">msg</span> || <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">obj</span>) + <span class="string">' does not include '</span> + <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">val</span>);
+    <span class="variable">assert</span>.<span class="variable">ok</span>(<span class="variable">obj</span>.<span class="variable">indexOf</span>(<span class="variable">val</span>) &<span class="variable">gt</span>;= <span class="number integer">0</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert length of <code>val</code> is <code>n</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Mixed</em>  val</p></li><li><p><strong>param</strong>: <em>Number</em>  n</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">length</span> = <span class="keyword">function</span>(<span class="variable">val</span>, <span class="variable">n</span>, <span class="variable">msg</span>) {
+    <span class="variable">msg</span> = <span class="variable">msg</span> || <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">val</span>) + <span class="string">' has length of '</span> + <span class="variable">val</span>.<span class="variable">length</span> + <span class="string">', expected '</span> + <span class="variable">n</span>;
+    <span class="variable">assert</span>.<span class="variable">equal</span>(<span class="variable">n</span>, <span class="variable">val</span>.<span class="variable">length</span>, <span class="variable">msg</span>);
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Assert response from <code>server</code> with
+the given <code>req</code> object and <code>res</code> assertions object.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Server</em>  server</p></li><li><p><strong>param</strong>: <em>Object</em>  req</p></li><li><p><strong>param</strong>: <em>Object | Function</em>  res</p></li><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="variable">assert</span>.<span class="variable">response</span> = <span class="keyword">function</span>(<span class="variable">server</span>, <span class="variable">req</span>, <span class="variable">res</span>, <span class="variable">msg</span>){
+    <span class="comment">// Callback as third or fourth arg</span>
+    <span class="keyword">var</span> <span class="variable">callback</span> = <span class="keyword">typeof</span> <span class="variable">res</span> === <span class="string">'function'</span>
+        ? <span class="variable">res</span>
+        : <span class="keyword">typeof</span> <span class="variable">msg</span> === <span class="string">'function'</span>
+            ? <span class="variable">msg</span>
+            : <span class="keyword">function</span>(){};
+
+    <span class="comment">// Default messate to test title</span>
+    <span class="keyword">if</span> (<span class="keyword">typeof</span> <span class="variable">msg</span> === <span class="string">'function'</span>) <span class="variable">msg</span> = <span class="keyword">null</span>;
+    <span class="variable">msg</span> = <span class="variable">msg</span> || <span class="variable">assert</span>.<span class="variable">testTitle</span>;
+    <span class="variable">msg</span> += <span class="string">'. '</span>;
+
+    <span class="comment">// Pending responses</span>
+    <span class="variable">server</span>.<span class="variable">__pending</span> = <span class="variable">server</span>.<span class="variable">__pending</span> || <span class="number integer">0</span>;
+    <span class="variable">server</span>.<span class="variable">__pending</span>++;
+
+    <span class="comment">// Create client</span>
+    <span class="keyword">if</span> (!<span class="variable">server</span>.<span class="variable">fd</span>) {
+        <span class="variable">server</span>.<span class="variable">listen</span>(<span class="variable">server</span>.<span class="variable">__port</span> = <span class="variable">port</span>++, <span class="string">'127.0.0.1'</span>);
+        <span class="variable">server</span>.<span class="variable">client</span> = <span class="variable">http</span>.<span class="variable">createClient</span>(<span class="variable">server</span>.<span class="variable">__port</span>);
+    }
+
+    <span class="comment">// Issue request</span>
+    <span class="keyword">var</span> <span class="variable">timer</span>,
+        <span class="variable">client</span> = <span class="variable">server</span>.<span class="variable">client</span>,
+        <span class="variable">method</span> = <span class="variable">req</span>.<span class="variable">method</span> || <span class="string">'GET'</span>,
+        <span class="variable">status</span> = <span class="variable">res</span>.<span class="variable">status</span> || <span class="variable">res</span>.<span class="variable">statusCode</span>,
+        <span class="variable">data</span> = <span class="variable">req</span>.<span class="variable">data</span> || <span class="variable">req</span>.<span class="variable">body</span>,
+        <span class="variable">requestTimeout</span> = <span class="variable">req</span>.<span class="variable">timeout</span> || <span class="number integer">0</span>;
+
+    <span class="keyword">var</span> <span class="variable">request</span> = <span class="variable">client</span>.<span class="variable">request</span>(<span class="variable">method</span>, <span class="variable">req</span>.<span class="variable">url</span>, <span class="variable">req</span>.<span class="variable">headers</span>);
+
+    <span class="comment">// Timeout</span>
+    <span class="keyword">if</span> (<span class="variable">requestTimeout</span>) {
+        <span class="variable">timer</span> = <span class="variable">setTimeout</span>(<span class="keyword">function</span>(){
+            --<span class="variable">server</span>.<span class="variable">__pending</span> || <span class="variable">server</span>.<span class="variable">close</span>();
+            <span class="keyword">delete</span> <span class="variable">req</span>.<span class="variable">timeout</span>;
+            <span class="variable">assert</span>.<span class="variable">fail</span>(<span class="variable">msg</span> + <span class="string">'Request timed out after '</span> + <span class="variable">requestTimeout</span> + <span class="string">'ms.'</span>);
+        }, <span class="variable">requestTimeout</span>);
+    }
+
+    <span class="keyword">if</span> (<span class="variable">data</span>) <span class="variable">request</span>.<span class="variable">write</span>(<span class="variable">data</span>);
+    <span class="variable">request</span>.<span class="variable">addListener</span>(<span class="string">'response'</span>, <span class="keyword">function</span>(<span class="variable">response</span>){
+        <span class="variable">response</span>.<span class="variable">body</span> = <span class="string">''</span>;
+        <span class="variable">response</span>.<span class="variable">setEncoding</span>(<span class="string">'utf8'</span>);
+        <span class="variable">response</span>.<span class="variable">addListener</span>(<span class="string">'data'</span>, <span class="keyword">function</span>(<span class="variable">chunk</span>){ <span class="variable">response</span>.<span class="variable">body</span> += <span class="variable">chunk</span>; });
+        <span class="variable">response</span>.<span class="variable">addListener</span>(<span class="string">'end'</span>, <span class="keyword">function</span>(){
+            --<span class="variable">server</span>.<span class="variable">__pending</span> || <span class="variable">server</span>.<span class="variable">close</span>();
+            <span class="keyword">if</span> (<span class="variable">timer</span>) <span class="variable">clearTimeout</span>(<span class="variable">timer</span>);
+
+            <span class="comment">// Assert response body</span>
+            <span class="keyword">if</span> (<span class="variable">res</span>.<span class="variable">body</span> !== <span class="variable">undefined</span>) {
+                <span class="keyword">var</span> <span class="variable">eql</span> = <span class="variable">res</span>.<span class="variable">body</span> <span class="variable">instanceof</span> <span class="class">RegExp</span>
+                  ? <span class="variable">res</span>.<span class="variable">body</span>.<span class="variable">test</span>(<span class="variable">response</span>.<span class="variable">body</span>)
+                  : <span class="variable">res</span>.<span class="variable">body</span> === <span class="variable">response</span>.<span class="variable">body</span>;
+                <span class="variable">assert</span>.<span class="variable">ok</span>(
+                    <span class="variable">eql</span>,
+                    <span class="variable">msg</span> + <span class="string">'Invalid response body.\n'</span>
+                        + <span class="string">'    Expected: '</span> + <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">res</span>.<span class="variable">body</span>) + <span class="string">'\n'</span>
+                        + <span class="string">'    Got: '</span> + <span class="variable">sys</span>.<span class="variable">inspect</span>(<span class="variable">response</span>.<span class="variable">body</span>)
+                );
+            }
+
+            <span class="comment">// Assert response status</span>
+            <span class="keyword">if</span> (<span class="keyword">typeof</span> <span class="variable">status</span> === <span class="string">'number'</span>) {
+                <span class="variable">assert</span>.<span class="variable">equal</span>(
+                    <span class="variable">response</span>.<span class="variable">statusCode</span>,
+                    <span class="variable">status</span>,
+                    <span class="variable">msg</span> + <span class="variable">colorize</span>(<span class="string">'Invalid response status code.\n'</span>
+                        + <span class="string">'    Expected: [green]{'</span> + <span class="variable">status</span> + <span class="string">'}\n'</span>
+                        + <span class="string">'    Got: [red]{'</span> + <span class="variable">response</span>.<span class="variable">statusCode</span> + <span class="string">'}'</span>)
+                );
+            }
+
+            <span class="comment">// Assert response headers</span>
+            <span class="keyword">if</span> (<span class="variable">res</span>.<span class="variable">headers</span>) {
+                <span class="keyword">var</span> <span class="variable">keys</span> = <span class="class">Object</span>.<span class="variable">keys</span>(<span class="variable">res</span>.<span class="variable">headers</span>);
+                <span class="keyword">for</span> (<span class="keyword">var</span> <span class="variable">i</span> = <span class="number integer">0</span>, <span class="variable">len</span> = <span class="variable">keys</span>.<span class="variable">length</span>; <span class="variable">i</span> &<span class="variable">lt</span>; <span class="variable">len</span>; ++<span class="variable">i</span>) {
+                    <span class="keyword">var</span> <span class="variable">name</span> = <span class="variable">keys</span>[<span class="variable">i</span>],
+                        <span class="variable">actual</span> = <span class="variable">response</span>.<span class="variable">headers</span>[<span class="variable">name</span>.<span class="variable">toLowerCase</span>()],
+                        <span class="variable">expected</span> = <span class="variable">res</span>.<span class="variable">headers</span>[<span class="variable">name</span>],
+                        <span class="variable">eql</span> = <span class="variable">expected</span> <span class="variable">instanceof</span> <span class="class">RegExp</span>
+                          ? <span class="variable">expected</span>.<span class="variable">test</span>(<span class="variable">actual</span>)
+                          : <span class="variable">expected</span> == <span class="variable">actual</span>;
+                    <span class="variable">assert</span>.<span class="variable">ok</span>(
+                        <span class="variable">eql</span>,
+                        <span class="variable">msg</span> + <span class="variable">colorize</span>(<span class="string">'Invalid response header [bold]{'</span> + <span class="variable">name</span> + <span class="string">'}.\n'</span>
+                            + <span class="string">'    Expected: [green]{'</span> + <span class="variable">expected</span> + <span class="string">'}\n'</span>
+                            + <span class="string">'    Got: [red]{'</span> + <span class="variable">actual</span> + <span class="string">'}'</span>)
+                    );
+                }
+            }
+
+            <span class="comment">// Callback</span>
+            <span class="variable">callback</span>(<span class="variable">response</span>);
+        });
+    });
+    <span class="variable">request</span>.<span class="variable">end</span>();
+};</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Pad the given string to the maximum width provided.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  str</p></li><li><p><strong>param</strong>: <em>Number</em>  width</p></li><li><p><strong>return</strong>: <em>String</em> </p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">lpad</span>(<span class="variable">str</span>, <span class="variable">width</span>) {
+    <span class="variable">str</span> = <span class="class">String</span>(<span class="variable">str</span>);
+    <span class="keyword">var</span> <span class="variable">n</span> = <span class="variable">width</span> - <span class="variable">str</span>.<span class="variable">length</span>;
+    <span class="keyword">if</span> (<span class="variable">n</span> &<span class="variable">lt</span>; <span class="number integer">1</span>) <span class="keyword">return</span> <span class="variable">str</span>;
+    <span class="keyword">while</span> (<span class="variable">n</span>--) <span class="variable">str</span> = <span class="string">' '</span> + <span class="variable">str</span>;
+    <span class="keyword">return</span> <span class="variable">str</span>;
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Pad the given string to the maximum width provided.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  str</p></li><li><p><strong>param</strong>: <em>Number</em>  width</p></li><li><p><strong>return</strong>: <em>String</em> </p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">rpad</span>(<span class="variable">str</span>, <span class="variable">width</span>) {
+    <span class="variable">str</span> = <span class="class">String</span>(<span class="variable">str</span>);
+    <span class="keyword">var</span> <span class="variable">n</span> = <span class="variable">width</span> - <span class="variable">str</span>.<span class="variable">length</span>;
+    <span class="keyword">if</span> (<span class="variable">n</span> &<span class="variable">lt</span>; <span class="number integer">1</span>) <span class="keyword">return</span> <span class="variable">str</span>;
+    <span class="keyword">while</span> (<span class="variable">n</span>--) <span class="variable">str</span> = <span class="variable">str</span> + <span class="string">' '</span>;
+    <span class="keyword">return</span> <span class="variable">str</span>;
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Report test coverage.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Object</em>  cov</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">reportCoverage</span>(<span class="variable">cov</span>) {
+    <span class="variable">populateCoverage</span>(<span class="variable">cov</span>);
+    <span class="comment">// Stats</span>
+    <span class="variable">print</span>(<span class="string">'\n   [bold]{Test Coverage}\n'</span>);
+    <span class="keyword">var</span> <span class="variable">sep</span> = <span class="string">'   +------------------------------------------+----------+------+------+--------+'</span>,
+        <span class="variable">lastSep</span> = <span class="string">'                                              +----------+------+------+--------+'</span>;
+    <span class="variable">sys</span>.<span class="variable">puts</span>(<span class="variable">sep</span>);
+    <span class="variable">sys</span>.<span class="variable">puts</span>(<span class="string">'   | filename                                 | coverage | LOC  | SLOC | missed |'</span>);
+    <span class="variable">sys</span>.<span class="variable">puts</span>(<span class="variable">sep</span>);
+    <span class="keyword">for</span> (<span class="keyword">var</span> <span class="variable">name</span> <span class="keyword">in</span> <span class="variable">cov</span>) {
+        <span class="keyword">var</span> <span class="variable">file</span> = <span class="variable">cov</span>[<span class="variable">name</span>];
+        <span class="keyword">if</span> (<span class="class">Array</span>.<span class="variable">isArray</span>(<span class="variable">file</span>)) {
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'   | '</span> + <span class="variable">rpad</span>(<span class="variable">name</span>, <span class="number integer">40</span>));
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">file</span>.<span class="variable">coverage</span>.<span class="variable">toFixed</span>(<span class="number integer">2</span>), <span class="number integer">8</span>));
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">file</span>.<span class="class">LOC</span>, <span class="number integer">4</span>));
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">file</span>.<span class="class">SLOC</span>, <span class="number integer">4</span>));
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">file</span>.<span class="variable">totalMisses</span>, <span class="number integer">6</span>));
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' |\n'</span>);
+        }
+    }
+    <span class="variable">sys</span>.<span class="variable">puts</span>(<span class="variable">sep</span>);
+    <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'     '</span> + <span class="variable">rpad</span>(<span class="string">''</span>, <span class="number integer">40</span>));
+    <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">cov</span>.<span class="variable">coverage</span>.<span class="variable">toFixed</span>(<span class="number integer">2</span>), <span class="number integer">8</span>));
+    <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">cov</span>.<span class="class">LOC</span>, <span class="number integer">4</span>));
+    <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">cov</span>.<span class="class">SLOC</span>, <span class="number integer">4</span>));
+    <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' | '</span> + <span class="variable">lpad</span>(<span class="variable">cov</span>.<span class="variable">totalMisses</span>, <span class="number integer">6</span>));
+    <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">' |\n'</span>);
+    <span class="variable">sys</span>.<span class="variable">puts</span>(<span class="variable">lastSep</span>);
+    <span class="comment">// Source</span>
+    <span class="keyword">for</span> (<span class="keyword">var</span> <span class="variable">name</span> <span class="keyword">in</span> <span class="variable">cov</span>) {
+        <span class="keyword">if</span> (<span class="variable">name</span>.<span class="variable">match</span>(<span class="regexp">/\.js$/</span>)) {
+            <span class="keyword">var</span> <span class="variable">file</span> = <span class="variable">cov</span>[<span class="variable">name</span>];
+            <span class="variable">print</span>(<span class="string">'\n   [bold]{'</span> + <span class="variable">name</span> + <span class="string">'}:'</span>);
+            <span class="variable">print</span>(<span class="variable">file</span>.<span class="variable">source</span>);
+            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'\n'</span>);
+        }
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Populate code coverage data.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Object</em>  cov</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">populateCoverage</span>(<span class="variable">cov</span>) {
+    <span class="variable">cov</span>.<span class="class">LOC</span> = 
+    <span class="variable">cov</span>.<span class="class">SLOC</span> =
+    <span class="variable">cov</span>.<span class="variable">totalFiles</span> =
+    <span class="variable">cov</span>.<span class="variable">totalHits</span> =
+    <span class="variable">cov</span>.<span class="variable">totalMisses</span> = 
+    <span class="variable">cov</span>.<span class="variable">coverage</span> = <span class="number integer">0</span>;
+    <span class="keyword">for</span> (<span class="keyword">var</span> <span class="variable">name</span> <span class="keyword">in</span> <span class="variable">cov</span>) {
+        <span class="keyword">var</span> <span class="variable">file</span> = <span class="variable">cov</span>[<span class="variable">name</span>];
+        <span class="keyword">if</span> (<span class="class">Array</span>.<span class="variable">isArray</span>(<span class="variable">file</span>)) {
+            <span class="comment">// Stats</span>
+            ++<span class="variable">cov</span>.<span class="variable">totalFiles</span>;
+            <span class="variable">cov</span>.<span class="variable">totalHits</span> += <span class="variable">file</span>.<span class="variable">totalHits</span> = <span class="variable">coverage</span>(<span class="variable">file</span>, <span class="variable">true</span>);
+            <span class="variable">cov</span>.<span class="variable">totalMisses</span> += <span class="variable">file</span>.<span class="variable">totalMisses</span> = <span class="variable">coverage</span>(<span class="variable">file</span>, <span class="variable">false</span>);
+            <span class="variable">file</span>.<span class="variable">totalLines</span> = <span class="variable">file</span>.<span class="variable">totalHits</span> + <span class="variable">file</span>.<span class="variable">totalMisses</span>;
+            <span class="variable">cov</span>.<span class="class">SLOC</span> += <span class="variable">file</span>.<span class="class">SLOC</span> = <span class="variable">file</span>.<span class="variable">totalLines</span>;
+            <span class="keyword">if</span> (!<span class="variable">file</span>.<span class="variable">source</span>) <span class="variable">file</span>.<span class="variable">source</span> = [];
+            <span class="variable">cov</span>.<span class="class">LOC</span> += <span class="variable">file</span>.<span class="class">LOC</span> = <span class="variable">file</span>.<span class="variable">source</span>.<span class="variable">length</span>;
+            <span class="variable">file</span>.<span class="variable">coverage</span> = (<span class="variable">file</span>.<span class="variable">totalHits</span> / <span class="variable">file</span>.<span class="variable">totalLines</span>) * <span class="number integer">100</span>;
+            <span class="comment">// Source</span>
+            <span class="keyword">var</span> <span class="variable">width</span> = <span class="variable">file</span>.<span class="variable">source</span>.<span class="variable">length</span>.<span class="variable">toString</span>().<span class="variable">length</span>;
+            <span class="variable">file</span>.<span class="variable">source</span> = <span class="variable">file</span>.<span class="variable">source</span>.<span class="variable">map</span>(<span class="keyword">function</span>(<span class="variable">line</span>, <span class="variable">i</span>){
+                ++<span class="variable">i</span>;
+                <span class="keyword">var</span> <span class="variable">hits</span> = <span class="variable">file</span>[<span class="variable">i</span>] === <span class="number integer">0</span> ? <span class="number integer">0</span> : (<span class="variable">file</span>[<span class="variable">i</span>] || <span class="string">' '</span>);
+                <span class="keyword">if</span> (!<span class="variable">boring</span>) {
+                    <span class="keyword">if</span> (<span class="variable">hits</span> === <span class="number integer">0</span>) {
+                        <span class="variable">hits</span> = <span class="string">'\x1b[31m'</span> + <span class="variable">hits</span> + <span class="string">'\x1b[0m'</span>;
+                        <span class="variable">line</span> = <span class="string">'\x1b[41m'</span> + <span class="variable">line</span> + <span class="string">'\x1b[0m'</span>;
+                    } <span class="keyword">else</span> {
+                        <span class="variable">hits</span> = <span class="string">'\x1b[32m'</span> + <span class="variable">hits</span> + <span class="string">'\x1b[0m'</span>;
+                    }
+                }
+                <span class="keyword">return</span> <span class="string">'\n     '</span> + <span class="variable">lpad</span>(<span class="variable">i</span>, <span class="variable">width</span>) + <span class="string">' | '</span> + <span class="variable">hits</span> + <span class="string">' | '</span> + <span class="variable">line</span>;
+            }).<span class="variable">join</span>(<span class="string">''</span>);
+        }
+    }
+    <span class="variable">cov</span>.<span class="variable">coverage</span> = (<span class="variable">cov</span>.<span class="variable">totalHits</span> / <span class="variable">cov</span>.<span class="class">SLOC</span>) * <span class="number integer">100</span>;
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Total coverage for the given file data.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Array</em>  data</p></li><li><p><strong>return</strong>: <em>Type</em> </p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">coverage</span>(<span class="variable">data</span>, <span class="variable">val</span>) {
+    <span class="keyword">var</span> <span class="variable">n</span> = <span class="number integer">0</span>;
+    <span class="keyword">for</span> (<span class="keyword">var</span> <span class="variable">i</span> = <span class="number integer">0</span>, <span class="variable">len</span> = <span class="variable">data</span>.<span class="variable">length</span>; <span class="variable">i</span> &<span class="variable">lt</span>; <span class="variable">len</span>; ++<span class="variable">i</span>) {
+        <span class="keyword">if</span> (<span class="variable">data</span>[<span class="variable">i</span>] !== <span class="variable">undefined</span> &<span class="variable">amp</span>;&<span class="variable">amp</span>; <span class="variable">data</span>[<span class="variable">i</span>] == <span class="variable">val</span>) ++<span class="variable">n</span>;
+    }
+    <span class="keyword">return</span> <span class="variable">n</span>;  
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Run the given test <code>files</code>, or try <em>test/*</em>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Array</em>  files</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">run</span>(<span class="variable">files</span>) {
+    <span class="keyword">if</span> (!<span class="variable">files</span>.<span class="variable">length</span>) {
+        <span class="keyword">try</span> {
+            <span class="variable">files</span> = <span class="variable">fs</span>.<span class="variable">readdirSync</span>(<span class="string">'test'</span>).<span class="variable">map</span>(<span class="keyword">function</span>(<span class="variable">file</span>){
+                <span class="keyword">return</span> <span class="string">'test/'</span> + <span class="variable">file</span>;
+            });
+        } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+            <span class="variable">print</span>(<span class="string">'\n  failed to load tests in [bold]{./test}\n'</span>);
+            ++<span class="variable">failures</span>;
+            <span class="variable">process</span>.<span class="variable">exit</span>(<span class="number integer">1</span>);
+        }
+    }
+    <span class="keyword">if</span> (<span class="variable">watch</span>) <span class="variable">watchFiles</span>(<span class="variable">files</span>);
+    <span class="variable">runFiles</span>(<span class="variable">files</span>);
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Show the cursor when <code>show</code> is true, otherwise hide it.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Boolean</em>  show</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">cursor</span>(<span class="variable">show</span>) {
+    <span class="keyword">if</span> (<span class="variable">show</span>) {
+        <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'\x1b[?25h'</span>);
+    } <span class="keyword">else</span> {
+        <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'\x1b[?25l'</span>);
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Run the given test <code>files</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Array</em>  files</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">runFiles</span>(<span class="variable">files</span>) {
+    <span class="keyword">if</span> (<span class="variable">serial</span>) {
+        (<span class="keyword">function</span> <span class="variable">next</span>(){
+            <span class="keyword">if</span> (<span class="variable">files</span>.<span class="variable">length</span>) {
+                <span class="variable">runFile</span>(<span class="variable">files</span>.<span class="variable">shift</span>(), <span class="variable">next</span>);
+            }
+        })();
+    } <span class="keyword">else</span> {
+      <span class="variable">files</span>.<span class="variable">forEach</span>(<span class="variable">runFile</span>);
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Run tests for the given <code>file</code>, callback <code>fn()</code> when finished.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  file</p></li><li><p><strong>param</strong>: <em>Function</em>  fn</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">runFile</span>(<span class="variable">file</span>, <span class="variable">fn</span>) {
+    <span class="keyword">if</span> (<span class="variable">file</span>.<span class="variable">match</span>(<span class="regexp">/\.js$/</span>)) {
+        <span class="keyword">var</span> <span class="variable">title</span> = <span class="variable">path</span>.<span class="variable">basename</span>(<span class="variable">file</span>),
+            <span class="variable">file</span> = <span class="variable">path</span>.<span class="variable">join</span>(<span class="variable">cwd</span>, <span class="variable">file</span>),
+            <span class="variable">mod</span> = <span class="variable">require</span>(<span class="variable">file</span>.<span class="variable">replace</span>(<span class="regexp">/\.js$/</span>, <span class="string">''</span>));
+        (<span class="keyword">function</span> <span class="variable">check</span>(){
+           <span class="keyword">var</span> <span class="variable">len</span> = <span class="class">Object</span>.<span class="variable">keys</span>(<span class="variable">mod</span>).<span class="variable">length</span>;
+           <span class="keyword">if</span> (<span class="variable">len</span>) {
+               <span class="variable">runSuite</span>(<span class="variable">title</span>, <span class="variable">mod</span>, <span class="variable">fn</span>);
+           } <span class="keyword">else</span> {
+               <span class="variable">setTimeout</span>(<span class="variable">check</span>, <span class="number integer">20</span>);
+           }
+        })();
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Clear the module cache for the given <code>file</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  file</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">clearCache</span>(<span class="variable">file</span>) {
+    <span class="keyword">var</span> <span class="variable">keys</span> = <span class="class">Object</span>.<span class="variable">keys</span>(<span class="variable">module</span>.<span class="variable">moduleCache</span>);
+    <span class="keyword">for</span> (<span class="keyword">var</span> <span class="variable">i</span> = <span class="number integer">0</span>, <span class="variable">len</span> = <span class="variable">keys</span>.<span class="variable">length</span>; <span class="variable">i</span> &<span class="variable">lt</span>; <span class="variable">len</span>; ++<span class="variable">i</span>) {
+        <span class="keyword">var</span> <span class="variable">key</span> = <span class="variable">keys</span>[<span class="variable">i</span>];
+        <span class="keyword">if</span> (<span class="variable">key</span>.<span class="variable">indexOf</span>(<span class="variable">file</span>) === <span class="variable">key</span>.<span class="variable">length</span> - <span class="variable">file</span>.<span class="variable">length</span>) {
+            <span class="keyword">delete</span> <span class="variable">module</span>.<span class="variable">moduleCache</span>[<span class="variable">key</span>];
+        }
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Watch the given <code>files</code> for changes.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>Array</em>  files</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">watchFiles</span>(<span class="variable">files</span>) {
+    <span class="keyword">var</span> <span class="variable">p</span> = <span class="number integer">0</span>,
+        <span class="variable">c</span> = [<span class="string">'▫   '</span>, <span class="string">'▫▫  '</span>, <span class="string">'▫▫▫ '</span>, <span class="string">' ▫▫▫'</span>,
+             <span class="string">'  ▫▫'</span>, <span class="string">'   ▫'</span>, <span class="string">'   ▫'</span>, <span class="string">'  ▫▫'</span>,
+             <span class="string">'▫▫▫ '</span>, <span class="string">'▫▫  '</span>, <span class="string">'▫   '</span>],
+        <span class="variable">l</span> = <span class="variable">c</span>.<span class="variable">length</span>;
+    <span class="variable">cursor</span>(<span class="variable">false</span>);
+    <span class="variable">setInterval</span>(<span class="keyword">function</span>(){
+        <span class="variable">sys</span>.<span class="variable">print</span>(<span class="variable">colorize</span>(<span class="string">'  [green]{'</span> + <span class="variable">c</span>[<span class="variable">p</span>++ % <span class="variable">l</span>] + <span class="string">'} watching\r'</span>));
+    }, <span class="number integer">100</span>);
+    <span class="variable">files</span>.<span class="variable">forEach</span>(<span class="keyword">function</span>(<span class="variable">file</span>){
+        <span class="variable">fs</span>.<span class="variable">watchFile</span>(<span class="variable">file</span>, { <span class="variable">interval</span>: <span class="number integer">100</span> }, <span class="keyword">function</span>(<span class="variable">curr</span>, <span class="variable">prev</span>){
+            <span class="keyword">if</span> (<span class="variable">curr</span>.<span class="variable">mtime</span> &<span class="variable">gt</span>; <span class="variable">prev</span>.<span class="variable">mtime</span>) {
+                <span class="variable">print</span>(<span class="string">'  [yellow]{◦} '</span> + <span class="variable">file</span>);
+                <span class="variable">clearCache</span>(<span class="variable">file</span>);
+                <span class="variable">runFile</span>(<span class="variable">file</span>);
+            }
+        });
+    });
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Report <code>err</code> for the given <code>test</code> and <code>suite</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  suite</p></li><li><p><strong>param</strong>: <em>String</em>  test</p></li><li><p><strong>param</strong>: <em>Error</em>  err</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">error</span>(<span class="variable">suite</span>, <span class="variable">test</span>, <span class="variable">err</span>) {
+    ++<span class="variable">failures</span>;
+    <span class="keyword">var</span> <span class="variable">name</span> = <span class="variable">err</span>.<span class="variable">name</span>,
+        <span class="variable">stack</span> = <span class="variable">err</span>.<span class="variable">stack</span>.<span class="variable">replace</span>(<span class="variable">err</span>.<span class="variable">name</span>, <span class="string">''</span>),
+        <span class="keyword">label</span> = <span class="variable">test</span> === <span class="string">'uncaught'</span>
+            ? <span class="variable">test</span>
+            : <span class="variable">suite</span> + <span class="string">' '</span> + <span class="variable">test</span>;
+    <span class="variable">print</span>(<span class="string">'\n   [bold]{'</span> + <span class="keyword">label</span> + <span class="string">'}: [red]{'</span> + <span class="variable">name</span> + <span class="string">'}'</span> + <span class="variable">stack</span> + <span class="string">'\n'</span>);
+    <span class="keyword">if</span> (<span class="variable">watch</span>) <span class="variable">notify</span>(<span class="keyword">label</span> + <span class="string">' failed'</span>);
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Run the given tests, callback <code>fn()</code> when finished.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  title</p></li><li><p><strong>param</strong>: <em>Object</em>  tests</p></li><li><p><strong>param</strong>: <em>Function</em>  fn</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">var</span> <span class="variable">dots</span> = <span class="number integer">0</span>;
+<span class="keyword">function</span> <span class="variable">runSuite</span>(<span class="variable">title</span>, <span class="variable">tests</span>, <span class="variable">fn</span>) {
+    <span class="comment">// Keys</span>
+    <span class="keyword">var</span> <span class="variable">keys</span> = <span class="variable">only</span>.<span class="variable">length</span>
+        ? <span class="variable">only</span>.<span class="variable">slice</span>(<span class="number integer">0</span>)
+        : <span class="class">Object</span>.<span class="variable">keys</span>(<span class="variable">tests</span>);
+
+    <span class="comment">// Setup</span>
+    <span class="keyword">var</span> <span class="variable">setup</span> = <span class="variable">tests</span>.<span class="variable">setup</span> || <span class="keyword">function</span>(<span class="variable">fn</span>){ <span class="variable">fn</span>(); };
+
+    <span class="comment">// Iterate tests</span>
+    (<span class="keyword">function</span> <span class="variable">next</span>(){
+        <span class="keyword">if</span> (<span class="variable">keys</span>.<span class="variable">length</span>) {
+            <span class="keyword">var</span> <span class="variable">key</span>,
+                <span class="variable">test</span> = <span class="variable">tests</span>[<span class="variable">key</span> = <span class="variable">keys</span>.<span class="variable">shift</span>()];
+            <span class="comment">// Non-tests</span>
+            <span class="keyword">if</span> (<span class="variable">key</span> === <span class="string">'setup'</span>) <span class="keyword">return</span> <span class="variable">next</span>();
+
+            <span class="comment">// Run test</span>
+            <span class="keyword">if</span> (<span class="variable">test</span>) {
+                <span class="keyword">try</span> {
+                    ++<span class="variable">testcount</span>;
+                    <span class="variable">assert</span>.<span class="variable">testTitle</span> = <span class="variable">key</span>;
+                    <span class="keyword">if</span> (<span class="variable">serial</span>) {
+                        <span class="keyword">if</span> (!<span class="variable">watch</span>) {
+                            <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'.'</span>);
+                            <span class="keyword">if</span> (++<span class="variable">dots</span> % <span class="number integer">25</span> === <span class="number integer">0</span>) <span class="variable">sys</span>.<span class="variable">print</span>(<span class="string">'\n'</span>);
+                        }
+                        <span class="variable">setup</span>(<span class="keyword">function</span>(){
+                            <span class="keyword">if</span> (<span class="variable">test</span>.<span class="variable">length</span> &<span class="variable">lt</span>; <span class="number integer">1</span>) {
+                                <span class="variable">test</span>();
+                                <span class="variable">next</span>();
+                            } <span class="keyword">else</span> {
+                                <span class="keyword">var</span> <span class="variable">id</span> = <span class="variable">setTimeout</span>(<span class="keyword">function</span>(){
+                                    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class">Error</span>(&<span class="variable">quot</span>;<span class="string">'&quot; + key + &quot;'</span> <span class="variable">timed</span> <span class="variable">out</span>&<span class="variable">quot</span>;);
+                                }, <span class="variable">timeout</span>);
+                                <span class="variable">test</span>(<span class="keyword">function</span>(){
+                                    <span class="variable">clearTimeout</span>(<span class="variable">id</span>);
+                                    <span class="variable">next</span>();
+                                });
+                            } 
+                        });
+                    } <span class="keyword">else</span> {
+                        <span class="variable">test</span>(<span class="keyword">function</span>(<span class="variable">fn</span>){
+                            <span class="variable">process</span>.<span class="variable">addListener</span>(<span class="string">'beforeExit'</span>, <span class="keyword">function</span>(){
+                                <span class="keyword">try</span> {
+                                    <span class="variable">fn</span>();
+                                } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+                                    <span class="variable">error</span>(<span class="variable">title</span>, <span class="variable">key</span>, <span class="variable">err</span>);
+                                }
+                            });
+                        });
+                    }
+                } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+                    <span class="variable">error</span>(<span class="variable">title</span>, <span class="variable">key</span>, <span class="variable">err</span>);
+                }
+            }
+            <span class="keyword">if</span> (!<span class="variable">serial</span>) <span class="variable">next</span>();
+        } <span class="keyword">else</span> <span class="keyword">if</span> (<span class="variable">serial</span>) {
+          <span class="variable">fn</span>();
+        }
+    })();
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Report exceptions.
+ </p>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">report</span>() {
+    <span class="variable">process</span>.<span class="variable">emit</span>(<span class="string">'beforeExit'</span>);
+    <span class="keyword">if</span> (<span class="variable">failures</span>) {
+        <span class="variable">print</span>(<span class="string">'\n   [bold]{Failures}: [red]{'</span> + <span class="variable">failures</span> + <span class="string">'}\n\n'</span>);
+        <span class="variable">notify</span>(<span class="string">'Failures: '</span> + <span class="variable">failures</span>);
+    } <span class="keyword">else</span> {
+        <span class="keyword">if</span> (<span class="variable">serial</span>) <span class="variable">print</span>(<span class="string">''</span>);
+        <span class="variable">print</span>(<span class="string">'\n   [green]{100%} '</span> + <span class="variable">testcount</span> + <span class="string">' tests\n'</span>);
+        <span class="variable">notify</span>(<span class="string">'100% ok'</span>);
+    }
+    <span class="keyword">if</span> (<span class="keyword">typeof</span> <span class="variable">_</span>$<span class="variable">jscoverage</span> === <span class="string">'object'</span>) {
+        <span class="variable">reportCoverage</span>(<span class="variable">_</span>$<span class="variable">jscoverage</span>);
+    }
+}</code></pre>
+</td>
+</tr>
+<tr class="code">
+<td class="docs">
+<p>Growl notify the given <code>msg</code>.</p>
+
+<h2></h2>
+
+<ul><li><p><strong>param</strong>: <em>String</em>  msg</p></li></ul>
+</td>
+<td class="code">
+<pre><code><span class="keyword">function</span> <span class="variable">notify</span>(<span class="variable">msg</span>) {
+    <span class="keyword">if</span> (<span class="variable">growl</span>) {
+        <span class="variable">childProcess</span>.<span class="variable">exec</span>(<span class="string">'growlnotify -name Expresso -m &quot;'</span> + <span class="variable">msg</span> + <span class="string">'&quot;'</span>);
+    }
+}
+
+<span class="comment">// Report uncaught exceptions</span>
+
+<span class="variable">process</span>.<span class="variable">addListener</span>(<span class="string">'uncaughtException'</span>, <span class="keyword">function</span>(<span class="variable">err</span>){
+    <span class="variable">error</span>(<span class="string">'uncaught'</span>, <span class="string">'uncaught'</span>, <span class="variable">err</span>);
+});
+
+<span class="comment">// Show cursor</span>
+
+[<span class="string">'INT'</span>, <span class="string">'TERM'</span>, <span class="string">'QUIT'</span>].<span class="variable">forEach</span>(<span class="keyword">function</span>(<span class="variable">sig</span>){
+    <span class="variable">process</span>.<span class="variable">addListener</span>(<span class="string">'SIG'</span> + <span class="variable">sig</span>, <span class="keyword">function</span>(){
+        <span class="variable">cursor</span>(<span class="variable">true</span>);
+        <span class="variable">process</span>.<span class="variable">exit</span>(<span class="number integer">1</span>);
+    });
+});
+
+<span class="comment">// Report test coverage when available</span>
+<span class="comment">// and emit &quot;beforeExit&quot; event to perform</span>
+<span class="comment">// final assertions</span>
+
+<span class="keyword">var</span> <span class="variable">orig</span> = <span class="variable">process</span>.<span class="variable">emit</span>;
+<span class="variable">process</span>.<span class="variable">emit</span> = <span class="keyword">function</span>(<span class="variable">event</span>){
+    <span class="keyword">if</span> (<span class="variable">event</span> === <span class="string">'exit'</span>) {
+        <span class="variable">report</span>();
+        <span class="variable">process</span>.<span class="variable">reallyExit</span>(<span class="variable">failures</span>);
+    }
+    <span class="variable">orig</span>.<span class="variable">apply</span>(<span class="this">this</span>, <span class="variable">arguments</span>);
+};
+
+<span class="comment">// Run test files</span>
+
+<span class="keyword">if</span> (!<span class="variable">defer</span>) <span class="variable">run</span>(<span class="variable">files</span>);
+</code></pre>
+</td>
+</tr>	</body>
+</html></tbody></table>

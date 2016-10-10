@@ -1,0 +1,10 @@
+{"name":"string-iterations"
+,"_id":"org.couchdb.user:string-iterations"
+,"password_scheme":"pbkdf2"
+,"iterations":"10"
+,"derived_key":"deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+,"salt":"deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+,"email":"deadbeef@deadbeef.com"
+,"type":"user"
+,"roles":[]
+}

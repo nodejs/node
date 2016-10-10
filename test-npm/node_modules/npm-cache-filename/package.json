@@ -1,0 +1,57 @@
+{
+  "name": "npm-cache-filename",
+  "version": "1.0.2",
+  "description": "Given a cache folder and url, return the appropriate cache folder.",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "scripts": {
+    "test": "tap test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-cache-filename.git"
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/npm-cache-filename/issues"
+  },
+  "homepage": "https://github.com/npm/npm-cache-filename",
+  "gitHead": "b7eef12919fdf544a3b83bba73093f7268c40c1e",
+  "_id": "npm-cache-filename@1.0.2",
+  "_shasum": "ded306c5b0bfc870a9e9faf823bc5f283e05ae11",
+  "_from": "npm-cache-filename@>=1.0.2 <1.1.0",
+  "_npmVersion": "2.12.1",
+  "_nodeVersion": "2.2.2",
+  "_npmUser": {
+    "name": "zkat",
+    "email": "kat@sykosomatic.org"
+  },
+  "dist": {
+    "shasum": "ded306c5b0bfc870a9e9faf823bc5f283e05ae11",
+    "tarball": "http://registry.npmjs.org/npm-cache-filename/-/npm-cache-filename-1.0.2.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "kat",
+      "email": "kat@lua.cz"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/npm-cache-filename/-/npm-cache-filename-1.0.2.tgz"
+}

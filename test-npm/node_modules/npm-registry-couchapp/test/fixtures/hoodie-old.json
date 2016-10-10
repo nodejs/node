@@ -1,0 +1,416 @@
+
+{
+  "_id": "hoodie-plugin-global-share",
+  "_rev": "26-322ba6e2b95e328df1ce03484e75cf14",
+  "name": "hoodie-plugin-global-share",
+  "description": "Hoodie.js Global Share Plugin",
+  "dist-tags": {
+    "latest": "1.0.4"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.0",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "~0.2.10",
+        "lodash": "~2.4.1"
+      },
+      "_id": "hoodie-plugin-global-share@1.0.0",
+      "dist": {
+        "shasum": "dc122cda6752fbdd51014f9f64af31337229f87c",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.0.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.2",
+      "_npmUser": {
+        "name": "caolan",
+        "email": "caolan.mcmahon@gmail.com"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.1": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.1",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "~0.2.10",
+        "lodash": "~2.4.1"
+      },
+      "_id": "hoodie-plugin-global-share@1.0.1",
+      "dist": {
+        "shasum": "6e3ed5af1053c85e0a450009af3bcaa539c3a785",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.1.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.21",
+      "_npmUser": {
+        "name": "caolan",
+        "email": "caolan.mcmahon@gmail.com"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.2": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.2",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "~0.2.10",
+        "lodash": "~2.4.1"
+      },
+      "devDependencies": {
+        "mocha": "*",
+        "grunt": "~0.4.1",
+        "expect.js": "~0.2.0",
+        "grunt-simple-mocha": "~0.4.0",
+        "grunt-contrib-jshint": "~0.6.2",
+        "grunt-contrib-watch": "~0.5.1"
+      },
+      "_id": "hoodie-plugin-global-share@1.0.2",
+      "dist": {
+        "shasum": "084d8624065f83b6df5d4c1ece5d2f02127e3db0",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.2.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.21",
+      "_npmUser": {
+        "name": "caolan",
+        "email": "caolan.mcmahon@gmail.com"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.3": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.3",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "grunt --verbose"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "0.2.10",
+        "lodash": "2.4.1",
+        "hoodie-server": "0.9.19",
+        "hoodie": "0.6.5"
+      },
+      "devDependencies": {
+        "grunt": "0.4.1",
+        "expect.js": "0.2.0",
+        "grunt-simple-mocha": "0.4.0",
+        "grunt-contrib-jshint": "0.6.2",
+        "grunt-contrib-watch": "0.5.1",
+        "grunt-shell": "0.6.4",
+        "sinon": "1.8.2",
+        "request": "2.34.0",
+        "shelljs": "0.2.6",
+        "mocha": "1.17.1"
+      },
+      "hoodie": {
+        "plugins": []
+      },
+      "_id": "hoodie-plugin-global-share@1.0.3",
+      "dist": {
+        "shasum": "bc4d181ac4ff4ce0c85cdf6bd005925484e14c2b",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.3.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.24",
+      "_npmUser": {
+        "name": "svnlto",
+        "email": "me@svenlito.com"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        },
+        {
+          "name": "svnlto",
+          "email": "me@svenlito.com"
+        },
+        {
+          "name": "espy",
+          "email": "hello@alexfeyerke.com"
+        },
+        {
+          "name": "gr2m",
+          "email": "gregor@martynus.net"
+        },
+        {
+          "name": "jan",
+          "email": "jan@apache.org"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.4": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.4",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "grunt --verbose"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "0.2.10",
+        "lodash": "2.4.1",
+        "hoodie-server": "0.9.19",
+        "hoodie": "0.6.5"
+      },
+      "devDependencies": {
+        "grunt": "0.4.1",
+        "expect.js": "0.2.0",
+        "grunt-simple-mocha": "0.4.0",
+        "grunt-contrib-jshint": "0.6.2",
+        "grunt-contrib-watch": "0.5.1",
+        "grunt-shell": "0.6.4",
+        "sinon": "1.8.2",
+        "request": "2.34.0",
+        "shelljs": "0.2.6",
+        "mocha": "1.17.1"
+      },
+      "hoodie": {
+        "plugins": []
+      },
+      "_id": "hoodie-plugin-global-share@1.0.4",
+      "dist": {
+        "shasum": "90934bd9fa14c464f6a547f2ad537f42d76a24c5",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.4.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.4.3",
+      "_npmUser": {
+        "name": "caolan",
+        "email": "caolan.mcmahon@gmail.com"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        },
+        {
+          "name": "svnlto",
+          "email": "me@svenlito.com"
+        },
+        {
+          "name": "espy",
+          "email": "hello@alexfeyerke.com"
+        },
+        {
+          "name": "gr2m",
+          "email": "gregor@martynus.net"
+        },
+        {
+          "name": "jan",
+          "email": "jan@apache.org"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.5": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.5",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "grunt --verbose"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "0.2.10",
+        "lodash": "2.4.1",
+        "hoodie-server": "0.9.19",
+        "hoodie": "0.6.5"
+      },
+      "devDependencies": {
+        "grunt": "0.4.1",
+        "expect.js": "0.2.0",
+        "grunt-simple-mocha": "0.4.0",
+        "grunt-contrib-jshint": "0.6.2",
+        "grunt-contrib-watch": "0.5.1",
+        "grunt-shell": "0.6.4",
+        "sinon": "1.8.2",
+        "request": "2.34.0",
+        "shelljs": "0.2.6",
+        "mocha": "1.17.1"
+      },
+      "hoodie": {
+        "plugins": []
+      },
+      "_id": "hoodie-plugin-global-share@1.0.5",
+      "dist": {
+        "shasum": "cbc47d27766deabd0bd81984bd1e369fccec6bec",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.5.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.11",
+      "_npmUser": {
+        "name": "jan",
+        "email": "jan@apache.org"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        },
+        {
+          "name": "svnlto",
+          "email": "me@svenlito.com"
+        },
+        {
+          "name": "espy",
+          "email": "hello@alexfeyerke.com"
+        },
+        {
+          "name": "gr2m",
+          "email": "gregor@martynus.net"
+        },
+        {
+          "name": "jan",
+          "email": "jan@apache.org"
+        }
+      ],
+      "directories": {}
+    },
+    "1.0.6": {
+      "name": "hoodie-plugin-global-share",
+      "version": "1.0.6",
+      "main": "worker.js",
+      "description": "Hoodie.js Global Share Plugin",
+      "scripts": {
+        "test": "grunt --verbose"
+      },
+      "author": "",
+      "dependencies": {
+        "async": "0.2.10",
+        "lodash": "2.4.1",
+        "hoodie-server": "0.9.19",
+        "hoodie": "0.6.5"
+      },
+      "devDependencies": {
+        "grunt": "0.4.1",
+        "expect.js": "0.2.0",
+        "grunt-simple-mocha": "0.4.0",
+        "grunt-contrib-jshint": "0.6.2",
+        "grunt-contrib-watch": "0.5.1",
+        "grunt-shell": "0.6.4",
+        "sinon": "1.8.2",
+        "request": "2.34.0",
+        "shelljs": "0.2.6",
+        "mocha": "1.17.1"
+      },
+      "hoodie": {
+        "plugins": []
+      },
+      "_id": "hoodie-plugin-global-share@1.0.6",
+      "dist": {
+        "shasum": "90e83296c7634d03148e88d95df41f94a5c6c3c5",
+        "tarball": "http://registry.npmjs.org/hoodie-plugin-global-share/-/hoodie-plugin-global-share-1.0.6.tgz"
+      },
+      "_from": ".",
+      "_npmVersion": "1.3.11",
+      "_npmUser": {
+        "name": "jan",
+        "email": "jan@apache.org"
+      },
+      "maintainers": [
+        {
+          "name": "caolan",
+          "email": "caolan.mcmahon@gmail.com"
+        },
+        {
+          "name": "svnlto",
+          "email": "me@svenlito.com"
+        },
+        {
+          "name": "espy",
+          "email": "hello@alexfeyerke.com"
+        },
+        {
+          "name": "gr2m",
+          "email": "gregor@martynus.net"
+        },
+        {
+          "name": "jan",
+          "email": "jan@apache.org"
+        }
+      ],
+      "directories": {}
+    }
+  },
+  "readme": "# hoodie-plugin-global-share  [![Build Status](https://travis-ci.org/hoodiehq/hoodie-plugin-global-share.png?branch=master)](https://travis-ci.org/hoodiehq/hoodie-plugin-global-share)\n\n### Installation:\n\n```bash\nhoodie install global-share\n```\n\n### Usage:\n\nAssuming you have a running hoodie setup.\n\nCreate a few documents you'd like to make publicly available:\n\n```js\nvar docs = [\n  {\n    name: 'sleep'\n  },\n  {\n    name: 'eat'\n  },\n  {\n    name: 'sleep some more'\n  }\n];\n\nhoodie.store.add('tasks', docs).done(function(newDocs) { /.../ });\n```\n\nMake all 'tasks' publicly available:\n\n```js\nhoodie.store.findAll('tasks').publish();\n```\n\nor publish a single task:\n\n```js\nhoodie.store.find('tasks', 'taskID12345').publish();\n```\n\nSame goes for unpublishing:\n\n```js\nhoodie.store.findAll('tasks').unpublish();\n\nhoodie.store.find('tasks', 'taskID12345').unpublish();\n```\n\n### Testing:\n\n```bash\ngrunt\n```\n",
+  "maintainers": [
+    {
+      "name": "third",
+      "email": "3@example.com"
+    },
+    {
+      "name": "caolan",
+      "email": "caolan.mcmahon@gmail.com"
+    },
+    {
+      "name": "svnlto",
+      "email": "me@svenlito.com"
+    },
+    {
+      "name": "espy",
+      "email": "hello@alexfeyerke.com"
+    },
+    {
+      "name": "gr2m",
+      "email": "gregor@martynus.net"
+    },
+    {
+      "name": "jan",
+      "email": "jan@apache.org"
+    }
+  ],
+  "time": {
+    "modified": "2014-02-28T17:53:05.151Z",
+    "created": "2014-02-12T12:28:02.189Z",
+    "1.0.0": "2014-02-12T12:28:03.627Z",
+    "1.0.1": "2014-02-18T13:02:38.021Z",
+    "1.0.2": "2014-02-18T17:48:19.633Z",
+    "1.0.3": "2014-02-26T16:12:05.894Z",
+    "1.0.4": "2014-02-28T17:30:56.460Z",
+    "1.0.5": "2014-02-28T17:49:43.440Z",
+    "1.0.6": "2014-02-28T17:53:05.151Z"
+  },
+  "readmeFilename": "README.md",
+  "_attachments": {}
+}

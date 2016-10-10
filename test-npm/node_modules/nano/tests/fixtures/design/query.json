@@ -1,0 +1,45 @@
+[
+  { "method"   : "put"
+  , "path"     : "/design_query"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/design_query/_design/people"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"_design/people\",\"rev\":\"1-14e6bc\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_query/p_derek"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"p_derek\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_query/p_randall"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"p_randall\",\"rev\":\"1-4c6114\"}"
+  }
+, { "method"   : "put"
+  , "status"   : 201
+  , "path"     : "/design_query/p_nuno"
+  , "body"     : "*"
+  , "response" : "{\"ok\":true,\"id\":\"p_nuno\",\"rev\":\"1-4c6114\"}"
+  }
+, { "path"     : "/design_query/_design/people/_view/by_name_and_city?key=%5B%22Derek%22%2C%22San%20Francisco%22%5D"
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[\r\n{\"id\":\"p_derek\",\"key\":[\"Derek\",\"San Francisco\"],\"value\":\"p_derek\"}\r\n]}\n"
+  }
+, { "path"     : "/design_query/_design/people/_view/by_name_and_city?key=%5B%22Derek%22%2C%22San%20Francisco%22%5D"
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[\r\n{\"id\":\"p_derek\",\"key\":[\"Derek\",\"San Francisco\"],\"value\":\"p_derek\"}\r\n]}\n"
+  }
+, { "path"     : "/design_query/_design/people/_view/by_name_and_city?key=%5B%22Derek%22%2C%22San%20Francisco%22%5D"
+  , "response" : "{\"total_rows\":3,\"offset\":0,\"rows\":[\r\n{\"id\":\"p_derek\",\"key\":[\"Derek\",\"San Francisco\"],\"value\":\"p_derek\"}\r\n]}\n"
+  }
+, { "method"   : "delete"
+  , "path"     : "/design_query"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

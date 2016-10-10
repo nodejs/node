@@ -1,0 +1,48 @@
+JSON="node ../../lib/json.js -q -o json-0 --group"
+
+echo "# simple"
+cat objects.input | $JSON
+echo ""
+echo "# simple (-f)"
+$JSON -f objects.input
+
+echo ""
+echo "# separate"
+cat one.input two.input | $JSON
+echo ""
+echo "# separate (-f)"
+$JSON -f one.input -f two.input
+
+echo ""
+echo "# objects on same line"
+cat objects-on-same-line.input | $JSON
+
+echo ""
+echo "# more complex"
+cat objects-complex.input | $JSON
+
+echo ""
+echo "# simple arrays"
+cat arrays.input | $JSON
+
+echo ""
+echo "# more complex"
+cat arrays-complex.input | $JSON
+
+echo ""
+echo "# surprise array content in string (issue #55)"
+cat arrays-surprise-string.input | $JSON
+
+echo ""
+echo "# cat json files"
+cat dir/*.json | $JSON
+
+echo ""
+echo "# objects on same line (space FAIL)"
+cat objects-on-same-line-fail.input | $JSON
+echo ""
+echo "# arrays on same line (support dropped in v6)"
+cat arrays-on-same-line-fail.input | $JSON
+echo ""
+echo "# mixed objects and arrays FAIL"
+cat mixed-objects-and-arrays.input | $JSON

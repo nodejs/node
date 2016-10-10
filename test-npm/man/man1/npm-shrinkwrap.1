@@ -1,0 +1,239 @@
+.TH "NPM\-SHRINKWRAP" "1" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-shrinkwrap\fR \- Lock down dependency versions
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm shrinkwrap
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command locks down the versions of a package's dependencies so
+that you can control exactly which versions of each dependency will be
+used when your package is installed\. The \fBpackage\.json\fP file is still
+required if you want to use \fBnpm install\fP\|\.
+.P
+By default, \fBnpm install\fP recursively installs the target's
+dependencies (as specified in \fBpackage\.json\fP), choosing the latest
+available version that satisfies the dependency's semver pattern\. In
+some situations, particularly when shipping software where each change
+is tightly managed, it's desirable to fully specify each version of
+each dependency recursively so that subsequent builds and deploys do
+not inadvertently pick up newer versions of a dependency that satisfy
+the semver pattern\. Specifying specific semver patterns in each
+dependency's \fBpackage\.json\fP would facilitate this, but that's not always
+possible or desirable, as when another author owns the npm package\.
+It's also possible to check dependencies directly into source control,
+but that may be undesirable for other reasons\.
+.P
+As an example, consider package A:
+.P
+.RS 2
+.nf
+{
+  "name": "A",
+  "version": "0\.1\.0",
+  "dependencies": {
+    "B": "<0\.1\.0"
+  }
+}
+.fi
+.RE
+.P
+package B:
+.P
+.RS 2
+.nf
+{
+  "name": "B",
+  "version": "0\.0\.1",
+  "dependencies": {
+    "C": "<0\.1\.0"
+  }
+}
+.fi
+.RE
+.P
+and package C:
+.P
+.RS 2
+.nf
+{
+  "name": "C",
+  "version": "0\.0\.1"
+}
+.fi
+.RE
+.P
+If these are the only versions of A, B, and C available in the
+registry, then a normal \fBnpm install A\fP will install:
+.P
+.RS 2
+.nf
+A@0\.1\.0
+`\-\- B@0\.0\.1
+    `\-\- C@0\.0\.1
+.fi
+.RE
+.P
+However, if B@0\.0\.2 is published, then a fresh \fBnpm install A\fP will
+install:
+.P
+.RS 2
+.nf
+A@0\.1\.0
+`\-\- B@0\.0\.2
+    `\-\- C@0\.0\.1
+.fi
+.RE
+.P
+assuming the new version did not modify B's dependencies\. Of course,
+the new version of B could include a new version of C and any number
+of new dependencies\. If such changes are undesirable, the author of A
+could specify a dependency on B@0\.0\.1\. However, if A's author and B's
+author are not the same person, there's no way for A's author to say
+that he or she does not want to pull in newly published versions of C
+when B hasn't changed at all\.
+.P
+In this case, A's author can run
+.P
+.RS 2
+.nf
+npm shrinkwrap
+.fi
+.RE
+.P
+This generates \fBnpm\-shrinkwrap\.json\fP, which will look something like this:
+.P
+.RS 2
+.nf
+{
+  "name": "A",
+  "version": "0\.1\.0",
+  "dependencies": {
+    "B": {
+      "version": "0\.0\.1",
+      "from": "B@^0\.0\.1",
+      "resolved": "https://registry\.npmjs\.org/B/\-/B\-0\.0\.1\.tgz",
+      "dependencies": {
+        "C": {
+          "version": "0\.0\.1",
+          "from": "org/C#v0\.0\.1",
+          "resolved": "git://github\.com/org/C\.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4"
+        }
+      }
+    }
+  }
+}
+.fi
+.RE
+.P
+The shrinkwrap command has locked down the dependencies based on what's
+currently installed in \fBnode_modules\fP\|\.  The installation behavior is changed to:
+.RS 0
+.IP 1. 3
+The module tree described by the shrinkwrap is reproduced\. This means
+reproducing the structure described in the file, using the specific files
+referenced in "resolved" if available, falling back to normal package
+resolution using "version" if one isn't\.
+.IP 2. 3
+The tree is walked and any missing dependencies are installed in the usual fashion\.
+
+.RE
+.P
+If \fBpreshrinkwrap\fP, \fBshrinkwrap\fP or \fBpostshrinkwrap\fP are in the \fBscripts\fP property of the
+\fBpackage\.json\fP, they will be executed by running \fBnpm shrinkwrap\fP\|\.
+\fBpreshrinkwrap\fP and \fBshrinkwrap\fP are executed before the shrinkwrap, \fBpostshrinkwrap\fP is
+executed afterwards\. For example to run some postprocessing on the generated file:
+.P
+.RS 2
+.nf
+"scripts": { "postshrinkwrap": "node fix\-shrinkwrap\.js" }
+.fi
+.RE
+.SS Using shrinkwrapped packages
+.P
+Using a shrinkwrapped package is no different than using any other
+package: you can \fBnpm install\fP it by hand, or add a dependency to your
+\fBpackage\.json\fP file and \fBnpm install\fP it\.
+.SS Building shrinkwrapped packages
+.P
+To shrinkwrap an existing package:
+.RS 0
+.IP 1. 3
+Run \fBnpm install\fP in the package root to install the current
+versions of all dependencies\.
+.IP 2. 3
+Validate that the package works as expected with these versions\.
+.IP 3. 3
+Run \fBnpm shrinkwrap\fP, add \fBnpm\-shrinkwrap\.json\fP to git, and publish
+your package\.
+
+.RE
+.P
+To add or update a dependency in a shrinkwrapped package:
+.RS 0
+.IP 1. 3
+Run \fBnpm install\fP in the package root to install the current
+versions of all dependencies\.
+.IP 2. 3
+Add or update dependencies\. \fBnpm install \-\-save\fP or \fBnpm install \-\-save\-dev\fP
+each new or updated package individually to update the \fBpackage\.json\fP and
+the shrinkwrap\. Note that they must be explicitly named in order to be
+installed: running \fBnpm install\fP with no arguments will merely reproduce
+the existing shrinkwrap\.
+.IP 3. 3
+Validate that the package works as expected with the new
+dependencies\.
+.IP 4. 3
+Commit the new \fBnpm\-shrinkwrap\.json\fP, and publish your package\.
+
+.RE
+.P
+You can use npm help outdated to view dependencies with newer versions
+available\.
+.SS Other Notes
+.P
+A shrinkwrap file must be consistent with the package's \fBpackage\.json\fP
+file\. \fBnpm shrinkwrap\fP will fail if required dependencies are not
+already installed, since that would result in a shrinkwrap that
+wouldn't actually work\. Similarly, the command will fail if there are
+extraneous packages (not referenced by \fBpackage\.json\fP), since that would
+indicate that \fBpackage\.json\fP is not correct\.
+.P
+Since \fBnpm shrinkwrap\fP is intended to lock down your dependencies for
+production use, \fBdevDependencies\fP will not be included unless you
+explicitly set the \fB\-\-dev\fP flag when you run \fBnpm shrinkwrap\fP\|\.  If
+installed \fBdevDependencies\fP are excluded, then npm will print a
+warning\.  If you want them to be installed with your module by
+default, please consider adding them to \fBdependencies\fP instead\.
+.P
+If shrinkwrapped package A depends on shrinkwrapped package B, B's
+shrinkwrap will not be used as part of the installation of A\. However,
+because A's shrinkwrap is constructed from a valid installation of B
+and recursively specifies all dependencies, the contents of B's
+shrinkwrap will implicitly be included in A's shrinkwrap\.
+.SS Caveats
+.P
+If you wish to lock down the specific bytes included in a package, for
+example to have 100% confidence in being able to reproduce a
+deployment or build, then you ought to check your dependencies into
+source control, or pursue some other mechanism that can verify
+contents rather than versions\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help ls
+
+.RE
+

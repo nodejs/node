@@ -1,0 +1,167 @@
+.TH "NPM\-UPDATE" "1" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-update\fR \- Update a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm update [\-g] [<pkg>\.\.\.]
+
+aliases: up, upgrade
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command will update all the packages listed to the latest version
+(specified by the \fBtag\fP config), respecting semver\.
+.P
+It will also install missing packages\. As with all commands that install
+packages, the \fB\-\-dev\fP flag will cause \fBdevDependencies\fP to be processed
+as well\.
+.P
+If the \fB\-g\fP flag is specified, this command will update globally installed
+packages\.
+.P
+If no package name is specified, all packages in the specified location (global
+or local) will be updated\.
+.P
+As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
+Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
+To get the old behavior, use \fBnpm \-\-depth 9999 update\fP\|\.
+.SH EXAMPLES
+.P
+IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
+older versions of \fBnpm\fP, you must specify \fB\-\-depth 0\fP to get the behavior
+described below\.
+.P
+For the examples below, assume that the current package is \fBapp\fP and it depends
+on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions of \fBdep1\fP are:
+.P
+.RS 2
+.nf
+{
+  "dist\-tags": { "latest": "1\.2\.2" },
+  "versions": [
+    "1\.2\.2",
+    "1\.2\.1",
+    "1\.2\.0",
+    "1\.1\.2",
+    "1\.1\.1",
+    "1\.0\.0",
+    "0\.4\.1",
+    "0\.4\.0",
+    "0\.2\.0"
+  ]
+}
+.fi
+.RE
+.SS Caret Dependencies
+.P
+If \fBapp\fP\|'s \fBpackage\.json\fP contains:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^1\.1\.1"
+}
+.fi
+.RE
+.P
+Then \fBnpm update\fP will install \fBdep1@1\.2\.2\fP, because \fB1\.2\.2\fP is \fBlatest\fP and
+\fB1\.2\.2\fP satisfies \fB^1\.1\.1\fP\|\.
+.SS Tilde Dependencies
+.P
+However, if \fBapp\fP\|'s \fBpackage\.json\fP contains:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "~1\.1\.1"
+}
+.fi
+.RE
+.P
+In this case, running \fBnpm update\fP will install \fBdep1@1\.1\.2\fP\|\.  Even though the \fBlatest\fP
+tag points to \fB1\.2\.2\fP, this version does not satisfy \fB~1\.1\.1\fP, which is equivalent
+to \fB>=1\.1\.1 <1\.2\.0\fP\|\.  So the highest\-sorting version that satisfies \fB~1\.1\.1\fP is used,
+which is \fB1\.1\.2\fP\|\.
+.SS Caret Dependencies below 1\.0\.0
+.P
+Suppose \fBapp\fP has a caret dependency on a version below \fB1\.0\.0\fP, for example:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^0\.2\.0"
+}
+.fi
+.RE
+.P
+\fBnpm update\fP will install \fBdep1@0\.2\.0\fP, because there are no other
+versions which satisfy \fB^0\.2\.0\fP\|\.
+.P
+If the dependence were on \fB^0\.4\.0\fP:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^0\.4\.0"
+}
+.fi
+.RE
+.P
+Then \fBnpm update\fP will install \fBdep1@0\.4\.1\fP, because that is the highest\-sorting
+version that satisfies \fB^0\.4\.0\fP (\fB>= 0\.4\.0 <0\.5\.0\fP)
+.SS Recording Updates with \fB\-\-save\fP
+.P
+When you want to update a package and save the new version as
+the minimum required dependency in \fBpackage\.json\fP, you can use
+\fBnpm update \-S\fP or \fBnpm update \-\-save\fP\|\.  For example if
+\fBpackage\.json\fP contains:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^1\.1\.1"
+}
+.fi
+.RE
+.P
+Then \fBnpm update \-\-save\fP will install \fBdep1@1\.2\.2\fP (i\.e\., \fBlatest\fP),
+and \fBpackage\.json\fP will be modified:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^1\.2\.2"
+}
+.fi
+.RE
+.P
+Note that \fBnpm\fP will only write an updated version to \fBpackage\.json\fP
+if it installs a new package\.
+.SS Updating Globally\-Installed Packages
+.P
+\fBnpm update \-g\fP will apply the \fBupdate\fP action to each globally installed
+package that is \fBoutdated\fP \-\- that is, has a version that is different from
+\fBlatest\fP\|\.
+.P
+NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
+be \fIdowngraded\fR\|\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help outdated
+.IP \(bu 2
+npm help shrinkwrap
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help ls
+
+.RE
+

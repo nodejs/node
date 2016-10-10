@@ -1,0 +1,11 @@
+HTTP/1.1 100 Continue
+
+HTTP/1.1 201 Created
+Server: nginx/0.8.53
+Date: Thu, 14 Apr 2011 09:50:35 GMT
+Content-Type: application/json
+Connection: keep-alive
+Status: 201 Created
+Content-Length: 14
+
+{"foo": "bar"}

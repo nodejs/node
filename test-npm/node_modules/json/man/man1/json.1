@@ -1,0 +1,1151 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "JSON" "1" "August 2014" "" "json tool manual"
+.
+.SH "NAME"
+\fBjson\fR \- JSON love for your command line
+.
+.SH "SYNOPSIS"
+something\-generating\-JSON\-on\-stdout | \fBjson\fR [OPTIONS] [LOOKUPS]
+.
+.P
+\fBjson\fR \-f FILE [OPTIONS] [LOOKUPS\.\.\.]
+.
+.SH "DESCRIPTION"
+\fBjson\fR is a fast command\-line tool for working with JSON content from the command line\. Among its features: streaming stdin/stdout or working with JSON files, pretty\-printing with control over output formats, JSON validation, filtering, modification, in\-place JSON file modification, field extraction, tabular output, skipping HTTP header blocks for use with REST API responses, JSON stream (\'\en\'\-separated JSON objects) processing\.
+.
+.P
+Read on for details and examples\. The FEATURE sections describe \fBjson\fR features roughly in the order of processing\.
+.
+.SH "FEATURE: HTTP Header Stripping"
+\fBjson\fR roots are as a tool to assist working with REST APIs\. Often results being parsed include HTTP headers, as from \fBcurl \-i\fR, with a JSON payload\. By default \fBjson\fR passes through HTTP header blocks\. Use \fB\-H\fR to strip a leading HTTP header block\.
+.
+.SH "FEATURE: Grouping"
+(Added in json v4\.) Use \'\-g\' or \'\-\-group\' to group adjacent objects into a single JSON array or to concatenate adjacent arrays into a single array\. E\.g\.:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"a":1}
+{"b": 2}\' | json \-g
+[
+  {
+    "a": 1
+  },
+  {
+    "b": 2
+  }
+]
+
+$ echo \'["one"]
+["two"]\' | json \-g
+[
+  "one",
+  "two"
+]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+"Adjacent" objects means objects separated by a newline, or by no space at all\. Adjacent \fIarrays\fR means separate by a newline\. These conditions are chosen as a balance between (a) not being ambiguous to parse with a simple regex and (b) enough to be useful for common cases\.
+.
+.P
+\fICompatibility note:\fR In json v3 and earlier, this used to be called "auto\-arrayification" and was implicit\. In json v4 and v5 grouping of adjacent arrays separated by no space was allowed\. That was dropped in v6 (see issue #55 \fIhttps://github\.com/trentm/json/issues/55\fR)\. See the \fICOMPATIBILITY\fR section below\.
+.
+.SH "FEATURE: Streaming"
+Grouping can be helpful for "one JSON object per line" formats or for things such as:
+.
+.IP "" 4
+.
+.nf
+
+$ cat *\.json | json \-g \.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.P
+However, when the size of the input is large practically one must do stream processing\. As of json v5\.1, \fBjson \-ga\fR will \fBstream\fR\. An extreme example is:
+.
+.IP "" 4
+.
+.nf
+
+$ yes \'{"foo":"bar"}\' | json \-ga
+.
+.fi
+.
+.IP "" 0
+.
+.P
+But a more practical example would be a large file of newline\-separated JSON objects, such as a Bunyan \fIhttps://github\.com/trentm/node\-bunyan\fR log file:
+.
+.IP "" 4
+.
+.nf
+
+$ cat foo\.log | json \-ga req\.method req\.url res\.headers\.x\-response\-time
+GET /ping 1
+POST /images 43
+\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: Merging"
+(Added in json v4\.) Use \'\-\-merge\' or \'\-\-deep\-merge\' to \fBmerge adjacent JSON objects\fR in the input\. Keys in the last object win\.
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"one":"un","two":"deux"}
+{"one":"uno","three":"tres"}\' | json \-\-merge
+{
+  "one": "uno",
+  "two": "deux",
+  "three": "tres"
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+This could be useful for merging multiple config files, e\.g\.:
+.
+.IP "" 4
+.
+.nf
+
+$ cat /opt/app/etc/defaults\.json \e
+    /etc/app/config\.json \e
+    ~/\.app/config\.json | json \-\-merge
+\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: Itemizing"
+(Added in json v9\.) Looking up fields in an array of object is easy with \fBjson\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'[{"name":"trent","age":38},
+         {"name":"ewan","age":4}]\' | json \-a name age
+trent 38
+ewan 4
+.
+.fi
+.
+.IP "" 0
+.
+.P
+but less so when a set of objects is indexed by key in an object:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"trent":{"age":38},
+         "ewan": {"age":4}}\' | \.\.\.    # How to list ages?
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fB\-M, \-\-items\fR option allows one to \fBitemize the key/value pairs of an object\fR for convenient iteration with \fB\-a\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"trent":{"age":38},
+         "ewan": {"age":4}}\' | json \-M
+[
+  {
+    "key": "trent",
+    "value": {
+      "age": 38
+    }
+  },
+  {
+    "key": "ewan",
+    "value": {
+      "age": 4
+    }
+  }
+]
+
+$ echo \'{"trent":{"age":38},
+         "ewan": {"age":4}}\' | json \-Ma key value\.age
+trent 38
+ewan 4
+
+# List people that can vote\.
+$ echo \'{"trent":{"age":38},
+         "ewan": {"age":4}}\' | json \-M \-c \'this\.value\.age > 18\' \-a key
+trent
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: Validation"
+\fBjson\fR will give position information and context for JSON syntax errors (\fBSyntaxError\fR)\. This can be handy for validating data and config files:
+.
+.IP "" 4
+.
+.nf
+
+$ cat config\.json | json
+json: error: input is not JSON: Unexpected \',\' at line 17, column 5:
+            , { "name": "smartos64\-1\.4\.7"
+        \.\.\.\.^
+{
+    "use\-proxy": false
+\.\.\.
+$ echo $?
+1
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Processing and output of the input JSON can be suppressed with the \fB\-n, \-\-validate\fR option:
+.
+.IP "" 4
+.
+.nf
+
+$ cat config\.json | json \-\-validate
+json: error: input is not JSON: Unexpected \',\' at line 17, column 5:
+            , { "name": "smartos64\-1\.4\.7"
+        \.\.\.\.^
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Together with the \fB\-q\fR you can get silent, exit\-status\-only, JSON validation:
+.
+.IP "" 4
+.
+.nf
+
+$ cat config\.json | json \-nq
+$ echo $?
+1
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: Execution"
+Use the \fB\-e CODE\fR option to execute (JavaScript) code on the input JSON\.
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name":"trent","age":38}\' | json \-e \'this\.age++\'
+{
+  "name": "trent",
+  "age": 39
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If input is an array, this will automatically process each item separately:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'[{"age":38},{"age":4}]\' | json \-e this\.age++
+[
+  {
+    "age": 39
+  },
+  {
+    "age": 5
+  }
+]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+That can be overriden with \fB\-A\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'[{"age":38},{"age":4}]\' | json \-A \-e \'this[0]\.age = "unknown"\'
+[
+  {
+    "age": "unknown"
+  },
+  {
+    "age": 4
+  }
+]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The given CODE is executed in a function bound to the input object (i\.e\. \fBthis\fR is the input object)\.
+.
+.P
+\fISecurity note:\fR \fBCODE\fR is \fInot\fR executed in a sandbox, so \fBjson\fR\'s globals are available and unguarded\. You can shoot yourself in the foot\. \fIDo not pass untrusted user\-supplied strings here\.\fR
+.
+.P
+\fICompatibility note:\fR In versions before v9 \fB\-e CODE\fR used an alternate implementation (with slightly different semantics for the CODE)\. It is still supported for backward compatibility by using the \fBJSON_EXEC=vm\fR environment variable\. However it is deprecated because it can cause processing to be \fI10x\fR or more slower for large inputs\. See the \fICOMPATIBILITY\fR section below\.
+.
+.SH "FEATURE: Conditional filtering"
+Use the \fB\-c CODE\fR option to run JavaScript code ending with a statement returning a boolean to filter the input JSON\.
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'[{"age":38},{"age":4}]\' | json \-c \'this\.age > 21\'
+[{"age":38}]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+As with \fB\-e\fR above, if input is an array, this will automatically process each item separately\. This can be overriden with \fB\-A\fR\.
+.
+.P
+The given CODE is executed in a function bound to the input object (i\.e\. \fBthis\fR is the input object)\. A JavaScript function must use \fBreturn\fR to return a value, so as a convenience if "return" is not in the given CODE it is presumed to be a single statement and it is wrapped:
+.
+.IP "" 4
+.
+.nf
+
+function () {
+    return ( CODE );
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+To use multiple statements in \fB\-c CODE\fR you must explicitly use \fBreturn\fR, e\.g\.:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"a": 2, "b": 6}\' | json \-c \'sum = this\.a + this\.b; return sum > 5\'
+{
+  "a": 2,
+  "b": 6
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+\fISecurity note:\fR \fBCODE\fR is \fInot\fR executed in a sandbox, so \fBjson\fR\'s globals are available and unguarded\. You can shoot yourself in the foot\. \fIDo not pass untrusted user\-supplied strings here\.\fR
+.
+.P
+\fICompatibility note:\fR In versions before v9 \fB\-c CODE\fR used an alternate implementation (with slightly different semantics for the CODE)\. It is still supported for backward compatibility by using the \fBJSON_EXEC=vm\fR environment variable\. However it is deprecated because it can cause processing to be \fI10x\fR or more slower for large inputs\. See the \fICOMPATIBILITY\fR section below\.
+.
+.SH "FEATURE: Lookups"
+Use lookup arguments to extract particular values:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name":"trent","age":38}\' | json name
+trent
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Use \'\.\' in a single lookup to do property access (e\.g\. \fBname\.first\fR) and use multiple args to lookup multiple fields\.
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name": {"first": "Trent", "last": "Mick"}, "age": 38}\' \e
+    | json name\.first age
+Trent
+38
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Use \fB\-a\fR for \fIArray processing\fR of lookups and \fItAbular output\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name":"trent","age":38}\' | json name
+trent
+$ echo \'[{"name":"trent","age":38},
+         {"name":"ewan","age":4}]\' | json \-a name age
+trent 38
+ewan 4
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Integral values work for array index lookups:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'["a", "b", "c"]\' | json 1
+b
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Negative array indices are also supported for convenience (a la Python array indexing):
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'["a", "b", "c"]\' | json \-\- \-1
+c
+$ echo \'["a", "b", "c"]\' | json \-\- \-2
+b
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If your lookup isn\'t a number or a JS indentifier \fIhttps://developer\.mozilla\.org/en\-US/docs/JavaScript/Guide/Values,_variables,_and_literals#Variables\fR you can always use \fBJavaScript array\-style lookups\fR like this:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"http://example\.com": "my\-value"}\' | json \'["http://example\.com"]\'
+my\-value
+.
+.fi
+.
+.IP "" 0
+.
+.P
+just like you would in JavaScript:
+.
+.IP "" 4
+.
+.nf
+
+$ node
+> var d = {"http://example\.com": "my\-value"}
+> d["http://example\.com"]
+\'my\-value\'
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or it might be easier to set \fBan alternate lookup delimiter\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"http://example\.com": "my\-value"}\' | json \-D, http://example\.com
+my\-value
+
+$ echo \'{"etc": {"resolv\.conf":1, "passwd":2}}\' | json \-D/ etc/resolv\.conf
+1
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: Pretty\-printing"
+Output is "jsony" by default: 2\-space indented JSON \.\.\.
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name": "trent", "age": 38}\' | json
+{
+  "name": "trent",
+  "age": 38
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+\&\.\.\. with one exception, a bare string value is printed without quotes (because who wants to deal with quotes in your pipeline?)\.
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name": "trent", "age": 38}\' | json name
+trent
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If pure JSON output is wanted, use \fB\-o json\fR or the \fB\-j\fR shortcut:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name": "trent", "age": 38}\' | json \-o json name
+"trent"
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Indentations other than 2 can be selected via \fB\-o json\-N\fR
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name": "trent", "age": 38}\' | json \-o json\-0
+{"name":"trent","age":38}
+$ echo \'{"name": "trent", "age": 38}\' | json \-o json\-4
+{
+    "name": "trent",
+    "age": 38
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The "FORMAT\-N" suffix can also be useful on "jsony" when selecting multiple values and wanting tabular output where some cells are objects:
+.
+.IP "" 4
+.
+.nf
+
+$ cat users\.json
+[
+   {"name": {"first": "Trent", "last": "Mick"}, "age": 38},
+   {"name": {"first": "Ewan", "last": "Mick"}, "age": 4}
+]
+
+$ json \-f users\.json \-a name age \-o jsony\-0
+{"first":"Trent","last":"Mick"} 38
+{"first":"Ewan","last":"Mick"} 4
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Further the \fB\-0\fR, \fB\-2\fR, and \fB\-4\fR shortcuts can be used to set the indentation without changing the mode\. This can be use to make the above shorter:
+.
+.IP "" 4
+.
+.nf
+
+$ json \-f users\.json \-a name age \-0
+{"first":"Trent","last":"Mick"} 38
+{"first":"Ewan","last":"Mick"} 4
+.
+.fi
+.
+.IP "" 0
+.
+.P
+You can get colored (non\-JSON) output using node\.js\'s \fButil\.inspect\fR \fIhttp://nodejs\.org/docs/latest/api/all\.html#util\.inspect\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'[{"name": "Trent"},{"name": "Ewan"}]\' | json \-o inspect
+[ { name: \'Trent\' },
+  { name: \'Ewan\' } ]
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: Listing keys"
+Sometimes you want the list of keys for an object\. Use \fB\-k\fR or \fB\-\-keys\fR for that:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'{"name": "trent", "age": 38}\' | json \-k
+[
+  "name",
+  "age"
+]
+$ echo \'{"name": "trent", "age": 38}\' | json \-ka
+name
+age
+.
+.fi
+.
+.IP "" 0
+.
+.SH "FEATURE: In\-place editing"
+You can edit a file in place with \fB\-I\fR and \fB\-f FILE\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ cat config\.json
+{"hostname":"127\.0\.0\.1"}
+
+$ json \-I \-f config\.json                        # format the file
+json: updated "config\.json" in\-place
+$ cat config\.json
+{
+  "hostname": "127\.0\.0\.1"
+}
+
+$ json \-I \-f config\.json \-e \'this\.port=8080\'    # add port field
+json: updated "config\.json" in\-place
+$ cat config\.json
+{
+  "hostname": "127\.0\.0\.1",
+  "port": 8080
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Some limitations\. Only one file at a time:
+.
+.IP "" 4
+.
+.nf
+
+$ json \-I \-f foo\.json \-f bar\.json
+json: error: must specify exactly one file with \'\-f FILE\' to use \-I/\-\-in\-place
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Lookups are not allowed:
+.
+.IP "" 4
+.
+.nf
+
+$ json \-I \-f foo\.json key\.subkey
+json: error: lookups cannot be specified with in\-place editing (\-I/\-\-in\-place), too easy to lose content
+.
+.fi
+.
+.IP "" 0
+.
+.P
+because that can too easily result in data loss, e\.g\. with something like:
+.
+.IP "" 4
+.
+.nf
+
+$ json \-I \-f *\.json    # if there is more than one match to the glob
+json: error: lookups cannot be specified with in\-place editing (\-I/\-\-in\-place), too easy to lose content
+.
+.fi
+.
+.IP "" 0
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print this help info and exit\.
+.
+.TP
+\fB\-\-version\fR
+Print version of this command and exit\.
+.
+.TP
+\fB\-q, \-\-quiet\fR
+Don\'t warn if input isn\'t valid JSON\.
+.
+.P
+By default \fBjson\fR will process input from stdin\. Alternatively, an input file (or files) can be specified:
+.
+.TP
+\fB\-f FILE\fR
+Specify an input file (instead of stdin)\.
+.
+.P
+By default \fBjson\fR output is to stdout\. Together with \fB\-f FILE\fR, in\-place editing can be done:
+.
+.TP
+\fB\-I\fR, \fB\-\-in\-place\fR
+Edit the file given with \fB\-f FILE\fR in\-place\. Lookups are not allowed with in\-place editing, because it is too easy to accidentally lose file data\.
+.
+.P
+If your JSON output is a REST API response, it might include the headers (e\.g\. when calling with \fBcurl \-i\fR)\. By default \fBjson\fR will pass those headers through (without choking on them)\. However if you want them stripped you can use:
+.
+.TP
+\fB\-H\fR
+drop any HTTP header block (as from \fBcurl \-i \.\.\.\fR)
+.
+.P
+Other pre\-JSON input handling:
+.
+.TP
+\fB\-g\fR, \fB\-\-group\fR
+Group adjacent objects into an array of objects, or concatenate adjacent arrays into a single array\.
+.
+.TP
+\fB\-\-merge\fR, \fB\-\-deep\-merge\fR
+Merge adjacent objects into a single object with merged keys\. Values in later objects win\. Use \fB\-\-deep\-merge\fR to recursively merge keys in objects\.
+.
+.TP
+\fB\-M\fR, \fB\-\-items\fR
+Itemize an object into an array of \fB{"key": <key>, "value": <value>}\fR objects for easier processing\.
+.
+.P
+You can process elements of an input array separately and generate tabular output:
+.
+.TP
+\fB\-a\fR, \fB\-\-array\fR
+Process input as an array of separate inputs and output in tabular form\.
+.
+.TP
+\fB\-d DELIM\fR
+Delimiter character for tabular output (default is \' \')\.
+.
+.TP
+\fB\-A\fR
+Process input as a single object, i\.e\. stop \fB\-e\fR and \fB\-c\fR automatically processing each item of an input array\.
+.
+.P
+You can execute code on (\fB\-e\fR) and filter (\fB\-c\fR) the input (this is done before LOOKUPS are processed, if any)\.
+.
+.TP
+\fB\-e CODE\fR
+Execute the given JavaScript code on the input\. If input is an array, then each item of the array is processed separately (use \fB\-A\fR to override)\. Use \fBthis\.\fR to access fields on the object being processed\. (\fB\-E CODE\fR is a now deprecated synonym\.)
+.
+.TP
+\fB\-c CODE\fR
+Filter the input with JavaScript \fBCODE\fR\. If \fBCODE\fR returns false\-y, then the item is filtered out\. If input is an array, then each item of the array is processed separately (use \fB\-A\fR to override)\. Use \fBthis\.\fR to access fields on the object being processed\. An explicit \fBreturn\fR is required if \fBCODE\fR includes multiple statements\. (\fB\-C CODE\fR is a now deprecated synonym\.)
+.
+.P
+Finally, if \fBLOOKUP\fR arguments are given, these are extracted from the JSON\. By default \fB\.\fR is used as a separator for nested object lookup\. This can be overridden:
+.
+.TP
+\fB\-D DELIM\fR
+Delimiter char between LOOKUPS (default is \'\.\')\. For example: \fB$ echo \'{"a\.b": {"b": 1}}\' | json \-D / a\.b/b\fR
+.
+.P
+An alternative to lookups is to output the keys of the input object:
+.
+.TP
+\fB\-k\fR, \fB\-\-keys\fR
+Output the input object\'s keys\.
+.
+.P
+\fBjson\fR can be restricting to just validating its input, i\.e\. processing and output of the input is skipped:
+.
+.TP
+\fB\-n\fR, \fB\-\-validate\fR
+Just validate the input, no processing or output of the JSON content\.
+.
+.P
+By default \fBjson\fR outputs in "jsony" mode\. Basically this is JSON output, with the exception that a single string output value is emitted without the quotes\. The intention here is to be of most use to the UNIX command\-line\. Other output formats are supported:
+.
+.TP
+\fB\-o MODE\fR, \fB\-\-output MODE\fR
+Specify an output mode\. One of \fBjsony\fR (the default; JSON, if a single string then quotes are elided), \fBjson\fR (JSON output, 2\-space indent), or \fBinspect\fR (node\.js \fButil\.inspect\fR output)\. \fBjson\fR and \fBjsony\fR modes can specify an indentation via \fBjson\-N\fR or \fBjsony\-N\fR for N\-space indentation (e\.g\. \fBjson\-4\fR), or via \fBjson\-tab\fR or \fBjsony\-tab\fR for TAB indentation\.
+.
+.TP
+\fB\-i\fR
+Shortcut for \fB\-o inspect\fR\.
+.
+.TP
+\fB\-j\fR
+Shortcut for \fB\-o json\fR\.
+.
+.TP
+\fB\-0\fR, \fB\-2\fR, \fB\-4\fR
+Set the JSON indentation without changing the mode\.
+.
+.SH "ENVIRONMENT"
+.
+.TP
+\fBJSON_EXEC=vm\fR
+Set this to turn on the old (pre\-v9) behaviour of \fB\-e CODE\fR and \fB\-c CODE\fR\.
+.
+.SH "EXAMPLES"
+A typical JSON REST API response:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s http://ifconfig\.me/all\.json
+{"connection":"","ip_addr":"216\.57\.203\.67","lang":"","remote_host":\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.P
+\fBNice output by default\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s http://ifconfig\.me/all\.json | json
+{
+  "connection": "",
+  "ip_addr": "201\.73\.103\.12",
+  "lang": "",
+  "remote_host": "",
+  "user_agent": "curl/7\.23\.1 (i386\-sun\-solaris2\.11) libcurl/7\.23\.1 OpenSSL/0\.9\.8w zlib/1\.2\.3 libidn/1\.23 libssh2/1\.2\.2",
+  "charset": "",
+  "port": "63713",
+  "via": "",
+  "forwarded": "",
+  "mime": "*/*",
+  "keep_alive": "",
+  "encoding": ""
+}
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Say you just want to \fBextract one value\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s http://ifconfig\.me/all\.json | json ip_addr
+201\.73\.103\.12
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or, looking at the node\.js project \fIhttps://github\.com/joyent/node\fR using the Github API:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/repos/joyent/node | json open_issues
+517
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If you use \fBcurl \-i\fR to get HTTP headers (because perhaps they contain relevant information), \fBjson will skip the HTTP headers automatically\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-is https://api\.github\.com/repos/joyent/node | json
+HTTP/1\.1 200 OK
+Server: nginx/1\.0\.13
+Date: Tue, 24 Jul 2012 04:01:08 GMT
+Content\-Type: application/json; charset=utf\-8
+Connection: keep\-alive
+Status: 200 OK
+ETag: "1a21d980a01768dde42145ce2b58694c"
+X\-RateLimit\-Remaining: 4997
+Content\-Length: 1513
+Cache\-Control: public, max\-age=60
+Vary: Accept
+X\-RateLimit\-Limit: 5000
+Last\-Modified: Tue, 24 Jul 2012 03:50:11 GMT
+
+{
+  "master_branch": "master",
+  "has_issues": true,
+  "has_downloads": false,
+  "homepage": "http://nodejs\.org/",
+  "html_url": "https://github\.com/joyent/node",
+\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or, say you are stuck with the headers in your pipeline, \fB\'json \-H\' will drop HTTP headers\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-is https://api\.github\.com/repos/joyent/node | json \-H forks
+2158
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Here is \fBan example that shows indexing a list\fR\. (The given "lookup" argument is basically JavaScript code appended, with \'\.\' if necessary, to the JSON data and eval\'d\.)
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/legacy/repos/search/nodejs \e
+    | json \'repositories[2]\.name\'
+socket\.io
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Having the quote to avoid shell interpretation of \'[\' is annoying, so \fBjson\fR allows a special case for an integer lookup:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/legacy/repos/search/nodejs \e
+    | json \'repositories\.2\.name\'
+socket\.io
+.
+.fi
+.
+.IP "" 0
+.
+.SS "Array processing with \-a"
+\fBjson\fR includes the \fB\-a\fR (aka \fB\-\-array\fR) option for \fBprocessing each element of an input JSON array independently\fR and \fBusing tabular output\fR\. Let\'s first get a list of open node\.js issues (note that this is a subset because of GH API pagination \fIhttp://developer\.github\.com/v3/#pagination\fR):
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/repos/joyent/node/issues?state=open\e&per_page=100
+[
+  {
+    "number": 3757,
+    "html_url": "https://github\.com/joyent/node/issues/3757",
+    "body": "Fix #3756\.\en\enReview, please: @TooTallNate",
+    "milestone": null,
+    "user": {
+      "gravatar_id": "73a2b24daecb976af81e010b7a3ce3c6",
+      "login": "isaacs",
+      "avatar_url": "https://secure\.gravatar\.com/avatar/73a2b24dae\.\.\.
+\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.P
+We can then print a table with just some fields as follows:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/repos/joyent/node/issues?state=open\e&per_page=100 \e
+    | json \-a comments number title
+0 3757 readline: Remove event listeners on close
+0 3756 readline: No way to completely unhook interface from input/output
+1 3755 node\-v0\.6\.20 hello example segfaults on RaspberryPi (w/Arch + bash)
+0 3753 Prohibit same listeners in EventEmitter\. Closes #964\.
+1 3752 Auto\-detect hardfloat eabi and armv7 variables on ARM based on compiler
+3 3751 persistent REPL history
+0 3749 glibc errors on SheevaPlug / Debian Squeeze
+\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Ultimately this can be useful for then using other command\-line tools\. For example, we could get the list of top\-five most commented open node issues:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/repos/joyent/node/issues?state=open\e&per_page=100 \e
+    | json \-a comments number title | sort \-n  | tail \-5
+9 3510 Automatically `\.toString()` functions in REPL\.
+11 3668 JSON documentation index listing
+12 3624 Add a return value to Buffer\.write* methods that returns the \.\.\.
+12 3655 defer dgram listening event
+14 3613 Connections closed by node stay permanently in FIN_WAIT2
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or get a breakdown by ISO language code of the recent tweets mentioning "nodejs":
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s http://search\.twitter\.com/search\.json?q=nodejs\e&rpp=100 \e
+    | json results | json \-a iso_language_code | sort | uniq \-c | sort
+   1 es
+   1 no
+   1 th
+   4 ru
+  12 ja
+  23 pt
+  58 en
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fB\fB\-d\fR option can be used to specify a delimiter\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ curl \-s https://api\.github\.com/repos/joyent/node/issues?state=open \e
+        | json \-a created_at number title \-d,
+2012\-07\-24T03:45:03Z,3757,readline: Remove event listeners on close
+2012\-07\-24T03:32:10Z,3756,readline: No way to completely unhook inte\.\.\.
+2012\-07\-23T21:17:50Z,3755,node\-v0\.6\.20 hello example segfaults on Ra\.\.\.
+2012\-07\-22T16:17:49Z,3753,Prohibit same listeners in EventEmitter\. C\.\.\.
+2012\-07\-22T13:43:40Z,3752,Auto\-detect hardfloat eabi and armv7 varia\.\.\.
+.
+.fi
+.
+.IP "" 0
+.
+.SH "COMPATIBILITY"
+The json tool major version is incremented when there is a backward incompatible change\. An overview of those changes is here\.
+.
+.IP "\(bu" 4
+v9: \fB\-e CODE\fR and \fB\-c CODE\fR switch away from using \fBvm\.runInNewContext\fR for processing\. In other words they now do what \fB\-E\fR and \fB\-C\fR do, and the uppercase options are not deprecated synonyms\. Use the \fBJSON_EXEC=vm\fR environment variable to bring back the old behaviour\.
+.
+.IP "\(bu" 4
+v8: No incompatible change\. The npm registry name changed from \'jsontool\' to \'json\'\.
+.
+.IP "\(bu" 4
+v7: \fB\-E CODE\fR and \fB\-C CODE\fR were added in favour of \fB\-e CODE\fR and \fB\-c CODE\fR because the former provide a 10x or more performance improvement for larger inputs\. The latter are still included for backward compatibility\. \fB\-E/\-C\fR use a JavaScript function to execute CODE, which \fB\-e/\-c\fR use node\.js\'s \fBvm\.runInNewContext\fR which is crazy slow\. Use of a JavaScript function places slightly different semantics and requirements on the given \fBCODE\fR, so new options were required for compat\.
+.
+.IP "\(bu" 4
+v6: Grouping (via \fB\-g\fR or \fB\-\-group\fR) of adjacent \fIarrays\fR no longer groups arrays separated by no space\. I\.e\. adjacent arrays must be separated by a newline\.
+.
+.IP "\(bu" 4
+v5: Special case the output for \fBa single lookup AND JSON output\fR (i\.e\. \fB\-j\fR or \fB\-o json*\fR) to only output the value instead of the more general array or table that is necessary for multiple lookups\.
+.
+.IP "\(bu" 4
+v4: Made "auto\-arrayification" require an explicit \'\-g\' or \'\-\-group\' option to prefer that implicit processing never magically fix otherwise invalid JSON\. The feature is now called grouping\.
+.
+.IP "\(bu" 4
+v3: Cleaned up json and "jsony" output formatting to be more consistent, especially for array processing\.
+.
+.IP "" 0
+.
+.P
+See the changelog \fIhttps://github\.com/trentm/json/blob/master/CHANGES\.md\fR for full compatibility and change details\.
+.
+.SH "INSTALL, PROJECT, BUGS"
+\fBjson\fR is written in JavaScript and requires node\.js (\fBnode\fR)\. You can either install via \fBnpm\fR:
+.
+.IP "" 4
+.
+.nf
+
+npm install \-g json
+.
+.fi
+.
+.IP "" 0
+.
+.P
+or manually get the script and put it on your PATH somewhere (\fBjson\fR is a single file with no external deps other than node itself):
+.
+.IP "" 4
+.
+.nf
+
+cd ~/bin
+curl \-L https://github\.com/trentm/json/raw/master/lib/json\.js > json
+chmod 755 json
+.
+.fi
+.
+.IP "" 0
+.
+.P
+(Note: Before version 8, this tool was called "jsontool" in the npm registry\. That name is now defunct\.)
+.
+.P
+This project lives at \fIhttps://github\.com/trentm/json\fR\. Please report bugs to \fIhttps://github\.com/trentm/json/issues\fR\. See the full changelog at: \fIhttps://github\.com/trentm/json/blob/master/CHANGES\.md\fR\.
+.
+.SH "LICENSE"
+MIT License (see \fIhttps://github\.com/trentm/json/blob/master/LICENSE\.txt\fR)
+.
+.SH "COPYRIGHT"
+json is Copyright (c) 2014 Trent Mick and Copyright (c) 2014 Joyent Inc\. All rights reserved\.

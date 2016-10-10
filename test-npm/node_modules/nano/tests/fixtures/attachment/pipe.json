@@ -1,0 +1,31 @@
+[
+  { "method"   : "put"
+  , "path"     : "/attachment_pipe"
+  , "status"   : 201
+  , "response" : "{ \"ok\": true }"
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_pipe/new/att"
+  , "body"     : "*"
+  , "status"   : 201
+  , "response" : "{\"ok\":true,\"id\":\"new\",\"rev\":\"1-3b1f88\"}\n"
+  }
+, { "path"     : "/attachment_pipe/new/att?rev=1-3b1f88"
+  , "status"   : 200
+  , "buffer"   : "Qk06AAAAAAAAADYAAAAoAAAAAQAAAP////8BABgAAAAAAAAAAAATCwAAEwsAAAAAAAAAAAAAWm2CAA=="
+  }
+, { "method"   : "put"
+  , "path"     : "/attachment_pipe/nodejs/logo.png"
+  , "body"     : "*"
+  , "response" : "{ \"ok\": true, \"id\": \"new\", \"rev\": \"1-64b327\" }"
+  }
+, { "method"   : "get"
+  , "path"     : "/attachment_pipe/nodejs/logo.png"
+  , "buffer"   : "logo.png"
+  }
+, { "method"   : "delete"
+  , "path"     : "/attachment_pipe"
+  , "status"   : 200
+  , "response" : "{ \"ok\": true }"
+  }
+]

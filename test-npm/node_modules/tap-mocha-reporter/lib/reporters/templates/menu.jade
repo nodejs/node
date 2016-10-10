@@ -1,0 +1,13 @@
+#menu
+  li
+    a(href='#overview') overview
+  for file in cov.files
+    li
+      span.cov(class=coverageClass(file.coverage)) #{file.coverage | 0}
+      a(href='##{file.filename}')
+        segments = file.filename.split('/')
+        basename = segments.pop()
+        if segments.length
+          span.dirname= segments.join('/') + '/'
+        span.basename= basename
+  a#logo(href='http://visionmedia.github.io/mocha/') m

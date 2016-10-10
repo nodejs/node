@@ -1,0 +1,11 @@
+sudo: false # use faster docker infrastructure
+language: node_js
+node_js:
+  - 0.12
+  - 4
+
+notifications:
+  email:
+    - medikoo+es6-weak-map@medikoo.com
+
+script: "npm test && npm run lint"

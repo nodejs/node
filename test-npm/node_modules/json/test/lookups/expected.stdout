@@ -1,0 +1,33 @@
+trent
+trent
+38
+
+trent
+
+trent
+ewan
+trent 38
+ewan 4
+
+42
+42
+answer
+
+42
+42 answer
+
+# lookup errors
+bar
+done
+
+# double-quotes in lookup (issue 30)
+first letter
+
+# negative array indeces
+a
+b
+c
+c
+b
+a
+# this one is undefined, i.e. no output

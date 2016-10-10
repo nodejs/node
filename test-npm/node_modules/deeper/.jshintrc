@@ -1,0 +1,11 @@
+{
+  "es5": true,
+  "laxcomma": true,
+  "eqeqeq": true,
+  "forin": true,
+  "immed": true,
+  "latedef": true,
+  "newcap": true,
+  "nonew": true,
+  "node": true
+}

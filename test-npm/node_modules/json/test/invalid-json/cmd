@@ -1,0 +1,2 @@
+# See <https://github.com/trentm/json/issues#issue/6>
+cat input | ../../lib/json.js foo

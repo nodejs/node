@@ -1,0 +1,32 @@
+# simple
+{
+  "name": "a1"
+}
+{
+    "name": "a1"
+}
+# bogus
+{"name": a1"}
+# http header block
+HTTP/1.1 200 OK
+Server: nginx/0.8.53
+Date: Thu, 29 Sep 2011 19:02:15 GMT
+
+{
+  "one": 1,
+  "two": 2
+}
+# does not exist
+# multiple files
+# -e
+{
+  "name": "a1",
+  "foo": 42
+}
+# -c
+[
+  {
+    "name": "kevin",
+    "age": 23
+  }
+]

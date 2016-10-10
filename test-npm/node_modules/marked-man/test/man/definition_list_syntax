@@ -1,0 +1,26 @@
+.TH "DEFITION_LIST_SYNTAX" "5" "January 1979" "" ""
+.SH "NAME"
+\fBdefition_list_syntax\fR \- hiya
+.P
+Definition lists look like unordered lists:
+.RS 0
+.IP \(bu 2
+term:
+.br
+definition
+.IP \(bu 2
+another one:
+.br
+The definition may span
+.br
+multiple lines and even
+.br
+start
+.br
+new paragraphs
+.IP \(bu 2
+\fB\-\-somearg\fP=<VALUE>:
+.br
+We can do that too\.
+
+.RE

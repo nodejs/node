@@ -1,0 +1,37 @@
+.TH "NPM\-PACK" "1" "October 2016" "" ""
+.SH "NAME"
+\fBnpm-pack\fR \- Create a tarball from a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm pack [[<@scope>/]<pkg>\.\.\.]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+For anything that's installable (that is, a package folder, tarball,
+tarball url, name@tag, name@version, name, or scoped name), this
+command will fetch it to the cache, and then copy the tarball to the
+current working directory as \fB<name>\-<version>\.tgz\fP, and then write
+the filenames out to stdout\.
+.P
+If the same package is specified multiple times, then the file will be
+overwritten the second time\.
+.P
+If no arguments are supplied, then npm packs the current package folder\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help cache
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+
+.RE
+
