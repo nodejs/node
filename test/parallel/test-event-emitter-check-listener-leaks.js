@@ -13,6 +13,14 @@ assert.ok(!e._events['default'].hasOwnProperty('warned'));
 e.on('default', function() {});
 assert.ok(e._events['default'].warned);
 
+// symbol
+const symbol = Symbol('symbol');
+e.setMaxListeners(1);
+e.on(symbol, function() {});
+assert.ok(!e._events[symbol].hasOwnProperty('warned'));
+e.on(symbol, function() {});
+assert.ok(e._events[symbol].hasOwnProperty('warned'));
+
 // specific
 e.setMaxListeners(5);
 for (let i = 0; i < 5; i++) {
