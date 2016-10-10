@@ -102,7 +102,8 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
       entry === '.npmrc' ||
       entry.match(/^\..*\.swp$/) ||
       entry === '.DS_Store' ||
-      entry.match(/^\._/)
+      entry.match(/^\._/) ||
+      entry.match(/^.*\.orig$/)
     ) {
     return false
   }
@@ -117,7 +118,17 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
   // if they're not already present at a higher level.
   if (this.bundleMagic) {
     // bubbling up.  stop here and allow anything the bundled pkg allows
-    if (entry.indexOf('/') !== -1) return true
+    if (entry.charAt(0) === '@') {
+      var firstSlash = entry.indexOf('/')
+      // continue to list the packages in this scope
+      if (firstSlash === -1) return true
+
+      // bubbling up.  stop here and allow anything the bundled pkg allows
+      if (entry.indexOf('/', firstSlash + 1) !== -1) return true
+    // bubbling up.  stop here and allow anything the bundled pkg allows
+    } else if (entry.indexOf('/') !== -1) {
+      return true
+    }
 
     // never include the .bin.  It's typically full of platform-specific
     // stuff like symlinks and .cmd files anyway.

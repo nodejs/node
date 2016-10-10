@@ -164,7 +164,7 @@ test/addons/.buildstamp: config.gypi \
 	deps/npm/node_modules/node-gyp/package.json \
 	$(ADDONS_BINDING_GYPS) $(ADDONS_BINDING_SOURCES) \
 	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h \
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	test/addons/.docbuildstamp
 	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 	# embedded addons have been generated from the documentation.
@@ -211,6 +211,7 @@ test-ci-js:
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 
 test-ci: | build-addons
+	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)

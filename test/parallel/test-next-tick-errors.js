@@ -49,4 +49,3 @@ process.on('uncaughtException', function() {
 process.on('exit', function() {
   assert.deepStrictEqual(['A', 'B', 'C'], order);
 });
-

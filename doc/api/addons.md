@@ -243,7 +243,7 @@ filename to the `sources` array. For example:
 Once the `binding.gyp` file is ready, the example Addons can be configured and
 built using `node-gyp`:
 
-```sh
+```console
 $ node-gyp configure build
 ```
 

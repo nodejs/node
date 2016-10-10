@@ -278,21 +278,6 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
   }
 }
 
-bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
-                                              int* slot_return) {
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    if (object.is_identical_to(info()->context()) && !info()->is_osr()) {
-      *slot_return = Frame::kContextSlot;
-      return true;
-    } else if (object.is_identical_to(info()->closure())) {
-      *slot_return = Frame::kJSFunctionSlot;
-      return true;
-    }
-  }
-  return false;
-}
-
-
 bool CodeGenerator::IsMaterializableFromRoot(
     Handle<HeapObject> object, Heap::RootListIndex* index_return) {
   const CallDescriptor* incoming_descriptor =

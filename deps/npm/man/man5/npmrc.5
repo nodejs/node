@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "July 2016" "" ""
+.TH "NPMRC" "5" "September 2016" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SH DESCRIPTION
@@ -53,6 +53,19 @@ key[] = "second value"
 sensitive credentials, they must be readable and writable \fIonly\fR by your user
 account (i\.e\. must have a mode of \fB0600\fP), otherwise they \fIwill be ignored by
 npm!\fR
+.SS Comments
+.P
+Lines in \fB\|\.npmrc\fP files are interpreted as comments when they begin with a \fB;\fP or \fB#\fP character\. \fB\|\.npmrc\fP files are parsed by npm/ini \fIhttps://github\.com/npm/ini\fR, which specifies this comment syntax\.
+.P
+For example:
+.P
+.RS 2
+.nf
+# last modified: 01 Jan 2016
+; Set a new registry for a scoped package
+@myscope:registry=https://mycustomregistry\.example\.org
+.fi
+.RE
 .SS Per\-project config file
 .P
 When working locally in a project, a \fB\|\.npmrc\fP file in the root of the

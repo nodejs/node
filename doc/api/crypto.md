@@ -1418,6 +1418,9 @@ keys:
 All paddings are defined in `crypto.constants`.
 
 ### crypto.timingSafeEqual(a, b)
+<!-- YAML
+added: v6.6.0
+-->
 
 Returns true if `a` is equal to `b`, without leaking timing information that
 would allow an attacker to guess one of the values. This is suitable for

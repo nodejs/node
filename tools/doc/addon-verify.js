@@ -65,8 +65,8 @@ function verifyFiles(files, blockName, onprogress, ondone) {
   files = Object.keys(files).map(function(name) {
     if (name === 'test.js') {
       files[name] = `'use strict';
-require('../../common');
-${files[name]}
+const common = require('../../common');
+${files[name].replace('Release', "' + common.buildType + '")}
 `;
     }
     return {

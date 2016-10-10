@@ -312,7 +312,9 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                                           isolate());
               dependencies()->AssumeFieldType(field_owner_map);
             }
-            DCHECK(field_type->Is(Type::TaggedPointer()));
+            if (access_mode == AccessMode::kLoad) {
+              field_type = Type::Any();
+            }
           }
           *access_info = PropertyAccessInfo::DataField(
               MapList{receiver_map}, field_index, field_type, holder);

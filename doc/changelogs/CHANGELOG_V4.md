@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.6.0">4.6.0</a><br/>
 <a href="#4.5.0">4.5.0</a><br/>
 <a href="#4.4.7">4.4.7</a><br/>
 <a href="#4.4.6">4.4.6</a><br/>
@@ -48,6 +49,47 @@
 **Note:** Node.js v4 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.6.0"></a>
+## 2016-09-27, Version 4.6.0 'Argon' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable Changes
+
+Semver Minor:
+
+* **openssl**:
+  - Upgrade to 1.0.2i, fixes a number of defects impacting Node.js: CVE-2016-6304 ("OCSP Status Request extension unbounded memory growth", high severity), CVE-2016-2183, CVE-2016-6303, CVE-2016-2178 and CVE-2016-6306. (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+  - Upgrade to 1.0.2j, fixes a defect included in 1.0.2i resulting in a crash when using CRLs, CVE-2016-7052. (Shigeki Ohtsu) [#8786](https://github.com/nodejs/node/pull/8786)
+  - Remove support for loading dynamic third-party engine modules. An attacker may be able to hide malicious code to be inserted into Node.js at runtime by masquerading as one of the dynamic engine modules. Originally reported by Ahmed Zaki (Skype). (Ben Noordhuis) [nodejs/node-private#70](https://github.com/nodejs/node-private/pull/70)
+* **http**: CVE-2016-5325 - Properly validate for allowable characters in the `reason` argument in `ServerResponse#writeHead()`. Fixes a possible response splitting attack vector. This introduces a new case where `throw` may occur when configuring HTTP responses, users should already be adopting try/catch here. Originally reported independently by Evan Lucas and Romain Gaucher. (Evan Lucas) [nodejs/node-private#46](https://github.com/nodejs/node-private/pull/46)
+
+Semver Patch:
+
+* **buffer**: Zero-fill excess bytes in new `Buffer` objects created with `Buffer.concat()` while providing a `totalLength` parameter that exceeds the total length of the original `Buffer` objects being concatenated. (Сковорода Никита Андреевич) [nodejs/node-private#65](https://github.com/nodejs/node-private/pull/65)
+* **tls**: CVE-2016-7099 - Fix invalid wildcard certificate validation check whereby a TLS server may be able to serve an invalid wildcard certificate for its hostname due to improper validation of `*.` in the wildcard string. Originally reported by Alexander Minozhenko and James Bunton (Atlassian). (Ben Noordhuis) [nodejs/node-private#63](https://github.com/nodejs/node-private/pull/63)
+
+### Commits
+
+* [[`93b10fbec2`](https://github.com/nodejs/node/commit/93b10fbec2)] - **buffer**: zero-fill uninitialized bytes in .concat() (Сковорода Никита Андреевич) [nodejs/node-private#65](https://github.com/nodejs/node-private/pull/65)
+* [[`c214e8847d`](https://github.com/nodejs/node/commit/c214e8847d)] - **crypto**: don't build hardware engines (Ben Noordhuis) [nodejs/node-private#70](https://github.com/nodejs/node-private/pull/70)
+* [[`af9dda152c`](https://github.com/nodejs/node/commit/af9dda152c)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/node#1836](https://github.com/nodejs/node/pull/1836)
+* [[`6bb9749c33`](https://github.com/nodejs/node/commit/6bb9749c33)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`5176a8ad57`](https://github.com/nodejs/node/commit/5176a8ad57)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`aa9ed60a51`](https://github.com/nodejs/node/commit/aa9ed60a51)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#8786](https://github.com/nodejs/node/pull/8786)
+* [[`0c74e2ad35`](https://github.com/nodejs/node/commit/0c74e2ad35)] - **deps**: upgrade openssl sources to 1.0.2j (Shigeki Ohtsu) [#8786](https://github.com/nodejs/node/pull/8786)
+* [[`8f3d6760cf`](https://github.com/nodejs/node/commit/8f3d6760cf)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`e8f29e2ba8`](https://github.com/nodejs/node/commit/e8f29e2ba8)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/node#1836](https://github.com/nodejs/node/pull/1836)
+* [[`01cf5b0ae7`](https://github.com/nodejs/node/commit/01cf5b0ae7)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`19ae4e8ae1`](https://github.com/nodejs/node/commit/19ae4e8ae1)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`cbed5e64be`](https://github.com/nodejs/node/commit/cbed5e64be)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`e7fdace18f`](https://github.com/nodejs/node/commit/e7fdace18f)] - **deps**: upgrade openssl sources to 1.0.2i (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`b5c57ff772`](https://github.com/nodejs/node/commit/b5c57ff772)] - **http**: check reason chars in writeHead (Evan Lucas) [nodejs/node-private#46](https://github.com/nodejs/node-private/pull/46)
+* [[`3ff82deb2c`](https://github.com/nodejs/node/commit/3ff82deb2c)] - **lib**: make tls.checkServerIdentity() more strict (Ben Noordhuis) [nodejs/node-private#63](https://github.com/nodejs/node-private/pull/63)
+* [[`7c696e201a`](https://github.com/nodejs/node/commit/7c696e201a)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`44e5776c0f`](https://github.com/nodejs/node/commit/44e5776c0f)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`c7a601c090`](https://github.com/nodejs/node/commit/c7a601c090)] - **test**: remove openssl options of -no_<prot> (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
 
 <a id="4.5.0"></a>
 ## 2016-08-15, Version 4.5.0 'Argon' (LTS), @thealphanerd
@@ -1486,11 +1528,11 @@ Maintenance update.
 
 * Roughly 78% of the commits are documentation and test improvements
 * **domains**:
-** Fix handling of uncaught exceptions (Julien Gilli) [#3884](https://github.com/nodejs/node/pull/3884)
+  * Fix handling of uncaught exceptions (Julien Gilli) [#3884](https://github.com/nodejs/node/pull/3884)
 * **deps**:
-** Upgrade to npm 2.14.12 (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
-** Backport 819b40a from V8 upstream (Michaël Zasso) [#3938](https://github.com/nodejs/node/pull/3938)
-** Updated node LICENSE file with new npm license (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
+  * Upgrade to npm 2.14.12 (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
+  * Backport 819b40a from V8 upstream (Michaël Zasso) [#3938](https://github.com/nodejs/node/pull/3938)
+  * Updated node LICENSE file with new npm license (Kat Marchán) [#4110](https://github.com/nodejs/node/pull/4110)
 
 ### Known issues
 
@@ -1590,7 +1632,7 @@ Maintenance update.
 * [[`fe3ae3cea4`](https://github.com/nodejs/node/commit/fe3ae3cea4)] - **doc**: add LTS info to COLLABORATOR_GUIDE.md (Myles Borins) [#3442](https://github.com/nodejs/node/pull/3442)
 * [[`daa10a345e`](https://github.com/nodejs/node/commit/daa10a345e)] - **doc**: typo fix in readme.md (Sam P Gallagher-Bishop) [#3649](https://github.com/nodejs/node/pull/3649)
 * [[`eca5720761`](https://github.com/nodejs/node/commit/eca5720761)] - **doc**: fix wrong date and known issue in changelog.md (James M Snell) [#3650](https://github.com/nodejs/node/pull/3650)
-* [[`83494f8f3e`](https://github.com/nodejs/node/commit/83494f8f3e)] - **doc**: rename iojs-* groups to nodejs-* (Steven R. Loomis) [#3634](https://github.com/nodejs/node/pull/3634)
+* [[`83494f8f3e`](https://github.com/nodejs/node/commit/83494f8f3e)] - **doc**: rename iojs-\* groups to nodejs-\* (Steven R. Loomis) [#3634](https://github.com/nodejs/node/pull/3634)
 * [[`347fb65aee`](https://github.com/nodejs/node/commit/347fb65aee)] - **doc**: fix crypto spkac function descriptions (Jason Gerfen) [#3614](https://github.com/nodejs/node/pull/3614)
 * [[`11d2050d63`](https://github.com/nodejs/node/commit/11d2050d63)] - **doc**: Updated streams simplified constructor API (Tom Gallacher) [#3602](https://github.com/nodejs/node/pull/3602)
 * [[`6db4392bfb`](https://github.com/nodejs/node/commit/6db4392bfb)] - **doc**: made code spans more visible in the API docs (phijohns) [#3573](https://github.com/nodejs/node/pull/3573)

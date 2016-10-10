@@ -31,7 +31,7 @@ illustrate each.
 "  http:   // user:pass @ host.com : 8080   /p/a/t/h  ?  query=string   #hash "
 │          ││           │          │      │          │ │              │       │
 └──────────┴┴───────────┴──────────┴──────┴──────────┴─┴──────────────┴───────┘
-(all spaces in the "" line should be ignored -- they're purely for formatting)
+(all spaces in the "" line should be ignored -- they are purely for formatting)
 ```
 
 ### urlObject.href

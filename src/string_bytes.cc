@@ -53,8 +53,7 @@ class ExternString: public ResourceType {
     if (length == 0)
       return scope.Escape(String::Empty(isolate));
 
-    TypeName* new_data =
-        static_cast<TypeName*>(node::Malloc(length * sizeof(*new_data)));
+    TypeName* new_data = node::UncheckedMalloc<TypeName>(length);
     if (new_data == nullptr) {
       return Local<String>();
     }
@@ -310,27 +309,13 @@ size_t StringBytes::Write(Isolate* isolate,
       if (chars_written != nullptr)
         *chars_written = nchars;
 
-      if (!IsBigEndian())
-        break;
-
       // Node's "ucs2" encoding wants LE character data stored in
       // the Buffer, so we need to reorder on BE platforms.  See
       // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
       // encoding specification
+      if (IsBigEndian())
+        SwapBytes16(buf, nbytes);
 
-      const bool is_aligned =
-          reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t);
-      if (is_aligned) {
-        uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
-        SwapBytes(dst, dst, nchars);
-      }
-
-      ASSERT_EQ(sizeof(uint16_t), 2);
-      for (size_t i = 0; i < nchars; i++) {
-        char tmp = buf[i * 2];
-        buf[i * 2] = buf[i * 2 + 1];
-        buf[i * 2 + 1] = tmp;
-      }
       break;
     }
 
@@ -624,7 +609,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
-        char* out = static_cast<char*>(node::Malloc(buflen));
+        char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
           return Local<String>();
         }
@@ -659,7 +644,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case BASE64: {
       size_t dlen = base64_encoded_size(buflen);
-      char* dst = static_cast<char*>(node::Malloc(dlen));
+      char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         return Local<String>();
       }
@@ -678,7 +663,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case HEX: {
       size_t dlen = buflen * 2;
-      char* dst = static_cast<char*>(node::Malloc(dlen));
+      char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         return Local<String>();
       }
@@ -706,17 +691,19 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 Local<Value> StringBytes::Encode(Isolate* isolate,
                                  const uint16_t* buf,
                                  size_t buflen) {
-  Local<String> val;
+  // Node's "ucs2" encoding expects LE character data inside a
+  // Buffer, so we need to reorder on BE platforms.  See
+  // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+  // encoding specification
   std::vector<uint16_t> dst;
   if (IsBigEndian()) {
-    // Node's "ucs2" encoding expects LE character data inside a
-    // Buffer, so we need to reorder on BE platforms.  See
-    // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
-    // encoding specification
-    dst.resize(buflen);
-    SwapBytes(&dst[0], buf, buflen);
+    dst.assign(buf, buf + buflen);
+    size_t nbytes = buflen * sizeof(dst[0]);
+    SwapBytes16(reinterpret_cast<char*>(&dst[0]), nbytes);
     buf = &dst[0];
   }
+
+  Local<String> val;
   if (buflen < EXTERN_APEX) {
     val = String::NewFromTwoByte(isolate,
                                  buf,

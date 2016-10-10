@@ -27,3 +27,5 @@ assert.deepStrictEqual(arr_buf, ar_buf, 0);
 // Checks for calling Buffer.byteLength on a SharedArrayBuffer
 
 assert.strictEqual(Buffer.byteLength(sab), sab.byteLength, 0);
+
+assert.doesNotThrow(() => Buffer.from({buffer: sab}));
