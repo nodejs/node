@@ -248,6 +248,7 @@ static void setup_inspector_expecting() {
   if (inspector.data) {
     return;
   }
+  // ({}) is needed because VS2013 does not zero the struct with ()
   expectations* expects = new expectations({});
   inspector.data = expects;
   inspector_read_start(&inspector, grow_expects_buffer, save_read_data);
