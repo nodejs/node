@@ -354,7 +354,6 @@ void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// TODO(bnoordhuis) share with StreamWrap::AfterWrite() in stream_wrap.cc
 void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   SendWrap* req_wrap = static_cast<SendWrap*>(req->data);
   if (req_wrap->have_callback()) {
