@@ -29,6 +29,7 @@
 | upgrading c-ares | @jbergstroem |
 | upgrading http-parser | @jbergstroem, @nodejs/http |
 | upgrading libuv | @saghul |
+| platform specific | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows} |
 
 
 When things need extra attention, are controversial, or `semver-major`: @nodejs/ctc
