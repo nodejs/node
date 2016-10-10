@@ -449,13 +449,15 @@ added properties.
 ### Class: System Error
 
 #### error.code
-#### error.errno
 
 Returns a string representing the error code, which is always `E` followed by
 a sequence of capital letters, and may be referenced in `man 2 intro`.
 
-The properties `error.code` and `error.errno` are aliases of one another and
-return the same value.
+#### error.errno
+
+Returns a number corresponding to the **negated** error code, which may be
+referenced in `man 2 intro`. For example, an `ENOENT` error has an `errno` of
+`-2` because the error code for `ENOENT` is `2`.
 
 #### error.syscall
 
