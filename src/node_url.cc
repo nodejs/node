@@ -129,12 +129,12 @@ namespace url {
 #else
   // Intentional non-ops if ICU is not present.
   static int ToUnicode(std::string* input, std::string* output) {
-    output->reserve(input.length());
+    output->reserve(input->length());
     *output = input->c_str();
   }
 
   static int ToASCII(std::string* input, std::string* output) {
-    output->reserve(input.length());
+    output->reserve(input->length());
     *output = input->c_str();
   }
 
