@@ -390,9 +390,9 @@ function isWarned(emitter) {
   assert.equal(readline.codePointAt('ABC', 0), 0x41);
   assert.equal(readline.codePointAt('あいう', 1), 0x3044);
   assert.equal(readline.codePointAt('\ud800\udc00', 0),  // surrogate
-      0x10000);
+               0x10000);
   assert.equal(readline.codePointAt('\ud800\udc00A', 2), // surrogate
-      0x41);
+               0x41);
   assert.equal(readline.getStringWidth('abcde'), 5);
   assert.equal(readline.getStringWidth('古池や'), 6);
   assert.equal(readline.getStringWidth('ノード.js'), 9);

@@ -51,4 +51,3 @@ try {
 } catch (e) {
   throw new Error('error: ' + e);
 }
-

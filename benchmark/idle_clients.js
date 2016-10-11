@@ -44,4 +44,3 @@ setInterval(function() {
     console.log('CLIENT %d errors: %d', process.pid, errors);
   }
 }, 1000);
-

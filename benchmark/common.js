@@ -262,4 +262,3 @@ exports.v8ForceOptimization = function(method, ...args) {
   method.apply(null, args);
   return eval('%GetOptimizationStatus(method)');
 };
-
