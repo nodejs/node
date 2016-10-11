@@ -4,9 +4,9 @@
 
 <!--name=module-->
 
-Node.js has a simple module loading system.  In Node.js, files and modules are
-in one-to-one correspondence.  As an example, `foo.js` loads the module
-`circle.js` in the same directory.
+Node.js has a simple module loading system.  In Node.js, files and modules
+are in one-to-one correspondence (each file is treated as a separate module).
+As an example, `foo.js` loads the module `circle.js` in the same directory.
 
 The contents of `foo.js`:
 
