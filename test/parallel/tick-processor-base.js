@@ -20,7 +20,7 @@ function runTest(test) {
   });
 
   let ticks = '';
-  proc.stdout.on('data', chunk => ticks += chunk);
+  proc.stdout.on('data', (chunk) => ticks += chunk);
 
   // Try to match after timeout
   setTimeout(() => {
@@ -41,7 +41,7 @@ function match(pattern, parent, ticks) {
   });
 
   let out = '';
-  proc.stdout.on('data', chunk => out += chunk);
+  proc.stdout.on('data', (chunk) => out += chunk);
   proc.stdout.once('end', () => {
     proc.once('exit', () => {
       fs.unlinkSync(LOG_FILE);

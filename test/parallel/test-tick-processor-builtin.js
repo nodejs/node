@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const path = require('path');
 
 if (common.isWindows ||
     common.isSunOS ||
@@ -16,7 +15,7 @@ if (!common.enoughTestCpu) {
   return;
 }
 
-const base = require(path.join(common.fixturesDir, 'tick-processor-base.js'));
+const base = require('./tick-processor-base.js');
 
 base.runTest({
   pattern: /Builtin_DateNow/,
