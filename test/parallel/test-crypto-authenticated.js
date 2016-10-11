@@ -307,10 +307,10 @@ const TEST_CASES = [
     tag: 'a44a8266ee1c8eb0c8b5d4cf5ae9f19a', tampered: false },
 ];
 
-var ciphers = crypto.getCiphers();
+const ciphers = crypto.getCiphers();
 
-for (var i in TEST_CASES) {
-  var test = TEST_CASES[i];
+for (const i in TEST_CASES) {
+  const test = TEST_CASES[i];
 
   if (ciphers.indexOf(test.algo) === -1) {
     common.skip('unsupported ' + test.algo + ' test');
@@ -452,3 +452,15 @@ for (var i in TEST_CASES) {
     }, /Invalid IV length/);
   })();
 }
+
+// Non-authenticating mode:
+(function() {
+  const encrypt =
+      crypto.createCipheriv('aes-128-cbc',
+                            'ipxp9a6i1Mb4USb4',
+                            '6fKjEjR3Vl30EUYC');
+  encrypt.update('blah', 'ascii');
+  encrypt.final();
+  assert.throws(() => encrypt.getAuthTag(), / state/);
+  assert.throws(() => encrypt.setAAD(Buffer.from('123', 'ascii')), / state/);
+})();
