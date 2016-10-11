@@ -77,7 +77,7 @@ Please use these when possible / appropriate
 ### Other Labels
 
 * Operating system labels
-  * `os x`, `windows`, `smartos`, `aix`
+  * `macos`, `windows`, `smartos`, `aix`
   * No linux, linux is the implied default
 * Architecture labels
   * `arm`, `mips`, `s390`, `ppc`
