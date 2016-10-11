@@ -20,9 +20,7 @@
       'type': 'none',
       'toolsets': [ 'target' ],
       'direct_dependent_settings': {
-        'defines': [
-          'UCONFIG_NO_CONVERSION=1',
-        ]
+        'defines': []
       },
     },
     {
