@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include <unicode/putil.h>
+#include <unicode/uchar.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
 
@@ -185,6 +186,94 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
                           len).ToLocalChecked());
 }
 
+// This is similar to wcwidth except that it takes the current unicode
+// character properties database into consideration, allowing it to
+// correctly calculate the column widths of things like emoji's and
+// newer wide characters. wcwidth, on the other hand, uses a fixed
+// algorithm that does not take things like emoji into proper
+// consideration.
+static int GetColumnWidth(UChar32 codepoint,
+                          bool ambiguous_as_full_width = false) {
+  if (!u_isdefined(codepoint) ||
+      u_iscntrl(codepoint) ||
+      u_getCombiningClass(codepoint) > 0 ||
+      u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER)) {
+    return 0;
+  }
+  // UCHAR_EAST_ASIAN_WIDTH is the Unicode property that identifies a
+  // codepoint as being full width, wide, ambiguous, neutral, narrow,
+  // or halfwidth.
+  const int eaw = u_getIntPropertyValue(codepoint, UCHAR_EAST_ASIAN_WIDTH);
+  switch (eaw) {
+    case U_EA_FULLWIDTH:
+    case U_EA_WIDE:
+      return 2;
+    case U_EA_AMBIGUOUS:
+      // See: http://www.unicode.org/reports/tr11/#Ambiguous for details
+      if (ambiguous_as_full_width) {
+        return 2;
+      }
+      // Fall through if ambiguous_as_full_width if false.
+    case U_EA_NEUTRAL:
+      if (u_hasBinaryProperty(codepoint, UCHAR_EMOJI_PRESENTATION)) {
+        return 2;
+      }
+      // Fall through
+    case U_EA_HALFWIDTH:
+    case U_EA_NARROW:
+    default:
+      return 1;
+  }
+}
+
+// Returns the column width for the given String.
+static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() < 1)
+    return;
+
+  bool ambiguous_as_full_width = args[1]->BooleanValue();
+  bool expand_emoji_sequence = args[2]->BooleanValue();
+
+  if (args[0]->IsNumber()) {
+    args.GetReturnValue().Set(
+        GetColumnWidth(args[0]->Uint32Value(),
+                       ambiguous_as_full_width));
+    return;
+  }
+
+  TwoByteValue value(env->isolate(), args[0]);
+  // reinterpret_cast is required by windows to compile
+  UChar* str = reinterpret_cast<UChar*>(*value);
+  UChar32 c;
+  UChar32 p;
+  size_t n = 0;
+  uint32_t width = 0;
+
+  while (n < value.length()) {
+    p = c;
+    U16_NEXT(str, n, value.length(), c);
+    // Don't count individual emoji codepoints that occur within an
+    // emoji sequence. This is not necessarily foolproof. Some
+    // environments display emoji sequences in the appropriate
+    // condensed form (as a single emoji glyph), other environments
+    // may not understand an emoji sequence and will display each
+    // individual emoji separately. When this happens, the width
+    // calculated will be off, and there's no reliable way of knowing
+    // in advance if a particular sequence is going to be supported.
+    // The expand_emoji_sequence option allows the caller to skip this
+    // check and count each code within an emoji sequence separately.
+    if (!expand_emoji_sequence &&
+        n > 0 && p == 0x200d &&  // 0x200d == ZWJ (zero width joiner)
+        (u_hasBinaryProperty(c, UCHAR_EMOJI_PRESENTATION) ||
+         u_hasBinaryProperty(c, UCHAR_EMOJI_MODIFIER))) {
+      continue;
+    }
+    width += GetColumnWidth(c, ambiguous_as_full_width);
+  }
+  args.GetReturnValue().Set(width);
+}
+
 void Init(Local<Object> target,
           Local<Value> unused,
           Local<Context> context,
@@ -192,6 +281,7 @@ void Init(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "toUnicode", ToUnicode);
   env->SetMethod(target, "toASCII", ToASCII);
+  env->SetMethod(target, "getStringWidth", GetStringWidth);
 }
 
 }  // namespace i18n
