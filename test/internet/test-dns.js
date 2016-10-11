@@ -39,7 +39,7 @@ function TEST(f) {
 
 
 function checkWrap(req) {
-  assert.ok(typeof req === 'object');
+  assert.strictEqual(typeof req, 'object');
 }
 
 
@@ -70,12 +70,12 @@ TEST(function test_resolveMx(done) {
     for (var i = 0; i < result.length; i++) {
       var item = result[i];
       assert.ok(item);
-      assert.ok(typeof item === 'object');
+      assert.strictEqual(typeof item, 'object');
 
       assert.ok(item.exchange);
-      assert.ok(typeof item.exchange === 'string');
+      assert.strictEqual(typeof item.exchange, 'string');
 
-      assert.ok(typeof item.priority === 'number');
+      assert.strictEqual(typeof item.priority, 'number');
     }
 
     done();
@@ -89,7 +89,7 @@ TEST(function test_resolveMx_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -106,7 +106,7 @@ TEST(function test_resolveNs(done) {
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
       assert.ok(name);
-      assert.ok(typeof name === 'string');
+      assert.strictEqual(typeof name, 'string');
     }
 
     done();
@@ -120,7 +120,7 @@ TEST(function test_resolveNs_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -137,14 +137,14 @@ TEST(function test_resolveSrv(done) {
     for (var i = 0; i < result.length; i++) {
       var item = result[i];
       assert.ok(item);
-      assert.ok(typeof item === 'object');
+      assert.strictEqual(typeof item, 'object');
 
       assert.ok(item.name);
-      assert.ok(typeof item.name === 'string');
+      assert.strictEqual(typeof item.name, 'string');
 
-      assert.ok(typeof item.port === 'number');
-      assert.ok(typeof item.priority === 'number');
-      assert.ok(typeof item.weight === 'number');
+      assert.strictEqual(typeof item.port, 'number');
+      assert.strictEqual(typeof item.priority, 'number');
+      assert.strictEqual(typeof item.weight, 'number');
     }
 
     done();
@@ -158,7 +158,7 @@ TEST(function test_resolveSrv_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -175,7 +175,7 @@ TEST(function test_resolvePtr(done) {
     for (var i = 0; i < result.length; i++) {
       var item = result[i];
       assert.ok(item);
-      assert.ok(typeof item === 'string');
+      assert.strictEqual(typeof item, 'string');
     }
 
     done();
@@ -189,7 +189,7 @@ TEST(function test_resolvePtr_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -206,14 +206,14 @@ TEST(function test_resolveNaptr(done) {
     for (var i = 0; i < result.length; i++) {
       var item = result[i];
       assert.ok(item);
-      assert.ok(typeof item === 'object');
+      assert.strictEqual(typeof item, 'object');
 
-      assert.ok(typeof item.flags === 'string');
-      assert.ok(typeof item.service === 'string');
-      assert.ok(typeof item.regexp === 'string');
-      assert.ok(typeof item.replacement === 'string');
-      assert.ok(typeof item.order === 'number');
-      assert.ok(typeof item.preference === 'number');
+      assert.strictEqual(typeof item.flags, 'string');
+      assert.strictEqual(typeof item.service, 'string');
+      assert.strictEqual(typeof item.regexp, 'string');
+      assert.strictEqual(typeof item.replacement, 'string');
+      assert.strictEqual(typeof item.order, 'number');
+      assert.strictEqual(typeof item.preference, 'number');
     }
 
     done();
@@ -227,7 +227,7 @@ TEST(function test_resolveNaptr_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -240,27 +240,27 @@ TEST(function test_resolveSoa(done) {
     if (err) throw err;
 
     assert.ok(result);
-    assert.ok(typeof result === 'object');
+    assert.strictEqual(typeof result, 'object');
 
-    assert.ok(typeof result.nsname === 'string');
+    assert.strictEqual(typeof result.nsname, 'string');
     assert.ok(result.nsname.length > 0);
 
-    assert.ok(typeof result.hostmaster === 'string');
+    assert.strictEqual(typeof result.hostmaster, 'string');
     assert.ok(result.hostmaster.length > 0);
 
-    assert.ok(typeof result.serial === 'number');
+    assert.strictEqual(typeof result.serial, 'number');
     assert.ok((result.serial > 0) && (result.serial < 4294967295));
 
-    assert.ok(typeof result.refresh === 'number');
+    assert.strictEqual(typeof result.refresh, 'number');
     assert.ok((result.refresh > 0) && (result.refresh < 2147483647));
 
-    assert.ok(typeof result.retry === 'number');
+    assert.strictEqual(typeof result.retry, 'number');
     assert.ok((result.retry > 0) && (result.retry < 2147483647));
 
-    assert.ok(typeof result.expire === 'number');
+    assert.strictEqual(typeof result.expire, 'number');
     assert.ok((result.expire > 0) && (result.expire < 2147483647));
 
-    assert.ok(typeof result.minttl === 'number');
+    assert.strictEqual(typeof result.minttl, 'number');
     assert.ok((result.minttl >= 0) && (result.minttl < 2147483647));
 
     done();
@@ -274,7 +274,7 @@ TEST(function test_resolveSoa_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -291,7 +291,7 @@ TEST(function test_resolveCname(done) {
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
       assert.ok(name);
-      assert.ok(typeof name === 'string');
+      assert.strictEqual(typeof name, 'string');
     }
 
     done();
@@ -305,7 +305,7 @@ TEST(function test_resolveCname_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -317,9 +317,9 @@ TEST(function test_resolveCname_failure(done) {
 TEST(function test_resolveTxt(done) {
   var req = dns.resolveTxt('google.com', function(err, records) {
     if (err) throw err;
-    assert.equal(records.length, 1);
+    assert.strictEqual(records.length, 1);
     assert.ok(util.isArray(records[0]));
-    assert.equal(records[0][0].indexOf('v=spf1'), 0);
+    assert.strictEqual(records[0][0].indexOf('v=spf1'), 0);
     done();
   });
 
@@ -331,7 +331,7 @@ TEST(function test_resolveTxt_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
-    assert.ok(result == undefined);
+    assert.strictEqual(result, undefined);
 
     done();
   });
@@ -404,9 +404,9 @@ TEST(function test_lookup_all_mixed(done) {
 
     ips.forEach(function(ip) {
       if (isIPv4(ip.address))
-        assert.equal(ip.family, 4);
+        assert.strictEqual(ip.family, 4);
       else if (isIPv6(ip.address))
-        assert.equal(ip.family, 6);
+        assert.strictEqual(ip.family, 6);
       else
         assert(false);
     });
@@ -495,13 +495,13 @@ req.oncomplete = function(err, domains) {
   console.log('nodejs.org = ', domains);
   assert.ok(Array.isArray(domains));
   assert.ok(domains.length >= 1);
-  assert.ok(typeof domains[0] == 'string');
+  assert.strictEqual(typeof domains[0], 'string');
   getaddrinfoCallbackCalled = true;
 };
 
 process.on('exit', function() {
   console.log(completed + ' tests completed');
-  assert.equal(running, false);
+  assert.strictEqual(running, false);
   assert.strictEqual(expected, completed);
   assert.ok(getaddrinfoCallbackCalled);
 });

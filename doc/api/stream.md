@@ -1559,7 +1559,9 @@ Because JavaScript does not have support for multiple inheritance, the
 to extending the `stream.Readable` *and* `stream.Writable` classes).
 
 *Note*: The `stream.Duplex` class prototypically inherits from `stream.Readable`
-and parasitically from `stream.Writable`.
+and parasitically from `stream.Writable`, but `instanceof` will work properly
+for both base classes due to overriding [`Symbol.hasInstance`][]
+on `stream.Writable`.
 
 Custom Duplex streams *must* call the `new stream.Duplex([options])`
 constructor and implement *both* the `readable._read()` and
@@ -2009,3 +2011,4 @@ readable buffer so there is nothing for a user to consume.
 [Transform]: #stream_class_stream_transform
 [Writable]: #stream_class_stream_writable
 [zlib]: zlib.html
+[`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance
