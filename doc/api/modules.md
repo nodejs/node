@@ -4,8 +4,7 @@
 
 <!--name=module-->
 
-Node.js has a simple module loading system.  In Node.js, files and modules are
-in one-to-one correspondence.  As an example, `foo.js` loads the module
+Node.js has a simple module loading system. In Node.js each JavaScript file is a separate module which means that all variables, constants, functions, etc. declared in the file can be accessed only in that specific file unless explicitly exposed using `exports`-`require` interface.  As an example, `foo.js` loads the module
 `circle.js` in the same directory.
 
 The contents of `foo.js`:
