@@ -24,6 +24,7 @@
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
 #include "node.h"
+#include "node_buffer.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
@@ -34,6 +35,10 @@
 #include <unicode/uchar.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
+#include <unicode/utypes.h>
+#include <unicode/ucnv.h>
+#include <unicode/utf8.h>
+#include <unicode/utf16.h>
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
@@ -54,7 +59,9 @@ namespace node {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -62,6 +69,275 @@ using v8::Value;
 bool flag_icu_data_dir = false;
 
 namespace i18n {
+
+const size_t kStorageSize = 1024;
+
+// TODO(jasnell): This could potentially become a member of MaybeStackBuffer
+// at some point in the future. Care would need to be taken with the
+// MaybeStackBuffer<UChar> variant below.
+MaybeLocal<Object> AsBuffer(Isolate* isolate,
+                            MaybeStackBuffer<char>* buf,
+                            size_t len) {
+  if (buf->IsAllocated()) {
+    MaybeLocal<Object> ret = Buffer::New(isolate, buf->out(), len);
+    if (!ret.IsEmpty()) buf->Release();
+    return ret;
+  }
+  return Buffer::Copy(isolate, buf->out(), len);
+}
+
+MaybeLocal<Object> AsBuffer(Isolate* isolate,
+                            MaybeStackBuffer<UChar>* buf,
+                            size_t len) {
+  char* dst = reinterpret_cast<char*>(**buf);
+  MaybeLocal<Object> ret;
+  if (buf->IsAllocated()) {
+    ret = Buffer::New(isolate, dst, len);
+    if (!ret.IsEmpty()) buf->Release();
+  } else {
+    ret = Buffer::Copy(isolate, dst, len);
+  }
+  if (!ret.IsEmpty() && IsBigEndian()) {
+    SPREAD_BUFFER_ARG(ret.ToLocalChecked(), buf);
+    SwapBytes16(buf_data, buf_length);
+  }
+  return ret;
+}
+
+struct Converter {
+  explicit Converter(const char* name, const char* sub = NULL)
+      : conv(nullptr) {
+    UErrorCode status = U_ZERO_ERROR;
+    conv = ucnv_open(name, &status);
+    CHECK(U_SUCCESS(status));
+    if (sub != NULL) {
+      ucnv_setSubstChars(conv, sub, strlen(sub), &status);
+    }
+  }
+
+  ~Converter() {
+    ucnv_close(conv);
+  }
+
+  UConverter* conv;
+};
+
+// One-Shot Converters
+
+void CopySourceBuffer(MaybeStackBuffer<UChar>* dest,
+                      const char* data,
+                      const size_t length,
+                      const size_t length_in_chars) {
+  dest->AllocateSufficientStorage(length_in_chars);
+  char* dst = reinterpret_cast<char*>(**dest);
+  memcpy(dst, data, length);
+  if (IsBigEndian()) {
+    SwapBytes16(dst, length);
+  }
+}
+
+typedef MaybeLocal<Object> (*TranscodeFunc)(Isolate* isolate,
+                                            const char* fromEncoding,
+                                            const char* toEncoding,
+                                            const char* source,
+                                            const size_t source_length,
+                                            UErrorCode* status);
+
+MaybeLocal<Object> Transcode(Isolate* isolate,
+                             const char* fromEncoding,
+                             const char* toEncoding,
+                             const char* source,
+                             const size_t source_length,
+                             UErrorCode* status) {
+  *status = U_ZERO_ERROR;
+  MaybeLocal<Object> ret;
+  MaybeStackBuffer<char> result;
+  Converter to(toEncoding, "?");
+  Converter from(fromEncoding);
+  const uint32_t limit = source_length * ucnv_getMaxCharSize(to.conv);
+  result.AllocateSufficientStorage(limit);
+  char* target = *result;
+  ucnv_convertEx(to.conv, from.conv, &target, target + limit,
+                 &source, source + source_length, nullptr, nullptr,
+                 nullptr, nullptr, true, true, status);
+  if (U_SUCCESS(*status))
+    ret = AsBuffer(isolate, &result, target - &result[0]);
+  return ret;
+}
+
+MaybeLocal<Object> TranscodeToUcs2(Isolate* isolate,
+                                   const char* fromEncoding,
+                                   const char* toEncoding,
+                                   const char* source,
+                                   const size_t source_length,
+                                   UErrorCode* status) {
+  *status = U_ZERO_ERROR;
+  MaybeLocal<Object> ret;
+  MaybeStackBuffer<UChar> destbuf(source_length);
+  Converter from(fromEncoding);
+  const size_t length_in_chars = source_length * sizeof(*destbuf);
+  ucnv_toUChars(from.conv, *destbuf, length_in_chars,
+                source, source_length, status);
+  if (U_SUCCESS(*status))
+    ret = AsBuffer(isolate, &destbuf, length_in_chars);
+  return ret;
+}
+
+MaybeLocal<Object> TranscodeFromUcs2(Isolate* isolate,
+                                     const char* fromEncoding,
+                                     const char* toEncoding,
+                                     const char* source,
+                                     const size_t source_length,
+                                     UErrorCode* status) {
+  *status = U_ZERO_ERROR;
+  MaybeStackBuffer<UChar> sourcebuf;
+  MaybeLocal<Object> ret;
+  Converter to(toEncoding, "?");
+  const size_t length_in_chars = source_length / sizeof(UChar);
+  CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
+  MaybeStackBuffer<char> destbuf(length_in_chars);
+  const uint32_t len = ucnv_fromUChars(to.conv, *destbuf, length_in_chars,
+                                       *sourcebuf, length_in_chars, status);
+  if (U_SUCCESS(*status))
+    ret = AsBuffer(isolate, &destbuf, len);
+  return ret;
+}
+
+MaybeLocal<Object> TranscodeUcs2FromUtf8(Isolate* isolate,
+                                         const char* fromEncoding,
+                                         const char* toEncoding,
+                                         const char* source,
+                                         const size_t source_length,
+                                         UErrorCode* status) {
+  *status = U_ZERO_ERROR;
+  MaybeStackBuffer<UChar, kStorageSize> destbuf;
+  int32_t result_length;
+  u_strFromUTF8(*destbuf, kStorageSize, &result_length,
+                source, source_length, status);
+  MaybeLocal<Object> ret;
+  if (U_SUCCESS(*status)) {
+    ret = AsBuffer(isolate, &destbuf, result_length * sizeof(**destbuf));
+  } else if (*status == U_BUFFER_OVERFLOW_ERROR) {
+    *status = U_ZERO_ERROR;
+    destbuf.AllocateSufficientStorage(result_length);
+    u_strFromUTF8(*destbuf, result_length, &result_length,
+                  source, source_length, status);
+    if (U_SUCCESS(*status))
+      ret = AsBuffer(isolate, &destbuf, result_length * sizeof(**destbuf));
+  }
+  return ret;
+}
+
+MaybeLocal<Object> TranscodeUtf8FromUcs2(Isolate* isolate,
+                                         const char* fromEncoding,
+                                         const char* toEncoding,
+                                         const char* source,
+                                         const size_t source_length,
+                                         UErrorCode* status) {
+  *status = U_ZERO_ERROR;
+  MaybeLocal<Object> ret;
+  const size_t length_in_chars = source_length / sizeof(UChar);
+  int32_t result_length;
+  MaybeStackBuffer<UChar> sourcebuf;
+  MaybeStackBuffer<char, kStorageSize> destbuf;
+  CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
+  u_strToUTF8(*destbuf, kStorageSize, &result_length,
+              *sourcebuf, length_in_chars, status);
+  if (U_SUCCESS(*status)) {
+    ret = AsBuffer(isolate, &destbuf, result_length);
+  } else if (*status == U_BUFFER_OVERFLOW_ERROR) {
+    *status = U_ZERO_ERROR;
+    destbuf.AllocateSufficientStorage(result_length);
+    u_strToUTF8(*destbuf, result_length, &result_length, *sourcebuf,
+                length_in_chars, status);
+    if (U_SUCCESS(*status)) {
+      ret = Buffer::New(isolate, *destbuf, result_length);
+      destbuf.Release();
+    }
+  }
+  return ret;
+}
+
+const char* EncodingName(const enum encoding encoding) {
+  switch (encoding) {
+    case ASCII: return "us-ascii";
+    case LATIN1: return "iso8859-1";
+    case UCS2: return "utf16le";
+    case UTF8: return "utf-8";
+    default: return NULL;
+  }
+}
+
+bool SupportedEncoding(const enum encoding encoding) {
+  switch (encoding) {
+    case ASCII:
+    case LATIN1:
+    case UCS2:
+    case UTF8: return true;
+    default: return false;
+  }
+}
+
+void Transcode(const FunctionCallbackInfo<Value>&args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  UErrorCode status = U_ZERO_ERROR;
+  MaybeLocal<Object> result;
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_BUFFER_ARG(args[0], ts_obj);
+  const enum encoding fromEncoding = ParseEncoding(isolate, args[1], BUFFER);
+  const enum encoding toEncoding = ParseEncoding(isolate, args[2], BUFFER);
+
+  if (SupportedEncoding(fromEncoding) && SupportedEncoding(toEncoding)) {
+    TranscodeFunc tfn = &Transcode;
+    switch (fromEncoding) {
+      case ASCII:
+      case LATIN1:
+        if (toEncoding == UCS2)
+          tfn = &TranscodeToUcs2;
+        break;
+      case UTF8:
+        if (toEncoding == UCS2)
+          tfn = &TranscodeUcs2FromUtf8;
+        break;
+      case UCS2:
+        switch (toEncoding) {
+          case UCS2:
+            tfn = &Transcode;
+            break;
+          case UTF8:
+            tfn = &TranscodeUtf8FromUcs2;
+            break;
+          default:
+            tfn = TranscodeFromUcs2;
+        }
+        break;
+      default:
+        // This should not happen because of the SupportedEncoding checks
+        ABORT();
+    }
+
+    result = tfn(isolate, EncodingName(fromEncoding), EncodingName(toEncoding),
+                 ts_obj_data, ts_obj_length, &status);
+  } else {
+    status = U_ILLEGAL_ARGUMENT_ERROR;
+  }
+
+  if (result.IsEmpty())
+    return args.GetReturnValue().Set(status);
+
+  return args.GetReturnValue().Set(result.ToLocalChecked());
+}
+
+static void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  UErrorCode status = static_cast<UErrorCode>(args[0]->Int32Value());
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(),
+                          u_errorName(status),
+                          v8::NewStringType::kNormal).ToLocalChecked());
+}
 
 bool InitializeICUDirectory(const char* icu_data_path) {
   if (icu_data_path != nullptr) {
@@ -282,6 +558,10 @@ void Init(Local<Object> target,
   env->SetMethod(target, "toUnicode", ToUnicode);
   env->SetMethod(target, "toASCII", ToASCII);
   env->SetMethod(target, "getStringWidth", GetStringWidth);
+
+  // One-shot converters
+  env->SetMethod(target, "icuErrName", ICUErrorName);
+  env->SetMethod(target, "transcode", Transcode);
 }
 
 }  // namespace i18n
