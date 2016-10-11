@@ -343,6 +343,15 @@ class MaybeStackBuffer {
     buf_ = nullptr;
   }
 
+  bool IsAllocated() {
+    return buf_ != buf_st_;
+  }
+
+  void Release() {
+    buf_ = buf_st_;
+    length_ = 0;
+  }
+
   MaybeStackBuffer() : length_(0), buf_(buf_st_) {
     // Default to a zero-length, null-terminated buffer.
     buf_[0] = T();
@@ -377,6 +386,24 @@ class BufferValue : public MaybeStackBuffer<char> {
  public:
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
+
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  do {                                                                      \
+    if (!Buffer::HasInstance(obj))                                          \
+      return env->ThrowTypeError("argument should be a Buffer");            \
+  } while (0)
+
+#define SPREAD_BUFFER_ARG(val, name)                                          \
+  CHECK((val)->IsUint8Array());                                               \
+  Local<v8::Uint8Array> name = (val).As<v8::Uint8Array>();                    \
+  v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
+  const size_t name##_offset = name->ByteOffset();                            \
+  const size_t name##_length = name->ByteLength();                            \
+  char* const name##_data =                                                   \
+      static_cast<char*>(name##_c.Data()) + name##_offset;                    \
+  if (name##_length > 0)                                                      \
+    CHECK_NE(name##_data, nullptr);
+
 
 }  // namespace node
 
