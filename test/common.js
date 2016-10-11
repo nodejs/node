@@ -397,7 +397,10 @@ function runCallChecks(exitCode) {
 
 
 exports.mustCall = function(fn, expected) {
-  if (typeof expected !== 'number') expected = 1;
+  if (expected === undefined)
+    expected = 1;
+  else if (typeof expected !== 'number')
+    throw new TypeError(`Invalid expected value: ${expected}`);
 
   const context = {
     expected: expected,
