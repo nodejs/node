@@ -3,12 +3,14 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const MAX_REQUESTS = 13;
+const MAX_REQUESTS = 14;
 let reqNum = 0;
 
 const createErrorMessage = (code) => {
   return new RegExp(`^RangeError: Invalid status code: ${code}$`);
 };
+
+const typeErrorMatcher = /^TypeError: Status code must be a number$/;
 
 const server = http.Server(common.mustCall(function(req, res) {
   switch (reqNum) {
@@ -20,17 +22,17 @@ const server = http.Server(common.mustCall(function(req, res) {
     case 1:
       assert.throws(common.mustCall(() => {
         res.writeHead(Infinity);
-      }), createErrorMessage(0));
+      }), createErrorMessage('Infinity'));
       break;
     case 2:
       assert.throws(common.mustCall(() => {
         res.writeHead(NaN);
-      }), createErrorMessage(0));
+      }), createErrorMessage('NaN'));
       break;
     case 3:
       assert.throws(common.mustCall(() => {
         res.writeHead({});
-      }), createErrorMessage(0));
+      }), typeErrorMatcher);
       break;
     case 4:
       assert.throws(common.mustCall(() => {
@@ -45,37 +47,42 @@ const server = http.Server(common.mustCall(function(req, res) {
     case 6:
       assert.throws(common.mustCall(() => {
         res.writeHead('1000');
-      }), createErrorMessage(1000));
+      }), typeErrorMatcher);
       break;
     case 7:
       assert.throws(common.mustCall(() => {
         res.writeHead(null);
-      }), createErrorMessage(0));
+      }), typeErrorMatcher);
       break;
     case 8:
       assert.throws(common.mustCall(() => {
         res.writeHead(true);
-      }), createErrorMessage(1));
+      }), typeErrorMatcher);
       break;
     case 9:
       assert.throws(common.mustCall(() => {
         res.writeHead([]);
-      }), createErrorMessage(0));
+      }), typeErrorMatcher);
       break;
     case 10:
       assert.throws(common.mustCall(() => {
         res.writeHead('this is not valid');
-      }), createErrorMessage(0));
+      }), typeErrorMatcher);
       break;
     case 11:
       assert.throws(common.mustCall(() => {
         res.writeHead('404 this is not valid either');
-      }), createErrorMessage(0));
+      }), typeErrorMatcher);
       break;
     case 12:
       assert.throws(common.mustCall(() => {
         res.writeHead();
-      }), createErrorMessage(0));
+      }), typeErrorMatcher);
+      break;
+    case 13:
+      assert.throws(common.mustCall(() => {
+        res.writeHead(200.1);
+      }), createErrorMessage('200.1'));
       this.close();
       break;
     default:
