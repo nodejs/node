@@ -1241,18 +1241,18 @@ input.on('readable', () => {
 added: v0.1.92
 -->
 
-Creates and returns a `Sign` object that uses the given `algorithm`. On
-recent OpenSSL releases, `openssl list-public-key-algorithms` will
-display the available signing algorithms. One example is `'RSA-SHA256'`.
+Creates and returns a `Sign` object that uses the given `algorithm`.
+Use [`crypto.getHashes()`][] to obtain an array of names of the available
+signing algorithms.
 
 ### crypto.createVerify(algorithm)
 <!-- YAML
 added: v0.1.92
 -->
 
-Creates and returns a `Verify` object that uses the given algorithm. On
-recent OpenSSL releases, `openssl list-public-key-algorithms` will
-display the available signing algorithms. One example is `'RSA-SHA256'`.
+Creates and returns a `Verify` object that uses the given algorithm.
+Use [`crypto.getHashes()`][] to obtain an array of names of the available
+signing algorithms.
 
 ### crypto.getCiphers()
 <!-- YAML
@@ -1320,7 +1320,8 @@ console.log(alice_secret == bob_secret);
 added: v0.9.3
 -->
 
-Returns an array with the names of the supported hash algorithms.
+Returns an array of the names of the supported hash algorithms,
+such as `RSA-SHA256`.
 
 Example:
 
