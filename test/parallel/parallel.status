@@ -18,6 +18,11 @@ test-tick-processor     : PASS,FLAKY
 
 [$system==freebsd]
 
+# Currently having failures on CI for this on v4.x
+# This is including failures on previously passing versions
+# tracking issue https://github.com/nodejs/node/issues/9013
+test-child-process-uid-gid : PASS,FLAKY
+
 # fs-watch currently needs special configuration on AIX and we
 # want to improve under https://github.com/nodejs/node/issues/5085.
 # Tests are disabled so CI can be green and we can spot other
