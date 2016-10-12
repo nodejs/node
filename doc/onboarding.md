@@ -164,8 +164,15 @@ onboarding session.
 
 ## Landing PRs: Details
 
-* Please never use GitHub's green "Merge Pull Request" button.
+* Please never use GitHub's green ["Merge Pull Request"](https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-using-the-github-web-interface) button.
   * If you do, please force-push removing the merge.
+  * Reasons for not using the web interface button:
+    * The merge method will add an unnecessary merge commit.
+    * The rebase & merge method adds metadata to the commit title.
+    * The rebase method changes the author.
+    * The squash & merge method has been known to add metadata to the commit title.
+    * If more than one author has contributed to the PR, only the latest author will be considered during the squashing.
+
 
 Update your `master` branch (or whichever branch you are landing on, almost always `master`)
 
