@@ -101,6 +101,8 @@ information regarding the change process:
 
 - A `Reviewed-By: Name <email>` line for yourself and any
   other Collaborators who have reviewed the change.
+  - Useful for @mentions / contact list if something goes wrong in the PR.
+  - Protects against the assumption that GitHub will be around forever.
 - A `PR-URL:` line that references the *full* GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
   conversation that led up to that change.
