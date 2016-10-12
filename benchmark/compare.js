@@ -40,8 +40,8 @@ if (benchmarks.length === 0) {
 // Create queue from the benchmarks list such both node versions are tested
 // `runs` amount of times each.
 const queue = [];
-for (let iter = 0; iter < runs; iter++) {
-  for (const filename of benchmarks) {
+for (const filename of benchmarks) {
+  for (let iter = 0; iter < runs; iter++) {
     for (const binary of binaries) {
       queue.push({ binary, filename, iter });
     }
