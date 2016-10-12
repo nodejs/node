@@ -78,11 +78,12 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
 	$(PYTHON) tools/gyp_node.py -f make
 
 config.gypi: configure
-	if [ -f $@ ]; then
-		$(error Stale $@, please re-run ./configure)
-	else
-		$(error No $@, please run ./configure first)
+	@if [ -f $@ ]; then \
+		echo Stale $@, please re-run ./$<; \
+	else \
+		echo No $@, please run ./$< first; \
 	fi
+	@exit 1;
 
 install: all
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
