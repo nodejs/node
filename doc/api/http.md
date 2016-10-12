@@ -1354,16 +1354,24 @@ added: v0.3.6
 -->
 
 Since most requests are GET requests without bodies, Node.js provides this
-convenience method. The only difference between this method and [`http.request()`][]
-is that it sets the method to GET and calls `req.end()` automatically.
+convenience method. The only difference between this method and
+[`http.request()`][] is that it sets the method to GET and calls `req.end()`
+automatically. Note that response data must be consumed in the callback
+for reasons stated in [`http.ClientRequest`][] section.
+
+`callback` takes one argument which is an instance of [`http.IncomingMessage`][]
 
 Example:
 
 ```js
 http.get('http://www.google.com/index.html', (res) => {
-  console.log(`Got response: ${res.statusCode}`);
-  // consume response body
-  res.resume();
+  console.log(`STATUS: ${res.statusCode}`);
+  res.setEncoding('utf8');
+  let aggregatedData = '';
+  res.on('data', (chunk) => aggregatedData += chunk);
+  res.on('end', () => {
+    console.log(`Message body: ${aggregatedData}`);
+  });
 }).on('error', (e) => {
   console.log(`Got error: ${e.message}`);
 });
