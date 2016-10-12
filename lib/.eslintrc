@@ -1,3 +1,4 @@
 rules:
   # Custom rules in tools/eslint-rules
   require-buffer: 2
+  no-let-in-for-declaration: 2
