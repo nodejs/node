@@ -124,7 +124,7 @@ Any community member or contributor can ask that something be reviewed
 by the CTC by logging a GitHub issue. Any Collaborator, CTC member, or the
 moderator can bring the issue to the CTC's attention by applying the
 `ctc-review` label. If consensus-seeking among CTC members fails for a
-particular issue, it mae be added to the CTC meeting agenda by adding the
+particular issue, it may be added to the CTC meeting agenda by adding the
 `ctc-agenda` label.
 
 Prior to each CTC meeting, the moderator will share the agenda with
