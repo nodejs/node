@@ -62,7 +62,8 @@ onboarding session.
   * Labels:
     * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
     * [**See "Labels"**](./onboarding-extras.md#labels)
-    * Use the `ctc-agenda` if a topic is controversial or isn't coming to a conclusion after an extended time.
+    * Use the `ctc-review` label if a topic is controversial or isn't coming to
+      a conclusion after an extended time.
     * `semver-{minor,major}`:
       * If a change has the remote *chance* of breaking something, use `semver-major`
       * When adding a semver label, add a comment explaining why you're adding it. Do it right away so you don't forget!
@@ -145,7 +146,8 @@ onboarding session.
     the objection is addressed. The options for such a situation include:
       * Engaging those with objections to determine a viable path forward;
       * Altering the pull request to address the objections;
-      * Escalating the discussion to the CTC using the `ctc-agenda` label. This should only be done after other options have been exhausted.
+      * Escalating the discussion to the CTC using the `ctc-review` label. This
+        should only be done after the previous options have been exhausted.
 
   * Wait before merging non-trivial changes.
     * 48 hours during the week and 72 hours on weekends.

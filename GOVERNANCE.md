@@ -42,7 +42,7 @@ modification. See [Consensus Seeking Process](#consensus-seeking-process) below
 for further detail on the consensus model used for governance.
 
 Collaborators may opt to elevate significant or controversial modifications to
-the CTC by assigning the ***ctc-agenda*** tag to a pull request or issue. The
+the CTC by assigning the `ctc-review` label to a pull request or issue. The
 CTC should serve as the final arbiter where required.
 
 For the current list of Collaborators, see the project
@@ -98,7 +98,7 @@ members affiliated with the over-represented employer(s).
 Typical activities of a CTC member include:
 
 * attending the weekly meeting
-* commenting on the weekly CTC meeting issue and issues labeled `ctc-agenda`
+* commenting on the weekly CTC meeting issue and issues labeled `ctc-review`
 * participating in CTC email threads
 * volunteering for tasks that arise from CTC meetings and related discussions
 * other activities (beyond those typical of Collaborators) that facilitate the
@@ -120,10 +120,12 @@ The intention of the agenda is not to approve or review all patches.
 That should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
-Any community member or contributor can ask that something be added to
-the next meeting's agenda by logging a GitHub issue. Any Collaborator,
-CTC member, or the moderator can add the item to the agenda by adding
-the ***ctc-agenda*** tag to the issue.
+Any community member or contributor can ask that something be reviewed
+by the CTC by logging a GitHub issue. Any Collaborator, CTC member, or the
+moderator can bring the issue to the CTC's attention by applying the
+`ctc-review` label. If consensus-seeking among CTC members fails for a
+particular issue, it may be added to the CTC meeting agenda by adding the
+`ctc-agenda` label.
 
 Prior to each CTC meeting, the moderator will share the agenda with
 members of the CTC. CTC members can also add items to the agenda at the
