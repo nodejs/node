@@ -129,7 +129,7 @@ See more details in [`fs.watch()`][].
 
 The `filename` argument may not be provided depending on operating system
 support. If `filename` is provided, it will be provided as a `Buffer` if
-`fs.watch()` is called with it's `encoding` option set to `'buffer'`, otherwise
+`fs.watch()` is called with its `encoding` option set to `'buffer'`, otherwise
 `filename` will be a string.
 
 ```js
