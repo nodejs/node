@@ -84,7 +84,7 @@ continuous integration tests on the
 ### Involving the CTC
 
 Collaborators may opt to elevate pull requests or issues to the CTC for
-discussion by assigning the ***ctc-agenda*** tag. This should be done
+discussion by assigning the `ctc-review` label. This should be done
 where a pull request:
 
 - has a significant impact on the codebase,
