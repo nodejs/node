@@ -97,7 +97,7 @@ function sign {
 
   scp ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
 
-  gpg --default-key $gpgkey --clearsign ${tmpdir}/${shafile}
+  gpg --default-key $gpgkey --clearsign --digest-algo SHA256 ${tmpdir}/${shafile}
 
   echo "Wrote to ${tmpdir}/"
 
