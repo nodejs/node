@@ -98,6 +98,7 @@ function sign {
   scp ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
 
   gpg --default-key $gpgkey --clearsign --digest-algo SHA256 ${tmpdir}/${shafile}
+  gpg --default-key $gpgkey --detach-sign --digest-algo SHA256 ${tmpdir}/${shafile}
 
   echo "Wrote to ${tmpdir}/"
 
@@ -117,7 +118,7 @@ function sign {
     fi
 
     if [ "X${yorn}" == "Xy" ]; then
-      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${webuser}@${webhost}:${shadir}/
+      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.sig ${webuser}@${webhost}:${shadir}/
       break
     fi
   done
