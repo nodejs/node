@@ -38,8 +38,7 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off. Consensus should be sought if additional Collaborators
 participate and there is disagreement around a particular
-modification. See [Consensus Seeking Process](#consensus-seeking-process) below
-for further detail on the consensus model used for governance.
+modification.
 
 Collaborators may opt to elevate significant or controversial modifications to
 the CTC by assigning the ***ctc-agenda*** tag to a pull request or issue. The
