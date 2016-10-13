@@ -1361,19 +1361,36 @@ for reasons stated in [`http.ClientRequest`][] section.
 
 `callback` takes one argument which is an instance of [`http.IncomingMessage`][]
 
-Example:
+JSON Fetching Example:
 
 ```js
-http.get('http://www.google.com/index.html', (res) => {
-  console.log(`STATUS: ${res.statusCode}`);
-  res.setEncoding('utf8');
-  let aggregatedData = '';
-  res.on('data', (chunk) => aggregatedData += chunk);
-  res.on('end', () => {
-    console.log(`Message body: ${aggregatedData}`);
-  });
+http.get('http://jsonplaceholder.typicode.com/posts/1', (res) => {
+    const statusCode = res.statusCode;
+    const contentType = res.headers && res.headers['content-type'];
+    
+    let error;    
+    if (statusCode !== 200)
+        error = new Error(`Request Failed.\n` +
+            `Status Code: ${statusCode}`);
+    else if (!/^application\/json/.test(contentType))
+        error = new Error(`Invalid content-type.\n` +
+            `Expected application/json but received ${contentType}`);
+    if (error) {
+        console.log(error.message);
+        // consume response data to free up memory
+        res.resume();
+        return;
+    }
+    
+    res.setEncoding('utf8');
+    let rawData = '';
+    res.on('data', (chunk) => rawData += chunk);
+    res.on('end', () => {
+        const parsedData = JSON.parse(rawData);
+        console.log('Title: ' + parsedData.title);
+    });
 }).on('error', (e) => {
-  console.log(`Got error: ${e.message}`);
+    console.log(`Got error: ${e.message}`);
 });
 ```
 
