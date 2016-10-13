@@ -27,3 +27,19 @@ assert.ok(!(readable instanceof Transform));
 assert.ok(!(writable instanceof Transform));
 assert.ok(!(duplex instanceof Transform));
 assert.ok(transform instanceof Transform);
+
+assert.ok(!(null instanceof Writable));
+assert.ok(!(undefined instanceof Writable));
+
+// Simple inheritance check for `Writable` works fine in a subclass constructor.
+function CustomWritable() {
+  assert.ok(this instanceof Writable, 'inherits from Writable');
+  assert.ok(this instanceof CustomWritable, 'inherits from CustomWritable');
+}
+
+Object.setPrototypeOf(CustomWritable, Writable);
+Object.setPrototypeOf(CustomWritable.prototype, Writable.prototype);
+
+new CustomWritable();
+
+assert.throws(CustomWritable, /AssertionError: inherits from Writable/);
