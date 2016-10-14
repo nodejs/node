@@ -1,6 +1,6 @@
 'use strict';
 
-require('../../common');
+const common = require('../../common');
 const assert = require('assert');
 
 const re = new RegExp(
@@ -8,4 +8,4 @@ const re = new RegExp(
   'NODE_MODULE_VERSION 42. This version of Node.js requires\n' +
   `NODE_MODULE_VERSION ${process.versions.modules}.`);
 
-assert.throws(() => require('./build/Release/binding'), re);
+assert.throws(() => require(`./build/${common.buildType}/binding`), re);
