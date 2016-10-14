@@ -4275,7 +4275,7 @@ static AtExitCallback* at_exit_functions_;
 
 
 // TODO(bnoordhuis) Turn into per-context event.
-void RunAtExit(Environment* env) {
+void RunAtExit(Environment* env = nullptr) {
   AtExitCallback* p = at_exit_functions_;
   at_exit_functions_ = nullptr;
 
@@ -4451,7 +4451,7 @@ static void StartNodeInstance(void* arg) {
     int exit_code = EmitExit(&env);
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
-    RunAtExit(&env);
+    RunAtExit();
 
     WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
