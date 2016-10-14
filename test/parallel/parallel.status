@@ -26,6 +26,3 @@ test-tick-processor-unknown: PASS,FLAKY
 [$system==aix]
 test-fs-watch-enoent                 : FAIL, PASS
 test-fs-watch-encoding               : FAIL, PASS
-
-#covered by https://github.com/nodejs/node/issues/8271
-test-child-process-fork-dgram            : PASS, FLAKY
