@@ -60,7 +60,10 @@ debugger and/or inspector. Info on these follows.
 
   * For more info, see <https://github.com/Microsoft/vscode-node-debug2>.
 
-* [IntelliJ WebStorm](tbd)
+* [WebStorm](https://www.jetbrains.com/webstorm/) 2016.2+ and other JetBrains
+                                                  IDEs (IJ U, PS, PC, RM, CL, AC)
+  * In the Node.js debug configuration add `--inspect` to the Node parameters
+    field for `--inspect` support. By default, the debug process will use V8 Debugging Protocol.
 
 * [node-inspector](https://github.com/node-inspector/node-inspector)
 
@@ -171,6 +174,6 @@ debugger and/or inspector. Info on these follows.
 
 ## Default ports: 
 
-* Inpsector: 9229
+* Inspector: 9229
 * Debugger:  5858
 
