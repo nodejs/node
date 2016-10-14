@@ -5,8 +5,9 @@ const debug = require('_debug_agent');
 
 assert.throws(
   () => { debug.start();},
-  function(err) {
-    return (err instanceof assert.AssertionError);
-  },
-  'Unexpected Error'
+   function(err) {
+     if ((err instanceof assert.AssertionError) && /value/.test(err)) {
+       return true;
+     }
+   }
 );
