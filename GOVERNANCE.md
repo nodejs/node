@@ -38,14 +38,14 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off.
 
-If there is disagreement among Collaborators about whether a proposed change
-should be accepted, then the change may not be accepted unless:
+If one or more Collaborators oppose a proposed change, then the change can not
+be accepted unless:
 
 * discussion and/or additional changes result in no Collaborators objecting to
   the change; previously-objecting Collaborators do not necessarily have to
   sign-off on the change, but they should not be opposed to it
-* the change is escalated to the CTC and the CTC approves the change; this
-  should be used only after other options (especially discussion among
+* the change is escalated to the CTC and the CTC votes to approve the change;
+  this should be used only after other options (especially discussion among
   the disagreeing Collaborators) have been exhausted
 
 Collaborators may opt to elevate significant or controversial modifications to
