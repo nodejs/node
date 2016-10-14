@@ -59,6 +59,11 @@ parser.add_option('--prefix',
     default='/usr/local',
     help='select the install prefix [default: %default]')
 
+parser.add_option('--coverage',
+    action='store_true',
+    dest='coverage',
+    help='Build node with code coverage enabled')
+
 parser.add_option('--debug',
     action='store_true',
     dest='debug',
@@ -856,6 +861,11 @@ def configure_node(o):
 
   if options.use_xcode and options.use_ninja:
     raise Exception('--xcode and --ninja cannot be used together.')
+
+  if options.coverage:
+    o['variables']['coverage'] = 'true'
+  else:
+    o['variables']['coverage'] = 'false'
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib

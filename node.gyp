@@ -549,10 +549,21 @@
             'NODE_PLATFORM="sunos"',
           ],
         }],
-        [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"', {
+        [ '(OS=="freebsd" or OS=="linux") and node_shared=="false" and coverage=="false"', {
           'ldflags': [ '-Wl,-z,noexecstack',
                        '-Wl,--whole-archive <(V8_BASE)',
                        '-Wl,--no-whole-archive' ]
+        }],
+        [ '(OS=="freebsd" or OS=="linux") and node_shared=="false" and coverage=="true"', {
+          'ldflags': [ '-Wl,-z,noexecstack',
+                       '-Wl,--whole-archive <(V8_BASE)',
+                       '-Wl,--no-whole-archive',
+                       '--coverage',
+                       '-g',
+                       '-O0' ],
+           'cflags': [ '--coverage',
+                       '-g',
+                       '-O0' ]
         }],
         [ 'OS=="sunos"', {
           'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
