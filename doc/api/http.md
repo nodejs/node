@@ -1365,7 +1365,7 @@ The `callback` is invoked with a single argument that is an instance of
 JSON Fetching Example:
 
 ```js
-http.get('http://jsonplaceholder.typicode.com/posts/1', (res) => {
+http.get('http://nodejs.org/dist/index.json', (res) => {
   const statusCode = res.statusCode;
   const contentType = res.headers['content-type'];
 
