@@ -1046,7 +1046,7 @@ this occurs.
 added: v0.1.90
 -->
 
-* {Stream.Readable}
+* {stream.Readable}
 
 A `Readable Stream` that represents the child process's `stderr`.
 
@@ -1061,7 +1061,7 @@ the same value.
 added: v0.1.90
 -->
 
-* {Stream.Writable}
+* {stream.Writable}
 
 A `Writable Stream` that represents the child process's `stdin`.
 
@@ -1119,7 +1119,7 @@ assert.equal(child.stdio[2], child.stderr);
 added: v0.1.90
 -->
 
-* {Stream.Readable}
+* {stream.Readable}
 
 A `Readable Stream` that represents the child process's `stdout`.
 
