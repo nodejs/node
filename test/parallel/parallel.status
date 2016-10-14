@@ -35,6 +35,3 @@ test-regress-GH-1899                 : FAIL, PASS
 # localIPv6Hosts list from test/common.js.
 test-https-connect-address-family : PASS,FLAKY
 test-tls-connect-address-family : PASS,FLAKY
-
-#covered by https://github.com/nodejs/node/issues/8271
-test-child-process-fork-dgram            : PASS, FLAKY
