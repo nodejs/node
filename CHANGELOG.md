@@ -6,6 +6,7 @@ release lines.
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js v7](doc/changelogs/CHANGELOG_V7.md)
 * [Node.js v6](doc/changelogs/CHANGELOG_V6.md)
 * [Node.js v5](doc/changelogs/CHANGELOG_V5.md)
 * [Node.js v4](doc/changelogs/CHANGELOG_V4.md)
@@ -18,13 +19,17 @@ release.
 
 <table>
 <tr>
-  <th><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>Current</sup</th>
+  <th><a href="doc/changelogs/CHANGELOG_V7.md">v7</a><sup>Current</sup></td>
+  <th><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>Current</sup></th>
   <th><a href="doc/changelogs/CHANGELOG_V5.md">v5</a></th>
   <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">v4</a><sup>LTS</sup></th>
   <th title="LTS Until 2016-12-31"><a href="doc/changelogs/CHANGELOG_V012.md">v0.12</a><sup>LTS</sup></th>
   <th title="LTS Until 2016-10-31" colspan="3"><a href="doc/changelogs/CHANGELOG_V010.md">v0.10</a><sup>LTS</sup></th>
 </tr>
 <tr>
+  <td valign="top">
+    <b><a href="doc/changelogs/CHANGELOG_V7.md#7.0.0">7.0.0</a></b><br/>
+  </td>
   <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V6.md#6.7.0">6.7.0</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.6.0">6.6.0</a><br/>
