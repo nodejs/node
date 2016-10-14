@@ -19,14 +19,14 @@ The `stream` module can be accessed using:
 const stream = require('stream');
 ```
 
-While it is important for all Node.js users to understand how streams works,
+While it is important for all Node.js users to understand how streams work,
 the `stream` module itself is most useful for developers that are creating new
 types of stream instances. Developer's who are primarily *consuming* stream
 objects will rarely (if ever) have need to use the `stream` module directly.
 
-## Organization of this document
+## Organization of this Document
 
-This document is divided into two primary sections and third section for
+This document is divided into two primary sections with a third section for
 additional notes. The first section explains the elements of the stream API that
 are required to *use* streams within an application. The second section explains
 the elements of the API that are required to *implement* new types of streams.
@@ -48,7 +48,7 @@ There are four fundamental stream types within Node.js:
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
 objects. It is possible, however, for stream implementations to work with other
-types of JavaScript values (with the exception of `null` which serves a special
+types of JavaScript values (with the exception of `null`, which serves a special
 purpose within streams). Such streams are considered to operate in "object
 mode".
 
@@ -87,7 +87,7 @@ total size of the internal write buffer is below the threshold set by
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
-A key goal of the `stream` API, and in particular the [`stream.pipe()`] method,
+A key goal of the `stream` API, particularly the [`stream.pipe()`] method,
 is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
@@ -98,8 +98,8 @@ appropriate and efficient flow of data. For example, [`net.Socket`][] instances
 are [Duplex][] streams whose Readable side allows consumption of data received
 *from* the socket and whose Writable side allows writing data *to* the socket.
 Because data may be written to the socket at a faster or slower rate than data
-is received, it is important each side operate (and buffer) independently of
-the other.
+is received, it is important for each side to operate (and buffer) independently
+of the other.
 
 ## API for Stream Consumers
 
@@ -1061,7 +1061,7 @@ Examples of Transform streams include:
 <!--type=misc-->
 
 The `stream` module API has been designed to make it possible to easily
-implement streams using JavaScript's prototypical inheritance model.
+implement streams using JavaScript's prototypal inheritance model.
 
 First, a stream developer would declare a new JavaScript class that extends one
 of the four basic stream classes (`stream.Writable`, `stream.Readable`,
