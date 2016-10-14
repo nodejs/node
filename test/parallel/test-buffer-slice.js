@@ -62,3 +62,13 @@ assert.strictEqual(Buffer.alloc(0).slice(0, 1).length, 0);
 
 // slice(0,0).length === 0
 assert.strictEqual(0, Buffer.from('hello').slice(0, 0).length);
+
+{
+  // Regression tests for https://github.com/nodejs/node/issues/9096
+  const buf = Buffer.from('abcd');
+  assert.strictEqual(buf.slice(buf.length / 3).toString(), 'bcd');
+  assert.strictEqual(
+    buf.slice(buf.length / 3, buf.length).toString(),
+    'bcd'
+  );
+}
