@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#6.8.1">6.8.1</a><br/>
 <a href="#6.8.0">6.8.0</a><br/>
 <a href="#6.7.0">6.7.0</a><br/>
 <a href="#6.6.0">6.6.0</a><br/>
@@ -33,6 +34,21 @@
 **Note:** The v6 release line will be covered by the
 [Node.js Long Term Support plan](https://github.com/nodejs/LTS) starting in
 October 2016.
+
+<a id="6.8.1"></a>
+## 2016-10-14, Version 6.8.1 (Current), @evanlucas
+
+### Notable changes
+
+* **build**: Fix building with shared zlib. (Bradley T. Hughes) [#9077](https://github.com/nodejs/node/pull/9077)
+* **stream**: Fix regression in `stream.Writable` subclass `instanceof` checks. (Anna Henningsen) [#9088](https://github.com/nodejs/node/pull/9088)
+* **timers**: Fix regression where immediates that are cleared in the callback would never be called. (Brian White) [#9086](https://github.com/nodejs/node/pull/9086)
+
+### Commits
+
+* [[`8d2206fe41`](https://github.com/nodejs/node/commit/8d2206fe41)] - **build**: add -DZLIB_CONST when building with --shared-zlib (Bradley T. Hughes) [#9077](https://github.com/nodejs/node/pull/9077)
+* [[`8c4fab0a28`](https://github.com/nodejs/node/commit/8c4fab0a28)] - **stream**: fix `Writable` subclass instanceof checks (Anna Henningsen) [#9088](https://github.com/nodejs/node/pull/9088)
+* [[`7171bd6311`](https://github.com/nodejs/node/commit/7171bd6311)] - **timers**: fix regression with clearImmediate() (Brian White) [#9086](https://github.com/nodejs/node/pull/9086)
 
 <a id="6.8.0"></a>
 ## 2016-10-12, Version 6.8.0 (Current), @Fishrock123
