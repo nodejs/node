@@ -330,6 +330,21 @@ hr {
   margin-top: .666em;
 }
 
+#toc .stability_0::after {
+  background-color: #d50027;
+  color: #fff;
+}
+
+#toc .stability_0::after {
+  content: "deprecated";
+  font-size: .8em;
+  position: relative;
+  top: -.18em;
+  left: .5em;
+  padding: 0 .3em .2em;
+  border-radius: 3px;
+}
+
 #apicontent li {
   margin-bottom: .5em;
 }
