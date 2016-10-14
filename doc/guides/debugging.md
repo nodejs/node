@@ -46,10 +46,7 @@ debugger and/or inspector. Info on these follows.
   * **Option 2**: Paste the following URL in Chrome,
     replacing the `ws` parameter with your hostname and port as needed:
 
-    `chrome-devtools://devtools/remote/serve_file/@60cd6e859b9f557d2312f5bf532f6aec5f284980/inspector.html?experiments=true&v8only=true&ws=localhost:9229/node`
-    
-    > The hash represents the current revision and is specified in
-      <https://github.com/nodejs/node/blob/master/deps/v8_inspector/third_party/v8_inspector/platform/v8_inspector/public/InspectorVersion.h>
+    `chrome-devtools://devtools/bundled/inspector.html?experiments=true&v8only=true&ws=localhost:9229/node`
 
 * [VS Code](https://github.com/microsoft/vscode)
   * **Option 1**: In the Debug panel, click the settings button to choose
@@ -63,7 +60,8 @@ debugger and/or inspector. Info on these follows.
 * [WebStorm](https://www.jetbrains.com/webstorm/) 2016.2+ and other JetBrains
                                                   IDEs (IJ U, PS, PC, RM, CL, AC)
   * In the Node.js debug configuration add `--inspect` to the Node parameters
-    field for `--inspect` support. By default, the debug process will use V8 Debugging Protocol.
+    field for `--inspect` support. By default, the debug process will use V8
+    Debugging Protocol.
 
 * [node-inspector](https://github.com/node-inspector/node-inspector)
 
