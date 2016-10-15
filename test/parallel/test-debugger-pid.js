@@ -43,7 +43,7 @@ interfacer.on('line', function(line) {
     }
   } else {
     line = line.replace(/^(debug> *)+/, '');
-    expected = `(node:${pid}) Target process: 655555 doesn\'t exist.`;
+    expected = `(node:${pid}) Target process: 655555 doesn't exist.`;
   }
 
   assert.strictEqual(expected, line);
