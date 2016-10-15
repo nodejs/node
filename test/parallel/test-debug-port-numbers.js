@@ -53,7 +53,7 @@ function kill(child) {
 process.on('exit', function() {
   for (const child of children) {
     const port = child.test.port;
-    const one = RegExp(`Debugger listening on (\\[::\\]|0\.0\.0\.0):${port}`);
+    const one = RegExp(`Debugger listening on (\\[::\\]|0.0.0.0):${port}`);
     const two = RegExp(`connecting to 127.0.0.1:${port}`);
     assert(one.test(child.test.stdout));
     assert(two.test(child.test.stdout));
