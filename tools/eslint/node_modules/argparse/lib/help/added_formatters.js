@@ -58,8 +58,8 @@ util.inherits(RawDescriptionHelpFormatter, HelpFormatter);
 RawDescriptionHelpFormatter.prototype._fillText = function (text, width, indent) {
   var lines = text.split('\n');
   lines = lines.map(function (line) {
-      return $$.trimEnd(indent + line);
-    });
+    return $$.trimEnd(indent + line);
+  });
   return lines.join('\n');
 };
 module.exports.RawDescriptionHelpFormatter = RawDescriptionHelpFormatter;

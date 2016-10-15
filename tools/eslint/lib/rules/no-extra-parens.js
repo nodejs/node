@@ -367,15 +367,15 @@ module.exports = {
          * @private
          */
         function dryBinaryLogical(node) {
-            if (!NESTED_BINARY) {
-                const prec = precedence(node);
+            const prec = precedence(node);
+            const shouldSkipLeft = NESTED_BINARY && (node.left.type === "BinaryExpression" || node.left.type === "LogicalExpression");
+            const shouldSkipRight = NESTED_BINARY && (node.right.type === "BinaryExpression" || node.right.type === "LogicalExpression");
 
-                if (hasExcessParens(node.left) && precedence(node.left) >= prec) {
-                    report(node.left);
-                }
-                if (hasExcessParens(node.right) && precedence(node.right) > prec) {
-                    report(node.right);
-                }
+            if (!shouldSkipLeft && hasExcessParens(node.left) && precedence(node.left) >= prec) {
+                report(node.left);
+            }
+            if (!shouldSkipRight && hasExcessParens(node.right) && precedence(node.right) > prec) {
+                report(node.right);
             }
         }
 
@@ -587,6 +587,7 @@ module.exports = {
 
             UnaryExpression: dryUnaryUpdate,
             UpdateExpression: dryUnaryUpdate,
+            AwaitExpression: dryUnaryUpdate,
 
             VariableDeclarator(node) {
                 if (node.init && hasExcessParens(node.init) &&

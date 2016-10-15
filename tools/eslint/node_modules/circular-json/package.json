@@ -16,7 +16,6 @@
   "_from": "circular-json@>=0.3.0 <0.4.0",
   "_id": "circular-json@0.3.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/circular-json",
   "_nodeVersion": "6.3.1",
   "_npmOperationalInternal": {

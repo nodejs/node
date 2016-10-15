@@ -63,7 +63,7 @@ module.exports = {
                 const environment = Environments.get(name);
 
                 if (environment) {
-                    debug("Creating config for environment " + name);
+                    debug(`Creating config for environment ${name}`);
                     if (environment.globals) {
                         Object.assign(envConfig.globals, environment.globals);
                     }

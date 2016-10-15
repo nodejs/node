@@ -688,34 +688,34 @@ HelpFormatter.prototype._formatArgs = function (action, metavarDefault) {
   var buildMetavar = this._metavarFormatter(action, metavarDefault);
 
   switch (action.nargs) {
-  /*eslint-disable no-undefined*/
-  case undefined:
-  case null:
-    metavars = buildMetavar(1);
-    result = '' + metavars[0];
-    break;
-  case c.OPTIONAL:
-    metavars = buildMetavar(1);
-    result = '[' + metavars[0] + ']';
-    break;
-  case c.ZERO_OR_MORE:
-    metavars = buildMetavar(2);
-    result = '[' + metavars[0] + ' [' + metavars[1] + ' ...]]';
-    break;
-  case c.ONE_OR_MORE:
-    metavars = buildMetavar(2);
-    result = '' + metavars[0] + ' [' + metavars[1] + ' ...]';
-    break;
-  case c.REMAINDER:
-    result = '...';
-    break;
-  case c.PARSER:
-    metavars = buildMetavar(1);
-    result = metavars[0] + ' ...';
-    break;
-  default:
-    metavars = buildMetavar(action.nargs);
-    result = metavars.join(' ');
+    /*eslint-disable no-undefined*/
+    case undefined:
+    case null:
+      metavars = buildMetavar(1);
+      result = '' + metavars[0];
+      break;
+    case c.OPTIONAL:
+      metavars = buildMetavar(1);
+      result = '[' + metavars[0] + ']';
+      break;
+    case c.ZERO_OR_MORE:
+      metavars = buildMetavar(2);
+      result = '[' + metavars[0] + ' [' + metavars[1] + ' ...]]';
+      break;
+    case c.ONE_OR_MORE:
+      metavars = buildMetavar(2);
+      result = '' + metavars[0] + ' [' + metavars[1] + ' ...]';
+      break;
+    case c.REMAINDER:
+      result = '...';
+      break;
+    case c.PARSER:
+      metavars = buildMetavar(1);
+      result = metavars[0] + ' ...';
+      break;
+    default:
+      metavars = buildMetavar(action.nargs);
+      result = metavars.join(' ');
   }
   return result;
 };

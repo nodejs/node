@@ -1,8 +1,7 @@
 var arrayMap = require('./_arrayMap'),
     baseDifference = require('./_baseDifference'),
-    baseFlatten = require('./_baseFlatten'),
     basePick = require('./_basePick'),
-    baseRest = require('./_baseRest'),
+    flatRest = require('./_flatRest'),
     getAllKeysIn = require('./_getAllKeysIn'),
     toKey = require('./_toKey');
 
@@ -25,11 +24,11 @@ var arrayMap = require('./_arrayMap'),
  * _.omit(object, ['a', 'c']);
  * // => { 'b': '2' }
  */
-var omit = baseRest(function(object, props) {
+var omit = flatRest(function(object, props) {
   if (object == null) {
     return {};
   }
-  props = arrayMap(baseFlatten(props, 1), toKey);
+  props = arrayMap(props, toKey);
   return basePick(object, baseDifference(getAllKeysIn(object), props));
 });
 

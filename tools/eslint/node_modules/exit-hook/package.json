@@ -16,7 +16,6 @@
   "_from": "exit-hook@>=1.0.0 <2.0.0",
   "_id": "exit-hook@1.1.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/exit-hook",
   "_npmUser": {
     "name": "sindresorhus",

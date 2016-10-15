@@ -50,9 +50,9 @@ function processPath(options) {
     let suffix = "/**";
 
     if (extensions.length === 1) {
-        suffix += "/*." + extensions[0];
+        suffix += `/*.${extensions[0]}`;
     } else {
-        suffix += "/*.{" + extensions.join(",") + "}";
+        suffix += `/*.{${extensions.join(",")}}`;
     }
 
     /**
