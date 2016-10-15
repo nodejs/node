@@ -93,3 +93,7 @@ test.tap
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
+
+# IntelliJ IDEs
+.idea
+*.iml
