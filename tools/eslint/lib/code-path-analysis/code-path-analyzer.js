@@ -148,7 +148,7 @@ function forwardCurrentToHead(analyzer, node) {
         headSegment = headSegments[i];
 
         if (currentSegment !== headSegment && currentSegment) {
-            debug.dump("onCodePathSegmentEnd " + currentSegment.id);
+            debug.dump(`onCodePathSegmentEnd ${currentSegment.id}`);
 
             if (currentSegment.reachable) {
                 analyzer.emitter.emit(
@@ -168,7 +168,7 @@ function forwardCurrentToHead(analyzer, node) {
         headSegment = headSegments[i];
 
         if (currentSegment !== headSegment && headSegment) {
-            debug.dump("onCodePathSegmentStart " + headSegment.id);
+            debug.dump(`onCodePathSegmentStart ${headSegment.id}`);
 
             CodePathSegment.markUsed(headSegment);
             if (headSegment.reachable) {
@@ -197,7 +197,7 @@ function leaveFromCurrentSegment(analyzer, node) {
     for (let i = 0; i < currentSegments.length; ++i) {
         const currentSegment = currentSegments[i];
 
-        debug.dump("onCodePathSegmentEnd " + currentSegment.id);
+        debug.dump(`onCodePathSegmentEnd ${currentSegment.id}`);
         if (currentSegment.reachable) {
             analyzer.emitter.emit(
                 "onCodePathSegmentEnd",
@@ -353,7 +353,7 @@ function processCodePathToEnter(analyzer, node) {
             state = CodePath.getState(codePath);
 
             // Emits onCodePathStart events.
-            debug.dump("onCodePathStart " + codePath.id);
+            debug.dump(`onCodePathStart ${codePath.id}`);
             analyzer.emitter.emit("onCodePathStart", codePath, node);
             break;
 
@@ -546,7 +546,7 @@ function postprocess(analyzer, node) {
             leaveFromCurrentSegment(analyzer, node);
 
             // Emits onCodePathEnd event of this code path.
-            debug.dump("onCodePathEnd " + codePath.id);
+            debug.dump(`onCodePathEnd ${codePath.id}`);
             analyzer.emitter.emit("onCodePathEnd", codePath, node);
             debug.dumpDot(codePath);
 
@@ -643,7 +643,7 @@ CodePathAnalyzer.prototype = {
      */
     onLooped(fromSegment, toSegment) {
         if (fromSegment.reachable && toSegment.reachable) {
-            debug.dump("onCodePathSegmentLoop " + fromSegment.id + " -> " + toSegment.id);
+            debug.dump(`onCodePathSegmentLoop ${fromSegment.id} -> ${toSegment.id}`);
             this.emitter.emit(
                 "onCodePathSegmentLoop",
                 fromSegment,

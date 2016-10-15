@@ -46,7 +46,7 @@ NodeEventGenerator.prototype = {
      * @returns {void}
      */
     leaveNode: function leaveNode(node) {
-        this.emitter.emit(node.type + ":exit", node);
+        this.emitter.emit(`${node.type}:exit`, node);
     }
 };
 

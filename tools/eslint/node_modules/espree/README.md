@@ -41,7 +41,7 @@ var ast = espree.parse(code, {
     // create a top-level tokens array containing all tokens
     tokens: true,
 
-    // specify the language version (3, 5, 6, or 7, default is 5)
+    // specify the language version (3, 5, 6, 7, or 8, default is 5)
     ecmaVersion: 5,
 
     // specify which type of script you're parsing (script or module, default is script)
@@ -130,9 +130,16 @@ We are building on top of Acorn, however, so that we can contribute back and hel
 
 All of them.
 
-### What ECMAScript 7 features do you support?
+### What ECMAScript 7/2016 features do you support?
 
 There is only one ECMAScript 7 syntax change: the exponentiation operator. Espree supports this.
+
+### What ECMAScript 2017 features do you support?
+
+Because ECMAScript 2017 is still under development, we are implementing features as they are finalized. Currently, Espree supports:
+
+* `async` functions
+* Trailing commas in function declarations and calls (including arrow functions and concise methods)
 
 ### How do you determine which experimental features to support?
 

@@ -14,14 +14,13 @@
     ]
   ],
   "_from": "eslint@latest",
-  "_id": "eslint@3.5.0",
+  "_id": "eslint@3.8.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/eslint",
   "_nodeVersion": "4.4.7",
   "_npmOperationalInternal": {
-    "host": "packages-16-east.internal.npmjs.com",
-    "tmp": "tmp/eslint-3.5.0.tgz_1473451101299_0.8081250376999378"
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/eslint-3.8.0.tgz_1476481030547_0.1366094599943608"
   },
   "_npmUser": {
     "name": "eslint",
@@ -41,8 +40,8 @@
   "_requiredBy": [
     "#USER"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-3.5.0.tgz",
-  "_shasum": "22fc9f780ea5bca1306fab2b6d3336b0fa62c754",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-3.8.0.tgz",
+  "_shasum": "4fbbf6833d66654860c23a099c47a0f086de34b7",
   "_shrinkwrap": null,
   "_spec": "eslint",
   "_where": "/Users/trott/io.js/tools",
@@ -62,7 +61,7 @@
     "debug": "^2.1.1",
     "doctrine": "^1.2.2",
     "escope": "^3.6.0",
-    "espree": "^3.1.6",
+    "espree": "^3.3.1",
     "estraverse": "^4.2.0",
     "esutils": "^2.0.2",
     "file-entry-cache": "^2.0.0",
@@ -79,7 +78,7 @@
     "lodash": "^4.0.0",
     "mkdirp": "^0.5.0",
     "natural-compare": "^1.4.0",
-    "optionator": "^0.8.1",
+    "optionator": "^0.8.2",
     "path-is-inside": "^1.0.1",
     "pluralize": "^1.2.1",
     "progress": "^1.1.8",
@@ -133,8 +132,8 @@
   },
   "directories": {},
   "dist": {
-    "shasum": "22fc9f780ea5bca1306fab2b6d3336b0fa62c754",
-    "tarball": "https://registry.npmjs.org/eslint/-/eslint-3.5.0.tgz"
+    "shasum": "4fbbf6833d66654860c23a099c47a0f086de34b7",
+    "tarball": "https://registry.npmjs.org/eslint/-/eslint-3.8.0.tgz"
   },
   "engines": {
     "node": ">=4"
@@ -147,7 +146,7 @@
     "lib",
     "messages"
   ],
-  "gitHead": "18be52eab695f0d78d19b349fefb09db19751d51",
+  "gitHead": "82220042725dd0e86b5ddbeac4166e1eb147aa04",
   "homepage": "http://eslint.org",
   "keywords": [
     "ast",
@@ -194,5 +193,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "3.5.0"
+  "version": "3.8.0"
 }

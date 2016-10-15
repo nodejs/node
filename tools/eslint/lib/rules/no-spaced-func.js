@@ -13,7 +13,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow spacing between `function` identifiers and their applications (deprecated)",
+            description: "disallow spacing between function identifiers and their applications (deprecated)",
             category: "Stylistic Issues",
             recommended: false,
             replacedBy: ["func-call-spacing"]

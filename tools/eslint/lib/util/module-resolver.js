@@ -71,7 +71,7 @@ ModuleResolver.prototype = {
         const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
 
         if (!result) {
-            throw new Error("Cannot find module '" + name + "'");
+            throw new Error(`Cannot find module '${name}'`);
         }
 
         return result;

@@ -15,29 +15,46 @@ module.exports = {
     meta: {
         docs: {
             description: "disallow certain properties on certain objects",
-            category: "Node.js and CommonJS",
+            category: "Best Practices",
             recommended: false
         },
 
         schema: {
             type: "array",
             items: {
-                type: "object",
-                properties: {
-                    object: {
-                        type: "string"
+                anyOf: [ // `object` and `property` are both optional, but at least one of them must be provided.
+                    {
+                        type: "object",
+                        properties: {
+                            object: {
+                                type: "string"
+                            },
+                            property: {
+                                type: "string"
+                            },
+                            message: {
+                                type: "string"
+                            }
+                        },
+                        additionalProperties: false,
+                        required: ["object"]
                     },
-                    property: {
-                        type: "string"
-                    },
-                    message: {
-                        type: "string"
+                    {
+                        type: "object",
+                        properties: {
+                            object: {
+                                type: "string"
+                            },
+                            property: {
+                                type: "string"
+                            },
+                            message: {
+                                type: "string"
+                            }
+                        },
+                        additionalProperties: false,
+                        required: ["property"]
                     }
-                },
-                additionalProperties: false,
-                required: [
-                    "object",
-                    "property"
                 ]
             },
             uniqueItems: true
@@ -51,38 +68,96 @@ module.exports = {
             return {};
         }
 
-        const restrictedProperties = restrictedCalls.reduce(function(restrictions, option) {
+        const restrictedProperties = new Map();
+        const globallyRestrictedObjects = new Map();
+        const globallyRestrictedProperties = new Map();
+
+        restrictedCalls.forEach(option => {
             const objectName = option.object;
             const propertyName = option.property;
 
-            if (!restrictions.has(objectName)) {
-                restrictions.set(objectName, new Map());
+            if (typeof objectName === "undefined") {
+                globallyRestrictedProperties.set(propertyName, {message: option.message});
+            } else if (typeof propertyName === "undefined") {
+                globallyRestrictedObjects.set(objectName, {message: option.message});
+            } else {
+                if (!restrictedProperties.has(objectName)) {
+                    restrictedProperties.set(objectName, new Map());
+                }
+
+                restrictedProperties.get(objectName).set(propertyName, {
+                    message: option.message
+                });
             }
+        });
 
-            restrictions.get(objectName).set(propertyName, {
-                message: option.message
-            });
+        /**
+        * Checks to see whether a property access is restricted, and reports it if so.
+        * @param {ASTNode} node The node to report
+        * @param {string} objectName The name of the object
+        * @param {string} propertyName The name of the property
+        * @returns {undefined}
+        */
+        function checkPropertyAccess(node, objectName, propertyName) {
+            if (propertyName === null) {
+                return;
+            }
+            const matchedObject = restrictedProperties.get(objectName);
+            const matchedObjectProperty = matchedObject ? matchedObject.get(propertyName) : globallyRestrictedObjects.get(objectName);
+            const globalMatchedProperty = globallyRestrictedProperties.get(propertyName);
 
-            return restrictions;
-        }, new Map());
+            if (matchedObjectProperty) {
+                const message = matchedObjectProperty.message ? ` ${matchedObjectProperty.message}` : "";
 
-        return {
-            MemberExpression(node) {
-                const objectName = node.object && node.object.name;
-                const propertyName = astUtils.getStaticPropertyName(node);
-                const matchedObject = restrictedProperties.get(objectName);
-                const matchedObjectProperty = matchedObject && matchedObject.get(propertyName);
+                context.report(node, "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}", {
+                    objectName,
+                    propertyName,
+                    message
+                });
+            } else if (globalMatchedProperty) {
+                const message = globalMatchedProperty.message ? ` ${globalMatchedProperty.message}` : "";
 
-                if (matchedObjectProperty) {
-                    const message = matchedObjectProperty.message ? " " + matchedObjectProperty.message : "";
+                context.report(node, "'{{propertyName}}' is restricted from being used.{{message}}", {
+                    propertyName,
+                    message
+                });
+            }
+        }
 
-                    context.report(node, "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}", {
-                        objectName,
-                        propertyName,
-                        message
+        /**
+        * Checks property accesses in a destructuring assignment expression, e.g. `var foo; ({foo} = bar);`
+        * @param {ASTNode} node An AssignmentExpression or AssignmentPattern node
+        * @returns {undefined}
+        */
+        function checkDestructuringAssignment(node) {
+            if (node.right.type === "Identifier") {
+                const objectName = node.right.name;
+
+                if (node.left.type === "ObjectPattern") {
+                    node.left.properties.forEach(property => {
+                        checkPropertyAccess(node.left, objectName, astUtils.getStaticPropertyName(property));
                     });
                 }
             }
+        }
+
+        return {
+            MemberExpression(node) {
+                checkPropertyAccess(node, node.object && node.object.name, astUtils.getStaticPropertyName(node));
+            },
+            VariableDeclarator(node) {
+                if (node.init && node.init.type === "Identifier") {
+                    const objectName = node.init.name;
+
+                    if (node.id.type === "ObjectPattern") {
+                        node.id.properties.forEach(property => {
+                            checkPropertyAccess(node.id, objectName, astUtils.getStaticPropertyName(property));
+                        });
+                    }
+                }
+            },
+            AssignmentExpression: checkDestructuringAssignment,
+            AssignmentPattern: checkDestructuringAssignment
         };
     }
 };

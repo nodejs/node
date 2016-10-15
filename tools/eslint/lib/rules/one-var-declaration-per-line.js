@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow newlines around `var` declarations",
+            description: "require or disallow newlines around variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -20,7 +20,9 @@ module.exports = {
             {
                 enum: ["always", "initializations"]
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
     create(context) {
@@ -63,7 +65,8 @@ module.exports = {
                         context.report({
                             node,
                             message: ERROR_MESSAGE,
-                            loc: current.loc.start
+                            loc: current.loc.start,
+                            fix: fixer => fixer.insertTextBefore(current, "\n")
                         });
                     }
                 }

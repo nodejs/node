@@ -649,19 +649,19 @@ ArgumentParser.prototype._matchArgument = function (action, regexpArgStrings) {
   // throw an exception if we weren't able to find a match
   if (!matches) {
     switch (action.nargs) {
-    /*eslint-disable no-undefined*/
-    case undefined:
-    case null:
-      message = 'Expected one argument.';
-      break;
-    case c.OPTIONAL:
-      message = 'Expected at most one argument.';
-      break;
-    case c.ONE_OR_MORE:
-      message = 'Expected at least one argument.';
-      break;
-    default:
-      message = 'Expected %s argument(s)';
+      /*eslint-disable no-undefined*/
+      case undefined:
+      case null:
+        message = 'Expected one argument.';
+        break;
+      case c.OPTIONAL:
+        message = 'Expected at most one argument.';
+        break;
+      case c.ONE_OR_MORE:
+        message = 'Expected at least one argument.';
+        break;
+      default:
+        message = 'Expected %s argument(s)';
     }
 
     throw argumentErrorHelper(
@@ -840,34 +840,34 @@ ArgumentParser.prototype._getNargsPattern = function (action) {
   var regexpNargs;
 
   switch (action.nargs) {
-  // the default (null) is assumed to be a single argument
-  case undefined:
-  case null:
-    regexpNargs = '(-*A-*)';
-    break;
-  // allow zero or more arguments
-  case c.OPTIONAL:
-    regexpNargs = '(-*A?-*)';
-    break;
-  // allow zero or more arguments
-  case c.ZERO_OR_MORE:
-    regexpNargs = '(-*[A-]*)';
-    break;
-  // allow one or more arguments
-  case c.ONE_OR_MORE:
-    regexpNargs = '(-*A[A-]*)';
-    break;
-  // allow any number of options or arguments
-  case c.REMAINDER:
-    regexpNargs = '([-AO]*)';
-    break;
-  // allow one argument followed by any number of options or arguments
-  case c.PARSER:
-    regexpNargs = '(-*A[-AO]*)';
-    break;
-  // all others should be integers
-  default:
-    regexpNargs = '(-*' + $$.repeat('-*A', action.nargs) + '-*)';
+    // the default (null) is assumed to be a single argument
+    case undefined:
+    case null:
+      regexpNargs = '(-*A-*)';
+      break;
+    // allow zero or more arguments
+    case c.OPTIONAL:
+      regexpNargs = '(-*A?-*)';
+      break;
+    // allow zero or more arguments
+    case c.ZERO_OR_MORE:
+      regexpNargs = '(-*[A-]*)';
+      break;
+    // allow one or more arguments
+    case c.ONE_OR_MORE:
+      regexpNargs = '(-*A[A-]*)';
+      break;
+    // allow any number of options or arguments
+    case c.REMAINDER:
+      regexpNargs = '([-AO]*)';
+      break;
+    // allow one argument followed by any number of options or arguments
+    case c.PARSER:
+      regexpNargs = '(-*A[-AO]*)';
+      break;
+    // all others should be integers
+    default:
+      regexpNargs = '(-*' + $$.repeat('-*A', action.nargs) + '-*)';
   }
 
   // if this is an optional action, -- is not allowed

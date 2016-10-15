@@ -22,7 +22,7 @@ module.exports = {
                 properties: {
                     max: {
                         type: "integer",
-                        minimum: 0
+                        minimum: 1
                     }
                 },
                 additionalProperties: false
@@ -185,23 +185,7 @@ module.exports = {
             "ExportNamedDeclaration:exit": leaveStatement,
             "ExportDefaultDeclaration:exit": leaveStatement,
             "ExportAllDeclaration:exit": leaveStatement,
-            "Program:exit": reportFirstExtraStatementAndClear,
-
-            // For backward compatibility.
-            // Empty blocks should be warned if `{max: 0}` was given.
-            BlockStatement: function reportIfZero(node) {
-                if (maxStatementsPerLine === 0 && node.body.length === 0) {
-                    context.report({
-                        node,
-                        message,
-                        data: {
-                            numberOfStatementsOnThisLine: 0,
-                            maxStatementsPerLine,
-                            statements: "statements",
-                        }
-                    });
-                }
-            }
+            "Program:exit": reportFirstExtraStatementAndClear
         };
     }
 };

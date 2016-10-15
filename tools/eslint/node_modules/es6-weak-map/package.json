@@ -16,7 +16,6 @@
   "_from": "es6-weak-map@>=2.0.1 <3.0.0",
   "_id": "es6-weak-map@2.0.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/es6-weak-map",
   "_nodeVersion": "0.12.7",
   "_npmUser": {

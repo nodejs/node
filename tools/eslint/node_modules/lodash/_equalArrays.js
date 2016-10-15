@@ -1,5 +1,6 @@
 var SetCache = require('./_SetCache'),
-    arraySome = require('./_arraySome');
+    arraySome = require('./_arraySome'),
+    cacheHas = require('./_cacheHas');
 
 /** Used to compose bitmasks for comparison styles. */
 var UNORDERED_COMPARE_FLAG = 1,
@@ -59,9 +60,9 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
     // Recursively compare arrays (susceptible to call stack limits).
     if (seen) {
       if (!arraySome(other, function(othValue, othIndex) {
-            if (!seen.has(othIndex) &&
+            if (!cacheHas(seen, othIndex) &&
                 (arrValue === othValue || equalFunc(arrValue, othValue, customizer, bitmask, stack))) {
-              return seen.add(othIndex);
+              return seen.push(othIndex);
             }
           })) {
         result = false;

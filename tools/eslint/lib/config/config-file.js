@@ -90,7 +90,7 @@ function isFilePath(filePath) {
  * @private
  */
 function loadYAMLConfigFile(filePath) {
-    debug("Loading YAML config file: " + filePath);
+    debug(`Loading YAML config file: ${filePath}`);
 
     // lazy load YAML to improve performance when not used
     const yaml = require("js-yaml");
@@ -100,8 +100,8 @@ function loadYAMLConfigFile(filePath) {
         // empty YAML file can be null, so always use
         return yaml.safeLoad(readFile(filePath)) || {};
     } catch (e) {
-        debug("Error reading YAML file: " + filePath);
-        e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
+        debug(`Error reading YAML file: ${filePath}`);
+        e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
         throw e;
     }
 }
@@ -114,13 +114,13 @@ function loadYAMLConfigFile(filePath) {
  * @private
  */
 function loadJSONConfigFile(filePath) {
-    debug("Loading JSON config file: " + filePath);
+    debug(`Loading JSON config file: ${filePath}`);
 
     try {
         return JSON.parse(stripComments(readFile(filePath)));
     } catch (e) {
-        debug("Error reading JSON file: " + filePath);
-        e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
+        debug(`Error reading JSON file: ${filePath}`);
+        e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
         throw e;
     }
 }
@@ -133,7 +133,7 @@ function loadJSONConfigFile(filePath) {
  * @private
  */
 function loadLegacyConfigFile(filePath) {
-    debug("Loading config file: " + filePath);
+    debug(`Loading config file: ${filePath}`);
 
     // lazy load YAML to improve performance when not used
     const yaml = require("js-yaml");
@@ -141,8 +141,8 @@ function loadLegacyConfigFile(filePath) {
     try {
         return yaml.safeLoad(stripComments(readFile(filePath))) || /* istanbul ignore next */ {};
     } catch (e) {
-        debug("Error reading YAML file: " + filePath);
-        e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
+        debug(`Error reading YAML file: ${filePath}`);
+        e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
         throw e;
     }
 }
@@ -155,12 +155,12 @@ function loadLegacyConfigFile(filePath) {
  * @private
  */
 function loadJSConfigFile(filePath) {
-    debug("Loading JS config file: " + filePath);
+    debug(`Loading JS config file: ${filePath}`);
     try {
         return requireUncached(filePath);
     } catch (e) {
-        debug("Error reading JavaScript file: " + filePath);
-        e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
+        debug(`Error reading JavaScript file: ${filePath}`);
+        e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
         throw e;
     }
 }
@@ -173,12 +173,12 @@ function loadJSConfigFile(filePath) {
  * @private
  */
 function loadPackageJSONConfigFile(filePath) {
-    debug("Loading package.json config file: " + filePath);
+    debug(`Loading package.json config file: ${filePath}`);
     try {
         return loadJSONConfigFile(filePath).eslintConfig || null;
     } catch (e) {
-        debug("Error reading package.json file: " + filePath);
-        e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
+        debug(`Error reading package.json file: ${filePath}`);
+        e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
         throw e;
     }
 }
@@ -233,7 +233,7 @@ function loadConfigFile(file) {
  * @private
  */
 function writeJSONConfigFile(config, filePath) {
-    debug("Writing JSON config file: " + filePath);
+    debug(`Writing JSON config file: ${filePath}`);
 
     const content = stringify(config, {cmp: sortByKey, space: 4});
 
@@ -248,7 +248,7 @@ function writeJSONConfigFile(config, filePath) {
  * @private
  */
 function writeYAMLConfigFile(config, filePath) {
-    debug("Writing YAML config file: " + filePath);
+    debug(`Writing YAML config file: ${filePath}`);
 
     // lazy load YAML to improve performance when not used
     const yaml = require("js-yaml");
@@ -266,9 +266,9 @@ function writeYAMLConfigFile(config, filePath) {
  * @private
  */
 function writeJSConfigFile(config, filePath) {
-    debug("Writing JS config file: " + filePath);
+    debug(`Writing JS config file: ${filePath}`);
 
-    const content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
+    const content = `module.exports = ${stringify(config, {cmp: sortByKey, space: 4})};`;
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -387,7 +387,7 @@ function applyExtends(config, filePath, relativeTo) {
         }
 
         try {
-            debug("Loading " + parentPath);
+            debug(`Loading ${parentPath}`);
             return ConfigOps.merge(load(parentPath, false, relativeTo), previousValue);
         } catch (e) {
 
@@ -397,7 +397,7 @@ function applyExtends(config, filePath, relativeTo) {
              * message so the user is able to see where it was referenced from,
              * then re-throw.
              */
-            e.message += "\nReferenced from: " + filePath;
+            e.message += `\nReferenced from: ${filePath}`;
             throw e;
         }
 
@@ -430,21 +430,21 @@ function normalizePackageName(name, prefix) {
          * it's a scoped package
          * package name is "eslint-config", or just a username
          */
-        const scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
-            scopedPackageNameRegex = new RegExp("^" + prefix + "(-|$)");
+        const scopedPackageShortcutRegex = new RegExp(`^(@[^\/]+)(?:\/(?:${prefix})?)?$`),
+            scopedPackageNameRegex = new RegExp(`^${prefix}(-|$)`);
 
         if (scopedPackageShortcutRegex.test(name)) {
-            name = name.replace(scopedPackageShortcutRegex, "$1/" + prefix);
+            name = name.replace(scopedPackageShortcutRegex, `$1/${prefix}`);
         } else if (!scopedPackageNameRegex.test(name.split("/")[1])) {
 
             /*
              * for scoped packages, insert the eslint-config after the first / unless
              * the path is already @scope/eslint or @scope/eslint-config-xxx
              */
-            name = name.replace(/^@([^\/]+)\/(.*)$/, "@$1/" + prefix + "-$2");
+            name = name.replace(/^@([^\/]+)\/(.*)$/, `@$1/${prefix}-$2`);
         }
-    } else if (name.indexOf(prefix + "-") !== 0) {
-        name = prefix + "-" + name;
+    } else if (name.indexOf(`${prefix}-`) !== 0) {
+        name = `${prefix}-${name}`;
     }
 
     return name;
@@ -469,12 +469,12 @@ function resolve(filePath, relativeTo) {
             const configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
 
             normalizedPackageName = normalizePackageName(packagePath, "eslint-plugin");
-            debug("Attempting to resolve " + normalizedPackageName);
+            debug(`Attempting to resolve ${normalizedPackageName}`);
             filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
             return { filePath, configName };
         } else {
             normalizedPackageName = normalizePackageName(filePath, "eslint-config");
-            debug("Attempting to resolve " + normalizedPackageName);
+            debug(`Attempting to resolve ${normalizedPackageName}`);
             filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
             return { filePath };
         }

@@ -16,7 +16,6 @@
   "_from": "wrappy@>=1.0.0 <2.0.0",
   "_id": "wrappy@1.0.2",
   "_inCache": true,
-  "_installable": true,
   "_location": "/wrappy",
   "_nodeVersion": "5.10.1",
   "_npmOperationalInternal": {

@@ -76,23 +76,44 @@ module.exports = {
          * @private
          * @param {string[]} escapes - list of valid escapes
          * @param {ASTNode} node - node to validate.
-         * @param {string} elm - string slice to validate.
+         * @param {string} match - string slice to validate.
          * @returns {void}
          */
-        function validate(escapes, node, elm) {
-            const escapeNotFound = escapes.indexOf(elm[0][1]) === -1;
-            const isQuoteEscape = elm[0][1] === node.raw[0];
+        function validate(escapes, node, match) {
+            const isTemplateElement = node.type === "TemplateElement";
+            const escapedChar = match[0][1];
+            let isUnnecessaryEscape = escapes.indexOf(escapedChar) === -1;
+            let isQuoteEscape;
 
-            if (escapeNotFound && !isQuoteEscape) {
+            if (isTemplateElement) {
+                isQuoteEscape = escapedChar === "`";
+
+                if (escapedChar === "$") {
+
+                    // Warn if `\$` is not followed by `{`
+                    isUnnecessaryEscape = match.input[match.index + 2] !== "{";
+                } else if (escapedChar === "{") {
+
+                    /* Warn if `\{` is not preceded by `$`. If preceded by `$`, escaping
+                     * is necessary and the rule should not warn. If preceded by `/$`, the rule
+                     * will warn for the `/$` instead, as it is the first unnecessarily escaped character.
+                     */
+                    isUnnecessaryEscape = match.input[match.index - 1] !== "$";
+                }
+            } else {
+                isQuoteEscape = escapedChar === node.raw[0];
+            }
+
+            if (isUnnecessaryEscape && !isQuoteEscape) {
                 context.report({
                     node,
                     loc: {
                         line: node.loc.start.line,
-                        column: node.loc.start.column + elm.index
+                        column: node.loc.start.column + match.index
                     },
                     message: "Unnecessary escape character: {{character}}.",
                     data: {
-                        character: elm[0]
+                        character: match[0]
                     }
                 });
             }
@@ -105,12 +126,18 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            let nodeEscapes, match;
+            const isTemplateElement = node.type === "TemplateElement";
+            const value = isTemplateElement ? node.value.raw : node.raw;
             const pattern = /\\[^\d]/g;
+            let nodeEscapes,
+                match;
 
-            if (typeof node.value === "string") {
+            if (typeof node.value === "string" || isTemplateElement) {
 
-                // JSXAttribute doesn't have any escape sequence: https://facebook.github.io/jsx/
+                /*
+                 * JSXAttribute doesn't have any escape sequence: https://facebook.github.io/jsx/.
+                 * In addition, backticks are not supported by JSX yet: https://github.com/facebook/jsx/issues/25.
+                 */
                 if (node.parent.type === "JSXAttribute") {
                     return;
                 }
@@ -122,12 +149,14 @@ module.exports = {
                 return;
             }
 
-            while ((match = pattern.exec(node.raw))) {
+            while ((match = pattern.exec(value))) {
                 validate(nodeEscapes, node, match);
             }
         }
+
         return {
-            Literal: check
+            Literal: check,
+            TemplateElement: check
         };
     }
 };

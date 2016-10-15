@@ -53,7 +53,7 @@ function installSyncSaveDev(packages) {
     if (Array.isArray(packages)) {
         packages = packages.join(" ");
     }
-    shell.exec("npm i --save-dev " + packages, {stdio: "inherit"});
+    shell.exec(`npm i --save-dev ${packages}`, {stdio: "inherit"});
 }
 
 /**
