@@ -4275,7 +4275,7 @@ static AtExitCallback* at_exit_functions_;
 
 
 // TODO(bnoordhuis) Turn into per-context event.
-void RunAtExit(Environment* env = nullptr) {
+void RunAtExit(Environment* env) {
   AtExitCallback* p = at_exit_functions_;
   at_exit_functions_ = nullptr;
 
