@@ -15,7 +15,7 @@ FakeAgent.prototype.createConnection = function createConnection() {
   var s = new Duplex();
   var once = false;
 
-  s._read = function read() {
+  s._read = function _read() {
     if (once)
       return this.push(null);
     once = true;
@@ -27,7 +27,7 @@ FakeAgent.prototype.createConnection = function createConnection() {
   };
 
   // Blackhole
-  s._write = function write(data, enc, cb) {
+  s._write = function _write(data, enc, cb) {
     cb();
   };
 
