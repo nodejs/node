@@ -86,56 +86,29 @@
  */
 
 int ares_mkquery(const char *name, int dnsclass, int type, unsigned short id,
-                 int rd, unsigned char **buf, int *buflen)
+                 int rd, unsigned char **bufp, int *buflenp)
 {
-  int len;
+  size_t len;
   unsigned char *q;
   const char *p;
+  size_t buflen;
+  unsigned char *buf;
 
   /* Set our results early, in case we bail out early with an error. */
-  *buflen = 0;
-  *buf = NULL;
+  *buflenp = 0;
+  *bufp = NULL;
 
-  /* Compute the length of the encoded name so we can check buflen.
-   * Start counting at 1 for the zero-length label at the end. */
-  len = 1;
-  for (p = name; *p; p++)
-    {
-      if (*p == '\\' && *(p + 1) != 0)
-        p++;
-      len++;
-    }
-  /* If there are n periods in the name, there are n + 1 labels, and
-   * thus n + 1 length fields, unless the name is empty or ends with a
-   * period.  So add 1 unless name is empty or ends with a period.
+  /* Allocate a memory area for the maximum size this packet might need. +2
+   * is for the length byte and zero termination if no dots or ecscaping is
+   * used.
    */
-  if (*name && *(p - 1) != '.')
-    len++;
-
-  /* Immediately reject names that are longer than the maximum of 255
-   * bytes that's specified in RFC 1035 ("To simplify implementations,
-   * the total length of a domain name (i.e., label octets and label
-   * length octets) is restricted to 255 octets or less."). We aren't
-   * doing this just to be a stickler about RFCs. For names that are
-   * too long, 'dnscache' closes its TCP connection to us immediately
-   * (when using TCP) and ignores the request when using UDP, and
-   * BIND's named returns ServFail (TCP or UDP). Sending a request
-   * that we know will cause 'dnscache' to close the TCP connection is
-   * painful, since that makes any other outstanding requests on that
-   * connection fail. And sending a UDP request that we know
-   * 'dnscache' will ignore is bad because resources will be tied up
-   * until we time-out the request.
-   */
-  if (len > MAXCDNAME)
-    return ARES_EBADNAME;
-
-  *buflen = len + HFIXEDSZ + QFIXEDSZ;
-  *buf = malloc(*buflen);
-  if (!*buf)
-      return ARES_ENOMEM;
+  len = strlen(name) + 2 + HFIXEDSZ + QFIXEDSZ;
+  buf = malloc(len);
+  if (!buf)
+    return ARES_ENOMEM;
 
   /* Set up the header. */
-  q = *buf;
+  q = buf;
   memset(q, 0, HFIXEDSZ);
   DNS_HEADER_SET_QID(q, id);
   DNS_HEADER_SET_OPCODE(q, QUERY);
@@ -155,8 +128,10 @@ int ares_mkquery(const char *name, int dnsclass, int type, unsigned short id,
   q += HFIXEDSZ;
   while (*name)
     {
-      if (*name == '.')
+      if (*name == '.') {
+        free (buf);
         return ARES_EBADNAME;
+      }
 
       /* Count the number of bytes in this label. */
       len = 0;
@@ -166,8 +141,10 @@ int ares_mkquery(const char *name, int dnsclass, int type, unsigned short id,
             p++;
           len++;
         }
-      if (len > MAXLABEL)
+      if (len > MAXLABEL) {
+        free (buf);
         return ARES_EBADNAME;
+      }
 
       /* Encode the length and copy the data. */
       *q++ = (unsigned char)len;
@@ -190,6 +167,23 @@ int ares_mkquery(const char *name, int dnsclass, int type, unsigned short id,
   /* Finish off the question with the type and class. */
   DNS_QUESTION_SET_TYPE(q, type);
   DNS_QUESTION_SET_CLASS(q, dnsclass);
+
+  q += QFIXEDSZ;
+
+  buflen = (q - buf);
+
+  /* Reject names that are longer than the maximum of 255 bytes that's
+   * specified in RFC 1035 ("To simplify implementations, the total length of
+   * a domain name (i.e., label octets and label length octets) is restricted
+   * to 255 octets or less."). */
+  if (buflen > (MAXCDNAME + HFIXEDSZ + QFIXEDSZ)) {
+    free (buf);
+    return ARES_EBADNAME;
+  }
+
+  /* we know this fits in an int at this point */
+  *buflenp = (int) buflen;
+  *bufp = buf;
 
   return ARES_SUCCESS;
 }
