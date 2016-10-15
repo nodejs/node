@@ -20,7 +20,7 @@ const base = require('./tick-processor-base.js');
 base.runTest({
   pattern: /RunInDebugContext/,
   code: `function f() {
-           require(\'vm\').runInDebugContext(\'Debug\');
+           require('vm').runInDebugContext('Debug');
            setImmediate(function() { f(); });
          };
          f();`
