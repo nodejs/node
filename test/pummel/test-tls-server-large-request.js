@@ -25,7 +25,7 @@ function Mediator() {
 }
 util.inherits(Mediator, stream.Writable);
 
-Mediator.prototype._write = function write(data, enc, cb) {
+Mediator.prototype._write = function _write(data, enc, cb) {
   this.buf += data;
   setTimeout(cb, 0);
 

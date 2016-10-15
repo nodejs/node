@@ -291,7 +291,7 @@ const testCustomCompleterSyncMode = repl.start({
   prompt: '',
   input: putIn,
   output: putIn,
-  completer: function completerSyncMode(line) {
+  completer: function completer(line) {
     const hits = customCompletions.filter((c) => {
       return c.indexOf(line) === 0;
     });
@@ -323,7 +323,7 @@ const testCustomCompleterAsyncMode = repl.start({
   prompt: '',
   input: putIn,
   output: putIn,
-  completer: function completerAsyncMode(line, callback) {
+  completer: function completer(line, callback) {
     const hits = customCompletions.filter((c) => {
       return c.indexOf(line) === 0;
     });
