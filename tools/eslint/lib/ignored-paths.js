@@ -136,16 +136,16 @@ function IgnoredPaths(options) {
                 fs.statSync(options.ignorePath);
                 ignorePath = options.ignorePath;
             } catch (e) {
-                e.message = "Cannot read ignore file: " + options.ignorePath + "\nError: " + e.message;
+                e.message = `Cannot read ignore file: ${options.ignorePath}\nError: ${e.message}`;
                 throw e;
             }
         } else {
-            debug("Looking for ignore file in " + options.cwd);
+            debug(`Looking for ignore file in ${options.cwd}`);
             ignorePath = findIgnoreFile(options.cwd);
 
             try {
                 fs.statSync(ignorePath);
-                debug("Loaded ignore file " + ignorePath);
+                debug(`Loaded ignore file ${ignorePath}`);
             } catch (e) {
                 debug("Could not find ignore file in cwd");
                 this.options = options;
@@ -153,7 +153,7 @@ function IgnoredPaths(options) {
         }
 
         if (ignorePath) {
-            debug("Adding " + ignorePath);
+            debug(`Adding ${ignorePath}`);
             this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
             addIgnoreFile(this.ig.custom, ignorePath);
             addIgnoreFile(this.ig.default, ignorePath);

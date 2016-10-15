@@ -49,7 +49,7 @@ function CodePath(id, upper, onLooped) {
     Object.defineProperty(
         this,
         "internal",
-        {value: new CodePathState(new IdGenerator(id + "_"), onLooped)});
+        {value: new CodePathState(new IdGenerator(`${id}_`), onLooped)});
 
     // Adds this into `childCodePaths` of `upper`.
     if (upper) {

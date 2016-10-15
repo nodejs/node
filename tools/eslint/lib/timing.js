@@ -66,7 +66,7 @@ function display(data) {
         .slice(0, 10);
 
     rows.forEach(function(row) {
-        row.push((row[1] * 100 / total).toFixed(1) + "%");
+        row.push(`${(row[1] * 100 / total).toFixed(1)}%`);
         row[1] = row[1].toFixed(3);
     });
 

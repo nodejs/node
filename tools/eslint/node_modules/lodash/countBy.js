@@ -1,4 +1,5 @@
-var createAggregator = require('./_createAggregator');
+var baseAssignValue = require('./_baseAssignValue'),
+    createAggregator = require('./_createAggregator');
 
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
@@ -30,7 +31,11 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  * // => { '3': 2, '5': 1 }
  */
 var countBy = createAggregator(function(result, value, key) {
-  hasOwnProperty.call(result, key) ? ++result[key] : (result[key] = 1);
+  if (hasOwnProperty.call(result, key)) {
+    ++result[key];
+  } else {
+    baseAssignValue(result, key, 1);
+  }
 });
 
 module.exports = countBy;

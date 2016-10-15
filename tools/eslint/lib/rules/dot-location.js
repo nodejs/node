@@ -23,7 +23,9 @@ module.exports = {
             {
                 enum: ["object", "property"]
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -44,14 +46,28 @@ module.exports = {
          */
         function checkDotLocation(obj, prop, node) {
             const dot = sourceCode.getTokenBefore(prop);
+            const textBeforeDot = sourceCode.getText().slice(obj.range[1], dot.range[0]);
+            const textAfterDot = sourceCode.getText().slice(dot.range[1], prop.range[0]);
 
             if (dot.type === "Punctuator" && dot.value === ".") {
                 if (onObject) {
                     if (!astUtils.isTokenOnSameLine(obj, dot)) {
-                        context.report(node, dot.loc.start, "Expected dot to be on same line as object.");
+                        const neededTextAfterObj = astUtils.isDecimalInteger(obj) ? " " : "";
+
+                        context.report({
+                            node,
+                            loc: dot.loc.start,
+                            message: "Expected dot to be on same line as object.",
+                            fix: fixer => fixer.replaceTextRange([obj.range[1], prop.range[0]], `${neededTextAfterObj}.${textBeforeDot}${textAfterDot}`)
+                        });
                     }
                 } else if (!astUtils.isTokenOnSameLine(dot, prop)) {
-                    context.report(node, dot.loc.start, "Expected dot to be on same line as property.");
+                    context.report({
+                        node,
+                        loc: dot.loc.start,
+                        message: "Expected dot to be on same line as property.",
+                        fix: fixer => fixer.replaceTextRange([obj.range[1], prop.range[0]], `${textBeforeDot}${textAfterDot}.`)
+                    });
                 }
             }
         }

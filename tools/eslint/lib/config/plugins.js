@@ -115,7 +115,7 @@ module.exports = {
         let plugin = null;
 
         if (pluginName.match(/\s+/)) {
-            const whitespaceError = new Error("Whitespace found in plugin name '" + pluginName + "'");
+            const whitespaceError = new Error(`Whitespace found in plugin name '${pluginName}'`);
 
             whitespaceError.messageTemplate = "whitespace-found";
             whitespaceError.messageData = {
@@ -128,8 +128,8 @@ module.exports = {
             try {
                 plugin = require(longName);
             } catch (err) {
-                debug("Failed to load plugin " + longName + ".");
-                err.message = "Failed to load plugin " + pluginName + ": " + err.message;
+                debug(`Failed to load plugin ${longName}.`);
+                err.message = `Failed to load plugin ${pluginName}: ${err.message}`;
                 err.messageTemplate = "plugin-missing";
                 err.messageData = {
                     pluginName: longName

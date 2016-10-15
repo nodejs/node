@@ -16,7 +16,6 @@
   "_from": "has-ansi@>=2.0.0 <3.0.0",
   "_id": "has-ansi@2.0.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/has-ansi",
   "_nodeVersion": "0.12.5",
   "_npmUser": {

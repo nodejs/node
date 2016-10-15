@@ -62,15 +62,16 @@ object referring to that same position.
 [estree]: https://github.com/estree/estree
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6, or 7. This influences support for strict mode, the set
-  of reserved words, and support for new syntax features. Default is 6.
+  either 3, 5, 6 (2015), 7 (2016), or 8 (2017). This influences support for strict
+  mode, the set of reserved words, and support for new syntax features.
+  Default is 7.
 
-  **NOTE**: Only 'stage 4' (finalized) ECMAScript 7 features are being
-  implemented by Acorn. That means that most of the draft standard is
-  not yet being parsed.
+  **NOTE**: Only 'stage 4' (finalized) ECMAScript features are being
+  implemented by Acorn.
 
 - **sourceType**: Indicate the mode the code should be parsed in. Can be
-  either `"script"` or `"module"`.
+  either `"script"` or `"module"`. This influences global strict mode
+  and parsing of `import` and `export` declarations.
 
 - **onInsertedSemicolon**: If given a callback, that callback will be
   called whenever a missing semicolon is inserted by the parser. The
