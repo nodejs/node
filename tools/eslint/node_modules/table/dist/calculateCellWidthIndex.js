@@ -1,12 +1,12 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
-var _map2 = require('lodash/map');
+var _lodash = require('lodash');
 
-var _map3 = _interopRequireDefault(_map2);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 var _stringWidth = require('string-width');
 
@@ -18,14 +18,12 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * Calculates width of each cell contents.
  *
  * @param {string[]} cells
- * @return {number[]}
+ * @returns {number[]}
  */
-
-exports.default = function (cells) {
-    return (0, _map3.default)(cells, function (value) {
-        return (0, _stringWidth2.default)(value);
-    });
+exports.default = cells => {
+  return _lodash2.default.map(cells, value => {
+    return (0, _stringWidth2.default)(value);
+  });
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=calculateCellWidthIndex.js.map

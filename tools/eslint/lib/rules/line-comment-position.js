@@ -50,7 +50,7 @@ module.exports = {
             ignorePattern,
             applyDefaultPatterns = true;
 
-        if (!options || typeof option === "string") {
+        if (!options || typeof options === "string") {
             above = !options || options === "above";
 
         } else {

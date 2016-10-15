@@ -190,7 +190,7 @@ base.SwitchStatement = (node, st, c) => {
       c(cs.consequent[j], st, "Statement")
   }
 }
-base.ReturnStatement = base.YieldExpression = (node, st, c) => {
+base.ReturnStatement = base.YieldExpression = base.AwaitExpression = (node, st, c) => {
   if (node.argument) c(node.argument, st, "Expression")
 }
 base.ThrowStatement = base.SpreadElement =

@@ -275,16 +275,17 @@ module.exports = {
 
                             const paramsLeftParen = node.params.length ? sourceCode.getTokenBefore(node.params[0]) : sourceCode.getTokenBefore(node.body, 1);
                             const paramsRightParen = sourceCode.getTokenBefore(node.body);
+                            const asyncKeyword = node.async ? "async " : "";
                             const paramsFullText = sourceCode.text.slice(paramsLeftParen.range[0], paramsRightParen.range[1]);
 
                             if (callbackInfo.isLexicalThis) {
 
                                 // If the callback function has `.bind(this)`, replace it with an arrow function and remove the binding.
-                                return fixer.replaceText(node.parent.parent, paramsFullText + " => " + sourceCode.getText(node.body));
+                                return fixer.replaceText(node.parent.parent, `${asyncKeyword}${paramsFullText} => ${sourceCode.getText(node.body)}`);
                             }
 
                             // Otherwise, only replace the `function` keyword and parameters with the arrow function parameters.
-                            return fixer.replaceTextRange([node.start, node.body.start], paramsFullText + " => ");
+                            return fixer.replaceTextRange([node.start, node.body.start], `${asyncKeyword}${paramsFullText} => `);
                         }
                     });
                 }

@@ -491,14 +491,15 @@ pp.readRadixNumber = function(radix) {
 pp.readNumber = function(startsWithDot) {
   let start = this.pos, isFloat = false, octal = this.input.charCodeAt(this.pos) === 48
   if (!startsWithDot && this.readInt(10) === null) this.raise(start, "Invalid number")
+  if (octal && this.pos == start + 1) octal = false
   let next = this.input.charCodeAt(this.pos)
-  if (next === 46) { // '.'
+  if (next === 46 && !octal) { // '.'
     ++this.pos
     this.readInt(10)
     isFloat = true
     next = this.input.charCodeAt(this.pos)
   }
-  if (next === 69 || next === 101) { // 'eE'
+  if ((next === 69 || next === 101) && !octal) { // 'eE'
     next = this.input.charCodeAt(++this.pos)
     if (next === 43 || next === 45) ++this.pos // '+-'
     if (this.readInt(10) === null) this.raise(start, "Invalid number")
