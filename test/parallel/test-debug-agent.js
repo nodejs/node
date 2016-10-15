@@ -6,8 +6,7 @@ const debug = require('_debug_agent');
 assert.throws(
   () => { debug.start();},
    function(err) {
-     if ((err instanceof assert.AssertionError) && /value/.test(err)) {
-       return true;
-     }
+     return (err instanceof assert.AssertionError &&
+            err.message === 'Debugger agent running without bindings!');
    }
 );
