@@ -48,7 +48,7 @@ var msgBuf = Buffer.from(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
 
-cmd = `"${process.execPath}" -e "console.log(\'${msg}\');"`;
+cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
 
 ret = execSync(cmd);
 

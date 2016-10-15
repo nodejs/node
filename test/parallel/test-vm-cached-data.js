@@ -6,7 +6,7 @@ const spawnSync = require('child_process').spawnSync;
 const Buffer = require('buffer').Buffer;
 
 function getSource(tag) {
-  return `(function ${tag}() { return \'${tag}\'; })`;
+  return `(function ${tag}() { return '${tag}'; })`;
 }
 
 function produce(source, count) {
