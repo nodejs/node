@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` and named `function` declarations in the global scope",
+            description: "disallow variable and `function` declarations in the global scope",
             category: "Best Practices",
             recommended: false
         },

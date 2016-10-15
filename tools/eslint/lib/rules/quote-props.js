@@ -61,7 +61,9 @@ module.exports = {
                     maxItems: 2
                 }
             ]
-        }
+        },
+
+        fixable: "code"
     },
 
     create(context) {
@@ -74,7 +76,8 @@ module.exports = {
             MESSAGE_UNNECESSARY = "Unnecessarily quoted property '{{property}}' found.",
             MESSAGE_UNQUOTED = "Unquoted property '{{property}}' found.",
             MESSAGE_NUMERIC = "Unquoted number literal '{{property}}' used as key.",
-            MESSAGE_RESERVED = "Unquoted reserved word '{{property}}' used as key.";
+            MESSAGE_RESERVED = "Unquoted reserved word '{{property}}' used as key.",
+            sourceCode = context.getSourceCode();
 
 
         /**
@@ -98,6 +101,31 @@ module.exports = {
             return tokens.length === 1 && tokens[0].start === 0 && tokens[0].end === rawKey.length &&
                 (["Identifier", "Keyword", "Null", "Boolean"].indexOf(tokens[0].type) >= 0 ||
                 (tokens[0].type === "Numeric" && !skipNumberLiterals && String(+tokens[0].value) === tokens[0].value));
+        }
+
+        /**
+        * Returns a string representation of a property node with quotes removed
+        * @param {ASTNode} key Key AST Node, which may or may not be quoted
+        * @returns {string} A replacement string for this property
+        */
+        function getUnquotedKey(key) {
+            return key.type === "Identifier" ? key.name : key.value;
+        }
+
+        /**
+        * Returns a string representation of a property node with quotes added
+        * @param {ASTNode} key Key AST Node, which may or may not be quoted
+        * @returns {string} A replacement string for this property
+        */
+        function getQuotedKey(key) {
+            if (key.type === "Literal" && typeof key.value === "string") {
+
+                // If the key is already a string literal, don't replace the quotes with double quotes.
+                return sourceCode.getText(key);
+            }
+
+            // Otherwise, the key is either an identifier or a number literal.
+            return `"${key.type === "Identifier" ? key.name : key.value}"`;
         }
 
         /**
@@ -131,12 +159,27 @@ module.exports = {
                 }
 
                 if (CHECK_UNNECESSARY && areQuotesRedundant(key.value, tokens, NUMBERS)) {
-                    context.report(node, MESSAGE_UNNECESSARY, {property: key.value});
+                    context.report({
+                        node,
+                        message: MESSAGE_UNNECESSARY,
+                        data: {property: key.value},
+                        fix: fixer => fixer.replaceText(key, getUnquotedKey(key))
+                    });
                 }
             } else if (KEYWORDS && key.type === "Identifier" && isKeyword(key.name)) {
-                context.report(node, MESSAGE_RESERVED, {property: key.name});
+                context.report({
+                    node,
+                    message: MESSAGE_RESERVED,
+                    data: {property: key.name},
+                    fix: fixer => fixer.replaceText(key, getQuotedKey(key))
+                });
             } else if (NUMBERS && key.type === "Literal" && typeof key.value === "number") {
-                context.report(node, MESSAGE_NUMERIC, {property: key.value});
+                context.report({
+                    node,
+                    message: MESSAGE_NUMERIC,
+                    data: {property: key.value},
+                    fix: fixer => fixer.replaceText(key, getQuotedKey(key))
+                });
             }
         }
 
@@ -149,8 +192,11 @@ module.exports = {
             const key = node.key;
 
             if (!node.method && !node.computed && !node.shorthand && !(key.type === "Literal" && typeof key.value === "string")) {
-                context.report(node, MESSAGE_UNQUOTED, {
-                    property: key.name || key.value
+                context.report({
+                    node,
+                    message: MESSAGE_UNQUOTED,
+                    data: {property: key.name || key.value},
+                    fix: fixer => fixer.replaceText(key, getQuotedKey(key))
                 });
             }
         }
@@ -162,8 +208,9 @@ module.exports = {
          * @returns {void}
          */
         function checkConsistency(node, checkQuotesRedundancy) {
-            let quotes = false,
-                lackOfQuotes = false,
+            const quotedProps = [],
+                unquotedProps = [];
+            let keywordKeyName = null,
                 necessaryQuotes = false;
 
             node.properties.forEach(function(property) {
@@ -176,7 +223,7 @@ module.exports = {
 
                 if (key.type === "Literal" && typeof key.value === "string") {
 
-                    quotes = true;
+                    quotedProps.push(property);
 
                     if (checkQuotesRedundancy) {
                         try {
@@ -189,21 +236,40 @@ module.exports = {
                         necessaryQuotes = necessaryQuotes || !areQuotesRedundant(key.value, tokens) || KEYWORDS && isKeyword(tokens[0].value);
                     }
                 } else if (KEYWORDS && checkQuotesRedundancy && key.type === "Identifier" && isKeyword(key.name)) {
+                    unquotedProps.push(property);
                     necessaryQuotes = true;
-                    context.report(node, "Properties should be quoted as '{{property}}' is a reserved word.", {property: key.name});
+                    keywordKeyName = key.name;
                 } else {
-                    lackOfQuotes = true;
-                }
-
-                if (quotes && lackOfQuotes) {
-                    context.report(node, "Inconsistently quoted property '{{key}}' found.", {
-                        key: key.name || key.value
-                    });
+                    unquotedProps.push(property);
                 }
             });
 
-            if (checkQuotesRedundancy && quotes && !necessaryQuotes) {
-                context.report(node, "Properties shouldn't be quoted as all quotes are redundant.");
+            if (checkQuotesRedundancy && quotedProps.length && !necessaryQuotes) {
+                quotedProps.forEach(property => {
+                    context.report({
+                        node: property,
+                        message: "Properties shouldn't be quoted as all quotes are redundant.",
+                        fix: fixer => fixer.replaceText(property.key, getUnquotedKey(property.key))
+                    });
+                });
+            } else if (unquotedProps.length && keywordKeyName) {
+                unquotedProps.forEach(property => {
+                    context.report({
+                        node: property,
+                        message: "Properties should be quoted as '{{property}}' is a reserved word.",
+                        data: {property: keywordKeyName},
+                        fix: fixer => fixer.replaceText(property.key, getQuotedKey(property.key))
+                    });
+                });
+            } else if (quotedProps.length && unquotedProps.length) {
+                unquotedProps.forEach(property => {
+                    context.report({
+                        node: property,
+                        message: "Inconsistently quoted property '{{key}}' found.",
+                        data: {key: property.key.name || property.key.value},
+                        fix: fixer => fixer.replaceText(property.key, getQuotedKey(property.key))
+                    });
+                });
             }
         }
 

@@ -16,7 +16,6 @@
   "_from": "fs.realpath@>=1.0.0 <2.0.0",
   "_id": "fs.realpath@1.0.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/fs.realpath",
   "_nodeVersion": "4.4.4",
   "_npmOperationalInternal": {

@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce a maximum number of statements allowed in `function` blocks",
+            description: "enforce a maximum number of statements allowed in function blocks",
             category: "Stylistic Issues",
             recommended: false
         },

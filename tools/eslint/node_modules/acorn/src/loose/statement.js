@@ -1,6 +1,6 @@
 import {LooseParser} from "./state"
 import {isDummy} from "./parseutil"
-import {getLineInfo, tokTypes as tt} from "acorn"
+import {getLineInfo, tokTypes as tt} from "../index"
 
 const lp = LooseParser.prototype
 
@@ -171,6 +171,11 @@ lp.parseStatement = function() {
     return this.parseExport()
 
   default:
+    if (this.toks.isAsyncFunction()) {
+      this.next()
+      this.next()
+      return this.parseFunction(node, true, true)
+    }
     let expr = this.parseExpression()
     if (isDummy(expr)) {
       this.next()
@@ -258,7 +263,7 @@ lp.parseClass = function(isStatement) {
   if (this.curIndent + 1 < indent) { indent = this.curIndent; line = this.curLineStart }
   while (!this.closes(tt.braceR, indent, line)) {
     if (this.semicolon()) continue
-    let method = this.startNode(), isGenerator
+    let method = this.startNode(), isGenerator, isAsync
     if (this.options.ecmaVersion >= 6) {
       method.static = false
       isGenerator = this.eat(tt.star)
@@ -273,6 +278,14 @@ lp.parseClass = function(isStatement) {
     } else {
       method.static = false
     }
+    if (!method.computed &&
+        method.key.type === "Identifier" && method.key.name === "async" && this.tok.type !== tt.parenL &&
+        !this.canInsertSemicolon()) {
+      this.parsePropertyName(method)
+      isAsync = true
+    } else {
+      isAsync = false
+    }
     if (this.options.ecmaVersion >= 5 && method.key.type === "Identifier" &&
         !method.computed && (method.key.name === "get" || method.key.name === "set") &&
         this.tok.type !== tt.parenL && this.tok.type !== tt.braceL) {
@@ -280,14 +293,14 @@ lp.parseClass = function(isStatement) {
       this.parsePropertyName(method)
       method.value = this.parseMethod(false)
     } else {
-      if (!method.computed && !method.static && !isGenerator && (
+      if (!method.computed && !method.static && !isGenerator && !isAsync && (
         method.key.type === "Identifier" && method.key.name === "constructor" ||
           method.key.type === "Literal" && method.key.value === "constructor")) {
         method.kind = "constructor"
       } else {
         method.kind =  "method"
       }
-      method.value = this.parseMethod(isGenerator)
+      method.value = this.parseMethod(isGenerator, isAsync)
     }
     node.body.body.push(this.finishNode(method, "MethodDefinition"))
   }
@@ -303,15 +316,21 @@ lp.parseClass = function(isStatement) {
   return this.finishNode(node, isStatement ? "ClassDeclaration" : "ClassExpression")
 }
 
-lp.parseFunction = function(node, isStatement) {
+lp.parseFunction = function(node, isStatement, isAsync) {
+  let oldInAsync = this.inAsync
   this.initFunction(node)
   if (this.options.ecmaVersion >= 6) {
     node.generator = this.eat(tt.star)
   }
+  if (this.options.ecmaVersion >= 8) {
+    node.async = !!isAsync
+  }
   if (this.tok.type === tt.name) node.id = this.parseIdent()
   else if (isStatement) node.id = this.dummyIdent()
+  this.inAsync = node.async
   node.params = this.parseFunctionParams()
   node.body = this.parseBlock()
+  this.inAsync = oldInAsync
   return this.finishNode(node, isStatement ? "FunctionDeclaration" : "FunctionExpression")
 }
 
@@ -323,8 +342,10 @@ lp.parseExport = function() {
     return this.finishNode(node, "ExportAllDeclaration")
   }
   if (this.eat(tt._default)) {
+    // export default (function foo() {}) // This is FunctionExpression.
+    let isParenL = this.tok.type === tt.parenL
     let expr = this.parseMaybeAssign()
-    if (expr.id) {
+    if (!isParenL && expr.id) {
       switch (expr.type) {
       case "FunctionExpression": expr.type = "FunctionDeclaration"; break
       case "ClassExpression": expr.type = "ClassDeclaration"; break
@@ -334,7 +355,7 @@ lp.parseExport = function() {
     this.semicolon()
     return this.finishNode(node, "ExportDefaultDeclaration")
   }
-  if (this.tok.type.keyword || this.toks.isLet()) {
+  if (this.tok.type.keyword || this.toks.isLet() || this.toks.isAsyncFunction()) {
     node.declaration = this.parseStatement()
     node.specifiers = []
     node.source = null

@@ -16,7 +16,6 @@
   "_from": "escape-string-regexp@>=1.0.2 <2.0.0",
   "_id": "escape-string-regexp@1.0.5",
   "_inCache": true,
-  "_installable": true,
   "_location": "/escape-string-regexp",
   "_nodeVersion": "4.2.6",
   "_npmOperationalInternal": {

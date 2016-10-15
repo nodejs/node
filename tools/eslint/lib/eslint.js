@@ -97,7 +97,7 @@ function parseJsonConfig(string, location, messages) {
     items = {};
     string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
     try {
-        items = JSON.parse("{" + string + "}");
+        items = JSON.parse(`{${string}}`);
     } catch (ex) {
 
         messages.push({
@@ -105,7 +105,7 @@ function parseJsonConfig(string, location, messages) {
             fatal: true,
             severity: 2,
             source: null,
-            message: "Failed to parse JSON from '" + string + "': " + ex.message,
+            message: `Failed to parse JSON from '${string}': ${ex.message}`,
             line: location.start.line,
             column: location.start.column + 1
         });
@@ -350,7 +350,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
                         Object.keys(items).forEach(function(name) {
                             const ruleValue = items[name];
 
-                            validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
+                            validator.validateRuleOptions(name, ruleValue, `${filename} line ${comment.loc.start.line}`);
                             commentRules[name] = ruleValue;
                         });
                         break;
@@ -446,7 +446,7 @@ function prepareConfig(config) {
             const rule = config.rules[k];
 
             if (rule === null) {
-                throw new Error("Invalid config for rule '" + k + "'\.");
+                throw new Error(`Invalid config for rule '${k}'\.`);
             }
             if (Array.isArray(rule)) {
                 copiedRules[k] = rule.slice();
@@ -527,7 +527,7 @@ function getRuleReplacementMessage(ruleId) {
     if (ruleId in replacements.rules) {
         const newRules = replacements.rules[ruleId];
 
-        return "Rule \'" + ruleId + "\' was removed and replaced by: " + newRules.join(", ");
+        return `Rule '${ruleId}' was removed and replaced by: ${newRules.join(", ")}`;
     }
 
     return null;
@@ -585,7 +585,6 @@ module.exports = (function() {
     let messages = [],
         currentConfig = null,
         currentScopes = null,
-        scopeMap = null,
         scopeManager = null,
         currentFilename = null,
         traverser = null,
@@ -655,7 +654,7 @@ module.exports = (function() {
                 fatal: true,
                 severity: 2,
                 source,
-                message: "Parsing error: " + message,
+                message: `Parsing error: ${message}`,
 
                 line: ex.lineNumber,
                 column: ex.column
@@ -706,7 +705,6 @@ module.exports = (function() {
         messages = [];
         currentConfig = null;
         currentScopes = null;
-        scopeMap = null;
         scopeManager = null;
         traverser = null;
         reportingConfig = [];
@@ -783,7 +781,7 @@ module.exports = (function() {
             ast = parse(
                 stripUnicodeBOM(text).replace(/^#!([^\r\n]+)/, function(match, captured) {
                     shebang = captured;
-                    return "//" + captured;
+                    return `//${captured}`;
                 }),
                 config,
                 currentFilename
@@ -823,7 +821,7 @@ module.exports = (function() {
                     if (replacementMsg) {
                         ruleCreator = createStubRule(replacementMsg);
                     } else {
-                        ruleCreator = createStubRule("Definition for rule '" + key + "' was not found");
+                        ruleCreator = createStubRule(`Definition for rule '${key}' was not found`);
                     }
                     rules.define(key, ruleCreator);
                 }
@@ -847,7 +845,7 @@ module.exports = (function() {
                         );
                     });
                 } catch (ex) {
-                    ex.message = "Error while loading rule '" + key + "': " + ex.message;
+                    ex.message = `Error while loading rule '${key}': ${ex.message}`;
                     throw ex;
                 }
             });
@@ -870,24 +868,6 @@ module.exports = (function() {
             });
 
             currentScopes = scopeManager.scopes;
-
-            /*
-             * Index the scopes by the start range of their block for efficient
-             * lookup in getScope.
-             */
-            scopeMap = [];
-
-            currentScopes.forEach(function(scope, index) {
-                const range = scope.block.range[0];
-
-                /*
-                 * Sometimes two scopes are returned for a given node. This is
-                 * handled later in a known way, so just don't overwrite here.
-                 */
-                if (!scopeMap[range]) {
-                    scopeMap[range] = index;
-                }
-            });
 
             // augment global scope with declared global variables
             addDeclaredGlobals(ast, currentScopes[0], currentConfig);

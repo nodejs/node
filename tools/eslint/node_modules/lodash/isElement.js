@@ -19,7 +19,7 @@ var isObjectLike = require('./isObjectLike'),
  * // => false
  */
 function isElement(value) {
-  return !!value && value.nodeType === 1 && isObjectLike(value) && !isPlainObject(value);
+  return value != null && value.nodeType === 1 && isObjectLike(value) && !isPlainObject(value);
 }
 
 module.exports = isElement;

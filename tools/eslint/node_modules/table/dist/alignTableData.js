@@ -1,44 +1,40 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
-var _map2 = require('lodash/map');
+var _lodash = require('lodash');
 
-var _map3 = _interopRequireDefault(_map2);
-
-var _alignString = require('./alignString');
-
-var _alignString2 = _interopRequireDefault(_alignString);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 var _stringWidth = require('string-width');
 
 var _stringWidth2 = _interopRequireDefault(_stringWidth);
+
+var _alignString = require('./alignString');
+
+var _alignString2 = _interopRequireDefault(_alignString);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
  * @param {table~row[]} rows
  * @param {Object} config
- * @return {table~row[]}
+ * @returns {table~row[]}
  */
+exports.default = (rows, config) => {
+  return _lodash2.default.map(rows, cells => {
+    return _lodash2.default.map(cells, (value, index1) => {
+      const column = config.columns[index1];
 
-exports.default = function (rows, config) {
-    return (0, _map3.default)(rows, function (cells) {
-        return (0, _map3.default)(cells, function (value, index1) {
-            var column = undefined;
-
-            column = config.columns[index1];
-
-            if ((0, _stringWidth2.default)(value) === column.width) {
-                return value;
-            } else {
-                return (0, _alignString2.default)(value, column.width, column.alignment);
-            }
-        });
+      if ((0, _stringWidth2.default)(value) === column.width) {
+        return value;
+      } else {
+        return (0, _alignString2.default)(value, column.width, column.alignment);
+      }
     });
+  });
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=alignTableData.js.map
