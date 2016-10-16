@@ -176,7 +176,7 @@ void SendProtocolJson(InspectorSocket* socket) {
       PROTOCOL_JSON[0] * 0x10000u +
       PROTOCOL_JSON[1] * 0x100u +
       PROTOCOL_JSON[2];
-  strm.next_in = PROTOCOL_JSON + 3;
+  strm.next_in = const_cast<uint8_t*>(PROTOCOL_JSON + 3);
   strm.avail_in = sizeof(PROTOCOL_JSON) - 3;
   std::vector<char> data(kDecompressedSize);
   strm.next_out = reinterpret_cast<Byte*>(&data[0]);
