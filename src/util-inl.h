@@ -357,38 +357,44 @@ T* UncheckedRealloc(T* pointer, size_t n) {
 
 // As per spec realloc behaves like malloc if passed nullptr.
 template <typename T>
-T* UncheckedMalloc(size_t n) {
+inline T* UncheckedMalloc(size_t n) {
   if (n == 0) n = 1;
   return UncheckedRealloc<T>(nullptr, n);
 }
 
 template <typename T>
-T* UncheckedCalloc(size_t n) {
+inline T* UncheckedCalloc(size_t n) {
   if (n == 0) n = 1;
   MultiplyWithOverflowCheck(sizeof(T), n);
   return static_cast<T*>(calloc(n, sizeof(T)));
 }
 
 template <typename T>
-T* Realloc(T* pointer, size_t n) {
+inline T* Realloc(T* pointer, size_t n) {
   T* ret = UncheckedRealloc(pointer, n);
   if (n > 0) CHECK_NE(ret, nullptr);
   return ret;
 }
 
 template <typename T>
-T* Malloc(size_t n) {
+inline T* Malloc(size_t n) {
   T* ret = UncheckedMalloc<T>(n);
   if (n > 0) CHECK_NE(ret, nullptr);
   return ret;
 }
 
 template <typename T>
-T* Calloc(size_t n) {
+inline T* Calloc(size_t n) {
   T* ret = UncheckedCalloc<T>(n);
   if (n > 0) CHECK_NE(ret, nullptr);
   return ret;
 }
+
+// Shortcuts for char*.
+inline char* Malloc(size_t n) { return Malloc<char>(n); }
+inline char* Calloc(size_t n) { return Calloc<char>(n); }
+inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
+inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 
 }  // namespace node
 
