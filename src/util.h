@@ -38,11 +38,10 @@ inline T* Malloc(size_t n);
 template <typename T>
 inline T* Calloc(size_t n);
 
-// Shortcuts for char*.
-inline char* Malloc(size_t n) { return Malloc<char>(n); }
-inline char* Calloc(size_t n) { return Calloc<char>(n); }
-inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
-inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
+inline char* Malloc(size_t n);
+inline char* Calloc(size_t n);
+inline char* UncheckedMalloc(size_t n);
+inline char* UncheckedCalloc(size_t n);
 
 // Used by the allocation functions when allocation fails.
 // Thin wrapper around v8::Isolate::LowMemoryNotification() that checks
