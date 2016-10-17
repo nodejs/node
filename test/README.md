@@ -271,11 +271,6 @@ Platform check for Windows 32-bit on Windows 64-bit.
 
 Checks whether any globals are not on the `knownGlobals` list.
 
-### libDir
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-
-Path to the 'lib' directory.
-
 ### localhostIPv4
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
