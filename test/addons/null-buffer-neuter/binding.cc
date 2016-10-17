@@ -34,8 +34,8 @@ void Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
   assert(alive == 0);
 }
 
-void init(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "run", Run);
+void init(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "run", Run);
 }
 
 NODE_MODULE(binding, init);
