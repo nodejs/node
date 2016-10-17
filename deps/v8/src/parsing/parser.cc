@@ -4445,9 +4445,6 @@ Block* Parser::BuildParameterInitializationBlock(
     // TODO(adamk): Should this be RelocInfo::kNoPosition, since
     // it's just copying from a temp var to the real param var?
     descriptor.initialization_pos = parameter.pattern->position();
-    // The initializer position which will end up in,
-    // Variable::initializer_position(), used for hole check elimination.
-    int initializer_position = parameter.pattern->position();
     Expression* initial_value =
         factory()->NewVariableProxy(parameters.scope->parameter(i));
     if (parameter.initializer != nullptr) {
@@ -4465,7 +4462,6 @@ Block* Parser::BuildParameterInitializationBlock(
           condition, parameter.initializer, initial_value,
           RelocInfo::kNoPosition);
       descriptor.initialization_pos = parameter.initializer->position();
-      initializer_position = parameter.initializer_end_position;
     }
 
     Scope* param_scope = scope_;
@@ -4490,7 +4486,7 @@ Block* Parser::BuildParameterInitializationBlock(
     {
       BlockState block_state(&scope_, param_scope);
       DeclarationParsingResult::Declaration decl(
-          parameter.pattern, initializer_position, initial_value);
+          parameter.pattern, parameter.initializer_end_position, initial_value);
       PatternRewriter::DeclareAndInitializeVariables(param_block, &descriptor,
                                                      &decl, nullptr, CHECK_OK);
     }
