@@ -1,10 +1,10 @@
 /* eslint-disable required-modules */
 'use strict';
-var path = require('path');
-var fs = require('fs');
-var assert = require('assert');
-var os = require('os');
-var child_process = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
+const os = require('os');
+const child_process = require('child_process');
 const stream = require('stream');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
@@ -14,7 +14,6 @@ const testRoot = process.env.NODE_TEST_DIR ?
 
 exports.testDir = __dirname;
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
-exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
