@@ -4433,7 +4433,7 @@ UnitTestImpl::UnitTestImpl(UnitTest* parent)
 #endif
       // Will be overridden by the flag before first use.
       catch_exceptions_(false) {
-  listeners()->SetDefaultResultPrinter(new TapUnitTestResultPrinter);
+  listeners()->SetDefaultResultPrinter(new PrettyUnitTestResultPrinter);
 }
 
 UnitTestImpl::~UnitTestImpl() {
