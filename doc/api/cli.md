@@ -225,6 +225,21 @@ Path to the file used to store the persistent REPL history. The default path is
 to an empty string (`""` or `" "`) disables persistent REPL history.
 
 
+### `NODE_EXTRA_CA_CERTS=file`
+<!-- YAML
+added: XXX
+-->
+
+When set, the well known "root" CAs (like VeriSign) will be extended with the
+extra certificates in `file`. The file should consist of one or more trusted
+certificates in PEM format. A message will be printed to stderr (once)
+if the file is missing or
+misformatted, but any errors are otherwise ignored.
+
+Note that neither the well known nor extra certificates are used when the `ca`
+options property is explicitly specified for a TLS or HTTPS client or server.
+
+[emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
 [debugger]: debugger.html
 [REPL]: repl.html
