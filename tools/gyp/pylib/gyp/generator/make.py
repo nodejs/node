@@ -146,6 +146,31 @@ cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
 quiet_cmd_link = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
 
+# Note: this does not handle spaces in paths
+define xargs
+	$(1) $(word 1,$(2))
+$(if $(word 2,$(2)),$(call xargs,$(1),$(wordlist 2,$(words $(2)),$(2))))
+endef
+
+define write-to-file
+	@: >$(1)
+$(call xargs,@printf "%s\\n" >>$(1),$(2))
+endef
+
+OBJ_FILE_LIST := ar-file-list
+
+define create_archive
+        rm -f $(1) $(1).$(OBJ_FILE_LIST); mkdir -p `dirname $(1)`
+        $(call write-to-file,$(1).$(OBJ_FILE_LIST),$(filter %.o,$(2)))
+        $(AR.$(TOOLSET)) crs $(1) @$(1).$(OBJ_FILE_LIST)
+endef
+
+define create_thin_archive
+        rm -f $(1) $(OBJ_FILE_LIST); mkdir -p `dirname $(1)`
+        $(call write-to-file,$(1).$(OBJ_FILE_LIST),$(filter %.o,$(2)))
+        $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST)
+endef
+
 # We support two kinds of shared objects (.so):
 # 1) shared_library, which is just bundling together many dependent libraries
 # into a link line.
@@ -189,6 +214,31 @@ cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
 
 quiet_cmd_alink_thin = AR($(TOOLSET)) $@
 cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
+
+# Note: this does not handle spaces in paths
+define xargs
+	$(1) $(word 1,$(2))
+$(if $(word 2,$(2)),$(call xargs,$(1),$(wordlist 2,$(words $(2)),$(2))))
+endef
+
+define write-to-file
+	@: >$(1)
+$(call xargs,@printf "%s\\n" >>$(1),$(2))
+endef
+
+OBJ_FILE_LIST := ar-file-list
+
+define create_archive
+        rm -f $(1) $(1).$(OBJ_FILE_LIST); mkdir -p `dirname $(1)`
+        $(call write-to-file,$(1).$(OBJ_FILE_LIST),$(filter %.o,$(2)))
+        $(AR.$(TOOLSET)) crs $(1) @$(1).$(OBJ_FILE_LIST)
+endef
+
+define create_thin_archive
+        rm -f $(1) $(OBJ_FILE_LIST); mkdir -p `dirname $(1)`
+        $(call write-to-file,$(1).$(OBJ_FILE_LIST),$(filter %.o,$(2)))
+        $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST)
+endef
 
 # Due to circular dependencies between libraries :(, we wrap the
 # special "figure out circular dependencies" flags around the entire
@@ -1583,11 +1633,17 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             "Spaces in alink input filenames not supported (%s)"  % link_dep)
       if (self.flavor not in ('mac', 'openbsd', 'win') and not
           self.is_standalone_static_library):
-        self.WriteDoCmd([self.output_binary], link_deps, 'alink_thin',
-                        part_of_all, postbuilds=postbuilds)
+        if self.flavor in ('linux', 'android'):
+          self.WriteMakeRule([self.output_binary], link_deps, actions = ['$(call create_thin_archive,$@,$^)'])
+        else:
+          self.WriteDoCmd([self.output_binary], link_deps, 'alink_thin',
+                          part_of_all, postbuilds=postbuilds)
       else:
-        self.WriteDoCmd([self.output_binary], link_deps, 'alink', part_of_all,
-                        postbuilds=postbuilds)
+        if self.flavor in ('linux', 'android'):
+          self.WriteMakeRule([self.output_binary], link_deps, actions = ['$(call create_archive,$@,$^)'])
+        else:
+          self.WriteDoCmd([self.output_binary], link_deps, 'alink', part_of_all,
+                          postbuilds=postbuilds)
     elif self.type == 'shared_library':
       self.WriteLn('%s: LD_INPUTS := %s' % (
             QuoteSpaces(self.output_binary),
