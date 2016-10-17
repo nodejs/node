@@ -30,8 +30,8 @@ void MakeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void Initialize(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "makeCallback", MakeCallback);
+void Initialize(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
 }  // namespace
