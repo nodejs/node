@@ -6,8 +6,8 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8::String::NewFromUtf8(isolate, "world"));
 }
 
-void init(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "hello", Method);
+void init(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "hello", Method);
 }
 
 NODE_MODULE(binding, init);
