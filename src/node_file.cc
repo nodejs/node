@@ -565,8 +565,6 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     CHECK_GE(numchars, 0);
     if (static_cast<size_t>(numchars) < kBlockSize) {
       chars.resize(start + numchars);
-    }
-    if (numchars == 0) {
       break;
     }
     offset += numchars;
