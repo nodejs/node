@@ -9,13 +9,13 @@ offloading operations to the system kernel whenever possible.
 Since most modern kernels are multi-threaded, they can handle multiple
 operations executing in the background. When one of these operations
 completes, the kernel tells Node.js so that the appropriate callback
-may added to the **poll** queue to eventually be executed. We'll explain
+may be added to the **poll** queue to eventually be executed. We'll explain
 this in further detail later in this topic.
 
 ## Event Loop Explained
 
 When Node.js starts, it initializes the event loop, processes the
-provided input script (or drops into the REPL, which is not covered in
+provided input script (or drops into the [REPL][], which is not covered in
 this document) which may make async API calls, schedule timers, or call
 `process.nextTick()`, then begins processing the event loop.
 
@@ -144,7 +144,9 @@ the timer's callback. In this example, you will see that the total delay
 between the timer being scheduled and its callback being executed will
 be 105ms.
 
-Note: To prevent the **poll** phase from starving the event loop, libuv
+Note: To prevent the **poll** phase from starving the event loop, [libuv]
+(http://libuv.org/) (the C library that implements the Node.js
+event loop and all of the asynchronous behaviors of the platform)
 also has a hard maximum (system dependent) before it stops polling for
 more events.
 
@@ -480,3 +482,5 @@ myEmitter.on('event', function() {
   console.log('an event occurred!');
 });
 ```
+
+[REPL]: https://nodejs.org/api/repl.html#repl_repl
