@@ -78,6 +78,14 @@ function sign {
 
   if [ "${gpgtagkey}" != "${gpgkey}" ]; then
     echo "GPG key for \"${version}\" tag is not yours, cannot sign"
+    exit 1
+  fi
+
+  ghtaggedversion=$(curl -sL https://raw.githubusercontent.com/nodejs/node/${version}/src/node_version.h \
+      | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 } END{ v = "v" substr(v, 2); print v }')
+  if [ "${version}" != "${ghtaggedversion}" ]; then
+    echo "Could not find tagged version on github.com/nodejs/node, did you push your tag?"
+    exit 1
   fi
 
   shapath=$(ssh ${webuser}@${webhost} $signcmd nodejs $version)
