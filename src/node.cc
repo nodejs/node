@@ -4400,6 +4400,8 @@ int Start(int argc, char** argv) {
   Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
 
 #if HAVE_OPENSSL
+  if (const char* extra = secure_getenv("NODE_EXTRA_CA_CERTS"))
+    crypto::UseExtraCaCerts(extra);
   // V8 on Windows doesn't have a good source of entropy. Seed it from
   // OpenSSL's pool.
   V8::SetEntropySource(crypto::EntropySource);
