@@ -113,7 +113,7 @@ http.createServer((request, response) => {
 }).listen(1337);
 ```
 
-By default, the `zlib` methods with throw an error when decompressing
+By default, the `zlib` methods will throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
