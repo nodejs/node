@@ -90,10 +90,6 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('A'));
 }
 
-namespace node {
-  void LowMemoryNotification() {}
-}
-
 #define TEST_AND_FREE(expression)                                             \
   do {                                                                        \
     auto pointer = expression;                                                \
