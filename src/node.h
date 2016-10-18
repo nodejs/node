@@ -179,13 +179,10 @@ typedef intptr_t ssize_t;
 namespace node {
 
 NODE_EXTERN extern bool no_deprecation;
-#if HAVE_OPENSSL
-# if NODE_FIPS_MODE
+#if HAVE_OPENSSL && NODE_FIPS_MODE
 NODE_EXTERN extern bool enable_fips_crypto;
 NODE_EXTERN extern bool force_fips_crypto;
-# endif  // NODE_FIPS_MODE
-NODE_EXTERN extern const char* openssl_config;
-#endif  // HAVE_OPENSSL
+#endif
 
 NODE_EXTERN int Start(int argc, char *argv[]);
 NODE_EXTERN void Init(int* argc,

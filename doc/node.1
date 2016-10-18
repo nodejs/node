@@ -166,6 +166,12 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as \fB\-\-enable\-fips\fR)
 
 .TP
+.BR \-\-openssl\-config =\fIfile\fR
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+\fB./configure \-\-openssl\-fips\fR.
+
+.TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
 
