@@ -595,7 +595,7 @@ console.log(bufA.length);
 
 ### Class Method: Buffer.from(array)
 <!-- YAML
-added: v3.0.0
+added: v4.5.0
 -->
 
 * `array` {Array}
@@ -643,7 +643,7 @@ A `TypeError` will be thrown if `arrayBuffer` is not an `ArrayBuffer`.
 
 ### Class Method: Buffer.from(buffer)
 <!-- YAML
-added: v3.0.0
+added: v4.5.0
 -->
 
 * `buffer` {Buffer}
