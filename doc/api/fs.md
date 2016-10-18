@@ -1034,25 +1034,25 @@ deprecated: v0.4.7
 
 Synchronous lchown(2). Returns `undefined`.
 
-## fs.link(srcpath, dstpath, callback)
+## fs.link(existingPath, newPath, callback)
 <!-- YAML
 added: v0.1.31
 -->
 
-* `srcpath` {String | Buffer}
-* `dstpath` {String | Buffer}
+* `existingPath` {String | Buffer}
+* `newPath` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
 the completion callback.
 
-## fs.linkSync(srcpath, dstpath)
+## fs.linkSync(existingPath, newPath)
 <!-- YAML
 added: v0.1.31
 -->
 
-* `srcpath` {String | Buffer}
-* `dstpath` {String | Buffer}
+* `existingPath` {String | Buffer}
+* `newPath` {String | Buffer}
 
 Synchronous link(2). Returns `undefined`.
 
