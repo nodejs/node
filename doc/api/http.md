@@ -289,7 +289,7 @@ Emitted each time a server responds to a request with a `CONNECT` method. If thi
 event isn't being listened for, clients receiving a `CONNECT` method will have
 their connections closed.
 
-A client server pair that show you how to listen for the `'connect'` event.
+A client and server pair that shows you how to listen for the `'connect'` event:
 
 ```js
 const http = require('http');
