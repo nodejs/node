@@ -63,6 +63,10 @@ void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (proxy->is_resolved()) {
     Variable* var = proxy->var();
     if (var->mode() != TEMPORARY) return;
+    // For rewriting inside the same ClosureScope (e.g., putting default
+    // parameter values in their own inner scope in certain cases), refrain
+    // from invalidly moving temporaries to a block scope.
+    if (var->scope()->ClosureScope() == new_scope_->ClosureScope()) return;
     if (old_scope_->RemoveTemporary(var)) {
       var->set_scope(new_scope_);
       new_scope_->AddTemporary(var);

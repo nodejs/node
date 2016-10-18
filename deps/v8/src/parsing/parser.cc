@@ -4479,6 +4479,12 @@ Block* Parser::BuildParameterInitializationBlock(
       param_block = factory()->NewBlock(NULL, 8, true, RelocInfo::kNoPosition);
       param_block->set_scope(param_scope);
       descriptor.hoist_scope = scope_;
+      // Pass the appropriate scope in so that PatternRewriter can appropriately
+      // rewrite inner initializers of the pattern to param_scope
+      descriptor.scope = param_scope;
+      // Rewrite the outer initializer to point to param_scope
+      RewriteParameterInitializerScope(stack_limit(), initial_value, scope_,
+                                       param_scope);
     }
 
     {
