@@ -22,7 +22,7 @@ process.title = title;
 assert.strictEqual(process.title, title);
 
 exec(`ps -p ${process.pid} -o args=`, function callback(error, stdout, stderr) {
-  assert.strictEqual(error, null);
+  assert.ifError(error);
   assert.strictEqual(stderr, '');
 
   // freebsd always add ' (procname)' to the process title
