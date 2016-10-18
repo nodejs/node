@@ -734,8 +734,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   }
   Local<Value> js_uid = js_options->Get(env()->uid_string());
   if (IsSet(js_uid)) {
-    if (!js_uid->IsInt32())
-      return UV_EINVAL;
+    CHECK(js_uid->IsInt32());
     const int32_t uid = js_uid->Int32Value(env()->context()).FromJust();
     uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
@@ -743,8 +742,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_gid = js_options->Get(env()->gid_string());
   if (IsSet(js_gid)) {
-    if (!js_gid->IsInt32())
-      return UV_EINVAL;
+    CHECK(js_gid->IsInt32());
     const int32_t gid = js_gid->Int32Value(env()->context()).FromJust();
     uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
@@ -760,28 +758,21 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_timeout = js_options->Get(env()->timeout_string());
   if (IsSet(js_timeout)) {
-    if (!js_timeout->IsNumber())
-      return UV_EINVAL;
+    CHECK(js_timeout->IsNumber());
     int64_t timeout = js_timeout->IntegerValue();
-    if (timeout < 0)
-      return UV_EINVAL;
     timeout_ = static_cast<uint64_t>(timeout);
   }
 
   Local<Value> js_max_buffer = js_options->Get(env()->max_buffer_string());
   if (IsSet(js_max_buffer)) {
-    if (!js_max_buffer->IsUint32())
-      return UV_EINVAL;
+    CHECK(js_max_buffer->IsUint32());
     max_buffer_ = js_max_buffer->Uint32Value();
   }
 
   Local<Value> js_kill_signal = js_options->Get(env()->kill_signal_string());
   if (IsSet(js_kill_signal)) {
-    if (!js_kill_signal->IsInt32())
-      return UV_EINVAL;
+    CHECK(js_kill_signal->IsInt32());
     kill_signal_ = js_kill_signal->Int32Value();
-    if (kill_signal_ == 0)
-      return UV_EINVAL;
   }
 
   Local<Value> js_stdio = js_options->Get(env()->stdio_string());
