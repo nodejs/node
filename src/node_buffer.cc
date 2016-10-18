@@ -585,7 +585,8 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   Local<String> str_obj;
   size_t str_length;
   enum encoding enc;
-  CHECK(fill_length + start <= ts_obj_length);
+  THROW_AND_RETURN_IF_OOB(start <= end);
+  THROW_AND_RETURN_IF_OOB(fill_length + start <= ts_obj_length);
 
   // First check if Buffer has been passed.
   if (Buffer::HasInstance(args[1])) {

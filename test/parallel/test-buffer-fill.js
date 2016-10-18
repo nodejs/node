@@ -314,3 +314,79 @@ Buffer.alloc(8, '');
   buf.fill('է');
   assert.strictEqual(buf.toString(), 'էէէէէ');
 }
+
+// Testing public API. Make sure "start" is properly checked, even if it's
+// magically mangled using Symbol.toPrimitive.
+{
+  let elseWasLast = false;
+  assert.throws(() => {
+    var ctr = 0;
+    const start = {
+      [Symbol.toPrimitive]() {
+        // We use this condition to get around the check in lib/buffer.js
+        if (ctr <= 0) {
+          elseWasLast = false;
+          ctr = ctr + 1;
+          return 0;
+        } else {
+          elseWasLast = true;
+          // Once buffer.js calls the C++ implemenation of fill, return -1
+          return -1;
+        }
+      }
+    };
+    Buffer.alloc(1).fill(Buffer.alloc(1), start, 1);
+  }, /out of range index/);
+  // Make sure -1 is making it to Buffer::Fill().
+  assert.ok(elseWasLast,
+            'internal API changed, -1 no longer in correct location');
+}
+
+// Testing process.binding. Make sure "start" is properly checked for -1 wrap
+// around.
+assert.throws(() => {
+  process.binding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1);
+}, /out of range index/);
+
+// Make sure "end" is properly checked, even if it's magically mangled using
+// Symbol.toPrimitive.
+{
+  let elseWasLast = false;
+  assert.throws(() => {
+    var ctr = 0;
+    const end = {
+      [Symbol.toPrimitive]() {
+        // We use this condition to get around the check in lib/buffer.js
+        if (ctr <= 1) {
+          elseWasLast = false;
+          ctr = ctr + 1;
+          return 1;
+        } else {
+          elseWasLast = true;
+          // Once buffer.js calls the C++ implemenation of fill, return -1
+          return -1;
+        }
+      }
+    };
+    Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
+  });
+  // Make sure -1 is making it to Buffer::Fill().
+  assert.ok(elseWasLast,
+            'internal API changed, -1 no longer in correct location');
+}
+
+// Testing process.binding. Make sure "end" is properly checked for -1 wrap
+// around.
+assert.throws(() => {
+  process.binding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1);
+}, /out of range index/);
+
+// Test that bypassing 'length' won't cause an abort.
+assert.throws(() => {
+  const buf = new Buffer('w00t');
+  Object.defineProperty(buf, 'length', {
+    value: 1337,
+    enumerable: true
+  });
+  buf.fill('');
+});
