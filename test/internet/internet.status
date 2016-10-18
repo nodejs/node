@@ -5,4 +5,5 @@ test-dns                          : PASS,FLAKY
 [$system==linux]
 test-https-aws-ssl                : PASS,FLAKY
 
-[$system==solaris]
+[$system==win32]
+test-dgram-multicast-multi-process : PASS,FLAKY
