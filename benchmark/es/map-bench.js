@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['object', 'nullProtoObject', 'fakeMap', 'map'],
-  millions: [10]
+  thousands: [100]
 });
 
 function runObject(n) {
@@ -13,11 +13,11 @@ function runObject(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m['i' + n] = n;
-    m['s' + n] = String(n);
-    assert.equal(m['i' + n], m['s' + n]);
-    m['i' + n] = undefined;
-    m['s' + n] = undefined;
+    m['i' + i] = i;
+    m['s' + i] = String(i);
+    assert.equal(m['i' + i], m['s' + i]);
+    m['i' + i] = undefined;
+    m['s' + i] = undefined;
   }
   bench.end(n / 1e6);
 }
@@ -27,11 +27,11 @@ function runNullProtoObject(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m['i' + n] = n;
-    m['s' + n] = String(n);
-    assert.equal(m['i' + n], m['s' + n]);
-    m['i' + n] = undefined;
-    m['s' + n] = undefined;
+    m['i' + i] = i;
+    m['s' + i] = String(i);
+    assert.equal(m['i' + i], m['s' + i]);
+    m['i' + i] = undefined;
+    m['s' + i] = undefined;
   }
   bench.end(n / 1e6);
 }
@@ -51,11 +51,11 @@ function runFakeMap(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m.set('i' + n, n);
-    m.set('s' + n, String(n));
-    assert.equal(m.get('i' + n), m.get('s' + n));
-    m.set('i' + n, undefined);
-    m.set('s' + n, undefined);
+    m.set('i' + i, i);
+    m.set('s' + i, String(i));
+    assert.equal(m.get('i' + i), m.get('s' + i));
+    m.set('i' + i, undefined);
+    m.set('s' + i, undefined);
   }
   bench.end(n / 1e6);
 }
@@ -65,17 +65,17 @@ function runMap(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m.set('i' + n, n);
-    m.set('s' + n, String(n));
-    assert.equal(m.get('i' + n), m.get('s' + n));
-    m.set('i' + n, undefined);
-    m.set('s' + n, undefined);
+    m.set('i' + i, i);
+    m.set('s' + i, String(i));
+    assert.equal(m.get('i' + i), m.get('s' + i));
+    m.set('i' + i, undefined);
+    m.set('s' + i, undefined);
   }
   bench.end(n / 1e6);
 }
 
 function main(conf) {
-  const n = +conf.millions * 1e6;
+  const n = +conf.thousands * 1000;
 
   switch (conf.method) {
     case 'object':
