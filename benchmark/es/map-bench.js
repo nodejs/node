@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['object', 'nullProtoObject', 'fakeMap', 'map'],
-  thousands: [100]
+  millions: [1]
 });
 
 function runObject(n) {
@@ -75,7 +75,7 @@ function runMap(n) {
 }
 
 function main(conf) {
-  const n = +conf.thousands * 1000;
+  const n = +conf.millions * 1e6;
 
   switch (conf.method) {
     case 'object':
