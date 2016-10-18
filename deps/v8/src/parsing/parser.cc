@@ -2923,39 +2923,39 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     catch_scope = NewScope(scope_, CATCH_SCOPE);
     catch_scope->set_start_position(scanner()->location().beg_pos);
 
-    ExpressionClassifier pattern_classifier(this);
-    Expression* pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
-    ValidateBindingPattern(&pattern_classifier, CHECK_OK);
-
-    const AstRawString* name = ast_value_factory()->dot_catch_string();
-    bool is_simple = pattern->IsVariableProxy();
-    if (is_simple) {
-      auto proxy = pattern->AsVariableProxy();
-      scope_->RemoveUnresolved(proxy);
-      name = proxy->raw_name();
-    }
-
-    catch_variable = catch_scope->DeclareLocal(name, VAR, kCreatedInitialized,
-                                               Variable::NORMAL);
-
-    Expect(Token::RPAREN, CHECK_OK);
-
     {
       CollectExpressionsInTailPositionToListScope
           collect_expressions_in_tail_position_scope(
               function_state_, &expressions_in_tail_position_in_catch_block);
       BlockState block_state(&scope_, catch_scope);
 
-      // TODO(adamk): Make a version of ParseBlock that takes a scope and
-      // a block.
       catch_block =
           factory()->NewBlock(nullptr, 16, false, RelocInfo::kNoPosition);
-      Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
 
+      // Create a block scope to hold any lexical declarations created
+      // as part of destructuring the catch parameter.
+      Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
       block_scope->set_start_position(scanner()->location().beg_pos);
       {
         BlockState block_state(&scope_, block_scope);
         Target target(&this->target_stack_, catch_block);
+
+        ExpressionClassifier pattern_classifier(this);
+        Expression* pattern =
+            ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+        ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+
+        const AstRawString* name = ast_value_factory()->dot_catch_string();
+        bool is_simple = pattern->IsVariableProxy();
+        if (is_simple) {
+          auto proxy = pattern->AsVariableProxy();
+          scope_->RemoveUnresolved(proxy);
+          name = proxy->raw_name();
+        }
+        catch_variable = catch_scope->DeclareLocal(
+            name, VAR, kCreatedInitialized, Variable::NORMAL);
+
+        Expect(Token::RPAREN, CHECK_OK);
 
         if (!is_simple) {
           DeclarationDescriptor descriptor;
@@ -2978,6 +2978,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           catch_block->statements()->Add(init_block, zone());
         }
 
+        // TODO(adamk): This should call ParseBlock in order to properly
+        // add an additional block scope for the catch body.
         Expect(Token::LBRACE, CHECK_OK);
         while (peek() != Token::RBRACE) {
           Statement* stat = ParseStatementListItem(CHECK_OK);
