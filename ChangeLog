@@ -9,6 +9,7 @@ Notable changes:
 Commits:
 
 * [c5b095ecf8] - deps: avoid single-byte buffer overwrite (Daniel Stenberg) https://github.com/nodejs/node/pull/8849
+* [5f1097dcb0] - win,build: try multiple timeservers when signing (Rod Vagg) https://github.com/nodejs/node/pull/9155
 
 2016-09-27, Version 0.12.16 (Maintenance), @rvagg
 
