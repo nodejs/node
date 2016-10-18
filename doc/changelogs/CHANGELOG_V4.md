@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.6.1">4.6.1</a><br/>
 <a href="#4.6.0">4.6.0</a><br/>
 <a href="#4.5.0">4.5.0</a><br/>
 <a href="#4.4.7">4.4.7</a><br/>
@@ -49,6 +50,20 @@
 **Note:** Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.6.1"></a>
+## 2016-10-18, Version 4.6.1 'Argon' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable Changes
+
+* **c-ares**: fix for single-byte buffer overwrite, CVE-2016-5180, more information at https://c-ares.haxx.se/adv_20160929.html (Daniel Stenberg)
+
+### Commits
+
+* [[`f3c63e7ccf`](https://github.com/nodejs/node/commit/f3c63e7ccf)] - **deps**: avoid single-byte buffer overwrite (Daniel Stenberg) [#8849](https://github.com/nodejs/node/pull/8849)
+* [[`5a0daa6c2f`](https://github.com/nodejs/node/commit/5a0daa6c2f)] - **win,build**: try multiple timeservers when signing (Rod Vagg) [#9155](https://github.com/nodejs/node/pull/9155)
 
 <a id="4.6.0"></a>
 ## 2016-09-27, Version 4.6.0 'Argon' (LTS), @rvagg
