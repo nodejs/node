@@ -1,5 +1,17 @@
 # Node.js ChangeLog
 
+## 2016-10-18, Version 4.6.1 'Argon' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable Changes
+
+* **c-ares**: fix for single-byte buffer overwrite, CVE-2016-5180, more information at https://c-ares.haxx.se/adv_20160929.html (Daniel Stenberg)
+
+### Commits
+
+* [[`f3c63e7ccf`](https://github.com/nodejs/node/commit/f3c63e7ccf)] - **deps**: avoid single-byte buffer overwrite (Daniel Stenberg) [#8849](https://github.com/nodejs/node/pull/8849)
+
 ## 2016-09-27, Version 4.6.0 'Argon' (LTS), @rvagg
 
 This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/ for details on patched vulnerabilities.
