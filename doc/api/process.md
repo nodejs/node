@@ -708,6 +708,16 @@ console.log(process.env.TEST);
 // => undefined
 ```
 
+On Windows operating systems, environment variables are case-insensitive.
+
+Example:
+
+```js
+process.env.TEST = 1;
+console.log(process.env.test);
+// => 1
+```
+
 ## process.emitWarning(warning[, name][, ctor])
 <!-- YAML
 added: v6.0.0
