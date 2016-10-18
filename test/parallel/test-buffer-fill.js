@@ -314,3 +314,24 @@ Buffer.alloc(8, '');
   buf.fill('է');
   assert.strictEqual(buf.toString(), 'էէէէէ');
 }
+
+{
+  const buff = Buffer.alloc(1);
+  const start = {
+    ctr: 0,
+    [Symbol.toPrimitive](hint) {
+      if (this.ctr <= 0) {
+        this.ctr++;
+        return 0;
+      } else {
+        return -1;
+      }
+    }
+  };
+
+  assert.deepStrictEqual(buff.fill(0xff, start, 1),
+                         Buffer.from([0xff]));
+  assert.throws(() => {
+    buff.fill(0xee, start, 1);
+  }, /RangeError: Out of range index/);
+}
