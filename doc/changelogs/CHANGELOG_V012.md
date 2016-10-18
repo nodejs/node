@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#0.12.17">0.12.17</a><br/>
 <a href="#0.12.16">0.12.16</a><br/>
 <a href="#0.12.15">0.12.15</a><br/>
 <a href="#0.12.14">0.12.14</a><br/>
@@ -38,6 +39,19 @@
 **Note:** Node.js v0.12 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until December 31st, 2016.
+
+<a id="0.12.17"></a>
+## 2016-10-18, Version 0.12.17 (Maintenance), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes:
+
+* c-ares: fix for single-byte buffer overwrite, CVE-2016-5180, more information at https://c-ares.haxx.se/adv_20160929.html (Daniel Stenberg)
+
+### Commits:
+
+* [c5b095ecf8] - deps: avoid single-byte buffer overwrite (Daniel Stenberg) https://github.com/nodejs/node/pull/8849
 
 <a id="0.12.16"></a>
 ## 2016-09-27, Version 0.12.16 (Maintenance), @rvagg
