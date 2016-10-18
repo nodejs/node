@@ -1,5 +1,6 @@
 prefix internet
 
+test-dgram-multicast-multi-process : PASS,FLAKY
 test-dns                          : PASS,FLAKY
 
 [$system==linux]
