@@ -5767,14 +5767,20 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitCryptoOnce() {
+  SSL_load_error_strings();
   OPENSSL_no_config();
 
   // --openssl-config=...
   if (openssl_config != nullptr) {
+    OPENSSL_load_builtin_modules();
+#ifndef OPENSSL_NO_ENGINE
+    ENGINE_load_builtin_engines();
+#endif
+    ERR_clear_error();
     CONF_modules_load_file(
         openssl_config,
         nullptr,
-        CONF_MFLAGS_DEFAULT_SECTION | CONF_MFLAGS_IGNORE_MISSING_FILE);
+        CONF_MFLAGS_DEFAULT_SECTION);
     int err = ERR_get_error();
     if (0 != err) {
       fprintf(stderr,
@@ -5786,7 +5792,6 @@ void InitCryptoOnce() {
 
   SSL_library_init();
   OpenSSL_add_all_algorithms();
-  SSL_load_error_strings();
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);

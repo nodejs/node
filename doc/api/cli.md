@@ -234,6 +234,16 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`)
 
 
+### `--openssl-config=file`
+<!-- YAML
+added: v6.9.0
+-->
+
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+`./configure --openssl-fips`.
+
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
