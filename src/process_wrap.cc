@@ -121,35 +121,29 @@ class ProcessWrap : public HandleWrap {
 
     // options.uid
     Local<Value> uid_v = js_options->Get(env->uid_string());
-    if (uid_v->IsInt32()) {
+    if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
+      CHECK(uid_v->IsInt32());
       const int32_t uid = uid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETUID;
       options.uid = static_cast<uv_uid_t>(uid);
-    } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
-      return env->ThrowTypeError("options.uid should be a number");
     }
 
     // options.gid
     Local<Value> gid_v = js_options->Get(env->gid_string());
-    if (gid_v->IsInt32()) {
+    if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
+      CHECK(gid_v->IsInt32());
       const int32_t gid = gid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETGID;
       options.gid = static_cast<uv_gid_t>(gid);
-    } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
-      return env->ThrowTypeError("options.gid should be a number");
     }
 
     // TODO(bnoordhuis) is this possible to do without mallocing ?
 
     // options.file
     Local<Value> file_v = js_options->Get(env->file_string());
-    node::Utf8Value file(env->isolate(),
-                         file_v->IsString() ? file_v : Local<Value>());
-    if (file.length() > 0) {
-      options.file = *file;
-    } else {
-      return env->ThrowTypeError("Bad argument");
-    }
+    CHECK(file_v->IsString());
+    node::Utf8Value file(env->isolate(), file_v);
+    options.file = *file;
 
     // options.args
     Local<Value> argv_v = js_options->Get(env->args_string());
