@@ -39,7 +39,7 @@
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
 
-<a id="6.8.1"></a>
+<a id="6.9.0"></a>
 ## 2016-10-18, Version 6.9.0 'Boron' (LTS), @rvagg
 
 This release marks the transition of Node.js v6 into Long Term Support (LTS) with the codename 'Boron'. The v6 release line now moves in to "Active LTS" and will remain so until April 2018. After that time it will move in to "Maintenance" until end of life in April 2019.
