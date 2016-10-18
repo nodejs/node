@@ -107,7 +107,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V012.md#0.12.0">0.12.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V010.md#0.10.47">0.10.47</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V010.md#0.10.48">0.10.48</a></b><br/>
+><a href="doc/changelogs/CHANGELOG_V010.md#0.10.47">0.10.47</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.46">0.10.46</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.45">0.10.45</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.44">0.10.44</a><br/>

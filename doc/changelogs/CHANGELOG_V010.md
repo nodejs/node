@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#0.10.48">0.10.48</a><br/>
 <a href="#0.10.47">0.10.47</a><br/>
 <a href="#0.10.46">0.10.46</a><br/>
 <a href="#0.10.45">0.10.45</a><br/>
@@ -71,6 +72,21 @@
 **Note:** Node.js v0.10 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until October 2016.
+
+<a id="0.10.48"></a>
+## 2016-10-18, Version 0.10.48 (Maintenance), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes
+
+* c-ares: fix for single-byte buffer overwrite, CVE-2016-5180, more information at https://c-ares.haxx.se/adv_20160929.html (Rod Vagg)
+
+### Commits
+
+* [a14a6a3a11] - deps: c-ares, avoid single-byte buffer overwrite (Rod Vagg) https://github.com/nodejs/node/pull/9108
+* [b798f598af] - tls: fix minor jslint failure (Rod Vagg) https://github.com/nodejs/node/pull/9107
+* [92b232ba01] - win,build: try multiple timeservers when signing (Rod Vagg) https://github.com/nodejs/node/pull/9155
 
 <a id="0.10.47"></a>
 ## 2016-09-27, Version 0.10.47 (Maintenance), @rvagg
