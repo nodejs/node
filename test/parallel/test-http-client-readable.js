@@ -31,7 +31,7 @@ FakeAgent.prototype.createConnection = function createConnection() {
     cb();
   };
 
-  s.destroy = s.destroySoon = function destroySoon() {
+  s.destroy = s.destroySoon = function destroy() {
     this.writable = false;
   };
 
