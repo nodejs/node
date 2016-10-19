@@ -681,17 +681,20 @@ bool AgentImpl::RespondToGet(InspectorSocket* socket, const std::string& path) {
 
   if (match_path_segment(command, "list") || command[0] == '\0') {
     SendTargentsListResponse(socket);
+    return true;
   } else if (match_path_segment(command, "protocol")) {
     SendProtocolJson(socket);
+    return true;
   } else if (match_path_segment(command, "version")) {
     SendVersionResponse(socket);
-  } else {
-    const char* pid = match_path_segment(command, "activate");
+    return true;
+  } else if (const char* pid = match_path_segment(command, "activate")) {
     if (pid != id_)
       return false;
     SendHttpResponse(socket, "Target activated");
+    return true;
   }
-  return true;
+  return false;
 }
 
 // static
