@@ -62,6 +62,7 @@ namespace node {
 
  */
 
+extern bool zero_fill_all_buffers;
 
 class NODE_EXTERN Buffer: public ObjectWrap {
  public:

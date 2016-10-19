@@ -31,12 +31,21 @@
 #include <assert.h>
 #include <string.h> // memcpy
 #include <limits.h>
+#include <stdio.h>
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #define BUFFER_CLASS_ID (0xBABE)
 
+#define BUFFER_MALLOC(length)                                               \
+  zero_fill_all_buffers ?                                                   \
+      static_cast<char*>(calloc(length, 1)) :                               \
+      new char[length]
+
 namespace node {
+
+// if true, all Buffer and SlowBuffer instances will automatically zero-fill
+bool zero_fill_all_buffers = false;
 
 using namespace v8;
 
@@ -178,7 +187,7 @@ void Buffer::Replace(char *data, size_t length,
   if (callback_) {
     data_ = data;
   } else if (length_) {
-    data_ = new char[length_];
+    data_ = BUFFER_MALLOC(length_);
     if (data)
       memcpy(data_, data, length_);
     V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) + length_);
