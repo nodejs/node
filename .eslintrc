@@ -63,6 +63,12 @@ rules:
     object: assert,
     property: deepEqual,
     message: Please use assert.deepStrictEqual().
+  }, {
+    property: __defineGetter__,
+    message: __defineGetter__ is deprecated.
+  }, {
+    property: __defineSetter__,
+    message: __defineSetter__ is deprecated.
   }]
 
   # Stylistic Issues
@@ -112,7 +118,6 @@ rules:
   align-multiline-assignment: 2
   assert-fail-single-argument: 2
   new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
-  no-definegetter-definesetter: 2
 
 # Global scoped method and vars
 globals:
