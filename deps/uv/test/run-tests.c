@@ -27,6 +27,8 @@
 # include <io.h>
 #else
 # include <unistd.h>
+# include <sys/stat.h>
+# include <fcntl.h>
 #endif
 
 #include "uv.h"
@@ -176,6 +178,16 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper9") == 0) {
     return spawn_stdin_stdout();
   }
+
+#ifndef _WIN32
+  /* Test if we can read from /dev/sda, should fail unless we are part of "disk" */
+  if (strcmp(argv[1], "spawn_helper10") == 0) {
+    int fd = open("/dev/sda", P_RDONLY);
+    ASSERT(-1 != fd);
+    close(fd);
+    return 1;
+  }
+#endif  /* !_WIN32 */
 
   return run_test(argv[1], 0, 1);
 }
