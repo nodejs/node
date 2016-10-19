@@ -61,21 +61,6 @@ def ReadLines(filename):
   return result
 
 
-def LoadConfigFrom(name):
-  import ConfigParser
-  config = ConfigParser.ConfigParser()
-  config.read(name)
-  return config
-
-
-def ParseValue(string):
-  string = string.strip()
-  if string.startswith('[') and string.endswith(']'):
-    return string.lstrip('[').rstrip(']').split()
-  else:
-    return string
-
-
 def ExpandConstants(lines, constants):
   for key, value in constants.items():
     lines = lines.replace(key, str(value))
@@ -202,23 +187,8 @@ SOURCE_DECLARATION = """\
 """
 
 
-GET_DELAY_INDEX_CASE = """\
-    if (strcmp(name, "%(id)s") == 0) return %(i)i;
-"""
-
-
-GET_DELAY_SCRIPT_SOURCE_CASE = """\
-    if (index == %(i)i) return Vector<const char>(%(id)s, %(length)i);
-"""
-
-
-GET_DELAY_SCRIPT_NAME_CASE = """\
-    if (index == %(i)i) return Vector<const char>("%(name)s", %(length)i);
-"""
-
 def JS2C(source, target):
   ids = []
-  delay_ids = []
   modules = []
   # Locate the macros file name.
   consts = {}
@@ -241,7 +211,6 @@ def JS2C(source, target):
   native_lines = []
 
   for s in modules:
-    delay = str(s).endswith('-delay.js')
     lines = ReadFile(str(s))
 
     lines = ExpandConstants(lines, consts)
@@ -258,11 +227,7 @@ def JS2C(source, target):
     if '.' in id:
       id = id.split('.', 1)[0]
 
-    if delay: id = id[:-6]
-    if delay:
-      delay_ids.append((id, len(lines)))
-    else:
-      ids.append((id, len(lines)))
+    ids.append((id, len(lines)))
 
     escaped_id = id.replace('-', '_').replace('/', '_')
     source_lines.append(SOURCE_DECLARATION % {
@@ -280,66 +245,15 @@ def JS2C(source, target):
       'escaped_id': escaped_id
     })
 
-  # Build delay support functions
-  get_index_cases = [ ]
-  get_script_source_cases = [ ]
-  get_script_name_cases = [ ]
-
-  i = 0
-  for (id, length) in delay_ids:
-    native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
-      'id': id,
-      'length': length,
-      'i': i
-    })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
-      'name': native_name,
-      'length': len(native_name),
-      'i': i
-    });
-    i = i + 1
-
-  for (id, length) in ids:
-    native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
-      'id': id,
-      'length': length,
-      'i': i
-    })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
-      'name': native_name,
-      'length': len(native_name),
-      'i': i
-    });
-    i = i + 1
-
   # Emit result
   output = open(str(target[0]), "w")
   output.write(HEADER_TEMPLATE % {
-    'builtin_count': len(ids) + len(delay_ids),
-    'delay_count': len(delay_ids),
+    'builtin_count': len(ids),
     'source_lines': "\n".join(source_lines),
     'native_lines': "\n".join(native_lines),
-    'get_index_cases': "".join(get_index_cases),
-    'get_script_source_cases': "".join(get_script_source_cases),
-    'get_script_name_cases': "".join(get_script_name_cases)
   })
   output.close()
 
-  if len(target) > 1:
-    output = open(str(target[1]), "w")
-    output.write(HEADER_TEMPLATE % {
-      'builtin_count': len(ids) + len(delay_ids),
-      'delay_count': len(delay_ids),
-      'source_lines': "\n".join(source_lines_empty),
-      'get_index_cases': "".join(get_index_cases),
-      'get_script_source_cases': "".join(get_script_source_cases),
-      'get_script_name_cases': "".join(get_script_name_cases)
-    })
-    output.close()
 
 def main():
   natives = sys.argv[1]
