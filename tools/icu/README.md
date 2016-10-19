@@ -8,11 +8,12 @@
 ```shell
 ./configure \
     --with-intl=small-icu \
-    --with-icu-source=http://download.icu-project.org/files/icu4c/56.1/icu4c-56_1-src.zip
+    --with-icu-source=http://download.icu-project.org/files/icu4c/58.1/icu4c-58_1-src.tgz
 make
 ```
 
-(the equivalent `vcbuild.bat` commands should work also.)
+(The equivalent `vcbuild.bat` commands should work also. Note that we use the `.tgz` and not the `.zip` here,
+that is because of line endings.)
 
 - (note- may need to make changes in `icu-generic.gyp` or `tools/icu/patches` for
 version specific stuff)
@@ -58,6 +59,14 @@ new Intl.DateTimeFormat('es',{month:'long'}).format(new Date(9E8));
 - You are ready to check in the updated `deps/small-icu`.
 This is a big commit, so make this a separate commit from other changes.
 
+- Now, rebuild the Node license.
+
+```shell
+# clean up - remove deps/icu
+make clean
+tools/license-builder.sh
+```
+
 - Now, fix the default URL for the `full-icu` build in `/configure`, in
 the `configure_intl()` function. It should match the ICU URL used in the
 first step.  When this is done, the following should build with full ICU.
@@ -70,7 +79,7 @@ make
 make test-ci
 ```
 
-- commit the change to `configure`.
+- commit the change to `configure` along with the updated `LICENSE` file.
 
 -----
 
