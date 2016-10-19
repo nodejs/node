@@ -86,7 +86,17 @@ function checkHttpResponse(port, path, callback) {
     res.setEncoding('utf8');
     res
       .on('data', (data) => response += data.toString())
-      .on('end', () => callback(JSON.parse(response)));
+      .on('end', () => {
+        let err = null;
+        let json = undefined;
+        try {
+          json = JSON.parse(response);
+        } catch (e) {
+          err = e;
+          err.response = response;
+        }
+        callback(err, json);
+      });
   });
 }
 
@@ -284,8 +294,8 @@ TestSession.prototype.disconnect = function(childDone) {
 
 TestSession.prototype.testHttpResponse = function(path, check) {
   return this.enqueue((callback) =>
-      checkHttpResponse(this.harness_.port, path, (response) => {
-        check.call(this, response);
+      checkHttpResponse(this.harness_.port, path, (err, response) => {
+        check.call(this, err, response);
         callback();
       }));
 };
@@ -352,8 +362,8 @@ Harness.prototype.enqueue_ = function(task) {
 
 Harness.prototype.testHttpResponse = function(path, check) {
   return this.enqueue_((doneCallback) => {
-    checkHttpResponse(this.port, path, (response) => {
-      check.call(this, response);
+    checkHttpResponse(this.port, path, (err, response) => {
+      check.call(this, err, response);
       doneCallback();
     });
   });
@@ -393,7 +403,8 @@ Harness.prototype.wsHandshake = function(devtoolsUrl, tests, readyCallback) {
 
 Harness.prototype.runFrontendSession = function(tests) {
   return this.enqueue_((callback) => {
-    checkHttpResponse(this.port, '/json/list', (response) => {
+    checkHttpResponse(this.port, '/json/list', (err, response) => {
+      assert.ifError(err);
       this.wsHandshake(response[0]['webSocketDebuggerUrl'], tests, callback);
     });
   });
