@@ -7,9 +7,10 @@
 </tr>
 <tr>
 <td valign="top">
-<a href="#6.9.0">6.9.0</a><br/>
+<a href="#6.9.1">6.9.1</a><br/>
 </td>
 <td valign="top">
+<a href="#6.9.0">6.9.0</a><br/>
 <a href="#6.8.1">6.8.1</a><br/>
 <a href="#6.8.0">6.8.0</a><br/>
 <a href="#6.7.0">6.7.0</a><br/>
@@ -38,6 +39,22 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.9.1"></a>
+## 2016-10-19, Version 6.9.1 'Boron' (LTS), @thealphanerd
+
+### Notable changes
+
+* **streams**: Fix a regression introduced in v6.8.0 in readable stream that caused unpipe to remove the wrong stream (Anna Henningsen)
+
+### Commits
+
+* [[`2c3bbb576c`](https://github.com/nodejs/node/commit/2c3bbb576c)] - **doc**: fix changelog index for v6.9.0 (Rod Vagg) [#9168](https://github.com/nodejs/node/pull/9168)
+* [[`f4b766f5b7`](https://github.com/nodejs/node/commit/f4b766f5b7)] - **streams**: fix regression in `unpipe()` (Anna Henningsen) [#9171](https://github.com/nodejs/node/pull/9171)
+* [[`6072326009`](https://github.com/nodejs/node/commit/6072326009)] - **test**: add regression test for `unpipe()` (Niels Nielsen) [#9171](https://github.com/nodejs/node/pull/9171)
+* [[`9f248a4d83`](https://github.com/nodejs/node/commit/9f248a4d83)] - **tools**: check tag is on github before release (Rod Vagg) [#9142](https://github.com/nodejs/node/pull/9142)
+* [[`c74d3a700a`](https://github.com/nodejs/node/commit/c74d3a700a)] - **tools**: make detached SHASUM .sig file for releases (Rod Vagg) [#9071](https://github.com/nodejs/node/pull/9071)
+* [[`955bbf876f`](https://github.com/nodejs/node/commit/955bbf876f)] - **tools**: explicitly set digest algo for SHASUM to 256 (Rod Vagg) [#9071](https://github.com/nodejs/node/pull/9071)
 
 <a id="6.9.0"></a>
 ## 2016-10-18, Version 6.9.0 'Boron' (LTS), @rvagg
