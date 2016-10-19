@@ -18,7 +18,7 @@ release.
 
 <table>
 <tr>
-  <th><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>Current</sup</th>
+  <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>LTS</sup</th>
   <th><a href="doc/changelogs/CHANGELOG_V5.md">v5</a></th>
   <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">v4</a><sup>LTS</sup></th>
   <th title="LTS Until 2016-12-31"><a href="doc/changelogs/CHANGELOG_V012.md">v0.12</a><sup>LTS</sup></th>
