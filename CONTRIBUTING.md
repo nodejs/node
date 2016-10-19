@@ -89,6 +89,13 @@ $ git config --global user.name "J. Random User"
 $ git config --global user.email "j.random.user@example.com"
 ```
 
+Add and commit:
+
+```text
+$ git add my/changed/files
+$ git commit
+```
+
 Writing good commit logs is important. A commit log should describe what
 changed and why. Follow these guidelines when writing one:
 
@@ -194,10 +201,60 @@ $ git push origin my-branch
 Go to https://github.com/yourusername/node and select your branch.
 Click the 'Pull Request' button and fill out the form.
 
-Pull requests are usually reviewed within a few days. If there are comments
-to address, apply your changes in a separate commit and push that to your
-branch. Post a comment in the pull request afterwards; GitHub does
-not send out notifications when you add commits.
+Pull requests are usually reviewed within a few days.
+
+### Step 7: Discuss and update
+
+You will probably get feedback or requests for changes to your Pull Request.
+This is a big part of the submission process, so don't be disheartened!
+
+To make changes to an existing Pull Request, make the changes to your branch.
+When you push that branch to your fork, GitHub will automatically update the
+Pull Request.
+
+You can push more commits to your branch:
+
+```text
+$ git add my/changed/files
+$ git commit
+$ git push origin my-branch
+```
+
+Or you can rebase against master:
+
+```text
+$ git fetch --all
+$ git rebase origin/master
+$ git push --force-with-lease origin my-branch
+```
+
+Or you can amend the last commit (for example if you want to change the commit
+log).
+
+```text
+$ git add any/changed/files
+$ git commit --amend
+$ git push --force-with-lease origin my-branch
+```
+
+**Important:** The `git push --force-with-lease` command is one of the few ways
+to delete history in git. Before you use it, make sure you understand the risks.
+If in doubt, you can always ask for guidance in the Pull Request or on
+[IRC in the #node-dev channel](https://webchat.freenode.net?channels=node-dev&uio=d4).
+
+Feel free to post a comment in the Pull Request to ping reviewers if you are
+awaiting an answer on something.
+
+
+### Step 8: Landing
+
+Once your Pull Request has been reviewed and approved by at least one Node.js
+Collaborators (often by saying LGTM, or Looks Good To Me), and as long as
+there is consensus (no objections from a Collaborator), a
+Collaborator can merge the Pull Request . GitHub often shows the Pull Request as
+ `Closed` at this point, but don't worry. If you look at the branch you raised
+ your Pull Request against (probably `master`), you should see a commit with
+ your name on it. Congratulations and thanks for your contribution!
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
