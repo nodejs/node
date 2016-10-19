@@ -1674,6 +1674,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     const int size = old_object->Size();
     AllocationAlignment alignment = old_object->RequiredAlignment();
     AllocationResult allocation;
+    AllocationSpace space_allocated_in = space_to_allocate_;
     if (space_to_allocate_ == NEW_SPACE) {
       if (size > kMaxLabObjectSize) {
         allocation =
@@ -1684,11 +1685,12 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     }
     if (allocation.IsRetry() || (space_to_allocate_ == OLD_SPACE)) {
       allocation = AllocateInOldSpace(size, alignment);
+      space_allocated_in = OLD_SPACE;
     }
     bool ok = allocation.To(target_object);
     DCHECK(ok);
     USE(ok);
-    return space_to_allocate_;
+    return space_allocated_in;
   }
 
   inline bool NewLocalAllocationBuffer() {
