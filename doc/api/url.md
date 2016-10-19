@@ -154,7 +154,7 @@ The formatting process operates as follows:
 * For all string values of `urlObject.protocol` that *do not end* with an ASCII
   colon (`:`) character, the literal string `:` will be appended to `result`.
 * If either the `urlObject.slashes` property is true, `urlObject.protocol`
-  begins with one of `http`, `https`, `ftp`, `gopher`, or `file`, or
+  begins with one of `http`, `https`, `ftp`, `gopher`, `file`, `mongodb` or `ssh`, or
   `urlObject.protocol` is `undefined`, the literal string `//` will be appended
   to `result`.
 * If the value of the `urlObject.auth` property is truthy, and either
