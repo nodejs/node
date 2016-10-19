@@ -1835,11 +1835,11 @@ console.log(buf.toString('ascii', 0, 5));
 
 const buf2 = Buffer.from('tést');
 
-// Prints: tés
-console.log(buf.toString('utf8', 0, 3));
+// Prints: té
+console.log(buf2.toString('utf8', 0, 3));
 
 // Prints: tés
-console.log(buf.toString(undefined, 0, 3));
+console.log(buf2.toString(undefined, 0, 3));
 ```
 
 ### buf.toJSON()

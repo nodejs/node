@@ -235,6 +235,23 @@ url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
 ```
 
+<<<<<<< HEAD
+Note that `url.resolve()` method depends on the protocol given in the `from` parameter. Some protocols like '''https''', '''file''', '''ftp''', '''wss''' and '''gopher''' have special cases.
+=======
+Note that `url.resolve()` method depends on the protocol given in the `from` parameter. 
+Some protocols like `https`, `file`, `ftp`, `wss` and `gopher` have special cases.
+>>>>>>> 2dc5a1518990abceb033d6f0a306a95f6ee5474d
+
+For example:
+
+```js
+url.resolve('https://foo.tld', 'bar')   // 'https://foo.tld/bar'
+url.resolve('wss://foo.tld', 'bar')      // 'wss://bar'
+url.resolve('ftps://foo.tld', 'bar')     // 'ftps://bar'
+```
+
+Although, the uniform behaviour of the method is achieved when the URL ends with a slash.
+
 ## Escaped Characters
 
 URLs are only permitted to contain a certain range of characters. Spaces (`' '`)
