@@ -41,12 +41,12 @@ for sign-off.
 If one or more Collaborators oppose a proposed change, then the change can not
 be accepted unless:
 
-* discussion and/or additional changes result in no Collaborators objecting to
-  the change; previously-objecting Collaborators do not necessarily have to
-  sign-off on the change, but they should not be opposed to it
-* the change is escalated to the CTC and the CTC votes to approve the change;
-  this should be used only after other options (especially discussion among
-  the disagreeing Collaborators) have been exhausted
+* Discussions and/or additional changes result in no Collaborators objecting to
+  the change. Previously-objecting Collaborators do not necessarily have to
+  sign-off on the change, but they should not be opposed to it.
+* The change is escalated to the CTC and the CTC votes to approve the change.
+  This should be used only after other options (especially discussion among
+  the disagreeing Collaborators) have been exhausted.
 
 Collaborators may opt to elevate significant or controversial modifications to
 the CTC by assigning the ***ctc-agenda*** tag to a pull request or issue. The
