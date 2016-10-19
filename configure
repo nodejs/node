@@ -546,6 +546,8 @@ def configure_node(o):
   else:
     o['variables']['node_tag'] = ''
 
+  o['variables']['node_module_version'] = 11
+
 
 def configure_libz(o):
   o['variables']['node_shared_zlib'] = b(options.shared_zlib)
