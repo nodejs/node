@@ -66,9 +66,9 @@ release.
   </td>
   <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V4.md#4.5.0">4.5.0</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a></b>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a></b>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a></b>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.4">4.4.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.3">4.4.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.2">4.4.2</a><br/>
