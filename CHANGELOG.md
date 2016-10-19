@@ -65,9 +65,9 @@ release.
 <b><a href="doc/changelogs/CHANGELOG_V4.md#4.6.1">4.6.1</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.6.0">4.6.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.5.0">4.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a></b>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a></b>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a></b>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.4">4.4.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.3">4.4.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.2">4.4.2</a><br/>
@@ -110,7 +110,7 @@ release.
   </td>
   <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V010.md#0.10.48">0.10.48</a></b><br/>
-><a href="doc/changelogs/CHANGELOG_V010.md#0.10.47">0.10.47</a><br/>
+<a href="doc/changelogs/CHANGELOG_V010.md#0.10.47">0.10.47</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.46">0.10.46</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.45">0.10.45</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.44">0.10.44</a><br/>
