@@ -216,9 +216,16 @@ However, in practice, there are much better ways to do this, such as
 loading modules via some other Node.js program, or compiling them to
 JavaScript ahead of time.
 
-Since the Module system is locked, this feature will probably never go
+Since the module system is locked, this feature will probably never go
 away.  However, it may have subtle bugs and complexities that are best
 left untouched.
+
+Note that the number of file system operations that the module system
+has to perform in order to resolve a `require(...)` statement to a
+filename scales linearly with the number of registered extensions.
+
+In other words, adding extensions slows down the module loader and
+should be discouraged.
 
 ### require.resolve()
 <!-- YAML
