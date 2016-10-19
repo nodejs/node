@@ -992,7 +992,7 @@ thrown.
 
 ## `crypto` module methods and properties
 
-## crypto.constants
+### crypto.constants
 <!-- YAML
 added: v6.3.0
 -->
