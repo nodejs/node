@@ -69,6 +69,8 @@ assert.equal(threeFolder, threeIndex);
 assert.notEqual(threeFolder, three);
 
 console.error('test package.json require() loading');
+assert.equal(require('../fixtures/packages/index').ok, 'ok',
+             'Failed loading package');
 assert.equal(require('../fixtures/packages/main').ok, 'ok',
              'Failed loading package');
 assert.equal(require('../fixtures/packages/main-index').ok, 'ok',
@@ -208,6 +210,7 @@ assert.deepStrictEqual(children, {
   },
   'fixtures/nested-index/three.js': {},
   'fixtures/nested-index/three/index.js': {},
+  'fixtures/packages/index/index.js': {},
   'fixtures/packages/main/package-main-module.js': {},
   'fixtures/packages/main-index/package-main-module/index.js': {},
   'fixtures/cycles/root.js': {
