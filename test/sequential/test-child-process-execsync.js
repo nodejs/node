@@ -87,3 +87,19 @@ assert.strictEqual(ret, msg + '\n',
     execSync('exit -1', {stdio: 'ignore'});
   }, /Command failed: exit -1/);
 }
+
+// Verify the execFileSync() behavior when the child exits with a non-zero code.
+{
+  const args = ['-e', 'process.exit(1)'];
+
+  assert.throws(() => {
+    execFileSync(process.execPath, args);
+  }, (err) => {
+    const msg = `Command failed: ${process.execPath} ${args.join(' ')}`;
+
+    assert(err instanceof Error);
+    assert.strictEqual(err.message.trim(), msg);
+    assert.strictEqual(err.status, 1);
+    return true;
+  });
+}
