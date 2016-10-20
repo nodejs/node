@@ -93,7 +93,6 @@ namespace node {
   V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
   V(env_pairs_string, "envPairs")                                             \
-  V(env_string, "env")                                                        \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
   V(events_string, "_events")                                                 \
