@@ -52,6 +52,9 @@ class Factory final {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<FrameArray> NewFrameArray(int number_of_frames,
+                                   PretenureFlag pretenure = NOT_TENURED);
+
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
 

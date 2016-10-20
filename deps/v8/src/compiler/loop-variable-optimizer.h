@@ -106,7 +106,7 @@ class LoopVariableOptimizer {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   Zone* zone_;
-  ZoneMap<int, const VariableLimits*> limits_;
+  ZoneVector<const VariableLimits*> limits_;
   ZoneMap<int, InductionVariable*> induction_vars_;
 };
 

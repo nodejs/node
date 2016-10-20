@@ -25,11 +25,7 @@
 #include <string>
 #include <vector>
 
-#if V8_LIBC_GLIBC || V8_LIBC_BSD || V8_LIBC_UCLIBC || V8_OS_SOLARIS
-#define HAVE_EXECINFO_H 1
-#endif
-
-#if HAVE_EXECINFO_H
+#if V8_LIBC_GLIBC || V8_OS_BSD
 #include <cxxabi.h>
 #include <execinfo.h>
 #endif
@@ -81,7 +77,7 @@ void DemangleSymbols(std::string* text) {
   // Note: code in this function is NOT async-signal safe (std::string uses
   // malloc internally).
 
-#if HAVE_EXECINFO_H
+#if V8_LIBC_GLIBC || V8_OS_BSD
 
   std::string::size_type search_from = 0;
   while (search_from < text->size()) {
@@ -118,7 +114,7 @@ void DemangleSymbols(std::string* text) {
     }
   }
 
-#endif  // HAVE_EXECINFO_H
+#endif  // V8_LIBC_GLIBC || V8_OS_BSD
 }
 
 class BacktraceOutputHandler {
@@ -139,7 +135,6 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   handler->HandleOutput(buf);
 }
 
-#if HAVE_EXECINFO_H
 void ProcessBacktrace(void* const* trace, size_t size,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -176,7 +171,6 @@ void ProcessBacktrace(void* const* trace, size_t size,
     }
   }
 }
-#endif  // HAVE_EXECINFO_H
 
 void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -365,30 +359,22 @@ StackTrace::StackTrace() {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
-#if HAVE_EXECINFO_H
   // Though the backtrace API man page does not list any possible negative
   // return values, we take no chance.
   count_ = static_cast<size_t>(backtrace(trace_, arraysize(trace_)));
-#else
-  count_ = 0;
-#endif
 }
 
 void StackTrace::Print() const {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
-#if HAVE_EXECINFO_H
   PrintBacktraceOutputHandler handler;
   ProcessBacktrace(trace_, count_, &handler);
-#endif
 }
 
 void StackTrace::OutputToStream(std::ostream* os) const {
-#if HAVE_EXECINFO_H
   StreamBacktraceOutputHandler handler(os);
   ProcessBacktrace(trace_, count_, &handler);
-#endif
 }
 
 namespace internal {

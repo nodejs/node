@@ -178,6 +178,14 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
   return array;
 }
 
+Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
+                                          PretenureFlag pretenure) {
+  DCHECK_LE(0, number_of_frames);
+  Handle<FixedArray> result =
+      NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
+  result->set(FrameArray::kFrameCountIndex, Smi::FromInt(0));
+  return Handle<FrameArray>::cast(result);
+}
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);

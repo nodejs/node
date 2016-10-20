@@ -213,6 +213,152 @@ TEST_F(LoadEliminationTest, StoreFieldAndStoreElementAndLoadField) {
   EXPECT_EQ(value, r.replacement());
 }
 
+TEST_F(LoadEliminationTest, LoadElementOnTrueBranchOfDiamond) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  Node* check = Parameter(Type::Boolean(), 2);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+                                MachineType::AnyTagged(), kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = graph()->NewNode(simplified()->LoadElement(access), object,
+                                 index, effect, if_true);
+  load_elimination.Reduce(etrue);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  load_elimination.Reduce(effect);
+
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), object,
+                                index, effect, control);
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load, r.replacement());
+}
+
+TEST_F(LoadEliminationTest, LoadElementOnFalseBranchOfDiamond) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  Node* check = Parameter(Type::Boolean(), 2);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+                                MachineType::AnyTagged(), kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = graph()->NewNode(simplified()->LoadElement(access), object,
+                                  index, effect, if_false);
+  load_elimination.Reduce(efalse);
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  load_elimination.Reduce(effect);
+
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), object,
+                                index, effect, control);
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load, r.replacement());
+}
+
+TEST_F(LoadEliminationTest, LoadFieldOnFalseBranchOfDiamond) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* check = Parameter(Type::Boolean(), 1);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  FieldAccess const access = {kTaggedBase,
+                              kPointerSize,
+                              MaybeHandle<Name>(),
+                              Type::Any(),
+                              MachineType::AnyTagged(),
+                              kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = graph()->NewNode(simplified()->LoadField(access), object,
+                                  effect, if_false);
+  load_elimination.Reduce(efalse);
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  load_elimination.Reduce(effect);
+
+  Node* load = graph()->NewNode(simplified()->LoadField(access), object, effect,
+                                control);
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load, r.replacement());
+}
+
+TEST_F(LoadEliminationTest, LoadFieldOnTrueBranchOfDiamond) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* check = Parameter(Type::Boolean(), 1);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  FieldAccess const access = {kTaggedBase,
+                              kPointerSize,
+                              MaybeHandle<Name>(),
+                              Type::Any(),
+                              MachineType::AnyTagged(),
+                              kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = graph()->NewNode(simplified()->LoadField(access), object,
+                                 effect, if_true);
+  load_elimination.Reduce(etrue);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  load_elimination.Reduce(effect);
+
+  Node* load = graph()->NewNode(simplified()->LoadField(access), object, effect,
+                                control);
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load, r.replacement());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

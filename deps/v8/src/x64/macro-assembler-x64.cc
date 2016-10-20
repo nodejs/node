@@ -3325,12 +3325,12 @@ void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
     Movd(dst, src);
     return;
   }
-  DCHECK_EQ(1, imm8);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pextrd(dst, src, imm8);
     return;
   }
+  DCHECK_EQ(1, imm8);
   movq(dst, src);
   shrq(dst, Immediate(32));
 }

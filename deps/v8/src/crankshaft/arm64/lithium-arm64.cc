@@ -726,7 +726,7 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {
   LInstruction* result = new (zone()) LPrologue();
-  if (info_->scope()->num_heap_slots() > 0) {
+  if (info_->scope()->NeedsContext()) {
     result = MarkAsCall(result, instr);
   }
   return result;

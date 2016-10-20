@@ -194,6 +194,8 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
+  Node* DefaultS128Value();
+
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
 
  private:

@@ -1521,7 +1521,7 @@ void CodeStubAssembler::CopyFixedArrayElements(ElementsKind kind,
   Label done(this);
   bool double_elements = IsFastDoubleElementsKind(kind);
   bool needs_write_barrier =
-      barrier_mode == UPDATE_WRITE_BARRIER && IsFastObjectElementsKind(kind);
+      barrier_mode == UPDATE_WRITE_BARRIER && !IsFastObjectElementsKind(kind);
   Node* limit_offset = ElementOffsetFromIndex(
       IntPtrConstant(0), kind, mode, FixedArray::kHeaderSize - kHeapObjectTag);
   Variable current_offset(this, MachineType::PointerRepresentation());
@@ -1541,7 +1541,7 @@ void CodeStubAssembler::CopyFixedArrayElements(ElementsKind kind,
         Load(double_elements ? MachineType::Float64() : MachineType::Pointer(),
              from_array, current_offset.value());
     if (needs_write_barrier) {
-      Store(MachineRepresentation::kTagged, to_array,
+      Store(MachineType::PointerRepresentation(), to_array,
             current_offset.value(), value);
     } else if (double_elements) {
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array,

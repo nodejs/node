@@ -115,8 +115,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      AstNodeFactory ast_node_factory(info.get()->ast_value_factory());
-      scope->AllocateVariables(info.get(), &ast_node_factory);
+      scope->AllocateVariables(info.get());
       RetrieveScopeChain(scope);
     }
   } else if (!ignore_nested_scopes) {

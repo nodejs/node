@@ -123,7 +123,7 @@
       },  # Debug
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {

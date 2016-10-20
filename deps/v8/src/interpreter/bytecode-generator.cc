@@ -771,8 +771,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   VisitArgumentsObject(scope()->arguments());
 
   // Build rest arguments array if it is used.
-  int rest_index;
-  Variable* rest_parameter = scope()->rest_parameter(&rest_index);
+  Variable* rest_parameter = scope()->rest_parameter();
   VisitRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.

@@ -128,6 +128,7 @@
   V(sourceText_string, "sourceText")                               \
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
+  V(stackTraceLimit_string, "stackTraceLimit")                     \
   V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \

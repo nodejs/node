@@ -73,13 +73,8 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
                               Address from,
                               int fp_to_sp_delta,
                               Isolate* isolate) {
-  Deoptimizer* deoptimizer = new Deoptimizer(isolate,
-                                             function,
-                                             type,
-                                             bailout_id,
-                                             from,
-                                             fp_to_sp_delta,
-                                             NULL);
+  Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, type,
+                                             bailout_id, from, fp_to_sp_delta);
   CHECK(isolate->deoptimizer_data()->current_ == NULL);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
@@ -467,7 +462,7 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
 
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
                          BailoutType type, unsigned bailout_id, Address from,
-                         int fp_to_sp_delta, Code* optimized_code)
+                         int fp_to_sp_delta)
     : isolate_(isolate),
       function_(function),
       bailout_id_(bailout_id),
@@ -510,7 +505,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       function->shared()->set_opt_count(opt_count);
     }
   }
-  compiled_code_ = FindOptimizedCode(function, optimized_code);
+  compiled_code_ = FindOptimizedCode(function);
 #if DEBUG
   DCHECK(compiled_code_ != NULL);
   if (type == EAGER || type == SOFT || type == LAZY) {
@@ -539,9 +534,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   input_->SetFrameType(frame_type);
 }
 
-
-Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
-                                     Code* optimized_code) {
+Code* Deoptimizer::FindOptimizedCode(JSFunction* function) {
   switch (bailout_type_) {
     case Deoptimizer::SOFT:
     case Deoptimizer::EAGER:

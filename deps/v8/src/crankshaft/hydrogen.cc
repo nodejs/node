@@ -4651,9 +4651,7 @@ void HOptimizedGraphBuilder::SetUpScope(DeclarationScope* scope) {
     environment()->Bind(scope->arguments(), arguments_object);
   }
 
-  int rest_index;
-  Variable* rest = scope->rest_parameter(&rest_index);
-  if (rest) {
+  if (scope->rest_parameter() != nullptr) {
     return Bailout(kRestParameter);
   }
 
@@ -8401,14 +8399,12 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  if (target_info.scope()->num_heap_slots() > 0) {
+  if (target_info.scope()->NeedsContext()) {
     TraceInline(target, caller, "target has context-allocated variables");
     return false;
   }
 
-  int rest_index;
-  Variable* rest = target_info.scope()->rest_parameter(&rest_index);
-  if (rest) {
+  if (target_info.scope()->rest_parameter() != nullptr) {
     TraceInline(target, caller, "target uses rest parameters");
     return false;
   }

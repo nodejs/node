@@ -73,6 +73,19 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_POSIX
 
 Semaphore::Semaphore(int count) {
+  // The sem_init() does not check for alignment of the native handle.
+  // Unaligned native handle can later cause a failure in semaphore signal.
+  // Check the alignment here to catch the failure earlier.
+  // Context: crbug.com/605349.
+#if V8_OS_AIX || V8_OS_FREEBSD
+  // On aix sem_t is of type int. On FreeBSD, it's a struct of 32 bits fields.
+  const uintptr_t kSemaphoreAlignmentMask = sizeof(int) - 1;
+#else
+  const uintptr_t kSemaphoreAlignmentMask = sizeof(void*) - 1;
+#endif
+  CHECK_EQ(
+      0, reinterpret_cast<uintptr_t>(&native_handle_) &
+      kSemaphoreAlignmentMask);
   DCHECK(count >= 0);
   int result = sem_init(&native_handle_, 0, count);
   DCHECK_EQ(0, result);

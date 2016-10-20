@@ -658,6 +658,9 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
+  // All handles below this point will be canonicalized.
+  CanonicalHandleScope canonical(isolate);
+
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
@@ -665,6 +668,10 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   }
 
   JSFunction::EnsureLiterals(info->closure());
+
+  // Reopen handles in the new CompilationHandleScope.
+  info->ReopenHandlesInNewHandleScope();
+  info->parse_info()->ReopenHandlesInNewHandleScope();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
@@ -713,9 +720,11 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
     return false;
   }
 
-  // All handles below this point will be allocated in a deferred handle scope
-  // that is detached and handed off to the background thread when we return.
+  // All handles below this point will be canonicalized and allocated in a
+  // deferred handle scope that is detached and handed off to the background
+  // thread when we return.
   CompilationHandleScope handle_scope(info);
+  CanonicalHandleScope canonical(isolate);
 
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
@@ -808,7 +817,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
@@ -1392,8 +1400,15 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
   DCHECK(ShouldUseIgnition(info));
   if (!info->shared_info()->HasBytecodeArray()) {
-    DCHECK(!info->shared_info()->is_compiled());
+    Handle<Code> original_code(info->shared_info()->code());
     if (GetUnoptimizedCode(info).is_null()) return false;
+    DCHECK(info->shared_info()->is_compiled());
+    if (original_code->kind() == Code::FUNCTION) {
+      // Generating bytecode will install the {InterpreterEntryTrampoline} as
+      // shared code on the function. To avoid an implicit tier down we restore
+      // original baseline code in case it existed beforehand.
+      info->shared_info()->ReplaceCode(*original_code);
+    }
   }
   DCHECK(info->shared_info()->HasBytecodeArray());
   return true;

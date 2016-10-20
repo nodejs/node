@@ -31,7 +31,7 @@ class JsonStringifier BASE_EMBEDDED {
       Handle<Object> object,
       Handle<Object> key);
   MUST_USE_RESULT MaybeHandle<Object> ApplyReplacerFunction(
-      Handle<Object> value, Handle<Object> key, Handle<Object> initial_holder);
+      Handle<Object> object, Handle<Object> key);
 
   // Entry point to serialize the object.
   INLINE(Result SerializeObject(Handle<Object> obj)) {
@@ -99,8 +99,7 @@ class JsonStringifier BASE_EMBEDDED {
   INLINE(void Unindent() { indent_--; });
   INLINE(void Separator(bool first));
 
-  Handle<JSReceiver> CurrentHolder(Handle<Object> value,
-                                   Handle<Object> inital_holder);
+  Handle<JSReceiver> CurrentHolder(Handle<Object> value);
 
   Result StackPush(Handle<Object> object);
   void StackPop();

@@ -122,6 +122,18 @@ class ZoneMap
             Compare(), zone_allocator<std::pair<const K, V>>(zone)) {}
 };
 
+// A wrapper subclass for std::multimap to make it easy to construct one that
+// uses a zone allocator.
+template <typename K, typename V, typename Compare = std::less<K>>
+class ZoneMultimap
+    : public std::multimap<K, V, Compare,
+                           zone_allocator<std::pair<const K, V>>> {
+ public:
+  // Constructs an empty multimap.
+  explicit ZoneMultimap(Zone* zone)
+      : std::multimap<K, V, Compare, zone_allocator<std::pair<const K, V>>>(
+            Compare(), zone_allocator<std::pair<const K, V>>(zone)) {}
+};
 
 // Typedefs to shorten commonly used vectors.
 typedef ZoneVector<bool> BoolVector;

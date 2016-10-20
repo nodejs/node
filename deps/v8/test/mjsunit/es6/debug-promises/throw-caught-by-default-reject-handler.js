@@ -6,13 +6,13 @@
 
 // Test debug events when we only listen to uncaught exceptions and
 // there is only a default reject handler for the to-be-rejected Promise.
-// We expect two Exception debug events:
-//  - when the first Promise is rejected and only has default reject handlers.
-//  - when the default reject handler passes the rejection on.
+// We expect only one debug event: when the first Promise is rejected
+// and only has default reject handlers. No event is triggered when
+// simply forwarding the rejection with .then's default handler.
 
 Debug = debug.Debug;
 
-var expected_events = 2;
+var expected_events = 1;
 var log = [];
 
 var resolve, reject;
@@ -43,16 +43,10 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(expected_events >= 0);
       assertTrue(event_data.uncaught());
       assertTrue(event_data.promise() instanceof Promise);
-      if (expected_events == 1) {
-        // p1 is rejected, uncaught except for its default reject handler.
-        assertTrue(
-            exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
-        assertSame(p1, event_data.promise());
-      } else {
-        // p2 is rejected by p1's default reject handler.
-        assertEquals(0, exec_state.frameCount());
-        assertSame(p2, event_data.promise());
-      }
+      // p1 is rejected, uncaught except for its default reject handler.
+      assertTrue(
+          exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
+      assertSame(p1, event_data.promise());
     }
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);

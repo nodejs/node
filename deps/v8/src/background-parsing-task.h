@@ -39,10 +39,9 @@ struct StreamedSource {
   std::unique_ptr<ParseInfo> info;
   std::unique_ptr<Parser> parser;
 
- private:
-  // Prevent copying. Not implemented.
-  StreamedSource(const StreamedSource&);
-  StreamedSource& operator=(const StreamedSource&);
+  // Prevent copying.
+  StreamedSource(const StreamedSource&) = delete;
+  StreamedSource& operator=(const StreamedSource&) = delete;
 };
 
 

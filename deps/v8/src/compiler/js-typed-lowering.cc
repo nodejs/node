@@ -1145,6 +1145,7 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   if (NodeProperties::IsExceptionalCall(node)) return NoChange();
 
   JSBinopReduction r(this, node);
+  Node* object = r.left();
   Node* effect = r.effect();
   Node* control = r.control();
 
@@ -1175,126 +1176,121 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* prototype =
       jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
 
-  // If the left hand side is an object, no smi check is needed.
-  Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), r.left());
-  Node* branch_is_smi =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), is_smi, control);
-  Node* if_is_smi = graph()->NewNode(common()->IfTrue(), branch_is_smi);
-  Node* e_is_smi = effect;
-  control = graph()->NewNode(common()->IfFalse(), branch_is_smi);
+  Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), object);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
 
-  Node* object_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       r.left(), effect, control);
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0 = jsgraph()->FalseConstant();
+
+  control = graph()->NewNode(common()->IfFalse(), branch0);
 
   // Loop through the {object}s prototype chain looking for the {prototype}.
   Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-
-  Node* loop_effect = effect =
+  Node* eloop = effect =
       graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
+  Node* vloop = object = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), object, object, loop);
+  // TODO(jarin): This is a very ugly hack to work-around the super-smart
+  // implicit typing of the Phi, which goes completely nuts if the {object}
+  // is for example a HeapConstant.
+  NodeProperties::SetType(vloop, Type::NonInternal());
 
-  Node* loop_object_map =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                       object_map, r.left(), loop);
+  // Load the {object} map and instance type.
+  Node* object_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), object,
+                       effect, control);
+  Node* object_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), object_map,
+      effect, control);
 
-  // Check if the lhs needs access checks.
-  Node* map_bit_field = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMapBitField()),
-                       loop_object_map, loop_effect, control);
-  int is_access_check_needed_bit = 1 << Map::kIsAccessCheckNeeded;
-  Node* is_access_check_needed_num =
-      graph()->NewNode(simplified()->NumberBitwiseAnd(), map_bit_field,
-                       jsgraph()->Constant(is_access_check_needed_bit));
-  Node* is_access_check_needed =
-      graph()->NewNode(simplified()->NumberEqual(), is_access_check_needed_num,
-                       jsgraph()->Constant(is_access_check_needed_bit));
+  // Check if the {object} is a special receiver, because for special
+  // receivers, i.e. proxies or API objects that need access checks,
+  // we have to use the %HasInPrototypeChain runtime function instead.
+  Node* check1 = graph()->NewNode(
+      simplified()->NumberLessThanOrEqual(), object_instance_type,
+      jsgraph()->Constant(LAST_SPECIAL_RECEIVER_TYPE));
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
 
-  Node* branch_is_access_check_needed = graph()->NewNode(
-      common()->Branch(BranchHint::kFalse), is_access_check_needed, control);
-  Node* if_is_access_check_needed =
-      graph()->NewNode(common()->IfTrue(), branch_is_access_check_needed);
-  Node* e_is_access_check_needed = effect;
+  control = graph()->NewNode(common()->IfFalse(), branch1);
 
-  control =
-      graph()->NewNode(common()->IfFalse(), branch_is_access_check_needed);
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* etrue1 = effect;
+  Node* vtrue1;
 
-  // Check if the lhs is a proxy.
-  Node* map_instance_type = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-      loop_object_map, loop_effect, control);
-  Node* is_proxy =
-      graph()->NewNode(simplified()->NumberEqual(), map_instance_type,
-                       jsgraph()->Constant(JS_PROXY_TYPE));
-  Node* branch_is_proxy =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), is_proxy, control);
-  Node* if_is_proxy = graph()->NewNode(common()->IfTrue(), branch_is_proxy);
-  Node* e_is_proxy = effect;
+  // Check if the {object} is not a receiver at all.
+  Node* check10 =
+      graph()->NewNode(simplified()->NumberLessThan(), object_instance_type,
+                       jsgraph()->Constant(FIRST_JS_RECEIVER_TYPE));
+  Node* branch10 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check10, if_true1);
 
-  control = graph()->NewNode(common()->Merge(2), if_is_access_check_needed,
-                             if_is_proxy);
-  effect = graph()->NewNode(common()->EffectPhi(2), e_is_access_check_needed,
-                            e_is_proxy, control);
+  // A primitive value cannot match the {prototype} we're looking for.
+  if_true1 = graph()->NewNode(common()->IfTrue(), branch10);
+  vtrue1 = jsgraph()->FalseConstant();
 
-  // If we need an access check or the object is a Proxy, make a runtime call
-  // to finish the lowering.
-  Node* runtimecall = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kHasInPrototypeChain), r.left(),
-      prototype, context, frame_state, effect, control);
+  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch10);
+  Node* efalse1 = etrue1;
+  Node* vfalse1;
+  {
+    // Slow path, need to call the %HasInPrototypeChain runtime function.
+    vfalse1 = efalse1 = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
+        prototype, context, frame_state, efalse1, if_false1);
+    if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+  }
 
-  Node* runtimecall_control =
-      graph()->NewNode(common()->IfSuccess(), runtimecall);
-
-  control = graph()->NewNode(common()->IfFalse(), branch_is_proxy);
-
+  // Load the {object} prototype.
   Node* object_prototype = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapPrototype()),
-      loop_object_map, loop_effect, control);
+      simplified()->LoadField(AccessBuilder::ForMapPrototype()), object_map,
+      effect, control);
 
-  // If not, check if object prototype is the null prototype.
-  Node* null_proto =
-      graph()->NewNode(simplified()->ReferenceEqual(), object_prototype,
-                       jsgraph()->NullConstant());
-  Node* branch_null_proto = graph()->NewNode(
-      common()->Branch(BranchHint::kFalse), null_proto, control);
-  Node* if_null_proto = graph()->NewNode(common()->IfTrue(), branch_null_proto);
-  Node* e_null_proto = effect;
+  // Check if we reached the end of {object}s prototype chain.
+  Node* check2 = graph()->NewNode(simplified()->ReferenceEqual(),
+                                  object_prototype, jsgraph()->NullConstant());
+  Node* branch2 = graph()->NewNode(common()->Branch(), check2, control);
 
-  control = graph()->NewNode(common()->IfFalse(), branch_null_proto);
+  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+  Node* etrue2 = effect;
+  Node* vtrue2 = jsgraph()->FalseConstant();
 
-  // Check if object prototype is equal to function prototype.
-  Node* eq_proto = graph()->NewNode(simplified()->ReferenceEqual(),
-                                    object_prototype, prototype);
-  Node* branch_eq_proto =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), eq_proto, control);
-  Node* if_eq_proto = graph()->NewNode(common()->IfTrue(), branch_eq_proto);
-  Node* e_eq_proto = effect;
+  control = graph()->NewNode(common()->IfFalse(), branch2);
 
-  control = graph()->NewNode(common()->IfFalse(), branch_eq_proto);
+  // Check if we reached the {prototype}.
+  Node* check3 = graph()->NewNode(simplified()->ReferenceEqual(),
+                                  object_prototype, prototype);
+  Node* branch3 = graph()->NewNode(common()->Branch(), check3, control);
 
-  Node* load_object_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       object_prototype, effect, control);
+  Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+  Node* etrue3 = effect;
+  Node* vtrue3 = jsgraph()->TrueConstant();
+
+  control = graph()->NewNode(common()->IfFalse(), branch3);
+
   // Close the loop.
-  loop_effect->ReplaceInput(1, effect);
-  loop_object_map->ReplaceInput(1, load_object_map);
+  vloop->ReplaceInput(1, object_prototype);
+  eloop->ReplaceInput(1, effect);
   loop->ReplaceInput(1, control);
 
-  control = graph()->NewNode(common()->Merge(3), runtimecall_control,
-                             if_eq_proto, if_null_proto);
-  effect = graph()->NewNode(common()->EffectPhi(3), runtimecall, e_eq_proto,
-                            e_null_proto, control);
+  control = graph()->NewNode(common()->Merge(5), if_true0, if_true1, if_true2,
+                             if_true3, if_false1);
+  effect = graph()->NewNode(common()->EffectPhi(5), etrue0, etrue1, etrue2,
+                            etrue3, efalse1, control);
 
-  Node* result = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 3), runtimecall,
-      jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
-
-  control = graph()->NewNode(common()->Merge(2), if_is_smi, control);
-  effect = graph()->NewNode(common()->EffectPhi(2), e_is_smi, effect, control);
-  result = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                            jsgraph()->FalseConstant(), result, control);
-
-  ReplaceWithValue(node, result, effect, control);
-  return Changed(result);
+  // Morph the {node} into an appropriate Phi.
+  ReplaceWithValue(node, node, effect, control);
+  node->ReplaceInput(0, vtrue0);
+  node->ReplaceInput(1, vtrue1);
+  node->ReplaceInput(2, vtrue2);
+  node->ReplaceInput(3, vtrue3);
+  node->ReplaceInput(4, vfalse1);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node,
+                           common()->Phi(MachineRepresentation::kTagged, 5));
+  return Changed(node);
 }
 
 Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
@@ -1930,6 +1926,26 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
   return Changed(element);
 }
 
+Reduction JSTypedLowering::ReducePhi(Node* node) {
+  // Try to narrow the type of the Phi {node}, which might be more precise now
+  // after lowering based on types, i.e. a SpeculativeNumberAdd has a more
+  // precise type than the JSAdd that was in the graph when the Typer was run.
+  DCHECK_EQ(IrOpcode::kPhi, node->opcode());
+  int arity = node->op()->ValueInputCount();
+  Type* type = NodeProperties::GetType(node->InputAt(0));
+  for (int i = 1; i < arity; ++i) {
+    type = Type::Union(type, NodeProperties::GetType(node->InputAt(i)),
+                       graph()->zone());
+  }
+  Type* const node_type = NodeProperties::GetType(node);
+  if (!node_type->Is(type)) {
+    type = Type::Intersect(node_type, type, graph()->zone());
+    NodeProperties::SetType(node, type);
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceSelect(Node* node) {
   DCHECK_EQ(IrOpcode::kSelect, node->opcode());
   Node* const condition = NodeProperties::GetValueInput(node, 0);
@@ -2170,6 +2186,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreContinuation(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
+    case IrOpcode::kPhi:
+      return ReducePhi(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
     case IrOpcode::kCheckMaps:

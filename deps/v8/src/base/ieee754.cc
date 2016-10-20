@@ -609,7 +609,7 @@ recompute:
     j = 0;
     for (i = jz - 1; i >= jk; i--) j |= iq[i];
     if (j == 0) { /* need recomputation */
-      for (k = 1; jk >= k && iq[jk - k] == 0; k++) {
+      for (k = 1; iq[jk - k] == 0; k++) {
         /* k = no. of terms needed */
       }
 

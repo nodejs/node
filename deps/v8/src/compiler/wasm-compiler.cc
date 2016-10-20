@@ -2866,6 +2866,14 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
     source_position_table_->SetSourcePosition(node, pos);
 }
 
+Node* WasmGraphBuilder::DefaultS128Value() {
+  // TODO(gdeepti): Introduce Simd128Constant to common-operator.h and use
+  // instead of creating a SIMD Value.
+  return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(),
+                          Int32Constant(0), Int32Constant(0), Int32Constant(0),
+                          Int32Constant(0));
+}
+
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                                const NodeVector& inputs) {
   switch (opcode) {
@@ -2873,8 +2881,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(),
                               inputs[0], inputs[1]);
     case wasm::kExprI32x4Splat:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(),
-                              inputs[0], inputs[0], inputs[0], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
+                              inputs[0], inputs[0], inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }

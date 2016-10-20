@@ -30,28 +30,6 @@ class VariableMap: public ZoneHashMap {
 };
 
 
-// The dynamic scope part holds hash maps for the variables that will
-// be looked up dynamically from within eval and with scopes. The objects
-// are allocated on-demand from Scope::NonLocal to avoid wasting memory
-// and setup time for scopes that don't need them.
-class DynamicScopePart : public ZoneObject {
- public:
-  explicit DynamicScopePart(Zone* zone) {
-    for (int i = 0; i < 3; i++)
-      maps_[i] = new(zone->New(sizeof(VariableMap))) VariableMap(zone);
-  }
-
-  VariableMap* GetMap(VariableMode mode) {
-    int index = mode - DYNAMIC;
-    DCHECK(index >= 0 && index < 3);
-    return maps_[index];
-  }
-
- private:
-  VariableMap *maps_[3];
-};
-
-
 // Sloppy block-scoped function declarations to var-bind
 class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
@@ -142,7 +120,13 @@ class Scope: public ZoneObject {
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
-  Variable* LookupLocal(const AstRawString* name);
+  Variable* LookupLocal(const AstRawString* name) {
+    Variable* result = variables_.Lookup(name);
+    if (result != nullptr || scope_info_.is_null()) return result;
+    return LookupInScopeInfo(name);
+  }
+
+  Variable* LookupInScopeInfo(const AstRawString* name);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
@@ -438,8 +422,7 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
  protected:
-  // Creates a script scope.
-  explicit Scope(Zone* zone);
+  explicit Scope(Zone* zone, ScopeType scope_type = SCRIPT_SCOPE);
 
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);
@@ -474,8 +457,6 @@ class Scope: public ZoneObject {
   // map above in order of addition.
   // TODO(verwaest): Thread through Variable.
   ZoneList<Variable*> ordered_variables_;
-  // Variables that must be looked up dynamically.
-  DynamicScopePart* dynamics_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
   VariableProxy* unresolved_;
@@ -530,63 +511,18 @@ class Scope: public ZoneObject {
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
 
   // Variable resolution.
-  // Possible results of a recursive variable lookup telling if and how a
-  // variable is bound. These are returned in the output parameter *binding_kind
-  // of the LookupRecursive function.
-  enum BindingKind {
-    // The variable reference could be statically resolved to a variable binding
-    // which is returned. There is no 'with' statement between the reference and
-    // the binding and no scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a sloppy 'eval' call.
-    BOUND,
-
-    // The variable reference could be statically resolved to a variable binding
-    // which is returned. There is no 'with' statement between the reference and
-    // the binding, but some scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a sloppy 'eval' call, that might
-    // possibly introduce variable bindings shadowing the found one. Thus the
-    // found variable binding is just a guess.
-    BOUND_EVAL_SHADOWED,
-
-    // The variable reference could not be statically resolved to any binding
-    // and thus should be considered referencing a global variable. NULL is
-    // returned. The variable reference is not inside any 'with' statement and
-    // no scope between the reference scope (inclusive) and script scope
-    // (exclusive) makes a sloppy 'eval' call.
-    UNBOUND,
-
-    // The variable reference could not be statically resolved to any binding
-    // NULL is returned. The variable reference is not inside any 'with'
-    // statement, but some scope between the reference scope (inclusive) and
-    // script scope (exclusive) makes a sloppy 'eval' call, that might
-    // possibly introduce a variable binding. Thus the reference should be
-    // considered referencing a global variable unless it is shadowed by an
-    // 'eval' introduced binding.
-    UNBOUND_EVAL_SHADOWED,
-
-    // The variable could not be statically resolved and needs to be looked up
-    // dynamically. NULL is returned. There are two possible reasons:
-    // * A 'with' statement has been encountered and there is no variable
-    //   binding for the name between the variable reference and the 'with'.
-    //   The variable potentially references a property of the 'with' object.
-    // * The code is being executed as part of a call to 'eval' and the calling
-    //   context chain contains either a variable binding for the name or it
-    //   contains a 'with' context.
-    DYNAMIC_LOOKUP
-  };
-
   // Lookup a variable reference given by name recursively starting with this
   // scope, and stopping when reaching the outer_scope_end scope. If the code is
   // executed because of a call to 'eval', the context parameter should be set
   // to the calling context of 'eval'.
-  Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
-                            AstNodeFactory* factory,
-                            Scope* outer_scope_end = nullptr);
-  void ResolveTo(ParseInfo* info, BindingKind binding_kind,
-                 VariableProxy* proxy, Variable* var);
-  void ResolveVariable(ParseInfo* info, VariableProxy* proxy,
-                       AstNodeFactory* factory);
-  void ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
+  // {declare_free} indicates whether nullptr should be returned for free
+  // variables when falling off outer_scope_end, or whether they should be
+  // declared automatically as non-locals.
+  Variable* LookupRecursive(VariableProxy* proxy, bool declare_free,
+                            Scope* outer_scope_end);
+  void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
+  void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
+  void ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
@@ -611,12 +547,10 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
   // Construct a scope based on the scope info.
-  Scope(Zone* zone, Scope* inner_scope, ScopeType type,
-        Handle<ScopeInfo> scope_info);
+  Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Zone* zone, Scope* inner_scope,
-        const AstRawString* catch_variable_name);
+  Scope(Zone* zone, const AstRawString* catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
     inner_scope->sibling_ = inner_scope_;
@@ -651,7 +585,7 @@ class DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);
-  DeclarationScope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
+  DeclarationScope(Zone* zone, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
   explicit DeclarationScope(Zone* zone);
@@ -679,6 +613,12 @@ class DeclarationScope : public Scope {
            (inner_scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
                                         IsAccessorFunction(function_kind()) ||
                                         IsClassConstructor(function_kind())));
+  }
+
+  void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
+    DCHECK(is_script_scope());
+    DCHECK(scope_info_.is_null());
+    scope_info_ = scope_info;
   }
 
   bool asm_module() const { return asm_module_; }
@@ -748,33 +688,19 @@ class DeclarationScope : public Scope {
   // Returns the default function arity excluding default or rest parameters.
   int default_function_length() const { return arity_; }
 
-  // Returns the number of formal parameters, up to but not including the
-  // rest parameter index (if the function has rest parameters), i.e. it
-  // says 2 for
-  //
-  //   function foo(a, b) { ... }
-  //
-  // and
-  //
-  //   function foo(a, b, ...c) { ... }
-  //
-  // but for
-  //
-  //   function foo(a, b, c = 1) { ... }
-  //
-  // we return 3 here.
+  // Returns the number of formal parameters, excluding a possible rest
+  // parameter.  Examples:
+  //   function foo(a, b) {}         ==> 2
+  //   function foo(a, b, ...c) {}   ==> 2
+  //   function foo(a, b, c = 1) {}  ==> 3
   int num_parameters() const {
-    return has_rest_parameter() ? params_.length() - 1 : params_.length();
+    return has_rest_ ? params_.length() - 1 : params_.length();
   }
 
-  // A function can have at most one rest parameter. Returns Variable* or NULL.
-  Variable* rest_parameter(int* index) const {
-    *index = rest_index_;
-    if (rest_index_ < 0) return nullptr;
-    return params_[rest_index_];
+  // The function's rest parameter (nullptr if there is none).
+  Variable* rest_parameter() const {
+    return has_rest_ ? params_[params_.length() - 1] : nullptr;
   }
-
-  bool has_rest_parameter() const { return rest_index_ >= 0; }
 
   bool has_simple_parameters() const { return has_simple_parameters_; }
 
@@ -832,7 +758,7 @@ class DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, AstNodeFactory* factory);
+  void AllocateVariables(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope for lazily compiled functions. In particular, this
@@ -882,6 +808,8 @@ class DeclarationScope : public Scope {
   // This scope's outer context is an asm module.
   bool asm_function_ : 1;
   bool force_eager_compilation_ : 1;
+  // This function scope has a rest parameter.
+  bool has_rest_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').
@@ -889,7 +817,6 @@ class DeclarationScope : public Scope {
 
   // Info about the parameter list of a function.
   int arity_;
-  int rest_index_;
   // Compiler-allocated (user-invisible) temporaries.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.

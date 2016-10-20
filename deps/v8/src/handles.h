@@ -293,8 +293,6 @@ class HandleScope {
 
  private:
   // Prevent heap allocation or illegal handle scopes.
-  HandleScope(const HandleScope&);
-  void operator=(const HandleScope&);
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
@@ -320,6 +318,8 @@ class HandleScope {
   friend class DeferredHandleScope;
   friend class HandleScopeImplementer;
   friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(HandleScope);
 };
 
 

@@ -1467,7 +1467,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Preserve argument count for later compare.
-    __ Move(r6, r2);
+    __ Move(r4, r2);
     // Push a copy of the target function and the new target.
     __ SmiTag(r2);
     // Push another copy as a parameter to the runtime call.
@@ -1478,13 +1478,13 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     for (int j = 0; j < 4; ++j) {
       Label over;
       if (j < 3) {
-        __ CmpP(r6, Operand(j));
+        __ CmpP(r4, Operand(j));
         __ b(ne, &over);
       }
       for (int i = j - 1; i >= 0; --i) {
-        __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+        __ LoadP(r9, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
                                         i * kPointerSize));
-        __ push(r6);
+        __ push(r9);
       }
       for (int i = 0; i < 3 - j; ++i) {
         __ PushRoot(Heap::kUndefinedValueRootIndex);
@@ -1502,12 +1502,12 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ JumpIfSmi(r2, &failed);
 
     __ Drop(2);
-    __ pop(r6);
-    __ SmiUntag(r6);
+    __ pop(r4);
+    __ SmiUntag(r4);
     scope.GenerateLeaveFrame();
 
-    __ AddP(r6, r6, Operand(1));
-    __ Drop(r6);
+    __ AddP(r4, r4, Operand(1));
+    __ Drop(r4, r7);
     __ Ret();
 
     __ bind(&failed);

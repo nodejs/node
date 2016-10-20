@@ -507,10 +507,10 @@ class WasmOpcodes {
         return kLocalF32;
       case kAstF64:
         return kLocalF64;
-      case kAstStmt:
-        return kLocalVoid;
       case kAstS128:
         return kLocalS128;
+      case kAstStmt:
+        return kLocalVoid;
       default:
         UNREACHABLE();
         return kLocalVoid;

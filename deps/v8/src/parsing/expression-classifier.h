@@ -77,21 +77,11 @@ class ExpressionClassifier {
     NonSimpleParameter = 1 << 0
   };
 
-  explicit ExpressionClassifier(const Traits* t)
-      : zone_(t->zone()),
-        non_patterns_to_rewrite_(t->GetNonPatternList()),
-        reported_errors_(t->GetReportedErrorList()),
-        duplicate_finder_(nullptr),
-        invalid_productions_(0),
-        function_properties_(0) {
-    reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
-    non_pattern_begin_ = non_patterns_to_rewrite_->length();
-  }
-
-  ExpressionClassifier(const Traits* t, DuplicateFinder* duplicate_finder)
-      : zone_(t->zone()),
-        non_patterns_to_rewrite_(t->GetNonPatternList()),
-        reported_errors_(t->GetReportedErrorList()),
+  explicit ExpressionClassifier(const typename Traits::Type::Base* base,
+                                DuplicateFinder* duplicate_finder = nullptr)
+      : zone_(base->impl()->zone()),
+        non_patterns_to_rewrite_(base->impl()->GetNonPatternList()),
+        reported_errors_(base->impl()->GetReportedErrorList()),
         duplicate_finder_(duplicate_finder),
         invalid_productions_(0),
         function_properties_(0) {

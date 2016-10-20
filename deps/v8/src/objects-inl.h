@@ -709,6 +709,8 @@ bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
+bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
+
 bool HeapObject::IsArrayList() const { return IsFixedArray(); }
 
 bool Object::IsLayoutDescriptor() const {
@@ -2610,6 +2612,29 @@ Object** FixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawField(this, OffsetOfElementAt(index));
 }
 
+#define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
+  type* FrameArray::name(int frame_ix) const {                                \
+    Object* obj =                                                             \
+        get(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset);    \
+    return type::cast(obj);                                                   \
+  }                                                                           \
+                                                                              \
+  void FrameArray::Set##name(int frame_ix, type* value) {                     \
+    set(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset, value); \
+  }
+FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
+#undef DEFINE_FRAME_ARRAY_ACCESSORS
+
+bool FrameArray::IsWasmFrame(int frame_ix) const {
+  const int flags = Flags(frame_ix)->value();
+  return (flags & kIsWasmFrame) != 0;
+}
+
+int FrameArray::FrameCount() const {
+  const int frame_count = Smi::cast(get(kFrameCountIndex))->value();
+  DCHECK_LE(0, frame_count);
+  return frame_count;
+}
 
 bool DescriptorArray::IsEmpty() {
   DCHECK(length() >= kFirstIndex ||
@@ -3223,6 +3248,7 @@ CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Float32x4)
 CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(FrameArray)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)

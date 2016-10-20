@@ -1100,7 +1100,6 @@ TEST_F(ValueSerializerTest, RoundTripDate) {
 }
 
 TEST_F(ValueSerializerTest, DecodeDate) {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
               0x2e, 0x41, 0x00},
              [this](Local<Value> value) {
@@ -1121,28 +1120,6 @@ TEST_F(ValueSerializerTest, DecodeDate) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
              });
-#else
-  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x41, 0x2e, 0x84, 0x80, 0x00, 0x00,
-              0x00, 0x00, 0x00},
-             [this](Local<Value> value) {
-               ASSERT_TRUE(value->IsDate());
-               EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
-             });
-  DecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20, 0x00,
-       0x00, 0x00},
-      [this](Local<Value> value) {
-        ASSERT_TRUE(value->IsDate());
-        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
-      });
-  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
-              0x00, 0x00, 0x00},
-             [this](Local<Value> value) {
-               ASSERT_TRUE(value->IsDate());
-               EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
-             });
-#endif
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f,
        0x01, 0x44, 0x00, 0x20, 0x39, 0x50, 0x37, 0x6a, 0x75, 0x42, 0x3f,
@@ -1235,7 +1212,6 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Boolean"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
-#if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45,
        0xc0, 0x00},
@@ -1252,24 +1228,6 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
                EXPECT_TRUE(EvaluateScriptForResultBool(
                    "Number.isNaN(result.valueOf())"));
              });
-#else
-  DecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x6e, 0xc0, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00,
-       0x00, 0x00},
-      [this](Local<Value> value) {
-        EXPECT_TRUE(EvaluateScriptForResultBool(
-            "Object.getPrototypeOf(result) === Number.prototype"));
-        EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === -42"));
-      });
-  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x6e, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
-              0x00, 0x00, 0x00},
-             [this](Local<Value> value) {
-               EXPECT_TRUE(EvaluateScriptForResultBool(
-                   "Object.getPrototypeOf(result) === Number.prototype"));
-               EXPECT_TRUE(EvaluateScriptForResultBool(
-                   "Number.isNaN(result.valueOf())"));
-             });
-#endif
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f,
        0x01, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x40, 0x3f,
@@ -1361,6 +1319,201 @@ TEST_F(ValueSerializerTest, DecodeRegExp) {
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof RegExp"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripMap) {
+  RoundTripTest(
+      "(() => { var m = new Map(); m.set(42, 'foo'); return m; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Map.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 1"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.get(42) === 'foo'"));
+      });
+  RoundTripTest("(() => { var m = new Map(); m.set(m, m); return m; })()",
+                [this](Local<Value> value) {
+                  ASSERT_TRUE(value->IsMap());
+                  EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 1"));
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "result.get(result) === result"));
+                });
+  // Iteration order must be preserved.
+  RoundTripTest(
+      "(() => {"
+      "  var m = new Map();"
+      "  m.set(1, 0); m.set('a', 0); m.set(3, 0); m.set(2, 0);"
+      "  return m;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.keys()).toString() === '1,a,3,2'"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeMap) {
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x3b, 0x3f, 0x01, 0x49, 0x54, 0x3f, 0x01, 0x53,
+       0x03, 0x66, 0x6f, 0x6f, 0x3a, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Map.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 1"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.get(42) === 'foo'"));
+      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3b, 0x3f, 0x01, 0x5e, 0x00, 0x3f, 0x01,
+              0x5e, 0x00, 0x3a, 0x02, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsMap());
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 1"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.get(result) === result"));
+             });
+  // Iteration order must be preserved.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3b, 0x3f, 0x01, 0x49, 0x02, 0x3f,
+              0x01, 0x49, 0x00, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f, 0x01,
+              0x49, 0x00, 0x3f, 0x01, 0x49, 0x06, 0x3f, 0x01, 0x49, 0x00,
+              0x3f, 0x01, 0x49, 0x04, 0x3f, 0x01, 0x49, 0x00, 0x3a, 0x08},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsMap());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Array.from(result.keys()).toString() === '1,a,3,2'"));
+             });
+}
+
+TEST_F(ValueSerializerTest, RoundTripMapWithTrickyGetters) {
+  // Even if an entry is removed or reassigned, the original key/value pair is
+  // used.
+  RoundTripTest(
+      "(() => {"
+      "  var m = new Map();"
+      "  m.set(0, { get a() {"
+      "    m.delete(1); m.set(2, 'baz'); m.set(3, 'quux');"
+      "  }});"
+      "  m.set(1, 'foo');"
+      "  m.set(2, 'bar');"
+      "  return m;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.keys()).toString() === '0,1,2'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.get(1) === 'foo'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.get(2) === 'bar'"));
+      });
+  // However, deeper modifications of objects yet to be serialized still apply.
+  RoundTripTest(
+      "(() => {"
+      "  var m = new Map();"
+      "  var key = { get a() { value.foo = 'bar'; } };"
+      "  var value = { get a() { key.baz = 'quux'; } };"
+      "  m.set(key, value);"
+      "  return m;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsMap());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "!('baz' in Array.from(result.keys())[0])"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.values())[0].foo === 'bar'"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripSet) {
+  RoundTripTest(
+      "(() => { var s = new Set(); s.add(42); s.add('foo'); return s; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Set.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 2"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.has(42)"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.has('foo')"));
+      });
+  RoundTripTest(
+      "(() => { var s = new Set(); s.add(s); return s; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 1"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.has(result)"));
+      });
+  // Iteration order must be preserved.
+  RoundTripTest(
+      "(() => {"
+      "  var s = new Set();"
+      "  s.add(1); s.add('a'); s.add(3); s.add(2);"
+      "  return s;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.keys()).toString() === '1,a,3,2'"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeSet) {
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x27, 0x3f, 0x01, 0x49, 0x54, 0x3f, 0x01,
+              0x53, 0x03, 0x66, 0x6f, 0x6f, 0x2c, 0x02},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsSet());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Set.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 2"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.has(42)"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.has('foo')"));
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x27, 0x3f, 0x01, 0x5e, 0x00, 0x2c, 0x01, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.size === 1"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.has(result)"));
+      });
+  // Iteration order must be preserved.
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x27, 0x3f, 0x01, 0x49, 0x02, 0x3f, 0x01, 0x53,
+       0x01, 0x61, 0x3f, 0x01, 0x49, 0x06, 0x3f, 0x01, 0x49, 0x04, 0x2c, 0x04},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.keys()).toString() === '1,a,3,2'"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripSetWithTrickyGetters) {
+  // Even if an element is added or removed during serialization, the original
+  // set of elements is used.
+  RoundTripTest(
+      "(() => {"
+      "  var s = new Set();"
+      "  s.add({ get a() { s.delete(1); s.add(2); } });"
+      "  s.add(1);"
+      "  return s;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.keys()).toString() === '[object Object],1'"));
+      });
+  // However, deeper modifications of objects yet to be serialized still apply.
+  RoundTripTest(
+      "(() => {"
+      "  var s = new Set();"
+      "  var first = { get a() { second.foo = 'bar'; } };"
+      "  var second = { get a() { first.baz = 'quux'; } };"
+      "  s.add(first);"
+      "  s.add(second);"
+      "  return s;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsSet());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "!('baz' in Array.from(result.keys())[0])"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Array.from(result.keys())[1].foo === 'bar'"));
       });
 }
 

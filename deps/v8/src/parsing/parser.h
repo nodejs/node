@@ -140,14 +140,15 @@ struct ParserFormalParameters : FormalParametersBase {
 template <>
 class ParserBaseTraits<Parser> {
  public:
-  typedef ParserBaseTraits<Parser> ParserTraits;
-
   struct Type {
+    typedef ParserBase<Parser> Base;
+    typedef Parser Impl;
+
     typedef Variable GeneratorVariable;
 
     typedef v8::internal::AstProperties AstProperties;
 
-    typedef v8::internal::ExpressionClassifier<ParserTraits>
+    typedef v8::internal::ExpressionClassifier<ParserBaseTraits<Parser>>
         ExpressionClassifier;
 
     // Return types for traversing functions.
@@ -167,210 +168,6 @@ class ParserBaseTraits<Parser> {
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory Factory;
   };
-
-  // TODO(nikolaos): The traits methods should not need to call methods
-  // of the implementation object.
-  Parser* delegate() { return reinterpret_cast<Parser*>(this); }
-  const Parser* delegate() const {
-    return reinterpret_cast<const Parser*>(this);
-  }
-
-  // Helper functions for recursive descent.
-  bool IsEval(const AstRawString* identifier) const;
-  bool IsArguments(const AstRawString* identifier) const;
-  bool IsEvalOrArguments(const AstRawString* identifier) const;
-  bool IsUndefined(const AstRawString* identifier) const;
-  V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const;
-
-  // Returns true if the expression is of type "this.foo".
-  static bool IsThisProperty(Expression* expression);
-
-  static bool IsIdentifier(Expression* expression);
-
-  static const AstRawString* AsIdentifier(Expression* expression) {
-    DCHECK(IsIdentifier(expression));
-    return expression->AsVariableProxy()->raw_name();
-  }
-
-  bool IsPrototype(const AstRawString* identifier) const;
-
-  bool IsConstructor(const AstRawString* identifier) const;
-
-  bool IsDirectEvalCall(Expression* expression) const {
-    if (!expression->IsCall()) return false;
-    expression = expression->AsCall()->expression();
-    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
-  }
-
-  static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
-    return ObjectLiteral::IsBoilerplateProperty(property);
-  }
-
-  static bool IsArrayIndex(const AstRawString* string, uint32_t* index) {
-    return string->AsArrayIndex(index);
-  }
-
-  static Expression* GetPropertyValue(ObjectLiteral::Property* property) {
-    return property->value();
-  }
-
-  // Functions for encapsulating the differences between parsing and preparsing;
-  // operations interleaved with the recursive descent.
-  static void PushLiteralName(FuncNameInferrer* fni, const AstRawString* id) {
-    fni->PushLiteralName(id);
-  }
-
-  void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
-
-  static void InferFunctionName(FuncNameInferrer* fni,
-                                FunctionLiteral* func_to_infer) {
-    fni->AddFunction(func_to_infer);
-  }
-
-  // If we assign a function literal to a property we pretenure the
-  // literal so it can be added as a constant function property.
-  static void CheckAssigningFunctionLiteralToProperty(Expression* left,
-                                                      Expression* right);
-
-  // Determine if the expression is a variable proxy and mark it as being used
-  // in an assignment or with a increment/decrement operator.
-  static Expression* MarkExpressionAsAssigned(Expression* expression);
-
-  // Returns true if we have a binary expression between two numeric
-  // literals. In that case, *x will be changed to an expression which is the
-  // computed value.
-  bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
-                                              Token::Value op, int pos,
-                                              AstNodeFactory* factory);
-
-  // Rewrites the following types of unary expressions:
-  // not <literal> -> true / false
-  // + <numeric literal> -> <numeric literal>
-  // - <numeric literal> -> <numeric literal with value negated>
-  // ! <literal> -> true / false
-  // The following rewriting rules enable the collection of type feedback
-  // without any special stub and the multiplication is removed later in
-  // Crankshaft's canonicalization pass.
-  // + foo -> foo * 1
-  // - foo -> foo * (-1)
-  // ~ foo -> foo ^(~0)
-  Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
-                                   int pos, AstNodeFactory* factory);
-
-  Expression* BuildIteratorResult(Expression* value, bool done);
-
-  // Generate AST node that throws a ReferenceError with the given type.
-  Expression* NewThrowReferenceError(MessageTemplate::Template message,
-                                     int pos);
-
-  // Generate AST node that throws a SyntaxError with the given
-  // type. The first argument may be null (in the handle sense) in
-  // which case no arguments are passed to the constructor.
-  Expression* NewThrowSyntaxError(MessageTemplate::Template message,
-                                  const AstRawString* arg, int pos);
-
-  // Generate AST node that throws a TypeError with the given
-  // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(MessageTemplate::Template message,
-                                const AstRawString* arg, int pos);
-
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const char* arg = NULL,
-                       ParseErrorType error_type = kSyntaxError);
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const AstRawString* arg,
-                       ParseErrorType error_type = kSyntaxError);
-
-  // "null" return type creators.
-  static const AstRawString* EmptyIdentifier() { return nullptr; }
-  static Expression* EmptyExpression() { return nullptr; }
-  static Literal* EmptyLiteral() { return nullptr; }
-  static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return nullptr; }
-  static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
-
-  // Used in error return values.
-  static ZoneList<Expression*>* NullExpressionList() { return nullptr; }
-
-  // Non-NULL empty string.
-  V8_INLINE const AstRawString* EmptyIdentifierString() const;
-
-  // Odd-ball literal creators.
-  Literal* GetLiteralTheHole(int position, AstNodeFactory* factory) const;
-
-  // Producing data during the recursive descent.
-  const AstRawString* GetSymbol(Scanner* scanner) const;
-  const AstRawString* GetNextSymbol(Scanner* scanner) const;
-  const AstRawString* GetNumberAsSymbol(Scanner* scanner) const;
-
-  Expression* ThisExpression(int pos = kNoSourcePosition);
-  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos);
-  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos);
-  Expression* NewTargetExpression(int pos);
-  Expression* FunctionSentExpression(AstNodeFactory* factory, int pos) const;
-  Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
-                                 AstNodeFactory* factory) const;
-  Expression* ExpressionFromIdentifier(const AstRawString* name,
-                                       int start_position, int end_position,
-                                       InferName = InferName::kYes);
-  Expression* ExpressionFromString(int pos, Scanner* scanner,
-                                   AstNodeFactory* factory) const;
-  Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
-                          int pos);
-  ZoneList<v8::internal::Expression*>* NewExpressionList(int size,
-                                                         Zone* zone) const {
-    return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
-  }
-  ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size,
-                                                      Zone* zone) const {
-    return new(zone) ZoneList<ObjectLiteral::Property*>(size, zone);
-  }
-  ZoneList<v8::internal::Statement*>* NewStatementList(int size,
-                                                       Zone* zone) const {
-    return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
-  }
-
-  V8_INLINE void AddParameterInitializationBlock(
-      const ParserFormalParameters& parameters,
-      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok);
-
-  V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
-                                    Expression* pattern,
-                                    Expression* initializer,
-                                    int initializer_end_position, bool is_rest);
-  V8_INLINE void DeclareFormalParameter(
-      DeclarationScope* scope,
-      const ParserFormalParameters::Parameter& parameter,
-      Type::ExpressionClassifier* classifier);
-  void ParseArrowFunctionFormalParameterList(
-      ParserFormalParameters* parameters, Expression* params,
-      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok);
-
-  void ReindexLiterals(const ParserFormalParameters& parameters);
-
-  V8_INLINE Expression* NoTemplateTag() { return NULL; }
-  V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
-    return tag != NULL;
-  }
-
-  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {}
-
-  Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
-
-  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
-                                       const AstRawString* name);
-
-  void SetFunctionNameFromIdentifierRef(Expression* value,
-                                        Expression* identifier);
-
-  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
-      GetReportedErrorList() const;
-  V8_INLINE Zone* zone() const;
-
-  V8_INLINE ZoneList<Expression*>* GetNonPatternList() const;
 };
 
 class Parser : public ParserBase<Parser> {
@@ -400,9 +197,7 @@ class Parser : public ParserBase<Parser> {
 
  private:
   friend class ParserBase<Parser>;
-  // TODO(nikolaos): This should not be necessary. It will be removed
-  // when the traits object stops delegating to the implementation object.
-  friend class ParserBaseTraits<Parser>;
+  friend class v8::internal::ExpressionClassifier<ParserBaseTraits<Parser>>;
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -668,6 +463,7 @@ class Parser : public ParserBase<Parser> {
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
                                       int pos);
 
+  Expression* GetIterator(Expression* iterable, int pos);
 
   // Initialize the components of a for-in / for-of statement.
   Statement* InitializeForEachStatement(ForEachStatement* stmt,
@@ -892,6 +688,358 @@ class Parser : public ParserBase<Parser> {
                                           bool* ok);
   void SetFunctionName(Expression* value, const AstRawString* name);
 
+  // Helper functions for recursive descent.
+  V8_INLINE bool IsEval(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->eval_string();
+  }
+
+  V8_INLINE bool IsArguments(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->arguments_string();
+  }
+
+  V8_INLINE bool IsEvalOrArguments(const AstRawString* identifier) const {
+    return IsEval(identifier) || IsArguments(identifier);
+  }
+
+  V8_INLINE bool IsUndefined(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->undefined_string();
+  }
+
+  V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const {
+    return scanner()->IdentifierIsFutureStrictReserved(identifier);
+  }
+
+  // Returns true if the expression is of type "this.foo".
+  V8_INLINE static bool IsThisProperty(Expression* expression) {
+    DCHECK(expression != NULL);
+    Property* property = expression->AsProperty();
+    return property != NULL && property->obj()->IsVariableProxy() &&
+           property->obj()->AsVariableProxy()->is_this();
+  }
+
+  V8_INLINE static bool IsIdentifier(Expression* expression) {
+    VariableProxy* operand = expression->AsVariableProxy();
+    return operand != NULL && !operand->is_this();
+  }
+
+  V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
+    DCHECK(IsIdentifier(expression));
+    return expression->AsVariableProxy()->raw_name();
+  }
+
+  V8_INLINE bool IsPrototype(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->prototype_string();
+  }
+
+  V8_INLINE bool IsConstructor(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->constructor_string();
+  }
+
+  V8_INLINE bool IsDirectEvalCall(Expression* expression) const {
+    if (!expression->IsCall()) return false;
+    expression = expression->AsCall()->expression();
+    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
+  }
+
+  V8_INLINE static bool IsBoilerplateProperty(
+      ObjectLiteral::Property* property) {
+    return ObjectLiteral::IsBoilerplateProperty(property);
+  }
+
+  V8_INLINE static bool IsArrayIndex(const AstRawString* string,
+                                     uint32_t* index) {
+    return string->AsArrayIndex(index);
+  }
+
+  V8_INLINE static Expression* GetPropertyValue(
+      ObjectLiteral::Property* property) {
+    return property->value();
+  }
+
+  // Functions for encapsulating the differences between parsing and preparsing;
+  // operations interleaved with the recursive descent.
+  V8_INLINE static void PushLiteralName(FuncNameInferrer* fni,
+                                        const AstRawString* id) {
+    fni->PushLiteralName(id);
+  }
+
+  V8_INLINE void PushPropertyName(FuncNameInferrer* fni,
+                                  Expression* expression) {
+    if (expression->IsPropertyName()) {
+      fni->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
+    } else {
+      fni->PushLiteralName(ast_value_factory()->anonymous_function_string());
+    }
+  }
+
+  V8_INLINE static void InferFunctionName(FuncNameInferrer* fni,
+                                          FunctionLiteral* func_to_infer) {
+    fni->AddFunction(func_to_infer);
+  }
+
+  // If we assign a function literal to a property we pretenure the
+  // literal so it can be added as a constant function property.
+  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
+      Expression* left, Expression* right) {
+    DCHECK(left != NULL);
+    if (left->IsProperty() && right->IsFunctionLiteral()) {
+      right->AsFunctionLiteral()->set_pretenure();
+    }
+  }
+
+  // Determine if the expression is a variable proxy and mark it as being used
+  // in an assignment or with a increment/decrement operator.
+  V8_INLINE static Expression* MarkExpressionAsAssigned(
+      Expression* expression) {
+    VariableProxy* proxy =
+        expression != NULL ? expression->AsVariableProxy() : NULL;
+    if (proxy != NULL) proxy->set_is_assigned();
+    return expression;
+  }
+
+  // Returns true if we have a binary expression between two numeric
+  // literals. In that case, *x will be changed to an expression which is the
+  // computed value.
+  bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
+                                              Token::Value op, int pos);
+
+  // Rewrites the following types of unary expressions:
+  // not <literal> -> true / false
+  // + <numeric literal> -> <numeric literal>
+  // - <numeric literal> -> <numeric literal with value negated>
+  // ! <literal> -> true / false
+  // The following rewriting rules enable the collection of type feedback
+  // without any special stub and the multiplication is removed later in
+  // Crankshaft's canonicalization pass.
+  // + foo -> foo * 1
+  // - foo -> foo * (-1)
+  // ~ foo -> foo ^(~0)
+  Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
+                                   int pos);
+
+  Expression* BuildIteratorResult(Expression* value, bool done);
+
+  // Generate AST node that throws a ReferenceError with the given type.
+  V8_INLINE Expression* NewThrowReferenceError(
+      MessageTemplate::Template message, int pos) {
+    return NewThrowError(Runtime::kNewReferenceError, message,
+                         ast_value_factory()->empty_string(), pos);
+  }
+
+  // Generate AST node that throws a SyntaxError with the given
+  // type. The first argument may be null (in the handle sense) in
+  // which case no arguments are passed to the constructor.
+  V8_INLINE Expression* NewThrowSyntaxError(MessageTemplate::Template message,
+                                            const AstRawString* arg, int pos) {
+    return NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
+  }
+
+  // Generate AST node that throws a TypeError with the given
+  // type. Both arguments must be non-null (in the handle sense).
+  V8_INLINE Expression* NewThrowTypeError(MessageTemplate::Template message,
+                                          const AstRawString* arg, int pos) {
+    return NewThrowError(Runtime::kNewTypeError, message, arg, pos);
+  }
+
+  // Reporting errors.
+  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
+                                 MessageTemplate::Template message,
+                                 const char* arg = NULL,
+                                 ParseErrorType error_type = kSyntaxError) {
+    if (stack_overflow()) {
+      // Suppress the error message (syntax error or such) in the presence of a
+      // stack overflow. The isolate allows only one pending exception at at
+      // time
+      // and we want to report the stack overflow later.
+      return;
+    }
+    pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                           source_location.end_pos, message,
+                                           arg, error_type);
+  }
+
+  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
+                                 MessageTemplate::Template message,
+                                 const AstRawString* arg,
+                                 ParseErrorType error_type = kSyntaxError) {
+    if (stack_overflow()) {
+      // Suppress the error message (syntax error or such) in the presence of a
+      // stack overflow. The isolate allows only one pending exception at at
+      // time
+      // and we want to report the stack overflow later.
+      return;
+    }
+    pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                           source_location.end_pos, message,
+                                           arg, error_type);
+  }
+
+  // "null" return type creators.
+  V8_INLINE static const AstRawString* EmptyIdentifier() { return nullptr; }
+  V8_INLINE static Expression* EmptyExpression() { return nullptr; }
+  V8_INLINE static Literal* EmptyLiteral() { return nullptr; }
+  V8_INLINE static ObjectLiteralProperty* EmptyObjectLiteralProperty() {
+    return nullptr;
+  }
+  V8_INLINE static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
+
+  // Used in error return values.
+  V8_INLINE static ZoneList<Expression*>* NullExpressionList() {
+    return nullptr;
+  }
+
+  // Non-NULL empty string.
+  V8_INLINE const AstRawString* EmptyIdentifierString() const {
+    return ast_value_factory()->empty_string();
+  }
+
+  // Odd-ball literal creators.
+  V8_INLINE Literal* GetLiteralTheHole(int position) {
+    return factory()->NewTheHoleLiteral(kNoSourcePosition);
+  }
+
+  // Producing data during the recursive descent.
+  V8_INLINE const AstRawString* GetSymbol() const {
+    const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
+    DCHECK(result != NULL);
+    return result;
+  }
+
+  V8_INLINE const AstRawString* GetNextSymbol() const {
+    return scanner()->NextSymbol(ast_value_factory());
+  }
+
+  V8_INLINE const AstRawString* GetNumberAsSymbol() const {
+    double double_value = scanner()->DoubleValue();
+    char array[100];
+    const char* string = DoubleToCString(double_value, ArrayVector(array));
+    return ast_value_factory()->GetOneByteString(string);
+  }
+
+  V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
+    return NewUnresolved(ast_value_factory()->this_string(), pos, pos + 4,
+                         Variable::THIS);
+  }
+
+  Expression* NewSuperPropertyReference(int pos);
+  Expression* NewSuperCallReference(int pos);
+  Expression* NewTargetExpression(int pos);
+  Expression* FunctionSentExpression(int pos);
+
+  Literal* ExpressionFromLiteral(Token::Value token, int pos);
+
+  V8_INLINE Expression* ExpressionFromIdentifier(
+      const AstRawString* name, int start_position, int end_position,
+      InferName infer = InferName::kYes) {
+    if (infer == InferName::kYes && fni_ != NULL) {
+      fni_->PushVariableName(name);
+    }
+    return NewUnresolved(name, start_position, end_position);
+  }
+
+  V8_INLINE Expression* ExpressionFromString(int pos) {
+    const AstRawString* symbol = GetSymbol();
+    if (fni_ != NULL) fni_->PushLiteralName(symbol);
+    return factory()->NewStringLiteral(symbol, pos);
+  }
+
+  V8_INLINE ZoneList<v8::internal::Expression*>* NewExpressionList(
+      int size) const {
+    return new (zone()) ZoneList<v8::internal::Expression*>(size, zone());
+  }
+  V8_INLINE ZoneList<ObjectLiteral::Property*>* NewPropertyList(
+      int size) const {
+    return new (zone()) ZoneList<ObjectLiteral::Property*>(size, zone());
+  }
+  V8_INLINE ZoneList<v8::internal::Statement*>* NewStatementList(
+      int size) const {
+    return new (zone()) ZoneList<v8::internal::Statement*>(size, zone());
+  }
+
+  V8_INLINE void AddParameterInitializationBlock(
+      const ParserFormalParameters& parameters,
+      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
+    if (parameters.is_simple) return;
+    auto* init_block = BuildParameterInitializationBlock(parameters, ok);
+    if (!*ok) return;
+    if (is_async) init_block = BuildRejectPromiseOnException(init_block);
+    if (init_block != nullptr) body->Add(init_block, zone());
+  }
+
+  V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
+                                    Expression* pattern,
+                                    Expression* initializer,
+                                    int initializer_end_position,
+                                    bool is_rest) {
+    bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
+    const AstRawString* name = is_simple
+                                   ? pattern->AsVariableProxy()->raw_name()
+                                   : ast_value_factory()->empty_string();
+    parameters->params.Add(
+        ParserFormalParameters::Parameter(name, pattern, initializer,
+                                          initializer_end_position, is_rest),
+        parameters->scope->zone());
+  }
+
+  V8_INLINE void DeclareFormalParameter(
+      DeclarationScope* scope,
+      const ParserFormalParameters::Parameter& parameter,
+      Type::ExpressionClassifier* classifier) {
+    bool is_duplicate = false;
+    bool is_simple = classifier->is_simple_parameter_list();
+    auto name = is_simple || parameter.is_rest
+                    ? parameter.name
+                    : ast_value_factory()->empty_string();
+    auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
+    if (!is_simple) scope->SetHasNonSimpleParameters();
+    bool is_optional = parameter.initializer != nullptr;
+    Variable* var =
+        scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
+                                &is_duplicate, ast_value_factory());
+    if (is_duplicate) {
+      classifier->RecordDuplicateFormalParameterError(scanner()->location());
+    }
+    if (is_sloppy(scope->language_mode())) {
+      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+      // conservative approximation necessary to account for parameters
+      // that are assigned via the arguments array.
+      var->set_maybe_assigned();
+    }
+  }
+
+  void ParseArrowFunctionFormalParameterList(
+      ParserFormalParameters* parameters, Expression* params,
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      const Scope::Snapshot& scope_snapshot, bool* ok);
+
+  void ReindexLiterals(const ParserFormalParameters& parameters);
+
+  V8_INLINE Expression* NoTemplateTag() { return NULL; }
+  V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
+    return tag != NULL;
+  }
+
+  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {}
+
+  Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
+
+  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
+                                       const AstRawString* name);
+
+  void SetFunctionNameFromIdentifierRef(Expression* value,
+                                        Expression* identifier);
+
+  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
+  GetReportedErrorList() const {
+    return function_state_->GetReportedErrorList();
+  }
+
+  V8_INLINE ZoneList<Expression*>* GetNonPatternList() const {
+    return function_state_->non_patterns_to_rewrite();
+  }
+
+  // Parser's private field members.
+
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
@@ -913,15 +1061,6 @@ class Parser : public ParserBase<Parser> {
   void Print(AstNode* node);
 #endif  // DEBUG
 };
-
-bool ParserBaseTraits<Parser>::IsFutureStrictReserved(
-    const AstRawString* identifier) const {
-  return delegate()->scanner()->IdentifierIsFutureStrictReserved(identifier);
-}
-
-const AstRawString* ParserBaseTraits<Parser>::EmptyIdentifierString() const {
-  return delegate()->ast_value_factory()->empty_string();
-}
 
 
 // Support for handling complex values (array and object literals) that
@@ -951,63 +1090,6 @@ class CompileTimeValue: public AllStatic {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
-
-void ParserBaseTraits<Parser>::AddFormalParameter(
-    ParserFormalParameters* parameters, Expression* pattern,
-    Expression* initializer, int initializer_end_position, bool is_rest) {
-  bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
-  const AstRawString* name =
-      is_simple ? pattern->AsVariableProxy()->raw_name()
-                : delegate()->ast_value_factory()->empty_string();
-  parameters->params.Add(
-      ParserFormalParameters::Parameter(name, pattern, initializer,
-                                        initializer_end_position, is_rest),
-      parameters->scope->zone());
-}
-
-void ParserBaseTraits<Parser>::DeclareFormalParameter(
-    DeclarationScope* scope, const ParserFormalParameters::Parameter& parameter,
-    Type::ExpressionClassifier* classifier) {
-  bool is_duplicate = false;
-  bool is_simple = classifier->is_simple_parameter_list();
-  auto name = is_simple || parameter.is_rest
-                  ? parameter.name
-                  : delegate()->ast_value_factory()->empty_string();
-  auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
-  if (!is_simple) scope->SetHasNonSimpleParameters();
-  bool is_optional = parameter.initializer != nullptr;
-  Variable* var =
-      scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
-                              &is_duplicate, delegate()->ast_value_factory());
-  if (is_duplicate) {
-    classifier->RecordDuplicateFormalParameterError(
-        delegate()->scanner()->location());
-  }
-  if (is_sloppy(scope->language_mode())) {
-    // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-    // conservative approximation necessary to account for parameters
-    // that are assigned via the arguments array.
-    var->set_maybe_assigned();
-  }
-}
-
-void ParserBaseTraits<Parser>::AddParameterInitializationBlock(
-    const ParserFormalParameters& parameters,
-    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
-  if (!parameters.is_simple) {
-    auto* init_block =
-        delegate()->BuildParameterInitializationBlock(parameters, ok);
-    if (!*ok) return;
-
-    if (is_async) {
-      init_block = delegate()->BuildRejectPromiseOnException(init_block);
-    }
-
-    if (init_block != nullptr) {
-      body->Add(init_block, delegate()->zone());
-    }
-  }
-}
 
 }  // namespace internal
 }  // namespace v8

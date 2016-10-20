@@ -583,7 +583,6 @@
 
   # stack overflow
   'big-array-literal': [SKIP],
-  'regress/regress-353551': [SKIP],
 }],  # 'arch == ppc64'
 
 ##############################################################################

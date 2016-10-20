@@ -22,7 +22,8 @@ InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
-    SourcePositionMode source_position_mode, Features features)
+    SourcePositionMode source_position_mode, Features features,
+    EnableScheduling enable_scheduling)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -38,6 +39,7 @@ InstructionSelector::InstructionSelector(
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
       scheduler_(nullptr),
+      enable_scheduling_(enable_scheduling),
       frame_(frame) {
   instructions_.reserve(node_count);
 }
@@ -65,8 +67,7 @@ void InstructionSelector::SelectInstructions() {
   }
 
   // Schedule the selected instructions.
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     scheduler_ = new (zone()) InstructionScheduler(zone(), sequence());
   }
 
@@ -88,8 +89,7 @@ void InstructionSelector::SelectInstructions() {
 }
 
 void InstructionSelector::StartBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->StartBlock(rpo);
   } else {
@@ -99,8 +99,7 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
 
 
 void InstructionSelector::EndBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->EndBlock(rpo);
   } else {
@@ -110,8 +109,7 @@ void InstructionSelector::EndBlock(RpoNumber rpo) {
 
 
 void InstructionSelector::AddInstruction(Instruction* instr) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddInstruction(instr);
   } else {
@@ -369,7 +367,9 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
           case FrameStateInputKind::kStackSlot:
             return g->UseUniqueSlot(input);
           case FrameStateInputKind::kAny:
-            return g->UseAny(input);
+            // Currently deopts "wrap" other operations, so the deopt's inputs
+            // are potentially needed untill the end of the deoptimising code.
+            return g->UseAnyAtEnd(input);
         }
       }
   }
@@ -1307,6 +1307,10 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);
+    case IrOpcode::kCreateInt32x4:
+      return MarkAsSimd128(node), VisitCreateInt32x4(node);
+    case IrOpcode::kInt32x4ExtractLane:
+      return MarkAsWord32(node), VisitInt32x4ExtractLane(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1647,7 +1651,6 @@ void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
 void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
   UNIMPLEMENTED();
 }
-
 #endif  // V8_TARGET_ARCH_32_BIT
 
 // 64 bit targets do not implement the following instructions.
@@ -1664,6 +1667,14 @@ void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
+
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitCreateInt32x4(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
