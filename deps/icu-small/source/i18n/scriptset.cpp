@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2014, International Business Machines
@@ -191,6 +193,15 @@ int32_t ScriptSet::nextSetBit(int32_t fromIndex) const {
     return -1;
 }
 
+UBool ScriptSet::isEmpty() const {
+    for (uint32_t i=0; i<UPRV_LENGTHOF(bits); i++) {
+        if (bits[i] != 0) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
 UnicodeString &ScriptSet::displayScripts(UnicodeString &dest) const {
     UBool firstTime = TRUE;
     for (int32_t i = nextSetBit(0); i >= 0; i = nextSetBit(i + 1)) {
@@ -236,6 +247,41 @@ ScriptSet &ScriptSet::parseScripts(const UnicodeString &scriptString, UErrorCode
         }
     }
     return *this;
+}
+
+void ScriptSet::setScriptExtensions(UChar32 codePoint, UErrorCode& status) {
+    if (U_FAILURE(status)) { return; }
+    static const int32_t FIRST_GUESS_SCRIPT_CAPACITY = 5;
+    MaybeStackArray<UScriptCode,FIRST_GUESS_SCRIPT_CAPACITY> scripts;
+    UErrorCode internalStatus = U_ZERO_ERROR;
+    int32_t script_count = -1;
+
+    while (TRUE) {
+        script_count = uscript_getScriptExtensions(
+            codePoint, scripts.getAlias(), FIRST_GUESS_SCRIPT_CAPACITY, &internalStatus);
+        if (internalStatus == U_BUFFER_OVERFLOW_ERROR) {
+            // Need to allocate more space
+            if (scripts.resize(script_count) == NULL) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
+            internalStatus = U_ZERO_ERROR;
+        } else {
+            break;
+        }
+    }
+
+    // Check if we failed for some reason other than buffer overflow
+    if (U_FAILURE(internalStatus)) {
+        status = internalStatus;
+        return;
+    }
+
+    // Load the scripts into the ScriptSet and return
+    for (int32_t i = 0; i < script_count; i++) {
+        this->set(scripts[i], status);
+        if (U_FAILURE(status)) { return; }
+    }
 }
 
 U_NAMESPACE_END

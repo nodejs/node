@@ -1,7 +1,9 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1999-2015, International Business Machines
+*   Copyright (C) 1999-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -77,7 +79,7 @@ U_NAMESPACE_USE
 /*
  *  Forward declarations
  */
-static UDataMemory *udata_findCachedData(const char *path);
+static UDataMemory *udata_findCachedData(const char *path, UErrorCode &err);
 
 /***********************************************************************
 *
@@ -132,13 +134,13 @@ udata_cleanup(void)
 }
 
 static UBool U_CALLCONV
-findCommonICUDataByName(const char *inBasename)
+findCommonICUDataByName(const char *inBasename, UErrorCode &err)
 {
     UBool found = FALSE;
     int32_t i;
 
-    UDataMemory  *pData = udata_findCachedData(inBasename);
-    if (pData == NULL)
+    UDataMemory  *pData = udata_findCachedData(inBasename, err);
+    if (U_FAILURE(err) || pData == NULL)
         return FALSE;
 
     {
@@ -268,40 +270,41 @@ static void U_CALLCONV DataCacheElement_deleter(void *pDCEl) {
     uprv_free(pDCEl);                  /* delete 'this'          */
 }
 
-static void udata_initHashTable() {
-    UErrorCode err = U_ZERO_ERROR;
+static void U_CALLCONV udata_initHashTable(UErrorCode &err) {
     U_ASSERT(gCommonDataCache == NULL);
     gCommonDataCache = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &err);
     if (U_FAILURE(err)) {
-        // TODO: handle errors better.
-        gCommonDataCache = NULL;
+       return;
     }
-    if (gCommonDataCache != NULL) {
-        uhash_setValueDeleter(gCommonDataCache, DataCacheElement_deleter);
-        ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
-    }
+    U_ASSERT(gCommonDataCache != NULL);
+    uhash_setValueDeleter(gCommonDataCache, DataCacheElement_deleter);
+    ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
 }
 
  /*   udata_getCacheHashTable()
   *     Get the hash table used to store the data cache entries.
   *     Lazy create it if it doesn't yet exist.
   */
-static UHashtable *udata_getHashTable() {
-    umtx_initOnce(gCommonDataCacheInitOnce, &udata_initHashTable);
+static UHashtable *udata_getHashTable(UErrorCode &err) {
+    umtx_initOnce(gCommonDataCacheInitOnce, &udata_initHashTable, err);
     return gCommonDataCache;
 }
 
 
 
-static UDataMemory *udata_findCachedData(const char *path)
+static UDataMemory *udata_findCachedData(const char *path, UErrorCode &err)
 {
     UHashtable        *htable;
     UDataMemory       *retVal = NULL;
     DataCacheElement  *el;
     const char        *baseName;
 
+    htable = udata_getHashTable(err);
+    if (U_FAILURE(err)) {
+        return NULL;
+    }
+
     baseName = findBasename(path);   /* Cache remembers only the base name, not the full path. */
-    htable = udata_getHashTable();
     umtx_lock(NULL);
     el = (DataCacheElement *)uhash_get(htable, baseName);
     umtx_unlock(NULL);
@@ -323,6 +326,7 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
     DataCacheElement *oldValue = NULL;
     UErrorCode        subErr = U_ZERO_ERROR;
 
+    htable = udata_getHashTable(*pErr);
     if (U_FAILURE(*pErr)) {
         return NULL;
     }
@@ -355,7 +359,6 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
 
     /* Stick the new DataCacheElement into the hash table.
     */
-    htable = udata_getHashTable();
     umtx_lock(NULL);
     oldValue = (DataCacheElement *)uhash_get(htable, path);
     if (oldValue != NULL) {
@@ -392,9 +395,6 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
  * later on.                                                            *
  *                                                                      *
  *----------------------------------------------------------------------*/
-
-#define U_DATA_PATHITER_BUFSIZ  128        /* Size of local buffer for paths         */
-                                           /*   Overflow causes malloc of larger buf */
 
 U_NAMESPACE_BEGIN
 
@@ -717,18 +717,18 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
 #ifdef UDATA_DEBUG
         fprintf(stderr, "ocd: no basename in %s, bailing.\n", path);
 #endif
-        *pErrorCode=U_FILE_ACCESS_ERROR;
+        if (U_SUCCESS(*pErrorCode)) {
+            *pErrorCode=U_FILE_ACCESS_ERROR;
+        }
         return NULL;
     }
 
    /* Is the requested common data file already open and cached?                     */
    /*   Note that the cache is keyed by the base name only.  The rest of the path,   */
    /*     if any, is not considered.                                                 */
-   {
-        UDataMemory  *dataToReturn = udata_findCachedData(inBasename);
-        if (dataToReturn != NULL) {
-            return dataToReturn;
-        }
+    UDataMemory  *dataToReturn = udata_findCachedData(inBasename, *pErrorCode);
+    if (dataToReturn != NULL || U_FAILURE(*pErrorCode)) {
+        return dataToReturn;
     }
 
     /* Requested item is not in the cache.
@@ -759,6 +759,9 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
     }
 #endif
 
+    if (U_FAILURE(*pErrorCode)) {
+        return NULL;
+    }
     if (!UDataMemory_isLoaded(&tData)) {
         /* no common data */
         *pErrorCode=U_FILE_ACCESS_ERROR;
@@ -834,7 +837,7 @@ static UBool extendICUData(UErrorCode *pErr)
         umtx_storeRelease(gHaveTriedToLoadCommonData, 1);
     }
 
-    didUpdate = findCommonICUDataByName(U_ICUDATA_NAME);  /* Return 'true' when a racing writes out the extended                        */
+    didUpdate = findCommonICUDataByName(U_ICUDATA_NAME, *pErr);  /* Return 'true' when a racing writes out the extended                 */
                                                           /* data after another thread has failed to see it (in openCommonData), so     */
                                                           /* extended data can be examined.                                             */
                                                           /* Also handles a race through here before gHaveTriedToLoadCommonData is set. */
@@ -1255,7 +1258,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
     dataPath = u_getDataDirectory();
 
     /****    Time zone individual files override  */
-    if (isTimeZoneFile(name, type) && isICUData) {
+    if (isICUData && isTimeZoneFile(name, type)) {
         const char *tzFilesDir = u_getTimeZoneFilesDirectory(pErrorCode);
         if (tzFilesDir[0] != 0) {
 #ifdef UDATA_DEBUG

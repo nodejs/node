@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2015, International Business Machines
@@ -234,7 +236,7 @@ UnicodeSet::UnicodeSet(const UnicodeSet& o, UBool /* asThawed */) :
     if(list!=NULL){
         // *this = o except for bmpSet and stringSpan
         len = o.len;
-        uprv_memcpy(list, o.list, len*sizeof(UChar32));
+        uprv_memcpy(list, o.list, (size_t)len*sizeof(UChar32));
         if (strings != NULL && o.strings != NULL) {
             strings->assign(*o.strings, cloneUnicodeString, status);
         } else { // Invalid strings.
@@ -286,7 +288,7 @@ UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) {
         return *this; // There is no way to report this error :-(
     }
     len = o.len;
-    uprv_memcpy(list, o.list, len*sizeof(UChar32));
+    uprv_memcpy(list, o.list, (size_t)len*sizeof(UChar32));
     if (o.bmpSet == NULL) {
         bmpSet = NULL;
     } else {
@@ -1253,14 +1255,14 @@ UnicodeSet& UnicodeSet::complement(void) {
         if (U_FAILURE(status)) {
             return *this;
         }
-        uprv_memcpy(buffer, list + 1, (len-1)*sizeof(UChar32));
+        uprv_memcpy(buffer, list + 1, (size_t)(len-1)*sizeof(UChar32));
         --len;
     } else {
         ensureBufferCapacity(len+1, status);
         if (U_FAILURE(status)) {
             return *this;
         }
-        uprv_memcpy(buffer + 1, list, len*sizeof(UChar32));
+        uprv_memcpy(buffer + 1, list, (size_t)len*sizeof(UChar32));
         buffer[0] = UNICODESET_LOW;
         ++len;
     }

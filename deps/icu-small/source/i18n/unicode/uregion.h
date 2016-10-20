@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
 * Copyright (C) 2014, International Business Machines
@@ -105,11 +107,13 @@ typedef enum URegionType {
      */
     URGN_DEPRECATED,
 
+#ifndef U_HIDE_DEPRECATED_API
     /**
-     * Maximum value for this unumeration.
-     * @stable ICU 51
+     * One more than the highest normal URegionType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     URGN_LIMIT
+#endif  // U_HIDE_DEPRECATED_API
 } URegionType;
 
 #if !UCONFIG_NO_FORMATTING

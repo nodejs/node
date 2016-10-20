@@ -1,6 +1,8 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
-* Copyright (C) 2014-2015, International Business Machines Corporation and
+* Copyright (C) 2014-2016, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 *
@@ -67,8 +69,7 @@ static UVector *allRegions = NULL;
 static const UChar UNKNOWN_REGION_ID [] = { 0x5A, 0x5A, 0 };  /* "ZZ" */
 static const UChar OUTLYING_OCEANIA_REGION_ID [] = { 0x51, 0x4F, 0 };  /* "QO" */
 static const UChar WORLD_ID [] = { 0x30, 0x30, 0x31, 0 };  /* "001" */
-static const UChar RANGE_MARKER [] = { 0x7e, 0 }; /* "~" */
-static const UnicodeString RANGE_MARKER_STRING(RANGE_MARKER);
+static const UChar RANGE_MARKER = 0x7E; /* '~' */
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RegionNameEnumeration)
 
@@ -80,7 +81,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RegionNameEnumeration)
  * If the region data has already loaded, then this method simply returns without doing
  * anything meaningful.
  */
-void Region::loadRegionData(UErrorCode &status) {
+void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
 
     // Construct service objs first
     LocalUHashtablePointer newRegionIDMap(uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, NULL, &status));
@@ -121,7 +122,7 @@ void Region::loadRegionData(UErrorCode &status) {
 
     while ( ures_hasNext(regionRegular.getAlias()) ) {
         UnicodeString regionName = ures_getNextUnicodeString(regionRegular.getAlias(),NULL,&status);
-        int32_t rangeMarkerLocation = regionName.indexOf(RANGE_MARKER_STRING);
+        int32_t rangeMarkerLocation = regionName.indexOf(RANGE_MARKER);
         UChar buf[6];
         regionName.extract(buf,6,status);
         if ( rangeMarkerLocation > 0 ) {
@@ -140,7 +141,7 @@ void Region::loadRegionData(UErrorCode &status) {
 
     while ( ures_hasNext(regionMacro.getAlias()) ) {
         UnicodeString regionName = ures_getNextUnicodeString(regionMacro.getAlias(),NULL,&status);
-        int32_t rangeMarkerLocation = regionName.indexOf(RANGE_MARKER_STRING);
+        int32_t rangeMarkerLocation = regionName.indexOf(RANGE_MARKER);
         UChar buf[6];
         regionName.extract(buf,6,status);
         if ( rangeMarkerLocation > 0 ) {

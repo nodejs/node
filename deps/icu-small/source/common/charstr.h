@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2001-2015, International Business Machines
@@ -39,7 +41,7 @@ template class U_COMMON_API MaybeStackArray<char, 40>;
 class U_COMMON_API CharString : public UMemory {
 public:
     CharString() : len(0) { buffer[0]=0; }
-    CharString(const StringPiece &s, UErrorCode &errorCode) : len(0) {
+    CharString(StringPiece s, UErrorCode &errorCode) : len(0) {
         buffer[0]=0;
         append(s, errorCode);
     }
@@ -76,7 +78,7 @@ public:
     CharString &truncate(int32_t newLength);
 
     CharString &append(char c, UErrorCode &errorCode);
-    CharString &append(const StringPiece &s, UErrorCode &errorCode) {
+    CharString &append(StringPiece s, UErrorCode &errorCode) {
         return append(s.data(), s.length(), errorCode);
     }
     CharString &append(const CharString &s, UErrorCode &errorCode) {
@@ -115,7 +117,7 @@ public:
      * First appends a U_FILE_SEP_CHAR if necessary.
      * Does nothing if s is empty.
      */
-    CharString &appendPathPart(const StringPiece &s, UErrorCode &errorCode);
+    CharString &appendPathPart(StringPiece s, UErrorCode &errorCode);
 
     /**
      * Appends a U_FILE_SEP_CHAR if this string is not empty
