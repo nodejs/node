@@ -75,12 +75,15 @@ tests.forEach(run);
 // Auto code alignment for .editor mode
 function testCodeAligment({input, cursor = 0, line = ''}) {
   const stream = new common.ArrayStream();
+  const outputStream = new common.ArrayStream();
+
+  stream.write = () => { throw new Error('Writing not allowed!'); };
 
   const replServer = repl.start({
     prompt: '> ',
     terminal: true,
     input: stream,
-    output: stream,
+    output: outputStream,
     useColors: false
   });
 
