@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -852,7 +854,7 @@ uloc_getDisplayKeywordValue(   const char* locale,
         /* now copy the dispName over if not NULL */
         if(dispName != NULL){
             if(dispNameLen <= destCapacity){
-                uprv_memcpy(dest, dispName, dispNameLen * U_SIZEOF_UCHAR);
+                u_memcpy(dest, dispName, dispNameLen);
                 return u_terminateUChars(dest, destCapacity, dispNameLen, status);
             }else{
                 *status = U_BUFFER_OVERFLOW_ERROR;

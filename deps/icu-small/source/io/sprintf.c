@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -179,7 +181,7 @@ u_vsnprintf(UChar       *buffer,
     int32_t size = (int32_t)strlen(patternSpecification) + 1;
 
     /* convert from the default codepage to Unicode */
-    if (size >= MAX_UCHAR_BUFFER_SIZE(patBuffer)) {
+    if (size >= (int32_t)MAX_UCHAR_BUFFER_SIZE(patBuffer)) {
         pattern = (UChar *)uprv_malloc(size * sizeof(UChar));
         if(pattern == 0) {
             return 0;

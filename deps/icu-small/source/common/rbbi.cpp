@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ***************************************************************************
 *   Copyright (C) 1999-2016 International Business Machines Corporation
@@ -71,21 +73,6 @@ RuleBasedBreakIterator::RuleBasedBreakIterator(RBBIDataHeader* data, UErrorCode 
         return;
     }
 }
-
-/**
- * Same as above but does not adopt memory
- */
-RuleBasedBreakIterator::RuleBasedBreakIterator(const RBBIDataHeader* data, enum EDontAdopt, UErrorCode &status)
-{
-    init();
-    fData = new RBBIDataWrapper(data, RBBIDataWrapper::kDontAdopt, status); // status checked in constructor
-    if (U_FAILURE(status)) {return;}
-    if(fData == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        return;
-    }
-}
-
 
 //
 //  Construct from precompiled binary rules (tables).  This constructor is public API,
