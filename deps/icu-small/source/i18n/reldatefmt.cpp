@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 2014-2016, International Business Machines Corporation and
@@ -178,14 +180,11 @@ namespace {
 
 /**
  * Sink for enumerating all of the measurement unit display names.
- * Contains inner sink classes, each one corresponding to a level of the resource table.
  *
  * More specific bundles (en_GB) are enumerated before their parents (en_001, en, root):
  * Only store a value if it is still missing, that is, it has not been overridden.
- *
- * C++: Each inner sink class has a reference to the main outer sink.
  */
-struct RelDateTimeFmtDataSink : public ResourceTableSink {
+struct RelDateTimeFmtDataSink : public ResourceSink {
 
     /**
      * Sink for patterns for relative dates and times. For example,
@@ -291,188 +290,16 @@ struct RelDateTimeFmtDataSink : public ResourceTableSink {
         return -1;
     }
 
-    // Sinks for additional levels under /fields/*/relative/ and /fields/*/relativeTime/
-
-    /**
-     * Make list of simplePatternFmtList, for past and for future.
-     *  Set a SimpleFormatter for the <style, relative unit, plurality>
-     *
-     * Fill in values for the particular plural given, e.g., ONE, FEW, OTHER, etc.
-     */
-    struct RelDateTimeDetailSink : public ResourceTableSink {
-        RelDateTimeDetailSink(RelDateTimeFmtDataSink &sink) : outer(sink) {}
-        ~RelDateTimeDetailSink();
-
-        virtual void put(const char *key, const ResourceValue &value,
-                        UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return; }
-
-            outer.relUnitIndex = relUnitFromGeneric(outer.genericUnit);
-            if (outer.relUnitIndex < 0) {
-                return;
-            }
-
-            /* Make two lists of simplePatternFmtList, one for past and one for future.
-             *  Set a SimpleFormatter pattern for the <style, relative unit, plurality>
-             *
-             * Fill in values for the particular plural given, e.g., ONE, FEW, OTHER, etc.
-             */
-            int32_t pluralIndex = StandardPlural::indexOrNegativeFromString(key);
-            if (pluralIndex >= 0) {
-                SimpleFormatter **patterns =
-                    outer.outputData.relativeUnitsFormatters[outer.style][outer.relUnitIndex]
-                        [outer.pastFutureIndex];
-                // Only set if not already established.
-                if (patterns[pluralIndex] == NULL) {
-                    patterns[pluralIndex] = new SimpleFormatter(
-                        value.getUnicodeString(errorCode), 0, 1, errorCode);
-                    if (patterns[pluralIndex] == NULL) {
-                        errorCode = U_MEMORY_ALLOCATION_ERROR;
-                    }
-                }
-            }
-        }
-
-        RelDateTimeFmtDataSink &outer;
-    } relDateTimeDetailSink;
-
-    /*
-     * Handles "relativeTime" entries, e.g., under "day", "hour", "minute",
-     * "minute-short", etc.
-     */
-    struct RelativeTimeSink : public ResourceTableSink {
-        RelativeTimeSink(RelDateTimeFmtDataSink &sink) : outer(sink) {}
-        ~RelativeTimeSink();
-
-        virtual ResourceTableSink *getOrCreateTableSink(
-                const char *key, int32_t /* initialSize */, UErrorCode& errorCode) {
-            if (U_FAILURE(errorCode)) { return NULL; }
-            outer.relUnitIndex = relUnitFromGeneric(outer.genericUnit);
-            if (outer.relUnitIndex < 0) {
-                return NULL;
-            }
-
-            if (uprv_strcmp(key, "past") == 0) {
-                outer.pastFutureIndex = 0;
-            } else if (uprv_strcmp(key, "future") == 0) {
-                outer.pastFutureIndex = 1;
-            } else {
-                // Unknown key.
-                return NULL;
-            }
-            return &outer.relDateTimeDetailSink;
-        }
-
-        RelDateTimeFmtDataSink &outer;
-    } relativeTimeSink;
-
-    /*
-     * Handles "relative" entries, e.g., under "day", "day-short", "fri",
-      * "fri-narrow", "fri-short", etc.
-    */
-    struct RelativeSink : public ResourceTableSink {
-        RelativeSink(RelDateTimeFmtDataSink &sink) : outer(sink) {}
-        ~RelativeSink();
-
-        virtual void put(const char *key, const ResourceValue &value, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return; }
-            int32_t direction = keyToDirection(key);
-            if (direction < 0) {
-                return;
-            }
-
-            int32_t relUnitIndex = relUnitFromGeneric(outer.genericUnit);
-            if (relUnitIndex == UDAT_RELATIVE_SECONDS &&
-                    direction == UDAT_DIRECTION_THIS &&
-                    outer.outputData.absoluteUnits[outer.style][UDAT_ABSOLUTE_NOW]
-                        [UDAT_DIRECTION_PLAIN].isEmpty()) {
-                // Handle "NOW"
-                outer.outputData.absoluteUnits[outer.style][UDAT_ABSOLUTE_NOW]
-                    [UDAT_DIRECTION_PLAIN].fastCopyFrom(value.getUnicodeString(errorCode));
-            }
-
-            int32_t absUnitIndex = absUnitFromGeneric(outer.genericUnit);
-            if (absUnitIndex < 0) {
-                return;
-            }
-            // Only reset if slot is empty.
-            if (outer.outputData.absoluteUnits[outer.style][absUnitIndex][direction].isEmpty()) {
-                outer.outputData.absoluteUnits[outer.style][absUnitIndex]
-                    [direction].fastCopyFrom(value.getUnicodeString(errorCode));
-            }
-        }
-
-        RelDateTimeFmtDataSink &outer;
-    } relativeSink;
-
-    /*
-     * Handles entries under "fields", recognizing "relative" and "relativeTime" entries.
-     */
-    struct UnitSink : public ResourceTableSink {
-        UnitSink(RelDateTimeFmtDataSink &sink) : outer(sink) {}
-        ~UnitSink();
-
-        virtual void put(const char *key, const ResourceValue &value, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return; }
-            if (uprv_strcmp(key, "dn") != 0) {
-                return;
-            }
-
-            // Handle Display Name for PLAIN direction for some units.
-            int32_t absUnit = absUnitFromGeneric(outer.genericUnit);
-            if (absUnit < 0) {
-                return;  // Not interesting.
-            }
-
-            // TODO(Travis Keep): This is a hack to get around CLDR bug 6818.
-            UnicodeString displayName = value.getUnicodeString(errorCode);
-            if (U_SUCCESS(errorCode)) {
-                if (uprv_strcmp("en", outer.sinkLocaleId) == 0) {
-                    displayName.toLower();
-                }
-            }
-            // end hack
-
-            // Store displayname if not set.
-            if (outer.outputData.absoluteUnits[outer.style]
-                    [absUnit][UDAT_DIRECTION_PLAIN].isEmpty()) {
-                outer.outputData.absoluteUnits[outer.style]
-                    [absUnit][UDAT_DIRECTION_PLAIN].fastCopyFrom(displayName);
-                return;
-            }
-        }
-
-        virtual ResourceTableSink *getOrCreateTableSink(
-              const char *key, int32_t /* initialSize */, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return NULL; }
-            if (uprv_strcmp(key, "relative") == 0) {
-                return &outer.relativeSink;
-            } else if (uprv_strcmp(key, "relativeTime") == 0) {
-                return &outer.relativeTimeSink;
-            }
-            return NULL;
-        }
-
-        RelDateTimeFmtDataSink &outer;
-    } unitSink;
-
-    // For hack for locale "en".
-    // TODO(Travis Keep): This is a hack to get around CLDR bug 6818.
-    const char* sinkLocaleId;
-
     // Values kept between levels of parsing the CLDR data.
     int32_t pastFutureIndex;  // 0 == past or 1 ==  future
     UDateRelativeDateTimeFormatterStyle style;  // {LONG, SHORT, NARROW}
     RelAbsUnit genericUnit;
-    int32_t relUnitIndex;
-    int32_t absUnitIndex;
 
     RelativeDateTimeCacheData &outputData;
 
     // Constructor
-    RelDateTimeFmtDataSink(RelativeDateTimeCacheData& cacheData, const char* localeId)
-        : relDateTimeDetailSink(*this), relativeTimeSink(*this), relativeSink(*this),
-            unitSink(*this), sinkLocaleId(localeId), outputData(cacheData) {
+    RelDateTimeFmtDataSink(RelativeDateTimeCacheData& cacheData)
+        : outputData(cacheData) {
         // Clear cacheData.fallBackCache
         cacheData.fallBackCache[UDAT_STYLE_LONG] = -1;
         cacheData.fallBackCache[UDAT_STYLE_SHORT] = -1;
@@ -571,55 +398,165 @@ struct RelDateTimeFmtDataSink : public ResourceTableSink {
         return INVALID_UNIT;
     }
 
-    // Member functions of top level sink.
-    virtual void put(const char *key, const ResourceValue &value, UErrorCode &errorCode) {
-        // Only handle aliases, storing information about alias fallback.
+    void handlePlainDirection(ResourceValue &value, UErrorCode &errorCode) {
+        // Handle Display Name for PLAIN direction for some units.
+        if (U_FAILURE(errorCode)) { return; }
 
-        if (U_SUCCESS(errorCode)) {
-            if (value.getType() != URES_ALIAS) {
-                return;
-            }
-            const UnicodeString valueStr = value.getAliasUnicodeString(errorCode);
-            if (U_SUCCESS(errorCode)) {
-                UDateRelativeDateTimeFormatterStyle sourceStyle= styleFromString(key);
-                UDateRelativeDateTimeFormatterStyle targetStyle =
-                    styleFromAliasUnicodeString(valueStr);
+        int32_t absUnit = absUnitFromGeneric(genericUnit);
+        if (absUnit < 0) {
+          return;  // Not interesting.
+        }
 
-                if (sourceStyle == targetStyle) {
-                    errorCode = U_INVALID_FORMAT_ERROR;
-                    return;
+        // Store displayname if not set.
+        if (outputData.absoluteUnits[style]
+            [absUnit][UDAT_DIRECTION_PLAIN].isEmpty()) {
+            outputData.absoluteUnits[style]
+                [absUnit][UDAT_DIRECTION_PLAIN].fastCopyFrom(value.getUnicodeString(errorCode));
+            return;
+        }
+    }
+
+    void consumeTableRelative(const char *key, ResourceValue &value, UErrorCode &errorCode) {
+        ResourceTable unitTypesTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        for (int32_t i = 0; unitTypesTable.getKeyAndValue(i, key, value); ++i) {
+            if (value.getType() == URES_STRING) {
+                int32_t direction = keyToDirection(key);
+                if (direction < 0) {
+                  continue;
                 }
-                if (outputData.fallBackCache[sourceStyle] != -1 &&
-                        outputData.fallBackCache[sourceStyle] != targetStyle) {
-                    errorCode = U_INVALID_FORMAT_ERROR;
-                    return;
+
+                int32_t relUnitIndex = relUnitFromGeneric(genericUnit);
+                if (relUnitIndex == UDAT_RELATIVE_SECONDS && uprv_strcmp(key, "0") == 0 &&
+                    outputData.absoluteUnits[style][UDAT_ABSOLUTE_NOW][UDAT_DIRECTION_PLAIN].isEmpty()) {
+                    // Handle "NOW"
+                    outputData.absoluteUnits[style][UDAT_ABSOLUTE_NOW]
+                        [UDAT_DIRECTION_PLAIN].fastCopyFrom(value.getUnicodeString(errorCode));
                 }
-                outputData.fallBackCache[sourceStyle] = targetStyle;
+
+                int32_t absUnitIndex = absUnitFromGeneric(genericUnit);
+                if (absUnitIndex < 0) {
+                    continue;
+                }
+                // Only reset if slot is empty.
+                if (outputData.absoluteUnits[style][absUnitIndex][direction].isEmpty()) {
+                    outputData.absoluteUnits[style][absUnitIndex]
+                        [direction].fastCopyFrom(value.getUnicodeString(errorCode));
+                }
             }
         }
-        return;
     }
 
-    // Top level sink
-    virtual ResourceTableSink *getOrCreateTableSink(
-        const char *key, int32_t /* initialSize */, UErrorCode& /* errorCode */) {
-      style= styleFromString(key);
-      int32_t unitSize = uprv_strlen(key) - styleSuffixLength(style);
-      genericUnit = unitOrNegativeFromString(key, unitSize);
-      if (style < 0 || genericUnit == INVALID_UNIT) {
-          return NULL;
-      }
-      return &unitSink;
+    void consumeTimeDetail(int32_t relUnitIndex,
+                           const char *key, ResourceValue &value, UErrorCode &errorCode) {
+        ResourceTable unitTypesTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+          for (int32_t i = 0; unitTypesTable.getKeyAndValue(i, key, value); ++i) {
+            if (value.getType() == URES_STRING) {
+                int32_t pluralIndex = StandardPlural::indexOrNegativeFromString(key);
+                if (pluralIndex >= 0) {
+                    SimpleFormatter **patterns =
+                        outputData.relativeUnitsFormatters[style][relUnitIndex]
+                        [pastFutureIndex];
+                    // Only set if not already established.
+                    if (patterns[pluralIndex] == NULL) {
+                        patterns[pluralIndex] = new SimpleFormatter(
+                            value.getUnicodeString(errorCode), 0, 1, errorCode);
+                        if (patterns[pluralIndex] == NULL) {
+                            errorCode = U_MEMORY_ALLOCATION_ERROR;
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    void consumeTableRelativeTime(const char *key, ResourceValue &value, UErrorCode &errorCode) {
+        ResourceTable relativeTimeTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        int32_t relUnitIndex = relUnitFromGeneric(genericUnit);
+        if (relUnitIndex < 0) {
+            return;
+        }
+        for (int32_t i = 0; relativeTimeTable.getKeyAndValue(i, key, value); ++i) {
+            if (uprv_strcmp(key, "past") == 0) {
+                pastFutureIndex = 0;
+            } else if (uprv_strcmp(key, "future") == 0) {
+                pastFutureIndex = 1;
+            } else {
+                // Unknown key.
+                continue;
+            }
+            consumeTimeDetail(relUnitIndex, key, value, errorCode);
+        }
+    }
+
+    void consumeAlias(const char *key, const ResourceValue &value, UErrorCode &errorCode) {
+
+        UDateRelativeDateTimeFormatterStyle sourceStyle = styleFromString(key);
+        const UnicodeString valueStr = value.getAliasUnicodeString(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        UDateRelativeDateTimeFormatterStyle targetStyle =
+            styleFromAliasUnicodeString(valueStr);
+
+        if (sourceStyle == targetStyle) {
+            errorCode = U_INVALID_FORMAT_ERROR;
+            return;
+        }
+        if (outputData.fallBackCache[sourceStyle] != -1 &&
+            outputData.fallBackCache[sourceStyle] != targetStyle) {
+            errorCode = U_INVALID_FORMAT_ERROR;
+            return;
+        }
+        outputData.fallBackCache[sourceStyle] = targetStyle;
+    }
+
+    void consumeTimeUnit(const char *key, ResourceValue &value, UErrorCode &errorCode) {
+        ResourceTable unitTypesTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        for (int32_t i = 0; unitTypesTable.getKeyAndValue(i, key, value); ++i) {
+            // Handle display name.
+            if (uprv_strcmp(key, "dn") == 0 && value.getType() == URES_STRING) {
+                handlePlainDirection(value, errorCode);
+            }
+            if (value.getType() == URES_TABLE) {
+                if (uprv_strcmp(key, "relative") == 0) {
+                    consumeTableRelative(key, value, errorCode);
+                } else if (uprv_strcmp(key, "relativeTime") == 0) {
+                    consumeTableRelativeTime(key, value, errorCode);
+                }
+            }
+        }
+    }
+
+    virtual void put(const char *key, ResourceValue &value,
+                     UBool /*noFallback*/, UErrorCode &errorCode) {
+        // Main entry point to sink
+        ResourceTable table = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+        for (int32_t i = 0; table.getKeyAndValue(i, key, value); ++i) {
+            if (value.getType() == URES_ALIAS) {
+                consumeAlias(key, value, errorCode);
+            } else {
+                style = styleFromString(key);
+                int32_t unitSize = uprv_strlen(key) - styleSuffixLength(style);
+                genericUnit = unitOrNegativeFromString(key, unitSize);
+                if (style >= 0 && genericUnit != INVALID_UNIT) {
+                    consumeTimeUnit(key, value, errorCode);
+                }
+            }
+        }
+    }
+
 };
 
 // Virtual destructors must be defined out of line.
-RelDateTimeFmtDataSink::RelDateTimeDetailSink::~RelDateTimeDetailSink() {}
-RelDateTimeFmtDataSink::RelativeTimeSink::~RelativeTimeSink() {}
-RelDateTimeFmtDataSink::RelativeSink::~RelativeSink() {}
-RelDateTimeFmtDataSink::UnitSink::~UnitSink() {}
 RelDateTimeFmtDataSink::~RelDateTimeFmtDataSink() {}
-
 } // namespace
 
 DateFormatSymbols::DtWidthType styleToDateFormatSymbolWidth[UDAT_STYLE_COUNT] = {
@@ -652,8 +589,10 @@ static UBool loadUnitData(
         RelativeDateTimeCacheData &cacheData,
         const char* localeId,
         UErrorCode &status) {
-    RelDateTimeFmtDataSink sink(cacheData, localeId);
-    ures_getAllTableItemsWithFallback(resource, "fields", sink, status);
+
+    RelDateTimeFmtDataSink sink(cacheData);
+
+    ures_getAllItemsWithFallback(resource, "fields", sink, status);
 
     // Get the weekday names from DateFormatSymbols.
     loadWeekdayNames(cacheData.absoluteUnits, localeId, status);

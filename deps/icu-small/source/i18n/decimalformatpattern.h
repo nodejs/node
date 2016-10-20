@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and    *
@@ -28,7 +30,7 @@ enum CurrencySignCount {
 
 class DecimalFormatSymbols;
 
-struct DecimalFormatPattern : UMemory {
+struct DecimalFormatPattern : public UMemory {
   enum EPadPosition {
       kPadBeforePrefix,
       kPadAfterPrefix,
@@ -71,7 +73,7 @@ struct DecimalFormatPattern : UMemory {
   EPadPosition fPadPosition;
 };
 
-class DecimalFormatPatternParser : UMemory {
+class DecimalFormatPatternParser : public UMemory {
   public:
     DecimalFormatPatternParser();
     void useSymbols(const DecimalFormatSymbols& symbols);

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -718,9 +720,13 @@ typedef enum UBiDiReorderingMode {
       * <code>UBIDI_REORDER_NUMBERS_SPECIAL</code> Bidi algorithm.
       * @stable ICU 3.6 */
     UBIDI_REORDER_INVERSE_FOR_NUMBERS_SPECIAL,
-    /** Number of values for reordering mode.
-      * @stable ICU 3.6 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * Number of values for reordering mode.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UBIDI_REORDER_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 } UBiDiReorderingMode;
 
 /**
@@ -1959,13 +1965,19 @@ U_STABLE int32_t U_EXPORT2
 ubidi_getResultLength(const UBiDi *pBiDi);
 
 U_CDECL_BEGIN
+
+#ifndef U_HIDE_DEPRECATED_API
 /**
- * value returned by <code>UBiDiClassCallback</code> callbacks when
+ * Value returned by <code>UBiDiClassCallback</code> callbacks when
  * there is no need to override the standard Bidi class for a given code point.
+ *
+ * This constant is deprecated; use u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1 instead.
+ *
  * @see UBiDiClassCallback
- * @stable ICU 3.6
+ * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
  */
 #define U_BIDI_CLASS_DEFAULT  U_CHAR_DIRECTION_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 
 /**
  * Callback type declaration for overriding default Bidi class values with
@@ -1981,8 +1993,8 @@ U_CDECL_BEGIN
  *
  * @return The directional property / Bidi class for the given code point
  *         <code>c</code> if the default class has been overridden, or
- *         <code>#U_BIDI_CLASS_DEFAULT</code> if the standard Bidi class value
- *         for <code>c</code> is to be used.
+ *         <code>#U_BIDI_CLASS_DEFAULT=u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1</code>
+ *         if the standard Bidi class value for <code>c</code> is to be used.
  * @see ubidi_setClassCallback
  * @see ubidi_getClassCallback
  * @stable ICU 3.6
@@ -1995,8 +2007,8 @@ U_CDECL_END
 /**
  * Retrieve the Bidi class for a given code point.
  * <p>If a <code>#UBiDiClassCallback</code> callback is defined and returns a
- * value other than <code>#U_BIDI_CLASS_DEFAULT</code>, that value is used;
- * otherwise the default class determination mechanism is invoked.</p>
+ * value other than <code>#U_BIDI_CLASS_DEFAULT=u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1</code>,
+ * that value is used; otherwise the default class determination mechanism is invoked.</p>
  *
  * @param pBiDi is the paragraph <code>UBiDi</code> object.
  *

@@ -1,6 +1,8 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
-* Copyright (C) 1999-2015, International Business Machines
+* Copyright (C) 1999-2016, International Business Machines
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  uresdata.h
@@ -379,7 +381,7 @@ enum {
 /*
  * Structure for a single, memory-mapped ResourceBundle.
  */
-typedef struct {
+typedef struct ResourceData {
     UDataMemory *data;
     const int32_t *pRoot;
     const uint16_t *p16BitUnits;
@@ -486,6 +488,14 @@ public:
     virtual uint32_t getUInt(UErrorCode &errorCode) const;
     virtual const int32_t *getIntVector(int32_t &length, UErrorCode &errorCode) const;
     virtual const uint8_t *getBinary(int32_t &length, UErrorCode &errorCode) const;
+    virtual ResourceArray getArray(UErrorCode &errorCode) const;
+    virtual ResourceTable getTable(UErrorCode &errorCode) const;
+    virtual UBool isNoInheritanceMarker() const;
+    virtual int32_t getStringArray(UnicodeString *dest, int32_t capacity,
+                                   UErrorCode &errorCode) const;
+    virtual int32_t getStringArrayOrStringAsArray(UnicodeString *dest, int32_t capacity,
+                                                  UErrorCode &errorCode) const;
+    virtual UnicodeString getStringOrFirstOfArray(UErrorCode &errorCode) const;
 
     const ResourceData *pResData;
 
@@ -494,24 +504,6 @@ private:
 };
 
 U_NAMESPACE_END
-
-/**
- * @param value will be set during enumeration; input contents is ignored
- * @param sink receives all table item key-value pairs
- */
-U_CFUNC void
-ures_getAllTableItems(const ResourceData *pResData, Resource table,
-                      icu::ResourceDataValue &value, icu::ResourceTableSink &sink,
-                      UErrorCode &errorCode);
-
-/**
- * @param value will be set during enumeration; input contents is ignored
- * @param sink receives all array item values
- */
-U_CFUNC void
-ures_getAllArrayItems(const ResourceData *pResData, Resource array,
-                      icu::ResourceDataValue &value, icu::ResourceArraySink &sink,
-                      UErrorCode &errorCode);
 
 #endif  /* __cplusplus */
 

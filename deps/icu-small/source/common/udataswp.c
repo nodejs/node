@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -298,7 +300,7 @@ udata_swapDataHeader(const UDataSwapper *ds,
 
     /* check minimum length and magic bytes */
     pHeader=(const DataHeader *)inData;
-    if( (length>=0 && length<sizeof(DataHeader)) ||
+    if( (length>=0 && length<(int32_t)sizeof(DataHeader)) ||
         pHeader->dataHeader.magic1!=0xda ||
         pHeader->dataHeader.magic2!=0x27 ||
         pHeader->info.sizeofUChar!=2
@@ -425,7 +427,7 @@ udata_openSwapperForInputData(const void *data, int32_t length,
         return NULL;
     }
     if( data==NULL ||
-        (length>=0 && length<sizeof(DataHeader)) ||
+        (length>=0 && length<(int32_t)sizeof(DataHeader)) ||
         outCharset>U_EBCDIC_FAMILY
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
