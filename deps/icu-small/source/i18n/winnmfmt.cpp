@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 2005-2016, International Business Machines
@@ -86,10 +88,10 @@ static void getNumberFormat(NUMBERFMTW *fmt, int32_t lcid)
     GetLocaleInfoA(lcid, LOCALE_SGROUPING, buf, 10);
     fmt->Grouping = getGrouping(buf);
 
-    fmt->lpDecimalSep = NEW_ARRAY(UChar, 6);
+    fmt->lpDecimalSep = NEW_ARRAY(wchar_t, 6);
     GetLocaleInfoW(lcid, LOCALE_SDECIMAL,  fmt->lpDecimalSep,  6);
 
-    fmt->lpThousandSep = NEW_ARRAY(UChar, 6);
+    fmt->lpThousandSep = NEW_ARRAY(wchar_t, 6);
     GetLocaleInfoW(lcid, LOCALE_STHOUSAND, fmt->lpThousandSep, 6);
 
     GetLocaleInfoW(lcid, LOCALE_RETURN_NUMBER|LOCALE_INEGNUMBER, (LPWSTR) &fmt->NegativeOrder, sizeof(UINT));
@@ -113,16 +115,16 @@ static void getCurrencyFormat(CURRENCYFMTW *fmt, int32_t lcid)
     GetLocaleInfoA(lcid, LOCALE_SMONGROUPING, buf, sizeof(buf));
     fmt->Grouping = getGrouping(buf);
 
-    fmt->lpDecimalSep = NEW_ARRAY(UChar, 6);
+    fmt->lpDecimalSep = NEW_ARRAY(wchar_t, 6);
     GetLocaleInfoW(lcid, LOCALE_SMONDECIMALSEP,  fmt->lpDecimalSep,  6);
 
-    fmt->lpThousandSep = NEW_ARRAY(UChar, 6);
+    fmt->lpThousandSep = NEW_ARRAY(wchar_t, 6);
     GetLocaleInfoW(lcid, LOCALE_SMONTHOUSANDSEP, fmt->lpThousandSep, 6);
 
     GetLocaleInfoW(lcid, LOCALE_RETURN_NUMBER|LOCALE_INEGCURR,  (LPWSTR) &fmt->NegativeOrder, sizeof(UINT));
     GetLocaleInfoW(lcid, LOCALE_RETURN_NUMBER|LOCALE_ICURRENCY, (LPWSTR) &fmt->PositiveOrder, sizeof(UINT));
 
-    fmt->lpCurrencySymbol = NEW_ARRAY(UChar, 8);
+    fmt->lpCurrencySymbol = NEW_ARRAY(wchar_t, 8);
     GetLocaleInfoW(lcid, LOCALE_SCURRENCY, (LPWSTR) fmt->lpCurrencySymbol, 8);
 }
 
@@ -290,8 +292,8 @@ UnicodeString &Win32NumberFormat::format(int32_t numDigits, UnicodeString &appen
         }
     }
 
-    UChar stackBuffer[STACK_BUFFER_SIZE];
-    UChar *buffer = stackBuffer;
+    wchar_t stackBuffer[STACK_BUFFER_SIZE];
+    wchar_t *buffer = stackBuffer;
     FormatInfo formatInfo;
 
     formatInfo = *fFormatInfo;
@@ -314,7 +316,7 @@ UnicodeString &Win32NumberFormat::format(int32_t numDigits, UnicodeString &appen
             if (lastError == ERROR_INSUFFICIENT_BUFFER) {
                 int newLength = GetCurrencyFormatW(fLCID, 0, nBuffer, &formatInfo.currency, NULL, 0);
 
-                buffer = NEW_ARRAY(UChar, newLength);
+                buffer = NEW_ARRAY(wchar_t, newLength);
                 buffer[0] = 0x0000;
                 GetCurrencyFormatW(fLCID, 0, nBuffer,  &formatInfo.currency, buffer, newLength);
             }
@@ -334,14 +336,14 @@ UnicodeString &Win32NumberFormat::format(int32_t numDigits, UnicodeString &appen
             if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
                 int newLength = GetNumberFormatW(fLCID, 0, nBuffer, &formatInfo.number, NULL, 0);
 
-                buffer = NEW_ARRAY(UChar, newLength);
+                buffer = NEW_ARRAY(wchar_t, newLength);
                 buffer[0] = 0x0000;
                 GetNumberFormatW(fLCID, 0, nBuffer, &formatInfo.number, buffer, newLength);
             }
         }
     }
 
-    appendTo.append(buffer, (int32_t) wcslen(buffer));
+    appendTo.append((UChar *)buffer, (int32_t) wcslen(buffer));
 
     if (buffer != stackBuffer) {
         DELETE_ARRAY(buffer);

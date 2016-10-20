@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -375,53 +377,55 @@
 typedef UBool U_CALLCONV
 UConverterEnumToUCallback(const void *context, uint32_t value, UChar32 codePoints[32]);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSLoad(UConverterSharedData *sharedData,
           UConverterLoadArgs *pArgs,
           const uint8_t *raw,
           UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSUnload(UConverterSharedData *sharedData);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSOpen(UConverter *cnv,
               UConverterLoadArgs *pArgs,
               UErrorCode *pErrorCode);
 
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetStarters(const UConverter* cnv,
                  UBool starters[256],
                  UErrorCode *pErrorCode);
 
-static const char *
+U_CDECL_BEGIN
+static const char* U_CALLCONV
 ucnv_MBCSGetName(const UConverter *cnv);
+U_CDECL_END
 
-static void
+static void U_CALLCONV
 ucnv_MBCSWriteSub(UConverterFromUnicodeArgs *pArgs,
               int32_t offsetIndex,
               UErrorCode *pErrorCode);
 
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetUnicodeSet(const UConverter *cnv,
                    const USetAdder *sa,
                    UConverterUnicodeSet which,
                    UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode);
@@ -502,7 +506,6 @@ static const UConverterImpl _MBCSImpl={
     NULL,
     NULL
 };
-
 
 /* Static data is in tools/makeconv/ucnvstat.c for data-based
  * converters. Be sure to update it as well.
@@ -1067,7 +1070,7 @@ ucnv_MBCSGetUnicodeSetForUnicode(const UConverterSharedData *sharedData,
         pErrorCode);
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetUnicodeSet(const UConverter *cnv,
                    const USetAdder *sa,
                    UConverterUnicodeSet which,
@@ -1547,7 +1550,7 @@ reconstituteData(UConverterMBCSTable *mbcsTable,
 
 /* MBCS setup functions ----------------------------------------------------- */
 
-static void
+static void U_CALLCONV
 ucnv_MBCSLoad(UConverterSharedData *sharedData,
           UConverterLoadArgs *pArgs,
           const uint8_t *raw,
@@ -1872,7 +1875,7 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
     }
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSUnload(UConverterSharedData *sharedData) {
     UConverterMBCSTable *mbcsTable=&sharedData->mbcs;
 
@@ -1890,7 +1893,7 @@ ucnv_MBCSUnload(UConverterSharedData *sharedData) {
     }
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSOpen(UConverter *cnv,
               UConverterLoadArgs *pArgs,
               UErrorCode *pErrorCode) {
@@ -1981,7 +1984,9 @@ ucnv_MBCSOpen(UConverter *cnv,
 #endif
 }
 
-static const char *
+U_CDECL_BEGIN
+
+static const char* U_CALLCONV
 ucnv_MBCSGetName(const UConverter *cnv) {
     if((cnv->options&UCNV_OPTION_SWAP_LFNL)!=0 && cnv->sharedData->mbcs.swapLFNLName!=NULL) {
         return cnv->sharedData->mbcs.swapLFNLName;
@@ -1989,10 +1994,12 @@ ucnv_MBCSGetName(const UConverter *cnv) {
         return cnv->sharedData->staticData->name;
     }
 }
+U_CDECL_END
+
 
 /* MBCS-to-Unicode conversion functions ------------------------------------- */
 
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetFallback(UConverterMBCSTable *mbcsTable, uint32_t offset) {
     const _MBCSToUFallback *toUFallbacks;
     uint32_t i, start, limit;
@@ -2955,7 +2962,7 @@ ucnv_MBCSSingleGetNextUChar(UConverterToUnicodeArgs *pArgs,
  *
  * All normal mappings and errors are handled here.
  */
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode) {
     UConverter *cnv;
@@ -5012,7 +5019,7 @@ utf8_minLegal[5]={ 0, 0, 0x80, 0x800, 0x10000 };
 static const UChar32
 utf8_offsets[7]={ 0, 0, 0x3080, 0xE2080, 0x3C82080 };
 
-static void
+static void U_CALLCONV
 ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode) {
@@ -5318,7 +5325,7 @@ moreBytes:
     pFromUArgs->target=(char *)target;
 }
 
-static void
+static void U_CALLCONV
 ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode) {
@@ -5630,7 +5637,7 @@ unassigned:
 
 /* miscellaneous ------------------------------------------------------------ */
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetStarters(const UConverter* cnv,
                  UBool starters[256],
                  UErrorCode *) {
@@ -5653,7 +5660,7 @@ ucnv_MBCSIsLeadByte(UConverterSharedData *sharedData, char byte) {
     return (UBool)MBCS_ENTRY_IS_TRANSITION(sharedData->mbcs.stateTable[0][(uint8_t)byte]);
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSWriteSub(UConverterFromUnicodeArgs *pArgs,
               int32_t offsetIndex,
               UErrorCode *pErrorCode) {

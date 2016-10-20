@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -469,7 +471,7 @@ umsg_vformat(   const UMessageFormat *fmt,
         }
     }
     UnicodeString resultStr;
-    FieldPosition fieldPosition(0);
+    FieldPosition fieldPosition(FieldPosition::DONT_CARE);
 
     /* format the message */
     ((const MessageFormat*)fmt)->format(args,count,resultStr,fieldPosition,*status);

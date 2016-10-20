@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -267,7 +269,7 @@ public:
      * @param source The value to be set.  The string must be nul-terminated.
      * @param fastpathBits special flags for fast parsing
      */
-    void set(const StringPiece &source, UErrorCode &status, uint32_t fastpathBits = 0);
+    void set(StringPiece source, UErrorCode &status, uint32_t fastpathBits = 0);
 
     /**
      * Multiply    this = this * arg
@@ -493,7 +495,8 @@ private:
     static inline void * U_EXPORT2 operator new(size_t size) U_NO_THROW { return ::operator new(size); };
     static inline void U_EXPORT2 operator delete(void *ptr )  U_NO_THROW { ::operator delete(ptr); };
 #endif
-    static char U_EXPORT2 getStrtodDecimalSeparator();
+
+    static double U_EXPORT2 decimalStrToDouble(char *decstr, char **end);
 
     /**
      * Placement new for stack usage

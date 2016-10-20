@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 2014-2016, International Business Machines Corporation and others.
@@ -210,7 +212,7 @@ private:
      * anything meaningful.
      */
 
-    static void loadRegionData(UErrorCode &status);
+    static void U_CALLCONV loadRegionData(UErrorCode &status);
 
 };
 

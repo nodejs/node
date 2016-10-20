@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
  * Corporation and others.  All Rights Reserved.
@@ -44,7 +46,8 @@ nextToken(const UChar *buffer, int32_t idx, int32_t len, UChar *token) {
     *token = buffer[idx + 1];
     if (buffer[idx + 1] == 0xA4) {
         int32_t i = 2;
-        for (; idx + i < len && i < 4 && buffer[idx + i] == buffer[idx + 1]; ++i);
+        for (; idx + i < len && i < 4 && buffer[idx + i] == buffer[idx + 1]; ++i)
+          ;
         return i;
     }
     return 2;
@@ -66,7 +69,8 @@ nextUserToken(const UChar *buffer, int32_t idx, int32_t len, UChar *token) {
         break;
     }
     int32_t i = 1;
-    for (; idx + i < len && i < max && buffer[idx + i] == buffer[idx]; ++i);
+    for (; idx + i < len && i < max && buffer[idx + i] == buffer[idx]; ++i)
+      ;
     return i;
 }
 

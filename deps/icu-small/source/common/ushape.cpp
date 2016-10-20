@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ******************************************************************************
  *
@@ -777,7 +779,7 @@ handleGeneratedSpaces(UChar *dest, int32_t sourceLength,
             count--;
         }
 
-        uprv_memcpy(dest, tempbuffer, sourceLength*U_SIZEOF_UCHAR);
+        u_memcpy(dest, tempbuffer, sourceLength);
         destSize = u_strlen(dest);
     }
 
@@ -835,7 +837,7 @@ handleGeneratedSpaces(UChar *dest, int32_t sourceLength,
                 tempbuffer[i] = SPACE_CHAR;
         }
 
-        uprv_memcpy(dest, tempbuffer, sourceLength*U_SIZEOF_UCHAR);
+        u_memcpy(dest, tempbuffer, sourceLength);
         destSize = sourceLength;
     }
 
@@ -877,7 +879,7 @@ handleGeneratedSpaces(UChar *dest, int32_t sourceLength,
             count--;
         }
 
-        uprv_memcpy(dest,tempbuffer, sourceLength*U_SIZEOF_UCHAR);
+        u_memcpy(dest, tempbuffer, sourceLength);
         destSize = sourceLength;
     }
 
@@ -941,7 +943,7 @@ expandCompositCharAtBegin(UChar *dest, int32_t sourceLength, int32_t destSize,UE
             i--;
             j--;
         }
-        uprv_memcpy(dest, tempbuffer, sourceLength*U_SIZEOF_UCHAR);
+        u_memcpy(dest, tempbuffer, sourceLength);
 
         uprv_free(tempbuffer);
 
@@ -1002,14 +1004,14 @@ expandCompositCharAtEnd(UChar *dest, int32_t sourceLength, int32_t destSize,UErr
     }
 
     if(countr > 0) {
-        uprv_memmove(tempbuffer, tempbuffer+countr, sourceLength*U_SIZEOF_UCHAR);
+        u_memmove(tempbuffer, tempbuffer+countr, sourceLength);
         if(u_strlen(tempbuffer) < sourceLength) {
             for(i=sourceLength-1;i>=sourceLength-countr;i--) {
                 tempbuffer[i] = SPACE_CHAR;
             }
         }
     }
-    uprv_memcpy(dest, tempbuffer, sourceLength*U_SIZEOF_UCHAR);
+    u_memcpy(dest, tempbuffer, sourceLength);
 
     uprv_free(tempbuffer);
 
@@ -1177,7 +1179,7 @@ expandCompositChar(UChar *dest, int32_t sourceLength,
                 j++;
             }
 
-            uprv_memcpy(dest, tempbuffer, destSize*U_SIZEOF_UCHAR);
+            u_memcpy(dest, tempbuffer, destSize);
         }
     }
 
@@ -1571,7 +1573,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
                 return 0;
             }
         }
-        uprv_memcpy(tempbuffer, source, sourceLength*U_SIZEOF_UCHAR);
+        u_memcpy(tempbuffer, source, sourceLength);
         if (tempsource != NULL){
             uprv_free(tempsource);
         }
@@ -1637,7 +1639,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
             countSpaces(tempbuffer,destLength,options,&spacesCountl,&spacesCountr);
             invertBuffer(tempbuffer,destLength,options,spacesCountl,spacesCountr);
         }
-        uprv_memcpy(dest, tempbuffer, uprv_min(destLength, destCapacity)*U_SIZEOF_UCHAR);
+        u_memcpy(dest, tempbuffer, uprv_min(destLength, destCapacity));
 
         if(tempbuffer!=buffer) {
             uprv_free(tempbuffer);
@@ -1659,7 +1661,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
             return sourceLength;
         }
-        uprv_memcpy(dest, source, sourceLength*U_SIZEOF_UCHAR);
+        u_memcpy(dest, source, sourceLength);
         destLength=sourceLength;
     }
 
