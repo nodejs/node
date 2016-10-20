@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2002-2014, International Business Machines Corporation
@@ -902,7 +904,7 @@ Transliterator* TransliteratorIDParser::createBasicInstance(const UnicodeString&
 /**
  * Initialize static memory. Called through umtx_initOnce only.
  */
-void TransliteratorIDParser::init(UErrorCode &status) {
+void U_CALLCONV TransliteratorIDParser::init(UErrorCode &status) {
     U_ASSERT(SPECIAL_INVERSES == NULL);
     ucln_i18n_registerCleanup(UCLN_I18N_TRANSLITERATOR, utrans_transliterator_cleanup);
 

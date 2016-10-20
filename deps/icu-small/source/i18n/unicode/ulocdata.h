@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *                                                                            *
@@ -47,8 +49,13 @@ typedef enum ULocaleDataExemplarSetType  {
     ULOCDATA_ES_INDEX=2,
     /** Punctuation set @stable ICU 51 */
     ULOCDATA_ES_PUNCTUATION=3,
-    /** One higher than the last valid type @stable ICU 3.4 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal ULocaleDataExemplarSetType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     ULOCDATA_ES_COUNT=4
+#endif  // U_HIDE_DEPRECATED_API
 } ULocaleDataExemplarSetType;
 
 /** The possible types of delimiters.
@@ -63,8 +70,13 @@ typedef enum ULocaleDataDelimiterType {
     ULOCDATA_ALT_QUOTATION_START = 2,
     /** Alternate quotation end @stable ICU 3.4 */
     ULOCDATA_ALT_QUOTATION_END = 3,
-    /** One higher than the last valid type @stable ICU 3.4 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal ULocaleDataDelimiterType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     ULOCDATA_DELIMITER_COUNT = 4
+#endif  // U_HIDE_DEPRECATED_API
 } ULocaleDataDelimiterType;
 
 /**
@@ -189,7 +201,13 @@ typedef enum UMeasurementSystem {
     UMS_SI,     /**< Measurement system specified by SI otherwise known as Metric system. @stable ICU 2.8 */
     UMS_US,     /**< Measurement system followed in the United States of America. @stable ICU 2.8 */
     UMS_UK,     /**< Mix of metric and imperial units used in Great Britain. @stable ICU 55 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal UMeasurementSystem value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UMS_LIMIT
+#endif  // U_HIDE_DEPRECATED_API
 } UMeasurementSystem;
 
 /**

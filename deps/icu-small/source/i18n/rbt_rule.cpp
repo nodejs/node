@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (C) 1999-2011, International Business Machines
@@ -174,7 +176,7 @@ TransliterationRule::TransliterationRule(TransliterationRule& other) :
     segmentsCount = 0;
     if (other.segmentsCount > 0) {
         segments = (UnicodeFunctor **)uprv_malloc(other.segmentsCount * sizeof(UnicodeFunctor *));
-        uprv_memcpy(segments, other.segments, other.segmentsCount*sizeof(segments[0]));
+        uprv_memcpy(segments, other.segments, (size_t)other.segmentsCount*sizeof(segments[0]));
     }
 
     if (other.anteContext != NULL) {

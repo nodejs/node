@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2002-2016, International Business Machines
@@ -117,7 +119,7 @@ U_NAMESPACE_BEGIN
 
 // EquivIterator iterates over all strings that are equivalent to a given
 // string, s. Note that EquivIterator will never yield s itself.
-class EquivIterator : icu::UMemory {
+class EquivIterator : public icu::UMemory {
 public:
     // Constructor. hash stores the equivalence relationships; s is the string
     // for which we find equivalent strings.
@@ -414,7 +416,7 @@ struct CReg : public icu::UMemory {
         }
         uprv_strncpy(id, _id, len);
         id[len] = 0;
-        uprv_memcpy(iso, _iso, ISO_CURRENCY_CODE_LENGTH * sizeof(const UChar));
+        u_memcpy(iso, _iso, ISO_CURRENCY_CODE_LENGTH);
         iso[ISO_CURRENCY_CODE_LENGTH] = 0;
     }
 
@@ -938,7 +940,7 @@ toUpperCase(const UChar* source, int32_t len, const char* locale) {
     dest = (UChar*)uprv_malloc(sizeof(UChar) * MAX(destLen, len));
     u_strToUpper(dest, destLen, source, len, locale, &ec);
     if (U_FAILURE(ec)) {
-        uprv_memcpy(dest, source, sizeof(UChar) * len);
+        u_memcpy(dest, source, len);
     }
     return dest;
 }
@@ -1023,7 +1025,8 @@ collectCurrencyNames(const char* locale,
             (*currencySymbols)[(*total_currency_symbol_count)++].currencyNameLen = len;
             // Add equivalent symbols
             if (currencySymbolsEquiv != NULL) {
-                icu::EquivIterator iter(*currencySymbolsEquiv, UnicodeString(TRUE, s, len));
+                UnicodeString str(TRUE, s, len);
+                icu::EquivIterator iter(*currencySymbolsEquiv, str);
                 const UnicodeString *symbol;
                 while ((symbol = iter.next()) != NULL) {
                     (*currencySymbols)[*total_currency_symbol_count].IsoCode = iso;
