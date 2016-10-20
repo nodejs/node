@@ -9,13 +9,13 @@
  *
  * The reason was that the value that represents the current time was not
  * updated between the time the original callback was called and the time
- * the added timer was processed by timers.listOnTimeout. That lead the
+ * the added timer was processed by timers.listOnTimeout. That led the
  * logic in timers.listOnTimeout to do an incorrect computation that made
  * the added timer fire with a timeout of scheduledTimeout +
  * timeSpentInCallback.
  *
  * This test makes sure that a timer added by another timer's callback
- * fire with the expected timeout.
+ * fires with the expected timeout.
  *
  * It makes sure that it works when the timers list for a given timeout is
  * empty (see testAddingTimerToEmptyTimersList) and when the timers list
@@ -44,12 +44,11 @@ function blockingCallback(callback) {
   if (nbBlockingCallbackCalls > 1) {
     latestDelay = Timer.now() - timeCallbackScheduled;
     // Even if timers can fire later than when they've been scheduled
-    // to fire, they should more than 50% later with a timeout of
-    // 100ms. Firing later than that would mean that we hit the regression
-    // highlighted in
+    // to fire, they shouldn't generally be more than 100% late in this case.
+    // But they are guaranteed to be at least 100ms late given the bug in
     // https://github.com/nodejs/node-v0.x-archive/issues/15447 and
     // https://github.com/nodejs/node-v0.x-archive/issues/9333..
-    assert(latestDelay < TIMEOUT * 1.5);
+    assert(latestDelay < TIMEOUT * 2);
     if (callback)
       return callback();
   } else {
