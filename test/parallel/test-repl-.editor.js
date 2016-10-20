@@ -8,6 +8,7 @@ const repl = require('repl');
 // \u001b[0J - Clear screen
 // \u001b[3G - Moves the cursor to 3rd column
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
+const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
 function run({input, output, event, checkTerminalCodes = true}) {
   const stream = new common.ArrayStream();
@@ -33,13 +34,8 @@ function run({input, output, event, checkTerminalCodes = true}) {
   replServer.close();
 
   if (!checkTerminalCodes) {
-    while (found.includes(terminalCode))
-      found = found.replace(terminalCode, '');
-    while (expected.includes(terminalCode))
-      expected = expected.replace(terminalCode, '');
-
-    found = found.replace(/\n/g, '');
-    expected = expected.replace(/\n/g, '');
+    found = found.replace(terminalCodeRegex, '').replace(/\n/g, '');
+    expected = expected.replace(terminalCodeRegex, '').replace(/\n/g, '');
   }
 
   assert.strictEqual(found, expected);
