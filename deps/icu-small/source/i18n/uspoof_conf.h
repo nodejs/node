@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -36,9 +38,9 @@ U_NAMESPACE_BEGIN
 
 struct SPUString : public UMemory {
     UnicodeString  *fStr;             // The actual string.
-    int32_t         fStrTableIndex;   // Index into the final runtime data for this string.
-                                      //  (or, for length 1, the single string char itself,
-                                      //   there being no string table entry for it.)
+    int32_t         fCharOrStrTableIndex;   // Index into the final runtime data for this
+                                      // string (or, for length 1, the single string char
+                                      // itself, there being no string table entry for it.)
     SPUString(UnicodeString *s);
     ~SPUString();
 };
@@ -86,10 +88,7 @@ class ConfusabledataBuilder : public UMemory {
   private:
     SpoofImpl  *fSpoofImpl;
     UChar      *fInput;
-    UHashtable *fSLTable;
-    UHashtable *fSATable;
-    UHashtable *fMLTable;
-    UHashtable *fMATable;
+    UHashtable *fTable;
     UnicodeSet *fKeySet;     // A set of all keys (UChar32s) that go into the four mapping tables.
 
     // The binary data is first assembled into the following four collections, then
@@ -97,7 +96,6 @@ class ConfusabledataBuilder : public UMemory {
     UVector            *fKeyVec;
     UVector            *fValueVec;
     UnicodeString      *fStringTable;
-    UVector            *fStringLengthsTable;
 
     SPUStringPool      *stringPool;
     URegularExpression *fParseLine;

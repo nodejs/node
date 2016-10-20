@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  file:  regexcmp.cpp
 //
@@ -2603,7 +2605,11 @@ void  RegexCompile::findCaseInsensitiveStarters(UChar32 c, UnicodeSet *starterCh
 
 // End of machine generated data.
 
-    if (u_hasBinaryProperty(c, UCHAR_CASE_SENSITIVE)) {
+    if (c < UCHAR_MIN_VALUE || c > UCHAR_MAX_VALUE) {
+        // This function should never be called with an invalid input character.
+        U_ASSERT(FALSE);
+        starterChars->clear();
+    } else if (u_hasBinaryProperty(c, UCHAR_CASE_SENSITIVE)) {
         UChar32 caseFoldedC  = u_foldCase(c, U_FOLD_CASE_DEFAULT);
         starterChars->set(caseFoldedC, caseFoldedC);
 

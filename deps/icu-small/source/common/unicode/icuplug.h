@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -157,7 +159,11 @@ typedef enum {
     UPLUG_REASON_QUERY = 0,     /**< The plugin is being queried for info. **/
     UPLUG_REASON_LOAD = 1,     /**< The plugin is being loaded. **/
     UPLUG_REASON_UNLOAD = 2,   /**< The plugin is being unloaded. **/
-    UPLUG_REASON_COUNT         /**< count of known reasons **/
+    /**
+     * Number of known reasons.
+     * @internal The numeric value may change over time, see ICU ticket #12420.
+     */
+    UPLUG_REASON_COUNT
 } UPlugReason;
 
 
@@ -173,7 +179,11 @@ typedef enum {
     UPLUG_LEVEL_UNKNOWN = 1,     /**< The plugin is waiting to be installed. **/
     UPLUG_LEVEL_LOW     = 2,     /**< The plugin must be called before u_init completes **/
     UPLUG_LEVEL_HIGH    = 3,     /**< The plugin can run at any time. **/
-    UPLUG_LEVEL_COUNT         /**< count of known reasons **/
+    /**
+     * Number of known levels.
+     * @internal The numeric value may change over time, see ICU ticket #12420.
+     */
+    UPLUG_LEVEL_COUNT
 } UPlugLevel;
 
 /**

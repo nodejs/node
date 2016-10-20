@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  * Copyright (c) 2003-2008, International Business Machines
@@ -290,71 +292,6 @@ inline int32_t Grego::gregorianShift(int32_t eyear) {
   int32_t gregShift = ClockMath::floorDivide(y, 400) - ClockMath::floorDivide(y, 100) + 2;
   return gregShift;
 }
-
-/**
- * This utility class provides convenient access to the data needed for a calendar.
- * @internal ICU 3.0
- */
-class CalendarData : public UMemory {
-public:
-    /**
-     * Construct a CalendarData from the given locale.
-     * @param loc locale to use. The 'calendar' keyword will be ignored.
-     * @param type calendar type. NULL indicates the gregorian calendar.
-     * No default lookup is done.
-     * @param status error code
-     */
-    CalendarData(const Locale& loc, const char *type, UErrorCode& status);
-
-    /**
-     * Load data for calendar. Note, this object owns the resources, do NOT call ures_close()!
-     * The ResourceBundle C++ API should NOT be used because it is too slow for a low level API.
-     *
-     * @param key Resource key to data
-     * @param status Error Status
-     * @internal
-     */
-    UResourceBundle* getByKey(const char *key, UErrorCode& status);
-
-    /**
-     * Load data for calendar. Note, this object owns the resources, do NOT call ures_close()!
-     * There is an implicit key of 'format'
-     * data is located in:   "calendar/key/format/subKey"
-     * for example,  calendar/dayNames/format/abbreviated
-     * The ResourceBundle C++ API should NOT be used because it is too slow for a low level API.
-     *
-     * @param key Resource key to data
-     * @param subKey Resource key to data
-     * @param status Error Status
-     * @internal
-     */
-    UResourceBundle* getByKey2(const char *key, const char *subKey, UErrorCode& status);
-
-    /**
-     * Load data for calendar. Note, this object owns the resources, do NOT call ures_close()!
-     * data is located in:   "calendar/key/contextKey/subKey"
-     * for example,  calendar/dayNames/standalone/narrow
-     * The ResourceBundle C++ API should NOT be used because it is too slow for a low level API.
-     *
-     * @param key Resource key to data
-     * @param contextKey Resource key to data
-     * @param subKey Resource key to data
-     * @param status Error Status
-     * @internal
-     */
-    UResourceBundle* getByKey3(const char *key, const char *contextKey, const char *subKey, UErrorCode& status);
-
-    ~CalendarData();
-
-private:
-    void initData(const char *locale, const char *type, UErrorCode& status);
-
-    UResourceBundle *fFillin;
-    UResourceBundle *fOtherFillin;
-    UResourceBundle *fBundle;
-    UResourceBundle *fFallback;
-    CalendarData(); // Not implemented.
-};
 
 U_NAMESPACE_END
 

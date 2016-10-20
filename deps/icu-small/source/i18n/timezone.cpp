@@ -1,6 +1,8 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
-* Copyright (C) 1997-2015, International Business Machines Corporation and
+* Copyright (C) 1997-2016, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 *
@@ -457,6 +459,8 @@ TimeZone::detectHostTimeZone()
     // on the string ID in tzname[0].
 
     uprv_tzset(); // Initialize tz... system data
+
+    uprv_tzname_clear_cache();
 
     // Get the timezone ID from the host.  This function should do
     // any required host-specific remapping; e.g., on Windows this
