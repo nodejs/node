@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2011, International Business Machines
@@ -85,7 +87,7 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
         offsets.start = offsets.limit;
         return;
     }
-
+    
     int32_t cursor = offsets.start;
     int32_t limit = offsets.limit;
 

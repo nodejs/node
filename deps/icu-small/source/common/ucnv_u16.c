@@ -1,4 +1,6 @@
-/*
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -195,7 +197,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     } else {
         length=0; /* from here on, length counts the bytes in overflow[] */
     }
-
+    
     if(c!=0) {
         /*
          * c is a surrogate, and
@@ -563,7 +565,7 @@ _UTF16BEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
 
     pArgs->source=(const char *)s;
     return c;
-}
+} 
 
 static void
 _UTF16BEReset(UConverter *cnv, UConverterResetChoice choice) {
@@ -621,7 +623,10 @@ static const UConverterImpl _UTF16BEImpl={
     _UTF16BEGetName,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 static const UConverterStaticData _UTF16BEStaticData={
@@ -791,7 +796,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     } else {
         length=0; /* from here on, length counts the bytes in overflow[] */
     }
-
+    
     if(c!=0) {
         /*
          * c is a surrogate, and
@@ -1159,7 +1164,7 @@ _UTF16LEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
 
     pArgs->source=(const char *)s;
     return c;
-}
+} 
 
 static void
 _UTF16LEReset(UConverter *cnv, UConverterResetChoice choice) {
@@ -1217,7 +1222,10 @@ static const UConverterImpl _UTF16LEImpl={
     _UTF16LEGetName,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 
@@ -1486,7 +1494,10 @@ static const UConverterImpl _UTF16Impl = {
     _UTF16GetName,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 static const UConverterStaticData _UTF16StaticData = {
@@ -1528,7 +1539,10 @@ static const UConverterImpl _UTF16v2Impl = {
     _UTF16GetName,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 static const UConverterStaticData _UTF16v2StaticData = {

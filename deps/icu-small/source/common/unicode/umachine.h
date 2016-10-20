@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -49,6 +51,29 @@
  */
 #include <stddef.h>
 
+#ifndef U_HIDE_INTERNAL_API
+/*
+ *  U_USE_CHAR16_T
+ *     When defined, force use of char16_t for UChar.
+ *     Note: char16_t is expected to become the default and required in the future,
+ *           and this option will be removed.
+ *     @internal
+ */
+#ifdef U_USE_CHAR16_T
+#ifdef UCHAR_TYPE
+#undef UCHAR_TYPE
+#endif
+#define UCHAR_TYPE char16_t
+
+/*
+ * In plain C, <uchar.h> is needed for the definition of char16_t
+ */
+#ifndef __cplusplus
+#include <uchar.h>
+#endif
+#endif
+#endif  /* U_HIDE_INTERNAL_API */
+
 /*==========================================================================*/
 /* For C wrappers, we use the symbol U_STABLE.                                */
 /* This works properly if the includer is C or C++.                         */
@@ -93,7 +118,7 @@
 #    define U_ATTRIBUTE_DEPRECATED __attribute__ ((deprecated))
 /**
  * \def U_ATTRIBUTE_DEPRECATED
- * This is used for Visual C++ specific attributes
+ * This is used for Visual C++ specific attributes 
  * @internal
  */
 #elif defined(_MSC_VER) && (_MSC_VER >= 1400)
@@ -335,7 +360,7 @@ typedef int32_t UChar32;
  * This value is intended for sentinel values for APIs that
  * (take or) return single code points (UChar32).
  * It is outside of the Unicode code point range 0..0x10ffff.
- *
+ * 
  * For example, a "done" or "error" value in a new API
  * could be indicated with U_SENTINEL.
  *

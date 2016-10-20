@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 1999-2015, International Business Machines Corporation and
@@ -18,7 +20,7 @@ U_NAMESPACE_BEGIN
  * or a pointer.  If a hint bit is zero, then the associated
  * token is assumed to be an integer. This is needed for iSeries
  */
-
+ 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(UVector64)
 
 UVector64::UVector64(UErrorCode &status) :
@@ -169,7 +171,7 @@ void UVector64::setMaxCapacity(int32_t limit) {
         // Current capacity is within the new limit.
         return;
     }
-
+    
     // New maximum capacity is smaller than the current size.
     // Realloc the storage to the new, smaller size.
     int64_t* newElems = (int64_t *)uprv_realloc(elements, sizeof(int64_t)*maxCapacity);
@@ -204,8 +206,9 @@ void UVector64::setSize(int32_t newSize) {
         for (i=count; i<newSize; ++i) {
             elements[i] = 0;
         }
-    }
+    } 
     count = newSize;
 }
 
 U_NAMESPACE_END
+

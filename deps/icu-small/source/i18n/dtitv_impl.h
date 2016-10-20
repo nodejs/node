@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2016, International Business Machines Corporation and
@@ -17,7 +19,7 @@
  * \file
  * \brief C++ API: Defines macros for interval format implementation
  */
-
+ 
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/unistr.h"
@@ -91,5 +93,5 @@
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif
+#endif 
 //eof

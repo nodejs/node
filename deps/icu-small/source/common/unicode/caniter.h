@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 1996-2014, International Business Machines Corporation and
@@ -19,7 +21,7 @@
  * \file
  * \brief C++ API: Canonical Iterator
  */
-
+ 
 /** Should permutation skip characters with combining class zero
  *  Should be either TRUE or FALSE. This is a compile time option
  *  @stable ICU 2.4

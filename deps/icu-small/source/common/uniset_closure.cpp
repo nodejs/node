@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -56,7 +58,7 @@ UnicodeSet::UnicodeSet(const UnicodeString& pattern,
         list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
         /* test for NULL */
         if(list == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
+            status = U_MEMORY_ALLOCATION_ERROR;  
         }else{
             allocateStrings(status);
             applyPattern(pattern, options, symbols, status);
@@ -77,7 +79,7 @@ UnicodeSet::UnicodeSet(const UnicodeString& pattern, ParsePosition& pos,
         list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
         /* test for NULL */
         if(list == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
+            status = U_MEMORY_ALLOCATION_ERROR;   
         }else{
             allocateStrings(status);
             applyPattern(pattern, pos, options, symbols, status);

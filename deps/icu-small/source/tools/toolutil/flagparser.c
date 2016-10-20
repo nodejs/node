@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /******************************************************************************
  *   Copyright (C) 2009-2015, International Business Machines
  *   Corporation and others.  All Rights Reserved.
@@ -32,7 +34,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
         *status = U_FILE_ACCESS_ERROR;
         goto parseFlagsFile_cleanup;
     }
-
+    
     buffer = uprv_malloc(sizeof(char) * currentBufferSize);
     tmpFlagBuffer = uprv_malloc(sizeof(char) * flagBufferSize);
 
@@ -61,7 +63,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
                 continue;
             }
 
-            if (uprv_strlen(buffer) == (currentBufferSize - 1) && buffer[currentBufferSize-2] != '\n') {
+            if ((int32_t)uprv_strlen(buffer) == (currentBufferSize - 1) && buffer[currentBufferSize-2] != '\n') {
                 /* Allocate more space for buffer if it didnot read the entrire line */
                 allocateMoreSpace = TRUE;
                 T_FileStream_rewind(f);
@@ -96,7 +98,7 @@ parseFlagsFile_cleanup:
     uprv_free(buffer);
 
     T_FileStream_close(f);
-
+    
     if (U_FAILURE(*status) && *status != U_BUFFER_OVERFLOW_ERROR) {
         return -1;
     }

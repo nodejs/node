@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (C) 1996-2016, International Business Machines
@@ -18,7 +20,7 @@
  *
  *  Date        Name        Description
  *  3/11/97     aliu        Fixed off-by-one bug in assignment operator. Added
- *                          setId() method and safety check against
+ *                          setId() method and safety check against 
  *                          MAX_ID_LENGTH.
  * 04/23/99     stephen     Added C wrapper for convertToPosix.
  * 09/18/00     george      Removed the memory leaks.
@@ -213,11 +215,8 @@ ILCID_POSIX_ELEMENT_ARRAY(0x045c, chr,chr_US)
 
 ILCID_POSIX_SUBTABLE(ckb) {
     {0x92,   "ckb"},
-    {0x92,   "ku"},
     {0x7c92, "ckb_Arab"},
-    {0x7c92, "ku_Arab"},
-    {0x0492, "ckb_Arab_IQ"},
-    {0x0492, "ku_Arab_IQ"}
+    {0x0492, "ckb_Arab_IQ"}
 };
 
 /* Declared as cs_CZ to get around compiler errors on z/OS, which defines cs as a function */
@@ -1019,33 +1018,40 @@ uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UEr
     const char *pPosixID = NULL;
 
 #ifdef USE_WINDOWS_LOCALE_API
-    int32_t tmpLen = 0;
-    char locName[157];  /* ULOC_FULLNAME_CAPACITY */
+    // Note: Windows primary lang ID 0x92 in LCID is used for Central Kurdish and
+    // GetLocaleInfo() maps such LCID to "ku". However, CLDR uses "ku" for
+    // Northern Kurdish and "ckb" for Central Kurdish. For this reason, we cannot
+    // use the Windows API to resolve locale ID for this specific case.
+    if (hostid & 0x3FF != 0x92) {
+        int32_t tmpLen = 0;
+        char locName[157];  /* ULOC_FULLNAME_CAPACITY */
 
-    tmpLen = GetLocaleInfoA(hostid, LOCALE_SNAME, (LPSTR)locName, UPRV_LENGTHOF(locName));
-    if (tmpLen > 1) {
-        /* Windows locale name may contain sorting variant, such as "es-ES_tradnl".
-           In such case, we need special mapping data found in the hardcoded table
-           in this source file. */
-        char *p = uprv_strchr(locName, '_');
-        if (p) {
-            /* Keep the base locale, without variant */
-            *p = 0;
-            tmpLen = uprv_strlen(locName);
-        } else {
-            /* No hardcoded table lookup necessary */
-            bLookup = FALSE;
-        }
-        /* Change the tag separator from '-' to '_' */
-        p = locName;
-        while (*p) {
-            if (*p == '-') {
-                *p = '_';
+        tmpLen = GetLocaleInfoA(hostid, LOCALE_SNAME, (LPSTR)locName, UPRV_LENGTHOF(locName));
+        if (tmpLen > 1) {
+            /* Windows locale name may contain sorting variant, such as "es-ES_tradnl".
+            In such case, we need special mapping data found in the hardcoded table
+            in this source file. */
+            char *p = uprv_strchr(locName, '_');
+            if (p) {
+                /* Keep the base locale, without variant */
+                *p = 0;
+                tmpLen = uprv_strlen(locName);
             }
-            p++;
+            else {
+                /* No hardcoded table lookup necessary */
+                bLookup = FALSE;
+            }
+            /* Change the tag separator from '-' to '_' */
+            p = locName;
+            while (*p) {
+                if (*p == '-') {
+                    *p = '_';
+                }
+                p++;
+            }
+            FIX_LANGUAGE_ID_TAG(locName, tmpLen);
+            pPosixID = locName;
         }
-        FIX_LANGUAGE_ID_TAG(locName, tmpLen);
-        pPosixID = locName;
     }
 #endif
     if (bLookup) {
@@ -1126,7 +1132,7 @@ uprv_convertToLCID(const char *langID, const char* posixID, UErrorCode* status)
 
         mid = (high+low) >> 1; /*Finds median*/
 
-        if (mid == oldmid)
+        if (mid == oldmid) 
             break;
 
         compVal = uprv_strcmp(langID, gPosixIDmap[mid].regionMaps->posixID);
@@ -1166,3 +1172,4 @@ uprv_convertToLCID(const char *langID, const char* posixID, UErrorCode* status)
     *status = U_ILLEGAL_ARGUMENT_ERROR;
     return 0;   /* return international (root) */
 }
+

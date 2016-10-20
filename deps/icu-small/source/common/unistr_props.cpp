@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -23,7 +25,7 @@
 
 U_NAMESPACE_BEGIN
 
-UnicodeString&
+UnicodeString& 
 UnicodeString::trim()
 {
   if(isBogus()) {

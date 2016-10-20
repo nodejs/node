@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -79,7 +81,7 @@ ucnv_open (const char *name,
     return r;
 }
 
-U_CAPI UConverter* U_EXPORT2
+U_CAPI UConverter* U_EXPORT2 
 ucnv_openPackage   (const char *packageName, const char *converterName, UErrorCode * err)
 {
     return ucnv_createConverterFromPackage(packageName, converterName,  err);
@@ -146,7 +148,7 @@ ucnv_openCCSID (int32_t codepage,
     return ucnv_createConverter(NULL, myName, err);
 }
 
-/* Creating a temporary stack-based object that can be used in one thread,
+/* Creating a temporary stack-based object that can be used in one thread, 
 and created from a converter that is shared across threads.
 */
 
@@ -238,7 +240,7 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
     }
 
     stackBuffer = (void *)stackBufferChars;
-
+    
     /* Now, see if we must allocate any memory */
     if (stackBufferSize < bufferSizeNeeded || stackBuffer == NULL)
     {
@@ -446,7 +448,7 @@ ucnv_setSubstChars (UConverter * converter,
 {
     if (U_FAILURE (*err))
         return;
-
+    
     /*Makes sure that the subChar is within the codepages char length boundaries */
     if ((len > converter->sharedData->staticData->maxBytesPerChar)
      || (len < converter->sharedData->staticData->minBytesPerChar))
@@ -454,7 +456,7 @@ ucnv_setSubstChars (UConverter * converter,
         *err = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-
+    
     uprv_memcpy (converter->subChars, mySubChar, len); /*copies the subchars */
     converter->subCharLen = len;  /*sets the new len */
 
@@ -464,7 +466,7 @@ ucnv_setSubstChars (UConverter * converter,
     * we set subChar1 to 0.
     */
     converter->subChar1 = 0;
-
+    
     return;
 }
 
@@ -655,7 +657,7 @@ ucnv_getMinCharSize (const UConverter * converter)
 
 U_CAPI const char*   U_EXPORT2
 ucnv_getName (const UConverter * converter, UErrorCode * err)
-
+     
 {
     if (U_FAILURE (*err))
         return NULL;
@@ -1061,7 +1063,7 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
 
                         length=(int32_t)(pArgs->sourceLimit-pArgs->source);
                         if(length>0) {
-                            uprv_memcpy(cnv->preFromU, pArgs->source, length*U_SIZEOF_UCHAR);
+                            u_memcpy(cnv->preFromU, pArgs->source, length);
                             cnv->preFromULength=(int8_t)-length;
                         }
 
@@ -1224,7 +1226,7 @@ ucnv_fromUnicode(UConverter *cnv,
         *err=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-
+    
     /* output the target overflow buffer */
     if( cnv->charErrorBufferLength>0 &&
         ucnv_outputOverflowFromUnicode(cnv, target, targetLimit, &offsets, err)
@@ -1670,7 +1672,7 @@ ucnv_toUnicode(UConverter *cnv,
         *err=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-
+    
     /* output the target overflow buffer */
     if( cnv->UCharErrorBufferLength>0 &&
         ucnv_outputOverflowToUnicode(cnv, target, targetLimit, &offsets, err)
@@ -2089,7 +2091,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-
+    
     if(pivotStart==NULL) {
         if(!flush) {
             /* streaming conversion requires an explicit pivot buffer */
@@ -2338,7 +2340,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
                 break;
             }
         }
-
+        
         /*
          * toUnicode(source -> pivot);
          *
@@ -2615,7 +2617,7 @@ ucnv_getType(const UConverter* converter)
 }
 
 U_CAPI void  U_EXPORT2
-ucnv_getStarters(const UConverter* converter,
+ucnv_getStarters(const UConverter* converter, 
                  UBool starters[256],
                  UErrorCode* err)
 {
@@ -2658,8 +2660,8 @@ static const UAmbiguousConverter *ucnv_getAmbiguous(const UConverter *cnv)
 }
 
 U_CAPI void  U_EXPORT2
-ucnv_fixFileSeparator(const UConverter *cnv,
-                      UChar* source,
+ucnv_fixFileSeparator(const UConverter *cnv, 
+                      UChar* source, 
                       int32_t sourceLength) {
     const UAmbiguousConverter *a;
     int32_t i;
@@ -2743,7 +2745,7 @@ ucnv_getInvalidUChars (const UConverter * converter,
     }
     if ((*len = converter->invalidUCharLength) > 0)
     {
-        uprv_memcpy (errChars, converter->invalidUCharBuffer, sizeof(UChar) * (*len));
+        u_memcpy (errChars, converter->invalidUCharBuffer, *len);
     }
 }
 
@@ -2757,7 +2759,7 @@ ucnv_detectUnicodeSignature( const char* source,
     int32_t dummy;
 
     /* initial 0xa5 bytes: make sure that if we read <SIG_MAX_LEN
-     * bytes we don't misdetect something
+     * bytes we don't misdetect something 
      */
     char start[SIG_MAX_LEN]={ '\xa5', '\xa5', '\xa5', '\xa5', '\xa5' };
     int i = 0;
@@ -2765,7 +2767,7 @@ ucnv_detectUnicodeSignature( const char* source,
     if((pErrorCode==NULL) || U_FAILURE(*pErrorCode)){
         return NULL;
     }
-
+    
     if(source == NULL || sourceLength < -1){
         *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return NULL;
@@ -2779,7 +2781,7 @@ ucnv_detectUnicodeSignature( const char* source,
         sourceLength=(int32_t)uprv_strlen(source);
     }
 
-
+    
     while(i<sourceLength&& i<SIG_MAX_LEN){
         start[i]=source[i];
         i++;
@@ -2799,7 +2801,7 @@ ucnv_detectUnicodeSignature( const char* source,
     } else if(start[0] == '\xEF' && start[1] == '\xBB' && start[2] == '\xBF') {
         *signatureLength=3;
         return  "UTF-8";
-    } else if(start[0] == '\x00' && start[1] == '\x00' &&
+    } else if(start[0] == '\x00' && start[1] == '\x00' && 
               start[2] == '\xFE' && start[3]=='\xFF') {
         *signatureLength=4;
         return  "UTF-32BE";
@@ -2856,7 +2858,7 @@ ucnv_fromUCountPending(const UConverter* cnv, UErrorCode* status)
     }else if(cnv->fromUChar32 > 0){
         return 1;
     }
-    return 0;
+    return 0; 
 
 }
 

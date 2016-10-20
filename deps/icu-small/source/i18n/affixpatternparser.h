@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2015, International Business Machines
@@ -29,7 +31,7 @@ class DecimalFormatSymbols;
 /**
  * A representation of the various forms of a particular currency according
  * to some locale and usage context.
- *
+ * 
  * Includes the symbol, ISO code form, and long form(s) of the currency name
  * for each plural variation.
  */
@@ -64,7 +66,7 @@ public:
      * Intializes this instance.
      *
      * @param locale the locale for the currency forms.
-     * @param rules The plural rules for the locale.
+     * @param rules The plural rules for the locale. 
      * @param currency the null terminated, 3 character ISO code of the
      * currency. If NULL, resets this instance as if it were just created.
      * In this case, the first 2 parameters may be NULL as well.
@@ -149,7 +151,7 @@ public:
 
     /**
      * Adds a token to this affix pattern. t must not be kLiteral as
-     * the addLiteral() method adds literals.
+     * the addLiteral() method adds literals. 
      * @param t the token type to add
      */
     void add(ETokenType t);
@@ -324,7 +326,7 @@ public:
      * Advances this iterator to the next token. Returns FALSE when there
      * are no more tokens. Calling the other methods after nextToken()
      * returns FALSE results in undefined behavior.
-     */
+     */ 
     UBool nextToken();
 
     /**

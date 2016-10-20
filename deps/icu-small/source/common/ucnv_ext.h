@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -246,7 +248,7 @@
  *           the result bytes in fromUBytes[]; (0 indexes fromUBytes[0])
  *       }
  *     }
- *
+ *       
  *   The first pair in a section contains the number of following pairs in the
  *   UChar position (16 bits, number=1..0xffff).
  *   The value of the initial pair is used when the current UChar is not found

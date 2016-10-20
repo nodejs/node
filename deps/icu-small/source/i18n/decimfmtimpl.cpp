@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
  * Corporation and others.  All Rights Reserved.
@@ -219,31 +221,31 @@ DecimalFormatImpl::prepareValueFormatter(ValueFormatter &vf) const {
 
 int32_t
 DecimalFormatImpl::getPatternScale() const {
-    UBool usesPercent = fPositivePrefixPattern.usesPercent() ||
-            fPositiveSuffixPattern.usesPercent() ||
-            fNegativePrefixPattern.usesPercent() ||
+    UBool usesPercent = fPositivePrefixPattern.usesPercent() || 
+            fPositiveSuffixPattern.usesPercent() || 
+            fNegativePrefixPattern.usesPercent() || 
             fNegativeSuffixPattern.usesPercent();
     if (usesPercent) {
         return 2;
     }
-    UBool usesPermill = fPositivePrefixPattern.usesPermill() ||
-            fPositiveSuffixPattern.usesPermill() ||
-            fNegativePrefixPattern.usesPermill() ||
+    UBool usesPermill = fPositivePrefixPattern.usesPermill() || 
+            fPositiveSuffixPattern.usesPermill() || 
+            fNegativePrefixPattern.usesPermill() || 
             fNegativeSuffixPattern.usesPermill();
     if (usesPermill) {
         return 3;
     }
     return 0;
 }
-
+    
 void
 DecimalFormatImpl::setMultiplierScale(int32_t scale) {
     if (scale == 0) {
         // Needed to preserve equality. fMultiplier == 0 means
         // multiplier is 1.
-        fMultiplier.set(0);
+        fMultiplier.set((int32_t)0);
     } else {
-        fMultiplier.set(1);
+        fMultiplier.set((int32_t)1);
         fMultiplier.shiftDecimalRight(scale);
     }
 }
@@ -425,7 +427,7 @@ DecimalFormatImpl::format(
 
 UnicodeString &
 DecimalFormatImpl::format(
-        const StringPiece &number,
+        StringPiece number,
         UnicodeString &appendTo,
         FieldPositionIterator *posIter,
         UErrorCode &status) const {
@@ -628,7 +630,7 @@ DecimalFormatImpl::setMinimumSignificantDigits(int32_t newValue) {
     fUseSigDigits = TRUE; // ticket 9936
     updatePrecision();
 }
-
+        
 void
 DecimalFormatImpl::setMaximumSignificantDigits(int32_t newValue) {
     fMaxSigDigits = newValue;
@@ -649,13 +651,13 @@ DecimalFormatImpl::setScientificNotation(UBool newValue) {
     fUseScientific = newValue;
     updatePrecision();
 }
-
+        
 void
 DecimalFormatImpl::setSignificantDigitsUsed(UBool newValue) {
     fUseSigDigits = newValue;
     updatePrecision();
 }
-
+        
 void
 DecimalFormatImpl::setGroupingSize(int32_t newValue) {
     fGrouping.fGrouping = newValue;
@@ -706,7 +708,7 @@ DecimalFormatImpl::getMultiplier() const {
 void
 DecimalFormatImpl::setMultiplier(int32_t m) {
     if (m == 0 || m == 1) {
-        fMultiplier.set(0);
+        fMultiplier.set((int32_t)0);
     } else {
         fMultiplier.set(m);
     }
@@ -870,16 +872,16 @@ DecimalFormatImpl::applyPattern(
     switch (out.fPadPosition) {
     case DecimalFormatPattern::kPadBeforePrefix:
         fAffixes.fPadPosition = DigitAffixesAndPadding::kPadBeforePrefix;
-        break;
+        break;    
     case DecimalFormatPattern::kPadAfterPrefix:
         fAffixes.fPadPosition = DigitAffixesAndPadding::kPadAfterPrefix;
-        break;
+        break;    
     case DecimalFormatPattern::kPadBeforeSuffix:
         fAffixes.fPadPosition = DigitAffixesAndPadding::kPadBeforeSuffix;
-        break;
+        break;    
     case DecimalFormatPattern::kPadAfterSuffix:
         fAffixes.fPadPosition = DigitAffixesAndPadding::kPadAfterSuffix;
-        break;
+        break;    
     default:
         break;
     }
@@ -904,7 +906,7 @@ static void updatePrecisionForScientificMinMax(
     resultMin.setFracDigitCount(0);
     resultSignificant.clear();
     resultMax.clear();
-
+    
     int32_t maxIntDigitCount = max.getIntDigitCount();
     int32_t minIntDigitCount = min.getIntDigitCount();
     int32_t maxFracDigitCount = max.getFracDigitCount();
@@ -1173,7 +1175,7 @@ DecimalFormatImpl::updateFormattingCurrencyAffixInfo(
             fEffPrecision.fMantissa.fRoundingIncrement =
                     precision.fRoundingIncrement;
         }
-
+ 
     }
 }
 
@@ -1415,9 +1417,9 @@ DecimalFormatImpl::toNumberPattern(
             maxInterval.setIntDigitCount(minInterval.getIntDigitCount() + 1);
         }
         if (!fEffPrecision.fMantissa.fRoundingIncrement.isZero()) {
-            roundingIncrementLowerExp =
+            roundingIncrementLowerExp = 
                     fEffPrecision.fMantissa.fRoundingIncrement.getLowerExponent();
-            roundingIncrementUpperExp =
+            roundingIncrementUpperExp = 
                     fEffPrecision.fMantissa.fRoundingIncrement.getUpperExponent();
             // We have to include the rounding increment in what we display
             maxInterval.expandToContainDigit(roundingIncrementLowerExp);
@@ -1438,7 +1440,7 @@ DecimalFormatImpl::toNumberPattern(
     if (hasPadding) {
         // For non scientific notation,
         //  minimumLengthForMantissa = minimumLength
-        int32_t minimumLengthForMantissa =
+        int32_t minimumLengthForMantissa = 
                 minimumLength - computeExponentPatternLength();
         int32_t mininumLengthForMantissaIntPart =
                 minimumLengthForMantissa
@@ -1481,7 +1483,7 @@ DecimalFormatImpl::toNumberPattern(
             }
         } else {
             if (i < roundingIncrementUpperExp && i >= roundingIncrementLowerExp) {
-                result.append(fEffPrecision.fMantissa.fRoundingIncrement.getDigitByExponent(i) + kPatternZeroDigit);
+                result.append((UChar)(fEffPrecision.fMantissa.fRoundingIncrement.getDigitByExponent(i) + kPatternZeroDigit));
             } else if (minInterval.contains(i)) {
                 result.append(kPatternZeroDigit);
             } else {
@@ -1572,7 +1574,7 @@ DecimalFormatImpl::getOldFormatWidth() const {
 const UnicodeString &
 DecimalFormatImpl::getConstSymbol(
         DecimalFormatSymbols::ENumberFormatSymbol symbol) const {
-   return fSymbols->getConstSymbol(symbol);
+   return fSymbols->getConstSymbol(symbol); 
 }
 
 UBool
@@ -1591,3 +1593,4 @@ DecimalFormatImpl::isParseFastpath() const {
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+

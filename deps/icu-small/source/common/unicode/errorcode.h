@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -18,7 +20,7 @@
 #define __ERRORCODE_H__
 
 /**
- * \file
+ * \file 
  * \brief C++ API: ErrorCode class intended to make it easier to use
  *                 ICU C and C++ APIs from C++ user code.
  */

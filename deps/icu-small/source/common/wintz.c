@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 2005-2015, International Business Machines
@@ -201,7 +203,7 @@ static LONG getTZKeyName(char* tzKeyName, int32_t length) {
     if(ERROR_SUCCESS == RegOpenKeyExA(
         HKEY_LOCAL_MACHINE,
         CURRENT_ZONE_REGKEY,
-        0,
+        0, 
         KEY_QUERY_VALUE,
         &hkey))
     {
@@ -432,7 +434,7 @@ uprv_detectWindowsTimeZone() {
     }
 
     ures_close(bundle);
-
+    
     return icuid;
 }
 

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -92,12 +94,12 @@ U_CDECL_END
 
 typedef struct {
     LookupFn      Lookup;
-    NumEntriesFn  NumEntries;
+    NumEntriesFn  NumEntries; 
 } commonDataFuncs;
 
 
 /*
- *  Functions to check whether a UDataMemory refers to memory containing
+ *  Functions to check whether a UDataMemory refers to memory containing 
  *     a recognizable header and table of contents a Common Data Format
  *
  *     If a valid header and TOC are found,

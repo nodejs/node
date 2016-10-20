@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  *
@@ -79,8 +81,8 @@ struct UFILE {
  * Like u_file_write but takes a flush parameter
  */
 U_CFUNC int32_t U_EXPORT2
-u_file_write_flush( const UChar     *chars,
-        int32_t     count,
+u_file_write_flush( const UChar     *chars, 
+        int32_t     count, 
         UFILE       *f,
         UBool       flushIO,
         UBool       flushTranslit);
@@ -114,21 +116,21 @@ ufile_getch32(UFILE *f, UChar32 *ch);
  * Close out the transliterator and flush any data therein.
  * @param f flu
  */
-void
+void 
 ufile_close_translit(UFILE *f);
 
 /**
- * Flush the buffer in the transliterator
+ * Flush the buffer in the transliterator 
  * @param f UFile to flush
  */
-void
+void 
 ufile_flush_translit(UFILE *f);
 
 /**
  * Flush the IO buffer
  * @param f UFile to flush
  */
-void
+void 
 ufile_flush_io(UFILE *f);
 
 

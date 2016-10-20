@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 2002-2014, International Business Machines Corporation and
@@ -30,7 +32,7 @@ static icu::Hashtable * LocaleUtility_cache = NULL;
  */
 
 /**
- * Release all static memory held by Locale Utility.
+ * Release all static memory held by Locale Utility.  
  */
 U_CDECL_BEGIN
 static UBool U_CALLCONV service_cleanup(void) {
@@ -269,3 +271,5 @@ U_NAMESPACE_END
 
 /* !UCONFIG_NO_SERVICE */
 #endif
+
+

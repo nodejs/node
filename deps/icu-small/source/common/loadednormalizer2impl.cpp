@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2014, International Business Machines
@@ -161,8 +163,8 @@ static UBool U_CALLCONV uprv_loaded_normalizer2_cleanup() {
     nfkc_cfSingleton = NULL;
     uhash_close(cache);
     cache=NULL;
-    nfkcInitOnce.reset();
-    nfkc_cfInitOnce.reset();
+    nfkcInitOnce.reset(); 
+    nfkc_cfInitOnce.reset(); 
     return TRUE;
 }
 

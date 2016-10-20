@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 2009-2013, International Business Machines
@@ -11,7 +13,7 @@
 
 #include "unicode/utypes.h"
 
-#if U_PLATFORM_HAS_WIN32_API && !UCONFIG_NO_FORMATTING
+#if U_PLATFORM_HAS_WIN32_API && !UCONFIG_NO_FORMATTING 
 
 #include "wintzimpl.h"
 
@@ -47,7 +49,7 @@ static UBool getSystemTimeInformation(TimeZone *tz, SYSTEMTIME &daylightDate, SY
             standardBias = 0;
             daylightBias = 0;
             // Do not use DST.  Set 0 to all stadardDate/daylightDate fields
-            standardDate.wYear = standardDate.wMonth  = standardDate.wDayOfWeek = standardDate.wDay =
+            standardDate.wYear = standardDate.wMonth  = standardDate.wDayOfWeek = standardDate.wDay = 
             standardDate.wHour = standardDate.wMinute = standardDate.wSecond    = standardDate.wMilliseconds = 0;
             daylightDate.wYear = daylightDate.wMonth  = daylightDate.wDayOfWeek = daylightDate.wDay =
             daylightDate.wHour = daylightDate.wMinute = daylightDate.wSecond    = daylightDate.wMilliseconds = 0;
@@ -117,7 +119,7 @@ static UBool getWindowsTimeZoneInfo(TIME_ZONE_INFORMATION *zoneInfo, const UChar
     UBool result = FALSE;
     UnicodeString id = UnicodeString(icuid, length);
     TimeZone *tz = TimeZone::createTimeZone(id);
-
+    
     if (tz != NULL) {
         int32_t bias;
         int32_t daylightBias;
@@ -141,7 +143,7 @@ static UBool getWindowsTimeZoneInfo(TIME_ZONE_INFORMATION *zoneInfo, const UChar
 }
 
 /*
- * Given the timezone icuid, fill in zoneInfo by calling auxillary functions that creates a timezone and extract the
+ * Given the timezone icuid, fill in zoneInfo by calling auxillary functions that creates a timezone and extract the 
  * information to put into zoneInfo. This includes bias and standard time date and daylight saving date.
  */
 U_CAPI UBool U_EXPORT2

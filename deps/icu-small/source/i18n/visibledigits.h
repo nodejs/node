@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************* * Copyright (C) 2015, International Business Machines
 * Corporation and others.  All Rights Reserved.
@@ -50,7 +52,7 @@ public:
 
     /**
      * Returns the digit interval which indicates the leftmost and rightmost
-     * position of this instance.
+     * position of this instance. 
      * If isNaN() or isInfinity() return TRUE, then the result of this
      * function is undefined.
      */

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -31,11 +33,11 @@ enum UParseCommentsOption {
 
 typedef enum UParseCommentsOption UParseCommentsOption;
 
-U_CFUNC int32_t
+U_CFUNC int32_t 
 getNote(const UChar* source, int32_t srcLen,
         UChar** dest, int32_t destCapacity,
         UErrorCode* status);
-U_CFUNC int32_t
+U_CFUNC int32_t 
 removeCmtText(UChar* source, int32_t srcLen, UErrorCode* status);
 
 U_CFUNC int32_t
@@ -55,9 +57,10 @@ getAt(const UChar* source, int32_t srcLen,
         UErrorCode* status);
 
 U_CFUNC int32_t
-getCount(const UChar* source, int32_t srcLen,
+getCount(const UChar* source, int32_t srcLen, 
          UParseCommentsOption option, UErrorCode *status);
 
 #endif /* UCONFIG_NO_REGULAR_EXPRESSIONS */
 
 #endif
+

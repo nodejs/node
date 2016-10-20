@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -243,7 +245,7 @@ ubidi_getPairedBracket(const UBiDiProps *bdp, UChar32 c) {
 /* public API (see uchar.h) ------------------------------------------------- */
 
 U_CFUNC UCharDirection
-u_charDirection(UChar32 c) {
+u_charDirection(UChar32 c) {   
     return ubidi_getClass(&ubidi_props_singleton, c);
 }
 

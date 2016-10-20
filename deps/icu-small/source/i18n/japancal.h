@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************************
  * Copyright (C) 2003-2008, International Business Machines Corporation
@@ -41,7 +43,7 @@ U_NAMESPACE_BEGIN
  * of that year were in the Showa era, e.g. "January 6, 64 Showa", while the rest
  * of the year was in the Heisei era, e.g. "January 7, 1 Heisei".  This class
  * handles this distinction correctly when computing dates.  However, in lenient
- * mode either form of date is acceptable as input.
+ * mode either form of date is acceptable as input. 
  * <p>
  * In modern times, eras have started on January 8, 1868 AD, Gregorian (Meiji),
  * July 30, 1912 (Taisho), December 25, 1926 (Showa), and January 7, 1989 (Heisei).  Constants
@@ -57,7 +59,7 @@ class JapaneseCalendar : public GregorianCalendar {
 public:
 
     /**
-     * Useful constants for JapaneseCalendar.
+     * Useful constants for JapaneseCalendar.  
      * @internal
      */
     U_I18N_API static uint32_t U_EXPORT2 getCurrentEra(void); // the current era
@@ -102,7 +104,7 @@ public:
     virtual Calendar* clone(void) const;
 
     /**
-     * Return the extended year defined by the current fields.  In the
+     * Return the extended year defined by the current fields.  In the 
      * Japanese calendar case, this is equal to the equivalent extended Gregorian year.
      * @internal
      */
@@ -151,7 +153,7 @@ public:
 
     /**
      * @return FALSE - no default century in Japanese
-     * @internal
+     * @internal 
      */
     virtual UBool haveDefaultCentury() const;
 
@@ -170,7 +172,7 @@ private:
     JapaneseCalendar(); // default constructor not implemented
 
 protected:
-    /**
+    /** 
      * Calculate the era for internal computation
      * @internal
      */
@@ -190,7 +192,7 @@ protected:
 
     /***
      * Called by computeJulianDay.  Returns the default month (0-based) for the year,
-     * taking year and era into account.  Will return the first month of the given era, if
+     * taking year and era into account.  Will return the first month of the given era, if 
      * the current year is an ascension year.
      * @param eyear the extended year
      * @internal
@@ -214,3 +216,4 @@ U_NAMESPACE_END
 
 #endif
 //eof
+

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2004 - 2008, International Business Machines Corporation and
@@ -12,7 +14,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-/**
+/** 
  * \file
  * \brief C API: Universal Time Scale
  *
@@ -215,7 +217,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_UNIX_TIME,
-
+    
     /**
      * Used in IUC4C. Data is a <code>double</code>. Value
      * is milliseconds since January 1, 1970.
@@ -223,7 +225,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_ICU4C_TIME,
-
+    
     /**
      * Used in Windows for file times. Data is an <code>int64_t</code>. Value
      * is ticks (1 tick == 100 nanoseconds) since January 1, 1601.
@@ -231,7 +233,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_WINDOWS_FILE_TIME,
-
+    
     /**
      * Used in the .NET framework's <code>System.DateTime</code> structure. Data is an <code>int64_t</code>. Value
      * is ticks (1 tick == 100 nanoseconds) since January 1, 0001.
@@ -239,7 +241,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_DOTNET_DATE_TIME,
-
+    
     /**
      * Used in older Macintosh systems. Data is <code>int32_t</code> or <code>int64_t</code>. Value
      * is seconds since January 1, 1904.
@@ -247,7 +249,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_MAC_OLD_TIME,
-
+    
     /**
      * Used in newer Macintosh systems. Data is a <code>double</code>. Value
      * is seconds since January 1, 2001.
@@ -255,7 +257,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_MAC_TIME,
-
+    
     /**
      * Used in Excel. Data is an <code>?unknown?</code>. Value
      * is days since December 31, 1899.
@@ -263,7 +265,7 @@ typedef enum UDateTimeScale {
      * @stable ICU 3.2
      */
     UDTS_EXCEL_TIME,
-
+    
     /**
      * Used in DB2. Data is an <code>?unknown?</code>. Value
      * is days since December 31, 1899.
@@ -299,7 +301,7 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the units vale
      * for a time scale.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @stable ICU 3.2
@@ -309,7 +311,7 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the epoch offset value
      * for a time scale.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @stable ICU 3.2
@@ -319,7 +321,7 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the minimum from value
      * for a time scale.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @stable ICU 3.2
@@ -329,7 +331,7 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the maximum from value
      * for a time scale.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @stable ICU 3.2
@@ -339,7 +341,7 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the minimum to value
      * for a time scale.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @stable ICU 3.2
@@ -349,7 +351,7 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the maximum to value
      * for a time scale.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @stable ICU 3.2
@@ -360,10 +362,10 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the epoch plus one value
      * for a time scale.
-     *
+     * 
      * NOTE: This is an internal value. DO NOT USE IT. May not
      * actually be equal to the epoch offset value plus one.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @internal ICU 3.2
@@ -373,10 +375,10 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the epoch plus one value
      * for a time scale.
-     *
+     * 
      * NOTE: This is an internal value. DO NOT USE IT. May not
      * actually be equal to the epoch offset value plus one.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @internal ICU 3.2
@@ -386,9 +388,9 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the units round value
      * for a time scale.
-     *
+     * 
      * NOTE: This is an internal value. DO NOT USE IT.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @internal ICU 3.2
@@ -398,9 +400,9 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the minimum safe rounding value
      * for a time scale.
-     *
+     * 
      * NOTE: This is an internal value. DO NOT USE IT.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @internal ICU 3.2
@@ -410,9 +412,9 @@ typedef enum UTimeScaleValue {
     /**
      * The constant used to select the maximum safe rounding value
      * for a time scale.
-     *
+     * 
      * NOTE: This is an internal value. DO NOT USE IT.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      *
      * @internal ICU 3.2
@@ -423,7 +425,7 @@ typedef enum UTimeScaleValue {
 
     /**
      * The number of time scale values, in other words limit of this enum.
-     *
+     * 
      * @see utmscale_getTimeScaleValue
      */
     UTSV_MAX_SCALE_VALUE=11
@@ -432,12 +434,12 @@ typedef enum UTimeScaleValue {
 
 /**
  * Get a value associated with a particular time scale.
- *
+ * 
  * @param timeScale The time scale
  * @param value A constant representing the value to get
  * @param status The status code. Set to <code>U_ILLEGAL_ARGUMENT_ERROR</code> if arguments are invalid.
  * @return - the value.
- *
+ * 
  * @stable ICU 3.2
  */
 U_STABLE int64_t U_EXPORT2
@@ -451,7 +453,7 @@ U_STABLE int64_t U_EXPORT2
  * @param otherTime The <code>int64_t</code> datetime
  * @param timeScale The time scale to convert from
  * @param status The status code. Set to <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the conversion is out of range.
- *
+ * 
  * @return The datetime converted to the universal time scale
  *
  * @stable ICU 3.2
@@ -467,7 +469,7 @@ U_STABLE int64_t U_EXPORT2
  * @param universalTime The datetime in the universal time scale
  * @param timeScale The time scale to convert to
  * @param status The status code. Set to <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the conversion is out of range.
- *
+ * 
  * @return The datetime converted to the given time scale
  *
  * @stable ICU 3.2
@@ -478,3 +480,4 @@ U_STABLE int64_t U_EXPORT2
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif
+

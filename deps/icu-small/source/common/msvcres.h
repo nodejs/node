@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //{{NO_DEPENDENCIES}}
 // Copyright (c) 2003-2010 International Business Machines
 // Corporation and others. All Rights Reserved.
@@ -9,8 +11,8 @@
 //
 
 /*
-These are defined before unicode/uversion.h in order to prevent
-STLPort's broken stddef.h from being used when rc.exe parses this file.
+These are defined before unicode/uversion.h in order to prevent 
+STLPort's broken stddef.h from being used when rc.exe parses this file. 
 */
 #define _STLP_OUTERMOST_HEADER_ID 0
 #define _STLP_WINCE 1

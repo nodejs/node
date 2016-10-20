@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -206,7 +208,7 @@ u_fstropen(UChar *stringBuf,
     result = (UFILE*) uprv_malloc(sizeof(UFILE));
     /* Null pointer test */
     if (result == NULL) {
-	return NULL; /* Just get out. */
+    	return NULL; /* Just get out. */
     }
     uprv_memset(result, 0, sizeof(UFILE));
     result->str.fBuffer = stringBuf;

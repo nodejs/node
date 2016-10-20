@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -103,3 +105,4 @@ u_vfscanf_u(UFILE       *f,
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+

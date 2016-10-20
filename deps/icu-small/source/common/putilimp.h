@@ -1,7 +1,9 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1997-2015, International Business Machines
+*   Copyright (C) 1997-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -148,7 +150,7 @@ typedef size_t uintptr_t;
 
 #ifdef U_HAVE_MMAP
     /* Use the predefined value. */
-#elif U_PLATFORM_HAS_WIN32_API
+#elif U_PLATFORM_USES_ONLY_WIN32_API
 #   define U_HAVE_MMAP 0
 #else
 #   define U_HAVE_MMAP 1
@@ -171,7 +173,7 @@ typedef size_t uintptr_t;
  */
 #ifdef U_HAVE_DIRENT_H
     /* Use the predefined value. */
-#elif U_PLATFORM_HAS_WIN32_API
+#elif U_PLATFORM_USES_ONLY_WIN32_API
 #   define U_HAVE_DIRENT_H 0
 #else
 #   define U_HAVE_DIRENT_H 1
@@ -218,10 +220,10 @@ typedef size_t uintptr_t;
 #elif __clang__ && __clang_major__==3 && __clang_minor__<=1
     /* Clang 3.1, has atomic variable initializer bug. */
 #   define U_HAVE_STD_ATOMICS 0
-#else
+#else 
     /* U_HAVE_ATOMIC is typically set by an autoconf test of #include <atomic>  */
     /*   Can be set manually, or left undefined, on platforms without autoconf. */
-#   if defined(U_HAVE_ATOMIC) &&  U_HAVE_ATOMIC
+#   if defined(U_HAVE_ATOMIC) &&  U_HAVE_ATOMIC 
 #      define U_HAVE_STD_ATOMICS 1
 #   else
 #      define U_HAVE_STD_ATOMICS 0
@@ -409,7 +411,7 @@ U_INTERNAL double  U_EXPORT2 uprv_round(double x);
  * Return the default codepage for this platform and locale.
  * This function can call setlocale() on Unix platforms. Please read the
  * platform documentation on setlocale() before calling this function.
- * @return the default codepage for this platform
+ * @return the default codepage for this platform 
  * @internal
  */
 U_INTERNAL const char*  U_EXPORT2 uprv_getDefaultCodepage(void);
@@ -418,7 +420,7 @@ U_INTERNAL const char*  U_EXPORT2 uprv_getDefaultCodepage(void);
 /**
  * Please use uloc_getDefault() instead.
  * Return the default locale ID string by querying ths system, or
- *     zero if one cannot be found.
+ *     zero if one cannot be found. 
  * This function can call setlocale() on Unix platforms. Please read the
  * platform documentation on setlocale() before calling this function.
  * @return the default locale ID string
@@ -477,6 +479,12 @@ U_INTERNAL int32_t  U_EXPORT2 uprv_timezone(void);
  * @internal
  */
 U_INTERNAL const char* U_EXPORT2 uprv_tzname(int n);
+
+/**
+ * Reset the global tzname cache.
+ * @internal
+ */
+U_INTERNAL void uprv_tzname_clear_cache();
 
 /**
  * Get UTC (GMT) time measured in milliseconds since 0:00 on 1/1/1970.

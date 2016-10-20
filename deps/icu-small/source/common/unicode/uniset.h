@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ***************************************************************************
 * Copyright (C) 1999-2016, International Business Machines Corporation
@@ -260,7 +262,7 @@ class RuleCharacterIterator;
  *     </tr>
  *   </table>
  * \htmlonly</blockquote>\endhtmlonly
- *
+ * 
  * <p>Note:
  *  - Most UnicodeSet methods do not take a UErrorCode parameter because
  *   there are usually very few opportunities for failure other than a shortage
@@ -360,7 +362,7 @@ public:
     UnicodeSet();
 
     /**
-     * Constructs a set containing the given range. If <code>end >
+     * Constructs a set containing the given range. If <code>end <
      * start</code> then an empty set is created.
      *
      * @param start first character, inclusive, of range
@@ -517,7 +519,7 @@ public:
      * @stable ICU 4.2
      */
     inline static const UnicodeSet *fromUSet(const USet *uset);
-
+    
     /**
      * Produce a USet * pointer for this UnicodeSet.
      * USet is the plain C type for UnicodeSet

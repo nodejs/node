@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
 * Copyright (C) 2010-2012,2015 International Business Machines
@@ -40,7 +42,7 @@
  * - The skeleton MMMd will produce
  *   for en_US, "Mar 4-8"
  *   for en_GB, "4-8 Mar"
- *
+ * 
  * Note:  the "-" characters in the above sample output will actually be
  * Unicode 2013, EN_DASH, in all but the last example.
  *

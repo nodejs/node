@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -62,10 +64,10 @@ ufmt_isdigit(UChar     c,
 #define TO_UC_DIGIT(a) a <= 9 ? (DIGIT_0 + a) : (0x0037 + a)
 #define TO_LC_DIGIT(a) a <= 9 ? (DIGIT_0 + a) : (0x0057 + a)
 
-void
-ufmt_64tou(UChar     *buffer,
+void 
+ufmt_64tou(UChar     *buffer, 
           int32_t   *len,
-          uint64_t  value,
+          uint64_t  value, 
           uint8_t  radix,
           UBool     uselower,
           int32_t   minDigits)
@@ -73,11 +75,11 @@ ufmt_64tou(UChar     *buffer,
     int32_t  length = 0;
     uint32_t digit;
     UChar    *left, *right, temp;
-
+    
     do {
         digit = (uint32_t)(value % radix);
         value = value / radix;
-        buffer[length++] = (UChar)(uselower ? TO_LC_DIGIT(digit)
+        buffer[length++] = (UChar)(uselower ? TO_LC_DIGIT(digit) 
             : TO_UC_DIGIT(digit));
     } while(value);
 
@@ -95,14 +97,14 @@ ufmt_64tou(UChar     *buffer,
         *left++     = *right;
         *right     = temp;
     }
-
+    
     *len = length;
 }
 
-void
-ufmt_ptou(UChar    *buffer,
+void 
+ufmt_ptou(UChar    *buffer, 
           int32_t   *len,
-          void      *value,
+          void      *value, 
           UBool     uselower)
 {
     int32_t i;
@@ -132,31 +134,31 @@ ufmt_ptou(UChar    *buffer,
 }
 
 int64_t
-ufmt_uto64(const UChar     *buffer,
+ufmt_uto64(const UChar     *buffer, 
           int32_t     *len,
           int8_t     radix)
 {
     const UChar     *limit;
     int32_t         count;
     int64_t        result;
-
-
+    
+    
     /* intialize parameters */
     limit     = buffer + *len;
     count     = 0;
     result    = 0;
-
+    
     /* iterate through buffer */
     while(ufmt_isdigit(*buffer, radix) && buffer < limit) {
-
+        
         /* read the next digit */
         result *= radix;
         result += ufmt_digitvalue(*buffer++);
-
+        
         /* increment our count */
         ++count;
     }
-
+    
     *len = count;
     return result;
 }
@@ -172,7 +174,7 @@ ufmt_utop(const UChar     *buffer,
         void *ptr;
         uint8_t bytes[sizeof(void*)];
     } result;
-
+    
     /* intialize variables */
     count      = 0;
     offset     = 0;
@@ -194,7 +196,7 @@ ufmt_utop(const UChar     *buffer,
     if (count - offset > (int32_t)(sizeof(void*)*NIBBLE_PER_BYTE)) {
         offset = count - (int32_t)(sizeof(void*)*NIBBLE_PER_BYTE);
     }
-
+    
     /* Initialize the direction of the input */
 #if U_IS_BIG_ENDIAN
     incVal = -1;
@@ -228,28 +230,28 @@ ufmt_defaultCPToUnicode(const char *s, int32_t sSize,
     UChar *alias;
     UErrorCode status = U_ZERO_ERROR;
     UConverter *defConverter = u_getDefaultConverter(&status);
-
+    
     if(U_FAILURE(status) || defConverter == 0)
         return 0;
 
     if(sSize <= 0) {
         sSize = uprv_strlen(s) + 1;
     }
-
+    
     /* perform the conversion in one swoop */
     if(target != 0) {
-
+        
         alias = target;
-        ucnv_toUnicode(defConverter, &alias, alias + tSize, &s, s + sSize - 1,
+        ucnv_toUnicode(defConverter, &alias, alias + tSize, &s, s + sSize - 1, 
             NULL, TRUE, &status);
-
-
+        
+        
         /* add the null terminator */
         *alias = 0x0000;
     }
-
+    
     u_releaseDefaultConverter(defConverter);
-
+    
     return target;
 }
 

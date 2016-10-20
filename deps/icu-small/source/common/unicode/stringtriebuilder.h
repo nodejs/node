@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2010-2012,2014, International Business Machines
@@ -184,7 +186,8 @@ protected:
     /** @internal */
     UHashtable *nodes;
 
-#ifndef U_HIDE_INTERNAL_API
+    // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // it is needed for layout of other objects.
     /** @internal */
     class Node : public UObject {
     public:
@@ -243,6 +246,7 @@ protected:
         int32_t offset;
     };
 
+#ifndef U_HIDE_INTERNAL_API
     // This class should not be overridden because
     // registerFinalValue() compares a stack-allocated FinalValueNode
     // (stack-allocated so that we don't unnecessarily create lots of duplicate nodes)
@@ -258,9 +262,12 @@ protected:
     protected:
         int32_t value;
     };
+#endif  /* U_HIDE_INTERNAL_API */
 
+    // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // it is needed for layout of other objects.
     /**
-     * @internal
+     * @internal 
      */
     class ValueNode : public Node {
     public:
@@ -276,8 +283,9 @@ protected:
         int32_t value;
     };
 
-    /**
-     * @internal
+#ifndef U_HIDE_INTERNAL_API
+    /** 
+     * @internal 
      */
     class IntermediateValueNode : public ValueNode {
     public:
@@ -289,9 +297,12 @@ protected:
     protected:
         Node *next;
     };
+#endif  /* U_HIDE_INTERNAL_API */
 
+    // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // it is needed for layout of other objects.
     /**
-     * @internal
+     * @internal 
      */
     class LinearMatchNode : public ValueNode {
     public:
@@ -305,8 +316,9 @@ protected:
         Node *next;
     };
 
+#ifndef U_HIDE_INTERNAL_API
     /**
-     * @internal
+     * @internal 
      */
     class BranchNode : public Node {
     public:
@@ -316,7 +328,7 @@ protected:
     };
 
     /**
-     * @internal
+     * @internal 
      */
     class ListBranchNode : public BranchNode {
     public:
@@ -348,7 +360,7 @@ protected:
     };
 
     /**
-     * @internal
+     * @internal 
      */
     class SplitBranchNode : public BranchNode {
     public:

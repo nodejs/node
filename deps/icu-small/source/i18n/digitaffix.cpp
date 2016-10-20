@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
  * Corporation and others.  All Rights Reserved.
@@ -20,7 +22,7 @@ DigitAffix::DigitAffix() : fAffix(), fAnnotations() {
 }
 
 DigitAffix::DigitAffix(
-        const UChar *value, int32_t charCount, int32_t fieldId)
+        const UChar *value, int32_t charCount, int32_t fieldId) 
         : fAffix(value, charCount),
           fAnnotations(charCount, (UChar) fieldId, charCount) {
 }

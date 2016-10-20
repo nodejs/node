@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -278,8 +280,8 @@ u_scanf_parse_spec (const UChar     *fmt,
 #define UFMT_EMPTY {ufmt_empty, NULL}
 
 /**
- * A u_scanf handler function.
- * A u_scanf handler is responsible for handling a single u_scanf
+ * A u_scanf handler function.  
+ * A u_scanf handler is responsible for handling a single u_scanf 
  * format specification, for example 'd' or 's'.
  * @param stream The UFILE to which to write output.
  * @param info A pointer to a <TT>u_scanf_spec_info</TT> struct containing
@@ -370,7 +372,7 @@ u_scanf_skip_leading_positive_sign(UFILE   *input,
     return count;
 }
 
-static int32_t
+static int32_t 
 u_scanf_simple_percent_handler(UFILE        *input,
                                u_scanf_spec_info *info,
                                ufmt_args    *args,
@@ -825,7 +827,7 @@ u_scanf_string_handler(UFILE        *input,
     if(U_FAILURE(status))
         return -1;
 
-    while( (info->fWidth == -1 || count < info->fWidth)
+    while( (info->fWidth == -1 || count < info->fWidth) 
         && (isNotEOF = ufile_getch(input, &c))
         && (!info->fIsString || (c != info->fPadChar && !u_isWhitespace(c))))
     {

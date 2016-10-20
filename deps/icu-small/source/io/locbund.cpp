@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -105,18 +107,18 @@ u_locbund_clone(const ULocaleBundle *bundle)
     ULocaleBundle *result = (ULocaleBundle*)uprv_malloc(sizeof(ULocaleBundle));
     UErrorCode status = U_ZERO_ERROR;
     int32_t styleIdx;
-
+    
     if(result == 0)
         return 0;
-
+    
     result->fLocale = (char*) uprv_malloc(strlen(bundle->fLocale) + 1);
     if(result->fLocale == 0) {
         uprv_free(result);
         return 0;
     }
-
+    
     strcpy(result->fLocale, bundle->fLocale );
-
+    
     for (styleIdx = 0; styleIdx < ULOCALEBUNDLE_NUMBERFORMAT_COUNT; styleIdx++) {
         status = U_ZERO_ERROR;
         if (result->fNumberFormat[styleIdx]) {
@@ -133,7 +135,7 @@ u_locbund_clone(const ULocaleBundle *bundle)
         udat_clone(bundle->fDateFormat, &status));
     result->fTimeFormat         = (bundle->fTimeFormat == 0 ? 0 :
         udat_clone(bundle->fTimeFormat, &status));
-
+    
     return result;
 }*/
 
@@ -143,13 +145,13 @@ u_locbund_close(ULocaleBundle *bundle)
     int32_t styleIdx;
 
     uprv_free(bundle->fLocale);
-
+    
     for (styleIdx = 0; styleIdx < ULOCALEBUNDLE_NUMBERFORMAT_COUNT; styleIdx++) {
         if (bundle->fNumberFormat[styleIdx]) {
             unum_close(bundle->fNumberFormat[styleIdx]);
         }
     }
-
+    
     uprv_memset(bundle, 0, sizeof(ULocaleBundle));
 /*    uprv_free(bundle);*/
 }

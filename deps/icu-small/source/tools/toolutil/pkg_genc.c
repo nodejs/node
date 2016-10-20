@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /******************************************************************************
  *   Copyright (C) 2009-2016, International Business Machines
  *   Corporation and others.  All Rights Reserved.
@@ -175,7 +177,7 @@ static const struct AssemblyType {
         "\t.type   Drodata.rodata,@object\n"
         "\t.size   Drodata.rodata,0\n"
         "\t.globl  %s\n"
-        "\t.align  16\n"
+        "\t.align  16\n" 
         "%s:\n",
 
         ".4byte ","",HEX_0X

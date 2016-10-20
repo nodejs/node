@@ -1,4 +1,6 @@
-/*
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -82,7 +84,7 @@ morebytes:
 
         if (ch <= MAXIMUM_UTF && !U_IS_SURROGATE(ch)) {
             /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
-            if (ch <= MAXIMUM_UCS2)
+            if (ch <= MAXIMUM_UCS2) 
             {
                 /* fits in 16 bits */
                 *(myTarget++) = (UChar) ch;
@@ -432,7 +434,7 @@ T_UConverter_getNextUChar_UTF32_BE(UConverterToUnicodeArgs* args,
     }
 
     length = (int32_t)((const uint8_t *)args->sourceLimit - mySource);
-    if (length < 4)
+    if (length < 4) 
     {
         /* got a partial character */
         uprv_memcpy(args->converter->toUBytes, mySource, length);
@@ -480,7 +482,10 @@ static const UConverterImpl _UTF32BEImpl = {
     NULL,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 /* The 1232 CCSID refers to any version of Unicode with any endianess of UTF-32 */
@@ -635,7 +640,7 @@ morebytes:
         if (ch <= MAXIMUM_UTF && !U_IS_SURROGATE(ch))
         {
             /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
-            if (ch <= MAXIMUM_UCS2)
+            if (ch <= MAXIMUM_UCS2) 
             {
                 /* fits in 16 bits */
                 *(myTarget++) = (UChar) ch;
@@ -924,7 +929,7 @@ T_UConverter_getNextUChar_UTF32_LE(UConverterToUnicodeArgs* args,
     }
 
     length = (int32_t)((const uint8_t *)args->sourceLimit - mySource);
-    if (length < 4)
+    if (length < 4) 
     {
         /* got a partial character */
         uprv_memcpy(args->converter->toUBytes, mySource, length);
@@ -972,7 +977,10 @@ static const UConverterImpl _UTF32LEImpl = {
     NULL,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 /* The 1232 CCSID refers to any version of Unicode with any endianess of UTF-32 */
@@ -1214,7 +1222,10 @@ static const UConverterImpl _UTF32Impl = {
     NULL,
     NULL,
     NULL,
-    ucnv_getNonSurrogateUnicodeSet
+    ucnv_getNonSurrogateUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 /* The 1236 CCSID refers to any version of Unicode with a BOM sensitive endianess of UTF-32 */
@@ -1234,7 +1245,7 @@ static const UConverterStaticData _UTF32StaticData = {
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
 };
 
-const UConverterSharedData _UTF32Data =
+const UConverterSharedData _UTF32Data = 
         UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_UTF32StaticData, &_UTF32Impl);
 
 #endif

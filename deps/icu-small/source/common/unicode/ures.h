@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1997-2016, International Business Machines
@@ -120,9 +122,13 @@ typedef enum {
     RES_INT_VECTOR=URES_INT_VECTOR,
     /** @deprecated ICU 2.6 Not used. */
     RES_RESERVED=15,
-#endif /* U_HIDE_DEPRECATED_API */
 
+    /**
+     * One more than the highest normal UResType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     URES_LIMIT = 16
+#endif  // U_HIDE_DEPRECATED_API
 } UResType;
 
 /*

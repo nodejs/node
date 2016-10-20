@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -49,7 +51,7 @@ static void* _getBuffer(UEnumeration* en, int32_t capacity) {
         }
         ((_UEnumBuffer*) en->baseContext)->len = capacity;
     }
-
+    
     return (void*) & ((_UEnumBuffer*) en->baseContext)->data;
 }
 

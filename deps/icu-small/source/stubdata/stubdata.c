@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /******************************************************************************
 *
 *   Copyright (C) 2001, International Business Machines
@@ -30,7 +32,7 @@ typedef struct {
     uint32_t count, reserved;
     /*
     const struct {
-    const char *const name;
+    const char *const name; 
     const void *const data;
     } toc[1];
     */
@@ -53,14 +55,14 @@ U_EXPORT const ICU_Data_Header U_ICUDATA_ENTRY_POINT = {
 #endif
 
         U_CHARSET_FAMILY,
-        sizeof(UChar),
+        sizeof(UChar),   
         0,               /* reserved      */
         {                /* data format identifier */
            0x54, 0x6f, 0x43, 0x50}, /* "ToCP" */
            {1, 0, 0, 0},   /* format version major, minor, milli, micro */
            {0, 0, 0, 0}    /* dataVersion   */
     },
-    {0,0,0,0,0,0,0,0},  /* Padding[8]   */
+    {0,0,0,0,0,0,0,0},  /* Padding[8]   */ 
     0,                  /* count        */
     0,                  /* Reserved     */
     {                   /*  TOC structure */
@@ -70,3 +72,5 @@ U_EXPORT const ICU_Data_Header U_ICUDATA_ENTRY_POINT = {
 /*        }  */
     }
 };
+
+

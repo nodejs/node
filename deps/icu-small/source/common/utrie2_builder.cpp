@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -248,11 +250,11 @@ cloneBuilder(const UNewTrie2 *other) {
 
     /* clone data */
     uprv_memcpy(trie->index1, other->index1, sizeof(trie->index1));
-    uprv_memcpy(trie->index2, other->index2, other->index2Length*4);
+    uprv_memcpy(trie->index2, other->index2, (size_t)other->index2Length*4);
     trie->index2NullOffset=other->index2NullOffset;
     trie->index2Length=other->index2Length;
 
-    uprv_memcpy(trie->data, other->data, other->dataLength*4);
+    uprv_memcpy(trie->data, other->data, (size_t)other->dataLength*4);
     trie->dataNullOffset=other->dataNullOffset;
     trie->dataLength=other->dataLength;
 
@@ -260,7 +262,7 @@ cloneBuilder(const UNewTrie2 *other) {
     if(other->isCompacted) {
         trie->firstFreeBlock=0;
     } else {
-        uprv_memcpy(trie->map, other->map, (other->dataLength>>UTRIE2_SHIFT_2)*4);
+        uprv_memcpy(trie->map, other->map, ((size_t)other->dataLength>>UTRIE2_SHIFT_2)*4);
         trie->firstFreeBlock=other->firstFreeBlock;
     }
 
@@ -540,7 +542,7 @@ allocDataBlock(UNewTrie2 *trie, int32_t copyBlock) {
             if(data==NULL) {
                 return -1;
             }
-            uprv_memcpy(data, trie->data, trie->dataLength*4);
+            uprv_memcpy(data, trie->data, (size_t)trie->dataLength*4);
             uprv_free(trie->data);
             trie->data=data;
             trie->dataCapacity=capacity;
@@ -1402,7 +1404,7 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode) {
         /* write 32-bit data values */
         trie->data16=NULL;
         trie->data32=(uint32_t *)dest16;
-        uprv_memcpy(dest16, newTrie->data, newTrie->dataLength*4);
+        uprv_memcpy(dest16, newTrie->data, (size_t)newTrie->dataLength*4);
         break;
     default:
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;

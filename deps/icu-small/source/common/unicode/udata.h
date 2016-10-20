@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -36,16 +38,16 @@ U_CDECL_BEGIN
  *
  * See the User Guide Data Management chapter.
  */
-
+ 
 #ifndef U_HIDE_INTERNAL_API
 /**
- * Character used to separate package names from tree names
+ * Character used to separate package names from tree names 
  * @internal ICU 3.0
  */
 #define U_TREE_SEPARATOR '-'
 
 /**
- * String used to separate package names from tree names
+ * String used to separate package names from tree names 
  * @internal ICU 3.0
  */
 #define U_TREE_SEPARATOR_STRING "-"
@@ -63,7 +65,7 @@ U_CDECL_BEGIN
 #define U_TREE_ENTRY_SEP_STRING "/"
 
 /**
- * Alias for standard ICU data
+ * Alias for standard ICU data 
  * @internal ICU 3.0
  */
 #define U_ICUDATA_ALIAS "ICUDATA"
@@ -113,7 +115,7 @@ typedef struct {
      *  @stable ICU 2.0 */
     uint16_t size;
 
-    /** unused, set to 0
+    /** unused, set to 0 
      *  @stable ICU 2.0*/
     uint16_t reservedWord;
 
@@ -122,27 +124,27 @@ typedef struct {
      *  @stable ICU 2.0 */
     uint8_t isBigEndian;
 
-    /** see U_CHARSET_FAMILY values in utypes.h
+    /** see U_CHARSET_FAMILY values in utypes.h 
      *  @stable ICU 2.0*/
     uint8_t charsetFamily;
 
-    /** sizeof(UChar), one of { 1, 2, 4 }
+    /** sizeof(UChar), one of { 1, 2, 4 } 
      *  @stable ICU 2.0*/
     uint8_t sizeofUChar;
 
-    /** unused, set to 0
+    /** unused, set to 0 
      *  @stable ICU 2.0*/
     uint8_t reservedByte;
 
-    /** data format identifier
+    /** data format identifier 
      *  @stable ICU 2.0*/
     uint8_t dataFormat[4];
 
-    /** versions: [0] major [1] minor [2] milli [3] micro
+    /** versions: [0] major [1] minor [2] milli [3] micro 
      *  @stable ICU 2.0*/
     uint8_t formatVersion[4];
 
-    /** versions: [0] major [1] minor [2] milli [3] micro
+    /** versions: [0] major [1] minor [2] milli [3] micro 
      *  @stable ICU 2.0*/
     uint8_t dataVersion[4];
 } UDataInfo;
@@ -408,19 +410,24 @@ typedef enum UDataFileAccess {
     UDATA_PACKAGES_FIRST,
     /** ICU does not access the file system for data loading. @stable ICU 3.4 */
     UDATA_NO_FILES,
-    /** Number of real UDataFileAccess values. @stable ICU 3.4 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * Number of real UDataFileAccess values.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UDATA_FILE_ACCESS_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 } UDataFileAccess;
 
 /**
  * This function may be called to control how ICU loads data. It must be called
- * before any ICU data is loaded, including application data loaded with
- * ures/ResourceBundle or udata APIs. This function is not multithread safe.
+ * before any ICU data is loaded, including application data loaded with 
+ * ures/ResourceBundle or udata APIs. This function is not multithread safe.  
  * The results of calling it while other threads are loading data are undefined.
  * @param access The type of file access to be used
  * @param status Error code.
  * @see UDataFileAccess
- * @stable ICU 3.4
+ * @stable ICU 3.4 
  */
 U_STABLE void U_EXPORT2
 udata_setFileAccess(UDataFileAccess access, UErrorCode *status);

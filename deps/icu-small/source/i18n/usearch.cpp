@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2015 IBM and others. All rights reserved.
@@ -222,7 +224,7 @@ inline int32_t * addTouint32_tArray(int32_t    *destination,
         if (U_FAILURE(*status)) {
             return NULL;
         }
-        uprv_memcpy(temp, destination, sizeof(int32_t) * offset);
+        uprv_memcpy(temp, destination, sizeof(int32_t) * (size_t)offset);
         *destinationlength = newlength;
         destination        = temp;
     }
@@ -264,7 +266,7 @@ inline int64_t * addTouint64_tArray(int64_t    *destination,
             return NULL;
         }
 
-        uprv_memcpy(temp, destination, sizeof(int64_t) * offset);
+        uprv_memcpy(temp, destination, sizeof(int64_t) * (size_t)offset);
         *destinationlength = newlength;
         destination        = temp;
     }
@@ -1379,7 +1381,7 @@ inline UChar * addToUCharArray(      UChar      *destination,
         }
     }
     if (source1length != 0) {
-        uprv_memcpy(destination, source1, sizeof(UChar) * source1length);
+        u_memcpy(destination, source1, source1length);
     }
     if (source2length != 0) {
         uprv_memcpy(destination + source1length, source2,
@@ -3762,7 +3764,7 @@ static UCompareCEsResult compareCE64s(int64_t targCE, int64_t patCE, int16_t com
     if (compareType == 0) {
         return U_CE_NO_MATCH;
     }
-
+    
     int64_t targCEshifted = targCE >> 32;
     int64_t patCEshifted = patCE >> 32;
     int64_t mask;
@@ -3793,7 +3795,7 @@ static UCompareCEsResult compareCE64s(int64_t targCE, int64_t patCE, int16_t com
         return (patLev2 == U_CE_LEVEL2_BASE || (compareType == USEARCH_ANY_BASE_WEIGHT_IS_WILDCARD && targLev2 == U_CE_LEVEL2_BASE) )?
             U_CE_MATCH: U_CE_NO_MATCH;
     }
-
+    
     mask = 0xFFFF0000;
     int32_t targLev3 = (int32_t)(targCE & mask);
     int32_t patLev3 = (int32_t)(patCE & mask);
@@ -3914,7 +3916,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
             found = FALSE;
             break;
         }
-
+        
         for (patIx=0; patIx<strsrch->pattern.pcesLength; patIx++) {
             patCE = strsrch->pattern.pces[patIx];
             targetCEI = ceb.get(targetIx+patIx+targetIxOffset);

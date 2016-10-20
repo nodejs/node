@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2003 - 2013, International Business Machines Corporation and
@@ -29,7 +31,7 @@ CopticCalendar::CopticCalendar(const Locale& aLocale, UErrorCode& success)
 {
 }
 
-CopticCalendar::CopticCalendar (const CopticCalendar& other)
+CopticCalendar::CopticCalendar (const CopticCalendar& other) 
 : CECalendar(other)
 {
 }
@@ -96,7 +98,7 @@ CopticCalendar::handleComputeFields(int32_t julianDay, UErrorCode &/*status*/)
 
 /**
  * The system maintains a static default century start date and Year.  They are
- * initialized the first time they are used.  Once the system default century date
+ * initialized the first time they are used.  Once the system default century date 
  * and year are set, they do not change.
  */
 static UDate           gSystemDefaultCenturyStart       = DBL_MIN;

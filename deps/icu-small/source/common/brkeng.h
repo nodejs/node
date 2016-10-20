@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  ************************************************************************************
  * Copyright (C) 2006-2012, International Business Machines Corporation and others. *
@@ -276,7 +278,7 @@ protected:
    * <p>Create a DictionaryMatcher for the specified script and break type.</p>
    * @param script An ISO 15924 script code that identifies the dictionary to be
    * created.
-   * @param breakType The kind of text break for which a dictionary is
+   * @param breakType The kind of text break for which a dictionary is 
    * sought.
    * @return A DictionaryMatcher with the desired characteristics, or NULL.
    */

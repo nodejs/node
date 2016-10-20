@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2009-2016, International Business Machines Corporation and
@@ -8,7 +10,7 @@
 #define __ZTRANS_H
 
 /**
- * \file
+ * \file 
  * \brief C API: Time zone transition classes
  */
 
@@ -32,7 +34,7 @@ typedef struct ZTrans ZTrans;
 /**
  * Constructs a time zone transition with the time and the rules before/after
  * the transition.
- *
+ * 
  * @param time  The time of transition in milliseconds since the base time.
  * @param from  The time zone rule used before the transition.
  * @param to    The time zone rule used after the transition.

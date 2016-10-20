@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
 * Copyright (C) 2013-2014, International Business Machines
@@ -19,7 +21,7 @@
  * \file
  * \brief C API: UNumberingSystem, information about numbering systems
  *
- * Defines numbering systems. A numbering system describes the scheme by which
+ * Defines numbering systems. A numbering system describes the scheme by which 
  * numbers are to be presented to the end user. In its simplest form, a numbering
  * system describes the set of digit characters that are to be used to display
  * numbers, such as Western digits, Thai digits, Arabic-Indic digits, etc., in a

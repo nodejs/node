@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  *   Copyright (C) 2003-2014, International Business Machines
@@ -41,9 +43,9 @@ const char *patternStrings[UPC_LIMIT]={
     "^note\\s*(.*)"
 };
 
-U_CFUNC int32_t
-removeText(UChar *source, int32_t srcLen,
-           UnicodeString patString,uint32_t options,
+U_CFUNC int32_t 
+removeText(UChar *source, int32_t srcLen, 
+           UnicodeString patString,uint32_t options,  
            UnicodeString replaceText, UErrorCode *status){
 
     if(status == NULL || U_FAILURE(*status)){
@@ -60,8 +62,8 @@ removeText(UChar *source, int32_t srcLen,
 
 
     dest = myMatcher.replaceAll(replaceText,*status);
-
-
+    
+    
     return dest.extract(source, srcLen, *status);
 
 }
@@ -73,7 +75,7 @@ trim(UChar *src, int32_t srcLen, UErrorCode *status){
      return srcLen;
 }
 
-U_CFUNC int32_t
+U_CFUNC int32_t 
 removeCmtText(UChar* source, int32_t srcLen, UErrorCode* status){
     srcLen = trim(source, srcLen, status);
     UnicodeString patString("^\\s*?\\*\\s*?");  // remove pattern like " * " at the begining of the line
@@ -81,12 +83,12 @@ removeCmtText(UChar* source, int32_t srcLen, UErrorCode* status){
     return removeText(source, srcLen, UnicodeString("[ \\r\\n]+"), 0, UnicodeString(" "), status);// remove new lines;
 }
 
-U_CFUNC int32_t
+U_CFUNC int32_t 
 getText(const UChar* source, int32_t srcLen,
         UChar** dest, int32_t destCapacity,
-        UnicodeString patternString,
+        UnicodeString patternString, 
         UErrorCode* status){
-
+    
     if(status == NULL || U_FAILURE(*status)){
         return 0;
     }
@@ -94,12 +96,12 @@ getText(const UChar* source, int32_t srcLen,
     UnicodeString     stringArray[MAX_SPLIT_STRINGS];
     RegexPattern      *pattern = RegexPattern::compile(UnicodeString("@"), 0, *status);
     UnicodeString src (source,srcLen);
-
+    
     if (U_FAILURE(*status)) {
         return 0;
     }
     pattern->split(src, stringArray, MAX_SPLIT_STRINGS, *status);
-
+    
     RegexMatcher matcher(patternString, UREGEX_DOTALL, *status);
     if (U_FAILURE(*status)) {
         return 0;
@@ -129,7 +131,7 @@ getDescription( const UChar* source, int32_t srcLen,
     UnicodeString     stringArray[MAX_SPLIT_STRINGS];
     RegexPattern      *pattern = RegexPattern::compile(UnicodeString("@"), UREGEX_MULTILINE, *status);
     UnicodeString src(source, srcLen);
-
+    
     if (U_FAILURE(*status)) {
         return 0;
     }
@@ -143,9 +145,9 @@ getDescription( const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t
-getCount(const UChar* source, int32_t srcLen,
+getCount(const UChar* source, int32_t srcLen, 
          UParseCommentsOption option, UErrorCode *status){
-
+    
     if(status == NULL || U_FAILURE(*status)){
         return 0;
     }
@@ -159,12 +161,12 @@ getCount(const UChar* source, int32_t srcLen,
         return 0;
     }
     int32_t retLen = pattern->split(src, stringArray, MAX_SPLIT_STRINGS, *status);
-
+    
     UnicodeString patternString(patternStrings[option]);
     RegexMatcher matcher(patternString, UREGEX_DOTALL, *status);
     if (U_FAILURE(*status)) {
         return 0;
-    }
+    } 
     int32_t count = 0;
     for(int32_t i=0; i<retLen; i++){
         matcher.reset(stringArray[i]);
@@ -179,7 +181,7 @@ getCount(const UChar* source, int32_t srcLen,
     return count;
 }
 
-U_CFUNC int32_t
+U_CFUNC int32_t 
 getAt(const UChar* source, int32_t srcLen,
         UChar** dest, int32_t destCapacity,
         int32_t index,
@@ -199,12 +201,12 @@ getAt(const UChar* source, int32_t srcLen,
         return 0;
     }
     int32_t retLen = pattern->split(src, stringArray, MAX_SPLIT_STRINGS, *status);
-
+    
     UnicodeString patternString(patternStrings[option]);
     RegexMatcher matcher(patternString, UREGEX_DOTALL, *status);
     if (U_FAILURE(*status)) {
         return 0;
-    }
+    } 
     int32_t count = 0;
     for(int32_t i=0; i<retLen; i++){
         matcher.reset(stringArray[i]);
@@ -214,7 +216,7 @@ getAt(const UChar* source, int32_t srcLen,
                 return out.extract(*dest, destCapacity,*status);
             }
             count++;
-
+            
         }
     }
     return 0;
@@ -226,12 +228,12 @@ getTranslate( const UChar* source, int32_t srcLen,
               UChar** dest, int32_t destCapacity,
               UErrorCode* status){
     UnicodeString     notePatternString("^translate\\s*?(.*)");
-
+    
     int32_t destLen = getText(source, srcLen, dest, destCapacity, notePatternString, status);
     return trim(*dest, destLen, status);
 }
 
-U_CFUNC int32_t
+U_CFUNC int32_t 
 getNote(const UChar* source, int32_t srcLen,
         UChar** dest, int32_t destCapacity,
         UErrorCode* status){
@@ -243,3 +245,4 @@ getNote(const UChar* source, int32_t srcLen,
 }
 
 #endif /* UCONFIG_NO_REGULAR_EXPRESSIONS */
+

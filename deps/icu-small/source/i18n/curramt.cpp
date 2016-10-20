@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2004, International Business Machines
@@ -42,7 +44,7 @@ UObject* CurrencyAmount::clone() const {
 
 CurrencyAmount::~CurrencyAmount() {
 }
-
+    
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyAmount)
 
 U_NAMESPACE_END

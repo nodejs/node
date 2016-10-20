@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  file:  rbbirb.cpp
 //
@@ -163,7 +165,7 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
     int32_t rulesSize         = align8((strippedRules.length()+1) * sizeof(UChar));
 
     int32_t         totalSize = headerSize + forwardTableSize + reverseTableSize
-                                + safeFwdTableSize + safeRevTableSize
+                                + safeFwdTableSize + safeRevTableSize 
                                 + statusTableSize + trieSize + rulesSize;
 
     RBBIDataHeader  *data     = (RBBIDataHeader *)uprv_malloc(totalSize);
@@ -306,7 +308,7 @@ RBBIRuleBuilder::createRuleBasedBreakIterator( const UnicodeString    &rules,
     if (U_FAILURE(status)) {
         delete This;
         This = NULL;
-    }
+    } 
     else if(This == NULL) { // test for NULL
         status = U_MEMORY_ALLOCATION_ERROR;
     }

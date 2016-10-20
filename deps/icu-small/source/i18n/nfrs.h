@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *   Copyright (C) 1997-2015, International Business Machines
@@ -64,7 +66,7 @@ private:
     const NFRule * findNormalRule(int64_t number) const;
     const NFRule * findDoubleRule(double number) const;
     const NFRule * findFractionRuleSetRule(double number) const;
-
+    
     friend class NFSubstitution;
 
 private:
@@ -105,3 +107,4 @@ U_NAMESPACE_END
 
 // NFRS_H
 #endif
+

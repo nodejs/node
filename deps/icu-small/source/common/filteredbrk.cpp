@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2014-2015, International Business Machines Corporation and
@@ -135,7 +137,7 @@ static const UChar   kFULLSTOP = 0x002E; // '.'
  */
 class SimpleFilteredSentenceBreakData : public UMemory {
 public:
-  SimpleFilteredSentenceBreakData(UCharsTrie *forwards, UCharsTrie *backwards )
+  SimpleFilteredSentenceBreakData(UCharsTrie *forwards, UCharsTrie *backwards ) 
       : fForwardsPartialTrie(forwards), fBackwardsTrie(backwards), refcount(1) { }
   SimpleFilteredSentenceBreakData *incr() { refcount++;  return this; }
   SimpleFilteredSentenceBreakData *decr() { if((--refcount) <= 0) delete this; return 0; }
@@ -215,7 +217,7 @@ private:
     int32_t internalPrev(int32_t n);
     /**
      * set up the UText with the value of the fDelegate.
-     * Call this before calling breakExceptionAt.
+     * Call this before calling breakExceptionAt. 
      * May be able to avoid excess calls
      */
     void resetState(UErrorCode &status);
@@ -359,7 +361,7 @@ SimpleFilteredSentenceBreakIterator::internalNext(int32_t n) {
     default:
     case kNoExceptionHere:
       return n;
-    }
+    }    
   }
   return n;
 }
@@ -388,7 +390,7 @@ SimpleFilteredSentenceBreakIterator::internalPrev(int32_t n) {
     default:
     case kNoExceptionHere:
       return n;
-    }
+    }    
   }
   return n;
 }
@@ -401,7 +403,8 @@ SimpleFilteredSentenceBreakIterator::next() {
 
 int32_t
 SimpleFilteredSentenceBreakIterator::first(void) {
-  return internalNext(fDelegate->first());
+  // Don't suppress a break opportunity at the beginning of text.
+  return fDelegate->first();
 }
 
 int32_t
@@ -415,7 +418,9 @@ SimpleFilteredSentenceBreakIterator::previous(void) {
 }
 
 UBool SimpleFilteredSentenceBreakIterator::isBoundary(int32_t offset) {
-  if(!fDelegate->isBoundary(offset)) return false; // no break to suppress
+  if (!fDelegate->isBoundary(offset)) return false; // no break to suppress
+
+  if (fData->fBackwardsTrie.isNull()) return true; // no data = no suppressions
 
   UErrorCode status = U_ZERO_ERROR;
   resetState(status);
@@ -428,9 +433,9 @@ UBool SimpleFilteredSentenceBreakIterator::isBoundary(int32_t offset) {
   default:
   case kNoExceptionHere:
     return true;
-  }
+  }    
 }
-
+ 
 int32_t
 SimpleFilteredSentenceBreakIterator::next(int32_t offset) {
   return internalNext(fDelegate->next(offset));
@@ -467,7 +472,7 @@ SimpleFilteredBreakIteratorBuilder::~SimpleFilteredBreakIteratorBuilder()
 {
 }
 
-SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(UErrorCode &status)
+SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(UErrorCode &status) 
   : fSet(status)
 {
 }
@@ -476,13 +481,42 @@ SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(const Loc
   : fSet(status)
 {
   if(U_SUCCESS(status)) {
-    LocalUResourceBundlePointer b(ures_open(U_ICUDATA_BRKITR, fromLocale.getBaseName(), &status));
-    LocalUResourceBundlePointer exceptions(ures_getByKeyWithFallback(b.getAlias(), "exceptions", NULL, &status));
-    LocalUResourceBundlePointer breaks(ures_getByKeyWithFallback(exceptions.getAlias(), "SentenceBreak", NULL, &status));
-    if(U_FAILURE(status)) return; // leaves the builder empty, if you try to use it.
+    UErrorCode subStatus = U_ZERO_ERROR;
+    LocalUResourceBundlePointer b(ures_open(U_ICUDATA_BRKITR, fromLocale.getBaseName(), &subStatus));
+    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
+      status = subStatus; // copy the failing status 
+#if FB_DEBUG
+      fprintf(stderr, "open BUNDLE %s : %s, %s\n", fromLocale.getBaseName(), "[exit]", u_errorName(status));
+#endif
+      return;  // leaves the builder empty, if you try to use it.
+    }
+    LocalUResourceBundlePointer exceptions(ures_getByKeyWithFallback(b.getAlias(), "exceptions", NULL, &subStatus));
+    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
+      status = subStatus; // copy the failing status 
+#if FB_DEBUG
+      fprintf(stderr, "open EXCEPTIONS %s : %s, %s\n", fromLocale.getBaseName(), "[exit]", u_errorName(status));
+#endif
+      return;  // leaves the builder empty, if you try to use it.
+    }
+    LocalUResourceBundlePointer breaks(ures_getByKeyWithFallback(exceptions.getAlias(), "SentenceBreak", NULL, &subStatus));
+
+#if FB_DEBUG
+    {
+      UErrorCode subsub = subStatus;
+      fprintf(stderr, "open SentenceBreak %s => %s, %s\n", fromLocale.getBaseName(), ures_getLocale(breaks.getAlias(), &subsub), u_errorName(subStatus));
+    }
+#endif
+    
+    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
+      status = subStatus; // copy the failing status 
+#if FB_DEBUG
+      fprintf(stderr, "open %s : %s, %s\n", fromLocale.getBaseName(), "[exit]", u_errorName(status));
+#endif
+      return;  // leaves the builder empty, if you try to use it.
+    }
 
     LocalUResourceBundlePointer strs;
-    UErrorCode subStatus = status;
+    subStatus = status; // Pick up inherited warning status now 
     do {
       strs.adoptInstead(ures_getNextResource(breaks.getAlias(), strs.orphan(), &subStatus));
       if(strs.isValid() && U_SUCCESS(subStatus)) {
@@ -539,7 +573,7 @@ SimpleFilteredBreakIteratorBuilder::build(BreakIterator* adoptBreakIterator, UEr
   int32_t subCount = fSet.size();
 
   UnicodeString *ustrs_ptr = newUnicodeStringArray(subCount);
-
+  
   LocalArray<UnicodeString> ustrs(ustrs_ptr);
 
   LocalMemory<int> partials;

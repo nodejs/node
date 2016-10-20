@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -28,13 +30,13 @@ U_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
 // Code within that accesses shared static or global data should
-// should instantiate a Mutex object while doing so. You should make your own
+// should instantiate a Mutex object while doing so. You should make your own 
 // private mutex where possible.
 
 // For example:
-//
+// 
 // UMutex myMutex;
-//
+// 
 // void Function(int arg1, int arg2)
 // {
 //    static Object* foo;     // Shared read-write object

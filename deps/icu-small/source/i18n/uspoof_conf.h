@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -21,7 +23,7 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
-#if !UCONFIG_NO_REGULAR_EXPRESSIONS
+#if !UCONFIG_NO_REGULAR_EXPRESSIONS 
 
 #include "unicode/uregex.h"
 #include "uhash.h"
@@ -36,9 +38,9 @@ U_NAMESPACE_BEGIN
 
 struct SPUString : public UMemory {
     UnicodeString  *fStr;             // The actual string.
-    int32_t         fStrTableIndex;   // Index into the final runtime data for this string.
-                                      //  (or, for length 1, the single string char itself,
-                                      //   there being no string table entry for it.)
+    int32_t         fCharOrStrTableIndex;   // Index into the final runtime data for this
+                                      // string (or, for length 1, the single string char
+                                      // itself, there being no string table entry for it.)
     SPUString(UnicodeString *s);
     ~SPUString();
 };
@@ -56,7 +58,7 @@ class SPUStringPool : public UMemory {
   public:
     SPUStringPool(UErrorCode &status);
     ~SPUStringPool();
-
+    
     // Add a string. Return the string from the table.
     // If the input parameter string is already in the table, delete the
     //  input parameter and return the existing string.
@@ -86,10 +88,7 @@ class ConfusabledataBuilder : public UMemory {
   private:
     SpoofImpl  *fSpoofImpl;
     UChar      *fInput;
-    UHashtable *fSLTable;
-    UHashtable *fSATable;
-    UHashtable *fMLTable;
-    UHashtable *fMATable;
+    UHashtable *fTable;
     UnicodeSet *fKeySet;     // A set of all keys (UChar32s) that go into the four mapping tables.
 
     // The binary data is first assembled into the following four collections, then
@@ -97,8 +96,7 @@ class ConfusabledataBuilder : public UMemory {
     UVector            *fKeyVec;
     UVector            *fValueVec;
     UnicodeString      *fStringTable;
-    UVector            *fStringLengthsTable;
-
+    
     SPUStringPool      *stringPool;
     URegularExpression *fParseLine;
     URegularExpression *fParseHexNum;
@@ -130,5 +128,5 @@ class ConfusabledataBuilder : public UMemory {
 U_NAMESPACE_END
 
 #endif
-#endif  // !UCONFIG_NO_REGULAR_EXPRESSIONS
+#endif  // !UCONFIG_NO_REGULAR_EXPRESSIONS 
 #endif  // __USPOOF_BUILDCONF_H__

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -435,9 +437,9 @@ bytes_write_java(const BinaryResource *res, UErrorCode * /*status*/) {
     char byteBuffer[100] = { 0 };
 	uint8_t*  byteArray = NULL;
     int byteIterator = 0;
-
+	
     int32_t srcLen=res->fLength;
-
+	
     if(srcLen>0 )
 	{
         byteArray = res->fData;

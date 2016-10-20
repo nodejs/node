@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 
 /*
 ************************************************************************
@@ -22,7 +24,7 @@ udbg_enumString(UDebugEnumType type, int32_t field);
 
 /**
  * @return enum offset, or UDBG_INVALID_ENUM on error
- */
+ */ 
 U_CAPI int32_t U_EXPORT2
 udbg_enumByString(UDebugEnumType type, const icu::UnicodeString& string);
 

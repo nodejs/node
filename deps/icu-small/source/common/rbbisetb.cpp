@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  rbbisetb.cpp
 //
@@ -242,7 +244,7 @@ void RBBISetBuilder::build() {
         }
         if (rlRange->fNum == 0) {
             fGroupCount ++;
-            rlRange->fNum = fGroupCount+2;
+            rlRange->fNum = fGroupCount+2; 
             rlRange->setDictionaryFlag();
             addValToSets(rlRange->fIncludesSets, fGroupCount+2);
         }
@@ -408,7 +410,7 @@ UBool  RBBISetBuilder::sawBOF() const {
 //------------------------------------------------------------------------
 //
 //   getFirstChar      Given a runtime RBBI character category, find
-//                     the first UChar32 that is in the set of chars
+//                     the first UChar32 that is in the set of chars 
 //                     in the category.
 //------------------------------------------------------------------------
 UChar32  RBBISetBuilder::getFirstChar(int32_t category) const {
@@ -546,7 +548,7 @@ void RBBISetBuilder::printSets() {
         RBBI_DEBUG_printUnicodeString(usetNode->fText);
         RBBIDebugPrintf("\n");
         if (usetNode->fLeftChild != NULL) {
-            usetNode->fLeftChild->printTree(TRUE);
+            RBBINode::printTree(usetNode->fLeftChild, TRUE);
         }
     }
     RBBIDebugPrintf("\n");

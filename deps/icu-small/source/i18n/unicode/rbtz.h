@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2013, International Business Machines Corporation and    *
@@ -10,7 +12,7 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Rule based customizable time zone
  */
 

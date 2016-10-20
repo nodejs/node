@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2014, International Business Machines
@@ -49,7 +51,7 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
             new UnicodeString(*(const UnicodeString*)e->value.pointer);
         // Exit out if value could not be created.
         if (value == NULL) {
-		return;
+        	return;
         }
         variableNames.put(*(UnicodeString*)e->key.pointer, value, status);
     }

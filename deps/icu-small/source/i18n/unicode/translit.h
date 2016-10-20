@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (C) 1999-2014, International Business Machines
@@ -13,10 +15,10 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Tranforms text from one format to another.
  */
-
+ 
 #if !UCONFIG_NO_TRANSLITERATION
 
 #include "unicode/uobject.h"

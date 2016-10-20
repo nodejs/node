@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
  * Copyright (c) 2007-2012, International Business Machines Corporation and
@@ -111,7 +113,7 @@ U_CAPI int32_t  U_EXPORT2 udbg_enumByString(UDebugEnumType type, const UnicodeSt
 }
 
 // from DataMap::utoi
-U_CAPI int32_t
+U_CAPI int32_t 
 udbg_stoi(const UnicodeString &s)
 {
     char ch[256];
@@ -123,7 +125,7 @@ udbg_stoi(const UnicodeString &s)
 }
 
 
-U_CAPI double
+U_CAPI double 
 udbg_stod(const UnicodeString &s)
 {
     char ch[256];

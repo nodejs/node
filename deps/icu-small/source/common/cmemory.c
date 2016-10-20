@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -36,7 +38,7 @@ static UMemFreeFn     *pFree;
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
 #include <stdio.h>
 static int n=0;
-static long b=0;
+static long b=0; 
 #endif
 
 #if U_DEBUG

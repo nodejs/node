@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -37,7 +39,7 @@ ResourceBundle::ResourceBundle( const UnicodeString&    path,
     constructForLocale(path, Locale::getDefault(), error);
 }
 
-void
+void 
 ResourceBundle::constructForLocale(const UnicodeString& path,
                                    const Locale& locale,
                                    UErrorCode& error)

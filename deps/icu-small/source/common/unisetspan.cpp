@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -1007,7 +1009,7 @@ int32_t UnicodeSetStringSpan::spanUTF8(const uint8_t *s, int32_t length, USetSpa
                     if( !U8_IS_TRAIL(s[pos-overlap]) &&
                         !offsets.containsOffset(inc) &&
                         matches8(s+pos-overlap, s8, length8)
-
+                        
                     ) {
                         if(inc==rest) {
                             return length;  // Reached the end of the string.
@@ -1053,7 +1055,7 @@ int32_t UnicodeSetStringSpan::spanUTF8(const uint8_t *s, int32_t length, USetSpa
                     if( !U8_IS_TRAIL(s[pos-overlap]) &&
                         (overlap>maxOverlap || /* redundant overlap==maxOverlap && */ inc>maxInc) &&
                         matches8(s+pos-overlap, s8, length8)
-
+                        
                     ) {
                         maxInc=inc;  // Longest match from earliest start.
                         maxOverlap=overlap;

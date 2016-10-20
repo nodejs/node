@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -53,10 +55,10 @@
 #include "unicode/locid.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Resource Bundle
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 /**
@@ -80,8 +82,8 @@ public:
     /**
      * Constructor
      *
-     * @param packageName   The packageName and locale together point to an ICU udata object,
-     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
+     * @param packageName   The packageName and locale together point to an ICU udata object, 
+     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code> 
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.
@@ -110,8 +112,8 @@ public:
     /**
      * Construct a resource bundle for the default bundle in the specified package.
      *
-     * @param packageName   The packageName and locale together point to an ICU udata object,
-     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
+     * @param packageName   The packageName and locale together point to an ICU udata object, 
+     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code> 
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.
@@ -133,8 +135,8 @@ public:
      * Standard constructor, onstructs a resource bundle for the locale-specific
      * bundle in the specified package.
      *
-     * @param packageName   The packageName and locale together point to an ICU udata object,
-     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
+     * @param packageName   The packageName and locale together point to an ICU udata object, 
+     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code> 
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2007, International Business Machines
@@ -25,7 +27,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(LowercaseTransliterator)
 /**
  * Constructs a transliterator.
  */
-LowercaseTransliterator::LowercaseTransliterator() :
+LowercaseTransliterator::LowercaseTransliterator() : 
     CaseMapTransliterator(UNICODE_STRING("Any-Lower", 9), ucase_toFullLower)
 {
 }
