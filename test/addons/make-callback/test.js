@@ -36,6 +36,10 @@ const recv = {
 assert.strictEqual(42, makeCallback(recv, 'one'));
 assert.strictEqual(42, makeCallback(recv, 'two', 1337));
 
+// Check that callbacks on a receiver from a different context works.
+const foreignObject = vm.runInNewContext('({ fortytwo() { return 42; } })');
+assert.strictEqual(42, makeCallback(foreignObject, 'fortytwo'));
+
 // Check that the callback is made in the context of the receiver.
 const target = vm.runInNewContext(`
     (function($Object) {
