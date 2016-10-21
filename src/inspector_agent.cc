@@ -687,7 +687,7 @@ bool AgentImpl::RespondToGet(InspectorSocket* socket, const std::string& path) {
     SendVersionResponse(socket);
   } else {
     const char* pid = match_path_segment(command, "activate");
-    if (pid != id_)
+    if (pid == nullptr || pid != id_)
       return false;
     SendHttpResponse(socket, "Target activated");
   }
