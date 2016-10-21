@@ -2,6 +2,9 @@ env:
   node: true
   es6: true
 
+parserOptions:
+  ecmaVersion: 2016
+
 rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors
