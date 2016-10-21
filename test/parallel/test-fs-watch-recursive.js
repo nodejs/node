@@ -16,7 +16,8 @@ const filenameOne = 'watch.txt';
 
 common.refreshTmpDir();
 
-const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const testsubdir = path.join(testDir, 'watch_me');
+fs.mkdirSync(testsubdir);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 
@@ -34,7 +35,7 @@ watcher.on('change', function(event, filename) {
   watcherClosed = true;
 });
 
-if (process.platform === 'darwin') {
+if (common.isOSX) {
   setTimeout(function() {
     fs.writeFileSync(filepathOne, 'world');
   }, 100);
