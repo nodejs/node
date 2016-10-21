@@ -3341,11 +3341,6 @@ void SetupProcessObject(Environment* env,
 #undef READONLY_PROPERTY
 
 
-static void AtProcessExit() {
-  uv_tty_reset_mode();
-}
-
-
 void SignalExit(int signo) {
   uv_tty_reset_mode();
 #ifdef __FreeBSD__
@@ -3374,11 +3369,6 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
 
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
-
-  env->isolate()->SetFatalErrorHandler(node::OnFatalError);
-  env->isolate()->AddMessageListener(OnMessage);
-
-  atexit(AtProcessExit);
 
   TryCatch try_catch(env->isolate());
 
@@ -4374,16 +4364,89 @@ void FreeEnvironment(Environment* env) {
 }
 
 
+inline int Start(Isolate* isolate, IsolateData* isolate_data,
+                 int argc, const char* const* argv,
+                 int exec_argc, const char* const* exec_argv) {
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+  Environment env(isolate_data, context);
+  env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
+
+  // Start debug agent when argv has --debug
+  if (use_debug_agent) {
+    const char* path = argc > 1 ? argv[1] : nullptr;
+    StartDebug(&env, path, debug_wait_connect);
+    if (use_inspector && !debugger_running)
+      return 12;  // Signal internal error.
+  }
+
+  {
+    Environment::AsyncCallbackScope callback_scope(&env);
+    LoadEnvironment(&env);
+  }
+
+  env.set_trace_sync_io(trace_sync_io);
+
+  // Enable debugger
+  if (use_debug_agent)
+    EnableDebug(&env);
+
+  {
+    SealHandleScope seal(isolate);
+    bool more;
+    do {
+      v8_platform.PumpMessageLoop(isolate);
+      more = uv_run(env.event_loop(), UV_RUN_ONCE);
+
+      if (more == false) {
+        v8_platform.PumpMessageLoop(isolate);
+        EmitBeforeExit(&env);
+
+        // Emit `beforeExit` if the loop became alive either after emitting
+        // event, or after running some callbacks.
+        more = uv_loop_alive(env.event_loop());
+        if (uv_run(env.event_loop(), UV_RUN_NOWAIT) != 0)
+          more = true;
+      }
+    } while (more == true);
+  }
+
+  env.set_trace_sync_io(false);
+
+  const int exit_code = EmitExit(&env);
+  RunAtExit(&env);
+
+  WaitForInspectorDisconnect(&env);
+#if defined(LEAK_SANITIZER)
+  __lsan_do_leak_check();
+#endif
+
+  return exit_code;
+}
+
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
   Isolate::CreateParams params;
-  ArrayBufferAllocator array_buffer_allocator;
-  params.array_buffer_allocator = &array_buffer_allocator;
+  ArrayBufferAllocator allocator;
+  params.array_buffer_allocator = &allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
-  Isolate* isolate = Isolate::New(params);
+
+  Isolate* const isolate = Isolate::New(params);
+  if (isolate == nullptr)
+    return 12;  // Signal internal error.
+
+  isolate->AddMessageListener(OnMessage);
+  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+  isolate->SetAutorunMicrotasks(false);
+  isolate->SetFatalErrorHandler(OnFatalError);
+
+  if (track_heap_objects) {
+    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+  }
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
@@ -4391,90 +4454,28 @@ inline int Start(uv_loop_t* event_loop,
     node_isolate = isolate;
   }
 
-  if (track_heap_objects) {
-    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
-  }
-
   int exit_code;
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, event_loop,
-                             array_buffer_allocator.zero_fill_field());
-    Local<Context> context = Context::New(isolate);
-    Context::Scope context_scope(context);
-    Environment env(&isolate_data, context);
-    env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
-
-    isolate->SetAbortOnUncaughtExceptionCallback(
-        ShouldAbortOnUncaughtException);
-
-    // Start debug agent when argv has --debug
-    if (use_debug_agent) {
-      const char* path = argc > 1 ? argv[1] : nullptr;
-      StartDebug(&env, path, debug_wait_connect);
-      if (use_inspector && !debugger_running) {
-        exit(12);
-      }
-    }
-
-    {
-      Environment::AsyncCallbackScope callback_scope(&env);
-      LoadEnvironment(&env);
-    }
-
-    env.set_trace_sync_io(trace_sync_io);
-
-    // Enable debugger
-    if (use_debug_agent)
-      EnableDebug(&env);
-
-    {
-      SealHandleScope seal(isolate);
-      bool more;
-      do {
-        v8_platform.PumpMessageLoop(isolate);
-        more = uv_run(env.event_loop(), UV_RUN_ONCE);
-
-        if (more == false) {
-          v8_platform.PumpMessageLoop(isolate);
-          EmitBeforeExit(&env);
-
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
-          more = uv_loop_alive(env.event_loop());
-          if (uv_run(env.event_loop(), UV_RUN_NOWAIT) != 0)
-            more = true;
-        }
-      } while (more == true);
-    }
-
-    env.set_trace_sync_io(false);
-
-    exit_code = EmitExit(&env);
-    RunAtExit(&env);
-
-    WaitForInspectorDisconnect(&env);
-#if defined(LEAK_SANITIZER)
-    __lsan_do_leak_check();
-#endif
+    IsolateData isolate_data(isolate, event_loop, allocator.zero_fill_field());
+    exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
   }
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-    if (node_isolate == isolate)
-      node_isolate = nullptr;
+    CHECK_EQ(node_isolate, isolate);
+    node_isolate = nullptr;
   }
 
-  CHECK_NE(isolate, nullptr);
   isolate->Dispose();
-  isolate = nullptr;
 
   return exit_code;
 }
 
 int Start(int argc, char** argv) {
+  atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
 
   CHECK_GT(argc, 0);
