@@ -8,6 +8,7 @@ const fs = require('fs');
 assert.strictEqual(process.execPath, fs.realpathSync(process.execPath));
 
 if (process.argv[2] === 'child') {
+  // The console.log() output is part of the test here.
   console.log(process.execPath);
 } else {
   common.refreshTmpDir();
