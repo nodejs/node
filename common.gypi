@@ -278,6 +278,9 @@
           ['_type=="static_library" and OS=="solaris"', {
             'standalone_static_library': 1,
           }],
+          ['OS=="openbsd"', {
+            'ldflags': [ '-Wl,-z,wxneeded' ],
+          }],
         ],
         'conditions': [
           [ 'target_arch=="ia32"', {
