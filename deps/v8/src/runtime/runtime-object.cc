@@ -418,7 +418,6 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(!value->IsTheHole(isolate));
 
   uint32_t index;
   CHECK(array->length()->ToArrayIndex(&index));

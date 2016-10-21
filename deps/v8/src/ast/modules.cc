@@ -54,7 +54,7 @@ void ModuleDescriptor::AddExport(
   ModuleEntry* entry = new (zone) ModuleEntry(loc);
   entry->export_name = export_name;
   entry->local_name = local_name;
-  exports_.Add(entry, zone);
+  regular_exports_.insert(std::make_pair(entry->local_name, entry));
 }
 
 
@@ -68,7 +68,7 @@ void ModuleDescriptor::AddExport(
   entry->export_name = export_name;
   entry->import_name = import_name;
   entry->module_request = module_request;
-  exports_.Add(entry, zone);
+  special_exports_.Add(entry, zone);
 }
 
 
@@ -77,24 +77,45 @@ void ModuleDescriptor::AddStarExport(
   DCHECK_NOT_NULL(module_request);
   ModuleEntry* entry = new (zone) ModuleEntry(loc);
   entry->module_request = module_request;
-  exports_.Add(entry, zone);
+  special_exports_.Add(entry, zone);
 }
 
-void ModuleDescriptor::MakeIndirectExportsExplicit() {
-  for (auto entry : exports_) {
-    if (entry->export_name == nullptr) continue;
-    if (entry->import_name != nullptr) continue;
+void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
+  for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
+    ModuleEntry* entry = it->second;
     DCHECK_NOT_NULL(entry->local_name);
-    auto it = regular_imports_.find(entry->local_name);
-    if (it != regular_imports_.end()) {
-      // Found an indirect export.
-      DCHECK_NOT_NULL(it->second->module_request);
-      DCHECK_NOT_NULL(it->second->import_name);
-      entry->import_name = it->second->import_name;
-      entry->module_request = it->second->module_request;
+    auto import = regular_imports_.find(entry->local_name);
+    if (import != regular_imports_.end()) {
+      // Found an indirect export.  Patch export entry and move it from regular
+      // to special.
+      DCHECK_NULL(entry->import_name);
+      DCHECK_NULL(entry->module_request);
+      DCHECK_NOT_NULL(import->second->import_name);
+      DCHECK_NOT_NULL(import->second->module_request);
+      entry->import_name = import->second->import_name;
+      entry->module_request = import->second->module_request;
       entry->local_name = nullptr;
+      special_exports_.Add(entry, zone);
+      it = regular_exports_.erase(it);
+    } else {
+      it++;
     }
   }
+}
+
+const ModuleDescriptor::ModuleEntry* ModuleDescriptor::FindDuplicateExport(
+    Zone* zone) const {
+  ZoneSet<const AstRawString*> export_names(zone);
+  for (const auto& it : regular_exports_) {
+    const ModuleEntry* entry = it.second;
+    DCHECK_NOT_NULL(entry->export_name);
+    if (!export_names.insert(entry->export_name).second) return entry;
+  }
+  for (auto entry : special_exports_) {
+    if (entry->export_name == nullptr) continue;  // Star export.
+    if (!export_names.insert(entry->export_name).second) return entry;
+  }
+  return nullptr;
 }
 
 bool ModuleDescriptor::Validate(ModuleScope* module_scope,
@@ -105,29 +126,19 @@ bool ModuleDescriptor::Validate(ModuleScope* module_scope,
 
   // Report error iff there are duplicate exports.
   {
-    ZoneAllocationPolicy allocator(zone);
-    ZoneHashMap* export_names = new (zone->New(sizeof(ZoneHashMap)))
-        ZoneHashMap(ZoneHashMap::PointersMatch,
-                    ZoneHashMap::kDefaultHashMapCapacity, allocator);
-    for (auto entry : exports_) {
-      if (entry->export_name == nullptr) continue;
-      AstRawString* key = const_cast<AstRawString*>(entry->export_name);
-      ZoneHashMap::Entry* p =
-          export_names->LookupOrInsert(key, key->hash(), allocator);
-      DCHECK_NOT_NULL(p);
-      if (p->value != nullptr) {
-        error_handler->ReportMessageAt(
-            entry->location.beg_pos, entry->location.end_pos,
-            MessageTemplate::kDuplicateExport, entry->export_name);
-        return false;
-      }
-      p->value = key;  // Anything but nullptr.
+    const ModuleEntry* entry = FindDuplicateExport(zone);
+    if (entry != nullptr) {
+      error_handler->ReportMessageAt(
+          entry->location.beg_pos, entry->location.end_pos,
+          MessageTemplate::kDuplicateExport, entry->export_name);
+      return false;
     }
   }
 
   // Report error iff there are exports of non-existent local names.
-  for (auto entry : exports_) {
-    if (entry->local_name == nullptr) continue;
+  for (const auto& it : regular_exports_) {
+    const ModuleEntry* entry = it.second;
+    DCHECK_NOT_NULL(entry->local_name);
     if (module_scope->LookupLocal(entry->local_name) == nullptr) {
       error_handler->ReportMessageAt(
           entry->location.beg_pos, entry->location.end_pos,
@@ -136,7 +147,7 @@ bool ModuleDescriptor::Validate(ModuleScope* module_scope,
     }
   }
 
-  MakeIndirectExportsExplicit();
+  MakeIndirectExportsExplicit(zone);
   return true;
 }
 

@@ -41,7 +41,8 @@ function AsyncFunctionAwait(generator, value) {
   var onRejected =
       (sentError) => %_Call(AsyncFunctionThrow, generator, sentError);
 
-  var throwawayCapability = NewPromiseCapability(GlobalPromise);
+  // false debugEvent to avoid redundant ExceptionEvents
+  var throwawayCapability = NewPromiseCapability(GlobalPromise, false);
   return PerformPromiseThen(promise, onFulfilled, onRejected,
                             throwawayCapability);
 }

@@ -634,6 +634,8 @@ class ModuleDecoder : public Decoder {
         return kAstF32;
       case kLocalF64:
         return kAstF64;
+      case kLocalS128:
+        return kAstS128;
       default:
         error(pc_ - 1, "invalid local type");
         return kAstStmt;

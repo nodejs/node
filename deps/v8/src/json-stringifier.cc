@@ -212,25 +212,23 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
 }
 
 MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
-    Handle<Object> value, Handle<Object> key, Handle<Object> initial_holder) {
+    Handle<Object> object, Handle<Object> key) {
   HandleScope scope(isolate_);
   if (key->IsSmi()) key = factory()->NumberToString(key);
-  Handle<Object> argv[] = {key, value};
-  Handle<JSReceiver> holder = CurrentHolder(value, initial_holder);
+  Handle<Object> argv[] = {key, object};
+  Handle<JSReceiver> holder = CurrentHolder(object);
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, value,
+      isolate_, object,
       Execution::Call(isolate_, replacer_function_, holder, 2, argv), Object);
-  return scope.CloseAndEscape(value);
+  return scope.CloseAndEscape(object);
 }
 
-Handle<JSReceiver> JsonStringifier::CurrentHolder(
-    Handle<Object> value, Handle<Object> initial_holder) {
+Handle<JSReceiver> JsonStringifier::CurrentHolder(Handle<Object> value) {
   int length = Smi::cast(stack_->length())->value();
   if (length == 0) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
-    JSObject::AddProperty(holder, factory()->empty_string(), initial_holder,
-                          NONE);
+    JSObject::AddProperty(holder, factory()->empty_string(), value, NONE);
     return holder;
   } else {
     FixedArray* elements = FixedArray::cast(stack_->elements());
@@ -275,7 +273,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     bool comma,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
-  Handle<Object> initial_value = object;
   if (interrupt_check.InterruptRequested() &&
       isolate_->stack_guard()->HandleInterrupts()->IsException(isolate_)) {
     return EXCEPTION;
@@ -286,8 +283,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   }
   if (!replacer_function_.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate_, object, ApplyReplacerFunction(object, key, initial_value),
-        EXCEPTION);
+        isolate_, object, ApplyReplacerFunction(object, key), EXCEPTION);
   }
 
   if (object->IsSmi()) {

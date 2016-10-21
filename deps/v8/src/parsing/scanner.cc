@@ -14,7 +14,6 @@
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/list-inl.h"
-#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {

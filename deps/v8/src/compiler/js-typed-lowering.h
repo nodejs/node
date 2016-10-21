@@ -80,6 +80,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
   Reduction ReduceSelect(Node* node);
+  Reduction ReducePhi(Node* node);
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);

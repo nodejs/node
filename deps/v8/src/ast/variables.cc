@@ -33,16 +33,15 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
                    MaybeAssignedFlag maybe_assigned_flag)
     : scope_(scope),
       name_(name),
-      mode_(mode),
-      kind_(kind),
-      location_(VariableLocation::UNALLOCATED),
+      local_if_not_shadowed_(nullptr),
       index_(-1),
       initializer_position_(kNoSourcePosition),
-      local_if_not_shadowed_(NULL),
-      force_context_allocation_(false),
-      is_used_(false),
-      initialization_flag_(initialization_flag),
-      maybe_assigned_(maybe_assigned_flag) {
+      bit_field_(MaybeAssignedFlagField::encode(maybe_assigned_flag) |
+                 InitializationFlagField::encode(initialization_flag) |
+                 VariableModeField::encode(mode) | IsUsedField::encode(false) |
+                 ForceContextAllocationField::encode(false) |
+                 LocationField::encode(VariableLocation::UNALLOCATED) |
+                 KindField::encode(kind)) {
   // Var declared variables never need initialization.
   DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }
@@ -51,8 +50,8 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
 bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return (IsDynamicVariableMode(mode_) ||
-          (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_))) &&
+  return (IsDynamicVariableMode(mode()) ||
+          (IsDeclaredVariableMode(mode()) && !IsLexicalVariableMode(mode()))) &&
          scope_ != NULL && scope_->is_script_scope();
 }
 
@@ -60,7 +59,7 @@ bool Variable::IsGlobalObjectProperty() const {
 bool Variable::IsStaticGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_)) &&
+  return (IsDeclaredVariableMode(mode()) && !IsLexicalVariableMode(mode())) &&
          scope_ != NULL && scope_->is_script_scope();
 }
 

@@ -434,24 +434,18 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   } else if (TryMatchAnyShift(selector, node, right_node, &opcode,
                               !is_add_sub)) {
     Matcher m_shift(right_node);
-    inputs[input_count++] = cont->IsDeoptimize()
-                                ? g.UseRegister(left_node)
-                                : g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else if (can_commute && TryMatchAnyShift(selector, node, left_node, &opcode,
                                              !is_add_sub)) {
     if (must_commute_cond) cont->Commute();
     Matcher m_shift(left_node);
-    inputs[input_count++] = cont->IsDeoptimize()
-                                ? g.UseRegister(right_node)
-                                : g.UseRegisterOrImmediateZero(right_node);
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else {
-    inputs[input_count++] = cont->IsDeoptimize()
-                                ? g.UseRegister(left_node)
-                                : g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
   }
 
@@ -461,14 +455,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   }
 
   if (!IsComparisonField::decode(properties)) {
-    if (cont->IsDeoptimize()) {
-      // If we can deoptimize as a result of the binop, we need to make sure
-      // that the deopt inputs are not overwritten by the binop result. One way
-      // to achieve that is to declare the output register as same-as-first.
-      outputs[output_count++] = g.DefineSameAsFirst(node);
-    } else {
-      outputs[output_count++] = g.DefineAsRegister(node);
-    }
+    outputs[output_count++] = g.DefineAsRegister(node);
   }
 
   if (cont->IsSet()) {

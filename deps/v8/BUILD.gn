@@ -41,7 +41,7 @@ declare_args() {
   v8_enable_gdbjit = ""
 
   # Sets -dENABLE_HANDLE_ZAPPING.
-  v8_enable_handle_zapping = is_debug
+  v8_enable_handle_zapping = true
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
@@ -868,7 +868,6 @@ v8_source_set("v8_base") {
     "src/ast/prettyprinter.cc",
     "src/ast/prettyprinter.h",
     "src/ast/scopeinfo.cc",
-    "src/ast/scopeinfo.h",
     "src/ast/scopes.cc",
     "src/ast/scopes.h",
     "src/ast/variables.cc",

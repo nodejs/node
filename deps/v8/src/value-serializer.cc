@@ -82,6 +82,14 @@ enum class SerializationTag : uint8_t {
   // Regular expression, UTF-8 encoding. byteLength:uint32_t, raw data,
   // flags:uint32_t.
   kRegExp = 'R',
+  // Beginning of a JS map.
+  kBeginJSMap = ';',
+  // End of a JS map. length:uint32_t.
+  kEndJSMap = ':',
+  // Beginning of a JS set.
+  kBeginJSSet = '\'',
+  // End of a JS set. length:uint32_t.
+  kEndJSSet = ',',
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
@@ -289,6 +297,10 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_REGEXP_TYPE:
       WriteJSRegExp(JSRegExp::cast(*receiver));
       return Just(true);
+    case JS_MAP_TYPE:
+      return WriteJSMap(Handle<JSMap>::cast(receiver));
+    case JS_SET_TYPE:
+      return WriteJSSet(Handle<JSSet>::cast(receiver));
     default:
       UNIMPLEMENTED();
       break;
@@ -415,6 +427,67 @@ void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
   api_string->WriteUtf8(reinterpret_cast<char*>(ReserveRawBytes(utf8_length)),
                         utf8_length, nullptr, v8::String::NO_NULL_TERMINATION);
   WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
+}
+
+Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
+  // First copy the key-value pairs, since getters could mutate them.
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
+  int length = table->NumberOfElements() * 2;
+  Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
+  {
+    DisallowHeapAllocation no_gc;
+    Oddball* the_hole = isolate_->heap()->the_hole_value();
+    int capacity = table->UsedCapacity();
+    int result_index = 0;
+    for (int i = 0; i < capacity; i++) {
+      Object* key = table->KeyAt(i);
+      if (key == the_hole) continue;
+      entries->set(result_index++, key);
+      entries->set(result_index++, table->ValueAt(i));
+    }
+    DCHECK_EQ(result_index, length);
+  }
+
+  // Then write it out.
+  WriteTag(SerializationTag::kBeginJSMap);
+  for (int i = 0; i < length; i++) {
+    if (!WriteObject(handle(entries->get(i), isolate_)).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
+  }
+  WriteTag(SerializationTag::kEndJSMap);
+  WriteVarint<uint32_t>(length);
+  return Just(true);
+}
+
+Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
+  // First copy the element pointers, since getters could mutate them.
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
+  int length = table->NumberOfElements();
+  Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
+  {
+    DisallowHeapAllocation no_gc;
+    Oddball* the_hole = isolate_->heap()->the_hole_value();
+    int capacity = table->UsedCapacity();
+    int result_index = 0;
+    for (int i = 0; i < capacity; i++) {
+      Object* key = table->KeyAt(i);
+      if (key == the_hole) continue;
+      entries->set(result_index++, key);
+    }
+    DCHECK_EQ(result_index, length);
+  }
+
+  // Then write it out.
+  WriteTag(SerializationTag::kBeginJSSet);
+  for (int i = 0; i < length; i++) {
+    if (!WriteObject(handle(entries->get(i), isolate_)).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
+  }
+  WriteTag(SerializationTag::kEndJSSet);
+  WriteVarint<uint32_t>(length);
+  return Just(true);
 }
 
 Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
@@ -606,6 +679,10 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       return ReadJSValue(tag);
     case SerializationTag::kRegExp:
       return ReadJSRegExp();
+    case SerializationTag::kBeginJSMap:
+      return ReadJSMap();
+    case SerializationTag::kBeginJSSet:
+      return ReadJSSet();
     default:
       return MaybeHandle<Object>();
   }
@@ -799,6 +876,79 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   }
   AddObjectWithID(id, regexp);
   return regexp;
+}
+
+MaybeHandle<JSMap> ValueDeserializer::ReadJSMap() {
+  // If we are at the end of the stack, abort. This function may recurse.
+  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSMap>();
+
+  HandleScope scope(isolate_);
+  uint32_t id = next_id_++;
+  Handle<JSMap> map = isolate_->factory()->NewJSMap();
+  AddObjectWithID(id, map);
+
+  Handle<JSFunction> map_set = isolate_->map_set();
+  uint32_t length = 0;
+  while (true) {
+    SerializationTag tag;
+    if (!PeekTag().To(&tag)) return MaybeHandle<JSMap>();
+    if (tag == SerializationTag::kEndJSMap) {
+      ConsumeTag(SerializationTag::kEndJSMap);
+      break;
+    }
+
+    Handle<Object> argv[2];
+    if (!ReadObject().ToHandle(&argv[0]) || !ReadObject().ToHandle(&argv[1]) ||
+        Execution::Call(isolate_, map_set, map, arraysize(argv), argv)
+            .is_null()) {
+      return MaybeHandle<JSMap>();
+    }
+    length += 2;
+  }
+
+  uint32_t expected_length;
+  if (!ReadVarint<uint32_t>().To(&expected_length) ||
+      length != expected_length) {
+    return MaybeHandle<JSMap>();
+  }
+  DCHECK(HasObjectWithID(id));
+  return scope.CloseAndEscape(map);
+}
+
+MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
+  // If we are at the end of the stack, abort. This function may recurse.
+  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSSet>();
+
+  HandleScope scope(isolate_);
+  uint32_t id = next_id_++;
+  Handle<JSSet> set = isolate_->factory()->NewJSSet();
+  AddObjectWithID(id, set);
+  Handle<JSFunction> set_add = isolate_->set_add();
+  uint32_t length = 0;
+  while (true) {
+    SerializationTag tag;
+    if (!PeekTag().To(&tag)) return MaybeHandle<JSSet>();
+    if (tag == SerializationTag::kEndJSSet) {
+      ConsumeTag(SerializationTag::kEndJSSet);
+      break;
+    }
+
+    Handle<Object> argv[1];
+    if (!ReadObject().ToHandle(&argv[0]) ||
+        Execution::Call(isolate_, set_add, set, arraysize(argv), argv)
+            .is_null()) {
+      return MaybeHandle<JSSet>();
+    }
+    length++;
+  }
+
+  uint32_t expected_length;
+  if (!ReadVarint<uint32_t>().To(&expected_length) ||
+      length != expected_length) {
+    return MaybeHandle<JSSet>();
+  }
+  DCHECK(HasObjectWithID(id));
+  return scope.CloseAndEscape(set);
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(

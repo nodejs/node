@@ -219,9 +219,7 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
   if (this->elements_) {
     this->elements_ = that->elements_
                           ? that->elements_->Merge(this->elements_, zone)
-                          : that->elements_;
-  } else {
-    this->elements_ = that->elements_;
+                          : nullptr;
   }
 
   // Merge the information we have about the fields.

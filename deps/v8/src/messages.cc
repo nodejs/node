@@ -495,44 +495,54 @@ MaybeHandle<FixedArray> GetStackFrames(Isolate* isolate,
   Handle<JSArray> raw_stack_array = Handle<JSArray>::cast(raw_stack);
 
   DCHECK(raw_stack_array->elements()->IsFixedArray());
-  Handle<FixedArray> raw_stack_elements =
-      handle(FixedArray::cast(raw_stack_array->elements()), isolate);
+  Handle<FrameArray> elems(FrameArray::cast(raw_stack_array->elements()));
 
-  const int raw_stack_len = raw_stack_elements->length();
-  DCHECK(raw_stack_len % 4 == 1);  // Multiples of 4 plus sloppy frames count.
-  const int frame_count = (raw_stack_len - 1) / 4;
+  const int frame_count = elems->FrameCount();
 
-  Handle<Object> sloppy_frames_obj =
-      FixedArray::get(*raw_stack_elements, 0, isolate);
-  int sloppy_frames = Handle<Smi>::cast(sloppy_frames_obj)->value();
-
-  int dst_ix = 0;
   Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
-  for (int i = 1; i < raw_stack_len; i += 4) {
-    Handle<Object> recv = FixedArray::get(*raw_stack_elements, i, isolate);
-    Handle<Object> fun = FixedArray::get(*raw_stack_elements, i + 1, isolate);
-    Handle<AbstractCode> code = Handle<AbstractCode>::cast(
-        FixedArray::get(*raw_stack_elements, i + 2, isolate));
-    Handle<Smi> pc =
-        Handle<Smi>::cast(FixedArray::get(*raw_stack_elements, i + 3, isolate));
+  for (int i = 0; i < frame_count; i++) {
+    const int flags = elems->Flags(i)->value();
+    Handle<AbstractCode> code(elems->Code(i), isolate);
+    Handle<Smi> pc(elems->Offset(i), isolate);
+    Handle<Object> strict =
+        isolate->factory()->ToBoolean(flags & FrameArray::kIsStrict);
 
-    Handle<Object> pos =
-        (fun->IsSmi() && pc->value() < 0)
-            ? handle(Smi::FromInt(-1 - pc->value()), isolate)
-            : handle(Smi::FromInt(code->SourcePosition(pc->value())), isolate);
+    if (elems->IsWasmFrame(i)) {
+      Handle<Object> wasm_obj(elems->WasmObject(i), isolate);
+      Handle<Smi> wasm_fun_ix(elems->WasmFunctionIndex(i), isolate);
 
-    sloppy_frames--;
-    Handle<Object> strict = isolate->factory()->ToBoolean(sloppy_frames < 0);
+      Handle<Object> pos((pc->value() < 0)
+                             ? Smi::FromInt(-1 - pc->value())
+                             : Smi::FromInt(code->SourcePosition(pc->value())),
+                         isolate);
 
-    Handle<Object> callsite;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, callsite,
-        CallSiteUtils::Construct(isolate, recv, fun, pos, strict), FixedArray);
+      Handle<Object> callsite;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, callsite,
+          CallSiteUtils::Construct(isolate, wasm_obj, wasm_fun_ix, pos, strict),
+          FixedArray);
 
-    frames->set(dst_ix++, *callsite);
+      frames->set(i, *callsite);
+    } else {
+      Handle<Object> recv(elems->Receiver(i), isolate);
+      Handle<Object> fun(elems->Function(i), isolate);
+      Handle<Object> pos(Smi::FromInt(code->SourcePosition(pc->value())),
+                         isolate);
+
+      if (flags & FrameArray::kForceConstructor) {
+        recv = handle(isolate->heap()->call_site_constructor_symbol());
+      }
+
+      Handle<Object> callsite;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, callsite,
+          CallSiteUtils::Construct(isolate, recv, fun, pos, strict),
+          FixedArray);
+
+      frames->set(i, *callsite);
+    }
   }
 
-  DCHECK_EQ(frame_count, dst_ix);
   return frames;
 }
 

@@ -13,9 +13,7 @@ namespace internal {
 
 // static
 FieldType* FieldType::None() {
-  // Do not Smi::FromInt(0) here or for Any(), as that may translate
-  // as `nullptr` which is not a valid value for `this`.
-  return reinterpret_cast<FieldType*>(Smi::FromInt(2));
+  return reinterpret_cast<FieldType*>(Smi::FromInt(0));
 }
 
 // static

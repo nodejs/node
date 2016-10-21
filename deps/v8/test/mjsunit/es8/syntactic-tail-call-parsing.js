@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-explicit-tailcalls
-// Flags: --harmony-do-expressions --harmony-async-await
+// Flags: --harmony-do-expressions
 "use strict";
 
 var SyntaxErrorTests = [
@@ -128,10 +128,7 @@ var SyntaxErrorTests = [
         err: `                    ^^^^^^^^^^^^^^`,
       },
       { src: `()=>{ function* G() { yield continue foo(); } }`,
-        err: `                                     ^^^^^`,
-      },
-      { src: `()=>{ function* G() { return continue foo(); } }`,
-        err: `                                      ^^^^^`,
+        err: `                            ^^^^^^^^^^^^^^`,
       },
       { src: `()=>{ (1, 2, 3, continue f() ) => {} }`,
         err: `                ^^^^^^^^^^^^`,
@@ -238,9 +235,6 @@ var SyntaxErrorTests = [
       { src: `class A extends continue f () {}; }`,
         err: `                ^^^^^^^^^^^^^`,
       },
-      { src: `async() => continue foo()`,
-        err: `                    ^^^^^`,
-      },
     ],
   },
   { msg: "Tail call expression in try block",
@@ -317,6 +311,7 @@ var NoErrorTests = [
   `()=>{ return a || continue f() ; }`,
   `()=>{ return a && continue f() ; }`,
   `()=>{ return a , continue f() ; }`,
+  `()=>{ function* G() { return continue foo(); } }`,
   `()=>{ class A { foo() { return continue super.f() ; } } }`,
   `()=>{ function B() { return continue new.target() ; } }`,
   `()=>{ return continue do { x ? foo() : bar() ; }() }`,

@@ -525,6 +525,8 @@ class StackFrame BASE_EMBEDDED {
 
   Isolate* isolate() const { return isolate_; }
 
+  void operator=(const StackFrame& original) = delete;
+
  protected:
   inline explicit StackFrame(StackFrameIteratorBase* iterator);
   virtual ~StackFrame() { }
@@ -563,9 +565,6 @@ class StackFrame BASE_EMBEDDED {
   friend class StackFrameIteratorBase;
   friend class StackHandlerIterator;
   friend class SafeStackFrameIterator;
-
- private:
-  void operator=(const StackFrame& original);
 };
 
 

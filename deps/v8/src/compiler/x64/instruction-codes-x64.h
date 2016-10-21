@@ -145,7 +145,9 @@ namespace compiler {
   V(X64StackCheck)                 \
   V(X64Xchgb)                      \
   V(X64Xchgw)                      \
-  V(X64Xchgl)
+  V(X64Xchgl)                      \
+  V(X64Int32x4Create)              \
+  V(X64Int32x4ExtractLane)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

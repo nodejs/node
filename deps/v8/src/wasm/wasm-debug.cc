@@ -162,11 +162,7 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   line_ends->set_map(isolate->heap()->fixed_cow_array_map());
   script->set_line_ends(*line_ends);
 
-  // TODO(clemensh): Register with the debugger. Note that we cannot call into
-  // JS at this point since this function is called from within stack trace
-  // collection (which means we cannot call Debug::OnAfterCompile in its
-  // current form). See crbug.com/641065.
-  if (false) isolate->debug()->OnAfterCompile(script);
+  isolate->debug()->OnAfterCompile(script);
 
   return *script;
 }

@@ -107,10 +107,17 @@ function setup() {
 (function testRegisteredWasmScripts1() {
   setup();
   Debug.setListener(listener);
+  // Initially 0 scripts.
+  assertEquals(0, num_wasm_scripts);
   // Call the "call_import" function -> 1 script.
   module.exports.call_import();
+  assertEquals(1, num_wasm_scripts);
+  // Call "call_import" again -> still just 1 script.
   module.exports.call_import();
+  assertEquals(1, num_wasm_scripts);
+  // Call "call_call_import" -> now 2 scripts.
   module.exports.call_call_import();
+  assertEquals(2, num_wasm_scripts);
   Debug.setListener(null);
 
   assertEquals(3, break_count);
@@ -120,7 +127,11 @@ function setup() {
 (function testRegisteredWasmScripts2() {
   setup();
   Debug.setListener(listener);
+  // Initially 0 scripts.
+  assertEquals(0, num_wasm_scripts);
+  // Call the "call_call_import" function -> 2 scripts should be registered.
   module.exports.call_call_import();
+  assertEquals(2, num_wasm_scripts);
   Debug.setListener(null);
 
   assertEquals(1, break_count);

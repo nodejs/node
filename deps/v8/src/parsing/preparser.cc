@@ -41,22 +41,8 @@ namespace internal {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-void ParserBaseTraits<PreParser>::ReportMessageAt(
-    Scanner::Location source_location, MessageTemplate::Template message,
-    const char* arg, ParseErrorType error_type) {
-  delegate()->log_->LogMessage(source_location.beg_pos, source_location.end_pos,
-                               message, arg, error_type);
-}
-
-void ParserBaseTraits<PreParser>::ReportMessageAt(
-    Scanner::Location source_location, MessageTemplate::Template message,
-    const AstRawString* arg, ParseErrorType error_type) {
-  UNREACHABLE();
-}
-
-PreParserIdentifier ParserBaseTraits<PreParser>::GetSymbol(
-    Scanner* scanner) const {
-  switch (scanner->current_token()) {
+PreParserIdentifier PreParser::GetSymbol() const {
+  switch (scanner()->current_token()) {
     case Token::ENUM:
       return PreParserIdentifier::Enum();
     case Token::AWAIT:
@@ -72,26 +58,18 @@ PreParserIdentifier ParserBaseTraits<PreParser>::GetSymbol(
     case Token::ASYNC:
       return PreParserIdentifier::Async();
     default:
-      if (scanner->UnescapedLiteralMatches("eval", 4))
+      if (scanner()->UnescapedLiteralMatches("eval", 4))
         return PreParserIdentifier::Eval();
-      if (scanner->UnescapedLiteralMatches("arguments", 9))
+      if (scanner()->UnescapedLiteralMatches("arguments", 9))
         return PreParserIdentifier::Arguments();
-      if (scanner->UnescapedLiteralMatches("undefined", 9))
+      if (scanner()->UnescapedLiteralMatches("undefined", 9))
         return PreParserIdentifier::Undefined();
-      if (scanner->LiteralMatches("prototype", 9))
+      if (scanner()->LiteralMatches("prototype", 9))
         return PreParserIdentifier::Prototype();
-      if (scanner->LiteralMatches("constructor", 11))
+      if (scanner()->LiteralMatches("constructor", 11))
         return PreParserIdentifier::Constructor();
       return PreParserIdentifier::Default();
   }
-}
-
-PreParserExpression ParserBaseTraits<PreParser>::ExpressionFromString(
-    int pos, Scanner* scanner, PreParserFactory* factory) const {
-  if (scanner->UnescapedLiteralMatches("use strict", 10)) {
-    return PreParserExpression::UseStrictStringLiteral();
-  }
-  return PreParserExpression::StringLiteral();
 }
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(

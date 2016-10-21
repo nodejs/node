@@ -840,8 +840,7 @@ enum SmiCheckType {
   DO_SMI_CHECK
 };
 
-
-enum ScopeType {
+enum ScopeType : uint8_t {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
@@ -878,7 +877,7 @@ const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 
 
 // The order of this enum has to be kept in sync with the predicates below.
-enum VariableMode {
+enum VariableMode : uint8_t {
   // User declared variables:
   VAR,  // declared via 'var', and 'function' declarations
 
@@ -899,10 +898,12 @@ enum VariableMode {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL  // requires dynamic lookup, but we know that the
-                 // variable is local and where it is unless it
-                 // has been shadowed by an eval-introduced
-                 // variable
+  DYNAMIC_LOCAL,  // requires dynamic lookup, but we know that the
+                  // variable is local and where it is unless it
+                  // has been shadowed by an eval-introduced
+                  // variable
+
+  kLastVariableMode = DYNAMIC_LOCAL
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
@@ -924,7 +925,7 @@ inline bool IsImmutableVariableMode(VariableMode mode) {
   return mode == CONST || mode == CONST_LEGACY;
 }
 
-enum class VariableLocation {
+enum VariableLocation : uint8_t {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a
   // property on the global object (and possibly absent).  name() is the
@@ -957,7 +958,9 @@ enum class VariableLocation {
   LOOKUP,
 
   // A named slot in a module's export table.
-  MODULE
+  MODULE,
+
+  kLastVariableLocation = MODULE
 };
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
@@ -991,14 +994,9 @@ enum class VariableLocation {
 // The following enum specifies a flag that indicates if the binding needs a
 // distinct initialization step (kNeedsInitialization) or if the binding is
 // immediately initialized upon creation (kCreatedInitialized).
-enum InitializationFlag {
-  kNeedsInitialization,
-  kCreatedInitialized
-};
+enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
-
-enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
-
+enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 // Serialized in PreparseData, so numeric values should not be changed.
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };

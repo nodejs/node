@@ -217,7 +217,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   double jj4 = std::numeric_limits<double>::infinity();
   double jj5 = -std::numeric_limits<double>::infinity();
   void* kk = &aa;
-  const char* ll = "100";
+  const char* ll = "\"100\"";
   std::string mm = "INIT";
   std::string mmm = "\"INIT\"";
 
@@ -254,13 +254,15 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mmm.c_str()));
 
     TRACE_EVENT2("v8", "v8.Test2.1", "aa", aa, "ll", ll);
-    TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mm.c_str()), "mm2",
+    TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mmm.c_str()), "mm2",
                  TRACE_STR_COPY(mmm.c_str()));
 
     // Check copies are correct.
     TRACE_EVENT_COPY_INSTANT0("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD);
-    TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD, "mm1",
-                              mm.c_str(), "mm2", mmm.c_str());
+    TRACE_EVENT_COPY_INSTANT1("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD,
+                              mm.c_str(), mmm.c_str());
+    TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD,
+                              mm.c_str(), mmm.c_str(), mm.c_str(), mmm.c_str());
     mm = "CHANGED";
     mmm = "CHANGED";
 
@@ -274,7 +276,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   GetJSONStrings(all_names, trace_str, "\"name\"", "\"", "\"");
   GetJSONStrings(all_cats, trace_str, "\"cat\"", "\"", "\"");
 
-  CHECK_EQ(all_args.size(), 22);
+  CHECK_EQ(all_args.size(), 23);
   CHECK_EQ(all_args[0], "\"aa\":11");
   CHECK_EQ(all_args[1], "\"bb\":22");
   CHECK_EQ(all_args[2], "\"cc\":33");
@@ -294,15 +296,17 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   pointer_stream << "\"kk\":\"" << &aa << "\"";
   CHECK_EQ(all_args[15], pointer_stream.str());
   CHECK_EQ(all_args[16], "\"ll\":\"100\"");
-  CHECK_EQ(all_args[17], "\"mm\":\"\\\"INIT\\\"\"");
+  CHECK_EQ(all_args[17], "\"mm\":\"INIT\"");
 
   CHECK_EQ(all_names[18], "v8.Test2.1");
   CHECK_EQ(all_args[18], "\"aa\":11,\"ll\":\"100\"");
-  CHECK_EQ(all_args[19], "\"mm1\":\"INIT\",\"mm2\":\"\\\"INIT\\\"\"");
+  CHECK_EQ(all_args[19], "\"mm1\":\"INIT\",\"mm2\":\"INIT\"");
 
   CHECK_EQ(all_names[20], "INIT");
   CHECK_EQ(all_names[21], "INIT");
-  CHECK_EQ(all_args[21], "\"mm1\":\"INIT\",\"mm2\":\"\\\"INIT\\\"\"");
+  CHECK_EQ(all_args[21], "\"INIT\":\"INIT\"");
+  CHECK_EQ(all_names[22], "INIT");
+  CHECK_EQ(all_args[22], "\"INIT\":\"INIT\",\"INIT\":\"INIT\"");
 
   i::V8::SetPlatformForTesting(old_platform);
 }

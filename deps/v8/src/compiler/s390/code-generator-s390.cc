@@ -2382,7 +2382,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
           Heap::RootListIndex index;
-          if (IsMaterializableFromRoot(src_object, &index)) {
+          int slot;
+          if (IsMaterializableFromFrame(src_object, &slot)) {
+            __ LoadP(dst, g.SlotToMemOperand(slot));
+          } else if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {
             __ Move(dst, src_object);

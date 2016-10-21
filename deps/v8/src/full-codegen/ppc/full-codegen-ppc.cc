@@ -173,7 +173,7 @@ void FullCodeGenerator::Generate() {
   bool function_in_register_r4 = true;
 
   // Possibly allocate a local context.
-  if (info->scope()->num_heap_slots() > 0) {
+  if (info->scope()->NeedsContext()) {
     // Argument to NewContext is the function, which is still in r4.
     Comment cmnt(masm_, "[ Allocate context");
     bool need_write_barrier = true;
@@ -259,9 +259,8 @@ void FullCodeGenerator::Generate() {
   }
 
   // Possibly allocate RestParameters
-  int rest_index;
-  Variable* rest_param = info->scope()->rest_parameter(&rest_index);
-  if (rest_param) {
+  Variable* rest_param = info->scope()->rest_parameter();
+  if (rest_param != nullptr) {
     Comment cmnt(masm_, "[ Allocate rest parameter array");
     if (!function_in_register_r4) {
       __ LoadP(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1177,7 +1176,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
   Register temp = r7;
 
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
-    if (s->num_heap_slots() > 0) {
+    if (s->NeedsContext()) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is "the hole".
         __ LoadP(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
@@ -1834,8 +1833,7 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
     int expected_diff = StandardFrameConstants::kFixedFrameSizeFromFp +
                         operand_stack_depth_ * kPointerSize;
     __ sub(r3, fp, sp);
-    __ mov(ip, Operand(expected_diff));
-    __ cmp(r3, ip);
+    __ cmpi(r3, Operand(expected_diff));
     __ Assert(eq, kUnexpectedStackDepth);
   }
 }

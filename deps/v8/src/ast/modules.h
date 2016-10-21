@@ -19,7 +19,10 @@ class AstRawString;
 class ModuleDescriptor : public ZoneObject {
  public:
   explicit ModuleDescriptor(Zone* zone)
-      : exports_(1, zone), special_imports_(1, zone), regular_imports_(zone) {}
+      : special_exports_(1, zone),
+        special_imports_(1, zone),
+        regular_exports_(zone),
+        regular_imports_(zone) {}
 
   // import x from "foo.js";
   // import {x} from "foo.js";
@@ -82,8 +85,6 @@ class ModuleDescriptor : public ZoneObject {
           module_request(nullptr) {}
   };
 
-  const ZoneList<ModuleEntry*>& exports() const { return exports_; }
-
   // Empty imports and namespace imports.
   const ZoneList<const ModuleEntry*>& special_imports() const {
     return special_imports_;
@@ -95,10 +96,27 @@ class ModuleDescriptor : public ZoneObject {
     return regular_imports_;
   }
 
+  // Star exports and explicitly indirect exports.
+  const ZoneList<const ModuleEntry*>& special_exports() const {
+    return special_exports_;
+  }
+
+  // All the remaining exports, indexed by local name.
+  const ZoneMultimap<const AstRawString*, ModuleEntry*>& regular_exports()
+      const {
+    return regular_exports_;
+  }
+
  private:
-  ZoneList<ModuleEntry*> exports_;
+  // TODO(neis): Use STL datastructure instead of ZoneList?
+  ZoneList<const ModuleEntry*> special_exports_;
   ZoneList<const ModuleEntry*> special_imports_;
+  ZoneMultimap<const AstRawString*, ModuleEntry*> regular_exports_;
   ZoneMap<const AstRawString*, const ModuleEntry*> regular_imports_;
+
+  // If there are multiple export entries with the same export name, return one
+  // of them.  Otherwise return nullptr.
+  const ModuleEntry* FindDuplicateExport(Zone* zone) const;
 
   // Find any implicitly indirect exports and make them explicit.
   //
@@ -116,7 +134,7 @@ class ModuleDescriptor : public ZoneObject {
   // into:
   //   import {a as b} from "X"; export {a as c} from "X";
   // (The import entry is never deleted.)
-  void MakeIndirectExportsExplicit();
+  void MakeIndirectExportsExplicit(Zone* zone);
 };
 
 }  // namespace internal

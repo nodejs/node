@@ -744,7 +744,6 @@ void IncrementalMarking::RetainMaps() {
 
 
 void IncrementalMarking::FinalizeIncrementally() {
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE_BODY);
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
@@ -778,6 +777,7 @@ void IncrementalMarking::FinalizeIncrementally() {
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
   heap_->tracer()->AddMarkingTime(delta);
+  heap_->tracer()->AddIncrementalMarkingFinalizationStep(delta);
   if (FLAG_trace_incremental_marking) {
     PrintF(
         "[IncrementalMarking] Finalize incrementally round %d, "
@@ -1181,7 +1181,6 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
     HistogramTimerScope incremental_marking_scope(
         heap_->isolate()->counters()->gc_incremental_marking());
     TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
     double start = heap_->MonotonicallyIncreasingTimeInMs();
 
     // The marking speed is driven either by the allocation rate or by the rate

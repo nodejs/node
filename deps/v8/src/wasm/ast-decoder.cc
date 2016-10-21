@@ -68,17 +68,43 @@ struct Value {
   LocalType type;
 };
 
+struct Control;
+
+// IncomingBranch is used by exception handling code for managing finally's.
+struct IncomingBranch {
+  int32_t token_value;
+  Control* target;
+  Value val;
+};
+
+// Auxiliary data for exception handling. Most scopes don't need any of this so
+// we group everything into a separate struct.
+struct TryInfo : public ZoneObject {
+  SsaEnv* catch_env;       // catch environment (only for try with catch).
+  SsaEnv* finish_try_env;  // the environment where a try with finally lives.
+  ZoneVector<IncomingBranch> incoming_branches;
+  TFNode* token;
+  bool has_handled_finally;
+
+  TryInfo(Zone* zone, SsaEnv* c, SsaEnv* f)
+      : catch_env(c),
+        finish_try_env(f),
+        incoming_branches(zone),
+        token(nullptr),
+        has_handled_finally(false) {}
+};
+
 // An entry on the control stack (i.e. if, block, loop).
 struct Control {
   const byte* pc;
-  int stack_depth;         // stack height at the beginning of the construct.
-  SsaEnv* end_env;         // end environment for the construct.
-  SsaEnv* false_env;       // false environment (only for if).
-  SsaEnv* catch_env;       // catch environment (only for try with catch).
-  SsaEnv* finish_try_env;  // the environment where a try with finally lives.
-  TFNode* node;            // result node for the construct.
-  LocalType type;          // result type for the construct.
-  bool is_loop;            // true if this is the inner label of a loop.
+  int stack_depth;       // stack height at the beginning of the construct.
+  SsaEnv* end_env;       // end environment for the construct.
+  SsaEnv* false_env;     // false environment (only for if).
+  TryInfo* try_info;     // exception handling stuff. See TryInfo above.
+  int32_t prev_finally;  // previous control (on stack) that has a finally.
+  TFNode* node;          // result node for the construct.
+  LocalType type;        // result type for the construct.
+  bool is_loop;          // true if this is the inner label of a loop.
 
   bool is_if() const { return *pc == kExprIf; }
 
@@ -96,26 +122,40 @@ struct Control {
   }
 
   // Named constructors.
-  static Control Block(const byte* pc, int stack_depth, SsaEnv* end_env) {
-    return {pc,      stack_depth, end_env, nullptr, nullptr,
-            nullptr, nullptr,     kAstEnd, false};
-  }
-
-  static Control If(const byte* pc, int stack_depth, SsaEnv* end_env,
-                    SsaEnv* false_env) {
-    return {pc,      stack_depth, end_env,  false_env, nullptr,
-            nullptr, nullptr,     kAstStmt, false};
-  }
-
-  static Control Loop(const byte* pc, int stack_depth, SsaEnv* end_env) {
-    return {pc,      stack_depth, end_env, nullptr, nullptr,
-            nullptr, nullptr,     kAstEnd, true};
-  }
-
-  static Control Try(const byte* pc, int stack_depth, SsaEnv* end_env,
-                     SsaEnv* catch_env, SsaEnv* finish_try_env) {
-    return {pc,      stack_depth, end_env, nullptr, catch_env, finish_try_env,
+  static Control Block(const byte* pc, int stack_depth,
+                       int32_t most_recent_finally, SsaEnv* end_env) {
+    return {pc,      stack_depth, end_env,
+            nullptr, nullptr,     most_recent_finally,
             nullptr, kAstEnd,     false};
+  }
+
+  static Control If(const byte* pc, int stack_depth,
+                    int32_t most_recent_finally, SsaEnv* end_env,
+                    SsaEnv* false_env) {
+    return {pc,        stack_depth, end_env,
+            false_env, nullptr,     most_recent_finally,
+            nullptr,   kAstStmt,    false};
+  }
+
+  static Control Loop(const byte* pc, int stack_depth,
+                      int32_t most_recent_finally, SsaEnv* end_env) {
+    return {pc,      stack_depth, end_env,
+            nullptr, nullptr,     most_recent_finally,
+            nullptr, kAstEnd,     true};
+  }
+
+  static Control Try(const byte* pc, int stack_depth,
+                     int32_t most_recent_finally, Zone* zone, SsaEnv* end_env,
+                     SsaEnv* catch_env, SsaEnv* finish_try_env) {
+    return {pc,
+            stack_depth,
+            end_env,
+            nullptr,
+            new (zone) TryInfo(zone, catch_env, finish_try_env),
+            most_recent_finally,
+            nullptr,
+            kAstEnd,
+            false};
   }
 };
 
@@ -423,6 +463,10 @@ class WasmDecoder : public Decoder {
   }
 };
 
+static const int32_t kFirstFinallyToken = 1;
+static const int32_t kFallthroughToken = 0;
+static const int32_t kNullFinallyToken = -1;
+
 // The full WASM decoder for bytecode. Both verifies bytecode and generates
 // a TurboFan IR graph.
 class WasmFullDecoder : public WasmDecoder {
@@ -434,7 +478,9 @@ class WasmFullDecoder : public WasmDecoder {
         base_(body.base),
         local_type_vec_(zone),
         stack_(zone),
-        control_(zone) {
+        control_(zone),
+        most_recent_finally_(-1),
+        finally_token_val_(kFirstFinallyToken) {
     local_types_ = &local_type_vec_;
   }
 
@@ -527,6 +573,16 @@ class WasmFullDecoder : public WasmDecoder {
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
 
+  int32_t most_recent_finally_;
+  int32_t finally_token_val_;
+
+  int32_t FallthroughTokenForFinally() {
+    // Any number < kFirstFinallyToken would work.
+    return kFallthroughToken;
+  }
+
+  int32_t NewTokenForFinally() { return finally_token_val_++; }
+
   inline bool build() { return builder_ && ssa_env_->go(); }
 
   void InitSsaEnv() {
@@ -574,6 +630,8 @@ class WasmFullDecoder : public WasmDecoder {
         return builder_->Float32Constant(0);
       case kAstF64:
         return builder_->Float64Constant(0);
+      case kAstS128:
+        return builder_->DefaultS128Value();
       default:
         UNREACHABLE();
         return nullptr;
@@ -619,6 +677,9 @@ class WasmFullDecoder : public WasmDecoder {
           break;
         case kLocalF64:
           type = kAstF64;
+          break;
+        case kLocalS128:
+          type = kAstS128;
           break;
         default:
           error(pc_ - 1, "invalid local type");
@@ -730,15 +791,15 @@ class WasmFullDecoder : public WasmDecoder {
               break;
             }
 
-            if (c->catch_env == nullptr) {
+            if (c->try_info->catch_env == nullptr) {
               error(pc_, "catch already present for try with catch");
               break;
             }
 
             Goto(ssa_env_, c->end_env);
 
-            SsaEnv* catch_env = c->catch_env;
-            c->catch_env = nullptr;
+            SsaEnv* catch_env = c->try_info->catch_env;
+            c->try_info->catch_env = nullptr;
             SetEnv("catch:begin", catch_env);
 
             if (Validate(pc_, operand)) {
@@ -761,7 +822,7 @@ class WasmFullDecoder : public WasmDecoder {
             }
 
             Control* c = &control_.back();
-            if (c->has_catch() && c->catch_env != nullptr) {
+            if (c->has_catch() && c->try_info->catch_env != nullptr) {
               error(pc_, "missing catch for try with catch and finally");
               break;
             }
@@ -771,7 +832,7 @@ class WasmFullDecoder : public WasmDecoder {
               break;
             }
 
-            if (c->finish_try_env == nullptr) {
+            if (c->try_info->finish_try_env == nullptr) {
               error(pc_, "finally already present for try with finally");
               break;
             }
@@ -779,10 +840,14 @@ class WasmFullDecoder : public WasmDecoder {
             // ssa_env_ is either the env for either the try or the catch, but
             // it does not matter: either way we need to direct the control flow
             // to the end_env, which is the env for the finally.
-            // c->finish_try_env is the the environment enclosing the try block.
-            Goto(ssa_env_, c->end_env);
-
-            PopUpTo(c->stack_depth);
+            // c->try_info->finish_try_env is the the environment enclosing the
+            // try block.
+            const bool has_fallthrough = ssa_env_->go();
+            Value val = PopUpTo(c->stack_depth);
+            if (has_fallthrough) {
+              MergeInto(c->end_env, &c->node, &c->type, val);
+              MergeFinallyToken(ssa_env_, c, FallthroughTokenForFinally());
+            }
 
             // The current environment becomes end_env, and finish_try_env
             // becomes the new end_env. This ensures that any control flow
@@ -791,10 +856,22 @@ class WasmFullDecoder : public WasmDecoder {
             // that kExprEnd below can handle the try block as it would any
             // other block construct.
             SsaEnv* finally_env = c->end_env;
-            c->end_env = c->finish_try_env;
+            c->end_env = c->try_info->finish_try_env;
             SetEnv("finally:begin", finally_env);
-            c->finish_try_env = nullptr;
+            c->try_info->finish_try_env = nullptr;
 
+            if (has_fallthrough) {
+              LocalType c_type = c->type;
+              if (c->node == nullptr) {
+                c_type = kAstStmt;
+              }
+              Push(c_type, c->node);
+            }
+
+            c->try_info->has_handled_finally = true;
+            // There's no more need to keep the current control scope in the
+            // finally chain as no more predecessors will be added to c.
+            most_recent_finally_ = c->prev_finally;
             break;
           }
           case kExprLoop: {
@@ -847,7 +924,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprEnd: {
             if (control_.empty()) {
-              error(pc_, "end does not match any if or block");
+              error(pc_, "end does not match any if, try, or block");
               break;
             }
             const char* name = "block:end";
@@ -855,7 +932,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value val = PopUpTo(c->stack_depth);
             if (c->is_loop) {
               // Loops always push control in pairs.
-              control_.pop_back();
+              PopControl();
               c = &control_.back();
               name = "loop:end";
             } else if (c->is_if()) {
@@ -871,28 +948,30 @@ class WasmFullDecoder : public WasmDecoder {
             } else if (c->is_try()) {
               name = "try:end";
 
-              // try blocks do not yield a value.
-              val = {val.pc, nullptr, kAstStmt};
-
               // validate that catch/finally were seen.
-              if (c->catch_env != nullptr) {
+              if (c->try_info->catch_env != nullptr) {
                 error(pc_, "missing catch in try with catch");
                 break;
               }
 
-              if (c->finish_try_env != nullptr) {
+              if (c->try_info->finish_try_env != nullptr) {
                 error(pc_, "missing finally in try with finally");
                 break;
+              }
+
+              if (c->has_finally() && ssa_env_->go()) {
+                DispatchToTargets(c, val);
               }
             }
 
             if (ssa_env_->go()) {
+              // Adds a fallthrough edge to the next control block.
               MergeInto(c->end_env, &c->node, &c->type, val);
             }
             SetEnv(name, c->end_env);
             stack_.resize(c->stack_depth);
             Push(c->type, c->node);
-            control_.pop_back();
+            PopControl();
             break;
           }
           case kExprSelect: {
@@ -926,7 +1005,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value val = {pc_, nullptr, kAstStmt};
             if (operand.arity) val = Pop();
             if (Validate(pc_, operand, control_)) {
-              BreakTo(operand.target, val);
+              BreakTo(operand, val);
             }
             len = 1 + operand.length;
             Push(kAstEnd, nullptr);
@@ -943,7 +1022,7 @@ class WasmFullDecoder : public WasmDecoder {
               fenv->SetNotMerged();
               BUILD(Branch, cond.node, &tenv->control, &fenv->control);
               ssa_env_ = tenv;
-              BreakTo(operand.target, val);
+              BreakTo(operand, val);
               ssa_env_ = fenv;
             }
             len = 1 + operand.length;
@@ -1260,23 +1339,37 @@ class WasmFullDecoder : public WasmDecoder {
 
   void PushBlock(SsaEnv* end_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::Block(pc_, stack_depth, end_env));
+    control_.emplace_back(
+        Control::Block(pc_, stack_depth, most_recent_finally_, end_env));
   }
 
   void PushLoop(SsaEnv* end_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::Loop(pc_, stack_depth, end_env));
+    control_.emplace_back(
+        Control::Loop(pc_, stack_depth, most_recent_finally_, end_env));
   }
 
   void PushIf(SsaEnv* end_env, SsaEnv* false_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::If(pc_, stack_depth, end_env, false_env));
+    control_.emplace_back(Control::If(pc_, stack_depth, most_recent_finally_,
+                                      end_env, false_env));
   }
 
   void PushTry(SsaEnv* end_env, SsaEnv* catch_env, SsaEnv* finish_try_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(
-        Control::Try(pc_, stack_depth, end_env, catch_env, finish_try_env));
+    control_.emplace_back(Control::Try(pc_, stack_depth, most_recent_finally_,
+                                       zone_, end_env, catch_env,
+                                       finish_try_env));
+    if (control_.back().has_finally()) {
+      most_recent_finally_ = static_cast<uint32_t>(control_.size() - 1);
+    }
+  }
+
+  void PopControl() {
+    const Control& c = control_.back();
+    most_recent_finally_ = c.prev_finally;
+    control_.pop_back();
+    // No more accesses to (danging pointer) c
   }
 
   int DecodeLoadMem(LocalType type, MachineType mem_type) {
@@ -1307,6 +1400,50 @@ class WasmFullDecoder : public WasmDecoder {
     }
     TFNode* node = BUILD(SimdOp, opcode, inputs);
     Push(GetReturnType(sig), node);
+  }
+
+  void DispatchToTargets(Control* next_block, const Value& val) {
+    const ZoneVector<IncomingBranch>& incoming_branches =
+        next_block->try_info->incoming_branches;
+    // Counts how many successors are not current control block.
+    uint32_t targets = 0;
+    for (const auto& path_token : incoming_branches) {
+      if (path_token.target != next_block) ++targets;
+    }
+
+    if (targets == 0) {
+      // Nothing to do here: the control flow should just fall
+      // through to the next control block.
+      return;
+    }
+
+    TFNode* sw = BUILD(Switch, static_cast<uint32_t>(targets + 1),
+                       next_block->try_info->token);
+
+    SsaEnv* break_env = ssa_env_;
+    SsaEnv* copy = Steal(break_env);
+    for (uint32_t ii = 0; ii < incoming_branches.size(); ++ii) {
+      Control* t = incoming_branches[ii].target;
+      if (t != next_block) {
+        const int32_t token_value = incoming_branches[ii].token_value;
+        ssa_env_ = Split(copy);
+        ssa_env_->control = BUILD(IfValue, token_value, sw);
+        MergeInto(t->end_env, &t->node, &t->type, incoming_branches[ii].val);
+        // We only need to merge the finally token if t is both a
+        // try-with-finally and its finally hasn't yet been found
+        // in the instruction stream. Otherwise we just need to
+        // branch to t.
+        if (t->has_finally() && !t->try_info->has_handled_finally) {
+          MergeFinallyToken(ssa_env_, t, token_value);
+        }
+      }
+    }
+    ssa_env_ = Split(copy);
+    ssa_env_->control = BUILD(IfDefault, sw);
+    MergeInto(next_block->end_env, &next_block->node, &next_block->type, val);
+    // Not a finally env; no fallthrough token.
+
+    ssa_env_ = break_env;
   }
 
   void DoReturn() {
@@ -1375,7 +1512,46 @@ class WasmFullDecoder : public WasmDecoder {
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - start_); }
 
-  void BreakTo(Control* block, Value& val) {
+  Control* BuildFinallyChain(const BreakDepthOperand& operand, const Value& val,
+                             int32_t* token) {
+    DCHECK_LE(operand.depth, control_.size());
+    const int32_t target_index =
+        static_cast<uint32_t>(control_.size() - operand.depth - 1);
+
+    if (most_recent_finally_ == kNullFinallyToken ||  // No finallies.
+        most_recent_finally_ < target_index) {  // Does not cross any finally.
+      *token = kNullFinallyToken;
+      return operand.target;
+    }
+
+    Control* previous_control = &control_[most_recent_finally_];
+    *token = NewTokenForFinally();
+
+    for (int32_t ii = previous_control->prev_finally; ii >= target_index;
+         ii = previous_control->prev_finally) {
+      Control* current_finally = &control_[ii];
+
+      DCHECK(!current_finally->try_info->has_handled_finally);
+      previous_control->try_info->incoming_branches.push_back(
+          {*token, current_finally, val});
+      previous_control = current_finally;
+    }
+
+    if (operand.target != previous_control) {
+      DCHECK_NOT_NULL(previous_control);
+      DCHECK(previous_control->has_finally());
+      DCHECK_NE(*token, kNullFinallyToken);
+      previous_control->try_info->incoming_branches.push_back(
+          {*token, operand.target, val});
+    }
+
+    return &control_[most_recent_finally_];
+  }
+
+  void BreakTo(const BreakDepthOperand& operand, const Value& val) {
+    int32_t finally_token;
+    Control* block = BuildFinallyChain(operand, val, &finally_token);
+
     if (block->is_loop) {
       // This is the inner loop block, which does not have a value.
       Goto(ssa_env_, block->end_env);
@@ -1383,9 +1559,14 @@ class WasmFullDecoder : public WasmDecoder {
       // Merge the value into the production for the block.
       MergeInto(block->end_env, &block->node, &block->type, val);
     }
+
+    if (finally_token != kNullFinallyToken) {
+      MergeFinallyToken(ssa_env_, block, finally_token);
+    }
   }
 
-  void MergeInto(SsaEnv* target, TFNode** node, LocalType* type, Value& val) {
+  void MergeInto(SsaEnv* target, TFNode** node, LocalType* type,
+                 const Value& val) {
     if (!ssa_env_->go()) return;
     DCHECK_NE(kAstEnd, val.type);
 
@@ -1439,6 +1620,32 @@ class WasmFullDecoder : public WasmDecoder {
     if (builder_) {
       builder_->set_control_ptr(&env->control);
       builder_->set_effect_ptr(&env->effect);
+    }
+  }
+
+  void MergeFinallyToken(SsaEnv*, Control* to, int32_t new_token) {
+    DCHECK(to->has_finally());
+    DCHECK(!to->try_info->has_handled_finally);
+    if (builder_ == nullptr) {
+      return;
+    }
+
+    switch (to->end_env->state) {
+      case SsaEnv::kReached:
+        DCHECK(to->try_info->token == nullptr);
+        to->try_info->token = builder_->Int32Constant(new_token);
+        break;
+      case SsaEnv::kMerged:
+        DCHECK_NOT_NULL(to->try_info->token);
+        to->try_info->token = CreateOrMergeIntoPhi(
+            kAstI32, to->end_env->control, to->try_info->token,
+            builder_->Int32Constant(new_token));
+        break;
+      case SsaEnv::kUnreachable:
+        UNREACHABLE();
+      // fallthrough intended.
+      default:
+        break;
     }
   }
 

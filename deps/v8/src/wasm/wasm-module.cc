@@ -166,6 +166,8 @@ enum CompiledWasmObjectFields {
   kFunctions,        // FixedArray of Code
   kImportData,       // maybe FixedArray of FixedArray respecting the
                      // WasmImportMetadata structure.
+  kImportMap,        // FixedArray. The i-th element is the Code object used for
+                     // import i
   kExports,          // maybe FixedArray of FixedArray of WasmExportMetadata
                      // structure
   kStartupFunction,  // maybe FixedArray of WasmExportMetadata structure
@@ -421,14 +423,6 @@ void LinkModuleFunctions(Isolate* isolate,
   for (size_t i = 0; i < functions.size(); ++i) {
     Handle<Code> code = functions[i];
     LinkFunction(code, functions, Code::WASM_FUNCTION);
-  }
-}
-
-void LinkImports(Isolate* isolate, std::vector<Handle<Code>>& functions,
-                 const std::vector<Handle<Code>>& imports) {
-  for (uint32_t i = 0; i < functions.size(); ++i) {
-    Handle<Code> code = functions[i];
-    LinkFunction(code, imports, Code::WASM_TO_JS_FUNCTION);
   }
 }
 
@@ -966,17 +960,48 @@ bool SetupImports(Isolate* isolate, Handle<FixedArray> compiled_module,
 
   RecordStats(isolate, import_code);
 
-  Handle<FixedArray> code_table = Handle<FixedArray>(
-      FixedArray::cast(instance->GetInternalField(kWasmModuleCodeTable)));
-  // TODO(mtrofin): get the code off std::vector and on FixedArray, for
-  // consistency.
-  std::vector<Handle<Code>> function_code(code_table->length());
-  for (int i = 0; i < code_table->length(); ++i) {
-    Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
-    function_code[i] = code;
-  }
+  if (import_code.empty()) return true;
 
-  LinkImports(isolate, function_code, import_code);
+  {
+    DisallowHeapAllocation no_gc;
+    std::map<Code*, int> import_to_index;
+    Handle<FixedArray> mapping =
+        compiled_module->GetValueChecked<FixedArray>(isolate, kImportMap);
+    for (int i = 0; i < mapping->length(); ++i) {
+      import_to_index.insert(std::make_pair(Code::cast(mapping->get(i)), i));
+    }
+
+    Handle<FixedArray> code_table = Handle<FixedArray>(
+        FixedArray::cast(instance->GetInternalField(kWasmModuleCodeTable)));
+
+    int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+    AllowDeferredHandleDereference embedding_raw_address;
+    for (int i = 0; i < code_table->length(); ++i) {
+      Handle<Code> wasm_function =
+          code_table->GetValueChecked<Code>(isolate, i);
+      for (RelocIterator it(*wasm_function, mode_mask); !it.done(); it.next()) {
+        Code* target =
+            Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+        if (target->kind() == Code::WASM_TO_JS_FUNCTION) {
+          auto found_index = import_to_index.find(target);
+          CHECK(found_index != import_to_index.end());
+          int index = found_index->second;
+          CHECK(index < static_cast<int>(import_code.size()));
+          Handle<Code> new_target = import_code[index];
+          it.rinfo()->set_target_address(new_target->instruction_start(),
+                                         UPDATE_WRITE_BARRIER,
+                                         SKIP_ICACHE_FLUSH);
+        }
+      }
+    }
+  }
+  Handle<FixedArray> new_mapping =
+      isolate->factory()->NewFixedArray(static_cast<int>(import_code.size()));
+  for (int i = 0; i < new_mapping->length(); ++i) {
+    new_mapping->set(i, *import_code[i]);
+  }
+  compiled_module->set(kImportMap, *new_mapping);
+
   return true;
 }
 
@@ -1083,10 +1108,18 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
   Handle<FixedArray> compiled_functions =
       factory->NewFixedArray(static_cast<int>(functions.size()), TENURED);
 
-  temp_instance_for_compilation.import_code.resize(import_table.size());
-  for (uint32_t i = 0; i < import_table.size(); ++i) {
-    temp_instance_for_compilation.import_code[i] =
-        CreatePlaceholder(factory, i, Code::WASM_TO_JS_FUNCTION);
+  MaybeHandle<FixedArray> maybe_imports;
+  if (import_table.size() > 0) {
+    temp_instance_for_compilation.import_code.resize(import_table.size());
+    Handle<FixedArray> imports =
+        factory->NewFixedArray(static_cast<int>(import_table.size()));
+    for (uint32_t i = 0; i < import_table.size(); ++i) {
+      Handle<Code> placeholder =
+          CreatePlaceholder(factory, i, Code::WASM_TO_JS_FUNCTION);
+      temp_instance_for_compilation.import_code[i] = placeholder;
+      imports->set(i, *placeholder);
+    }
+    maybe_imports = imports;
   }
   isolate->counters()->wasm_functions_per_module()->AddSample(
       static_cast<int>(functions.size()));
@@ -1117,6 +1150,9 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
   ret->set(kFunctions, *compiled_functions);
   if (!indirect_table.is_null()) {
     ret->set(kTableOfIndirectFunctionTables, *indirect_table.ToHandleChecked());
+  }
+  if (!maybe_imports.is_null()) {
+    ret->set(kImportMap, *maybe_imports.ToHandleChecked());
   }
   Handle<FixedArray> import_data = GetImportsMetadata(factory, this);
   ret->set(kImportData, *import_data);

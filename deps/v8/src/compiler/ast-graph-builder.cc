@@ -539,8 +539,7 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
     env.RawParameterBind(0, jsgraph()->TheHoleConstant());
   }
 
-  // Build local context only if there are context allocated variables.
-  if (scope->num_heap_slots() > 0) {
+  if (scope->NeedsContext()) {
     // Push a new inner context scope for the current activation.
     Node* inner_context = BuildLocalActivationContext(GetFunctionContext());
     ContextScope top_context(this, scope, inner_context);
@@ -573,9 +572,8 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   BuildArgumentsObject(scope->arguments());
 
   // Build rest arguments array if it is used.
-  int rest_index;
-  Variable* rest_parameter = scope->rest_parameter(&rest_index);
-  BuildRestArgumentsArray(rest_parameter, rest_index);
+  Variable* rest_parameter = scope->rest_parameter();
+  BuildRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.
   BuildThisFunctionVariable(scope->this_function_var());
@@ -3086,7 +3084,7 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
   DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
   uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
-    if (s->num_heap_slots() <= 0) continue;
+    if (!s->NeedsContext()) continue;
     if (!s->calls_sloppy_eval()) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > kMaxCheckDepth) return kFullCheckRequired;
@@ -3100,7 +3098,7 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
   DCHECK_EQ(DYNAMIC_LOCAL, variable->mode());
   uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
-    if (s->num_heap_slots() <= 0) continue;
+    if (!s->NeedsContext()) continue;
     if (!s->calls_sloppy_eval() && s != variable->scope()) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > kMaxCheckDepth) return kFullCheckRequired;
@@ -3213,8 +3211,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   return object;
 }
 
-
-Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
+Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest) {
   if (rest == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.
