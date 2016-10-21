@@ -17,6 +17,7 @@ if (process.argv[2] === 'child') {
   fs.symlinkSync(process.execPath, symlinkedNode);
 
   const proc = child_process.spawnSync(symlinkedNode, [__filename, 'child']);
-  assert.strictEqual(proc.status, 0);
+  assert.strictEqual(proc.stderr.toString(), '');
   assert.strictEqual(proc.stdout.toString(), `${process.execPath}\n`);
+  assert.strictEqual(proc.status, 0);
 }
