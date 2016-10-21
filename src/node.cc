@@ -4458,7 +4458,7 @@ static void StartNodeInstance(void* arg) {
     int exit_code = EmitExit(&env);
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
-    RunAtExit(&env);
+    RunAtExit();
 
     WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
