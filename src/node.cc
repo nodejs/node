@@ -4374,10 +4374,9 @@ void FreeEnvironment(Environment* env) {
 }
 
 
-// Entry point for new node instances, also called directly for the main
-// node instance.
-static void StartNodeInstance(void* arg) {
-  NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
+inline int Start(uv_loop_t* event_loop,
+                 int argc, const char* const* argv,
+                 int exec_argc, const char* const* exec_argv) {
   Isolate::CreateParams params;
   ArrayBufferAllocator array_buffer_allocator;
   params.array_buffer_allocator = &array_buffer_allocator;
@@ -4388,39 +4387,32 @@ static void StartNodeInstance(void* arg) {
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-    if (instance_data->is_main()) {
-      CHECK_EQ(node_isolate, nullptr);
-      node_isolate = isolate;
-    }
+    CHECK_EQ(node_isolate, nullptr);
+    node_isolate = isolate;
   }
 
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
+  int exit_code;
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, instance_data->event_loop(),
+    IsolateData isolate_data(isolate, event_loop,
                              array_buffer_allocator.zero_fill_field());
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
     Environment env(&isolate_data, context);
-    env.Start(instance_data->argc(),
-              instance_data->argv(),
-              instance_data->exec_argc(),
-              instance_data->exec_argv(),
-              v8_is_profiling);
+    env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
     isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
 
     // Start debug agent when argv has --debug
-    if (instance_data->use_debug_agent()) {
-      const char* path = instance_data->argc() > 1
-                         ? instance_data->argv()[1]
-                         : nullptr;
+    if (use_debug_agent) {
+      const char* path = argc > 1 ? argv[1] : nullptr;
       StartDebug(&env, path, debug_wait_connect);
       if (use_inspector && !debugger_running) {
         exit(12);
@@ -4435,7 +4427,7 @@ static void StartNodeInstance(void* arg) {
     env.set_trace_sync_io(trace_sync_io);
 
     // Enable debugger
-    if (instance_data->use_debug_agent())
+    if (use_debug_agent)
       EnableDebug(&env);
 
     {
@@ -4460,9 +4452,7 @@ static void StartNodeInstance(void* arg) {
 
     env.set_trace_sync_io(false);
 
-    int exit_code = EmitExit(&env);
-    if (instance_data->is_main())
-      instance_data->set_exit_code(exit_code);
+    exit_code = EmitExit(&env);
     RunAtExit(&env);
 
     WaitForInspectorDisconnect(&env);
@@ -4480,6 +4470,8 @@ static void StartNodeInstance(void* arg) {
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
+
+  return exit_code;
 }
 
 int Start(int argc, char** argv) {
@@ -4510,19 +4502,8 @@ int Start(int argc, char** argv) {
   v8_platform.Initialize(v8_thread_pool_size);
   V8::Initialize();
   v8_initialized = true;
-
-  int exit_code = 1;
-  {
-    NodeInstanceData instance_data(NodeInstanceType::MAIN,
-                                   uv_default_loop(),
-                                   argc,
-                                   const_cast<const char**>(argv),
-                                   exec_argc,
-                                   exec_argv,
-                                   use_debug_agent);
-    StartNodeInstance(&instance_data);
-    exit_code = instance_data.exit_code();
-  }
+  const int exit_code =
+      Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
   v8_initialized = false;
   V8::Dispose();
 
