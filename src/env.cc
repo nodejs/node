@@ -30,8 +30,6 @@ void Environment::Start(int argc,
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
-  isolate()->SetAutorunMicrotasks(false);
-
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 
