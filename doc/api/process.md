@@ -1277,13 +1277,13 @@ tarball.
   releases. Current valid values are:
   - `"Argon"` for the v4.x LTS line beginning with v4.2.0.
   - `"Boron"` for the v6.x LTS line beginning with v6.9.0.
-* `sourceUrl` {String} an absolute URL pointing to a `_.tar.gz_` file containing
+* `sourceUrl` {String} an absolute URL pointing to a _`.tar.gz`_ file containing
   the source code of the current release.
-* `headersUrl`{String} an absolute URL pointing to a `_.tar.gz_` file containing
+* `headersUrl`{String} an absolute URL pointing to a _`.tar.gz`_ file containing
   only the source header files for the current release. This file is
   significantly smaller than the full source file and can be used for compiling
   Node.js native add-ons.
-* `libUrl` {String} an absolute URL pointing to a `_node.lib_` file matching the
+* `libUrl` {String} an absolute URL pointing to a _`node.lib`_ file matching the
   architecture and version of the current release. This file is used for
   compiling Node.js native add-ons. _This property is only present on Windows
   builds of Node.js and will be missing on all other platforms._
@@ -1433,7 +1433,7 @@ Android)
 added: v0.1.28
 -->
 
-The `process.setuid(id) method sets the user identity of the process. (See
+The `process.setuid(id)` method sets the user identity of the process. (See
 setuid(2).)  The `id` can be passed as either a numeric ID or a username string.
 If a username is specified, the method blocks while resolving the associated
 numeric ID.
@@ -1720,3 +1720,5 @@ cases:
 [Readable]: stream.html
 [Child Process]: child_process.html
 [Cluster]: cluster.html
+[`process.exitCode`]: #processexitcode-1
+[LTS]: https://github.com/nodejs/LTS/
