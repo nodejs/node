@@ -1060,6 +1060,8 @@ assert.throws(function() {
   Buffer.allocUnsafe(0xFFFFFFFFF);
 }, RangeError);
 
+assert(Buffer.alloc.toString().length < 600, 'Buffer.alloc is not inlineable');
+
 // https://github.com/nodejs/node/issues/9226
 {
   const buf = Buffer.alloc(4, 'YQ==', 'base64');
