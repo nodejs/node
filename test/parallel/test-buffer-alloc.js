@@ -1060,6 +1060,19 @@ assert.throws(function() {
   Buffer.allocUnsafe(0xFFFFFFFFF);
 }, RangeError);
 
+assert(Buffer.alloc.toString().length < 600, 'Buffer.alloc is not inlineable');
+
+// https://github.com/nodejs/node/issues/9226
+{
+  const buf = Buffer.alloc(4, 'YQ==', 'base64');
+  const expectedBuf = Buffer.from([97, 97, 97, 97]);
+  assert(buf.equals(expectedBuf));
+}
+{
+  const buf = Buffer.alloc(4, 'ab', 'ascii');
+  const expectedBuf = Buffer.from([97, 98, 97, 98]);
+  assert(buf.equals(expectedBuf));
+}
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(function() {
