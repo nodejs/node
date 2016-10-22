@@ -28,7 +28,7 @@ function runOneBenchmark(...args) {
 }
 
 function getTValue(compareFunc) {
-  const numTrials = 10000;
+  const numTrials = 1e5;
   const bufSize = 10000;
   // Perform benchmarks to verify that timingSafeEqual is actually timing-safe.
 
