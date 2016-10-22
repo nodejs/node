@@ -1060,7 +1060,7 @@ assert.throws(function() {
   Buffer.allocUnsafe(0xFFFFFFFFF);
 }, RangeError);
 
-// issue GH-9226
+// https://github.com/nodejs/node/issues/9226
 {
   const buf = Buffer.alloc(4, 'YQ==', 'base64');
   const expectedBuf = Buffer.from([97, 97, 97, 97]);
