@@ -1063,12 +1063,12 @@ assert.throws(function() {
 // issue GH-9226
 {
   const buf = Buffer.alloc(4, 'YQ==', 'base64');
-  const expectedBuf = new Buffer([97, 97, 97, 97]);
+  const expectedBuf = Buffer.from([97, 97, 97, 97]);
   assert(buf.equals(expectedBuf));
 }
 {
   const buf = Buffer.alloc(4, 'ab', 'ascii');
-  const expectedBuf = new Buffer([97, 98, 97, 98]);
+  const expectedBuf = Buffer.from([97, 98, 97, 98]);
   assert(buf.equals(expectedBuf));
 }
 
