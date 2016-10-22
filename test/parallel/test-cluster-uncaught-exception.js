@@ -13,11 +13,14 @@ const MAGIC_EXIT_CODE = 42;
 const isTestRunner = process.argv[2] !== 'child';
 
 if (isTestRunner) {
-  var master = fork(__filename, ['child']);
-  master.on('exit', common.mustCall(code => assert.strictEqual(code, MAGIC_EXIT_CODE)));
-
+  const master = fork(__filename, ['child']);
+  master.on('exit', common.mustCall(
+      (code) => assert.strictEqual(code, MAGIC_EXIT_CODE)
+  ));
 } else if (cluster.isMaster) {
-  process.on('uncaughtException', () => process.nextTick(() => process.exit(MAGIC_EXIT_CODE)));
+  process.on('uncaughtException', () => process.nextTick(
+      () => process.exit(MAGIC_EXIT_CODE)
+  ));
   cluster.fork();
   throw new Error('kill master');
 } else { // worker
