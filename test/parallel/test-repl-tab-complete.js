@@ -344,7 +344,7 @@ const testNonGlobal = repl.start({
 const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
                    'Int8Array'], 'I'];
 
-if (typeof Intl === 'object') {
+if (common.hasIntl) {
   builtins[0].push('Intl');
 }
 testNonGlobal.complete('I', common.mustCall((error, data) => {

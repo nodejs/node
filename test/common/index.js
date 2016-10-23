@@ -577,6 +577,12 @@ exports.expectWarning = function(name, expected) {
   }, expected.length));
 };
 
+Object.defineProperty(exports, 'hasIntl', {
+  get: function() {
+    return process.binding('config').hasIntl;
+  }
+});
+
 // Crash the process on unhandled rejections.
 exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
