@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (global.Intl === undefined || Intl.v8BreakIterator === undefined) {
+if (!common.hasIntl || Intl.v8BreakIterator === undefined) {
   return common.skip('no Intl');
 }
 
