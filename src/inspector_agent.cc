@@ -170,13 +170,6 @@ std::string GenerateID() {
            buffer[7]);
   return uuid;
 }
-
-// std::to_string is not available on Smart OS and ARM flavours
-const std::string to_string(uint64_t number) {
-  std::ostringstream result;
-  result << number;
-  return result.str();
-}
 }  // namespace
 
 
