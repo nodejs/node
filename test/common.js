@@ -525,3 +525,9 @@ exports.expectWarning = function(name, expected) {
     expected.splice(expected.indexOf(warning.message), 1);
   }, expected.length));
 };
+
+Object.defineProperty(exports, 'hasIntl', {
+  get: function() {
+    return process.binding('config').hasIntl;
+  }
+});
