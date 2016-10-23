@@ -1,6 +1,13 @@
 'use strict';
 
 const common = require('../common');
+
+if (!common.hasIntl) {
+  // A handful of the tests fail when ICU is not included.
+  common.skip('missing Intl... skipping test');
+  return;
+}
+
 const URL = require('url').URL;
 const path = require('path');
 const assert = require('assert');
