@@ -8,9 +8,6 @@ if (enablei18n === undefined) {
   enablei18n = 0;
 }
 
-// is the Intl object present?
-const haveIntl = (global.Intl !== undefined);
-
 // Returns true if no specific locale ids were configured (i.e. "all")
 // Else, returns true if loc is in the configured list
 // Else, returns false
@@ -19,7 +16,7 @@ function haveLocale(loc) {
   return locs.includes(loc);
 }
 
-if (!haveIntl) {
+if (!common.hasIntl) {
   const erMsg =
     `"Intl" object is NOT present but v8_enable_i18n_support is ${enablei18n}`;
   assert.strictEqual(enablei18n, 0, erMsg);
