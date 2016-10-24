@@ -42,6 +42,7 @@ import threading
 import utils
 import multiprocessing
 import errno
+import copy
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -773,7 +774,9 @@ class TestRepository(TestSuite):
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      result += tests * context.repeat
+      result += tests
+      for i in range(1, context.repeat):
+        result += copy.deepcopy(tests)
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
