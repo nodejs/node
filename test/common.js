@@ -613,3 +613,18 @@ exports.WPT = {
     assert.fail(undefined, undefined, `Reached unreachable code: ${desc}`);
   }
 };
+
+// Useful for testing expected internal/error objects
+exports.expectsError = function expectsError(code, type, message) {
+  return function(error) {
+    assert.strictEqual(error.code, code);
+    if (type !== undefined)
+      assert(error instanceof type, 'error is not the expected type');
+    if (message !== undefined) {
+      if (!util.isRegExp(message))
+        message = new RegExp(String(message));
+      assert(message.test(error.message), 'error.message does not match');
+    }
+    return true;
+  };
+};
