@@ -31,14 +31,18 @@
 #include "util-inl.h"
 #include "v8.h"
 
+#include <unicode/utypes.h>
 #include <unicode/putil.h>
 #include <unicode/uchar.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
-#include <unicode/utypes.h>
 #include <unicode/ucnv.h>
 #include <unicode/utf8.h>
 #include <unicode/utf16.h>
+#include <unicode/timezone.h>
+#include <unicode/ulocdata.h>
+#include <unicode/uvernum.h>
+#include <unicode/uversion.h>
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
@@ -339,6 +343,67 @@ static void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
                           v8::NewStringType::kNormal).ToLocalChecked());
 }
 
+#define TYPE_ICU "icu"
+#define TYPE_UNICODE "unicode"
+#define TYPE_CLDR "cldr"
+#define TYPE_TZ "tz"
+
+/**
+ * This is the workhorse function that deals with the actual version info.
+ * Get an ICU version.
+ * @param type the type of version to get. One of VERSION_TYPES
+ * @param buf optional buffer for result
+ * @param status ICU error status. If failure, assume result is undefined.
+ * @return version number, or NULL. May or may not be buf.
+ */
+static const char* GetVersion(const char* type,
+                              char buf[U_MAX_VERSION_STRING_LENGTH],
+                              UErrorCode* status) {
+  if (!strcmp(type, TYPE_ICU)) {
+    return U_ICU_VERSION;
+  } else if (!strcmp(type, TYPE_UNICODE)) {
+    return U_UNICODE_VERSION;
+  } else if (!strcmp(type, TYPE_TZ)) {
+    return TimeZone::getTZDataVersion(*status);
+  } else if (!strcmp(type, TYPE_CLDR)) {
+    UVersionInfo versionArray;
+    ulocdata_getCLDRVersion(versionArray, status);
+    if (U_SUCCESS(*status)) {
+      u_versionToString(versionArray, buf);
+      return buf;
+    }
+  }
+  // Fall through - unknown type or error case
+  return nullptr;
+}
+
+static void GetVersion(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if ( args.Length() == 0 ) {
+    // With no args - return a comma-separated list of allowed values
+      args.GetReturnValue().Set(
+          String::NewFromUtf8(env->isolate(),
+            TYPE_ICU ","
+            TYPE_UNICODE ","
+            TYPE_CLDR ","
+            TYPE_TZ));
+  } else {
+    CHECK_GE(args.Length(), 1);
+    CHECK(args[0]->IsString());
+    Utf8Value val(env->isolate(), args[0]);
+    UErrorCode status = U_ZERO_ERROR;
+    char buf[U_MAX_VERSION_STRING_LENGTH] = "";  // Possible output buffer.
+    const char* versionString = GetVersion(*val, buf, &status);
+
+    if (U_SUCCESS(status) && versionString) {
+      // Success.
+      args.GetReturnValue().Set(
+          String::NewFromUtf8(env->isolate(),
+          versionString));
+    }
+  }
+}
+
 bool InitializeICUDirectory(const char* icu_data_path) {
   if (icu_data_path != nullptr) {
     flag_icu_data_dir = true;
@@ -558,6 +623,7 @@ void Init(Local<Object> target,
   env->SetMethod(target, "toUnicode", ToUnicode);
   env->SetMethod(target, "toASCII", ToASCII);
   env->SetMethod(target, "getStringWidth", GetStringWidth);
+  env->SetMethod(target, "getVersion", GetVersion);
 
   // One-shot converters
   env->SetMethod(target, "icuErrName", ICUErrorName);
