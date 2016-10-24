@@ -1,6 +1,10 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const errors = require('internal/errors');
+
+const one_ipc_err = new RegExp(errors.message('CHILD_PROCESS_ONE_IPC'));
 
 let options = {stdio: ['pipe']};
 let child = common.spawnPwd(options);
@@ -20,4 +24,4 @@ assert.deepStrictEqual(options, {stdio: 'ignore'});
 
 assert.throws(() => {
   common.spawnPwd({stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc']});
-}, /^Error: Child process can have only one IPC pipe$/);
+}, one_ipc_err);

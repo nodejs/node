@@ -4,6 +4,10 @@
 require('../common');
 const assert = require('assert');
 const _validateStdio = require('internal/child_process')._validateStdio;
+const errors = require('internal/errors');
+
+const no_ipc_err =
+    new RegExp(errors.message('CHILD_PROCESS_SYNCHRONOUS_FORK_NO_IPC'));
 
 // should throw if string and not ignore, pipe, or inherit
 assert.throws(function() {
@@ -27,9 +31,7 @@ assert.throws(function() {
 
 // should throw if stdio has ipc and sync is true
 const stdio2 = ['ipc', 'ipc', 'ipc'];
-assert.throws(function() {
-  _validateStdio(stdio2, true);
-}, /You cannot use IPC with synchronous forks/);
+assert.throws(() => _validateStdio(stdio2, true), no_ipc_err);
 
 {
   const stdio3 = [process.stdin, process.stdout, process.stderr];
