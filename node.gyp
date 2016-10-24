@@ -82,6 +82,7 @@
       'lib/internal/cluster/shared_handle.js',
       'lib/internal/cluster/utils.js',
       'lib/internal/cluster/worker.js',
+      'lib/internal/errors.js',
       'lib/internal/freelist.js',
       'lib/internal/fs.js',
       'lib/internal/linkedlist.js',
