@@ -1643,8 +1643,10 @@ Will generate output similar to:
   ares: '1.10.0-DEV',
   modules: '43',
   icu: '55.1',
-  openssl: '1.0.1k'
-}
+  openssl: '1.0.1k',
+  unicode: '8.0',
+  cldr: '29.0',
+  tz: '2016b' }
 ```
 
 ## Exit Codes
