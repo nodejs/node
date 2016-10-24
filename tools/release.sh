@@ -50,7 +50,7 @@ elif [ $keycount -ne 1 ]; then
   done
 fi
 
-gpgfing=$(gpg --fingerprint $gpgkey | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
+gpgfing=$(gpg --keyid-format 0xLONG --fingerprint $gpgkey | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
 
 if ! test "$(grep $gpgfing README.md)"; then
   echo 'Error: this GPG key fingerprint is not listed in ./README.md'
