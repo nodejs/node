@@ -11,6 +11,9 @@ if (common.hasCrypto) {
 
 if (common.hasIntl) {
   expected_keys.push('icu');
+  expected_keys.push('cldr');
+  expected_keys.push('tz');
+  expected_keys.push('unicode');
 }
 
 expected_keys.sort();
