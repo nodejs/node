@@ -7,6 +7,7 @@
 #include "debug-agent.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
+#include <vector>
 #endif
 #include "handle_wrap.h"
 #include "req-wrap.h"
@@ -528,6 +529,12 @@ class Environment {
   inline inspector::Agent* inspector_agent() {
     return &inspector_agent_;
   }
+
+  inline void context_created(v8_inspector::V8ContextInfo context);
+  inline void context_destroyed(v8::Local<v8::Context> context);
+  inline std::vector<v8_inspector::V8ContextInfo>* contexts() {
+    return &contexts_;
+  }
 #endif
 
   typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
@@ -564,6 +571,7 @@ class Environment {
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
+  std::vector<v8_inspector::V8ContextInfo> contexts_;
 #endif
 
   HandleWrapQueue handle_wrap_queue_;
