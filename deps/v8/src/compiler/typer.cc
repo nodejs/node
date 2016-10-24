@@ -1352,6 +1352,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kArrayIndexOf:
         case kArrayLastIndexOf:
           return Type::Range(-1, kMaxSafeInteger, t->zone());
+        case kArrayPush:
+          return t->cache_.kPositiveSafeInteger;
         // Object functions.
         case kObjectHasOwnProperty:
           return Type::Boolean();
