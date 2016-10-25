@@ -496,8 +496,10 @@ static void uv_tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
   */
   if (loop->active_tcp_streams < uv_active_tcp_streams_threshold) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
+    handle->tcp.conn.read_buffer = uv_buf_init(NULL, 0);
     handle->alloc_cb((uv_handle_t*) handle, 65536, &handle->tcp.conn.read_buffer);
-    if (handle->tcp.conn.read_buffer.len == 0) {
+    if (handle->tcp.conn.read_buffer.base == NULL ||
+        handle->tcp.conn.read_buffer.len == 0) {
       handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &handle->tcp.conn.read_buffer);
       return;
     }
@@ -1004,8 +1006,9 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
 
     /* Do nonblocking reads until the buffer is empty */
     while (handle->flags & UV_HANDLE_READING) {
+      buf = uv_buf_init(NULL, 0);
       handle->alloc_cb((uv_handle_t*) handle, 65536, &buf);
-      if (buf.len == 0) {
+      if (buf.base == NULL || buf.len == 0) {
         handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &buf);
         break;
       }
