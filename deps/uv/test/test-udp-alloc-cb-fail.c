@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project and other Node contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -26,44 +26,42 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #define CHECK_HANDLE(handle) \
   ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
 
 static uv_udp_t server;
 static uv_udp_t client;
 
+static int cl_send_cb_called;
 static int cl_recv_cb_called;
 
 static int sv_send_cb_called;
+static int sv_recv_cb_called;
 
 static int close_cb_called;
 
-static void alloc_cb(uv_handle_t* handle,
-                     size_t suggested_size,
-                     uv_buf_t* buf) {
+
+static void sv_alloc_cb(uv_handle_t* handle,
+                        size_t suggested_size,
+                        uv_buf_t* buf) {
   static char slab[65536];
   CHECK_HANDLE(handle);
-  ASSERT(suggested_size <= sizeof(slab));
   buf->base = slab;
   buf->len = sizeof(slab);
 }
 
 
-static void close_cb(uv_handle_t* handle) {
-  CHECK_HANDLE(handle);
-  close_cb_called++;
+static void cl_alloc_cb(uv_handle_t* handle,
+                        size_t suggested_size,
+                        uv_buf_t* buf) {
+  /* Do nothing, recv_cb should be called with UV_ENOBUFS. */
 }
 
 
-static void sv_send_cb(uv_udp_send_t* req, int status) {
-  ASSERT(req != NULL);
-  ASSERT(status == 0);
-  CHECK_HANDLE(req->handle);
-
-  sv_send_cb_called++;
-
-  uv_close((uv_handle_t*) req->handle, close_cb);
+static void close_cb(uv_handle_t* handle) {
+  CHECK_HANDLE(handle);
+  ASSERT(1 == uv_is_closing(handle));
+  close_cb_called++;
 }
 
 
@@ -74,8 +72,48 @@ static void cl_recv_cb(uv_udp_t* handle,
                        unsigned flags) {
   CHECK_HANDLE(handle);
   ASSERT(flags == 0);
+  ASSERT(nread == UV_ENOBUFS);
 
   cl_recv_cb_called++;
+
+  uv_close((uv_handle_t*) handle, close_cb);
+}
+
+
+static void cl_send_cb(uv_udp_send_t* req, int status) {
+  int r;
+
+  ASSERT(req != NULL);
+  ASSERT(status == 0);
+  CHECK_HANDLE(req->handle);
+
+  r = uv_udp_recv_start(req->handle, cl_alloc_cb, cl_recv_cb);
+  ASSERT(r == 0);
+
+  cl_send_cb_called++;
+}
+
+
+static void sv_send_cb(uv_udp_send_t* req, int status) {
+  ASSERT(req != NULL);
+  ASSERT(status == 0);
+  CHECK_HANDLE(req->handle);
+
+  uv_close((uv_handle_t*) req->handle, close_cb);
+  free(req);
+
+  sv_send_cb_called++;
+}
+
+
+static void sv_recv_cb(uv_udp_t* handle,
+                       ssize_t nread,
+                       const uv_buf_t* rcvbuf,
+                       const struct sockaddr* addr,
+                       unsigned flags) {
+  uv_udp_send_t* req;
+  uv_buf_t sndbuf;
+  int r;
 
   if (nread < 0) {
     ASSERT(0 && "unexpected error");
@@ -83,80 +121,75 @@ static void cl_recv_cb(uv_udp_t* handle,
 
   if (nread == 0) {
     /* Returning unused buffer */
-    /* Don't count towards cl_recv_cb_called */
+    /* Don't count towards sv_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
 
+  CHECK_HANDLE(handle);
+  ASSERT(flags == 0);
+
   ASSERT(addr != NULL);
   ASSERT(nread == 4);
-  ASSERT(!memcmp("PING", buf->base, nread));
+  ASSERT(!memcmp("PING", rcvbuf->base, nread));
 
-  /* we are done with the client handle, we can close it */
-  uv_close((uv_handle_t*) &client, close_cb);
+  r = uv_udp_recv_stop(handle);
+  ASSERT(r == 0);
+
+  req = malloc(sizeof *req);
+  ASSERT(req != NULL);
+
+  sndbuf = uv_buf_init("PONG", 4);
+  r = uv_udp_send(req, handle, &sndbuf, 1, addr, sv_send_cb);
+  ASSERT(r == 0);
+
+  sv_recv_cb_called++;
 }
 
 
-TEST_IMPL(udp_multicast_join6) {
-  int r;
+TEST_IMPL(udp_alloc_cb_fail) {
+  struct sockaddr_in addr;
   uv_udp_send_t req;
   uv_buf_t buf;
-  struct sockaddr_in6 addr;
+  int r;
 
-  if (!can_ipv6())
-    RETURN_SKIP("IPv6 not supported");
-
-  ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == 0);
+
+  r = uv_udp_recv_start(&server, sv_alloc_cb, sv_recv_cb);
+  ASSERT(r == 0);
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+
   r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
-  /* bind to the desired port */
-  r = uv_udp_bind(&client, (const struct sockaddr*) &addr, 0);
-  ASSERT(r == 0);
-
-  /* join the multicast channel */
-#if defined(__APPLE__)          || \
-    defined(_AIX)               || \
-    defined(__MVS__)            || \
-    defined(__FreeBSD_kernel__)
-  r = uv_udp_set_membership(&client, "ff02::1", "::1%lo0", UV_JOIN_GROUP);
-#else
-  r = uv_udp_set_membership(&client, "ff02::1", NULL, UV_JOIN_GROUP);
-#endif
-  if (r == UV_ENODEV) {
-    MAKE_VALGRIND_HAPPY();
-    RETURN_SKIP("No ipv6 multicast route");
-  }
-
-  ASSERT(r == 0);
-
-  r = uv_udp_recv_start(&client, alloc_cb, cl_recv_cb);
-  ASSERT(r == 0);
-
   buf = uv_buf_init("PING", 4);
-
-  /* server sends "PING" */
   r = uv_udp_send(&req,
-                  &server,
+                  &client,
                   &buf,
                   1,
                   (const struct sockaddr*) &addr,
-                  sv_send_cb);
+                  cl_send_cb);
   ASSERT(r == 0);
 
   ASSERT(close_cb_called == 0);
+  ASSERT(cl_send_cb_called == 0);
   ASSERT(cl_recv_cb_called == 0);
   ASSERT(sv_send_cb_called == 0);
+  ASSERT(sv_recv_cb_called == 0);
 
-  /* run the loop till all events are processed */
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
+  ASSERT(cl_send_cb_called == 1);
   ASSERT(cl_recv_cb_called == 1);
   ASSERT(sv_send_cb_called == 1);
+  ASSERT(sv_recv_cb_called == 1);
   ASSERT(close_cb_called == 2);
 
   MAKE_VALGRIND_HAPPY();

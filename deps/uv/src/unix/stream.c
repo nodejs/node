@@ -291,7 +291,10 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   timeout.tv_sec = 0;
   timeout.tv_nsec = 1;
 
-  ret = kevent(kq, filter, 1, events, 1, &timeout);
+  do
+    ret = kevent(kq, filter, 1, events, 1, &timeout);
+  while (ret == -1 && errno == EINTR);
+
   uv__close(kq);
 
   if (ret == -1)
@@ -571,7 +574,6 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   int err;
 
-  /* TODO document this */
   assert(server->loop == client->loop);
 
   if (server->accepted_fd == -1)
@@ -601,6 +603,8 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     default:
       return -EINVAL;
   }
+
+  client->flags |= UV_HANDLE_BOUND;
 
 done:
   /* Process queued fds */
@@ -962,8 +966,8 @@ uv_handle_type uv__handle_type(int fd) {
     return UV_UNKNOWN_HANDLE;
 
   if (type == SOCK_STREAM) {
-#if defined(_AIX)
-    /* on AIX the getsockname call returns an empty sa structure
+#if defined(_AIX) || defined(__DragonFly__)
+    /* on AIX/DragonFly the getsockname call returns an empty sa structure
      * for sockets of type AF_UNIX.  For all other types it will
      * return a properly filled in structure.
      */
@@ -1122,8 +1126,9 @@ static void uv__read(uv_stream_t* stream) {
       && (count-- > 0)) {
     assert(stream->alloc_cb != NULL);
 
+    buf = uv_buf_init(NULL, 0);
     stream->alloc_cb((uv_handle_t*)stream, 64 * 1024, &buf);
-    if (buf.len == 0) {
+    if (buf.base == NULL || buf.len == 0) {
       /* User indicates it can't or won't handle the read. */
       stream->read_cb(stream, UV_ENOBUFS, &buf);
       return;

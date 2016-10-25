@@ -289,8 +289,9 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
   if (loop->active_udp_streams < uv_active_udp_streams_threshold) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
 
+    handle->recv_buffer = uv_buf_init(NULL, 0);
     handle->alloc_cb((uv_handle_t*) handle, 65536, &handle->recv_buffer);
-    if (handle->recv_buffer.len == 0) {
+    if (handle->recv_buffer.base == NULL || handle->recv_buffer.len == 0) {
       handle->recv_cb(handle, UV_ENOBUFS, &handle->recv_buffer, NULL, 0);
       return;
     }
@@ -506,8 +507,9 @@ void uv_process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
 
     /* Do a nonblocking receive */
     /* TODO: try to read multiple datagrams at once. FIONREAD maybe? */
+    buf = uv_buf_init(NULL, 0);
     handle->alloc_cb((uv_handle_t*) handle, 65536, &buf);
-    if (buf.len == 0) {
+    if (buf.base == NULL || buf.len == 0) {
       handle->recv_cb(handle, UV_ENOBUFS, &buf, NULL, 0);
       goto done;
     }
