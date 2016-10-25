@@ -1,6 +1,6 @@
 # Building Node with Ninja
 
-The purpose of this guide is to show how to build Node.js using [Ninja](https://github.com/ninja-build/ninja), as doing so can be significantly quicker than using `make`. Please see [Ninja's site](https://ninja-build.org/) for installation instructions (unix only).
+The purpose of this guide is to show how to build Node.js using [Ninja][https://github.com/ninja-build/ninja], as doing so can be significantly quicker than using `make`. Please see [Ninja's site][https://ninja-build.org/] for installation instructions (unix only).
 
 To build Node with ninja, there are 3 steps that must be taken:
 
