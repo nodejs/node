@@ -1,6 +1,6 @@
 # Building Node with Ninja
 
-The purpose of this guide is to show how to build Node.js using [Ninja](https://github.com/ninja-build/ninja), as doing so can be significantly quicker than using `make`. Please see [Ninja's site](https://ninja-build.org/) for installation instructions (unix only).
+The purpose of this guide is to show how to build Node.js using [Ninja][], as doing so can be significantly quicker than using `make`. Please see [Ninja's site][Ninja] for installation instructions (unix only).
 
 To build Node with ninja, there are 3 steps that must be taken:
 
@@ -35,4 +35,4 @@ The above alias can be modified slightly to produce a debug build, rather than a
 `alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs out/Debug/node node_g'`
 
 
-[Ninja]: https://martine.github.io/ninja/
+[Ninja]: https://ninja-build.org/
