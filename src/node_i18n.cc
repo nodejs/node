@@ -519,6 +519,11 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   }
 
   TwoByteValue value(env->isolate(), args[0]);
+  if (value.length() <= 1) {
+    uint32_t width = static_cast<uint32_t>(value.length());
+    return args.GetReturnValue().Set(width);
+  }
+
   // reinterpret_cast is required by windows to compile
   UChar* str = reinterpret_cast<UChar*>(*value);
   UChar32 c;
@@ -526,7 +531,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   size_t n = 0;
   uint32_t width = 0;
 
-  while (n < value.length()) {
+  U16_NEXT(str, n, value.length(), c);
+  do {
     p = c;
     U16_NEXT(str, n, value.length(), c);
     // Don't count individual emoji codepoints that occur within an
@@ -546,7 +552,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
       continue;
     }
     width += GetColumnWidth(c, ambiguous_as_full_width);
-  }
+  } while (n < value.length());
+
   args.GetReturnValue().Set(width);
 }
 
