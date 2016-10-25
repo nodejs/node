@@ -45,13 +45,12 @@ std::string GetWsUrl(int port, const std::string& id) {
 }
 
 void PrintDebuggerReadyMessage(int port, const std::string& id) {
-  fprintf(stderr, "Debugger listening on port %d.\n"
-    "Warning: This is an experimental feature and could change at any time.\n"
-    "To start debugging, open the following URL in Chrome:\n"
-    "    chrome-devtools://devtools/remote/serve_file/"
-    "@" V8_INSPECTOR_REVISION "/inspector.html?"
-    "experiments=true&v8only=true&ws=%s\n",
-      port, GetWsUrl(port, id).c_str());
+  fprintf(stderr, "Debugger listening on \x1B[33mws://%s\x1b[0m\n"
+  "* Info on connecting at"
+    "\x1B[33mhttps://nodejs.org/en/docs/guides/debugging\x1B[0m.\n"
+  "* Warning: This is an experimental feature and could change at any time."
+  "\n\n",
+  GetWsUrl(port, id).c_str());
   fflush(stderr);
 }
 

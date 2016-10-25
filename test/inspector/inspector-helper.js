@@ -432,20 +432,26 @@ exports.startNodeForInspectorTest = function(callback) {
 
   const timeoutId = timeout('Child process did not start properly', 4);
 
-  let found = false;
+  var found = false;
 
   const dataCallback = makeBufferingDataCallback((text) => {
     clearTimeout(timeoutId);
     console.log('[err]', text);
     if (found) return;
-    const match = text.match(/Debugger listening on port (\d+)/);
-    found = true;
-    child.stderr.removeListener('data', dataCallback);
-    assert.ok(match, text);
-    callback(new Harness(match[1], child));
+    const re = /Debugger listening on.*ws:\/\/(.*):(\d+)\/(\w+)/;
+    const match = text.match(re);
+    if (match) {
+      found = true;
+      child.stderr.removeListener('data', dataCallback);
+      callback(new Harness(match[2], child));
+      return;
+    }
   });
 
   child.stderr.on('data', dataCallback);
+  child.on('exit', (code, signal) => {
+    assert.ok(found, 'Failed to start child script.');
+  });
 
   const handler = tearDown.bind(null, child);
 
