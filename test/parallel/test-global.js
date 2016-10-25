@@ -21,3 +21,5 @@ const fooBar = module.fooBar;
 assert.strictEqual('foo', fooBar.foo, 'x -> global.x in sub level not working');
 
 assert.strictEqual('bar', fooBar.bar, 'global.x -> x in sub level not working');
+
+assert.strictEqual(Object.prototype.toString.call(global), '[object global]');
