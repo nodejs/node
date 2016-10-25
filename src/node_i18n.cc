@@ -526,6 +526,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
 
   // reinterpret_cast is required by windows to compile
   UChar* str = reinterpret_cast<UChar*>(*value);
+  static_assert(sizeof(*str) == sizeof(**value),
+                "(sizeof(*str) == sizeof(**value)");
   UChar32 c;
   UChar32 p;
   size_t n = 0;
