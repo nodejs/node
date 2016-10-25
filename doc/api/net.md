@@ -540,7 +540,7 @@ listeners for that event will receive `exception` as an argument.
 A Boolean value that indicates if the connection is destroyed or not. Once a
 connection is destroyed no further data can be transferred using it.
 
-### socket.end([data][, encoding])
+### socket.end([data][, encoding][, callback])
 <!-- YAML
 added: v0.1.90
 -->
@@ -550,6 +550,9 @@ server will still send some data.
 
 If `data` is specified, it is equivalent to calling
 `socket.write(data, encoding)` followed by `socket.end()`.
+
+If end is passed a callback function, it will run the function after 
+receiving the FIN packet, but before the final write is completed.
 
 ### socket.localAddress
 <!-- YAML
