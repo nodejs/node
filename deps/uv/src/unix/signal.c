@@ -43,7 +43,7 @@ static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
 
 
-static pthread_once_t uv__signal_global_init_guard = PTHREAD_ONCE_INIT;
+static uv_once_t uv__signal_global_init_guard = UV_ONCE_INIT;
 static struct uv__signal_tree_s uv__signal_tree =
     RB_INITIALIZER(uv__signal_tree);
 static int uv__signal_lock_pipefd[2];
@@ -64,7 +64,7 @@ static void uv__signal_global_init(void) {
 
 
 void uv__signal_global_once_init(void) {
-  pthread_once(&uv__signal_global_init_guard, uv__signal_global_init);
+  uv_once(&uv__signal_global_init_guard, uv__signal_global_init);
 }
 
 

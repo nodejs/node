@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,39 +19,24 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
-#include "task.h"
+#include "internal.h"
 
-static uv_timer_t timer_handle;
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct pollfd p[1];
+  int rv;
 
-static void timer_cb(uv_timer_t* handle) {
-  ASSERT(handle);
-  uv_stop(handle->loop);
-}
+  p[0].fd = fd;
+  p[0].events = POLLIN;
 
+  do
+    rv = poll(p, 1, 0);
+  while (rv == -1 && errno == EINTR);
 
-TEST_IMPL(loop_close) {
-  int r;
-  uv_loop_t loop;
+  if (rv == -1)
+    abort();
 
-  loop.data = &loop;
-  ASSERT(0 == uv_loop_init(&loop));
-  ASSERT(loop.data == (void*) &loop);
-
-  uv_timer_init(&loop, &timer_handle);
-  uv_timer_start(&timer_handle, timer_cb, 100, 100);
-
-  ASSERT(UV_EBUSY == uv_loop_close(&loop));
-
-  uv_run(&loop, UV_RUN_DEFAULT);
-
-  uv_close((uv_handle_t*) &timer_handle, NULL);
-  r = uv_run(&loop, UV_RUN_DEFAULT);
-  ASSERT(r == 0);
-
-  ASSERT(loop.data == (void*) &loop);
-  ASSERT(0 == uv_loop_close(&loop));
-  ASSERT(loop.data == (void*) &loop);
+  if (p[0].revents & POLLNVAL)
+    return -1;
 
   return 0;
 }

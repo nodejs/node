@@ -363,6 +363,8 @@ typedef enum {
 } uv_membership;
 
 
+UV_EXTERN int uv_translate_sys_error(int sys_errno);
+
 UV_EXTERN const char* uv_strerror(int err);
 UV_EXTERN const char* uv_err_name(int err);
 
