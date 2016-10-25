@@ -3596,13 +3596,15 @@ void TapUnitTestResultPrinter::OutputTapTestInfo(int* count,
   *stream << "  ---\n";
   *stream << "  duration_ms: " <<
              FormatTimeInMillisAsSeconds(result.elapsed_time()) << "\n";
-  *stream << "  ...\n";
 
-  for (int i = 0; i < result.total_part_count(); ++i) {
-    const TestPartResult& part = result.GetTestPartResult(i);
-    OutputTapComment(stream, part.message());
+  if (result.total_part_count() > 0) {
+    *stream << "  stack: |-\n";
+    for (int i = 0; i < result.total_part_count(); ++i) {
+      const TestPartResult& part = result.GetTestPartResult(i);
+      OutputTapComment(stream, part.message());
+    }
   }
-
+  *stream << "  ...\n";
   *count += 1;
 }
 
@@ -3610,11 +3612,11 @@ void TapUnitTestResultPrinter::OutputTapComment(::std::ostream* stream,
                                                 const char* comment) {
   const char* start = comment;
   while (const char* end = strchr(start, '\n')) {
-    *stream << "# " << std::string(start, end) << "\n";
+    *stream << "    " << std::string(start, end) << "\n";
     start = end + 1;
   }
   if (*start)
-    *stream << "# " << start << "\n";
+    *stream << "    " << start << "\n";
 }
 
 // Formats the given time in milliseconds as seconds.
