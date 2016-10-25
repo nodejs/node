@@ -156,7 +156,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         pqry.fd = pc.fd;
         rc = pollset_query(loop->backend_fd, &pqry);
         switch (rc) {
-        case -1: 
+        case -1:
           assert(0 && "Failed to query pollset for file descriptor");
           abort();
         case 0:
@@ -333,20 +333,20 @@ int uv_exepath(char* buffer, size_t* size) {
 
   pi.pi_pid = getpid();
   res = getargs(&pi, sizeof(pi), args, sizeof(args));
-  if (res < 0) 
+  if (res < 0)
     return -EINVAL;
 
   /*
    * Possibilities for args:
    * i) an absolute path such as: /home/user/myprojects/nodejs/node
    * ii) a relative path such as: ./node or ../myprojects/nodejs/node
-   * iii) a bare filename such as "node", after exporting PATH variable 
+   * iii) a bare filename such as "node", after exporting PATH variable
    *     to its location.
    */
 
   /* Case i) and ii) absolute or relative paths */
   if (strchr(args, '/') != NULL) {
-    if (realpath(args, abspath) != abspath) 
+    if (realpath(args, abspath) != abspath)
       return -errno;
 
     abspath_size = strlen(abspath);
@@ -360,7 +360,7 @@ int uv_exepath(char* buffer, size_t* size) {
 
     return 0;
   } else {
-  /* Case iii). Search PATH environment variable */ 
+  /* Case iii). Search PATH environment variable */
     char trypath[PATH_MAX];
     char *clonedpath = NULL;
     char *token = NULL;
@@ -376,7 +376,7 @@ int uv_exepath(char* buffer, size_t* size) {
     token = strtok(clonedpath, ":");
     while (token != NULL) {
       snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, args);
-      if (realpath(trypath, abspath) == abspath) { 
+      if (realpath(trypath, abspath) == abspath) {
         /* Check the match is executable */
         if (access(abspath, X_OK) == 0) {
           abspath_size = strlen(abspath);
@@ -452,7 +452,7 @@ static char *uv__rawname(char *cp) {
 }
 
 
-/* 
+/*
  * Determine whether given pathname is a directory
  * Returns 0 if the path is a directory, -1 if not
  *
@@ -472,7 +472,7 @@ static int uv__path_is_a_directory(char* filename) {
 }
 
 
-/* 
+/*
  * Check whether AHAFS is mounted.
  * Returns 0 if AHAFS is mounted, or an error code < 0 on failure
  */
@@ -547,7 +547,7 @@ static int uv__makedir_p(const char *dir) {
   return mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 }
 
-/* 
+/*
  * Creates necessary subdirectories in the AIX Event Infrastructure
  * file system for monitoring the object specified.
  * Returns code from mkdir call
@@ -665,7 +665,7 @@ static int uv__skip_lines(char **p, int n) {
 /*
  * Parse the event occurrence data to figure out what event just occurred
  * and take proper action.
- * 
+ *
  * The buf is a pointer to the buffer containing the event occurrence data
  * Returns 0 on success, -1 if unrecoverable error in parsing
  *
@@ -891,9 +891,10 @@ int uv_set_process_title(const char* title) {
 
 
 int uv_get_process_title(char* buffer, size_t size) {
-  if (size > 0) {
-    buffer[0] = '\0';
-  }
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+
+  buffer[0] = '\0';
   return 0;
 }
 

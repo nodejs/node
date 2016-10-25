@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,39 +19,9 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
-#include "task.h"
+#ifndef UV_MVS_H
+#define UV_MVS_H
 
-static uv_timer_t timer_handle;
+#define UV_PLATFORM_SEM_T int
 
-static void timer_cb(uv_timer_t* handle) {
-  ASSERT(handle);
-  uv_stop(handle->loop);
-}
-
-
-TEST_IMPL(loop_close) {
-  int r;
-  uv_loop_t loop;
-
-  loop.data = &loop;
-  ASSERT(0 == uv_loop_init(&loop));
-  ASSERT(loop.data == (void*) &loop);
-
-  uv_timer_init(&loop, &timer_handle);
-  uv_timer_start(&timer_handle, timer_cb, 100, 100);
-
-  ASSERT(UV_EBUSY == uv_loop_close(&loop));
-
-  uv_run(&loop, UV_RUN_DEFAULT);
-
-  uv_close((uv_handle_t*) &timer_handle, NULL);
-  r = uv_run(&loop, UV_RUN_DEFAULT);
-  ASSERT(r == 0);
-
-  ASSERT(loop.data == (void*) &loop);
-  ASSERT(0 == uv_loop_close(&loop));
-  ASSERT(loop.data == (void*) &loop);
-
-  return 0;
-}
+#endif /* UV_MVS_H */

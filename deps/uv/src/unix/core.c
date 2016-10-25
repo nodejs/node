@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
@@ -40,11 +41,8 @@
 #include <sys/resource.h> /* getrusage */
 #include <pwd.h>
 
-#ifdef __linux__
-# include <sys/ioctl.h>
-#endif
-
 #ifdef __sun
+# include <sys/filio.h>
 # include <sys/types.h>
 # include <sys/wait.h>
 #endif
@@ -52,16 +50,16 @@
 #ifdef __APPLE__
 # include <mach-o/dyld.h> /* _NSGetExecutablePath */
 # include <sys/filio.h>
-# include <sys/ioctl.h>
 # if defined(O_CLOEXEC)
 #  define UV__O_CLOEXEC O_CLOEXEC
 # endif
 #endif
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__DragonFly__)      || \
+    defined(__FreeBSD__)        || \
+    defined(__FreeBSD_kernel__)
 # include <sys/sysctl.h>
 # include <sys/filio.h>
-# include <sys/ioctl.h>
 # include <sys/wait.h>
 # define UV__O_CLOEXEC O_CLOEXEC
 # if defined(__FreeBSD__) && __FreeBSD__ >= 10
@@ -74,12 +72,12 @@
 # endif
 #endif
 
-#ifdef _AIX
-#include <sys/ioctl.h>
-#endif
-
 #if defined(__ANDROID_API__) && __ANDROID_API__ < 21
 # include <dlfcn.h>  /* for dlsym */
+#endif
+
+#if defined(__MVS__)
+#include <sys/ioctl.h>
 #endif
 
 static int uv__run_pending(uv_loop_t* loop);
@@ -508,8 +506,8 @@ int uv__close_nocheckstdio(int fd) {
   rc = close(fd);
   if (rc == -1) {
     rc = -errno;
-    if (rc == -EINTR)
-      rc = -EINPROGRESS;  /* For platform/libc consistency. */
+    if (rc == -EINTR || rc == -EINPROGRESS)
+      rc = 0;    /* The close is in progress, not an error. */
     errno = saved_errno;
   }
 
@@ -523,10 +521,7 @@ int uv__close(int fd) {
 }
 
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
-    defined(_AIX) || defined(__DragonFly__)
-
-int uv__nonblock(int fd, int set) {
+int uv__nonblock_ioctl(int fd, int set) {
   int r;
 
   do
@@ -540,7 +535,7 @@ int uv__nonblock(int fd, int set) {
 }
 
 
-int uv__cloexec(int fd, int set) {
+int uv__cloexec_ioctl(int fd, int set) {
   int r;
 
   do
@@ -553,10 +548,8 @@ int uv__cloexec(int fd, int set) {
   return 0;
 }
 
-#else /* !(defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
-	   defined(_AIX) || defined(__DragonFly__)) */
 
-int uv__nonblock(int fd, int set) {
+int uv__nonblock_fcntl(int fd, int set) {
   int flags;
   int r;
 
@@ -587,7 +580,7 @@ int uv__nonblock(int fd, int set) {
 }
 
 
-int uv__cloexec(int fd, int set) {
+int uv__cloexec_fcntl(int fd, int set) {
   int flags;
   int r;
 
@@ -616,9 +609,6 @@ int uv__cloexec(int fd, int set) {
 
   return 0;
 }
-
-#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
-	  defined(_AIX) || defined(__DragonFly__) */
 
 
 /* This function is not execve-safe, there is a race window
@@ -931,6 +921,7 @@ int uv_getrusage(uv_rusage_t* rusage) {
   rusage->ru_stime.tv_sec = usage.ru_stime.tv_sec;
   rusage->ru_stime.tv_usec = usage.ru_stime.tv_usec;
 
+#if !defined(__MVS__)
   rusage->ru_maxrss = usage.ru_maxrss;
   rusage->ru_ixrss = usage.ru_ixrss;
   rusage->ru_idrss = usage.ru_idrss;
@@ -945,6 +936,7 @@ int uv_getrusage(uv_rusage_t* rusage) {
   rusage->ru_nsignals = usage.ru_nsignals;
   rusage->ru_nvcsw = usage.ru_nvcsw;
   rusage->ru_nivcsw = usage.ru_nivcsw;
+#endif
 
   return 0;
 }
@@ -1243,4 +1235,10 @@ void uv_os_free_passwd(uv_passwd_t* pwd) {
 
 int uv_os_get_passwd(uv_passwd_t* pwd) {
   return uv__getpwuid_r(pwd);
+}
+
+
+int uv_translate_sys_error(int sys_errno) {
+  /* If < 0 then it's already a libuv error. */
+  return sys_errno <= 0 ? sys_errno : -sys_errno;
 }
