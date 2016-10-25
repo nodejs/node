@@ -17,7 +17,7 @@ var RETRYWAIT = 100
 var WAIT = 100
 var RETRIES = 2
 var EXPECTTIME = (RETRYWAIT * RETRIES) + (WAIT * (RETRIES + 1))
-var TOOLONG = EXPECTTIME * 1.1
+var TOOLONG = EXPECTTIME * 1.5
 
 test('setup', function (t) {
   touch.sync('file.lock')
@@ -33,7 +33,9 @@ pollPeriods.forEach(function (pp) {
       ended = true
       t.end()
     }, 2000)
-    timer.unref()
+
+    if (timer.unref)
+      timer.unref()
 
     var start = Date.now()
     lockFile.lock('file.lock', {
@@ -56,7 +58,11 @@ pollPeriods.forEach(function (pp) {
 test('cleanup', function (t) {
   fs.unlinkSync('file.lock')
   t.end()
-  setTimeout(function() {
+  var timer = setTimeout(function() {
     process.exit(1)
-  }, 500).unref()
+  }, 500)
+  if (timer.unref)
+    timer.unref()
+  else
+    clearTimeout(timer)
 })

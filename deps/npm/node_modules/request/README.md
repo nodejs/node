@@ -811,7 +811,7 @@ default in Linux can be anywhere from 20-120 seconds][linux-timeout]).
 
 ---
 
-- `time` - If `true`, the request-response cycle (including all redirects) is timed at millisecond resolution, and the result provided on the response's `elapsedTime` property.
+- `time` - If `true`, the request-response cycle (including all redirects) is timed at millisecond resolution, and the result provided on the response's `elapsedTime` property. The `responseStartTime` property is also available to indicate the timestamp when the response begins.
 - `har` - A [HAR 1.2 Request Object](http://www.softwareishard.com/blog/har-12-spec/#request), will be processed from HAR format into options overwriting matching values *(see the [HAR 1.2 section](#support-for-har-1.2) for details)*
 - `callback` - alternatively pass the request's callback in the options object
 

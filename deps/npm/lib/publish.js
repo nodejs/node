@@ -73,6 +73,8 @@ function cacheAddPublish (dir, didPre, isRetry, cb) {
     chain(
       [
         !didPre && [lifecycle, data, 'prepublish', cachedir],
+        [lifecycle, data, 'prepublishOnly', cachedir],
+        !didPre && [lifecycle, data, 'prepare', cachedir],
         [publish_, dir, data, isRetry, cachedir],
         [lifecycle, data, 'publish', didPre ? dir : cachedir],
         [lifecycle, data, 'postpublish', didPre ? dir : cachedir]

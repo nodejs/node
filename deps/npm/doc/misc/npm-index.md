@@ -177,10 +177,6 @@ Start a package
 
 Stop a package
 
-### npm-tag(1)
-
-Tag a published version
-
 ### npm-team(1)
 
 Manage organization teams and team memberships

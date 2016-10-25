@@ -37,6 +37,9 @@ test('includes devDependencies in outdated', function (t) {
   mr({ port: common.port }, function (er, s) {
     npm.load({ cache: cache, registry: common.registry }, function () {
       npm.outdated(function (er, d) {
+        t.ifError(er, 'npm outdated completed successfully')
+        t.is(process.exitCode, 1, 'exitCode set to 1')
+        process.exitCode = 0
         t.equal('1.5.1', d[0][3])
         s.close()
         t.end()

@@ -13,6 +13,9 @@
     return
   }
 
+  var unsupported = require('../lib/utils/unsupported.js')
+  unsupported.checkForBrokenNode()
+
   var gfs = require('graceful-fs')
   // Patch the global fs module here at the app level
   var fs = gfs.gracefulify(require('fs'))
@@ -284,10 +287,6 @@
 
         log.resume()
 
-        // at this point the configs are all set.
-        // go ahead and spin up the registry client.
-        npm.registry = new CachingRegClient(npm.config)
-
         var umask = npm.config.get('umask')
         npm.modes = {
           exec: parseInt('0777', 8) & (~umask),
@@ -300,6 +299,17 @@
 
         var lp = Object.getOwnPropertyDescriptor(config, 'localPrefix')
         Object.defineProperty(npm, 'localPrefix', lp)
+
+        if (config.get('scope') === '') {
+          config.set('scope', getProjectScope(npm.prefix))
+        }
+        if (config.get('scope') !== '' && config.get('scope')[0] !== '@') {
+          config.set('scope', '@' + config.get('scope'))
+        }
+
+        // at this point the configs are all set.
+        // go ahead and spin up the registry client.
+        npm.registry = new CachingRegClient(npm.config)
 
         return cb(null, npm)
       })
@@ -399,5 +409,17 @@
 
   if (require.main === module) {
     require('../bin/npm-cli.js')
+  }
+
+  function getProjectScope (prefix) {
+    try {
+      var pkg = JSON.parse(fs.readFileSync(path.join(prefix, 'package.json')))
+      if (typeof pkg.name !== 'string') return ''
+      var sep = pkg.name.indexOf('/')
+      if (sep === -1) return ''
+      return pkg.name.slice(0, sep)
+    } catch (ex) {
+      return ''
+    }
   }
 })()

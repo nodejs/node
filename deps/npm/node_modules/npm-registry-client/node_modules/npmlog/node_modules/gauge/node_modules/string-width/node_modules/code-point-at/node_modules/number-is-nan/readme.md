@@ -1,8 +1,6 @@
 # number-is-nan [![Build Status](https://travis-ci.org/sindresorhus/number-is-nan.svg?branch=master)](https://travis-ci.org/sindresorhus/number-is-nan)
 
-> ES6 [`Number.isNaN()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN) ponyfill
-
-> Ponyfill: A polyfill that doesn't overwrite the native method
+> ES2015 [`Number.isNaN()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN) [ponyfill](https://ponyfill.com)
 
 
 ## Install

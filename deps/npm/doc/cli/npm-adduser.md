@@ -33,7 +33,8 @@ your existing record.
 Default: https://registry.npmjs.org/
 
 The base URL of the npm package registry. If `scope` is also specified,
-this registry will only be used for packages with that scope. See `npm-scope(7)`.
+this registry will only be used for packages with that scope. `scope` defaults
+to the scope of the project directory you're currently in, if any. See `npm-scope(7)`.
 
 ### scope
 
