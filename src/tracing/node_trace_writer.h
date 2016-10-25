@@ -24,7 +24,7 @@ class NodeTraceWriter : public TraceWriter {
   void Flush() override;
   void Flush(bool blocking);
 
-  static const int kTracesPerFile = 1 << 20;
+  static const int kTracesPerFile = 1 << 19;
 
  private:
   struct WriteRequest {
@@ -54,6 +54,8 @@ class NodeTraceWriter : public TraceWriter {
   // Allows blocking calls to Flush() to wait on a condition for
   // trace events to be written to disk.
   ConditionVariable request_cond_;
+  // Used to wait until async handles have been closed.
+  ConditionVariable exit_cond_;
   int fd_ = -1;
   std::queue<WriteRequest*> write_req_queue_;
   int num_write_requests_ = 0;
@@ -63,6 +65,7 @@ class NodeTraceWriter : public TraceWriter {
   std::ostringstream stream_;
   TraceWriter* json_trace_writer_;
   uv_pipe_t trace_file_pipe_;
+  bool exited_ = false;
 };
 
 }  // namespace tracing

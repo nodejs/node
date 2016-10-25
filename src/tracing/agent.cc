@@ -16,9 +16,6 @@ void Agent::Start(v8::Platform* platform, const char* trace_config_file) {
   int err = uv_loop_init(&tracing_loop_);
   CHECK_EQ(err, 0);
 
-  err = uv_thread_create(&thread_, ThreadCb, this);
-  CHECK_EQ(err, 0);
-
   NodeTraceWriter* trace_writer = new NodeTraceWriter(&tracing_loop_);
   TraceBuffer* trace_buffer = new NodeTraceBuffer(
       NodeTraceBuffer::kBufferChunks, trace_writer, &tracing_loop_);
@@ -36,6 +33,13 @@ void Agent::Start(v8::Platform* platform, const char* trace_config_file) {
     trace_config->AddIncludedCategory("v8");
     trace_config->AddIncludedCategory("node");
   }
+
+  // This thread should be created *after* async handles are created
+  // (within NodeTraceWriter and NodeTraceBuffer constructors).
+  // Otherwise the thread could shut down prematurely.
+  err = uv_thread_create(&thread_, ThreadCb, this);
+  CHECK_EQ(err, 0);
+
   tracing_controller_->Initialize(trace_buffer);
   tracing_controller_->StartTracing(trace_config);
   v8::platform::SetTracingController(platform, tracing_controller_);
