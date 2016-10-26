@@ -206,19 +206,22 @@ class FunctionCallbackArguments
   static const int kIsolateIndex = T::kIsolateIndex;
   static const int kCalleeIndex = T::kCalleeIndex;
   static const int kContextSaveIndex = T::kContextSaveIndex;
+  static const int kNewTargetIndex = T::kNewTargetIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate, internal::Object* data,
                             internal::HeapObject* callee,
-                            internal::Object* holder, internal::Object** argv,
-                            int argc, bool is_construct_call)
+                            internal::Object* holder,
+                            internal::HeapObject* new_target,
+                            internal::Object** argv, int argc)
       : Super(isolate),
         argv_(argv),
         argc_(argc),
-        is_construct_call_(is_construct_call) {
+        is_construct_call_(!new_target->IsUndefined()) {
     Object** values = begin();
     values[T::kDataIndex] = data;
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
+    values[T::kNewTargetIndex] = new_target;
     values[T::kContextSaveIndex] = isolate->heap()->the_hole_value();
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
     // Here the hole is set as default value.

@@ -185,16 +185,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ j(greater_equal, &loop);
 
     // Call the function.
-    if (is_api_function) {
-      __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-      Handle<Code> code =
-          masm->isolate()->builtins()->HandleApiCallConstruct();
-      __ Call(code, RelocInfo::CODE_TARGET);
-    } else {
-      ParameterCount actual(rax);
-      __ InvokeFunction(rdi, rdx, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
-    }
+    ParameterCount actual(rax);
+    __ InvokeFunction(rdi, rdx, actual, CALL_FUNCTION,
+                      CheckDebugStepCallWrapper());
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
