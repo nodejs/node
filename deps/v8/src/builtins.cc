@@ -90,17 +90,6 @@ Handle<S> BuiltinArguments<BuiltinExtraArguments::kTarget>::target() {
 }
 
 template <>
-int BuiltinArguments<BuiltinExtraArguments::kNewTarget>::length() const {
-  return Arguments::length() - 1;
-}
-
-template <>
-Handle<HeapObject>
-BuiltinArguments<BuiltinExtraArguments::kNewTarget>::new_target() {
-  return Arguments::at<HeapObject>(Arguments::length() - 1);
-}
-
-template <>
 int BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::length()
     const {
   return Arguments::length() - 2;
@@ -4247,11 +4236,13 @@ BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
 
 namespace {
 
-template <bool is_construct>
 MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
-    Isolate* isolate, BuiltinArguments<BuiltinExtraArguments::kTarget> args) {
+    Isolate* isolate,
+    BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget> args) {
   HandleScope scope(isolate);
   Handle<HeapObject> function = args.target<HeapObject>();
+  Handle<HeapObject> new_target = args.new_target();
+  bool is_construct = !new_target->IsUndefined();
   Handle<JSReceiver> receiver;
 
   DCHECK(function->IsFunctionTemplateInfo() ||
@@ -4311,13 +4302,9 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     DCHECK(raw_holder->IsJSObject());
 
-    FunctionCallbackArguments custom(isolate,
-                                     data_obj,
-                                     *function,
-                                     raw_holder,
-                                     &args[0] - 1,
-                                     args.length() - 1,
-                                     is_construct);
+    FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
+                                     *new_target, &args[0] - 1,
+                                     args.length() - 1);
 
     Handle<Object> result = custom.Call(callback);
     if (result.is_null()) result = isolate->factory()->undefined_value();
@@ -4338,18 +4325,10 @@ BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     HandleApiCallHelper<false>(isolate, args));
+                                     HandleApiCallHelper(isolate, args));
   return *result;
 }
 
-
-BUILTIN(HandleApiCallConstruct) {
-  HandleScope scope(isolate);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     HandleApiCallHelper<true>(isolate, args));
-  return *result;
-}
 
 Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode,
                                     TailCallMode tail_call_mode) {
@@ -4432,11 +4411,12 @@ Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode) {
 namespace {
 
 class RelocatableArguments
-    : public BuiltinArguments<BuiltinExtraArguments::kTarget>,
+    : public BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>,
       public Relocatable {
  public:
   RelocatableArguments(Isolate* isolate, int length, Object** arguments)
-      : BuiltinArguments<BuiltinExtraArguments::kTarget>(length, arguments),
+      : BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>(length,
+                                                                     arguments),
         Relocatable(isolate) {}
 
   virtual inline void IterateInstance(ObjectVisitor* v) {
@@ -4468,24 +4448,26 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
       }
     }
   }
-  // Construct BuiltinArguments object: function, arguments reversed, receiver.
+  // Construct BuiltinArguments object:
+  // new target, function, arguments reversed, receiver.
   const int kBufferSize = 32;
   Object* small_argv[kBufferSize];
   Object** argv;
-  if (argc + 2 <= kBufferSize) {
+  if (argc + 3 <= kBufferSize) {
     argv = small_argv;
   } else {
-    argv = new Object* [argc + 2];
+    argv = new Object*[argc + 3];
   }
-  argv[argc + 1] = *receiver;
+  argv[argc + 2] = *receiver;
   for (int i = 0; i < argc; ++i) {
-    argv[argc - i] = *args[i];
+    argv[argc - i + 1] = *args[i];
   }
-  argv[0] = *function;
+  argv[1] = *function;
+  argv[0] = isolate->heap()->undefined_value();  // new target
   MaybeHandle<Object> result;
   {
-    RelocatableArguments arguments(isolate, argc + 2, &argv[argc + 1]);
-    result = HandleApiCallHelper<false>(isolate, arguments);
+    RelocatableArguments arguments(isolate, argc + 3, &argv[argc] + 2);
+    result = HandleApiCallHelper(isolate, arguments);
   }
   if (argv != small_argv) {
     delete[] argv;
@@ -4504,6 +4486,18 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
 
   // Get the object called.
   JSObject* obj = JSObject::cast(*receiver);
+
+  // Set the new target.
+  HeapObject* new_target;
+  if (is_construct_call) {
+    // TODO(adamk): This should be passed through in args instead of
+    // being patched in here. We need to set a non-undefined value
+    // for v8::FunctionCallbackInfo::IsConstructCall() to get the
+    // right answer.
+    new_target = obj;
+  } else {
+    new_target = isolate->heap()->undefined_value();
+  }
 
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
@@ -4527,13 +4521,9 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
 
-    FunctionCallbackArguments custom(isolate,
-                                     call_data->data(),
-                                     constructor,
-                                     obj,
-                                     &args[0] - 1,
-                                     args.length() - 1,
-                                     is_construct_call);
+    FunctionCallbackArguments custom(isolate, call_data->data(), constructor,
+                                     obj, new_target, &args[0] - 1,
+                                     args.length() - 1);
     Handle<Object> result_handle = custom.Call(callback);
     if (result_handle.is_null()) {
       result = isolate->heap()->undefined_value();

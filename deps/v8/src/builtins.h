@@ -166,8 +166,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(SymbolConstructor, kNone)                                  \
   V(SymbolConstructor_ConstructStub, kTarget)                  \
                                                                \
-  V(HandleApiCall, kTarget)                                    \
-  V(HandleApiCallConstruct, kTarget)                           \
+  V(HandleApiCall, kTargetAndNewTarget)                        \
   V(HandleApiCallAsFunction, kNone)                            \
   V(HandleApiCallAsConstructor, kNone)                         \
                                                                \
