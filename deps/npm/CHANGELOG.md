@@ -1,3 +1,153 @@
+### v3.10.9 (2016-10-06)
+
+Hi everyone! This is the last of our monthly releases. We're going to give
+an every-two-weeks schedule a try starting with our next release. We'll
+reevaluate in a quarter, but we suspect that will be what we'll stick with.
+You might be wondering _why_ we've been fiddling with the release cadence? Well,
+we've been trying to tune it to to minimize the overhead for our little team.
+
+This is ALSO the ULTIMATE release of `npm` version 3. That's right, in
+just two weeks' time (October 20th for you fans of calendar time), our dear
+`npm` will be hitting the big 4.0.
+
+**DON'T PANIC**
+
+This is gonna be a much, MUCH smaller major version than 3.x was. Maybe even
+smaller than 2.x was. I can't tell you everything that'll be in there just
+yet, but at the very least it's going to have what's in our
+[4.x milestone](https://github.com/npm/npm/pulls?q=is%3Aopen+is%3Apr+milestone%3A4.x),
+PLUS, the first steps in
+[making `prepublish` work](https://github.com/npm/npm/issues/10074) the way
+people expect it to.
+
+**NOW ABOUT THIS RELEASE**
+
+This release sees a whole slew of bug fixes. Notably a bunch of lifecycle
+fixes and a really important shrinkwrap fix.
+
+#### LIFECYCLE FIXES
+
+* [`d388f90`](https://github.com/npm/npm/commit/d388f90732981633b3cdb4fc7fb0fababd4e64ab)
+  [#13942](https://github.com/npm/npm/pull/13942)
+  Fix current working directory while running shrinkwrap lifecycle scripts.
+  Previously if you ran a shrinkwrap from another lifecycle script AND
+  `node_modules` existed (and if you're running `npm shrinkwrap` it probably
+  should) then `npm` would run the shrinkwrap lifecycle from the
+  `node_modules` folder instead of the package folder.
+  ([@evocateur](https://github.com/evocateur))
+  ([@iarna](https://github.com/iarna))
+* [`c3b6cdf`](https://github.com/npm/npm/commit/c3b6cdfedcdb4d9e7712be5245d9b274828d88d1)
+  [#13964](https://github.com/npm/npm/pull/13964)
+  Fix bug where the `uninstall` lifecycles weren't being run when you
+  reinstalled/updated an existing module.
+  ([@iarna](https://github.com/iarna))
+* [`72bb89c`](https://github.com/npm/npm/commit/72bb89c1aa9811a18cbd766f3da73da76eb920c6)
+  [#13344](https://github.com/npm/npm/pull/13344)
+  When running lifecycles use `TMPDIR` if it's writable and fall back to the
+  current working directory if not. Previously we just assumed `TMPDIR`
+  wouldn't be writable (as we might have been running as `nobody` and
+  `nobody` on some systems can't write to `TMPDIR`).
+  ([@aaronjensen](https://github.com/aaronjensen))
+
+#### SHRINKWRAP GIT & TAGGED DEPENDENCY FIX
+
+* [`3b5eee0`](https://github.com/npm/npm/commit/3b5eee0d31737d1c2518ed95dcc7aaaaa93c253c)
+  [#13941](https://github.com/npm/npm/pull/13941)
+  Fix git and tagged dependency matching with shrinkwraps.  Previously git
+  and tag (ie `foo@latest`) dependencies installed from a shrinkwrap would
+  always be flagged as invalid.
+  ([@iarna](https://github.com/iarna))
+
+#### BUG FIXES
+
+* [`bf3bd1e`](https://github.com/npm/npm/commit/bf3bd1e4347ee2c5de08d23558c4444749178c8b)
+  [#14143](https://github.com/npm/npm/pull/14143)
+  Fix bug in `npm version` where `npm-shrinkwrap.json` wouldn't be updated
+  if you ran `npm version` from outside of your project root.
+  ([@lholmquist](https://github.com/lholmquist))
+* [`1089878`](https://github.com/npm/npm/commit/1089878f58977559414c8a9addfc69a9c68905b0)
+  [#13613](https://github.com/npm/npm/pull/13613)
+  Log 'skipping action' as 'verbose' instead of 'warn'. This removes a lot of
+  clutter when there are links in your `node_modules`. The long term plan is
+  to entirely blind `npm` to what's inside links, which will make this code
+  go away entirely.
+  ([@timoxley](https://github.com/timoxley))
+* [`952f1e1`](https://github.com/npm/npm/commit/952f1e109a070ab4066179f6104ba9394300e342)
+  [#13999](https://github.com/npm/npm/pull/13999)
+  Fix a bug where setting `bin` to `null` in your `package.json` would result
+  in `npm` crashing.
+  ([@IonicaBizau](https://github.com/IonicaBizau))
+* [`fcf8b11`](https://github.com/npm/npm/commit/fcf8b11fb7fcf8902f6a887c3d5f0aef2897dde0)
+  [#14032](https://github.com/npm/npm/pull/14032)
+  When using `npm view`, if you specified a version that didn't exist it
+  would previously print `undefined` (even if you asked for JSON output). It
+  now prints nothing in this situation. This brings `npm@3`'s behavior in
+  line with `npm@2`.
+  ([@roblg](https://github.com/roblg))
+* [`93c689f`](https://github.com/npm/npm/commit/93c689ff44c6042a2dcde7fe0d74d2264237d666)
+  [#14032](https://github.com/npm/npm/pull/14032)
+  When using `npm view --json` with a version range that matches multiple
+  versions we now return a list of all of the metadata for all of those
+  versions. Previously we picked one and only returned that. This brings
+  `npm@3`'s behavior in line with `npm@2`.
+  ([@roblg](https://github.com/roblg))
+* [`2411728`](https://github.com/npm/npm/commit/24117289e09c373b845150c45e4793d98fe7cf4b)
+  [#14045](https://github.com/npm/npm/pull/14045)
+  Fix a Windows-only bug in the `git` tests. The tests had rather particular
+  ideas about what arguments would be passed to `git` and on Windows they
+  got this wrong.
+  ([@watilde](https://github.com/watilde))
+
+#### DOCUMENTATION & MISC
+
+* [`30772cc`](https://github.com/npm/npm/commit/30772cc5f80923bf21c003fbe53e5fed9d3a5d97)
+  [#13904](https://github.com/npm/npm/pull/13904)
+  Update `package.json` example to include GitHub branches.
+  ([@stevokk](https://github.com/stevokk))
+* [`f66876f`](https://github.com/npm/npm/commit/f66876f75c204fb78028cf2ff7979f80355bd06c)
+  [#14010](https://github.com/npm/npm/pull/14010)
+  Update the GitHub issue template to reflect Apple's change in name of its
+  desktop operating system.
+  ([@AlexChesters](https://github.com/AlexChesters))
+
+#### DEPENDENCY UPDATES
+
+* [`b3f9bf1`](https://github.com/npm/npm/commit/b3f9bf1ada3f93e6775f5c232350030db6635d0c)
+  [#13918](https://github.com/npm/npm/issues/13918)
+  `graceful-fs@4.1.9`:
+  Fix the _uid must be an unsigned int_ bug that's been around forever but that
+  `npm` started tickling in v3.10.8.
+  ([@addaleax](https://github.com/addaleax))
+  Also fixes wrapper to `fs.readdir` to actually pass through (rather than
+  drop) optional arguments.
+  ([@isaacs](https://github.com/isaacs))
+* [`9402ead`](https://github.com/npm/npm/commit/9402ead67e3be9b431ade637fbfac86204ee96fe)
+  [isaacs/node-glob#293](https://github.com/isaacs/node-glob/pull/293)
+  `glob@7.1.0`:
+  Add `absolute` option for `match` event.
+  ([@phated](https://github.com/phated))
+* [`58b83db`](https://github.com/npm/npm/commit/58b83db327dd87bf7cb5a7d503303537718f2f30)
+  `asap@2.0.5`
+  ([@kriskowal](https://github.com/kriskowal))
+* [`5707e6e`](https://github.com/npm/npm/commit/5707e6e55b220439c3f83e77daf4c70d72eb46f0)
+  `sorted-object@2.0.1`
+  ([@domenic](https://github.com/domenic))
+* [`9d20910`](https://github.com/npm/npm/commit/9d209107ce49a7424c50459284280cd2e6e215d1)
+  `request@2.75.0`
+  ([@simov](https://github.com/simov))
+* [`dea4848`](https://github.com/npm/npm/commit/dea48487a9d03492edc68670d05776d32d9ee8cf)
+  `path-is-inside@1.0.2`
+  ([@domenic](https://github.com/domenic))
+* [`b3f3db5`](https://github.com/npm/npm/commit/b3f3db52e864d607b6d9b18920e2f58acc4b1616)
+  `opener@1.4.2`
+  ([@dominic](https://github.com/dominic))
+* [`6bb5f95`](https://github.com/npm/npm/commit/6bb5f953888bbaaeeb624d623c2a9746d1c243a0)
+  `lockfile@1.0.2`
+  ([@isaacs](https://github.com/isaacs))
+* [`13f7c0a`](https://github.com/npm/npm/commit/13f7c0a73212284b53a2d96882fc298afbf9609c)
+  `config-chain@1.1.11`
+  ([@dominictarr](https://github.com/dominictarr))
+
 ### v3.10.8 (2016-09-08)
 
 Monthly releases are so big! Just look at all this stuff!
