@@ -16,6 +16,7 @@ var alphasorti = common.alphasorti
 var setopts = common.setopts
 var ownProp = common.ownProp
 var childrenIgnored = common.childrenIgnored
+var isIgnored = common.isIgnored
 
 function globSync (pattern, options) {
   if (typeof options === 'function' || arguments.length === 3)
@@ -187,7 +188,7 @@ GlobSync.prototype._processReaddir = function (prefix, read, abs, remain, index,
       if (e.charAt(0) === '/' && !this.nomount) {
         e = path.join(this.root, e)
       }
-      this.matches[index][e] = true
+      this._emitMatch(index, e)
     }
     // This was the last one, and no stats were needed
     return
@@ -209,20 +210,29 @@ GlobSync.prototype._processReaddir = function (prefix, read, abs, remain, index,
 
 
 GlobSync.prototype._emitMatch = function (index, e) {
+  if (isIgnored(this, e))
+    return
+
   var abs = this._makeAbs(e)
+
   if (this.mark)
     e = this._mark(e)
+
+  if (this.absolute) {
+    e = abs
+  }
 
   if (this.matches[index][e])
     return
 
   if (this.nodir) {
-    var c = this.cache[this._makeAbs(e)]
+    var c = this.cache[abs]
     if (c === 'DIR' || Array.isArray(c))
       return
   }
 
   this.matches[index][e] = true
+
   if (this.stat)
     this._stat(e)
 }
@@ -399,7 +409,7 @@ GlobSync.prototype._processSimple = function (prefix, index) {
     prefix = prefix.replace(/\\/g, '/')
 
   // Mark this as a match
-  this.matches[index][prefix] = true
+  this._emitMatch(index, prefix)
 }
 
 // Returns either 'DIR', 'FILE', or false
