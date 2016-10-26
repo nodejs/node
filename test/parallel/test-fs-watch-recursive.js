@@ -30,14 +30,17 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
+  if (common.isOSX) {
+    clearInterval(interval);
+  }
   watcher.close();
   watcherClosed = true;
 });
 
-if (process.platform === 'darwin') {
-  setTimeout(function() {
+if (common.isOSX) {
+  var interval = setInterval(function() {
     fs.writeFileSync(filepathOne, 'world');
-  }, 100);
+  }, 10);
 } else {
   fs.writeFileSync(filepathOne, 'world');
 }
