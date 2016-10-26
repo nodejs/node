@@ -119,6 +119,6 @@ process.on('exit', function() {
   if (keyList.length !== 0) {
     process._rawDebug('Not all keys have been used:');
     process._rawDebug(keyList);
-    assert.equal(keyList.length, 0);
+    assert.strictEqual(keyList.length, 0);
   }
 });
