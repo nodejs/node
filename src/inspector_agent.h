@@ -5,6 +5,8 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
+#include "platform/v8_inspector/public/V8Inspector.h"
+
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
 class Environment;
@@ -32,6 +34,9 @@ class Agent {
   bool Start(v8::Platform* platform, const char* path, int port, bool wait);
   // Stop the inspector agent
   void Stop();
+
+  void ContextCreated(const v8_inspector::V8ContextInfo& info);
+  void ContextDestroyed(v8::Local<v8::Context> context);
 
   bool IsStarted();
   bool IsConnected();

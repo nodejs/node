@@ -9,6 +9,10 @@
 #include "util-inl.h"
 #include "v8-debug.h"
 
+#if HAVE_INSPECTOR
+#include "platform/v8_inspector/public/V8Inspector.h"
+#endif
+
 namespace node {
 
 using v8::Array;
@@ -207,6 +211,10 @@ class ContextifyContext {
     object_template->SetHandler(config);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
+#if HAVE_INSPECTOR
+    env->context_created(
+      v8_inspector::V8ContextInfo(ctx, 1, "vm Module Context"));
+#endif
 
     if (ctx.IsEmpty()) {
       env->ThrowError("Could not instantiate context");
@@ -323,6 +331,9 @@ class ContextifyContext {
 
   static void WeakCallback(const WeakCallbackInfo<ContextifyContext>& data) {
     ContextifyContext* context = data.GetParameter();
+#if HAVE_INSPECTOR
+    context->env()->context_destroyed(context->context());
+#endif
     delete context;
   }
 

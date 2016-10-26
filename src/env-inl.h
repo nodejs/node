@@ -356,6 +356,25 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
+inline void Environment::context_created(v8_inspector::V8ContextInfo info) {
+  contexts()->push_back(info);
+  if (inspector_agent()->IsStarted()) {
+    inspector_agent()->ContextCreated(info);
+  }
+}
+inline void Environment::context_destroyed(v8::Local<v8::Context> context) {
+  for (auto i = std::begin(*contexts()); i != std::end(*contexts()); ++i) {
+    auto it = *i;
+    if (it.context == context) {
+      contexts()->erase(i);
+      if (inspector_agent()->IsStarted()) {
+          inspector_agent()->ContextDestroyed(context);
+      }
+      return;
+    }
+  }
+}
+
 inline void Environment::ThrowError(const char* errmsg) {
   ThrowError(v8::Exception::Error, errmsg);
 }
