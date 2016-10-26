@@ -107,9 +107,9 @@ function read(buf, options, forceType) {
 
 	/* The new OpenSSH internal format abuses PEM headers */
 	if (alg && alg.toLowerCase() === 'openssh')
-		return (sshpriv.readSSHPrivate(type, buf));
+		return (sshpriv.readSSHPrivate(type, buf, options));
 	if (alg && alg.toLowerCase() === 'ssh2')
-		return (rfc4253.readType(type, buf));
+		return (rfc4253.readType(type, buf, options));
 
 	var der = new asn1.BerReader(buf);
 	der.originalInput = input;

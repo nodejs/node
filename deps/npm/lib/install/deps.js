@@ -64,11 +64,26 @@ function doesChildVersionMatch (child, requested, requestor) {
   if (requested.spec === '*') return true
 
   var childReq = child.package._requested
+  if (!childReq) childReq = npa(moduleName(child) + '@' + child.package._from)
   if (childReq) {
     if (childReq.rawSpec === requested.rawSpec) return true
     if (childReq.type === requested.type && childReq.spec === requested.spec) return true
   }
-  if (!registryTypes[requested.type]) return requested.rawSpec === child.package._from
+  // If _requested didn't exist OR if it didn't match then we'll try using
+  // _from. We pass it through npa to normalize the specifier.
+  // This can happen when installing from an `npm-shrinkwrap.json` where `_requested` will
+  // be the tarball URL from `resolved` and thus can't match what's in the `package.json`.
+  // In those cases _from, will be preserved and we can compare that to ensure that they
+  // really came from the same sources.
+  // You'll see this scenario happen with at least tags and git dependencies.
+  if (!registryTypes[requested.type]) {
+    if (child.package._from) {
+      var fromReq = npa(child.package._from)
+      if (fromReq.rawSpec === requested.rawSpec) return true
+      if (fromReq.type === requested.type && fromReq.spec === requested.spec) return true
+    }
+    return false
+  }
   return semver.satisfies(child.package.version, requested.spec)
 }
 
@@ -597,13 +612,13 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
-  var binaryMatches = typeof pkg.bin === 'object' && tree.children.some(function (child) {
-    if (child.removed) return false
-    if (typeof child.package.bin !== 'object') return false
+  var binaryMatches = pkg.bin && tree.children.some(function (child) {
+    if (child.removed || !child.package.bin) return false
     return Object.keys(child.package.bin).some(function (bin) {
       return pkg.bin[bin]
     })
   })
+
   if (binaryMatches) return null
 
   // if this tree location requested the same module then we KNOW it
