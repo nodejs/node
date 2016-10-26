@@ -56,24 +56,24 @@ function blockingCallback(callback) {
     common.busyLoop(TIMEOUT);
 
     timeCallbackScheduled = Timer.now();
-    setTimeout(blockingCallback, TIMEOUT);
+    setTimeout(blockingCallback.bind(null, callback), TIMEOUT);
   }
 }
 
-function testAddingTimerToEmptyTimersList(callback) {
+const testAddingTimerToEmptyTimersList = common.mustCall(function(callback) {
   initTest();
   // Call setTimeout just once to make sure the timers list is
   // empty when blockingCallback is called.
   setTimeout(blockingCallback.bind(null, callback), TIMEOUT);
-}
+});
 
-function testAddingTimerToNonEmptyTimersList() {
+const testAddingTimerToNonEmptyTimersList = common.mustCall(function() {
   initTest();
   // Call setTimeout twice with the same timeout to make
   // sure the timers list is not empty when blockingCallback is called.
   setTimeout(blockingCallback, TIMEOUT);
   setTimeout(blockingCallback, TIMEOUT);
-}
+});
 
 // Run the test for the empty timers list case, and then for the non-empty
 // timers list one
