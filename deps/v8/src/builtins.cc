@@ -4262,9 +4262,11 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
     Handle<ObjectTemplateInfo> instance_template(
         ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               ApiNatives::InstantiateObject(instance_template),
-                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, receiver,
+        ApiNatives::InstantiateObject(instance_template,
+                                      Handle<JSReceiver>::cast(new_target)),
+        Object);
     args[0] = *receiver;
     DCHECK_EQ(*receiver, *args.receiver());
   } else {

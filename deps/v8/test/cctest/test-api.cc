@@ -2142,6 +2142,95 @@ THREADED_TEST(TestObjectTemplateInheritedWithPrototype2) {
       Constructor_GetFunction_New);
 }
 
+THREADED_TEST(TestObjectTemplateClassInheritance) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> fun_A = v8::FunctionTemplate::New(isolate);
+  fun_A->SetClassName(v8_str("A"));
+
+  Local<ObjectTemplate> templ_A = fun_A->InstanceTemplate();
+  templ_A->SetNativeDataProperty(v8_str("nirk"), GetNirk);
+  templ_A->SetNativeDataProperty(v8_str("rino"), GetRino);
+
+  Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::String> class_name = v8_str("B");
+  fun_B->SetClassName(class_name);
+  fun_B->Inherit(fun_A);
+
+  v8::Local<v8::String> subclass_name = v8_str("C");
+  v8::Local<v8::Object> b_proto;
+  v8::Local<v8::Object> c_proto;
+  // Perform several iterations to make sure the cache doesn't break
+  // subclassing.
+  for (int i = 0; i < 3; i++) {
+    Local<v8::Function> function_B =
+        fun_B->GetFunction(env.local()).ToLocalChecked();
+    if (i == 0) {
+      CHECK(env->Global()->Set(env.local(), class_name, function_B).FromJust());
+      CompileRun("class C extends B {}");
+      b_proto =
+          CompileRun("B.prototype")->ToObject(env.local()).ToLocalChecked();
+      c_proto =
+          CompileRun("C.prototype")->ToObject(env.local()).ToLocalChecked();
+      CHECK(b_proto->Equals(env.local(), c_proto->GetPrototype()).FromJust());
+    }
+    Local<v8::Object> instance =
+        CompileRun("new C()")->ToObject(env.local()).ToLocalChecked();
+    CHECK(c_proto->Equals(env.local(), instance->GetPrototype()).FromJust());
+
+    CHECK(subclass_name->StrictEquals(instance->GetConstructorName()));
+    CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
+
+    CHECK_EQ(900, CompileRun("o.nirk")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(560, CompileRun("o.rino")->IntegerValue(env.local()).FromJust());
+  }
+}
+
+static void NamedPropertyGetterWhichReturns42(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_num(42));
+}
+
+THREADED_TEST(TestObjectTemplateReflectConstruct) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  fun_B->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(NamedPropertyGetterWhichReturns42));
+  v8::Local<v8::String> class_name = v8_str("B");
+  fun_B->SetClassName(class_name);
+
+  v8::Local<v8::String> subclass_name = v8_str("C");
+  v8::Local<v8::Object> b_proto;
+  v8::Local<v8::Object> c_proto;
+  // Perform several iterations to make sure the cache doesn't break
+  // subclassing.
+  for (int i = 0; i < 3; i++) {
+    Local<v8::Function> function_B =
+        fun_B->GetFunction(env.local()).ToLocalChecked();
+    if (i == 0) {
+      CHECK(env->Global()->Set(env.local(), class_name, function_B).FromJust());
+      CompileRun("function C() {}");
+      c_proto =
+          CompileRun("C.prototype")->ToObject(env.local()).ToLocalChecked();
+    }
+    Local<v8::Object> instance = CompileRun("Reflect.construct(B, [], C)")
+                                     ->ToObject(env.local())
+                                     .ToLocalChecked();
+    CHECK(c_proto->Equals(env.local(), instance->GetPrototype()).FromJust());
+
+    CHECK(subclass_name->StrictEquals(instance->GetConstructorName()));
+    CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
+
+    CHECK_EQ(42, CompileRun("o.nirk")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(42, CompileRun("o.rino")->IntegerValue(env.local()).FromJust());
+  }
+}
+
 static void GetFlabby(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   args.GetReturnValue().Set(v8_num(17.2));
@@ -18762,12 +18851,6 @@ TEST(SetterOnConstructorPrototype) {
                      ->Int32Value(context.local())
                      .FromJust());
   }
-}
-
-
-static void NamedPropertyGetterWhichReturns42(
-    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(v8_num(42));
 }
 
 

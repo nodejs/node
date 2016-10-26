@@ -17,6 +17,7 @@ namespace {
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> data,
+                                        Handle<JSReceiver> new_target,
                                         bool is_hidden_prototype);
 
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
@@ -31,7 +32,7 @@ MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
                                Handle<FunctionTemplateInfo>::cast(data), name);
   } else if (data->IsObjectTemplateInfo()) {
     return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data),
-                             false);
+                             Handle<JSReceiver>(), false);
   } else {
     return data;
   }
@@ -288,11 +289,25 @@ void UncacheTemplateInstantiation(Isolate* isolate, uint32_t serial_number) {
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
+                                        Handle<JSReceiver> new_target,
                                         bool is_hidden_prototype) {
-  // Fast path.
-  Handle<JSObject> result;
+  Handle<JSFunction> constructor;
   uint32_t serial_number =
       static_cast<uint32_t>(Smi::cast(info->serial_number())->value());
+  if (!new_target.is_null()) {
+    if (new_target->IsJSFunction() &&
+        JSFunction::cast(*new_target)->shared()->function_data() ==
+            info->constructor() &&
+        JSFunction::cast(*new_target)->context()->native_context() ==
+            isolate->context()->native_context()) {
+      constructor = Handle<JSFunction>::cast(new_target);
+    } else {
+      // Disable caching for subclass instantiation.
+      serial_number = 0;
+    }
+  }
+  // Fast path.
+  Handle<JSObject> result;
   if (serial_number) {
     // Probe cache.
     auto cache = isolate->template_instantiations_cache();
@@ -305,20 +320,27 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   }
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
   HandleScope scope(isolate);
-  auto constructor = handle(info->constructor(), isolate);
-  Handle<JSFunction> cons;
-  if (constructor->IsUndefined()) {
-    cons = isolate->object_function();
-  } else {
-    auto cons_templ = Handle<FunctionTemplateInfo>::cast(constructor);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, cons, InstantiateFunction(isolate, cons_templ), JSFunction);
+
+  if (constructor.is_null()) {
+    Handle<Object> cons(info->constructor(), isolate);
+    if (cons->IsUndefined()) {
+      constructor = isolate->object_function();
+    } else {
+      auto cons_templ = Handle<FunctionTemplateInfo>::cast(cons);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, constructor,
+                                 InstantiateFunction(isolate, cons_templ),
+                                 JSObject);
+    }
+
+    if (new_target.is_null()) new_target = constructor;
   }
-  auto object = isolate->factory()->NewJSObject(cons);
+
+  Handle<JSObject> object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, object,
+                             JSObject::New(constructor, new_target), JSObject);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
-      ConfigureInstance(isolate, object, info, is_hidden_prototype),
-      JSFunction);
+      ConfigureInstance(isolate, object, info, is_hidden_prototype), JSObject);
   // TODO(dcarney): is this necessary?
   JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
 
@@ -356,7 +378,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           isolate, prototype,
           InstantiateObject(isolate,
                             Handle<ObjectTemplateInfo>::cast(prototype_templ),
-                            data->hidden_prototype()),
+                            Handle<JSReceiver>(), data->hidden_prototype()),
           JSFunction);
     }
     auto parent = handle(data->parent_template(), isolate);
@@ -448,12 +470,11 @@ MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
   return ::v8::internal::InstantiateFunction(isolate, data);
 }
 
-
 MaybeHandle<JSObject> ApiNatives::InstantiateObject(
-    Handle<ObjectTemplateInfo> data) {
+    Handle<ObjectTemplateInfo> data, Handle<JSReceiver> new_target) {
   Isolate* isolate = data->GetIsolate();
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateObject(isolate, data, false);
+  return ::v8::internal::InstantiateObject(isolate, data, new_target, false);
 }
 
 
