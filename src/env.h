@@ -530,9 +530,9 @@ class Environment {
     return &inspector_agent_;
   }
 
-  inline void context_created(v8_inspector::V8ContextInfo context);
-  inline void context_destroyed(v8::Local<v8::Context> context);
-  inline std::vector<v8_inspector::V8ContextInfo>* contexts() {
+  inline void ContextCreated(node::inspector::ContextInfo* info);
+  inline void ContextDestroyed(v8::Local<v8::Context> context);
+  inline std::vector<node::inspector::ContextInfo*>* contexts() {
     return &contexts_;
   }
 #endif
@@ -571,7 +571,7 @@ class Environment {
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
-  std::vector<v8_inspector::V8ContextInfo> contexts_;
+  std::vector<node::inspector::ContextInfo*> contexts_;
 #endif
 
   HandleWrapQueue handle_wrap_queue_;

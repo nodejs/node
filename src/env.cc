@@ -12,6 +12,10 @@
 
 #include <stdio.h>
 
+#if HAVE_INSPECTOR
+#include "inspector_agent.h"
+#endif
+
 namespace node {
 
 using v8::Context;
@@ -30,8 +34,10 @@ void Environment::Start(int argc,
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
-  context_created(
-    v8_inspector::V8ContextInfo(context(), 1, "NodeJS Main Context"));
+#if HAVE_INSPECTOR
+  ContextCreated(
+    new node::inspector::ContextInfo(context(), 1, "NodeJS Main Context"));
+#endif
 
   isolate()->SetAutorunMicrotasks(false);
 

@@ -25,6 +25,28 @@ namespace inspector {
 
 class AgentImpl;
 
+class ContextInfo {
+ public:
+  explicit ContextInfo(v8::Local<v8::Context> context, int groupId,
+                       const char* name)
+                       : groupId_(groupId),
+                       name_(name) {
+                       context_.Reset(context->GetIsolate(), context);
+  }
+  ~ContextInfo() {
+    context_.Reset();
+  }
+  inline v8::Local<v8::Context> context(v8::Isolate* isolate) const {
+    return context_.Get(isolate);
+  }
+  int groupId() const { return groupId_; }
+  const char* name() const { return name_; }
+ private:
+  v8::Persistent<v8::Context> context_;
+  int groupId_;
+  const char* name_;
+};
+
 class Agent {
  public:
   explicit Agent(node::Environment* env);
@@ -35,7 +57,7 @@ class Agent {
   // Stop the inspector agent
   void Stop();
 
-  void ContextCreated(const v8_inspector::V8ContextInfo& info);
+  void ContextCreated(const ContextInfo* info);
   void ContextDestroyed(v8::Local<v8::Context> context);
 
   bool IsStarted();

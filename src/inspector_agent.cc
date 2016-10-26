@@ -191,7 +191,7 @@ class AgentImpl {
   bool Start(v8::Platform* platform, const char* path, int port, bool wait);
   // Stop the inspector agent
   void Stop();
-  void ContextCreated(const v8_inspector::V8ContextInfo& info);
+  void ContextCreated(const node::inspector::ContextInfo* info);
   void ContextDestroyed(v8::Local<v8::Context> context);
 
   bool IsStarted();
@@ -331,9 +331,14 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
     }
   }
 
-  void contextCreated(const v8_inspector::V8ContextInfo& info) {
-    inspector()->contextCreated(info);
+  void contextCreated(const node::inspector::ContextInfo* info) {
+    inspector()->contextCreated(
+      v8_inspector::V8ContextInfo(
+        info->context(env_->isolate()),
+        info->groupId(),
+        info->name()));
   }
+
   void contextDestroyed(v8::Local<v8::Context> context) {
     inspector()->contextDestroyed(context);
   }
@@ -521,7 +526,7 @@ void AgentImpl::Stop() {
   delete inspector_;
 }
 
-void AgentImpl::ContextCreated(const v8_inspector::V8ContextInfo& info) {
+void AgentImpl::ContextCreated(const node::inspector::ContextInfo* info) {
   inspector_->contextCreated(info);
 }
 void AgentImpl::ContextDestroyed(v8::Local<v8::Context> context) {
@@ -883,7 +888,7 @@ void Agent::Stop() {
   impl->Stop();
 }
 
-void Agent::ContextCreated(const v8_inspector::V8ContextInfo& info) {
+void Agent::ContextCreated(const node::inspector::ContextInfo* info) {
   impl->ContextCreated(info);
 }
 void Agent::ContextDestroyed(v8::Local<v8::Context> context) {
