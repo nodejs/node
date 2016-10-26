@@ -2421,7 +2421,7 @@ console.log(buf);
 [`Buffer.from(array)`]: #buffer_class_method_buffer_from_array
 [`Buffer.from(arrayBuffer)`]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [`Buffer.from(buffer)`]: #buffer_class_method_buffer_from_buffer
-[`Buffer.from(string)`]: #buffer_class_method_buffer_from_str_encoding
+[`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`RangeError`]: errors.html#errors_class_rangeerror
 [`util.inspect()`]: util.html#util_util_inspect_object_options
