@@ -441,18 +441,27 @@ class QueryAaaaWrap: public QueryWrap {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
-    struct hostent* host;
+    hostent* host;
+    ares_addr6ttl addrttls[256];
+    int naddrttls = arraysize(addrttls);
 
-    int status = ares_parse_aaaa_reply(buf, len, &host, nullptr, nullptr);
+    int status = ares_parse_aaaa_reply(buf, len, &host, addrttls, &naddrttls);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
     }
 
     Local<Array> addresses = HostentToAddresses(env(), host);
+    Local<Array> ttls = Array::New(env()->isolate(), naddrttls);
+
+    auto context = env()->context();
+    for (int i = 0; i < naddrttls; i += 1) {
+      auto value = Integer::New(env()->isolate(), addrttls[i].ttl);
+      ttls->Set(context, i, value).FromJust();
+    }
     ares_free_hostent(host);
 
-    this->CallOnComplete(addresses);
+    CallOnComplete(addresses, ttls);
   }
 };
 

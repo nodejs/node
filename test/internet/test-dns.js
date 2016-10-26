@@ -81,6 +81,27 @@ TEST(function test_resolve4_ttl(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolve6_ttl(done) {
+  const req = dns.resolve6('google.com', { ttl: true }, function(err, result) {
+    assert.ifError(err);
+    assert.ok(result.length > 0);
+
+    for (let i = 0; i < result.length; i++) {
+      const item = result[i];
+      assert.ok(item);
+      assert.strictEqual(typeof item, 'object');
+      assert.strictEqual(typeof item.ttl, 'number');
+      assert.strictEqual(typeof item.address, 'string');
+      assert.ok(item.ttl > 0);
+      assert.ok(isIPv6(item.address));
+    }
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(function test_resolveMx(done) {
   const req = dns.resolveMx('gmail.com', function(err, result) {
     if (err) throw err;
