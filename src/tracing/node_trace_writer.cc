@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "trace_event_common.h"
 #include "util.h"
 
 namespace node {

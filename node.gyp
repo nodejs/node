@@ -136,7 +136,6 @@
         'src',
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
-        'deps/v8/base/trace_event/common',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
       ],
 
