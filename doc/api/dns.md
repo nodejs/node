@@ -195,7 +195,7 @@ corresponding lookup methods.
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the error codes listed [here](#dns_error_codes).
 
-## dns.resolve4(hostname, callback)
+## dns.resolve4(hostname[, options], callback)
 <!-- YAML
 added: v0.1.16
 -->
@@ -204,6 +204,13 @@ Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
+
+* `hostname` {String} Hostname to resolve.
+* `options` {Object}
+  * `ttl` {Boolean} Retrieve the Time-To-Live value (TTL) of each record.
+    The callback receives an array of `{ address: '1.2.3.4', ttl: 60 }` objects
+    rather than an array of strings.  The TTL is expressed in seconds.
+* `callback` {Function} An `(err, result)` callback function.
 
 ## dns.resolve6(hostname, callback)
 <!-- YAML
