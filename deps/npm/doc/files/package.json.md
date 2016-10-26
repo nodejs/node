@@ -472,7 +472,8 @@ included.  For example:
       "version": "0.0.0",
       "dependencies": {
         "express": "visionmedia/express",
-        "mocha": "visionmedia/mocha#4727d357ea"
+        "mocha": "visionmedia/mocha#4727d357ea",
+        "module": "user/repo#feature\/branch"
       }
     }
 

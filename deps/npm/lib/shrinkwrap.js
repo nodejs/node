@@ -35,26 +35,25 @@ function shrinkwrap (args, silent, cb) {
     log.warn('shrinkwrap', "doesn't take positional args")
   }
 
-  var dir = path.resolve(npm.dir, '..')
   var packagePath = path.join(npm.localPrefix, 'package.json')
   var dev = !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
 
   readPackageJson(packagePath, iferr(cb, function (pkg) {
-    createShrinkwrap(dir, pkg, dev, silent, cb)
+    createShrinkwrap(npm.localPrefix, pkg, dev, silent, cb)
   }))
 }
 
 module.exports.createShrinkwrap = createShrinkwrap
 
 function createShrinkwrap (dir, pkg, dev, silent, cb) {
-  lifecycle(pkg, 'preshrinkwrap', function () {
+  lifecycle(pkg, 'preshrinkwrap', dir, function () {
     readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
       var pkginfo = treeToShrinkwrap(tree, dev)
 
       chain([
-        [lifecycle, tree.package, 'shrinkwrap'],
+        [lifecycle, tree.package, 'shrinkwrap', dir],
         [shrinkwrap_, pkginfo, silent],
-        [lifecycle, tree.package, 'postshrinkwrap']
+        [lifecycle, tree.package, 'postshrinkwrap', dir]
       ], iferr(cb, function (data) {
         cb(null, data[0])
       }))
