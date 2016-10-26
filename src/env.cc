@@ -39,8 +39,6 @@ void Environment::Start(int argc,
     new node::inspector::ContextInfo(context(), 1, "NodeJS Main Context"));
 #endif
 
-  isolate()->SetAutorunMicrotasks(false);
-
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 
