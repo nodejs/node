@@ -1,0 +1,28 @@
+{
+  "name": "shethzuri",
+  "version": "1.0.0",
+  "description": "new project at thane",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "shethzuri",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "ejs": "^2.5.2",
+    "express": "^4.14.0",
+    "forwarded-for": "^1.0.1",
+    "http": "0.0.0",
+    "nodemailer": "^2.6.4",
+    "router": "^1.1.4"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "projects"
+  },
+  "keywords": [
+    "property"
+  ]
+}
