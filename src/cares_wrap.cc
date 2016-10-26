@@ -337,25 +337,17 @@ class QueryWrap : public AsyncWrap {
     delete wrap;
   }
 
-  void CallOnComplete(Local<Value> answer) {
-    HandleScope handle_scope(env()->isolate());
-    Context::Scope context_scope(env()->context());
-    Local<Value> argv[] = {
-      Integer::New(env()->isolate(), 0),
-      answer
-    };
-    MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
-  }
-
-  void CallOnComplete(Local<Value> answer, Local<Value> family) {
+  void CallOnComplete(Local<Value> answer,
+                      Local<Value> extra = Local<Value>()) {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     Local<Value> argv[] = {
       Integer::New(env()->isolate(), 0),
       answer,
-      family
+      extra
     };
-    MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
+    const int argc = arraysize(argv) - extra.IsEmpty();
+    MakeCallback(env()->oncomplete_string(), argc, argv);
   }
 
   void ParseError(int status) {
@@ -401,18 +393,27 @@ class QueryAWrap: public QueryWrap {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
-    struct hostent* host;
+    hostent* host;
+    ares_addrttl addrttls[256];
+    int naddrttls = arraysize(addrttls);
 
-    int status = ares_parse_a_reply(buf, len, &host, nullptr, nullptr);
+    int status = ares_parse_a_reply(buf, len, &host, addrttls, &naddrttls);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
     }
 
     Local<Array> addresses = HostentToAddresses(env(), host);
+    Local<Array> ttls = Array::New(env()->isolate(), naddrttls);
+
+    auto context = env()->context();
+    for (int i = 0; i < naddrttls; i += 1) {
+      auto value = Integer::New(env()->isolate(), addrttls[i].ttl);
+      ttls->Set(context, i, value).FromJust();
+    }
     ares_free_hostent(host);
 
-    this->CallOnComplete(addresses);
+    CallOnComplete(addresses, ttls);
   }
 };
 
