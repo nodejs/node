@@ -374,7 +374,7 @@ The `*-deprecation` command line flags only affect warnings that use the name
 <!--name=SIGINT, SIGHUP, etc.-->
 
 Signal events will be emitted when the Node.js process receives a signal. Please
-refer to sigaction(2) for a listing of standard POSIX signal names such as
+refer to [signal(7)](http://man7.org/linux/man-pages/man7/signal.7.html) for a listing of standard POSIX signal names such as
 `SIGINT`, `SIGHUP`, etc.
 
 The name of each event will be the uppercase common name for the signal (e.g.
