@@ -21,7 +21,7 @@ back in to the CTC.
 * [Website](#website)
 * [Streams](#streams)
 * [Build](#build)
-* [Tracing](#tracing)
+* [Diagnostics](#diagnostics)
 * [i18n](#i18n)
 * [Evangelism](#evangelism)
 * [Roadmap](#roadmap)
@@ -81,17 +81,22 @@ Its responsibilities are:
 * Creates and manages build-containers.
 
 
-### [Tracing](https://github.com/nodejs/tracing-wg)
+### [Diagnostics](https://github.com/nodejs/diagnostics)
 
-The tracing working group's purpose is to increase the
-transparency of software written in Node.js.
+The diagnostics working group's purpose is to surface a set of comprehensive,
+documented, and extensible diagnostic interfaces for use by
+Node.js tools and JavaScript VMs.
 
 Its responsibilities are:
-* Collaboration with V8 to integrate with `trace_event`.
-* Maintenance and iteration on AsyncWrap.
-* Maintenance and improvements to system tracing support (DTrace, LTTng, etc.)
-* Documentation of tracing and debugging techniques.
-* Fostering a tracing and debugging ecosystem.
+
+* Collaborate with V8 to integrate `v8_inspector` into Node.js.
+* Collaborate with V8 to integrate `trace_event` into Node.js.
+* Collaborate with Core to refine `async_wrap` and `async_hooks`.
+* Maintain and improve OS trace system integration (e.g. ETW, LTTNG, dtrace).
+* Document diagnostic capabilities and APIs in Node.js and its components.
+* Explore opportunities and gaps, discuss feature requests, and address
+  conflicts in Node.js diagnostics.
+* Foster an ecosystem of diagnostics tools for Node.js.
 
 ### i18n
 
