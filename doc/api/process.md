@@ -508,6 +508,16 @@ $ bash -c 'exec -a customArgv0 ./node'
 'customArgv0'
 ```
 
+## process.channel
+<!-- YAML
+added: REPLACEME
+-->
+
+If the Node.js process was spawned with an IPC channel (see the
+[Child Process][] documentation), the `process.channel`
+property is a reference to the IPC channel. If no IPC channel exists, this
+property is `undefined`.
+
 ## process.chdir(directory)
 <!-- YAML
 added: v0.1.17
