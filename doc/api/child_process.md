@@ -776,6 +776,16 @@ added: v0.5.9
 The `'message'` event is triggered when a child process uses [`process.send()`][]
 to send messages.
 
+### child.channel
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object} A pipe representing the IPC channel to the child process.
+
+The `child.channel` property is a reference to the child's IPC channel. If no
+IPC channel currently exists, this property is `undefined`.
+
 ### child.connected
 <!-- YAML
 added: v0.7.2
@@ -1145,6 +1155,7 @@ console.log('中文测试');
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: #child_process_event_message
+[`child.channel`]: #child_process_child_channel
 [`child.connected`]: #child_process_child_connected
 [`child.disconnect()`]: #child_process_child_disconnect
 [`child.kill()`]: #child_process_child_kill_signal

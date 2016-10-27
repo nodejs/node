@@ -44,8 +44,8 @@ var server = net.createServer(function(s) {
   }
 
   worker.process.once('close', common.mustCall(function() {
-    // Otherwise the crash on `_channel.fd` access may happen
-    assert.strictEqual(worker.process._channel, null);
+    // Otherwise the crash on `channel.fd` access may happen
+    assert.strictEqual(worker.process.channel, null);
     server.close();
   }));
 
