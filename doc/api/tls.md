@@ -1027,6 +1027,11 @@ added: v0.3.2
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
+  * `secureOptions` {number} The options via bitmask affecting the protocol
+    behavior of SSL. This can be used to limit the versions of SSL/TLS, e.q.
+    `crypto.constants.SSL_OP_NO_TLSv1 | crypto.constants.SSL_OP_NO_TLSv1_1` to
+    deny TLSv1 and TLSv1.1 connections. For more details, see
+    [OpenSSL Options][].
 * `secureConnectionListener` {Function}
 
 Creates a new [tls.Server][].  The `secureConnectionListener`, if provided, is
@@ -1279,3 +1284,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.connect()`]: #tls_tls_connect_options_callback
+[OpenSSL Options]: crypto.html#crypto_openssl_options
