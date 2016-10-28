@@ -18,7 +18,7 @@ const server = tls.createServer({})
       c.write(bonkers);
     });
 
-  }).on('tlsClientError', function(e) {
+  }).on('tlsClientError', common.mustCall(function(e) {
     assert.ok(e instanceof Error,
               'Instance of Error should be passed to error handler');
     assert.ok(e.message.match(
@@ -26,4 +26,4 @@ const server = tls.createServer({})
       'Expecting SSL unknown protocol');
 
     server.close();
-  });
+  }));
