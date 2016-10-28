@@ -17,7 +17,6 @@ const proc = cp.spawn(process.execPath,
 proc.once('exit', common.mustCall(() => {
   assert(common.fileExists(FILE_NAME));
   fs.readFile(FILE_NAME, (err, data) => {
-    fs.unlinkSync(FILE_NAME);
     const traces = JSON.parse(data).traceEvents;
     assert(traces.length > 0);
     // Values that should be present in all outputs to approximate well-formedness.
