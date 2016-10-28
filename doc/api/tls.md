@@ -535,7 +535,7 @@ that first defined the cipher.
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
 See `SSL_CIPHER_get_name()` and `SSL_CIPHER_get_version()` in
-https://www.openssl.org/docs/manmaster/ssl/SSL_CIPHER_get_name.html for more
+https://www.openssl.org/docs/man1.0.2/ssl/SSL_CIPHER_get_name.html for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
@@ -611,7 +611,7 @@ Example responses include:
 * `TLSv1.2`
 * `unknown`
 
-See https://www.openssl.org/docs/manmaster/ssl/SSL_get_version.html for more
+See https://www.openssl.org/docs/man1.0.2/ssl/SSL_get_version.html for more
 information.
 
 ### tlsSocket.getSession()
@@ -936,7 +936,7 @@ added: v0.11.13
     CRLs (Certificate Revocation List).
   * `ciphers` {string} A string describing the ciphers to use or exclude.
     Consult
-    <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT>
+    <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT>
     for details on the format.
   * `honorCipherOrder` {boolean} If `true`, when a cipher is being selected,
     the server's preferences will be used instead of the client preferences.
@@ -1252,7 +1252,7 @@ secure_socket = tls.TLSSocket(socket, options);
 
 where `secure_socket` has the same API as `pair.cleartext`.
 
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
@@ -1266,9 +1266,9 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`'secureConnection'`]: #tls_event_secureconnection
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [Stream]: stream.html#stream_stream
-[SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [tls.Server]: #tls_class_tls_server
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
+[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman

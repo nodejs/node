@@ -230,7 +230,7 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 NOTE: Windows is not yet supported
 
 It is possible to build Node.js with
-[OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
+[OpenSSL FIPS module](https://www.openssl.org/docs/fipsnotes.html).
 
 **Note**: building in this way does **not** allow you to claim that the
 runtime is FIPS 140-2 validated. Instead you can indicate that the runtime

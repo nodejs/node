@@ -1633,20 +1633,20 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   <tr>
     <td><code>SSL_OP_ALL</code></td>
     <td>Applies multiple bug workarounds within OpenSSL. See
-    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html for
+    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html for
     detail.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
     <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
     clients or servers. See 
-    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html.</td>
+    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
     <td>Uses the server's preferences instead of the clients when selecting a
     cipher. See 
-    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html.</td>
+    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
@@ -1949,7 +1949,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_private_key_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_public_key_encoding
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`hash.digest()`]: #crypto_hash_digest_encoding
 [`hash.update()`]: #crypto_hash_update_data_input_encoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
@@ -1964,8 +1964,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/apps/spkac.html
+[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
