@@ -111,6 +111,7 @@
           'defines': [ 'CARES_BUILDING_LIBRARY' ]
         }],
         [ 'OS=="win"', {
+          'defines': [ 'CARES_PULL_WS2TCPIP_H=1' ],
           'include_dirs': [ 'config/win32' ],
           'sources': [
             'src/config-win32.h',
