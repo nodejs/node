@@ -75,9 +75,6 @@
 /*  please, do it beyond the point further indicated in this file.  */
 /* ================================================================ */
 
-#if 1
-# define SIZEOF_SHORT 2
-#else  /* Disabled for the gyp-ified build. */
 /*
  * c-ares external interface definitions are also used internally,
  * and might also include required system header files to define them.
@@ -90,7 +87,6 @@
  */
 
 #include <ares_rules.h>
-#endif
 
 /* ================================================================= */
 /* No system header file shall be included in this file before this  */

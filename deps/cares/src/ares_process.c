@@ -391,8 +391,7 @@ static void read_tcp_data(ares_channel channel, fd_set *read_fds,
                */
               process_answer(channel, server->tcp_buffer, server->tcp_length,
                              i, 1, now);
-              if (server->tcp_buffer)
-                ares_free(server->tcp_buffer);
+              ares_free(server->tcp_buffer);
               server->tcp_buffer = NULL;
               server->tcp_lenbuf_pos = 0;
               server->tcp_buffer_pos = 0;

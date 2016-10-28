@@ -112,7 +112,6 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   ares_channel channel;
   int i;
   int status = ARES_SUCCESS;
-  int status2;
   struct timeval now;
 
 #ifdef CURLDEBUG
@@ -190,18 +189,17 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
    * precedence to lowest.
    */
 
-  if (status == ARES_SUCCESS) {
-    status = init_by_options(channel, options, optmask);
-    if (status != ARES_SUCCESS)
-      DEBUGF(fprintf(stderr, "Error: init_by_options failed: %s\n",
-                     ares_strerror(status)));
+  status = init_by_options(channel, options, optmask);
+  if (status != ARES_SUCCESS) {
+    DEBUGF(fprintf(stderr, "Error: init_by_options failed: %s\n",
+                   ares_strerror(status)));
+    /* If we fail to apply user-specified options, fail the whole init process */
+    goto done;
   }
-  if (status == ARES_SUCCESS) {
-    status = init_by_environment(channel);
-    if (status != ARES_SUCCESS)
-      DEBUGF(fprintf(stderr, "Error: init_by_environment failed: %s\n",
-                     ares_strerror(status)));
-  }
+  status = init_by_environment(channel);
+  if (status != ARES_SUCCESS)
+    DEBUGF(fprintf(stderr, "Error: init_by_environment failed: %s\n",
+                   ares_strerror(status)));
   if (status == ARES_SUCCESS) {
     status = init_by_resolv_conf(channel);
     if (status != ARES_SUCCESS)
@@ -213,13 +211,10 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
    * No matter what failed or succeeded, seed defaults to provide
    * useful behavior for things that we missed.
    */
-  status2 = init_by_defaults(channel);
-  if (status2 != ARES_SUCCESS) {
+  status = init_by_defaults(channel);
+  if (status != ARES_SUCCESS)
     DEBUGF(fprintf(stderr, "Error: init_by_defaults failed: %s\n",
                    ares_strerror(status)));
-    if (status == ARES_SUCCESS)
-      status = status2;
-  }
 
   /* Generate random key */
 
@@ -232,6 +227,7 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
                      ares_strerror(status)));
   }
 
+done:
   if (status != ARES_SUCCESS)
     {
       /* Something failed; clean up memory we may have allocated. */
@@ -350,8 +346,8 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
   (*optmask) = (ARES_OPT_FLAGS|ARES_OPT_TRIES|ARES_OPT_NDOTS|
                 ARES_OPT_UDP_PORT|ARES_OPT_TCP_PORT|ARES_OPT_SOCK_STATE_CB|
                 ARES_OPT_SERVERS|ARES_OPT_DOMAINS|ARES_OPT_LOOKUPS|
-                ARES_OPT_SORTLIST|ARES_OPT_TIMEOUTMS) |
-    (channel->optmask & ARES_OPT_ROTATE);
+                ARES_OPT_SORTLIST|ARES_OPT_TIMEOUTMS);
+  (*optmask) |= (channel->rotate ? ARES_OPT_ROTATE : ARES_OPT_NOROTATE);
 
   /* Copy easy stuff */
   options->flags   = channel->flags;
@@ -447,6 +443,8 @@ static int init_by_options(ares_channel channel,
     channel->ndots = options->ndots;
   if ((optmask & ARES_OPT_ROTATE) && channel->rotate == -1)
     channel->rotate = 1;
+  if ((optmask & ARES_OPT_NOROTATE) && channel->rotate == -1)
+    channel->rotate = 0;
   if ((optmask & ARES_OPT_UDP_PORT) && channel->udp_port == -1)
     channel->udp_port = htons(options->udp_port);
   if ((optmask & ARES_OPT_TCP_PORT) && channel->tcp_port == -1)
@@ -520,13 +518,14 @@ static int init_by_options(ares_channel channel,
     }
 
   /* copy sortlist */
-  if ((optmask & ARES_OPT_SORTLIST) && (channel->nsort == -1) &&
-      (options->nsort>0)) {
-    channel->sortlist = ares_malloc(options->nsort * sizeof(struct apattern));
-    if (!channel->sortlist)
-      return ARES_ENOMEM;
-    for (i = 0; i < options->nsort; i++)
-      channel->sortlist[i] = options->sortlist[i];
+  if ((optmask & ARES_OPT_SORTLIST) && (channel->nsort == -1)) {
+    if (options->nsort > 0) {
+      channel->sortlist = ares_malloc(options->nsort * sizeof(struct apattern));
+      if (!channel->sortlist)
+        return ARES_ENOMEM;
+      for (i = 0; i < options->nsort; i++)
+        channel->sortlist[i] = options->sortlist[i];
+    }
     channel->nsort = options->nsort;
   }
 
@@ -1030,11 +1029,6 @@ static int get_DNS_AdaptersAddresses(char **outptr)
       }
       else if (namesrvr.sa->sa_family == AF_INET6)
       {
-        /* Windows apparently always reports some IPv6 DNS servers that
-         * prefixed with fec0:0:0:ffff. These ususally do not point to
-         * working DNS servers, so we ignore them. */
-        if (strncmp(txtaddr, "fec0:0:0:ffff:", 14) == 0)
-          continue;
         if (memcmp(&namesrvr.sa6->sin6_addr, &ares_in6addr_any,
                    sizeof(namesrvr.sa6->sin6_addr)) == 0)
           continue;
@@ -1628,7 +1622,7 @@ static int config_lookup(ares_channel channel, const char *str,
   channel->lookups = ares_strdup(lookups);
   return (channel->lookups) ? ARES_SUCCESS : ARES_ENOMEM;
 }
-#endif  /* !WIN32 & !WATT32 & !ANDROID & !__ANDROID__ */
+#endif  /* !WIN32 & !WATT32 & !ANDROID & !__ANDROID__ & !CARES_USE_LIBRESOLV */
 
 #ifndef WATT32
 static int config_nameserver(struct server_state **servers, int *nservers,

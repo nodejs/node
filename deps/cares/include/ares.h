@@ -158,6 +158,7 @@ extern "C" {
 #define ARES_OPT_TIMEOUTMS      (1 << 13)
 #define ARES_OPT_ROTATE         (1 << 14)
 #define ARES_OPT_EDNSPSZ        (1 << 15)
+#define ARES_OPT_NOROTATE       (1 << 16)
 
 /* Nameinfo flag values */
 #define ARES_NI_NOFQDN                  (1 << 0)

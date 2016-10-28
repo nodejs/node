@@ -51,19 +51,9 @@
 /*  DEFINITION OF THESE SYMBOLS SHALL NOT TAKE PLACE ANYWHERE ELSE  */
 /* ================================================================ */
 
-#ifdef CARES_SIZEOF_LONG
-#  error "CARES_SIZEOF_LONG shall not be defined except in ares_build.h"
-   Error Compilation_aborted_CARES_SIZEOF_LONG_already_defined
-#endif
-
 #ifdef CARES_TYPEOF_ARES_SOCKLEN_T
 #  error "CARES_TYPEOF_ARES_SOCKLEN_T shall not be defined except in ares_build.h"
    Error Compilation_aborted_CARES_TYPEOF_ARES_SOCKLEN_T_already_defined
-#endif
-
-#ifdef CARES_SIZEOF_ARES_SOCKLEN_T
-#  error "CARES_SIZEOF_ARES_SOCKLEN_T shall not be defined except in ares_build.h"
-   Error Compilation_aborted_CARES_SIZEOF_ARES_SOCKLEN_T_already_defined
 #endif
 
 /* ================================================================ */
@@ -72,14 +62,6 @@
 
 /* Configure process defines this to 1 when it finds out that system  */
 /* header file ws2tcpip.h must be included by the external interface. */
-
-#ifdef WIN32
-#  define CARES_PULL_WS2TCPIP_H 1
-#else
-#  define CARES_PULL_SYS_TYPES_H 1
-#  define CARES_PULL_SYS_SOCKET_H 1
-#endif
-
 /* #undef CARES_PULL_WS2TCPIP_H */
 #ifdef CARES_PULL_WS2TCPIP_H
 #  ifndef WIN32_LEAN_AND_MEAN
@@ -92,24 +74,20 @@
 
 /* Configure process defines this to 1 when it finds out that system   */
 /* header file sys/types.h must be included by the external interface. */
+#define CARES_PULL_SYS_TYPES_H 1
 #ifdef CARES_PULL_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
 
 /* Configure process defines this to 1 when it finds out that system    */
 /* header file sys/socket.h must be included by the external interface. */
+#define CARES_PULL_SYS_SOCKET_H 1
 #ifdef CARES_PULL_SYS_SOCKET_H
 #  include <sys/socket.h>
 #endif
 
-/* The size of `long', as computed by sizeof. */
-/* #undef CARES_SIZEOF_LONG */
-
 /* Integral data type used for ares_socklen_t. */
 #define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-
-/* The size of `ares_socklen_t', as computed by sizeof. */
-#define CARES_SIZEOF_ARES_SOCKLEN_T 4
 
 /* Data type definition of ares_socklen_t. */
 typedef CARES_TYPEOF_ARES_SOCKLEN_T ares_socklen_t;

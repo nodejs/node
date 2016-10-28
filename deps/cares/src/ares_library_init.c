@@ -152,6 +152,7 @@ void ares_library_cleanup(void)
 
   ares_init_flags = ARES_LIB_INIT_NONE;
   ares_malloc = malloc;
+  ares_realloc = realloc;
   ares_free = free;
 }
 
@@ -164,5 +165,3 @@ int ares_library_initialized(void)
 #endif
   return ARES_SUCCESS;
 }
-
-
