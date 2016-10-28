@@ -2351,18 +2351,13 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
 
   Local<Object> info = Object::New(env->isolate());
 
-  SSL_SESSION* sess = SSL_get_session(s);
-  if (sess != nullptr) {
-    if (sess->tlsext_hostname == nullptr) {
-      info->Set(env->servername_string(), String::Empty(env->isolate()));
-    } else {
-      Local<String> servername = OneByteString(env->isolate(),
-                                               sess->tlsext_hostname,
-                                               strlen(sess->tlsext_hostname));
-      info->Set(env->servername_string(), servername);
-    }
-    info->Set(env->tls_ticket_string(),
-              Boolean::New(env->isolate(), sess->tlsext_ticklen != 0));
+  const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+  if (servername == nullptr) {
+    info->Set(env->servername_string(), String::Empty(env->isolate()));
+  } else {
+    Local<String> str = OneByteString(env->isolate(), servername,
+                                      strlen(servername));
+    info->Set(env->servername_string(), str);
   }
 
   bool ocsp = false;
