@@ -98,7 +98,7 @@ assert.strictEqual(ret, msg + '\n',
     const msg = `Command failed: ${process.execPath} ${args.join(' ')}`;
 
     assert(err instanceof Error);
-    assert.strictEqual(err.message.trim(), msg);
+    assert.strictEqual(err.message, msg);
     assert.strictEqual(err.status, 1);
     return true;
   });
