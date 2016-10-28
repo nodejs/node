@@ -11,7 +11,6 @@ const assert = require('assert');
 
 const bonkers = Buffer.alloc(1024, 42);
 
-let tlsClientErrorEmited = false;
 
 const server = tls.createServer({})
   .listen(0, function() {
@@ -20,18 +19,11 @@ const server = tls.createServer({})
     });
 
   }).on('tlsClientError', function(e) {
-    tlsClientErrorEmited = true;
     assert.ok(e instanceof Error,
               'Instance of Error should be passed to error handler');
     assert.ok(e.message.match(
       /SSL routines:SSL23_GET_CLIENT_HELLO:unknown protocol/),
       'Expecting SSL unknown protocol');
+
+    server.close();
   });
-
-setTimeout(function() {
-  server.close();
-
-  assert.ok(tlsClientErrorEmited,
-            'tlsClientError should be emited');
-
-}, common.platformTimeout(200));
