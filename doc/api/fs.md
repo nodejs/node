@@ -1702,11 +1702,11 @@ The listener callback gets two arguments `(eventType, filename)`.  `eventType` i
 `'rename'` or `'change'`, and `filename` is the name of the file which triggered
 the event.
 
-Note that `'rename'` is also emitted when a file is deleted or added - in other words,
-it's emitted whenever a filename appears or disappears in the directory.
+Note that on most platforms, `'rename'` is also emitted when a file is deleted or added.
+In other words, it is emitted whenever a filename appears or disappears in the directory.
 
 Also note the listener callback is attached to the `'change'` event fired by
-[`fs.FSWatcher`][], but it's not the same thing as the `'change'` value of `eventType`.
+[`fs.FSWatcher`][], but it is not the same thing as the `'change'` value of `eventType`.
 
 ### Caveats
 
