@@ -203,7 +203,7 @@ The following options from [`tls.connect()`][] can also be specified. However, a
   certificates in PEM format. If this is omitted several well known "root"
   CAs will be used, like VeriSign. These are used to authorize connections.
 - `ciphers`: A string describing the ciphers to use or exclude. Consult
-  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT> for
+  <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT> for
   details on the format.
 - `rejectUnauthorized`: If `true`, the server certificate is verified against
   the list of supplied CAs. An `'error'` event is emitted if verification
@@ -267,7 +267,7 @@ var req = https.request(options, (res) => {
 [`http.Server`]: http.html#http_class_http_server
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
-[`SSL_METHODS`]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
