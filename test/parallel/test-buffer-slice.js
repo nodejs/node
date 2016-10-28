@@ -72,3 +72,30 @@ assert.strictEqual(0, Buffer.from('hello').slice(0, 0).length);
     'bcd'
   );
 }
+
+{
+  const buf = Buffer.from('abcdefg');
+  assert.strictEqual(buf.slice(-(-1 >>> 0) - 1).toString(), buf.toString());
+}
+
+{
+  const buf = Buffer.from('abc');
+  assert.strictEqual(buf.slice(-0.5).toString(), buf.toString());
+}
+
+{
+  const buf = Buffer.from([
+    1, 29, 0, 0, 1, 143, 216, 162, 92, 254, 248, 63, 0,
+    0, 0, 18, 184, 6, 0, 175, 29, 0, 8, 11, 1, 0, 0
+  ]);
+  const chunk1 = Buffer.from([
+    1, 29, 0, 0, 1, 143, 216, 162, 92, 254, 248, 63, 0
+  ]);
+  const chunk2 = Buffer.from([
+    0, 0, 18, 184, 6, 0, 175, 29, 0, 8, 11, 1, 0, 0
+  ]);
+  const middle = buf.length / 2;
+
+  assert.deepStrictEqual(buf.slice(0, middle), chunk1);
+  assert.deepStrictEqual(buf.slice(middle), chunk2);
+}
