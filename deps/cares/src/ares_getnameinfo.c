@@ -299,6 +299,7 @@ static char *lookup_service(unsigned short port, int flags,
           else
             proto = "tcp";
 #ifdef HAVE_GETSERVBYPORT_R
+          memset(&se, 0, sizeof(se));
           sep = &se;
           memset(tmpbuf, 0, sizeof(tmpbuf));
 #if GETSERVBYPORT_R_ARGS == 6
