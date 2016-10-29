@@ -16,7 +16,7 @@ function test1() {
   //
   // note that this is very unusual.  it only works for crypto streams
   // because the other side of the stream will call read(0) to cycle
-  // data through openssl.  that's why we set the timeouts to call
+  // data through openssl.  that's why setImmediate() is used to call
   // r.read(0) again later, otherwise there is no more work being done
   // and the process just exits.
 
