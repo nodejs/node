@@ -29,8 +29,7 @@ fi
 
 
 # Dependencies bundled in distributions
-addlicense "c-ares" "deps/cares" \
-           "$(sed -e '/^ \*\/$/,$d' -e '/^$/d' -e 's/^[/ ]\* *//' ${rootdir}/deps/cares/src/ares_init.c)"
+addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
 addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM
