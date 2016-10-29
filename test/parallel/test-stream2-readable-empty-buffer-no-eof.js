@@ -22,7 +22,6 @@ function test1() {
 
   const buf = Buffer.alloc(5, 'x');
   let reads = 5;
-  const timeout = common.platformTimeout(50);
   r._read = function(n) {
     switch (reads--) {
       case 0:
@@ -30,20 +29,20 @@ function test1() {
       case 1:
         return r.push(buf);
       case 2:
-        setTimeout(r.read.bind(r, 0), timeout);
+        setImmediate(r.read.bind(r, 0));
         return r.push(Buffer.alloc(0)); // Not-EOF!
       case 3:
-        setTimeout(r.read.bind(r, 0), timeout);
+        setImmediate(r.read.bind(r, 0));
         return process.nextTick(function() {
           return r.push(Buffer.alloc(0));
         });
       case 4:
-        setTimeout(r.read.bind(r, 0), timeout);
-        return setTimeout(function() {
+        setImmediate(setImmediate, r.read.bind(r, 0));
+        return setImmediate(function() {
           return r.push(Buffer.alloc(0));
         });
       case 5:
-        return setTimeout(function() {
+        return setImmediate(function() {
           return r.push(buf);
         });
       default:
