@@ -121,6 +121,7 @@ const char* const root_certs[] = {
 };
 
 X509_STORE* root_cert_store;
+std::vector<X509*>* root_certs_vector;
 
 // Just to generate static methods
 template class SSLWrap<TLSWrap>;
@@ -402,8 +403,6 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
                                  SSL_SESS_CACHE_NO_AUTO_CLEAR);
   SSL_CTX_sess_set_get_cb(sc->ctx_, SSLWrap<Connection>::GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc->ctx_, SSLWrap<Connection>::NewSessionCallback);
-
-  sc->ca_store_ = nullptr;
 }
 
 
@@ -672,8 +671,52 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+// This section contains OpenSSL 1.1.0 functions reimplemented for OpenSSL
+// 1.0.2 so that the following code can be written without lots of #if lines.
+
+static int X509_STORE_up_ref(X509_STORE* store) {
+  CRYPTO_add(&store->references, 1, CRYPTO_LOCK_X509_STORE);
+  return 1;
+}
+
+static int X509_up_ref(X509* cert) {
+  CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
+  return 1;
+}
+#endif  // OPENSSL_VERSION_NUMBER < 0x10100000L && !OPENSSL_IS_BORINGSSL
+
+
+static X509_STORE* NewRootCertStore() {
+  if (!root_certs_vector) {
+    root_certs_vector = new std::vector<X509*>;
+
+    for (size_t i = 0; i < arraysize(root_certs); i++) {
+      BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
+      X509 *x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
+      BIO_free(bp);
+
+      if (x509 == nullptr) {
+        // Parse errors from the built-in roots are fatal.
+        abort();
+        return nullptr;
+      }
+
+      root_certs_vector->push_back(x509);
+    }
+  }
+
+  X509_STORE* store = X509_STORE_new();
+  for (auto& cert : *root_certs_vector) {
+    X509_up_ref(cert);
+    X509_STORE_add_cert(store, cert);
+  }
+
+  return store;
+}
+
+
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
-  bool newCAStore = false;
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
@@ -685,26 +728,24 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("CA certificate argument is mandatory");
   }
 
-  if (!sc->ca_store_) {
-    sc->ca_store_ = X509_STORE_new();
-    newCAStore = true;
+  BIO* bio = LoadBIO(env, args[0]);
+  if (!bio) {
+    return;
   }
 
-  unsigned cert_count = 0;
-  if (BIO* bio = LoadBIO(env, args[0])) {
-    while (X509* x509 =
-        PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
-      X509_STORE_add_cert(sc->ca_store_, x509);
-      SSL_CTX_add_client_CA(sc->ctx_, x509);
-      X509_free(x509);
-      cert_count += 1;
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
+  while (X509* x509 =
+             PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
+    if (cert_store == root_cert_store) {
+      cert_store = NewRootCertStore();
+      SSL_CTX_set_cert_store(sc->ctx_, cert_store);
     }
-    BIO_free_all(bio);
+    X509_STORE_add_cert(cert_store, x509);
+    SSL_CTX_add_client_CA(sc->ctx_, x509);
+    X509_free(x509);
   }
 
-  if (cert_count > 0 && newCAStore) {
-    SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
-  }
+  BIO_free_all(bio);
 }
 
 
@@ -725,21 +766,28 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  X509_CRL *x509 =
+  X509_CRL* crl =
       PEM_read_bio_X509_CRL(bio, nullptr, CryptoPemCallback, nullptr);
 
-  if (x509 == nullptr) {
+  if (crl == nullptr) {
+    return env->ThrowError("Failed to parse CRL");
     BIO_free_all(bio);
     return;
   }
 
-  X509_STORE_add_crl(sc->ca_store_, x509);
-  X509_STORE_set_flags(sc->ca_store_, X509_V_FLAG_CRL_CHECK |
-                                      X509_V_FLAG_CRL_CHECK_ALL);
-  BIO_free_all(bio);
-  X509_CRL_free(x509);
-}
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
+  if (cert_store == root_cert_store) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(sc->ctx_, cert_store);
+  }
 
+  X509_STORE_add_crl(cert_store, crl);
+  X509_STORE_set_flags(cert_store,
+                       X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+
+  BIO_free_all(bio);
+  X509_CRL_free(crl);
+}
 
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
@@ -748,34 +796,13 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence compiler warning.
 
-  CHECK_EQ(sc->ca_store_, nullptr);
-
   if (!root_cert_store) {
-    root_cert_store = X509_STORE_new();
-
-    for (size_t i = 0; i < arraysize(root_certs); i++) {
-      BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
-      if (bp == nullptr) {
-        return;
-      }
-
-      X509 *x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
-      if (x509 == nullptr) {
-        BIO_free_all(bp);
-        return;
-      }
-
-      X509_STORE_add_cert(root_cert_store, x509);
-
-      BIO_free_all(bp);
-      X509_free(x509);
-    }
+    root_cert_store = NewRootCertStore();
   }
 
-  sc->ca_store_ = root_cert_store;
   // Increment reference count so global store is not deleted along with CTX.
-  CRYPTO_add(&root_cert_store->references, 1, CRYPTO_LOCK_X509_STORE);
-  SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+  X509_STORE_up_ref(root_cert_store);
+  SSL_CTX_set_cert_store(sc->ctx_, root_cert_store);
 }
 
 
@@ -985,6 +1012,8 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     sc->cert_ = nullptr;
   }
 
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
+
   if (d2i_PKCS12_bio(in, &p12) &&
       PKCS12_parse(p12, pass, &pkey, &cert, &extra_certs) &&
       SSL_CTX_use_certificate_chain(sc->ctx_,
@@ -997,11 +1026,11 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; i < sk_X509_num(extra_certs); i++) {
       X509* ca = sk_X509_value(extra_certs, i);
 
-      if (!sc->ca_store_) {
-        sc->ca_store_ = X509_STORE_new();
-        SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+      if (cert_store == root_cert_store) {
+        cert_store = NewRootCertStore();
+        SSL_CTX_set_cert_store(sc->ctx_, cert_store);
       }
-      X509_STORE_add_cert(sc->ca_store_, ca);
+      X509_STORE_add_cert(cert_store, ca);
       SSL_CTX_add_client_CA(sc->ctx_, ca);
     }
     ret = true;
