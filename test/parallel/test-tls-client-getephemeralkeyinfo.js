@@ -6,8 +6,14 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   process.exit();
 }
-const tls = require('tls');
 
+var isLibreSSL = /LibreSSL$/.test(process.versions.openssl);
+if (isLibreSSL) {
+  common.skip('LibreSSL does not support getEphemeralKeyInfo()');
+  process.exit();
+}
+
+const tls = require('tls');
 const fs = require('fs');
 const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');

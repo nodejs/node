@@ -10,6 +10,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 const tls = require('tls');
+const isLibreSSL = /LibreSSL$/.test(process.versions.openssl);
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
@@ -82,9 +83,11 @@ assert(tlsCiphers.every((value) => /^[^A-Z]+$/.test(value)));
 validateList(tlsCiphers);
 
 // Assert that we have sha and sha1 but not SHA and SHA1.
+<<<<<<< 1824bbbff1341e253a891a804651b6338f8008e4
 assert.notStrictEqual(0, crypto.getHashes().length);
 assert(crypto.getHashes().includes('sha1'));
-assert(crypto.getHashes().includes('sha'));
+if (!isLibreSSL)
+  assert(crypto.getHashes().includes('sha'));
 assert(!crypto.getHashes().includes('SHA1'));
 assert(!crypto.getHashes().includes('SHA'));
 assert(crypto.getHashes().includes('RSA-SHA1'));

@@ -10,6 +10,8 @@ const assert = require('assert');
 const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
+const finished = 0;
+const isLibreSSL = /LibreSSL$/.test(process.versions.openssl);
 
 function filenamePEM(n) {
   return path.join(common.fixturesDir, 'keys', n + '.pem');
@@ -52,7 +54,8 @@ const testCases = [
       port: undefined,
       rejectUnauthorized: true
     },
-    errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
+    errorCode: isLibreSSL ? 'CERT_UNTRUSTED' :
+                            'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
   }
 ];
 

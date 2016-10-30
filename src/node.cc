@@ -3126,10 +3126,13 @@ void SetupProcessObject(Environment* env,
         break;
       }
     }
-    READONLY_PROPERTY(
-        versions,
-        "openssl",
-        OneByteString(env->isolate(), &OPENSSL_VERSION_TEXT[i], j - i));
+    Local<String> sslversion =
+        OneByteString(env->isolate(), &OPENSSL_VERSION_TEXT[i], j - i);
+# ifdef LIBRESSL_VERSION_NUMBER
+    sslversion = String::Concat(sslversion,
+                                OneByteString(env->isolate(), "-LibreSSL"));
+# endif
+    READONLY_PROPERTY(versions, "openssl", sslversion);
   }
 #endif
 

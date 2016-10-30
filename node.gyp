@@ -381,7 +381,7 @@
               'conditions': [
                 # -force_load or --whole-archive are not applicable for
                 # the static library
-                [ 'node_target_type!="static_library"', {
+                [ 'node_target_type!="static_library" and node_shared_openssl=="false"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': [
                       '-Wl,-force_load,<(PRODUCT_DIR)/<(OPENSSL_PRODUCT)',
