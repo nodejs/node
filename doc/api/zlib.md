@@ -384,12 +384,12 @@ Only applicable to deflate algorithm.
 added: v0.7.0
 -->
 
+Reset the compressor/decompressor to factory defaults. Only applicable to
+the inflate and deflate algorithms.
+
 ## zlib.constants
 
 Provides an object enumerating Zlib-related constants.
-
-Reset the compressor/decompressor to factory defaults. Only applicable to
-the inflate and deflate algorithms.
 
 ## zlib.createDeflate([options])
 <!-- YAML
