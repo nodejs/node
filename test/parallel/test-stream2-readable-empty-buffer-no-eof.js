@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const Readable = require('stream').Readable;
@@ -37,10 +37,10 @@ function test1() {
           return r.push(Buffer.alloc(0));
         });
       case 4:
-        setImmediate(setImmediate, r.read.bind(r, 0));
-        return setImmediate(function() {
+        setImmediate(function() {
           return r.push(Buffer.alloc(0));
         });
+        return setImmediate(r.read.bind(r, 0));
       case 5:
         return setImmediate(function() {
           return r.push(buf);
