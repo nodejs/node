@@ -5866,11 +5866,15 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 #endif  // !OPENSSL_NO_ENGINE
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+#ifdef NODE_FIPS_MODE
   if (FIPS_mode()) {
     args.GetReturnValue().Set(1);
   } else {
     args.GetReturnValue().Set(0);
   }
+#else
+  args.GetReturnValue().Set(0);
+#endif // NODE_FIPS_MODE
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
