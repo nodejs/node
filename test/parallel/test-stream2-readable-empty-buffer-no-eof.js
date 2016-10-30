@@ -24,27 +24,27 @@ function test1() {
   let reads = 5;
   r._read = function(n) {
     switch (reads--) {
-      case 0:
-        return r.push(null); // EOF
-      case 1:
-        return r.push(buf);
-      case 2:
-        setImmediate(r.read.bind(r, 0));
-        return r.push(Buffer.alloc(0)); // Not-EOF!
-      case 3:
-        setImmediate(r.read.bind(r, 0));
-        return process.nextTick(function() {
-          return r.push(Buffer.alloc(0));
+      case 5:
+        return setImmediate(function() {
+          return r.push(buf);
         });
       case 4:
         setImmediate(function() {
           return r.push(Buffer.alloc(0));
         });
         return setImmediate(r.read.bind(r, 0));
-      case 5:
-        return setImmediate(function() {
-          return r.push(buf);
+      case 3:
+        setImmediate(r.read.bind(r, 0));
+        return process.nextTick(function() {
+          return r.push(Buffer.alloc(0));
         });
+      case 2:
+        setImmediate(r.read.bind(r, 0));
+        return r.push(Buffer.alloc(0)); // Not-EOF!
+      case 1:
+        return r.push(buf);
+      case 0:
+        return r.push(null); // EOF
       default:
         throw new Error('unreachable');
     }
