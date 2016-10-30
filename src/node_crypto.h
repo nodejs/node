@@ -76,7 +76,6 @@ class SecureContext : public BaseObject {
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  X509_STORE* ca_store_;
   SSL_CTX* ctx_;
   X509* cert_;
   X509* issuer_;
@@ -131,7 +130,6 @@ class SecureContext : public BaseObject {
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        ca_store_(nullptr),
         ctx_(nullptr),
         cert_(nullptr),
         issuer_(nullptr) {
@@ -140,20 +138,19 @@ class SecureContext : public BaseObject {
   }
 
   void FreeCTXMem() {
-    if (ctx_) {
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
-      SSL_CTX_free(ctx_);
-      if (cert_ != nullptr)
-        X509_free(cert_);
-      if (issuer_ != nullptr)
-        X509_free(issuer_);
-      ctx_ = nullptr;
-      ca_store_ = nullptr;
-      cert_ = nullptr;
-      issuer_ = nullptr;
-    } else {
-      CHECK_EQ(ca_store_, nullptr);
+    if (!ctx_) {
+      return;
     }
+
+    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+    SSL_CTX_free(ctx_);
+    if (cert_ != nullptr)
+      X509_free(cert_);
+    if (issuer_ != nullptr)
+      X509_free(issuer_);
+    ctx_ = nullptr;
+    cert_ = nullptr;
+    issuer_ = nullptr;
   }
 };
 
