@@ -18,6 +18,9 @@ assert.throws(
   /^Error: Invalid chunk size: -Infinity$/
 );
 
+// Confrim that maximum chunk size cannot be exceeded because it is `Infinity`.
+assert.deepEqual(zlib.constants.Z_MAX_CHUNK, Infinity);
+
 // Throws if `opts.windowBits` is invalid
 assert.throws(
   () => { new zlib.Deflate({windowBits: -Infinity}); },
