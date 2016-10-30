@@ -864,26 +864,26 @@ def configure_library(lib, output):
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
 
-    if pkg_cflags:
+    if options.__dict__[shared_lib + '_includes']:
+      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
+    elif pkg_cflags:
       output['include_dirs'] += (
           filter(None, map(str.strip, pkg_cflags.split('-I'))))
-    elif options.__dict__[shared_lib + '_includes']:
-      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
 
     # libpath needs to be provided ahead libraries
-    if pkg_libpath:
-      output['libraries'] += [pkg_libpath]
-    elif options.__dict__[shared_lib + '_libpath']:
+    if options.__dict__[shared_lib + '_libpath']:
       output['libraries'] += [
           '-L%s' % options.__dict__[shared_lib + '_libpath']]
+    elif pkg_libpath:
+      output['libraries'] += [pkg_libpath]
 
     default_libs = getattr(options, shared_lib + '_libname')
     default_libs = map('-l{0}'.format, default_libs.split(','))
 
-    if pkg_libs:
-      output['libraries'] += pkg_libs.split()
-    elif default_libs:
+    if default_libs:
       output['libraries'] += default_libs
+    elif pkg_libs:
+      output['libraries'] += pkg_libs.split()
 
 
 def configure_v8(o):
