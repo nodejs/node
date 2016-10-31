@@ -1706,7 +1706,8 @@ Note that on most platforms, `'rename'` is emitted whenever a filename appears
 or disappears in the directory.
 
 Also note the listener callback is attached to the `'change'` event fired by
-[`fs.FSWatcher`][], but it is not the same thing as the `'change'` value of `eventType`.
+[`fs.FSWatcher`][], but it is not the same thing as the `'change'` value of
+`eventType`.
 
 ### Caveats
 
