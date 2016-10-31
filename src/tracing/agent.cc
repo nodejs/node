@@ -2,14 +2,15 @@
 
 #include "env-inl.h"
 #include "libplatform/libplatform.h"
-#include "tracing/trace_config_parser.h"
 
 namespace node {
 namespace tracing {
 
+using v8::platform::tracing::TraceConfig;
+
 Agent::Agent(Environment* env) : parent_env_(env) {}
 
-void Agent::Start(v8::Platform* platform, const char* trace_config_file) {
+void Agent::Start(v8::Platform* platform, const char* enabled_categories) {
   auto env = parent_env_;
   platform_ = platform;
 
@@ -23,12 +24,16 @@ void Agent::Start(v8::Platform* platform, const char* trace_config_file) {
   tracing_controller_ = new TracingController();
 
   TraceConfig* trace_config = new TraceConfig();
-  if (trace_config_file) {
-    std::ifstream fin(trace_config_file);
-    std::string str((std::istreambuf_iterator<char>(fin)),
-                    std::istreambuf_iterator<char>());
-    TraceConfigParser::FillTraceConfig(env->isolate(), trace_config,
-                                       str.c_str());
+  if (enabled_categories) {
+    int num_chars = strlen(enabled_categories);
+    char category_list[num_chars + 1];
+    strncpy(category_list, enabled_categories, num_chars);
+    category_list[num_chars] = '\0';
+    char* category = strtok(category_list, ",");
+    while (category != NULL) {
+      trace_config->AddIncludedCategory(category);
+      category = strtok(NULL, ",");
+    }
   } else {
     trace_config->AddIncludedCategory("v8");
     trace_config->AddIncludedCategory("node");

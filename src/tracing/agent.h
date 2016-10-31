@@ -17,7 +17,7 @@ namespace tracing {
 class Agent {
  public:
   explicit Agent(Environment* env);
-  void Start(v8::Platform* platform, const char* trace_config_file);
+  void Start(v8::Platform* platform, const char* enabled_categories);
   void Stop();
 
  private:

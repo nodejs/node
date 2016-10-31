@@ -211,24 +211,12 @@ V8, Node core, and userspace code.
 Tracing can be enabled by passing the `--enable-tracing` flag when starting a
 Node.js application.
 
-Tracing can be configured by additionally specifying a configuration file using the
-`--trace-config` flag:
+The set of categories for which traces are recorded can be specified using the
+`--enabled-categories` flag followed by a list of comma separated category names.
+By default the `node` and `v8` categories are enabled.
 
 ```txt
-node --enable-trace --trace-config=trace-config.json server.js
-```
-
-where `trace-config.json` may override any of the default configuration values:
-
-```javascript
-{
-  "record_mode": "record-continuously",
-  "enable_sampling": true,
-  "enable_systrace": true,
-  "enable_argument_filter": true,
-  "included_categories": [ "v8", "node" ],
-  "excluded_categories": [ ]
-}
+node --enable-tracing --enabled-categories=v8,node server.js
 ```
 
 Running Node.js with tracing enabled will produce log files that can be opened

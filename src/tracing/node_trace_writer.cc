@@ -27,7 +27,7 @@ void NodeTraceWriter::WriteSuffix() {
     Mutex::ScopedLock scoped_lock(stream_mutex_);
     if (total_traces_ > 0) {
       total_traces_ = 0; // so we don't write it again in FlushPrivate
-      // Appends "]}\n" to stream_.
+      // Appends "]}" to stream_.
       delete json_trace_writer_;
       should_flush = true;
     }
@@ -90,7 +90,7 @@ void NodeTraceWriter::FlushPrivate() {
     Mutex::ScopedLock stream_scoped_lock(stream_mutex_);
     if (total_traces_ >= kTracesPerFile) {
       total_traces_ = 0;
-      // Destroying the member JSONTraceWriter object appends "]"\n"" to
+      // Destroying the member JSONTraceWriter object appends "]}" to
       // stream_ - in other words, ending a JSON file.
       delete json_trace_writer_;
     }
