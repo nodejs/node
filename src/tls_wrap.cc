@@ -64,6 +64,7 @@ TLSWrap::TLSWrap(Environment* env,
   stream_->set_after_write_cb({ OnAfterWriteImpl, this });
   stream_->set_alloc_cb({ OnAllocImpl, this });
   stream_->set_read_cb({ OnReadImpl, this });
+  stream_->set_destruct_cb({ OnDestructImpl, this });
 
   set_alloc_cb({ OnAllocSelf, this });
   set_read_cb({ OnReadSelf, this });
@@ -657,6 +658,12 @@ void TLSWrap::OnReadImpl(ssize_t nread,
                          void* ctx) {
   TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
   wrap->DoRead(nread, buf, pending);
+}
+
+
+void TLSWrap::OnDestructImpl(void* ctx) {
+  TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
+  wrap->clear_stream();
 }
 
 
