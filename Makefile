@@ -163,8 +163,8 @@ test/addons/.buildstamp: config.gypi \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	test/addons/.docbuildstamp
-	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
-	# embedded addons have been generated from the documentation.
+#	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
+#	embedded addons have been generated from the documentation.
 	for dirname in test/addons/*/; do \
 		echo "\nRunning addons test $$PWD/$$dirname" ; \
 		$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp --loglevel=$(LOGLEVEL) rebuild \
@@ -262,7 +262,7 @@ test-timers-clean:
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 test-v8: v8
-	# note: performs full test unless QUICKCHECK is specified
+#	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
         --no-presubmit \
@@ -270,7 +270,7 @@ test-v8: v8
 	 $(TAP_V8)
 
 test-v8-intl: v8
-	# note: performs full test unless QUICKCHECK is specified
+#	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
         --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
@@ -283,7 +283,7 @@ test-v8-benchmarks: v8
 	 $(TAP_V8_BENCHMARKS)
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
-	# runs all v8 tests
+# runs all v8 tests
 else
 test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 	@echo "Testing v8 is not available through the source tarball."
