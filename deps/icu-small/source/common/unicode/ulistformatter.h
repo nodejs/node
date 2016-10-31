@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
 * Copyright (C) 2015-2016, International Business Machines
@@ -18,7 +20,7 @@
  * \file
  * \brief C API: Format a list in a locale-appropriate way.
  *
- * A UListFormatter is used to format a list of items in a locale-appropriate way,
+ * A UListFormatter is used to format a list of items in a locale-appropriate way, 
  * using data from CLDR.
  * Example: Input data ["Alice", "Bob", "Charlie", "Delta"] will be formatted
  * as "Alice, Bob, Charlie, and Delta" in English.

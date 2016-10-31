@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 1996-2015, International Business Machines
@@ -366,7 +368,7 @@ ucol_getStrength(const UCollator *coll)
     return ucol_getAttribute(coll, UCOL_STRENGTH, &status);
 }
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 ucol_getReorderCodes(const UCollator *coll,
                     int32_t *dest,
                     int32_t destCapacity,
@@ -378,7 +380,7 @@ ucol_getReorderCodes(const UCollator *coll,
     return Collator::fromUCollator(coll)->getReorderCodes(dest, destCapacity, *status);
 }
 
-U_CAPI void U_EXPORT2
+U_CAPI void U_EXPORT2 
 ucol_setReorderCodes(UCollator* coll,
                     const int32_t* reorderCodes,
                     int32_t reorderCodesLength,
@@ -390,7 +392,7 @@ ucol_setReorderCodes(UCollator* coll,
     Collator::fromUCollator(coll)->setReorderCodes(reorderCodes, reorderCodesLength, *status);
 }
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 ucol_getEquivalentReorderCodes(int32_t reorderCode,
                     int32_t* dest,
                     int32_t destCapacity,

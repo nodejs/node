@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and
@@ -119,7 +121,7 @@ static const UChar * const gLastResortNumberPatterns[UNUM_FORMAT_STYLE_COUNT] = 
     gLastResortIsoCurrencyPat,  // UNUM_CURRENCY_ISO
     gLastResortPluralCurrencyPat,  // UNUM_CURRENCY_PLURAL
     gLastResortAccountingCurrencyPat, // UNUM_CURRENCY_ACCOUNTING
-    gLastResortCurrencyPat,  // UNUM_CASH_CURRENCY
+    gLastResortCurrencyPat,  // UNUM_CASH_CURRENCY 
     NULL,  // UNUM_DECIMAL_COMPACT_SHORT
     NULL,  // UNUM_DECIMAL_COMPACT_LONG
     gLastResortCurrencyPat,  // UNUM_CURRENCY_STANDARD
@@ -435,13 +437,13 @@ NumberFormat::format(int64_t number,
 
 
 // -------------------------------------
-// Decimal Number format() default implementation
+// Decimal Number format() default implementation 
 // Subclasses do not normally override this function, but rather the DigitList
 // formatting functions..
 //   The expected call chain from here is
 //      this function ->
 //      NumberFormat::format(Formattable  ->
-//      DecimalFormat::format(DigitList
+//      DecimalFormat::format(DigitList    
 //
 //   Or, for subclasses of Formattable that do not know about DigitList,
 //       this Function ->
@@ -450,7 +452,7 @@ NumberFormat::format(int64_t number,
 //       XXXFormat::format(double
 
 UnicodeString&
-NumberFormat::format(const StringPiece &decimalNum,
+NumberFormat::format(StringPiece decimalNum,
                      UnicodeString& toAppendTo,
                      FieldPositionIterator* fpi,
                      UErrorCode& status) const
@@ -543,7 +545,7 @@ UnicodeString&
 NumberFormat::format(const DigitList &number,
                      UnicodeString& appendTo,
                      FieldPosition& pos,
-                     UErrorCode &status) const {
+                     UErrorCode &status) const { 
     // DecimalFormat overrides this function, and handles DigitList based big decimals.
     // Other subclasses (ChoiceFormat, RuleBasedNumberFormat) do not (yet) handle DigitLists,
     // so this default implementation falls back to formatting decimal numbers as doubles.
@@ -683,7 +685,7 @@ NumberFormat::parseObject(const UnicodeString& source,
 UnicodeString&
 NumberFormat::format(double number, UnicodeString& appendTo) const
 {
-    FieldPosition pos(0);
+    FieldPosition pos(FieldPosition::DONT_CARE);
     return format(number, appendTo, pos);
 }
 
@@ -693,7 +695,7 @@ NumberFormat::format(double number, UnicodeString& appendTo) const
 UnicodeString&
 NumberFormat::format(int32_t number, UnicodeString& appendTo) const
 {
-    FieldPosition pos(0);
+    FieldPosition pos(FieldPosition::DONT_CARE);
     return format(number, appendTo, pos);
 }
 
@@ -703,7 +705,7 @@ NumberFormat::format(int32_t number, UnicodeString& appendTo) const
 UnicodeString&
 NumberFormat::format(int64_t number, UnicodeString& appendTo) const
 {
-    FieldPosition pos(0);
+    FieldPosition pos(FieldPosition::DONT_CARE);
     return format(number, appendTo, pos);
 }
 
@@ -1063,7 +1065,7 @@ NumberFormat::createInstance(const Locale& loc, UNumberFormatStyle kind, UErrorC
     }
     return result;
 }
-
+    
 
 // -------------------------------------
 // Checks if the thousand/10 thousand grouping is used in the
@@ -1408,7 +1410,7 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
         const UChar *patResStr = ures_getStringByKeyWithFallback(resource, gFormatKeys[style], &patLen, &status);
 
         // Didn't find a pattern specific to the numbering system, so fall back to "latn"
-        if ( status == U_MISSING_RESOURCE_ERROR && uprv_strcmp(gLatn,ns->getName())) {
+        if ( status == U_MISSING_RESOURCE_ERROR && uprv_strcmp(gLatn,ns->getName())) {  
             status = U_ZERO_ERROR;
             resource = ures_getByKeyWithFallback(numElements, gLatn, resource, &status);
             resource = ures_getByKeyWithFallback(resource, gPatterns, resource, &status);
@@ -1423,7 +1425,7 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
     if (U_FAILURE(status)) {
         return NULL;
     }
-    if(style==UNUM_CURRENCY || style == UNUM_CURRENCY_ISO || style == UNUM_CURRENCY_ACCOUNTING
+    if(style==UNUM_CURRENCY || style == UNUM_CURRENCY_ISO || style == UNUM_CURRENCY_ACCOUNTING 
         || style == UNUM_CASH_CURRENCY || style == UNUM_CURRENCY_STANDARD){
         const UChar* currPattern = symbolsToAdopt->getCurrencyPattern();
         if(currPattern!=NULL){

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -59,8 +61,8 @@ U_CFUNC U_COMMON_API int32_t
 utrace_level;
 
 
-/**
- *   Traced Function Exit return types.
+/** 
+ *   Traced Function Exit return types.  
  *   Flags indicating the number and types of varargs included in a call
  *   to a UTraceExit function.
  *   Bits 0-3:  The function return type.  First variable param.
@@ -129,15 +131,15 @@ U_CDECL_END
 #define UTRACE_LEVEL(level) (utrace_getLevel()>=(level))
 
 /**
-  *  Flag bit in utraceFnNumber, the local variable added to each function
+  *  Flag bit in utraceFnNumber, the local variable added to each function 
   *  with tracing code to contains the function number.
   *
   *  Set the flag if the function's entry is traced, which will cause the
-  *  function's exit to also be traced.  utraceFnNumber is uncoditionally
+  *  function's exit to also be traced.  utraceFnNumber is uncoditionally 
   *  set at entry, whether or not the entry is traced, so that it will
   *  always be available for error trace output.
   *  @internal
-  */
+  */            
 #define UTRACE_TRACED_ENTRY 0x80000000
 
 /**
@@ -202,7 +204,7 @@ U_CDECL_END
  *
  * @param val       The function's return value, int32_t or comatible type.
  *
- * @internal
+ * @internal 
  */
 #define UTRACE_EXIT_VALUE(val) \
     {if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \

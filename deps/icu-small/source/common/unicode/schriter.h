@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -23,10 +25,10 @@
 #include "unicode/uchriter.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: String Character Iterator
  */
-
+ 
 U_NAMESPACE_BEGIN
 /**
  * A concrete subclass of CharacterIterator that iterates over the

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -386,7 +388,7 @@ packDiff(int32_t diff) {
 }
 
 
-static void
+static void U_CALLCONV
 _Bocu1FromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                              UErrorCode *pErrorCode) {
     UConverter *cnv;
@@ -647,7 +649,7 @@ getTrail:
  * re-copy the original function and remove the variables
  * offsets, sourceIndex, and nextSourceIndex.
  */
-static void
+static void U_CALLCONV
 _Bocu1FromUnicode(UConverterFromUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode) {
     UConverter *cnv;
@@ -950,7 +952,7 @@ decodeBocu1TrailByte(int32_t count, int32_t b) {
     }
 }
 
-static void
+static void U_CALLCONV
 _Bocu1ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                            UErrorCode *pErrorCode) {
     UConverter *cnv;
@@ -1173,7 +1175,7 @@ endloop:
  * re-copy the original function and remove the variables
  * offsets, sourceIndex, and nextSourceIndex.
  */
-static void
+static void U_CALLCONV
 _Bocu1ToUnicode(UConverterToUnicodeArgs *pArgs,
                 UErrorCode *pErrorCode) {
     UConverter *cnv;

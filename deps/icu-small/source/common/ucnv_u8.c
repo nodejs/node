@@ -1,4 +1,6 @@
-/*
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -179,7 +181,7 @@ morebytes:
                 (isCESU8 ? i <= 3 : !U_IS_SURROGATE(ch)))
             {
                 /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
-                if (ch <= MAXIMUM_UCS2)
+                if (ch <= MAXIMUM_UCS2) 
                 {
                     /* fits in 16 bits */
                     *(myTarget++) = (UChar) ch;
@@ -307,7 +309,7 @@ morebytes:
                 (isCESU8 ? i <= 3 : !U_IS_SURROGATE(ch)))
             {
                 /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
-                if (ch <= MAXIMUM_UCS2)
+                if (ch <= MAXIMUM_UCS2) 
                 {
                     /* fits in 16 bits */
                     *(myTarget++) = (UChar) ch;
@@ -669,8 +671,8 @@ static UChar32 ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
     isLegalSequence = 1;
     ch = myByte << 6;
     switch(extraBytesToWrite)
-    {
-      /* note: code falls through cases! (sic)*/
+    {     
+      /* note: code falls through cases! (sic)*/ 
     case 6:
         ch += (myByte = *source);
         ch <<= 6;
@@ -748,7 +750,7 @@ static UChar32 ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
     cnv->toULength = i;
     *err = U_ILLEGAL_CHAR_FOUND;
     return 0xffff;
-}
+} 
 
 /* UTF-8-from-UTF-8 conversion functions ------------------------------------ */
 
@@ -1072,7 +1074,10 @@ static const UConverterImpl _CESU8Impl={
     NULL,
     NULL,
     NULL,
-    ucnv_getCompleteUnicodeSet
+    ucnv_getCompleteUnicodeSet,
+
+    NULL,
+    NULL
 };
 
 static const UConverterStaticData _CESU8StaticData={

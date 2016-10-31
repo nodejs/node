@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -79,7 +81,7 @@ protected:
      *                    pos.contextLimit.  Otherwise, assume the text is complete.
      */
     virtual void handleTransliterate(Replaceable& text,
-                                     UTransPosition& offsets,
+                                     UTransPosition& offsets, 
                                      UBool isIncremental) const;
 
     const UCaseProps *fCsp;

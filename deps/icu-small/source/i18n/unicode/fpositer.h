@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 2010-2012, International Business Machines
@@ -101,7 +103,7 @@ private:
 
     /**
      * Sets the data used by the iterator, and resets the position.
-     * Returns U_ILLEGAL_ARGUMENT_ERROR in status if the data is not valid
+     * Returns U_ILLEGAL_ARGUMENT_ERROR in status if the data is not valid 
      * (length is not a multiple of 3, or start >= limit for any run).
      */
     void setData(UVector32 *adopt, UErrorCode& status);

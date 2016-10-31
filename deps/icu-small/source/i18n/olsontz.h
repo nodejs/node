@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2003-2013, International Business Machines
@@ -42,52 +44,52 @@ class SimpleTimeZone;
  *
  *   a. Zone (table).  A zone is a table resource contains several
  *   type of resources below:
- *
+ *  
  *   - typeOffsets:intvector (Required)
- *
+ *  
  *   Sets of UTC raw/dst offset pairs in seconds.  Entries at
  *   2n represents raw offset and 2n+1 represents dst offset
  *   paired with the raw offset at 2n.  The very first pair represents
  *   the initial zone offset (before the first transition) always.
  *
- *   - trans:intvector (Optional)
- *
+ *   - trans:intvector (Optional) 
+ *  
  *   List of transition times represented by 32bit seconds from the
  *   epoch (1970-01-01T00:00Z) in ascending order.
- *
+ *  
  *   - transPre32/transPost32:intvector (Optional)
- *
+ *  
  *   List of transition times before/after 32bit minimum seconds.
  *   Each time is represented by a pair of 32bit integer.
- *
+ * 
  *   - typeMap:bin (Optional)
- *
+ *  
  *   Array of bytes representing the mapping between each transition
  *   time (transPre32/trans/transPost32) and its corresponding offset
  *   data (typeOffsets).
- *
+ *  
  *   - finalRule:string (Optional)
- *
+ *  
  *   If a recurrent transition rule is applicable to a zone forever
  *   after the final transition time, finalRule represents the rule
  *   in Rules data.
- *
+ *  
  *   - finalRaw:int (Optional)
- *
+ *   
  *   When finalRule is available, finalRaw is required and specifies
  *   the raw (base) offset of the rule.
- *
+ *   
  *   - finalYear:int (Optional)
- *
+ *   
  *   When finalRule is available, finalYear is required and specifies
  *   the start year of the rule.
- *
+ *   
  *   - links:intvector (Optional)
- *
+ *   
  *   When this zone data is shared with other zones, links specifies
  *   all zones including the zone itself.  Each zone is referenced by
  *   integer index.
- *
+ * 
  *  b. Link (int, length 1).  A link zone is an int resource.  The
  *  integer is the zone number of the target zone.  The key of this
  *  resource is an alternate name for the target zone.  This data
@@ -160,7 +162,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * TimeZone API.
      */
     virtual UClassID getDynamicClassID() const;
-
+    
     /**
      * TimeZone API.  Do not call this; prefer getOffset(UDate,...).
      */

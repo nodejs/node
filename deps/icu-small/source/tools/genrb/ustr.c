@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -92,7 +94,7 @@ ustr_cpy(struct UString *dst,
     if(src->fChars == NULL || dst->fChars == NULL){
         return;
     }
-    uprv_memcpy(dst->fChars, src->fChars, sizeof(UChar) * src->fLength);
+    u_memcpy(dst->fChars, src->fChars, src->fLength);
     dst->fLength = src->fLength;
     dst->fChars[dst->fLength] = 0x0000;
 }
@@ -131,13 +133,13 @@ ustr_ncat(struct UString *dst,
 {
     if(U_FAILURE(*status) || dst == src)
         return;
-
+    
     if(dst->fCapacity < (dst->fLength + n)) {
         ustr_resize(dst, ALLOCATION(dst->fLength + n), status);
         if(U_FAILURE(*status))
             return;
     }
-
+    
     uprv_memcpy(dst->fChars + dst->fLength, src->fChars,
                 sizeof(UChar) * n);
     dst->fLength += src->fLength;
@@ -163,7 +165,7 @@ ustr_ucat(struct UString *dst,
     dst->fLength += 1;
     dst->fChars[dst->fLength] = 0x0000;
 }
-U_CFUNC void
+U_CFUNC void 
 ustr_u32cat(struct UString *dst, UChar32 c, UErrorCode *status){
     if(c > 0x10FFFF){
         *status = U_ILLEGAL_CHAR_FOUND;
@@ -181,7 +183,7 @@ ustr_uscat(struct UString *dst,
       const UChar* src,int len,
       UErrorCode *status)
 {
-    if(U_FAILURE(*status))
+    if(U_FAILURE(*status)) 
         return;
 
     if(dst->fCapacity < (dst->fLength + len)) {

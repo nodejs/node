@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2011, International Business Machines
@@ -61,7 +63,7 @@ private:
     int32_t   count;
 
     int32_t   capacity;
-
+    
     int32_t   maxCapacity;   // Limit beyond which capacity is not permitted to grow.
 
     int32_t*  elements;
@@ -100,7 +102,7 @@ public:
     void setElementAt(int32_t elem, int32_t index);
 
     void insertElementAt(int32_t elem, int32_t index, UErrorCode &status);
-
+    
     int32_t elementAti(int32_t index) const;
 
     UBool equals(const UVector32 &other) const;
@@ -198,9 +200,9 @@ public:
     UBool empty(void) const;   // TODO:  redundant, same as empty().  Remove it?
 
     int32_t peeki(void) const;
-
+    
     int32_t popi(void);
-
+    
     int32_t push(int32_t i, UErrorCode &status);
 
     int32_t *reserveBlock(int32_t size, UErrorCode &status);

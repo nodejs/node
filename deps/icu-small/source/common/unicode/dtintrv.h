@@ -1,10 +1,12 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2008-2009, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 *
-* File DTINTRV.H
+* File DTINTRV.H 
 *
 *******************************************************************************
 */
@@ -32,7 +34,7 @@ U_NAMESPACE_BEGIN
 class U_COMMON_API DateInterval : public UObject {
 public:
 
-    /**
+    /** 
      * Construct a DateInterval given a from date and a to date.
      * @param fromDate  The from date in date interval.
      * @param toDate    The to date in date interval.
@@ -45,15 +47,15 @@ public:
      * @stable ICU 4.0
      */
     virtual ~DateInterval();
-
-    /**
+ 
+    /** 
      * Get the from date.
      * @return  the from date in dateInterval.
      * @stable ICU 4.0
      */
     UDate getFromDate() const;
 
-    /**
+    /** 
      * Get the to date.
      * @return  the to date in dateInterval.
      * @stable ICU 4.0
@@ -87,7 +89,7 @@ public:
      */
     virtual UClassID getDynamicClassID(void) const;
 
-
+    
     /**
      * Copy constructor.
      * @stable ICU 4.0
@@ -116,7 +118,7 @@ public:
 
 
     /**
-     * clone this object.
+     * clone this object. 
      * The caller owns the result and should delete it when done.
      * @return a cloned DateInterval
      * @stable ICU 4.0
@@ -124,7 +126,7 @@ public:
      virtual DateInterval* clone() const;
 
 private:
-    /**
+    /** 
      * Default constructor, not implemented.
      */
     DateInterval();
@@ -135,20 +137,20 @@ private:
 } ;// end class DateInterval
 
 
-inline UDate
-DateInterval::getFromDate() const {
-    return fromDate;
+inline UDate 
+DateInterval::getFromDate() const { 
+    return fromDate; 
 }
 
 
-inline UDate
-DateInterval::getToDate() const {
-    return toDate;
+inline UDate 
+DateInterval::getToDate() const { 
+    return toDate; 
 }
 
 
-inline UBool
-DateInterval::operator!=(const DateInterval& other) const {
+inline UBool 
+DateInterval::operator!=(const DateInterval& other) const { 
     return ( !operator==(other) );
 }
 

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2003-2009,2012,2016 International Business Machines Corporation and
@@ -33,7 +35,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(JapaneseCalendar)
 
 //  Gregorian date of each emperor's ascension
 //  Years are AD, months are 1-based.
-static const struct {
+static const struct { 
     int16_t year;
     int8_t  month;
     int8_t  day;
@@ -280,7 +282,7 @@ static const struct {
 #define kEraCount UPRV_LENGTHOF(kEraInfo)
 
 /**
- * The current era, for reference.
+ * The current era, for reference. 
  */
 static const int32_t kCurrentEra = (kEraCount-1);  // int32_t to match the calendar field type
 
@@ -322,7 +324,7 @@ const char *JapaneseCalendar::getType() const
     return "japanese";
 }
 
-int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear)
+int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear) 
 {
     int32_t era = internalGetEra();
     // TODO do we assume we can trust 'era'?  What if it is denormalized?
@@ -339,7 +341,7 @@ int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear)
     return month;
 }
 
-int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month)
+int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month) 
 {
     int32_t era = internalGetEra();
     int32_t day = 1;
@@ -457,7 +459,7 @@ void JapaneseCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status
 }
 
 /*
-Disable pivoting
+Disable pivoting 
 */
 UBool JapaneseCalendar::haveDefaultCentury() const
 {

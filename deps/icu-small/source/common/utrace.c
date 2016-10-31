@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2003-2014, International Business Machines
@@ -71,14 +73,14 @@ utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
         va_end(args);
     }
 }
+ 
 
-
-
-U_CAPI void U_EXPORT2
+ 
+U_CAPI void U_EXPORT2 
 utrace_data(int32_t fnNumber, int32_t level, const char *fmt, ...) {
     if (pTraceDataFunc != NULL) {
            va_list args;
-           va_start(args, fmt );
+           va_start(args, fmt ); 
            (*pTraceDataFunc)(gTraceContext, fnNumber, level, fmt, args);
            va_end(args);
     }
@@ -142,7 +144,7 @@ static void outputPtrBytes(void *val, char *outBuf, int32_t *outIx, int32_t capa
     p += sizeof(void *) - 1;
 #endif
 
-    /* Loop through the bytes of the ptr as it sits in memory, from
+    /* Loop through the bytes of the ptr as it sits in memory, from 
      * most significant to least significant end                    */
     for (i=0; i<sizeof(void *); i++) {
         outputHexBytes(*p, 2, outBuf, outIx, capacity);
@@ -161,10 +163,10 @@ static void outputString(const char *s, char *outBuf, int32_t *outIx, int32_t ca
         outputChar(c, outBuf, outIx, capacity, indent);
     } while (c != 0);
 }
+        
 
 
-
-static void outputUString(const UChar *s, int32_t len,
+static void outputUString(const UChar *s, int32_t len, 
                           char *outBuf, int32_t *outIx, int32_t capacity, int32_t indent) {
     int32_t i = 0;
     UChar   c;
@@ -182,7 +184,7 @@ static void outputUString(const UChar *s, int32_t len,
         }
     }
 }
-
+        
 U_CAPI int32_t U_EXPORT2
 utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, va_list args) {
     int32_t   outIx  = 0;
@@ -256,7 +258,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             longArg = va_arg(args, int64_t);
             outputHexBytes(longArg, 16, outBuf, &outIx, capacity);
             break;
-
+            
         case 'p':
             /*  Pointers.   */
             ptrArg = va_arg(args, void *);
@@ -264,7 +266,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             break;
 
         case 0:
-            /* Single '%' at end of fmt string.  Output as literal '%'.
+            /* Single '%' at end of fmt string.  Output as literal '%'.   
              * Back up index into format string so that the terminating null will be
              * re-fetched in the outer loop, causing it to terminate.
              */
@@ -284,7 +286,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                 void     **ptrPtr;
                 int32_t   charsToOutput = 0;
                 int32_t   i;
-
+                
                 vectorType = fmt[fmtIx];    /* b, h, d, l, p, etc. */
                 if (vectorType != 0) {
                     fmtIx++;
@@ -298,7 +300,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                 if (ptrPtr == NULL) {
                     outputString("*NULL* ", outBuf, &outIx, capacity, indent);
                 } else {
-                    for (i=0; i<vectorLen || vectorLen==-1; i++) {
+                    for (i=0; i<vectorLen || vectorLen==-1; i++) { 
                         switch (vectorType) {
                         case 'b':
                             charsToOutput = 2;
@@ -344,7 +346,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                             ptrPtr++;
                             break;
 
-
+                            
                         }
                         if (charsToOutput > 0) {
                             outputHexBytes(longArg, charsToOutput, outBuf, &outIx, capacity);
@@ -382,7 +384,7 @@ utrace_format(char *outBuf, int32_t capacity,
                 int32_t indent, const char *fmt,  ...) {
     int32_t retVal;
     va_list args;
-    va_start(args, fmt );
+    va_start(args, fmt ); 
     retVal = utrace_vformat(outBuf, capacity, indent, fmt, args);
     va_end(args);
     return retVal;
@@ -425,7 +427,7 @@ utrace_getLevel() {
 }
 
 
-U_CFUNC UBool
+U_CFUNC UBool 
 utrace_cleanup() {
     pTraceEntryFunc = NULL;
     pTraceExitFunc  = NULL;
@@ -457,7 +459,7 @@ trConvNames[] = {
     NULL
 };
 
-
+    
 static const char * const
 trCollNames[] = {
     "ucol_open",
@@ -472,7 +474,7 @@ trCollNames[] = {
     NULL
 };
 
-
+                
 U_CAPI const char * U_EXPORT2
 utrace_functionName(int32_t fnNumber) {
     if(UTRACE_FUNCTION_START <= fnNumber && fnNumber < UTRACE_FUNCTION_LIMIT) {
@@ -485,3 +487,4 @@ utrace_functionName(int32_t fnNumber) {
         return "[BOGUS Trace Function Number]";
     }
 }
+

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *****************************************************************************
  *
@@ -132,7 +134,7 @@ UCNV_TO_U_CALLBACK_STOP (
 }
 
 U_CAPI void    U_EXPORT2
-UCNV_FROM_U_CALLBACK_SKIP (
+UCNV_FROM_U_CALLBACK_SKIP (                  
                   const void *context,
                   UConverterFromUnicodeArgs *fromUArgs,
                   const UChar* codeUnits,
@@ -215,7 +217,7 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
 
   UConverterFromUCallback ignoredCallback = NULL;
   const void *ignoredContext;
-
+  
   if (reason > UCNV_IRREGULAR)
   {
       return;
@@ -235,14 +237,14 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
                      &original,
                      &originalContext,
                      &err2);
-
+  
   if (U_FAILURE (err2))
   {
     *err = err2;
     return;
-  }
+  } 
   if(context==NULL)
-  {
+  { 
       while (i < length)
       {
         valueString[valueStringLength++] = (UChar) UNICODE_PERCENT_SIGN_CODEPOINT;  /* adding % */
@@ -332,7 +334,7 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
               valueStringLength += uprv_itou (valueString + valueStringLength, VALUE_STRING_LENGTH - valueStringLength, (uint16_t)codeUnits[i++], 16, 4);
           }
       }
-  }
+  }  
   myValueSource = valueString;
 
   /* reset the error */
@@ -420,7 +422,7 @@ UCNV_TO_U_CALLBACK_ESCAPE (
     }
 
     if(context==NULL)
-    {
+    {    
         while (i < length)
         {
             uniValueString[valueStringLength++] = (UChar) UNICODE_PERCENT_SIGN_CODEPOINT; /* adding % */

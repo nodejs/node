@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  file:  repattrn.cpp
 //
@@ -118,8 +120,8 @@ RegexPattern &RegexPattern::operator = (const RegexPattern &other) {
     int32_t  numSets = other.fSets->size();
     fSets8 = new Regex8BitSet[numSets];
     if (fSets8 == NULL) {
-	fDeferredStatus = U_MEMORY_ALLOCATION_ERROR;
-	return *this;
+    	fDeferredStatus = U_MEMORY_ALLOCATION_ERROR;
+    	return *this;
     }
     for (i=1; i<numSets; i++) {
         if (U_FAILURE(fDeferredStatus)) {
@@ -650,7 +652,7 @@ int32_t  RegexPattern::split(const UnicodeString &input,
     int32_t r = 0;
     // Check m's status to make sure all is ok.
     if (U_SUCCESS(m.fDeferredStatus)) {
-	r = m.split(input, dest, destCapacity, status);
+    	r = m.split(input, dest, destCapacity, status);
     }
     return r;
 }
@@ -671,7 +673,7 @@ int32_t  RegexPattern::split(UText *input,
     int32_t r = 0;
     // Check m's status to make sure all is ok.
     if (U_SUCCESS(m.fDeferredStatus)) {
-	r = m.split(input, dest, destCapacity, status);
+    	r = m.split(input, dest, destCapacity, status);
     }
     return r;
 }

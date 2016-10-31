@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -246,7 +248,7 @@ swapFormatVersion3(const UDataSwapper *ds,
         header.contractionUCACombosSize=udata_readInt32(ds, inHeader->contractionUCACombosSize);
         header.scriptToLeadByte=        ds->readUInt32(inHeader->scriptToLeadByte);
         header.leadByteToScript=        ds->readUInt32(inHeader->leadByteToScript);
-
+        
         /* swap the 32-bit integers in the header */
         ds->swapArray32(ds, inHeader, (int32_t)((const char *)&inHeader->jamoSpecial-(const char *)inHeader),
                            outHeader, pErrorCode);
@@ -317,21 +319,21 @@ swapFormatVersion3(const UDataSwapper *ds,
             ds->swapArray16(ds, inBytes+header.contractionUCACombos, (int32_t)count,
                                outBytes+header.contractionUCACombos, pErrorCode);
         }
-
+        
         /* swap the script to lead bytes */
         if(header.scriptToLeadByte!=0) {
             int indexCount = ds->readUInt16(*((uint16_t*)(inBytes+header.scriptToLeadByte))); // each entry = 2 * uint16
             int dataCount = ds->readUInt16(*((uint16_t*)(inBytes+header.scriptToLeadByte + 2))); // each entry = uint16
-            ds->swapArray16(ds, inBytes+header.scriptToLeadByte,
+            ds->swapArray16(ds, inBytes+header.scriptToLeadByte, 
                                 4 + (4 * indexCount) + (2 * dataCount),
                                 outBytes+header.scriptToLeadByte, pErrorCode);
         }
-
+        
         /* swap the lead byte to scripts */
         if(header.leadByteToScript!=0) {
             int indexCount = ds->readUInt16(*((uint16_t*)(inBytes+header.leadByteToScript))); // each entry = uint16
             int dataCount = ds->readUInt16(*((uint16_t*)(inBytes+header.leadByteToScript + 2))); // each entry = uint16
-            ds->swapArray16(ds, inBytes+header.leadByteToScript,
+            ds->swapArray16(ds, inBytes+header.leadByteToScript, 
                                 4 + (2 * indexCount) + (2 * dataCount),
                                 outBytes+header.leadByteToScript, pErrorCode);
         }

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -434,7 +436,7 @@ public:
      * Gets the list of keywords for the specified locale.
      *
      * @param status the status code
-     * @return pointer to StringEnumeration class, or NULL if there are no keywords.
+     * @return pointer to StringEnumeration class, or NULL if there are no keywords. 
      * Client must dispose of it by calling delete.
      * @stable ICU 2.8
      */

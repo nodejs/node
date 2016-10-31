@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *   Copyright (C) 1997-2016, International Business Machines
@@ -229,7 +231,7 @@ _uhash_allocate(UHashtable *hash,
 
     emptytok.pointer = NULL; /* Only one of these two is needed */
     emptytok.integer = 0;    /* but we don't know which one. */
-
+    
     limit = p + hash->length;
     while (p < limit) {
         p->key = emptytok;
@@ -245,7 +247,7 @@ _uhash_allocate(UHashtable *hash,
 
 static UHashtable*
 _uhash_init(UHashtable *result,
-              UHashFunction *keyHash,
+              UHashFunction *keyHash, 
               UKeyComparator *keyComp,
               UValueComparator *valueComp,
               int32_t primeIndex,
@@ -273,7 +275,7 @@ _uhash_init(UHashtable *result,
 }
 
 static UHashtable*
-_uhash_create(UHashFunction *keyHash,
+_uhash_create(UHashFunction *keyHash, 
               UKeyComparator *keyComp,
               UValueComparator *valueComp,
               int32_t primeIndex,
@@ -413,7 +415,7 @@ _uhash_rehash(UHashtable *hash, UErrorCode *status) {
 
     if (U_FAILURE(*status)) {
         hash->elements = old;
-        hash->length = oldLength;
+        hash->length = oldLength;       
         return;
     }
 
@@ -534,7 +536,7 @@ _uhash_put(UHashtable *hash,
  ********************************************************************/
 
 U_CAPI UHashtable* U_EXPORT2
-uhash_open(UHashFunction *keyHash,
+uhash_open(UHashFunction *keyHash, 
            UKeyComparator *keyComp,
            UValueComparator *valueComp,
            UErrorCode *status) {
@@ -543,7 +545,7 @@ uhash_open(UHashFunction *keyHash,
 }
 
 U_CAPI UHashtable* U_EXPORT2
-uhash_openSize(UHashFunction *keyHash,
+uhash_openSize(UHashFunction *keyHash, 
                UKeyComparator *keyComp,
                UValueComparator *valueComp,
                int32_t size,
@@ -560,7 +562,7 @@ uhash_openSize(UHashFunction *keyHash,
 
 U_CAPI UHashtable* U_EXPORT2
 uhash_init(UHashtable *fillinResult,
-           UHashFunction *keyHash,
+           UHashFunction *keyHash, 
            UKeyComparator *keyComp,
            UValueComparator *valueComp,
            UErrorCode *status) {
@@ -602,7 +604,7 @@ uhash_setKeyComparator(UHashtable *hash, UKeyComparator *fn) {
     hash->keyComparator = fn;
     return result;
 }
-U_CAPI UValueComparator *U_EXPORT2
+U_CAPI UValueComparator *U_EXPORT2 
 uhash_setValueComparator(UHashtable *hash, UValueComparator *fn){
     UValueComparator *result = hash->valueComparator;
     hash->valueComparator = fn;
@@ -628,7 +630,7 @@ uhash_setResizePolicy(UHashtable *hash, enum UHashResizePolicy policy) {
     UErrorCode status = U_ZERO_ERROR;
     _uhash_internalSetResizePolicy(hash, policy);
     hash->lowWaterMark  = (int32_t)(hash->length * hash->lowWaterRatio);
-    hash->highWaterMark = (int32_t)(hash->length * hash->highWaterRatio);
+    hash->highWaterMark = (int32_t)(hash->length * hash->highWaterRatio);    
     _uhash_rehash(hash, &status);
 }
 
@@ -851,7 +853,7 @@ uhash_hashIChars(const UHashTok key) {
     return s == NULL ? 0 : ustr_hashICharsN(s, uprv_strlen(s));
 }
 
-U_CAPI UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2 
 uhash_equals(const UHashtable* hash1, const UHashtable* hash2){
     int32_t count1, count2, pos, i;
 
@@ -884,14 +886,14 @@ uhash_equals(const UHashtable* hash1, const UHashtable* hash2){
     if(count1!=count2){
         return FALSE;
     }
-
+    
     pos=UHASH_FIRST;
     for(i=0; i<count1; i++){
         const UHashElement* elem1 = uhash_nextElement(hash1, &pos);
         const UHashTok key1 = elem1->key;
         const UHashTok val1 = elem1->value;
         /* here the keys are not compared, instead the key form hash1 is used to fetch
-         * value from hash2. If the hashes are equal then then both hashes should
+         * value from hash2. If the hashes are equal then then both hashes should 
          * contain equal values for the same key!
          */
         const UHashElement* elem2 = _uhash_find(hash2, key1, hash2->keyHasher(key1));

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -415,7 +417,7 @@
 #endif
 
 /**
- * \def U_HAVE_DEBUG_LOCATION_NEW
+ * \def U_HAVE_DEBUG_LOCATION_NEW 
  * Define this to define the MFC debug version of the operator new.
  *
  * @stable ICU 3.4
@@ -804,7 +806,7 @@
 #elif defined(__GNUC__)
 #   define U_EXPORT __attribute__((visibility("default")))
 #elif (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x550) \
-   || (defined(__SUNPRO_C) && __SUNPRO_C >= 0x550)
+   || (defined(__SUNPRO_C) && __SUNPRO_C >= 0x550) 
 #   define U_EXPORT __global
 /*#elif defined(__HP_aCC) || defined(__HP_cc)
 #   define U_EXPORT __declspec(dllexport)*/
@@ -829,7 +831,7 @@
     /* Windows needs to export/import data. */
 #   define U_IMPORT __declspec(dllimport)
 #else
-#   define U_IMPORT
+#   define U_IMPORT 
 #endif
 
 /**
@@ -841,6 +843,12 @@
  * This is only used for non-ICU-API functions.
  * When a function is a public ICU API,
  * you must use the U_CAPI and U_EXPORT2 qualifiers.
+ *
+ * Please note, you need to use U_CALLCONV after the *.
+ *
+ * NO : "static const char U_CALLCONV *func( . . . )"
+ * YES: "static const char* U_CALLCONV func( . . . )"
+ *
  * @stable ICU 2.0
  */
 #if U_PLATFORM == U_PF_OS390 && defined(__cplusplus)

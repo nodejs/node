@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -33,3 +35,4 @@ u_scanf_parse(UFILE     *f,
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif
+

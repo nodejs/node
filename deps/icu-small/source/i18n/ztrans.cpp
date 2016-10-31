@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2009-2010, International Business Machines Corporation and         *
@@ -6,7 +8,7 @@
 */
 
 /**
- * \file
+ * \file 
  * \brief C API: Time zone transition classes
  */
 

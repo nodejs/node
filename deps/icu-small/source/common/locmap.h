@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -7,7 +9,7 @@
 ******************************************************************************
 *
 * File locmap.h      : Locale Mapping Classes
-*
+* 
 *
 * Created by: Helena Shih
 *
@@ -34,3 +36,4 @@ U_CAPI int32_t uprv_convertToPosix(uint32_t hostid, char* posixID, int32_t posix
 U_CAPI uint32_t uprv_convertToLCID(const char *langID, const char* posixID, UErrorCode* status);
 
 #endif /* LOCMAP_H */
+

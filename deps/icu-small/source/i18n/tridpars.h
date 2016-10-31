@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **************************************************************************
  *   Copyright (c) 2002-2010, International Business Machines Corporation *
@@ -59,7 +61,7 @@ class TransliteratorIDParser /* not : public UObject because all methods are sta
      * 'sawSource' is true if there was an explicit source in the
      * parsed id.  If there was no explicit source, then an implied
      * source of ANY is returned and 'sawSource' is set to false.
-     *
+     * 
      * 'filter' is the parsed filter pattern, or null if there was no
      * filter.
      */
@@ -220,7 +222,7 @@ class TransliteratorIDParser /* not : public UObject because all methods are sta
      * @param source          the given source.
      * @param target          the given target.
      * @param variant         the given variant
-     * @param isSourcePresent If TRUE then the source is present.
+     * @param isSourcePresent If TRUE then the source is present. 
      *                        If the source is not present, ANY will be
      *                        given as the source, and isSourcePresent will be null
      * @return an array of 4 strings: source, target, variant, and
@@ -349,7 +351,7 @@ class TransliteratorIDParser /* not : public UObject because all methods are sta
     /**
      * Initialize static memory.
      */
-    static void init(UErrorCode &status);
+    static void U_CALLCONV init(UErrorCode &status);
 
     friend class SingleID;
 };

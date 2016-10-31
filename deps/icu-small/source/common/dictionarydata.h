@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2014, International Business Machines
@@ -60,7 +62,7 @@ public:
 /**
  * Wrapper class around generic dictionaries, implementing matches().
  * getType() should return a TRIE_TYPE_??? constant from DictionaryData.
- *
+ * 
  * All implementations of this interface must be thread-safe if they are to be used inside of the
  * dictionary-based break iteration code.
  */

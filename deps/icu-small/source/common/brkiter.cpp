@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and
@@ -117,7 +119,7 @@ BreakIterator::buildInstance(const Locale& loc, const char *type, int32_t kind, 
     // If there is a result, set the valid locale and actual locale, and the kind
     if (U_SUCCESS(status) && result != NULL) {
         U_LOCALE_BASED(locBased, *(BreakIterator*)result);
-        locBased.setLocaleIDs(ures_getLocaleByType(b, ULOC_VALID_LOCALE, &status),
+        locBased.setLocaleIDs(ures_getLocaleByType(b, ULOC_VALID_LOCALE, &status), 
                               actualLocale.data());
         result->setBreakType(kind);
     }
@@ -285,7 +287,7 @@ static UBool U_CALLCONV breakiterator_cleanup(void) {
 U_CDECL_END
 U_NAMESPACE_BEGIN
 
-static void U_CALLCONV
+static void U_CALLCONV 
 initService(void) {
     gService = new ICUBreakIteratorService();
     ucln_common_registerCleanup(UCLN_COMMON_BREAKITERATOR, breakiterator_cleanup);
@@ -418,6 +420,7 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
         break;
     case UBRK_SENTENCE:
         result = BreakIterator::buildInstance(loc, "sentence", kind, status);
+#if !UCONFIG_NO_FILTERED_BREAK_ITERATION
         {
             char ssKeyValue[kKeyValueLenMax] = {0};
             UErrorCode kvStatus = U_ZERO_ERROR;
@@ -430,6 +433,7 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
                 }
             }
         }
+#endif
         break;
     case UBRK_TITLE:
         result = BreakIterator::buildInstance(loc, "title", kind, status);

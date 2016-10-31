@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and    *
@@ -13,7 +15,7 @@
 #include "unicode/dcfmtsym.h"
 #include "unicode/format.h"
 #include "unicode/utf16.h"
-#include "decimalformatpatternimpl.h"
+#include "decimalformatpatternimpl.h" 
 
 
 #ifdef FMT_DEBUG
@@ -637,7 +639,7 @@ DecimalFormatPatternParser::applyPatternWithoutExpandAffix(
             .append(out.fPosPrefixPattern);
     }
     // TODO: Deprecate/Remove out.fNegSuffixPattern and 3 other fields.
-    AffixPattern::parseAffixString(
+    AffixPattern::parseAffixString( 
             out.fNegSuffixPattern, out.fNegSuffixAffix, status);
     AffixPattern::parseAffixString(
             out.fPosSuffixPattern, out.fPosSuffixAffix, status);

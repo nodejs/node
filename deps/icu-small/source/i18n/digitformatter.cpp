@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
  * Corporation and others.  All Rights Reserved.
@@ -112,10 +114,10 @@ DigitFormatter::countChar32(
         const DigitFormatterOptions &options) const {
     if (digits.isNaN()) {
         return countChar32ForNaN();
-    }
+    }   
     if (digits.isInfinite()) {
         return countChar32ForInfinity();
-    }
+    }   
     return countChar32(
             grouping,
             digits.getInterval(),

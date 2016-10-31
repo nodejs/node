@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
 * Copyright (C) 2016, International Business Machines
@@ -58,11 +60,13 @@ typedef enum UDateRelativeDateTimeFormatterStyle {
    */
   UDAT_STYLE_NARROW,
 
-  /**
-   * The number of styles.
-   * @stable ICU 54
-   */
-  UDAT_STYLE_COUNT
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal UDateRelativeDateTimeFormatterStyle value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
+    UDAT_STYLE_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 } UDateRelativeDateTimeFormatterStyle;
 
 #ifndef U_HIDE_DRAFT_API
@@ -74,7 +78,7 @@ typedef enum UDateRelativeDateTimeFormatterStyle {
 typedef enum URelativeDateTimeUnit {
     /**
      * Specifies that relative unit is year, e.g. "last year",
-     * "in 5 years".
+     * "in 5 years". 
      * @draft ICU 57
      */
     UDAT_REL_UNIT_YEAR,
@@ -146,7 +150,7 @@ typedef enum URelativeDateTimeUnit {
     UDAT_REL_UNIT_WEDNESDAY,
     /**
      * Specifies that relative unit is Thursday, e.g. "last Thursday",
-     * "this Thursday", "next Thursday", "in 5 Thursdays".
+     * "this Thursday", "next Thursday", "in 5 Thursdays". 
      * @draft ICU 57
      */
     UDAT_REL_UNIT_THURSDAY,
@@ -162,11 +166,13 @@ typedef enum URelativeDateTimeUnit {
      * @draft ICU 57
      */
     UDAT_REL_UNIT_SATURDAY,
+#ifndef U_HIDE_DEPRECATED_API
     /**
-     * Count of URelativeDateTimeUnit values
-     * @draft ICU 57
+     * One more than the highest normal URelativeDateTimeUnit value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UDAT_REL_UNIT_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 } URelativeDateTimeUnit;
 #endif  /* U_HIDE_DRAFT_API */
 

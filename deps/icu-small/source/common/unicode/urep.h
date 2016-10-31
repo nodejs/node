@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *   Copyright (C) 1997-2010, International Business Machines
@@ -86,7 +88,7 @@ typedef struct UReplaceableCallbacks {
      */
     UChar32 (*char32At)(const UReplaceable* rep,
                         int32_t offset);
-
+    
     /**
      * Function pointer that replaces text between start and limit in
      * this text with the given text.  Attributes (out of band info)
@@ -108,7 +110,7 @@ typedef struct UReplaceableCallbacks {
                        int32_t limit,
                        const UChar* text,
                        int32_t textLength);
-
+    
     /**
      * Function pointer that copies the characters in the range
      * [<tt>start</tt>, <tt>limit</tt>) into the array <tt>dst</tt>.
@@ -146,7 +148,7 @@ typedef struct UReplaceableCallbacks {
     void    (*copy)(UReplaceable* rep,
                     int32_t start,
                     int32_t limit,
-                    int32_t dest);
+                    int32_t dest);    
 
 } UReplaceableCallbacks;
 

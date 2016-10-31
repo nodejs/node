@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and others.
@@ -54,7 +56,13 @@ enum URBNFRuleSetTag {
     URBNF_ORDINAL,
     URBNF_DURATION,
     URBNF_NUMBERING_SYSTEM,
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal URBNFRuleSetTag value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     URBNF_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 };
 
 /**
@@ -951,7 +959,7 @@ public:
    * @param value The UDisplayContext value to set.
    * @param status Input/output status. If at entry this indicates a failure
    *               status, the function will do nothing; otherwise this will be
-   *               updated with any new status from the function.
+   *               updated with any new status from the function. 
    * @stable ICU 53
    */
   virtual void setContext(UDisplayContext value, UErrorCode& status);

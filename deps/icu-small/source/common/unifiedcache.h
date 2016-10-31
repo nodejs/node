@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 2015, International Business Machines Corporation and
@@ -37,7 +39,7 @@ class U_COMMON_API CacheKeyBase : public UObject {
    /**
     * Copy constructor. Needed to support cloning.
     */
-   CacheKeyBase(const CacheKeyBase &other)
+   CacheKeyBase(const CacheKeyBase &other) 
            : UObject(other), fCreationStatus(other.fCreationStatus), fIsMaster(FALSE) { }
    virtual ~CacheKeyBase();
 
@@ -93,7 +95,7 @@ class U_COMMON_API CacheKeyBase : public UObject {
 
 
 /**
- * Templated version of CacheKeyBase.
+ * Templated version of CacheKeyBase. 
  * A key of type LocaleCacheKey<T> maps to a value of type T.
  */
 template<typename T>
@@ -140,7 +142,7 @@ class LocaleCacheKey : public CacheKey<T> {
            : CacheKey<T>(other), fLoc(other.fLoc) { }
    virtual ~LocaleCacheKey() { }
    virtual int32_t hashCode() const {
-       return 37 *CacheKey<T>::hashCode() + fLoc.hashCode();
+       return (int32_t)(37u * (uint32_t)CacheKey<T>::hashCode() + (uint32_t)fLoc.hashCode());
    }
    virtual UBool operator == (const CacheKeyBase &other) const {
        // reflexive
@@ -374,7 +376,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    const UHashElement *_nextElement() const;
    int32_t _computeCountOfItemsToEvict() const;
    void _runEvictionSlice() const;
-   void _registerMaster(
+   void _registerMaster( 
         const CacheKeyBase *theKey, const SharedObject *value) const;
    void _put(
            const UHashElement *element,

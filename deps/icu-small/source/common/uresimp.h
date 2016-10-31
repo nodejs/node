@@ -1,6 +1,8 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
-*   Copyright (C) 2000-2015, International Business Machines
+*   Copyright (C) 2000-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
@@ -112,10 +114,10 @@ U_CFUNC UResourceBundle *ures_copyResb(UResourceBundle *r, const UResourceBundle
  * Returns a resource that can be located using the pathToResource argument. One needs optional package, locale
  * and path inside the locale, for example: "/myData/en/zoneStrings/3". Keys and indexes are supported. Keys
  * need to reference data in named structures, while indexes can reference both named and anonymous resources.
- * Features a fill-in parameter.
- *
+ * Features a fill-in parameter. 
+ * 
  * Note, this function does NOT have a syntax for specifying items within a tree.  May want to consider a
- * syntax that delineates between package/tree and resource.
+ * syntax that delineates between package/tree and resource.  
  *
  * @param pathToResource    a path that will lead to the requested resource
  * @param fillIn            if NULL a new UResourceBundle struct is allocated and must be deleted by the caller.
@@ -124,16 +126,16 @@ U_CFUNC UResourceBundle *ures_copyResb(UResourceBundle *r, const UResourceBundle
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_findResource(const char* pathToResource,
-                  UResourceBundle *fillIn, UErrorCode *status);
+ures_findResource(const char* pathToResource, 
+                  UResourceBundle *fillIn, UErrorCode *status); 
 
 /**
- * Returns a sub resource that can be located using the pathToResource argument. One needs a path inside
+ * Returns a sub resource that can be located using the pathToResource argument. One needs a path inside 
  * the supplied resource, for example, if you have "en_US" resource bundle opened, you might ask for
  * "zoneStrings/3". Keys and indexes are supported. Keys
- * need to reference data in named structures, while indexes can reference both
+ * need to reference data in named structures, while indexes can reference both 
  * named and anonymous resources.
- * Features a fill-in parameter.
+ * Features a fill-in parameter. 
  *
  * @param resourceBundle    a resource
  * @param pathToResource    a path that will lead to the requested resource
@@ -143,8 +145,8 @@ ures_findResource(const char* pathToResource,
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
 U_CAPI UResourceBundle* U_EXPORT2
-ures_findSubResource(const UResourceBundle *resB,
-                     char* pathToResource,
+ures_findSubResource(const UResourceBundle *resB, 
+                     char* pathToResource, 
                      UResourceBundle *fillIn, UErrorCode *status);
 
 /**
@@ -155,23 +157,23 @@ ures_findSubResource(const UResourceBundle *resB,
  * @param resName top level resource. Example: "collations"
  * @param keyword locale keyword. Example: "collation"
  * @param locid The requested locale
- * @param isAvailable If non-null, pointer to fillin parameter that indicates whether the
- * requested locale was available. The locale is defined as 'available' if it physically
+ * @param isAvailable If non-null, pointer to fillin parameter that indicates whether the 
+ * requested locale was available. The locale is defined as 'available' if it physically 
  * exists within the specified tree.
  * @param omitDefault if TRUE, omit keyword and value if default. 'de_DE\@collation=standard' -> 'de_DE'
  * @param status error code
- * @return  the actual buffer size needed for the full locale.  If it's greater
+ * @return  the actual buffer size needed for the full locale.  If it's greater 
  * than resultCapacity, the returned full name will be truncated and an error code will be returned.
  */
 U_CAPI int32_t U_EXPORT2
-ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
+ures_getFunctionalEquivalent(char *result, int32_t resultCapacity, 
                              const char *path, const char *resName, const char *keyword, const char *locid,
                              UBool *isAvailable, UBool omitDefault, UErrorCode *status);
 
 /**
  * Given a tree path and keyword, return a string enumeration of all possible values for that keyword.
  * @param path path to the tree, or NULL for ICU data
- * @param keyword a particular keyword to consider, must match a top level resource name
+ * @param keyword a particular keyword to consider, must match a top level resource name 
  * within the tree.
  * @param status error code
  */
@@ -191,14 +193,14 @@ ures_getKeywordValues(const char *path, const char *keyword, UErrorCode *status)
  *                          Alternatively, you can supply a struct to be filled by this function.
  * @param status: fills in the outgoing error code
  *                could be <TT>U_MISSING_RESOURCE_ERROR</TT> if the key is not found
- *                could be a non-failing error
+ *                could be a non-failing error 
  *                e.g.: <TT>U_USING_FALLBACK_WARNING</TT>,<TT>U_USING_DEFAULT_WARNING </TT>
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
-U_CAPI UResourceBundle* U_EXPORT2
-ures_getByKeyWithFallback(const UResourceBundle *resB,
-                          const char* inKey,
-                          UResourceBundle *fillIn,
+U_CAPI UResourceBundle* U_EXPORT2 
+ures_getByKeyWithFallback(const UResourceBundle *resB, 
+                          const char* inKey, 
+                          UResourceBundle *fillIn, 
                           UErrorCode *status);
 
 
@@ -212,25 +214,21 @@ ures_getByKeyWithFallback(const UResourceBundle *resB,
  * @param inKey             a key associated with the requested resource
  * @param status: fills in the outgoing error code
  *                could be <TT>U_MISSING_RESOURCE_ERROR</TT> if the key is not found
- *                could be a non-failing error
+ *                could be a non-failing error 
  *                e.g.: <TT>U_USING_FALLBACK_WARNING</TT>,<TT>U_USING_DEFAULT_WARNING </TT>
  * @return                  a pointer to a UResourceBundle struct. If fill in param was NULL, caller must delete it
  */
-U_CAPI const UChar* U_EXPORT2
-ures_getStringByKeyWithFallback(const UResourceBundle *resB,
-                          const char* inKey,
+U_CAPI const UChar* U_EXPORT2 
+ures_getStringByKeyWithFallback(const UResourceBundle *resB, 
+                          const char* inKey,  
                           int32_t* len,
                           UErrorCode *status);
 
 #ifdef __cplusplus
 
 U_CAPI void U_EXPORT2
-ures_getAllArrayItemsWithFallback(const UResourceBundle *bundle, const char *path,
-                                  icu::ResourceArraySink &sink, UErrorCode &errorCode);
-
-U_CAPI void U_EXPORT2
-ures_getAllTableItemsWithFallback(const UResourceBundle *bundle, const char *path,
-                                  icu::ResourceTableSink &sink, UErrorCode &errorCode);
+ures_getAllItemsWithFallback(const UResourceBundle *bundle, const char *path,
+                             icu::ResourceSink &sink, UErrorCode &errorCode);
 
 #endif  /* __cplusplus */
 
@@ -257,13 +255,13 @@ ures_getVersionByKey(const UResourceBundle *resB,
  *          The caller does not own this string.
  * @see ures_getVersion
  */
-U_CAPI const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2 
 ures_getVersionNumberInternal(const UResourceBundle *resourceBundle);
 
 /**
  * Return the name of the Locale associated with this ResourceBundle. This API allows
- * you to query for the real locale of the resource. For example, if you requested
- * "en_US_CALIFORNIA" and only "en_US" bundle exists, "en_US" will be returned.
+ * you to query for the real locale of the resource. For example, if you requested 
+ * "en_US_CALIFORNIA" and only "en_US" bundle exists, "en_US" will be returned. 
  * For subresources, the locale where this resource comes from will be returned.
  * If fallback has occured, getLocale will reflect this.
  *
@@ -273,8 +271,8 @@ ures_getVersionNumberInternal(const UResourceBundle *resourceBundle);
  * @param status just for catching illegal arguments
  * @return  A Locale name
  */
-U_CAPI const char* U_EXPORT2
-ures_getLocaleInternal(const UResourceBundle* resourceBundle,
+U_CAPI const char* U_EXPORT2 
+ures_getLocaleInternal(const UResourceBundle* resourceBundle, 
                UErrorCode* status);
 
 #endif /*URESIMP_H*/

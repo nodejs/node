@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (C) 1999-2011, International Business Machines Corporation
@@ -82,8 +84,8 @@ class TransliteratorParser : public UMemory {
      * Temporary table of variable names.  When parsing is complete, this is
      * copied into data.variableNames.
      */
-    Hashtable variableNames;
-
+    Hashtable variableNames;    
+    
     /**
      * String of standins for segments.  Used during the parsing of a single
      * rule.  segmentStandins.charAt(0) is the standin for "$1" and corresponds
@@ -93,7 +95,7 @@ class TransliteratorParser : public UMemory {
 
     /**
      * Vector of StringMatcher objects for segments.  Used during the
-     * parsing of a single rule.
+     * parsing of a single rule.  
      * segmentStandins.charAt(0) is the standin for "$1" and corresponds
      * to StringMatcher object segmentObjects.elementAt(0), etc.
      */
@@ -154,7 +156,7 @@ public:
      * call returns.
      * @param rules      rules, separated by ';'
      * @param direction  either FORWARD or REVERSE.
-     * @param pe         Struct to recieve information on position
+     * @param pe         Struct to recieve information on position 
      *                   of error if an error is encountered
      * @param ec         Output param set to success/failure code.
      */
@@ -166,7 +168,7 @@ public:
     /**
      * Return the compound filter parsed by parse().  Caller owns result.
      * @return the compound filter parsed by parse().
-     */
+     */ 
     UnicodeSet* orphanCompoundFilter();
 
 private:
@@ -326,7 +328,7 @@ private:
      * Copy constructor
      */
     TransliteratorParser(const TransliteratorParser&);
-
+    
     /**
      * Assignment operator
      */

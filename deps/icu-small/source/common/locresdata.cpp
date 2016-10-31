@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -82,9 +84,9 @@ uloc_getTableStringWithFallback(const char *path, const char *locale,
             if(U_FAILURE(errorCode)){
                 *pErrorCode = errorCode;
             }
-
+            
             break;*/
-
+            
             ures_getByKeyWithFallback(&table,subTableKey, &table, &errorCode);
         }
         if(U_SUCCESS(errorCode)){
@@ -111,8 +113,8 @@ uloc_getTableStringWithFallback(const char *path, const char *locale,
                 break;
             }
         }
-
-        if(U_FAILURE(errorCode)){
+        
+        if(U_FAILURE(errorCode)){    
 
             /* still can't figure out ?.. try the fallback mechanism */
             int32_t len = 0;
@@ -125,9 +127,9 @@ uloc_getTableStringWithFallback(const char *path, const char *locale,
                *pErrorCode = errorCode;
                 break;
             }
-
+            
             u_UCharsToChars(fallbackLocale, explicitFallbackName, len);
-
+            
             /* guard against recursive fallback */
             if(uprv_strcmp(explicitFallbackName, locale)==0){
                 *pErrorCode = U_INTERNAL_PROGRAM_ERROR;
@@ -210,7 +212,7 @@ uloc_getCharacterOrientation(const char* localeId,
 
 /**
  * Get the layout line orientation for the specified locale.
- *
+ * 
  * @param localeID locale name
  * @param status Error status
  * @return an enum indicating the layout orientation for lines.

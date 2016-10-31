@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -57,3 +59,4 @@ typedef struct USetAdder USetAdder;
 U_CDECL_END
 
 #endif
+

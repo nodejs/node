@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -119,10 +121,10 @@
  *
  * General printf format:<br>
  * %[format modifier][width][.precision][type modifier][format]
- *
+ * 
  * General scanf format:<br>
  * %[*][format modifier][width][type modifier][format]
- *
+ * 
 <table cellspacing="3">
 <tr><td>format</td><td>default<br>printf<br>type</td><td>default<br>scanf<br>type</td><td>description</td></tr>
 <tr><td>%E</td><td>double</td><td>float</td><td>Scientific with an uppercase exponent</td></tr>
@@ -170,9 +172,9 @@ Format modifiers
 <tr><td>%-</td><td><i>all</i></td><td>N/A</td><td>Left justify</td></tr>
 <tr><td>%+</td><td>%d, %i, %o, %x, %e, %f, %g, %E, %G</td><td>N/A</td><td>Always show the plus or minus sign. Needs data for plus sign.</td></tr>
 <tr><td>% </td><td>%d, %i, %o, %x, %e, %f, %g, %E, %G</td><td>N/A</td><td>Instead of a "+" output a blank character for positive numbers.</td></tr>
-<tr><td>%#</td><td>%d, %i, %o, %x, %e, %f, %g, %E, %G</td><td>N/A</td><td>Precede octal value with 0, hex with 0x and show the
+<tr><td>%#</td><td>%d, %i, %o, %x, %e, %f, %g, %E, %G</td><td>N/A</td><td>Precede octal value with 0, hex with 0x and show the 
                 decimal point for floats.</td></tr>
-<tr><td>%<i>n</i></td><td><i>all</i></td><td>N/A</td><td>Width of input/output. num is an actual number from 0 to
+<tr><td>%<i>n</i></td><td><i>all</i></td><td>N/A</td><td>Width of input/output. num is an actual number from 0 to 
                 some large number.</td></tr>
 <tr><td>%.<i>n</i></td><td>%e, %f, %g, %E, %F, %G</td><td>N/A</td><td>Significant digits precision. num is an actual number from
                 0 to some large number.<br>If * is used in printf, then the precision is passed in as an argument before the number to be formatted.</td></tr>
@@ -214,10 +216,10 @@ typedef struct UFILE UFILE;
  * @see u_fsettransliterator
  * @stable ICU 3.0
  */
-typedef enum {
+typedef enum { 
    U_READ = 1,
-   U_WRITE = 2,
-   U_READWRITE =3  /* == (U_READ | U_WRITE) */
+   U_WRITE = 2, 
+   U_READWRITE =3  /* == (U_READ | U_WRITE) */ 
 } UFileDirection;
 
 /**
@@ -228,8 +230,8 @@ typedef enum {
  * specified by that UFILE's codepage.
  * @param filename The name of the file to open.
  * @param perm The read/write permission for the UFILE; one of "r", "w", "rw"
- * @param locale The locale whose conventions will be used to format
- * and parse output. If this parameter is NULL, the default locale will
+ * @param locale The locale whose conventions will be used to format 
+ * and parse output. If this parameter is NULL, the default locale will 
  * be used.
  * @param codepage The codepage in which data will be written to and
  * read from the file. If this paramter is NULL the system default codepage
@@ -272,8 +274,8 @@ u_fopen_u(const UChar    *filename,
  * ownership and responsibility for the FILE* stream, use the
  * function u_fadopt.
  * @param f The FILE* to which this UFILE will attach and use.
- * @param locale The locale whose conventions will be used to format
- * and parse output. If this parameter is NULL, the default locale will
+ * @param locale The locale whose conventions will be used to format 
+ * and parse output. If this parameter is NULL, the default locale will 
  * be used.
  * @param codepage The codepage in which data will be written to and
  * read from the file. If this paramter is NULL, data will be written and
@@ -316,8 +318,8 @@ u_fadopt(FILE     *f,
  * returned UFILE.
  * @param stringBuf The string used for reading or writing.
  * @param capacity The number of code units available for use in stringBuf
- * @param locale The locale whose conventions will be used to format
- * and parse output. If this parameter is NULL, the default locale will
+ * @param locale The locale whose conventions will be used to format 
+ * and parse output. If this parameter is NULL, the default locale will 
  * be used.
  * @return A new UFILE, or NULL if an error occurred.
  * @stable ICU 3.0
@@ -411,7 +413,7 @@ u_fgetlocale(UFILE *file);
 
 /**
  * Set the locale whose conventions will be used to format and parse output.
- * @param locale The locale whose conventions will be used to format
+ * @param locale The locale whose conventions will be used to format 
  * and parse output.
  * @param file The UFILE to query.
  * @return NULL if successful, otherwise a negative number.
@@ -425,7 +427,7 @@ u_fsetlocale(UFILE      *file,
 
 /**
  * Get the codepage in which data is written to and read from the UFILE.
- * This is the same codepage passed in the preceding call to
+ * This is the same codepage passed in the preceding call to 
  * <TT>u_fsetcodepage</TT> or <TT>u_fopen</TT>.
  * @param file The UFILE to query.
  * @return The codepage in which data is written to and read from the UFILE,
@@ -441,9 +443,9 @@ u_fgetcodepage(UFILE *file);
  * before it is written to the underlying FILE*. It it generally a bad idea to
  * mix codepages within a file. This should only be called right
  * after opening the <TT>UFile</TT>, or after calling <TT>u_frewind</TT>.
- * @param codepage The codepage in which data will be written to
+ * @param codepage The codepage in which data will be written to 
  * and read from the file. For example <TT>"latin-1"</TT> or <TT>"ibm-943"</TT>.
- * A value of NULL means the default codepage for the UFILE's current
+ * A value of NULL means the default codepage for the UFILE's current 
  * locale will be used.
  * @param file The UFILE to set.
  * @return 0 if successful, otherwise a negative number.
@@ -601,8 +603,8 @@ u_fputc(UChar32  uc,
  * @stable ICU 3.0
  */
 U_STABLE int32_t U_EXPORT2
-u_file_write(const UChar    *ustring,
-             int32_t        count,
+u_file_write(const UChar    *ustring, 
+             int32_t        count, 
              UFILE          *f);
 
 
@@ -742,15 +744,15 @@ u_fungetc(UChar32   c,
  * @stable ICU 3.0
  */
 U_STABLE int32_t U_EXPORT2
-u_file_read(UChar        *chars,
-        int32_t        count,
+u_file_read(UChar        *chars, 
+        int32_t        count, 
         UFILE         *f);
 
 #if !UCONFIG_NO_TRANSLITERATION
 
 /**
  * Set a transliterator on the UFILE. The transliterator will be owned by the
- * UFILE.
+ * UFILE. 
  * @param file The UFILE to set transliteration on
  * @param adopt The UTransliterator to set. Can be NULL, which will
  * mean that no transliteration is used.
@@ -1012,3 +1014,5 @@ u_vsscanf_u(const UChar *buffer,
 #endif
 #endif
 #endif
+
+

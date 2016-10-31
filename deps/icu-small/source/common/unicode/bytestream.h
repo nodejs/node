@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 // Copyright (C) 2009-2012, International Business Machines
 // Corporation and others. All Rights Reserved.
 //
@@ -131,7 +133,7 @@ private:
 // -------------------------------------------------------------
 // Some standard implementations
 
-/**
+/** 
  * Implementation of ByteSink that writes to a flat byte array,
  * with bounds-checking:
  * This sink will not write more than capacity bytes to outbuf.
@@ -215,14 +217,14 @@ private:
   int32_t size_;
   int32_t appended_;
   UBool overflowed_;
-  CheckedArrayByteSink(); ///< default constructor not implemented
+  CheckedArrayByteSink(); ///< default constructor not implemented 
   CheckedArrayByteSink(const CheckedArrayByteSink &); ///< copy constructor not implemented
   CheckedArrayByteSink &operator=(const CheckedArrayByteSink &); ///< assignment operator not implemented
 };
 
 #if U_HAVE_STD_STRING
 
-/**
+/** 
  * Implementation of ByteSink that writes to a "string".
  * The StringClass is usually instantiated with a std::string.
  * @stable ICU 4.2
@@ -245,7 +247,7 @@ class StringByteSink : public ByteSink {
   virtual void Append(const char* data, int32_t n) { dest_->append(data, n); }
  private:
   StringClass* dest_;
-  StringByteSink(); ///< default constructor not implemented
+  StringByteSink(); ///< default constructor not implemented 
   StringByteSink(const StringByteSink &); ///< copy constructor not implemented
   StringByteSink &operator=(const StringByteSink &); ///< assignment operator not implemented
 };

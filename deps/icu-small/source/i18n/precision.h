@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2015, International Business Machines
@@ -56,27 +58,27 @@ public:
      * Default is zero.
      */
     DigitList fRoundingIncrement;
-
+    
     /**
      * If set, causes round() to set status to U_FORMAT_INEXACT_ERROR if
      * any rounding is done. Default is FALSE.
      */
     UBool fExactOnly;
-
+    
     /**
      * If set, causes round() to set status to U_ILLEGAL_ARGUMENT_ERROR if
      * rounded number has more than maximum integer digits. Default is FALSE.
      */
     UBool fFailIfOverMax;
-
+    
     /**
      * Controls the rounding mode that initVisibleDigits uses.
      * Default is DecimalFormat::kRoundHalfEven
      */
     DecimalFormat::ERoundingMode fRoundingMode;
-
+    
     FixedPrecision();
-
+    
     /**
      * Returns TRUE if this object equals rhs.
      */
@@ -89,7 +91,7 @@ public:
                 fFailIfOverMax == rhs.fFailIfOverMax &&
                 fRoundingMode == rhs.fRoundingMode);
     }
-
+    
     /**
      * Rounds value in place to prepare it for formatting.
      * @param value The value to be rounded. It is rounded in place.
@@ -100,7 +102,7 @@ public:
      * @return reference to value.
      */
     DigitList &round(DigitList &value, int32_t exponent, UErrorCode &status) const;
-
+    
     /**
      * Returns the interval to use to format the rounded value.
      * @param roundedValue the already rounded value to format.
@@ -110,12 +112,12 @@ public:
      */
     DigitInterval &getInterval(
             const DigitList &roundedValue, DigitInterval &interval) const;
-
+    
     /**
      * Returns TRUE if this instance allows for fast formatting of integers.
      */
     UBool isFastFormattable() const;
-
+    
     /**
      * Initializes a VisibleDigits.
      * @param value value for VisibleDigits
@@ -129,7 +131,7 @@ public:
             DigitList &value,
             VisibleDigits &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigits.
      * @param value value for VisibleDigits
@@ -141,7 +143,7 @@ public:
             double value,
             VisibleDigits &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigits.
      * @param value value for VisibleDigits
@@ -153,7 +155,7 @@ public:
             int64_t value,
             VisibleDigits &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigitsWithExponent.
      * @param value value for VisibleDigits
@@ -167,7 +169,7 @@ public:
             DigitList &value,
             VisibleDigitsWithExponent &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigitsWithExponent.
      * @param value value for VisibleDigits
@@ -179,7 +181,7 @@ public:
             double value,
             VisibleDigitsWithExponent &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigitsWithExponent.
      * @param value value for VisibleDigits
@@ -191,7 +193,7 @@ public:
             int64_t value,
             VisibleDigitsWithExponent &digits,
             UErrorCode &status) const;
-
+    
 private:
     /**
      * Attempts to initialize 'digits' using simple mod 10 arithmetic.
@@ -216,7 +218,7 @@ private:
      * @param mantissa the digits. May be positive or negative. May contain
      *  trailing zeros.
      * @param exponent must always be zero or negative. An exponent > 0
-     *  yields undefined results!
+     *  yields undefined results! 
      * @param digits result stored here.
      * @param status any error returned here.
      */
@@ -232,7 +234,7 @@ private:
     DigitInterval &getInterval(
             int32_t upperExponent, DigitInterval &interval) const;
     static UBool handleNonNumeric(DigitList &value, VisibleDigits &digits);
-
+    
     friend class ScientificPrecision;
 };
 
@@ -284,7 +286,7 @@ public:
             DigitList &value,
             VisibleDigitsWithExponent &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigitsWithExponent.
      * @param value the value
@@ -296,7 +298,7 @@ public:
             double value,
             VisibleDigitsWithExponent &digits,
             UErrorCode &status) const;
-
+    
     /**
      * Initializes a VisibleDigitsWithExponent.
      * @param value the value
@@ -308,7 +310,7 @@ public:
             int64_t value,
             VisibleDigitsWithExponent &digits,
             UErrorCode &status) const;
-
+    
 private:
     int32_t getMultiplier() const;
 

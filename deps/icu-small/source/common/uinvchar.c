@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -568,7 +570,7 @@ uprv_aestrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
 {
   uint8_t *orig_dst = dst;
 
-  if(n==-1) {
+  if(n==-1) { 
     n = uprv_strlen((const char*)src)+1; /* copy NUL */
   }
   /* copy non-null */
@@ -589,7 +591,7 @@ uprv_eastrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
 {
   uint8_t *orig_dst = dst;
 
-  if(n==-1) {
+  if(n==-1) { 
     n = uprv_strlen((const char*)src)+1; /* copy NUL */
   }
   /* copy non-null */
@@ -608,3 +610,4 @@ uprv_eastrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
   }
   return orig_dst;
 }
+

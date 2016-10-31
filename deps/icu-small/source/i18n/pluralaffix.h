@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2015, International Business Machines
@@ -28,7 +30,7 @@ class FieldPositionHandler;
 
 // Export an explicit template instantiation.
 //
-//    MSVC requires this, even though it should not be necessary.
+//    MSVC requires this, even though it should not be necessary. 
 //    No direct access leaks out of the i18n library.
 //
 //    Macintosh produces duplicate definition linker errors with the explicit template
@@ -50,7 +52,7 @@ template class U_I18N_API PluralMap<DigitAffix>;
  * To use one of these objects, build it up first using append() and
  * setVariant() methods. Once built, leave unchanged and let multiple threads
  * safely access.
- *
+ * 
  * The following code is sample code for building up:
  *   one: US Dollar -
  *   other: US Dollars -

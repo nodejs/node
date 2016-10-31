@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -1966,10 +1968,10 @@ struct cloneSCSUStruct
     SCSUData mydata;
 };
 
-static UConverter *
-_SCSUSafeClone(const UConverter *cnv,
-               void *stackBuffer,
-               int32_t *pBufferSize,
+static UConverter * 
+_SCSUSafeClone(const UConverter *cnv, 
+               void *stackBuffer, 
+               int32_t *pBufferSize, 
                UErrorCode *status)
 {
     struct cloneSCSUStruct * localClone;

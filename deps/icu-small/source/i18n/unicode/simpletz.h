@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************************
  * Copyright (C) 1997-2013, International Business Machines                     *
@@ -27,10 +29,10 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: SimpleTimeZone is a concrete subclass of TimeZone.
  */
-
+ 
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/basictz.h"

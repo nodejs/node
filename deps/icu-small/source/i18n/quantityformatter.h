@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 2014-2016, International Business Machines
@@ -33,10 +35,10 @@ class FieldPosition;
  * There must be a pattern for the "other" variant.
  * Then use the format() method.
  * <p>
- * Concurrent calls only to const methods on a QuantityFormatter object are
+ * Concurrent calls only to const methods on a QuantityFormatter object are 
  * safe, but concurrent const and non-const method calls on a QuantityFormatter
  * object are not safe and require synchronization.
- *
+ * 
  */
 class U_I18N_API QuantityFormatter : public UMemory {
 public:
@@ -91,7 +93,7 @@ public:
      * Formats a number with this object appending the result to appendTo.
      * At least the "other" variant must be added to this object for this
      * method to work.
-     *
+     * 
      * @param number the single number.
      * @param fmt formats the number
      * @param rules computes the plural variant to use.

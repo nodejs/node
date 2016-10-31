@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*************************************************************************
 * Copyright (c) 1997-2016, International Business Machines Corporation
 * and others. All Rights Reserved.
@@ -30,7 +32,7 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: TimeZone object
  */
 
@@ -180,10 +182,10 @@ public:
      * @param zoneType      The system time zone type.
      * @param region        The ISO 3166 two-letter country code or UN M.49
      *                      three-digit area code. When NULL, no filtering
-     *                      done by region.
+     *                      done by region. 
      * @param rawOffset     An offset from GMT in milliseconds, ignoring
      *                      the effect of daylight savings time, if any.
-     *                      When NULL, no filtering done by zone offset.
+     *                      When NULL, no filtering done by zone offset. 
      * @param ec            Output param to filled in with a success or
      *                      an error.
      * @return an enumeration object, owned by the caller.
@@ -676,7 +678,7 @@ public:
      * @stable ICU 2.0
      */
     UnicodeString& getDisplayName(UBool daylight, EDisplayType style, const Locale& locale, UnicodeString& result) const;
-
+    
     /**
      * Queries if this time zone uses daylight savings time.
      * @return true if this time zone uses daylight savings time,
@@ -708,7 +710,7 @@ public:
      * always returns a <code>BasicTimeZone</code>) provides a series of methods allowing
      * historic and future time zone rule iteration, so you can check if daylight saving
      * time is observed or not within a given period.
-     *
+     * 
      * @stable ICU 2.0
      */
     virtual UBool useDaylightTime(void) const = 0;
@@ -767,7 +769,7 @@ public:
      * @stable ICU 2.0
      */
     virtual UClassID getDynamicClassID(void) const = 0;
-
+    
     /**
      * Returns the amount of time to be added to local standard time
      * to get local wall clock time.
@@ -792,7 +794,7 @@ public:
      * When the time zone is not associated with a specific location,
      * for example - "Etc/UTC", "EST5EDT", then this method returns
      * "001" (UN M.49 area code for World).
-     *
+     * 
      * @param id            The system time zone ID.
      * @param region        Output buffer for receiving the region code.
      * @param capacity      The size of the output buffer.
@@ -800,10 +802,10 @@ public:
      *                      is not a known system time zone ID,
      *                      U_ILLEGAL_ARGUMENT_ERROR is set.
      * @return The length of the output region code.
-     * @stable ICU 4.8
-     */
-    static int32_t U_EXPORT2 getRegion(const UnicodeString& id,
-        char *region, int32_t capacity, UErrorCode& status);
+     * @stable ICU 4.8 
+     */ 
+    static int32_t U_EXPORT2 getRegion(const UnicodeString& id, 
+        char *region, int32_t capacity, UErrorCode& status); 
 
 protected:
 

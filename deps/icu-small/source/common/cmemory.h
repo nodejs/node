@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -120,7 +122,7 @@ typedef union {
   *    Clears any user heap functions from u_setMemoryFunctions()
   *    Does NOT deallocate any remaining allocated memory.
   */
-U_CFUNC UBool
+U_CFUNC UBool 
 cmemory_cleanup(void);
 
 /**
@@ -281,7 +283,7 @@ inline T *LocalMemory<T>::allocateInsteadAndCopy(int32_t newCapacity, int32_t le
                 if(length>newCapacity) {
                     length=newCapacity;
                 }
-                uprv_memcpy(p, LocalPointerBase<T>::ptr, length*sizeof(T));
+                uprv_memcpy(p, LocalPointerBase<T>::ptr, (size_t)length*sizeof(T));
             }
             uprv_free(LocalPointerBase<T>::ptr);
             LocalPointerBase<T>::ptr=p;
@@ -406,7 +408,7 @@ private:
     //      Returning NULL is rejected by gcc for operator new.
     //      The expedient thing is just not to override operator new.
     //      While relatively pointless, heap allocated instances will function.
-    // static void * U_EXPORT2 operator new(size_t size);
+    // static void * U_EXPORT2 operator new(size_t size); 
     // static void * U_EXPORT2 operator new[](size_t size);
 #if U_HAVE_PLACEMENT_NEW
     // static void * U_EXPORT2 operator new(size_t, void *ptr);
@@ -428,7 +430,7 @@ inline T *MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity, int32_t
                 if(length>newCapacity) {
                     length=newCapacity;
                 }
-                uprv_memcpy(p, ptr, length*sizeof(T));
+                uprv_memcpy(p, ptr, (size_t)length*sizeof(T));
             }
             releaseArray();
             ptr=p;
@@ -459,7 +461,7 @@ inline T *MaybeStackArray<T, stackCapacity>::orphanOrClone(int32_t length, int32
         if(p==NULL) {
             return NULL;
         }
-        uprv_memcpy(p, ptr, length*sizeof(T));
+        uprv_memcpy(p, ptr, (size_t)length*sizeof(T));
     }
     resultCapacity=length;
     ptr=stackArray;
@@ -581,7 +583,7 @@ private:
     // No heap allocation. Use only on the stack.
     //   (Declaring these functions private triggers a cascade of problems;
     //    see the MaybeStackArray class for details.)
-    // static void * U_EXPORT2 operator new(size_t size);
+    // static void * U_EXPORT2 operator new(size_t size); 
     // static void * U_EXPORT2 operator new[](size_t size);
 #if U_HAVE_PLACEMENT_NEW
     // static void * U_EXPORT2 operator new(size_t, void *ptr);
@@ -607,7 +609,7 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::resize(int32_t newCapac
                     length=newCapacity;
                 }
             }
-            uprv_memcpy(p, ptr, sizeof(H)+length*sizeof(T));
+            uprv_memcpy(p, ptr, sizeof(H)+(size_t)length*sizeof(T));
             releaseMemory();
             ptr=p;
             capacity=newCapacity;
@@ -638,7 +640,7 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::orphanOrClone(int32_t l
         if(p==NULL) {
             return NULL;
         }
-        uprv_memcpy(p, ptr, sizeof(H)+length*sizeof(T));
+        uprv_memcpy(p, ptr, sizeof(H)+(size_t)length*sizeof(T));
     }
     resultCapacity=length;
     ptr=&stackHeader;

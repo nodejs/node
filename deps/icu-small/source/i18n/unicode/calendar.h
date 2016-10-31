@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 1997-2014, International Business Machines
@@ -28,7 +30,7 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Calendar object
  */
 #if !UCONFIG_NO_FORMATTING
@@ -135,7 +137,7 @@ class BasicTimeZone;
  * Calendar resolves the time using the UTC offset before the transition by default.
  * In this example, 1:30 AM is interpreted as 1:30 AM standard time (non-exist),
  * so the final result will be 2:30 AM daylight time.
- *
+ * 
  * <p>On the date switching back to standard time, wall clock time is moved back one
  * hour at 2:00 AM. So wall clock time from 1:00 AM to 1:59 AM occur twice. In this
  * case, the ICU Calendar resolves the time using the UTC offset after the transition
@@ -233,7 +235,7 @@ public:
         DST_OFFSET,           // Example: 0 or U_MILLIS_PER_HOUR
         YEAR_WOY,             // 'Y' Example: 1..big number - Year of Week of Year
         DOW_LOCAL,            // 'e' Example: 1..7 - Day of Week / Localized
-
+        
         EXTENDED_YEAR,
         JULIAN_DAY,
         MILLISECONDS_IN_DAY,
@@ -912,7 +914,7 @@ public:
      * option for this. When the argument is neither <code>UCAL_WALLTIME_FIRST</code>
      * nor <code>UCAL_WALLTIME_LAST</code>, this method has no effect and will keep
      * the current setting.
-     *
+     * 
      * @param option the behavior for handling repeating wall time, either
      * <code>UCAL_WALLTIME_FIRST</code> or <code>UCAL_WALLTIME_LAST</code>.
      * @see #getRepeatedWallTimeOption
@@ -923,7 +925,7 @@ public:
     /**
      * Gets the behavior for handling wall time repeating multiple times
      * at negative time zone offset transitions.
-     *
+     * 
      * @return the behavior for handling repeating wall time, either
      * <code>UCAL_WALLTIME_FIRST</code> or <code>UCAL_WALLTIME_LAST</code>.
      * @see #setRepeatedWallTimeOption
@@ -944,12 +946,12 @@ public:
      * <p>
      * <b>Note:</b>This option is effective only when this calendar is lenient.
      * When the calendar is strict, such non-existing wall time will cause an error.
-     *
+     * 
      * @param option the behavior for handling skipped wall time at positive time zone
      * offset transitions, one of <code>UCAL_WALLTIME_FIRST</code>, <code>UCAL_WALLTIME_LAST</code> and
      * <code>UCAL_WALLTIME_NEXT_VALID</code>.
      * @see #getSkippedWallTimeOption
-     *
+     * 
      * @stable ICU 49
      */
     void setSkippedWallTimeOption(UCalendarWallTimeOption option);
@@ -957,7 +959,7 @@ public:
     /**
      * Gets the behavior for handling skipped wall time at positive time zone offset
      * transitions.
-     *
+     * 
      * @return the behavior for handling skipped wall time, one of
      * <code>UCAL_WALLTIME_FIRST</code>, <code>UCAL_WALLTIME_LAST</code>
      * and <code>UCAL_WALLTIME_NEXT_VALID</code>.

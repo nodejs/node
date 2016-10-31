@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -27,7 +29,7 @@
 #define MAX_UCHAR_BUFFER_SIZE(buffer) (sizeof(buffer)/(U16_MAX_LENGTH*sizeof(UChar)))
 #define MAX_UCHAR_BUFFER_NEEDED(strLen) ((strLen+1)*U16_MAX_LENGTH*sizeof(UChar))
 
-/**
+/** 
  * Enum representing the possible argument types for uprintf/uscanf
  */
 typedef enum ufmt_type_info {
@@ -97,10 +99,10 @@ ufmt_isdigit(UChar     c,
  * @param minDigits The minimum number of digits for for the formatted number,
  * which will be padded with zeroes. -1 means do not pad.
  */
-void
-ufmt_64tou(UChar     *buffer,
+void 
+ufmt_64tou(UChar     *buffer, 
       int32_t     *len,
-      uint64_t     value,
+      uint64_t     value, 
       uint8_t     radix,
       UBool    uselower,
       int32_t    minDigits);
@@ -110,10 +112,10 @@ ufmt_64tou(UChar     *buffer,
  * This functions avoids size constraints of 64-bit types.
  * Pointers can be at 32-128 bits in size.
  */
-void
-ufmt_ptou(UChar    *buffer,
+void 
+ufmt_ptou(UChar    *buffer, 
           int32_t   *len,
-          void      *value,
+          void      *value, 
           UBool     uselower);
 
 /**
@@ -125,7 +127,7 @@ ufmt_ptou(UChar    *buffer,
  * @return The numeric value.
  */
 int64_t
-ufmt_uto64(const UChar     *buffer,
+ufmt_uto64(const UChar     *buffer, 
       int32_t     *len,
       int8_t     radix);
 
@@ -147,7 +149,7 @@ ufmt_utop(const UChar     *buffer,
  * @param sSize The size of s to convert.
  * @param target The buffer to convert to.
  * @param tSize The size of target
- * @return A pointer to a newly allocated converted version of s, or 0
+ * @return A pointer to a newly allocated converted version of s, or 0 
  * on error.
  */
 UChar*
@@ -157,3 +159,4 @@ ufmt_defaultCPToUnicode(const char *s, int32_t sSize,
 
 
 #endif
+

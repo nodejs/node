@@ -1,4 +1,6 @@
-/*
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+/*  
 **********************************************************************
 *   Copyright (C) 2000-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -11,7 +13,7 @@
 *   created on: 2000oct16
 *   created by: Ram Viswanadha
 *   10/31/2000  Ram     Implemented offsets logic function
-*
+*   
 */
 
 #include "unicode/utypes.h"
@@ -66,7 +68,7 @@ typedef struct{
 
 
 
-static void
+static void 
 _HZOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
     UConverter *gbConverter;
     if(pArgs->onlyTestIsLoadable) {
@@ -92,7 +94,7 @@ _HZOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
     }
 }
 
-static void
+static void 
 _HZClose(UConverter *cnv){
     if(cnv->extraInfo != NULL) {
         ucnv_close (((UConverterDataHZ *) (cnv->extraInfo))->gbConverter);
@@ -103,7 +105,7 @@ _HZClose(UConverter *cnv){
     }
 }
 
-static void
+static void 
 _HZReset(UConverter *cnv, UConverterResetChoice choice){
     if(choice<=UCNV_RESET_TO_UNICODE) {
         cnv->toUnicodeStatus = 0;
@@ -115,7 +117,7 @@ _HZReset(UConverter *cnv, UConverterResetChoice choice){
     }
     if(choice!=UCNV_RESET_TO_UNICODE) {
         cnv->fromUnicodeStatus= 0;
-        cnv->fromUChar32=0x0000;
+        cnv->fromUChar32=0x0000; 
         if(cnv->extraInfo != NULL){
             ((UConverterDataHZ*)cnv->extraInfo)->isEscapeAppended = FALSE;
             ((UConverterDataHZ*)cnv->extraInfo)->targetIndex = 0;
@@ -127,7 +129,7 @@ _HZReset(UConverter *cnv, UConverterResetChoice choice){
 
 /**************************************HZ Encoding*************************************************
 * Rules for HZ encoding
-*
+* 
 *   In ASCII mode, a byte is interpreted as an ASCII character, unless a
 *   '~' is encountered. The character '~' is an escape character. By
 *   convention, it must be immediately followed ONLY by '~', '{' or '\n'
@@ -150,7 +152,7 @@ _HZReset(UConverter *cnv, UConverterResetChoice choice){
 */
 
 
-static void
+static void 
 UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                                                             UErrorCode* err){
     char tempBuf[2];
@@ -160,7 +162,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
     UChar32 targetUniChar = 0x0000;
     int32_t mySourceChar = 0x0000;
     UConverterDataHZ* myData=(UConverterDataHZ*)(args->converter->extraInfo);
-    tempBuf[0]=0;
+    tempBuf[0]=0; 
     tempBuf[1]=0;
 
     /* Calling code already handles this situation. */
@@ -168,11 +170,11 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
         *err = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }*/
-
+    
     while(mySource< mySourceLimit){
-
+        
         if(myTarget < args->targetLimit){
-
+            
             mySourceChar= (unsigned char) *mySource++;
 
             if(args->converter->mode == UCNV_TILDE) {
@@ -330,7 +332,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
 }
 
 
-static void
+static void 
 UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                                                       UErrorCode * err){
     const UChar *mySource = args->source;
@@ -347,7 +349,7 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
     UBool oldIsTargetUCharDBCS;
     int len =0;
     const char* escSeq=NULL;
-
+    
     /* Calling code already handles this situation. */
     /*if ((args->converter == NULL) || (args->targetLimit < myTarget) || (args->sourceLimit < args->source)){
         *err = U_ILLEGAL_ARGUMENT_ERROR;
@@ -360,9 +362,9 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
     while (mySourceIndex < mySourceLength){
         targetUniChar = missingCharMarker;
         if (myTargetIndex < targetLength){
-
+            
             mySourceChar = (UChar) mySource[mySourceIndex++];
-
+            
 
             oldIsTargetUCharDBCS = isTargetUCharDBCS;
             if(mySourceChar ==UCNV_TILDE){
@@ -387,7 +389,7 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                 }
             }
             if (targetUniChar != missingCharMarker){
-               myConverterData->isTargetUCharDBCS = isTargetUCharDBCS = (UBool)(targetUniChar>0x00FF);
+               myConverterData->isTargetUCharDBCS = isTargetUCharDBCS = (UBool)(targetUniChar>0x00FF);     
                  if(oldIsTargetUCharDBCS != isTargetUCharDBCS || !myConverterData->isEscapeAppended ){
                     /*Shifting from a double byte to single byte mode*/
                     if(!isTargetUCharDBCS){
@@ -401,10 +403,10 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                         escSeq = DB_ESCAPE;
                         CONCAT_ESCAPE_MACRO(args, myTargetIndex, targetLength, escSeq,err,len,mySourceIndex);
                         myConverterData->isEscapeAppended = TRUE;
-
+                        
                     }
                 }
-
+            
                 if(isTargetUCharDBCS){
                     if( myTargetIndex <targetLength){
                         myTarget[myTargetIndex++] =(char) (targetUniChar >> 8);
@@ -419,7 +421,7 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                         }else{
                             args->converter->charErrorBuffer[args->converter->charErrorBufferLength++] = (char) targetUniChar;
                             *err = U_BUFFER_OVERFLOW_ERROR;
-                        }
+                        } 
                     }else{
                         args->converter->charErrorBuffer[args->converter->charErrorBufferLength++] =(char) (targetUniChar >> 8);
                         args->converter->charErrorBuffer[args->converter->charErrorBufferLength++] = (char) targetUniChar;
@@ -432,7 +434,7 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                         if(offsets){
                             *(offsets++) = mySourceIndex-1;
                         }
-
+                        
                     }else{
                         args->converter->charErrorBuffer[args->converter->charErrorBufferLength++] = (char) targetUniChar;
                         *err = U_BUFFER_OVERFLOW_ERROR;
@@ -501,7 +503,7 @@ _HZ_WriteSub(UConverterFromUnicodeArgs *args, int32_t offsetIndex, UErrorCode *e
     char *p;
     char buffer[4];
     p = buffer;
-
+    
     if( convData->isTargetUCharDBCS){
         *p++= UCNV_TILDE;
         *p++= UCNV_CLOSE_BRACE;
@@ -533,10 +535,10 @@ struct cloneHZStruct
 };
 
 
-static UConverter *
-_HZ_SafeClone(const UConverter *cnv,
-              void *stackBuffer,
-              int32_t *pBufferSize,
+static UConverter * 
+_HZ_SafeClone(const UConverter *cnv, 
+              void *stackBuffer, 
+              int32_t *pBufferSize, 
               UErrorCode *status)
 {
     struct cloneHZStruct * localClone;
@@ -584,20 +586,20 @@ _HZ_GetUnicodeSet(const UConverter *cnv,
 static const UConverterImpl _HZImpl={
 
     UCNV_HZ,
-
+    
     NULL,
     NULL,
-
+    
     _HZOpen,
     _HZClose,
     _HZReset,
-
+    
     UConverter_toUnicode_HZ_OFFSETS_LOGIC,
     UConverter_toUnicode_HZ_OFFSETS_LOGIC,
     UConverter_fromUnicode_HZ_OFFSETS_LOGIC,
     UConverter_fromUnicode_HZ_OFFSETS_LOGIC,
     NULL,
-
+    
     NULL,
     NULL,
     _HZ_WriteSub,
@@ -608,14 +610,14 @@ static const UConverterImpl _HZImpl={
 static const UConverterStaticData _HZStaticData={
     sizeof(UConverterStaticData),
         "HZ",
-         0,
-         UCNV_IBM,
-         UCNV_HZ,
-         1,
+         0, 
+         UCNV_IBM, 
+         UCNV_HZ, 
+         1, 
          4,
         { 0x1a, 0, 0, 0 },
         1,
-        FALSE,
+        FALSE, 
         FALSE,
         0,
         0,

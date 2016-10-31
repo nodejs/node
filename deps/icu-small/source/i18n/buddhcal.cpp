@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2003-2013, International Business Machines Corporation and    *
@@ -69,7 +71,7 @@ int32_t BuddhistCalendar::handleGetExtendedYear()
     if (newerField(UCAL_EXTENDED_YEAR, UCAL_YEAR) == UCAL_EXTENDED_YEAR) {
         year = internalGet(UCAL_EXTENDED_YEAR, kGregorianEpoch);
     } else {
-        // extended year is a gregorian year, where 1 = 1AD,  0 = 1BC, -1 = 2BC, etc
+        // extended year is a gregorian year, where 1 = 1AD,  0 = 1BC, -1 = 2BC, etc 
         year = internalGet(UCAL_YEAR, kGregorianEpoch - kBuddhistEraStart)
                 + kBuddhistEraStart;
     }
@@ -168,7 +170,7 @@ UDate BuddhistCalendar::defaultCenturyStart() const
 
 int32_t BuddhistCalendar::defaultCenturyStartYear() const
 {
-    // lazy-evaluate systemDefaultCenturyStartYear and systemDefaultCenturyStart
+    // lazy-evaluate systemDefaultCenturyStartYear and systemDefaultCenturyStart 
     umtx_initOnce(gBCInitOnce, &initializeSystemDefaultCentury);
     return gSystemDefaultCenturyStartYear;
 }

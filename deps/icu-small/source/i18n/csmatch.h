@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (C) 2005-2012, International Business Machines
@@ -45,10 +47,10 @@ class CharsetMatch : public UMemory
       * Default (NULL) parameters for names will be filled by calling the
       *   corresponding getters on the recognizer.
       */
-    void set(InputText               *input,
-             const CharsetRecognizer *cr,
-             int32_t                  conf,
-             const char              *csName=NULL,
+    void set(InputText               *input, 
+             const CharsetRecognizer *cr, 
+             int32_t                  conf, 
+             const char              *csName=NULL, 
              const char              *lang=NULL);
 
     /**

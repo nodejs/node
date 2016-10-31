@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *****************************************************************************
  * Copyright (C) 1996-2014, International Business Machines Corporation and others.
@@ -24,10 +26,10 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
- * \brief C++ API: Keys for comparing strings multiple times.
+ * \file 
+ * \brief C++ API: Keys for comparing strings multiple times. 
  */
-
+ 
 #if !UCONFIG_NO_COLLATION
 
 #include "unicode/uobject.h"
@@ -182,7 +184,7 @@ public:
     uint8_t*                toByteArray(int32_t& count) const;
 #endif
 
-#ifndef U_HIDE_DEPRECATED_API
+#ifndef U_HIDE_DEPRECATED_API 
     /**
     * Convenience method which does a string(bit-wise) comparison of the
     * two collation keys.

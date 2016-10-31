@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2011, International Business Machines
@@ -190,7 +192,7 @@ private:
                            int32_t numAnonymousRBTs,
                            UParseError& parseError,
                            UErrorCode& status);
-
+    
     CompoundTransliterator(UVector& list,
                            UParseError& parseError,
                            UErrorCode& status);

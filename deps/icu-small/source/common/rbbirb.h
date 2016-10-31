@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  rbbirb.h
 //
@@ -85,7 +87,7 @@ public:
     // A do-nothing inline function for non-debug builds.  Member funcs can't be empty
     //  or the call sites won't compile.
     int32_t fFakeField;
-    #define rbbiSymtablePrint() fFakeField=0;
+    #define rbbiSymtablePrint() fFakeField=0; 
 #endif
 
 private:
@@ -200,9 +202,12 @@ struct RBBISetTableEl {
 #define RBBIDebugPrintf printf
 #define RBBIDebugPuts puts
 #else
-#undef RBBIDebugPrintf
+#undef RBBIDebugPrintf 
 #define RBBIDebugPuts(arg)
 #endif
 
 U_NAMESPACE_END
 #endif
+
+
+

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2010-2016, International Business Machines
@@ -29,7 +31,6 @@ U_NAMESPACE_BEGIN
 
 class BytesTrieElement;
 class CharString;
-
 /**
  * Builder class for BytesTrie.
  *
@@ -65,7 +66,7 @@ public:
      * @return *this
      * @stable ICU 4.8
      */
-    BytesTrieBuilder &add(const StringPiece &s, int32_t value, UErrorCode &errorCode);
+    BytesTrieBuilder &add(StringPiece s, int32_t value, UErrorCode &errorCode);
 
     /**
      * Builds a BytesTrie for the add()ed data.
@@ -141,7 +142,6 @@ private:
     virtual int32_t getMinLinearMatch() const { return BytesTrie::kMinLinearMatch; }
     virtual int32_t getMaxLinearMatchLength() const { return BytesTrie::kMaxLinearMatchLength; }
 
-    // don't use #ifndef U_HIDE_INTERNAL_API with private class members
     /**
      * @internal
      */
@@ -153,7 +153,7 @@ private:
     private:
         const char *s;
     };
-
+    
     // don't use #ifndef U_HIDE_INTERNAL_API with private class members or virtual methods.
     virtual Node *createLinearMatchNode(int32_t i, int32_t byteIndex, int32_t length,
                                         Node *nextNode) const;

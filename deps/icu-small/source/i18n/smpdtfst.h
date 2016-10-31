@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2009-2013, International Business Machines Corporation and    *
@@ -30,12 +32,12 @@ class SimpleDateFormatStaticSets : public UMemory
 public:
     SimpleDateFormatStaticSets(UErrorCode &status);
     ~SimpleDateFormatStaticSets();
-
+    
     static void    initSets(UErrorCode *status);
     static UBool   cleanup();
-
+    
     static UnicodeSet *getIgnorables(UDateFormatField fieldIndex);
-
+    
 private:
     UnicodeSet *fDateIgnorables;
     UnicodeSet *fTimeIgnorables;

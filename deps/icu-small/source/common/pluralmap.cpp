@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines Corporation and
  * others. All Rights Reserved.
@@ -27,7 +29,7 @@ PluralMapBase::Category
 PluralMapBase::toCategory(const UnicodeString &pluralForm) {
     CharString cCategory;
     UErrorCode status = U_ZERO_ERROR;
-    cCategory.appendInvariantChars(pluralForm, status);
+    cCategory.appendInvariantChars(pluralForm, status);    
     return U_FAILURE(status) ? NONE : toCategory(cCategory.data());
 }
 
@@ -39,3 +41,4 @@ const char *PluralMapBase::getCategoryName(Category c) {
 
 
 U_NAMESPACE_END
+

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 2008-2011, International Business Machines
@@ -16,7 +18,7 @@
 
 #if U_PLATFORM_HAS_WIN32_API
 /**
- * \file
+ * \file 
  * \brief C API: Utilities for dealing w/ Windows time zones.
  */
 U_CDECL_BEGIN

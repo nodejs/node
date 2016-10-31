@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2000-2011, International Business Machines
@@ -16,7 +18,7 @@
 
 /**
  * \file
- * \brief C API: API for accessing ICU version numbers.
+ * \brief C API: API for accessing ICU version numbers. 
  */
 /*===========================================================================*/
 /* Main ICU version information                                              */

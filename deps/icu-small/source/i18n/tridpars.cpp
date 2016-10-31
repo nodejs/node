@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2002-2014, International Business Machines Corporation
@@ -151,10 +153,10 @@ TransliteratorIDParser::parseSingleID(const UnicodeString& id, int32_t& pos,
             single = specsToID(specsA, FORWARD);
             // Null pointers check
             if (b == NULL || single == NULL) {
-		delete b;
-		delete single;
-		status = U_MEMORY_ALLOCATION_ERROR;
-		return NULL;
+            	delete b;
+            	delete single;
+            	status = U_MEMORY_ALLOCATION_ERROR;
+            	return NULL;
             }
             single->canonID.append(OPEN_REV)
                 .append(b->canonID).append(CLOSE_REV);
@@ -167,10 +169,10 @@ TransliteratorIDParser::parseSingleID(const UnicodeString& id, int32_t& pos,
             single = specsToID(specsB, FORWARD);
             // Check for null pointer.
             if (a == NULL || single == NULL) {
-		delete a;
-		delete single;
-		status = U_MEMORY_ALLOCATION_ERROR;
-		return NULL;
+            	delete a;
+            	delete single;
+            	status = U_MEMORY_ALLOCATION_ERROR;
+            	return NULL;
             }
             single->canonID.append(OPEN_REV)
                 .append(a->canonID).append(CLOSE_REV);
@@ -191,8 +193,8 @@ TransliteratorIDParser::parseSingleID(const UnicodeString& id, int32_t& pos,
         }
         // Check for NULL pointer
         if (single == NULL) {
-		status = U_MEMORY_ALLOCATION_ERROR;
-		return NULL;
+        	status = U_MEMORY_ALLOCATION_ERROR;
+        	return NULL;
         }
         single->filter = specsA->filter;
     }
@@ -661,16 +663,16 @@ void TransliteratorIDParser::registerSpecialInverse(const UnicodeString& target,
 
     UnicodeString *tempus = new UnicodeString(inverseTarget);  // Used for null pointer check before usage.
     if (tempus == NULL) {
-	status = U_MEMORY_ALLOCATION_ERROR;
-	return;
+    	status = U_MEMORY_ALLOCATION_ERROR;
+    	return;
     }
     SPECIAL_INVERSES->put(target, tempus, status);
     if (bidirectional) {
-	tempus = new UnicodeString(target);
-	if (tempus == NULL) {
-		status = U_MEMORY_ALLOCATION_ERROR;
-		return;
-	}
+    	tempus = new UnicodeString(target);
+    	if (tempus == NULL) {
+    		status = U_MEMORY_ALLOCATION_ERROR;
+    		return;
+    	}
         SPECIAL_INVERSES->put(inverseTarget, tempus, status);
     }
 }
@@ -902,14 +904,14 @@ Transliterator* TransliteratorIDParser::createBasicInstance(const UnicodeString&
 /**
  * Initialize static memory. Called through umtx_initOnce only.
  */
-void TransliteratorIDParser::init(UErrorCode &status) {
+void U_CALLCONV TransliteratorIDParser::init(UErrorCode &status) {
     U_ASSERT(SPECIAL_INVERSES == NULL);
     ucln_i18n_registerCleanup(UCLN_I18N_TRANSLITERATOR, utrans_transliterator_cleanup);
 
     SPECIAL_INVERSES = new Hashtable(TRUE, status);
     if (SPECIAL_INVERSES == NULL) {
-	status = U_MEMORY_ALLOCATION_ERROR;
-	return;
+    	status = U_MEMORY_ALLOCATION_ERROR;
+    	return;
     }
     SPECIAL_INVERSES->setValueDeleter(uprv_deleteUObject);
 }

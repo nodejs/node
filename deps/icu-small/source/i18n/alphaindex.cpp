@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2009-2014, International Business Machines Corporation and
@@ -1086,7 +1088,7 @@ AlphabeticIndex & AlphabeticIndex::addRecord(const UnicodeString &name, const vo
     clearBuckets();
     //std::string ss;
     //std::string ss2;
-    //std::cout << "added record: name = \"" << r->name_.toUTF8String(ss) << "\"" <<
+    //std::cout << "added record: name = \"" << r->name_.toUTF8String(ss) << "\"" << 
     //             "   sortingName = \"" << r->sortingName_.toUTF8String(ss2) << "\"" << std::endl;
     return *this;
 }

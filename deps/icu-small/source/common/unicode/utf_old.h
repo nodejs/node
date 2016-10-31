@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -15,12 +17,12 @@
 */
 
 /**
- * \file
+ * \file 
  * \brief C API: Deprecated macros for Unicode string handling
  */
 
 /**
- *
+ * 
  * The macros in utf_old.h are all deprecated and their use discouraged.
  * Some of the design principles behind the set of UTF macros
  * have changed or proved impractical.
@@ -1166,3 +1168,4 @@ typedef int32_t UTextOffset;
 #endif /* U_HIDE_DEPRECATED_API */
 
 #endif
+

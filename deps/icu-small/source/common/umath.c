@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -21,3 +23,4 @@ uprv_min(int32_t x, int32_t y)
 {
     return (x > y ? y : x);
 }
+

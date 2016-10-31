@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /* ------------------------------------------------------------------ */
 /* Decimal Context module                                             */
 /* ------------------------------------------------------------------ */
@@ -427,3 +429,4 @@ U_CAPI decContext * U_EXPORT2 uprv_decContextZeroStatus(decContext *context) {
   context->status=0;
   return context;
   } /* decContextZeroStatus  */
+

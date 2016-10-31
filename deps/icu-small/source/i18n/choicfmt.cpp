@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2013, International Business Machines Corporation and    *
@@ -10,11 +12,11 @@
 *
 *   Date        Name        Description
 *   02/19/97    aliu        Converted from java.
-*   03/20/97    helena      Finished first cut of implementation and got rid
+*   03/20/97    helena      Finished first cut of implementation and got rid 
 *                           of nextDouble/previousDouble and replaced with
 *                           boolean array.
 *   4/10/97     aliu        Clean up.  Modified to work on AIX.
-*   06/04/97    helena      Fixed applyPattern(), toPattern() and not to include
+*   06/04/97    helena      Fixed applyPattern(), toPattern() and not to include 
 *                           wchar.h.
 *   07/09/97    helena      Made ParsePosition into a class.
 *   08/06/97    nos         removed overloaded constructor, fixed 'format(array)'
@@ -81,11 +83,11 @@ ChoiceFormat::ChoiceFormat(const UnicodeString& newPattern,
 }
 
 // -------------------------------------
-// Creates a ChoiceFormat instance with the limit array and
+// Creates a ChoiceFormat instance with the limit array and 
 // format strings for each limit.
 
-ChoiceFormat::ChoiceFormat(const double* limits,
-                           const UnicodeString* formats,
+ChoiceFormat::ChoiceFormat(const double* limits, 
+                           const UnicodeString* formats, 
                            int32_t cnt )
 : constructorErrorCode(U_ZERO_ERROR),
   msgPattern(constructorErrorCode)
@@ -95,9 +97,9 @@ ChoiceFormat::ChoiceFormat(const double* limits,
 
 // -------------------------------------
 
-ChoiceFormat::ChoiceFormat(const double* limits,
+ChoiceFormat::ChoiceFormat(const double* limits, 
                            const UBool* closures,
-                           const UnicodeString* formats,
+                           const UnicodeString* formats, 
                            int32_t cnt )
 : constructorErrorCode(U_ZERO_ERROR),
   msgPattern(constructorErrorCode)
@@ -108,7 +110,7 @@ ChoiceFormat::ChoiceFormat(const double* limits,
 // -------------------------------------
 // copy constructor
 
-ChoiceFormat::ChoiceFormat(const    ChoiceFormat&   that)
+ChoiceFormat::ChoiceFormat(const    ChoiceFormat&   that) 
 : NumberFormat(that),
   constructorErrorCode(that.constructorErrorCode),
   msgPattern(that.msgPattern)
@@ -116,8 +118,8 @@ ChoiceFormat::ChoiceFormat(const    ChoiceFormat&   that)
 }
 
 // -------------------------------------
-// Private constructor that creates a
-// ChoiceFormat instance based on the
+// Private constructor that creates a 
+// ChoiceFormat instance based on the 
 // pattern and populates UParseError
 
 ChoiceFormat::ChoiceFormat(const UnicodeString& newPattern,
@@ -248,10 +250,10 @@ ChoiceFormat::toPattern(UnicodeString& result) const
 }
 
 // -------------------------------------
-// Sets the limit and format arrays.
+// Sets the limit and format arrays. 
 void
-ChoiceFormat::setChoices(  const double* limits,
-                           const UnicodeString* formats,
+ChoiceFormat::setChoices(  const double* limits, 
+                           const UnicodeString* formats, 
                            int32_t cnt )
 {
     UErrorCode errorCode = U_ZERO_ERROR;
@@ -259,11 +261,11 @@ ChoiceFormat::setChoices(  const double* limits,
 }
 
 // -------------------------------------
-// Sets the limit and format arrays.
+// Sets the limit and format arrays. 
 void
-ChoiceFormat::setChoices(  const double* limits,
+ChoiceFormat::setChoices(  const double* limits, 
                            const UBool* closures,
-                           const UnicodeString* formats,
+                           const UnicodeString* formats, 
                            int32_t cnt )
 {
     UErrorCode errorCode = U_ZERO_ERROR;
@@ -342,7 +344,7 @@ ChoiceFormat::setChoices(const double* limits,
 // Gets the limit array.
 
 const double*
-ChoiceFormat::getLimits(int32_t& cnt) const
+ChoiceFormat::getLimits(int32_t& cnt) const 
 {
     cnt = 0;
     return NULL;
@@ -352,7 +354,7 @@ ChoiceFormat::getLimits(int32_t& cnt) const
 // Gets the closures array.
 
 const UBool*
-ChoiceFormat::getClosures(int32_t& cnt) const
+ChoiceFormat::getClosures(int32_t& cnt) const 
 {
     cnt = 0;
     return NULL;
@@ -374,8 +376,8 @@ ChoiceFormat::getFormats(int32_t& cnt) const
 // from the input number because of this.
 
 UnicodeString&
-ChoiceFormat::format(int64_t number,
-                     UnicodeString& appendTo,
+ChoiceFormat::format(int64_t number, 
+                     UnicodeString& appendTo, 
                      FieldPosition& status) const
 {
     return format((double) number, appendTo, status);
@@ -386,8 +388,8 @@ ChoiceFormat::format(int64_t number,
 // a double.
 
 UnicodeString&
-ChoiceFormat::format(int32_t number,
-                     UnicodeString& appendTo,
+ChoiceFormat::format(int32_t number, 
+                     UnicodeString& appendTo, 
                      FieldPosition& status) const
 {
     return format((double) number, appendTo, status);
@@ -397,8 +399,8 @@ ChoiceFormat::format(int32_t number,
 // Formats a double number.
 
 UnicodeString&
-ChoiceFormat::format(double number,
-                     UnicodeString& appendTo,
+ChoiceFormat::format(double number, 
+                     UnicodeString& appendTo, 
                      FieldPosition& /*pos*/) const
 {
     if (msgPattern.countParts() == 0) {
@@ -462,7 +464,7 @@ ChoiceFormat::findSubMessage(const MessagePattern &pattern, int32_t partIndex, d
 
 // -------------------------------------
 // Formats an array of objects. Checks if the data type of the objects
-// to get the right value for formatting.
+// to get the right value for formatting.  
 
 UnicodeString&
 ChoiceFormat::format(const Formattable* objs,
@@ -493,7 +495,7 @@ ChoiceFormat::format(const Formattable* objs,
 // -------------------------------------
 
 void
-ChoiceFormat::parse(const UnicodeString& text,
+ChoiceFormat::parse(const UnicodeString& text, 
                     Formattable& result,
                     ParsePosition& pos) const
 {

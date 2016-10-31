@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ************************************************************************************
  * Copyright (C) 2006-2016, International Business Machines Corporation
@@ -84,7 +86,7 @@ UnhandledEngine::findBreaks( UText *text,
                                  int32_t breakType,
                                  UStack &/*foundBreaks*/ ) const {
     if (breakType >= 0 && breakType < UPRV_LENGTHOF(fHandled)) {
-        UChar32 c = utext_current32(text);
+        UChar32 c = utext_current32(text); 
         if (reverse) {
             while((int32_t)utext_getNativeIndex(text) > startPos && fHandled[breakType]->contains(c)) {
                 c = utext_previous32(text);
@@ -166,7 +168,7 @@ ICULanguageBreakFactory::getEngineFor(UChar32 c, int32_t breakType) {
             }
         }
     }
-
+    
     // We didn't find an engine. Create one.
     lbe = loadEngineFor(c, breakType);
     if (lbe != NULL) {
@@ -241,7 +243,7 @@ ICULanguageBreakFactory::loadEngineFor(UChar32 c, int32_t breakType) {
 }
 
 DictionaryMatcher *
-ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script, int32_t /* brkType */) {
+ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script, int32_t /* brkType */) { 
     UErrorCode status = U_ZERO_ERROR;
     // open root from brkitr tree.
     UResourceBundle *b = ures_open(U_ICUDATA_BRKITR, "", &status);
@@ -282,7 +284,7 @@ ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script, int32_t /*
             m = new UCharsDictionaryMatcher(characters, file);
         }
         if (m == NULL) {
-            // no matcher exists to take ownership - either we are an invalid
+            // no matcher exists to take ownership - either we are an invalid 
             // type or memory allocation failed
             udata_close(file);
         }

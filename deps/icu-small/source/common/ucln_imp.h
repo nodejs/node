@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -111,13 +113,13 @@ U_CAPI void U_EXPORT2 UCLN_FINI ()
 
 /* Windows: DllMain */
 #elif U_PLATFORM_HAS_WIN32_API
-/*
+/* 
  * ICU's own DllMain.
  */
 
 /* these are from putil.c */
 /* READ READ READ READ!    Are you getting compilation errors from windows.h?
-          Any source file which includes this (ucln_imp.h) header MUST
+          Any source file which includes this (ucln_imp.h) header MUST 
           be defined with language extensions ON. */
 #   define WIN32_LEAN_AND_MEAN
 #   define VC_EXTRALEAN
@@ -164,7 +166,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 /* GCC - use __attribute((destructor)) */
 static void ucln_destructor()   __attribute__((destructor)) ;
 
-static void ucln_destructor()
+static void ucln_destructor() 
 {
     UCLN_CLEAN_ME_UP;
 }

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (C) 2005-2012, International Business Machines
@@ -24,8 +26,8 @@ U_NAMESPACE_BEGIN
 class CharsetRecog_UTF8: public CharsetRecognizer {
 
  public:
-
-    virtual ~CharsetRecog_UTF8();
+		
+    virtual ~CharsetRecog_UTF8();		 
 
     const char *getName() const;
 
@@ -33,7 +35,7 @@ class CharsetRecog_UTF8: public CharsetRecognizer {
      * @see com.ibm.icu.text.CharsetRecognizer#match(com.ibm.icu.text.CharsetDetector)
      */
     UBool match(InputText *input, CharsetMatch *results) const;
-
+	
 };
 
 U_NAMESPACE_END

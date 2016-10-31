@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  rbbiscan.h
 //
@@ -32,7 +34,7 @@ class   RBBISymbolTable;
 //--------------------------------------------------------------------------------
 //
 //  class RBBIRuleScanner does the lowest level, character-at-a-time
-//                        scanning of break iterator rules.
+//                        scanning of break iterator rules.  
 //
 //                        The output of the scanner is parse trees for
 //                        the rule expressions and a list of all Unicode Sets

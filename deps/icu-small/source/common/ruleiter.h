@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2003-2011, International Business Machines
@@ -37,7 +39,7 @@ class RuleCharacterIterator : public UMemory {
 private:
     /**
      * Text being iterated.
-     */
+     */    
     const UnicodeString& text;
 
     /**
@@ -49,7 +51,7 @@ private:
      * Symbol table used to parse and dereference variables.  May be 0.
      */
     const SymbolTable* sym;
-
+    
     /**
      * Current variable expansion, or 0 if none.
      */
@@ -100,7 +102,7 @@ public:
      */
     RuleCharacterIterator(const UnicodeString& text, const SymbolTable* sym,
                           ParsePosition& pos);
-
+    
     /**
      * Returns true if this iterator has no more characters to return.
      */
@@ -205,7 +207,7 @@ public:
      * representation of this object
      */
 //    UnicodeString& toString(UnicodeString& result) const;
-
+    
 private:
     /**
      * Returns the current 32-bit code point without parsing escapes, parsing
@@ -213,7 +215,7 @@ private:
      * @return the current 32-bit code point
      */
     UChar32 _current() const;
-
+    
     /**
      * Advances the position by the given amount.
      * @param count the number of 16-bit code units to advance past

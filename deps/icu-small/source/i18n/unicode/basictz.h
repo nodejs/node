@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2013, International Business Machines Corporation and
@@ -8,7 +10,7 @@
 #define BASICTZ_H
 
 /**
- * \file
+ * \file 
  * \brief C++ API: ICU TimeZone base class
  */
 

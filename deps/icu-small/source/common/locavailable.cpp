@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -60,7 +62,7 @@ U_NAMESPACE_BEGIN
 void U_CALLCONV locale_available_init() {
     // This function is a friend of class Locale.
     // This function is only invoked via umtx_initOnce().
-
+    
     // for now, there is a hardcoded list, so just walk through that list and set it up.
     //  Note: this function is a friend of class Locale.
     availableLocaleListCount = uloc_countAvailable();
@@ -128,7 +130,7 @@ static void U_CALLCONV loadInstalledLocales() {
     UErrorCode status = U_ZERO_ERROR;
     int32_t i = 0;
     int32_t localeCount;
-
+    
     U_ASSERT(_installedLocales == NULL);
     U_ASSERT(_installedLocalesCount == 0);
 
@@ -136,7 +138,7 @@ static void U_CALLCONV loadInstalledLocales() {
     ures_initStackObject(&installed);
     indexLocale = ures_openDirect(NULL, _kIndexLocaleName, &status);
     ures_getByKey(indexLocale, _kIndexTag, &installed, &status);
-
+    
     if(U_SUCCESS(status)) {
         localeCount = ures_getSize(&installed);
         _installedLocales = (char **) uprv_malloc(sizeof(char*) * (localeCount+1));
@@ -160,11 +162,11 @@ static void _load_installedLocales()
 }
 
 U_CAPI const char* U_EXPORT2
-uloc_getAvailable(int32_t offset)
+uloc_getAvailable(int32_t offset) 
 {
-
+    
     _load_installedLocales();
-
+    
     if (offset > _installedLocalesCount)
         return NULL;
     return _installedLocales[offset];
@@ -176,3 +178,4 @@ uloc_countAvailable()
     _load_installedLocales();
     return _installedLocalesCount;
 }
+

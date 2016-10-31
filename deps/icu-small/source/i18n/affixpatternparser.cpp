@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
  * Corporation and others.  All Rights Reserved.
@@ -44,7 +46,8 @@ nextToken(const UChar *buffer, int32_t idx, int32_t len, UChar *token) {
     *token = buffer[idx + 1];
     if (buffer[idx + 1] == 0xA4) {
         int32_t i = 2;
-        for (; idx + i < len && i < 4 && buffer[idx + i] == buffer[idx + 1]; ++i);
+        for (; idx + i < len && i < 4 && buffer[idx + i] == buffer[idx + 1]; ++i)
+          ;
         return i;
     }
     return 2;
@@ -66,7 +69,8 @@ nextUserToken(const UChar *buffer, int32_t idx, int32_t len, UChar *token) {
         break;
     }
     int32_t i = 1;
-    for (; idx + i < len && i < max && buffer[idx + i] == buffer[idx]; ++i);
+    for (; idx + i < len && i < max && buffer[idx + i] == buffer[idx]; ++i)
+      ;
     return i;
 }
 
@@ -192,7 +196,7 @@ AffixPattern::add(ETokenType t, uint8_t count) {
     U_ASSERT(t != kLiteral);
     char32Count += count;
     switch (t) {
-    case kCurrency:
+    case kCurrency: 
         hasCurrencyToken = TRUE;
         break;
     case kPercent:
@@ -434,7 +438,7 @@ private:
 AffixPattern &
 AffixPattern::parseUserAffixString(
         const UnicodeString &affixStr,
-        AffixPattern &appendTo,
+        AffixPattern &appendTo, 
         UErrorCode &status) {
     if (U_FAILURE(status)) {
         return appendTo;
@@ -503,7 +507,7 @@ AffixPattern::parseUserAffixString(
 AffixPattern &
 AffixPattern::parseAffixString(
         const UnicodeString &affixStr,
-        AffixPattern &appendTo,
+        AffixPattern &appendTo, 
         UErrorCode &status) {
     if (U_FAILURE(status)) {
         return appendTo;
@@ -635,7 +639,7 @@ PluralAffix &
 AffixPatternParser::parse(
         const AffixPattern &affixPattern,
         const CurrencyAffixInfo &currencyAffixInfo,
-        PluralAffix &appendTo,
+        PluralAffix &appendTo, 
         UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return appendTo;

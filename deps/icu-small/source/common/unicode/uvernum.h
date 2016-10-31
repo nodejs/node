@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2000-2016, International Business Machines
@@ -32,13 +34,12 @@
   *  by running the UNIX makefile target 'update-windows-makefiles' in icu/source.
   *
   *
-  * source/common/common.vcproj - update 'Output file name' on the link tab so
+  * source/common/common.vcxproj - update 'Output file name' on the link tab so
   *                   that it contains the new major/minor combination
-  * source/i18n/i18n.vcproj - same as for the common.vcproj
-  * source/layout/layout.vcproj - same as for the common.vcproj
+  * source/i18n/i18n.vcxproj - same as for the common.vcxproj
   * source/layoutex/layoutex.vcproj - same
-  * source/stubdata/stubdata.vcproj - same as for the common.vcproj
-  * source/io/io.vcproj - same as for the common.vcproj
+  * source/stubdata/stubdata.vcproj - same as for the common.vcxproj
+  * source/io/io.vcproj - same as for the common.vcxproj
   * source/data/makedata.mak - change U_ICUDATA_NAME so that it contains
   *                            the new major/minor combination and the Unicode version.
   */
@@ -51,13 +52,13 @@
  *  @stable ICU 2.4
  */
 #define U_COPYRIGHT_STRING \
-  " Copyright (C) 2016, International Business Machines Corporation and others. All Rights Reserved. "
+  " Copyright (C) 2016 and later: Unicode, Inc. and others. License & terms of use: http://www.unicode.org/copyright.html "
 
 /** The current ICU major version as an integer.
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.4
  */
-#define U_ICU_VERSION_MAJOR_NUM 57
+#define U_ICU_VERSION_MAJOR_NUM 58
 
 /** The current ICU minor version as an integer.
  *  This value will change in the subsequent releases of ICU
@@ -83,7 +84,7 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.6
  */
-#define U_ICU_VERSION_SUFFIX _57
+#define U_ICU_VERSION_SUFFIX _58
 
 /**
  * \def U_DEF2_ICU_ENTRY_POINT_RENAME
@@ -118,19 +119,19 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.4
  */
-#define U_ICU_VERSION "57.1"
+#define U_ICU_VERSION "58.1"
 
 /** The current ICU library major/minor version as a string without dots, for library name suffixes.
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.6
  */
-#define U_ICU_VERSION_SHORT "57"
+#define U_ICU_VERSION_SHORT "58"
 
 #ifndef U_HIDE_INTERNAL_API
 /** Data version in ICU4C.
  * @internal ICU 4.4 Internal Use Only
  **/
-#define U_ICU_DATA_VERSION "57.1"
+#define U_ICU_DATA_VERSION "58.1"
 #endif  /* U_HIDE_INTERNAL_API */
 
 /*===========================================================================

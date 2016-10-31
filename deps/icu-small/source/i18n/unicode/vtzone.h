@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2013, International Business Machines Corporation and
@@ -10,7 +12,7 @@
 #include "unicode/utypes.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: RFC2445 VTIMEZONE support
  */
 
@@ -101,7 +103,7 @@ public:
 
     /**
      * Create a <code>VTimeZone</code> instance by RFC2445 VTIMEZONE data
-     *
+     * 
      * @param vtzdata The string including VTIMEZONE data block
      * @param status Output param to filled in with a success or an error.
      * @return A <code>VTimeZone</code> initialized by the VTIMEZONE data or
