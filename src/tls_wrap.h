@@ -52,6 +52,8 @@ class TLSWrap : public AsyncWrap,
 
   size_t self_size() const override { return sizeof(*this); }
 
+  void clear_stream() { stream_ = nullptr; }
+
  protected:
   static const int kClearOutChunkSize = 16384;
 
@@ -119,6 +121,7 @@ class TLSWrap : public AsyncWrap,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  static void OnDestructImpl(void* ctx);
 
   void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
 
