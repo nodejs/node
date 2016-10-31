@@ -146,10 +146,14 @@ class StreamResource {
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  typedef void (*DestructCb)(void* ctx);
 
   StreamResource() : bytes_read_(0) {
   }
-  virtual ~StreamResource() = default;
+  virtual ~StreamResource() {
+    if (!destruct_cb_.is_empty())
+      destruct_cb_.fn(destruct_cb_.ctx);
+  }
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
@@ -186,15 +190,18 @@ class StreamResource {
 
   inline void set_alloc_cb(Callback<AllocCb> c) { alloc_cb_ = c; }
   inline void set_read_cb(Callback<ReadCb> c) { read_cb_ = c; }
+  inline void set_destruct_cb(Callback<DestructCb> c) { destruct_cb_ = c; }
 
   inline Callback<AfterWriteCb> after_write_cb() { return after_write_cb_; }
   inline Callback<AllocCb> alloc_cb() { return alloc_cb_; }
   inline Callback<ReadCb> read_cb() { return read_cb_; }
+  inline Callback<DestructCb> destruct_cb() { return destruct_cb_; }
 
  private:
   Callback<AfterWriteCb> after_write_cb_;
   Callback<AllocCb> alloc_cb_;
   Callback<ReadCb> read_cb_;
+  Callback<DestructCb> destruct_cb_;
   uint64_t bytes_read_;
 
   friend class StreamBase;
