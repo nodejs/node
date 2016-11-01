@@ -194,6 +194,8 @@ When using an authenticated encryption mode (only `GCM` is currently
 supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
+Returns `this` for method chaining.
+
 ### cipher.getAuthTag()
 <!-- YAML
 added: v1.0.0
@@ -221,6 +223,8 @@ Disabling automatic padding is useful for non-standard padding, for instance
 using `0x0` instead of PKCS padding.
 
 The `cipher.setAutoPadding()` method must be called before [`cipher.final()`][].
+
+Returns `this` for method chaining.
 
 ### cipher.update(data[, input_encoding][, output_encoding])
 <!-- YAML
@@ -329,6 +333,8 @@ When using an authenticated encryption mode (only `GCM` is currently
 supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
+Returns `this` for method chaining.
+
 ### decipher.setAuthTag(buffer)
 <!-- YAML
 added: v1.0.0
@@ -339,6 +345,8 @@ supported), the `decipher.setAuthTag()` method is used to pass in the
 received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] with throw, indicating that the
 cipher text should be discarded due to failed authentication.
+
+Returns `this` for method chaining.
 
 ### decipher.setAutoPadding(auto_padding=true)
 <!-- YAML
@@ -354,6 +362,8 @@ multiple of the ciphers block size.
 
 The `decipher.setAutoPadding()` method must be called before
 [`decipher.update()`][].
+
+Returns `this` for method chaining.
 
 ### decipher.update(data[, input_encoding][, output_encoding])
 <!-- YAML
