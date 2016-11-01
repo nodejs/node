@@ -3440,15 +3440,12 @@ bool CipherBase::SetAuthTag(const char* data, unsigned int len) {
 void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> buf = args[0].As<Object>();
-
-  if (!buf->IsObject() || !Buffer::HasInstance(buf))
-    return env->ThrowTypeError("Auth tag must be a Buffer");
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Auth tag");
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  if (!cipher->SetAuthTag(Buffer::Data(buf), Buffer::Length(buf)))
+  if (!cipher->SetAuthTag(Buffer::Data(args[0]), Buffer::Length(args[0])))
     env->ThrowError("Attempting to set auth tag in unsupported state");
 }
 
