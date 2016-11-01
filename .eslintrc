@@ -82,6 +82,7 @@ rules:
   computed-property-spacing: 2
   eol-last: 2
   func-call-spacing: 2
+  func-name-matching: 2
   indent: [2, 2, {SwitchCase: 1, MemberExpression: 1}]
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
