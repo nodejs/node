@@ -41,6 +41,8 @@ back in to the CTC.
 
 ### [Website](https://github.com/nodejs/nodejs.org)
 
+**State** : Mature
+
 The website working group's purpose is to build and maintain a public
 website for the `Node.js` project.
 
@@ -51,6 +53,8 @@ releases and features.
 * Foster and enable a community of translators.
 
 ### [Streams](https://github.com/nodejs/readable-stream)
+
+**State** : Core
 
 The Streams WG is dedicated to the support and improvement of the Streams API
 as used in Node.js and the npm ecosystem. We seek to create a composable API that
@@ -71,6 +75,8 @@ responsibilities include:
 
 ### [Build](https://github.com/nodejs/build)
 
+**State** : Core
+
 The build working group's purpose is to create and maintain a
 distributed automation infrastructure.
 
@@ -83,6 +89,8 @@ Its responsibilities are:
 
 ### [Tracing](https://github.com/nodejs/tracing-wg)
 
+**State** : Mature
+
 The tracing working group's purpose is to increase the
 transparency of software written in Node.js.
 
@@ -94,6 +102,8 @@ Its responsibilities are:
 * Fostering a tracing and debugging ecosystem.
 
 ### i18n
+
+**State** : Mature
 
 The i18n working groups handle more than just translations. They
 are endpoints for community members to collaborate with each
@@ -165,6 +175,8 @@ The Intl WG is not responsible for translation of content. That is the responsib
 
 ### [Evangelism](https://github.com/nodejs/evangelism)
 
+**State** : Mature
+
 The evangelism working group promotes the accomplishments
 of Node.js and lets the community know how they can get involved.
 
@@ -192,6 +204,8 @@ HTTP implementation in Node. Its responsibilities are:
 
 ### [Roadmap](https://github.com/nodejs/roadmap)
 
+**State** : Mature
+
 The roadmap working group is responsible for user community outreach
 and the translation of their concerns into a plan of action for Node.js.
 
@@ -206,6 +220,8 @@ Their responsibilities are:
 
 ### [Docker](https://github.com/nodejs/docker-iojs)
 
+**State** : Mature
+
 The Docker working group's purpose is to build, maintain, and improve official
 Docker images for the `Node.js` project.
 
@@ -216,6 +232,8 @@ Their responsibilities are:
 
 
 ### [Addon API](https://github.com/nodejs/nan)
+
+**State** : Core
 
 The Addon API Working Group is responsible for maintaining the NAN project and
 corresponding _nan_ package in npm. The NAN project makes available an
