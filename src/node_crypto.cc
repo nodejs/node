@@ -3598,9 +3598,13 @@ bool CipherBase::SetAutoPadding(bool auto_padding) {
 
 
 void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
-  cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
+
+  if (!cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue()))
+    env->ThrowError("Attempting to set auto padding in unsupported state");
 }
 
 
