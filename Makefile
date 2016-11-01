@@ -112,7 +112,7 @@ cctest: all
 	@out/$(BUILDTYPE)/$@
 
 v8:
-	tools/make-v8.sh v8
+	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 test: all
