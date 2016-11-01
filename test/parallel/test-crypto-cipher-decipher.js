@@ -150,3 +150,39 @@ testCipher2(Buffer.from('0123456789abcdef'));
   assert.strictEqual(decipher.setAuthTag(tagbuf), decipher);
   assert.strictEqual(decipher.setAAD(aadbuf), decipher);
 }
+
+// error throwing in setAAD/setAuthTag/getAuthTag/setAutoPadding
+{
+  const key = '0123456789';
+  const aadbuf = Buffer.from('aadbuf');
+  const data = Buffer.from('test-crypto-cipher-decipher');
+
+  const cipher = crypto.createCipher('aes-256-gcm', key);
+  cipher.setAAD(aadbuf);
+  cipher.setAutoPadding();
+
+  assert.throws(() => {
+    cipher.getAuthTag();
+  }, /^Error: Attempting to get auth tag in unsupported state$/);
+
+  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+
+  const decipher = crypto.createDecipher('aes-256-gcm', key);
+  decipher.setAAD(aadbuf);
+  decipher.setAuthTag(cipher.getAuthTag());
+  decipher.setAutoPadding();
+  decipher.update(encrypted);
+  decipher.final();
+
+  assert.throws(() => {
+    decipher.setAAD(aadbuf);
+  }, /^Error: Attempting to set AAD in unsupported state$/);
+
+  assert.throws(() => {
+    decipher.setAuthTag(cipher.getAuthTag());
+  }, /^Error: Attempting to set auth tag in unsupported state$/);
+
+  assert.throws(() => {
+    decipher.setAutoPadding();
+  }, /^Error: Attempting to set auto padding in unsupported state$/);
+}
