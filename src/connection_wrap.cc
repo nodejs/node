@@ -23,13 +23,11 @@ using v8::Value;
 template <typename WrapType, typename UVType>
 ConnectionWrap<WrapType, UVType>::ConnectionWrap(Environment* env,
                                                  Local<Object> object,
-                                                 ProviderType provider,
-                                                 AsyncWrap* parent)
+                                                 ProviderType provider)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),
-                 provider,
-                 parent) {}
+                 provider) {}
 
 
 template <typename WrapType, typename UVType>
@@ -115,14 +113,12 @@ void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
 template ConnectionWrap<PipeWrap, uv_pipe_t>::ConnectionWrap(
     Environment* env,
     Local<Object> object,
-    ProviderType provider,
-    AsyncWrap* parent);
+    ProviderType provider);
 
 template ConnectionWrap<TCPWrap, uv_tcp_t>::ConnectionWrap(
     Environment* env,
     Local<Object> object,
-    ProviderType provider,
-    AsyncWrap* parent);
+    ProviderType provider);
 
 template void ConnectionWrap<PipeWrap, uv_pipe_t>::OnConnection(
     uv_stream_t* handle, int status);

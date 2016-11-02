@@ -59,8 +59,7 @@ inline uint32_t* IsolateData::zero_fill_field() const {
   return zero_fill_field_;
 }
 
-inline Environment::AsyncHooks::AsyncHooks() {
-  for (int i = 0; i < kFieldsCount; i++) fields_[i] = 0;
+inline Environment::AsyncHooks::AsyncHooks() : fields_(), uid_fields_() {
 }
 
 inline uint32_t* Environment::AsyncHooks::fields() {
@@ -71,12 +70,12 @@ inline int Environment::AsyncHooks::fields_count() const {
   return kFieldsCount;
 }
 
-inline bool Environment::AsyncHooks::callbacks_enabled() {
-  return fields_[kEnableCallbacks] != 0;
+inline double* Environment::AsyncHooks::uid_fields() {
+  return uid_fields_;
 }
 
-inline void Environment::AsyncHooks::set_enable_callbacks(uint32_t flag) {
-  fields_[kEnableCallbacks] = flag;
+inline int Environment::AsyncHooks::uid_fields_count() const {
+  return kUidFieldsCount;
 }
 
 inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
@@ -171,7 +170,6 @@ inline Environment::Environment(IsolateData* isolate_data,
       printed_error_(false),
       trace_sync_io_(false),
       makecallback_cntr_(0),
-      async_wrap_id_(0),
       debugger_agent_(this),
 #if HAVE_INSPECTOR
       inspector_agent_(this),
@@ -235,11 +233,6 @@ inline Environment::~Environment() {
 
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
-}
-
-inline bool Environment::async_wrap_callbacks_enabled() const {
-  // The const_cast is okay, it doesn't violate conceptual const-ness.
-  return const_cast<Environment*>(this)->async_hooks()->callbacks_enabled();
 }
 
 inline bool Environment::in_domain() const {
@@ -320,12 +313,59 @@ inline void Environment::set_trace_sync_io(bool value) {
   trace_sync_io_ = value;
 }
 
-inline double Environment::get_async_wrap_uid() {
-  return ++async_wrap_id_;
-}
-
 inline std::vector<double>* Environment::destroy_ids_list() {
   return &destroy_ids_list_;
+}
+
+inline double Environment::new_async_uid() {
+  return ++async_hooks()->uid_fields()[AsyncHooks::kAsyncUidCntr];
+}
+
+inline double Environment::current_async_id() {
+  return async_hooks()->uid_fields()[AsyncHooks::kCurrentId];
+}
+
+inline double Environment::exchange_current_async_id(const double id) {
+  const double oid = async_hooks()->uid_fields()[AsyncHooks::kCurrentId];
+  async_hooks()->uid_fields()[AsyncHooks::kCurrentId] = id;
+  return oid;
+}
+
+inline double Environment::trigger_id() {
+  return async_hooks()->uid_fields()[AsyncHooks::kTriggerId];
+}
+
+inline double Environment::exchange_trigger_id(const double id) {
+  const double oid = async_hooks()->uid_fields()[AsyncHooks::kTriggerId];
+  async_hooks()->uid_fields()[AsyncHooks::kTriggerId] = id;
+  return oid;
+}
+
+inline double Environment::exchange_init_trigger_id(const double id) {
+  auto uid_fields = async_hooks()->uid_fields();
+  double tid = uid_fields[AsyncHooks::kInitTriggerId];
+  uid_fields[AsyncHooks::kInitTriggerId] = id;
+  if (tid <= 0) tid = uid_fields[AsyncHooks::kScopedTriggerId];
+  if (tid <= 0) tid = uid_fields[AsyncHooks::kCurrentId];
+  return tid;
+}
+
+inline void Environment::set_init_trigger_id(const double id) {
+  async_hooks()->uid_fields()[AsyncHooks::kInitTriggerId] = id;
+}
+
+inline void Environment::erase_fd_async_id(int fd) {
+  fd_async_id_map_.erase(fd);
+}
+
+inline node_fd_async_ids Environment::get_fd_async_id(int fd) {
+  return fd_async_id_map_[fd];
+}
+
+inline void Environment::insert_fd_async_ids(int fd,
+                                             double async_id,
+                                             double trigger_id) {
+  fd_async_id_map_[fd] = { async_id, trigger_id };
 }
 
 inline double* Environment::heap_statistics_buffer() const {

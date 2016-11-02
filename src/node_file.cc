@@ -29,6 +29,7 @@ namespace node {
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -87,7 +88,10 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Wrap(object(), this);
   }
 
-  ~FSReqWrap() { ReleaseEarly(); }
+  ~FSReqWrap() {
+    ReleaseEarly();
+    ClearWrap(object());
+  }
 
   void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
@@ -194,6 +198,9 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
+        env->insert_fd_async_ids(req->result,
+                                 req_wrap->get_id(),
+                                 env->exchange_init_trigger_id(0));
         argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
@@ -409,6 +416,9 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
+  // TODO(trevnorris): Won't these values be needed for the destroy callbacks?
+  // XXX Wouldn't fd_async_id_map_[n][1] be the triggerId of the close() call?
+  env->erase_fd_async_id(fd);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(close, args[1], UTF8, fd)
@@ -1010,6 +1020,10 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(open, args[3], UTF8, *path, flags, mode)
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
+    // TODO(trevnorris): Is this really necessary for sync calls?
+    env->insert_fd_async_ids(SYNC_RESULT,
+                             env->current_async_id(),
+                             env->trigger_id());
     args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
@@ -1433,6 +1447,29 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+
+// To use this pass in a Float64Array(2) as the second argument. The asyncId
+// and triggerId will be written to both indexes. This is much faster than
+// creating and returning an Array.
+static void GetIdsFromFd(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be an int");
+  if (!args[1]->IsFloat64Array())
+    return TYPE_ERROR("arr must be a Float64Array");
+
+  Local<Float64Array> arr = args[1].As<Float64Array>();
+  if (arr->Length() < 2)
+    return env->ThrowRangeError("typed array is not large enough");
+
+  double* ptr = reinterpret_cast<double*>(arr->Buffer()->GetContents().Data());
+  node_fd_async_ids slot = env->get_fd_async_id(args[0]->Int32Value());
+  ptr[0] = slot.async_id;
+  ptr[1] = slot.trigger_id;
+  args.GetReturnValue().Set(arr);
+}
+
+
 void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Local<Function> stats_constructor = args[0].As<Function>();
   CHECK(stats_constructor->IsFunction());
@@ -1488,6 +1525,8 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "futimes", FUTimes);
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
+
+  env->SetMethod(target, "getIdsFromFd", GetIdsFromFd);
 
   StatWatcher::Initialize(env, target);
 

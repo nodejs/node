@@ -69,9 +69,8 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
 HandleWrap::HandleWrap(Environment* env,
                        Local<Object> object,
                        uv_handle_t* handle,
-                       AsyncWrap::ProviderType provider,
-                       AsyncWrap* parent)
-    : AsyncWrap(env, object, provider, parent),
+                       AsyncWrap::ProviderType provider)
+    : AsyncWrap(env, object, provider),
       state_(kInitialized),
       handle_(handle) {
   handle_->data = this;

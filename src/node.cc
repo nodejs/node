@@ -1179,21 +1179,13 @@ Local<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Function> before_fn = env->async_hooks_before_function();
-  Local<Function> after_fn = env->async_hooks_after_function();
   Local<Object> object, domain;
-  bool ran_init_callback = false;
   bool has_domain = false;
 
   Environment::AsyncCallbackScope callback_scope(env);
 
-  // TODO(trevnorris): Adding "_asyncQueue" to the "this" in the init callback
-  // is a horrible way to detect usage. Rethink how detection should happen.
   if (recv->IsObject()) {
     object = recv.As<Object>();
-    Local<Value> async_queue_v = object->Get(env->async_queue_string());
-    if (async_queue_v->IsObject())
-      ran_init_callback = true;
   }
 
   if (env->using_domains()) {
@@ -1217,33 +1209,7 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  if (ran_init_callback && !before_fn.IsEmpty()) {
-    TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar = before_fn->Call(env->context(), object, 0, nullptr);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
-
   Local<Value> ret = callback->Call(recv, argc, argv);
-
-  if (ran_init_callback && !after_fn.IsEmpty()) {
-    Local<Value> did_throw = Boolean::New(env->isolate(), ret.IsEmpty());
-    // Currently there's no way to retrieve an uid from node::MakeCallback().
-    // This needs to be fixed.
-    Local<Value> vals[] =
-        { Undefined(env->isolate()).As<Value>(), did_throw };
-    TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar =
-        after_fn->Call(env->context(), object, arraysize(vals), vals);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
 
   if (ret.IsEmpty()) {
     // NOTE: For backwards compatibility with public API we return Undefined()
@@ -1288,10 +1254,10 @@ Local<Value> MakeCallback(Environment* env,
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           Local<String> symbol,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Object> recv,
+                          Local<String> symbol,
+                          int argc,
+                          Local<Value> argv[]) {
   Local<Value> cb_v = recv->Get(symbol);
   CHECK(cb_v->IsFunction());
   return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
@@ -1299,10 +1265,10 @@ Local<Value> MakeCallback(Environment* env,
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           const char* method,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Object> recv,
+                          const char* method,
+                          int argc,
+                          Local<Value> argv[]) {
   Local<String> method_string = OneByteString(env->isolate(), method);
   return MakeCallback(env, recv, method_string, argc, argv);
 }
@@ -4398,6 +4364,10 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
+  // A current_async_id() of 1 means bootstrap phase. Now that the bootstrap
+  // phase is complete set the global id to 0 to let the internals know that
+  // everything points to the void.
+  env.exchange_current_async_id(0);
 
   // Enable debugger
   if (debug_enabled)

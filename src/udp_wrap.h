@@ -47,7 +47,7 @@ class UDPWrap: public HandleWrap {
             int (*F)(const typename T::HandleType*, sockaddr*, int*)>
   friend void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
 
-  UDPWrap(Environment* env, v8::Local<v8::Object> object, AsyncWrap* parent);
+  UDPWrap(Environment* env, v8::Local<v8::Object> object);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);

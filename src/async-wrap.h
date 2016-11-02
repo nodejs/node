@@ -55,8 +55,7 @@ class AsyncWrap : public BaseObject {
 
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
-            ProviderType provider,
-            AsyncWrap* parent = nullptr);
+            ProviderType provider);
 
   virtual ~AsyncWrap();
 
@@ -72,28 +71,30 @@ class AsyncWrap : public BaseObject {
 
   inline double get_id() const;
 
+  inline double get_trigger_id() const;
+
+  void Reset();
+
   // Only call these within a valid HandleScope.
+  // TODO(trevnorris): These should return a MaybeLocal.
   v8::Local<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
-                                     int argc,
-                                     v8::Local<v8::Value>* argv);
+                                    int argc,
+                                    v8::Local<v8::Value>* argv);
   inline v8::Local<v8::Value> MakeCallback(const v8::Local<v8::String> symbol,
-                                            int argc,
-                                            v8::Local<v8::Value>* argv);
+                                           int argc,
+                                           v8::Local<v8::Value>* argv);
   inline v8::Local<v8::Value> MakeCallback(uint32_t index,
-                                            int argc,
-                                            v8::Local<v8::Value>* argv);
+                                           int argc,
+                                           v8::Local<v8::Value>* argv);
 
   virtual size_t self_size() const = 0;
 
  private:
   inline AsyncWrap();
-  inline bool ran_init_callback() const;
-
-  // When the async hooks init JS function is called from the constructor it is
-  // expected the context object will receive a _asyncQueue object property
-  // that will be used to call pre/post in MakeCallback.
-  uint32_t bits_;
-  const double id_;
+  const ProviderType provider_type_;
+  // Because the values may be Reset(), cannot be made const.
+  double id_;
+  double trigger_id_;
 };
 
 void LoadAsyncWrapperInfo(Environment* env);

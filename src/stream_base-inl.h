@@ -23,6 +23,8 @@ using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Value;
 
+using AsyncHooks = Environment::AsyncHooks;
+
 template <class Base>
 void StreamBase::AddMethods(Environment* env,
                             Local<FunctionTemplate> t,
@@ -134,6 +136,7 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
+  AsyncHooks::InitScope init_scope(handle->env(), handle->get_id());
   args.GetReturnValue().Set((wrap->*Method)(args));
 }
 

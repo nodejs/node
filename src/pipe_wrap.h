@@ -21,8 +21,7 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  private:
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,
-           bool ipc,
-           AsyncWrap* parent);
+           bool ipc);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -33,7 +33,7 @@ class JSStream : public AsyncWrap, public StreamBase {
   size_t self_size() const override { return sizeof(*this); }
 
  protected:
-  JSStream(Environment* env, v8::Local<v8::Object> obj, AsyncWrap* parent);
+  JSStream(Environment* env, v8::Local<v8::Object> obj);
 
   AsyncWrap* GetAsyncWrap() override;
 

@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <unordered_map>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -69,7 +70,6 @@ namespace node {
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
-  V(async_queue_string, "_asyncQueue")                                        \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -268,6 +268,11 @@ struct node_ares_task {
   RB_ENTRY(node_ares_task) node;
 };
 
+struct node_fd_async_ids {
+  double async_id;
+  double trigger_id;
+};
+
 RB_HEAD(node_ares_task_list, node_ares_task);
 
 class IsolateData {
@@ -308,22 +313,90 @@ class Environment {
  public:
   class AsyncHooks {
    public:
+    // Reason for both UidFields and Fields are that one is stored as a double*
+    // and the other as a uint32_t*.
+    enum UidFields {
+      kAsyncUidCntr,
+      kCurrentId,
+      kTriggerId,
+      kInitTriggerId,
+      kScopedTriggerId,
+      kUidFieldsCount,
+    };
+
+    enum Fields {
+      kInit,
+      kBefore,
+      kAfter,
+      kDestroy,
+      kActiveHooks,
+      kFieldsCount,
+    };
+
     inline uint32_t* fields();
     inline int fields_count() const;
-    inline bool callbacks_enabled();
-    inline void set_enable_callbacks(uint32_t flag);
+    inline double* uid_fields();
+    inline int uid_fields_count() const;
+
+    class InitScope {
+     public:
+      explicit InitScope(Environment* env, double init_trigger_id)
+          : uid_fields_(env->async_hooks()->uid_fields()),
+            init_trigger_id_(uid_fields_[AsyncHooks::kScopedTriggerId]) {
+        uid_fields_[AsyncHooks::kScopedTriggerId] = init_trigger_id;
+      }
+      ~InitScope() {
+        uid_fields_[AsyncHooks::kScopedTriggerId] = init_trigger_id_;
+      }
+     private:
+      double* uid_fields_;
+      const double init_trigger_id_;
+
+      DISALLOW_COPY_AND_ASSIGN(InitScope);
+    };
+
+    // ExecScope is meant for use in MakeCallback, to maintained stacked
+    // state.
+    // TODO(trevnorris): This conflicts with how emitBefore/emitAfter work
+    // (manually tracking the stacks in a JS array). Technically they should
+    // play nicely together, but write tests to prove this.
+    class ExecScope {
+     public:
+      explicit ExecScope(Environment* env, double id, double trigger_id)
+          : uid_fields_(env->async_hooks()->uid_fields()),
+            id_(uid_fields_[AsyncHooks::kCurrentId]),
+            trigger_id_(uid_fields_[AsyncHooks::kTriggerId]),
+            disposed_(false) {
+        uid_fields_[AsyncHooks::kCurrentId] = id;
+        uid_fields_[AsyncHooks::kTriggerId] = trigger_id;
+      }
+      ~ExecScope() {
+        if (disposed_) return;
+        Dispose();
+      }
+      void Dispose() {
+        disposed_ = true;
+        uid_fields_[AsyncHooks::kCurrentId] = id_;
+        uid_fields_[AsyncHooks::kTriggerId] = trigger_id_;
+      }
+
+     private:
+      double* uid_fields_;
+      const double id_;
+      const double trigger_id_;
+      bool disposed_;
+
+      DISALLOW_COPY_AND_ASSIGN(ExecScope);
+    };
 
    private:
     friend class Environment;  // So we can call the constructor.
     inline AsyncHooks();
 
-    enum Fields {
-      // Set this to not zero if the init hook should be called.
-      kEnableCallbacks,
-      kFieldsCount
-    };
-
     uint32_t fields_[kFieldsCount];
+    // Gives us 2^53-1 unique ids. Good enough for now and makes the operation
+    // cheaper in JS.
+    double uid_fields_[kUidFieldsCount];
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -428,7 +501,6 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline bool async_wrap_callbacks_enabled() const;
   inline bool in_domain() const;
   inline uint32_t watched_providers() const;
 
@@ -465,7 +537,19 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
-  inline double get_async_wrap_uid();
+  // The necessary API for async_hooks.
+  inline double new_async_uid();
+  inline double current_async_id();
+  inline double exchange_current_async_id(const double id);
+  inline double trigger_id();
+  inline double exchange_trigger_id(const double id);
+  inline double exchange_init_trigger_id(const double id);
+  inline void set_init_trigger_id(const double id);
+
+  // For propagating hook id's with a file descriptor.
+  inline void erase_fd_async_id(int fd);
+  inline node_fd_async_ids get_fd_async_id(int fd);
+  inline void insert_fd_async_ids(int fd, double async_id, double trigger_id);
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_ids_list();
@@ -569,6 +653,7 @@ class Environment {
   size_t makecallback_cntr_;
   double async_wrap_id_;
   std::vector<double> destroy_ids_list_;
+  std::unordered_map<int, node_fd_async_ids> fd_async_id_map_;
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
