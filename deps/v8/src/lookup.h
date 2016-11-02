@@ -179,6 +179,7 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetReceiver() const { return receiver_; }
 
   Handle<JSObject> GetStoreTarget() const {
+    DCHECK(receiver->IsJSObject());
     if (receiver_->IsJSGlobalProxy()) {
       Map* map = JSGlobalProxy::cast(*receiver_)->map();
       if (map->has_hidden_prototype()) {
