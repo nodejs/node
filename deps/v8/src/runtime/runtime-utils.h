@@ -69,9 +69,11 @@ namespace internal {
 // Assert that the given argument has a valid value for a LanguageMode
 // and store it in a LanguageMode variable with the given name.
 #define CONVERT_LANGUAGE_MODE_ARG_CHECKED(name, index) \
-  CHECK(args[index]->IsSmi());                         \
-  CHECK(is_valid_language_mode(args.smi_at(index)));   \
-  LanguageMode name = static_cast<LanguageMode>(args.smi_at(index));
+  CHECK(args[index]->IsNumber());                      \
+  int32_t __tmp_##name = 0;                            \
+  CHECK(args[index]->ToInt32(&__tmp_##name));          \
+  CHECK(is_valid_language_mode(__tmp_##name));         \
+  LanguageMode name = static_cast<LanguageMode>(__tmp_##name);
 
 // Assert that the given argument is a number within the Int32 range
 // and convert it to int32_t.  If the argument is not an Int32 we crash safely.
