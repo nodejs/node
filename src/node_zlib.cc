@@ -52,7 +52,7 @@ void InitZlib(v8::Local<v8::Object> target);
 class ZCtx : public AsyncWrap {
  public:
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZCTX),
         dictionary_(nullptr),
         dictionary_len_(0),
         err_(0),
