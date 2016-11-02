@@ -181,13 +181,18 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       dependencies()->AssumePropertyCell(property_cell);
       Type* property_cell_value_type;
       if (property_cell_value->IsHeapObject()) {
+        // We cannot do anything if the {property_cell_value}s map is no
+        // longer stable.
+        Handle<Map> property_cell_value_map(
+            Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
+        if (!property_cell_value_map->is_stable()) return NoChange();
+        dependencies()->AssumeMapStable(property_cell_value_map);
+
         // Check that the {value} is a HeapObject.
         value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                           value, effect, control);
 
         // Check {value} map agains the {property_cell} map.
-        Handle<Map> property_cell_value_map(
-            Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
         effect = graph()->NewNode(
             simplified()->CheckMaps(1), value,
             jsgraph()->HeapConstant(property_cell_value_map), effect, control);
