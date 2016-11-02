@@ -124,7 +124,7 @@ $ node --zero-fill-buffers
 <Buffer 00 00 00 00 00>
 ```
 
-### What makes [`Buffer.allocUnsafe()`] and [`Buffer.allocUnsafeSlow()`] "unsafe"?
+### What makes `Buffer.allocUnsafe()` and `Buffer.allocUnsafeSlow()` "unsafe"?
 
 When calling [`Buffer.allocUnsafe()`] and [`Buffer.allocUnsafeSlow()`], the
 segment of allocated memory is *uninitialized* (it is not zeroed-out). While
