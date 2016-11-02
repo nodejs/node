@@ -4214,11 +4214,20 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         return JSProxy::SetProperty(it->GetHolder<JSProxy>(), it->GetName(),
                                     value, it->GetReceiver(), language_mode);
 
-      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::INTERCEPTOR: {
+        Handle<Map> store_target_map;
+        if (it->GetReceiver()->IsJSObject()) {
+          store_target_map = handle(it->GetStoreTarget()->map(), it->isolate());
+        }
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
+          Utils::ApiCheck(store_target_map.is_null() ||
+                              *store_target_map == it->GetStoreTarget()->map(),
+                          it->IsElement() ? "v8::IndexedPropertySetterCallback"
+                                          : "v8::NamedPropertySetterCallback",
+                          "Interceptor silently changed store target.");
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -4227,10 +4236,16 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, should_throw);
           }
+          Utils::ApiCheck(store_target_map.is_null() ||
+                              *store_target_map == it->GetStoreTarget()->map(),
+                          it->IsElement() ? "v8::IndexedPropertySetterCallback"
+                                          : "v8::NamedPropertySetterCallback",
+                          "Interceptor silently changed store target.");
           *found = false;
           return Nothing<bool>();
         }
         break;
+      }
 
       case LookupIterator::ACCESSOR: {
         if (it->IsReadOnly()) {
