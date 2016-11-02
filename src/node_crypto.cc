@@ -5314,7 +5314,7 @@ class PBKDF2Request : public AsyncWrap {
                 char* salt,
                 int iter,
                 int keylen)
-      : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_PBKDF2REQUEST),
         digest_(digest),
         error_(0),
         passlen_(passlen),
@@ -5586,7 +5586,7 @@ class RandomBytesRequest : public AsyncWrap {
                      size_t size,
                      char* data,
                      FreeMode free_mode)
-      : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_RANDOMBYTESREQUEST),
         error_(0),
         size_(size),
         data_(data),
