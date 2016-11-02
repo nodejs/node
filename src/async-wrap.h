@@ -64,6 +64,8 @@ class AsyncWrap : public BaseObject {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
+  static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void DestroyIdsCb(uv_idle_t* handle);
 
   inline ProviderType provider_type() const;

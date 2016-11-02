@@ -294,6 +294,14 @@ AsyncWrap::~AsyncWrap() {
 }
 
 
+void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
+  AsyncWrap* wrap;
+  args.GetReturnValue().Set(-1);
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  args.GetReturnValue().Set(wrap->get_id());
+}
+
+
 Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                      int argc,
                                      Local<Value>* argv) {
