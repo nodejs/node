@@ -139,7 +139,7 @@ added: v0.1.90
     stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
   * `detached` {Boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
-    [`options.detached`][])
+    [`options.detached`][]
   * `killSignal` {String} (Default: `'SIGTERM'`)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -315,7 +315,7 @@ added: v0.1.90
     [`options.stdio`][`stdio`])
   * `detached` {Boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
-    [`options.detached`][])
+    [`options.detached`][]
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
@@ -587,6 +587,9 @@ added: v0.11.12
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
+  * `detached` {Boolean} Prepare child to run independently of its parent
+    process. Specific behavior depends on the platform, see
+    [`options.detached`][]
   * `killSignal` {String} The signal value to be used when the spawned process
     will be killed. (Default: `'SIGTERM'`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
@@ -631,7 +634,7 @@ added: v0.11.12
     is allowed to run. (Default: `undefined`)
   * `detached` {Boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
-    [`options.detached`][])
+    [`options.detached`][]
   * `killSignal` {String} The signal value to be used when the spawned process
     will be killed. (Default: `'SIGTERM'`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
