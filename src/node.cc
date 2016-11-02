@@ -1179,8 +1179,8 @@ Local<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Function> pre_fn = env->async_hooks_pre_function();
-  Local<Function> post_fn = env->async_hooks_post_function();
+  Local<Function> before_fn = env->async_hooks_before_function();
+  Local<Function> after_fn = env->async_hooks_after_function();
   Local<Object> object, domain;
   bool ran_init_callback = false;
   bool has_domain = false;
@@ -1217,9 +1217,9 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  if (ran_init_callback && !pre_fn.IsEmpty()) {
+  if (ran_init_callback && !before_fn.IsEmpty()) {
     TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar = pre_fn->Call(env->context(), object, 0, nullptr);
+    MaybeLocal<Value> ar = before_fn->Call(env->context(), object, 0, nullptr);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env);
       FatalException(env->isolate(), try_catch);
@@ -1229,7 +1229,7 @@ Local<Value> MakeCallback(Environment* env,
 
   Local<Value> ret = callback->Call(recv, argc, argv);
 
-  if (ran_init_callback && !post_fn.IsEmpty()) {
+  if (ran_init_callback && !after_fn.IsEmpty()) {
     Local<Value> did_throw = Boolean::New(env->isolate(), ret.IsEmpty());
     // Currently there's no way to retrieve an uid from node::MakeCallback().
     // This needs to be fixed.
@@ -1237,7 +1237,7 @@ Local<Value> MakeCallback(Environment* env,
         { Undefined(env->isolate()).As<Value>(), did_throw };
     TryCatch try_catch(env->isolate());
     MaybeLocal<Value> ar =
-        post_fn->Call(env->context(), object, arraysize(vals), vals);
+        after_fn->Call(env->context(), object, arraysize(vals), vals);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env);
       FatalException(env->isolate(), try_catch);

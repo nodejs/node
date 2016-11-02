@@ -130,32 +130,37 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return env->ThrowTypeError("first argument must be an object");
 
+  // All of init, before, after, destroy are supplied by async_hooks
+  // internally, so this should every only be called once. At which time all
+  // the functions should be set. Detect this by checking if init !IsEmpty()
+  // and returning early if that's the case.
+  if (!env->async_hooks_init_function().IsEmpty())
+    return env->ThrowError("async_hook callbacks have already been setup");
+
   Local<Object> fn_obj = args[0].As<Object>();
 
   Local<Value> init_v = fn_obj->Get(
       env->context(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "init")).ToLocalChecked();
-  Local<Value> pre_v = fn_obj->Get(
+  Local<Value> before_v = fn_obj->Get(
       env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "pre")).ToLocalChecked();
-  Local<Value> post_v = fn_obj->Get(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "before")).ToLocalChecked();
+  Local<Value> after_v = fn_obj->Get(
       env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "post")).ToLocalChecked();
+      FIXED_ONE_BYTE_STRING(env->isolate(), "after")).ToLocalChecked();
   Local<Value> destroy_v = fn_obj->Get(
       env->context(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "destroy")).ToLocalChecked();
 
-  if (!init_v->IsFunction())
-    return env->ThrowTypeError("init callback must be a function");
+  if (!init_v->IsFunction() || !before_v->IsFunction() ||
+      !after_v->IsFunction() || !destroy_v->IsFunction()) {
+    return env->ThrowTypeError("all callbacks must be functions");
+  }
 
   env->set_async_hooks_init_function(init_v.As<Function>());
-
-  if (pre_v->IsFunction())
-    env->set_async_hooks_pre_function(pre_v.As<Function>());
-  if (post_v->IsFunction())
-    env->set_async_hooks_post_function(post_v.As<Function>());
-  if (destroy_v->IsFunction())
-    env->set_async_hooks_destroy_function(destroy_v.As<Function>());
+  env->set_async_hooks_before_function(before_v.As<Function>());
+  env->set_async_hooks_after_function(after_v.As<Function>());
+  env->set_async_hooks_destroy_function(destroy_v.As<Function>());
 }
 
 
@@ -179,8 +184,8 @@ void AsyncWrap::Initialize(Local<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "Providers"), async_providers);
 
   env->set_async_hooks_init_function(Local<Function>());
-  env->set_async_hooks_pre_function(Local<Function>());
-  env->set_async_hooks_post_function(Local<Function>());
+  env->set_async_hooks_before_function(Local<Function>());
+  env->set_async_hooks_after_function(Local<Function>());
   env->set_async_hooks_destroy_function(Local<Function>());
 }
 
@@ -307,8 +312,8 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                      Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
-  Local<Function> pre_fn = env()->async_hooks_pre_function();
-  Local<Function> post_fn = env()->async_hooks_post_function();
+  Local<Function> before_fn = env()->async_hooks_before_function();
+  Local<Function> after_fn = env()->async_hooks_after_function();
   Local<Value> uid = Number::New(env()->isolate(), get_id());
   Local<Object> context = object();
   Local<Object> domain;
@@ -336,9 +341,9 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     }
   }
 
-  if (ran_init_callback() && !pre_fn.IsEmpty()) {
+  if (ran_init_callback() && !before_fn.IsEmpty()) {
     TryCatch try_catch(env()->isolate());
-    MaybeLocal<Value> ar = pre_fn->Call(env()->context(), context, 1, &uid);
+    MaybeLocal<Value> ar = before_fn->Call(env()->context(), context, 1, &uid);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env());
       FatalException(env()->isolate(), try_catch);
@@ -348,12 +353,12 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Value> ret = cb->Call(context, argc, argv);
 
-  if (ran_init_callback() && !post_fn.IsEmpty()) {
+  if (ran_init_callback() && !after_fn.IsEmpty()) {
     Local<Value> did_throw = Boolean::New(env()->isolate(), ret.IsEmpty());
     Local<Value> vals[] = { uid, did_throw };
     TryCatch try_catch(env()->isolate());
     MaybeLocal<Value> ar =
-        post_fn->Call(env()->context(), context, arraysize(vals), vals);
+        after_fn->Call(env()->context(), context, arraysize(vals), vals);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env());
       FatalException(env()->isolate(), try_catch);
