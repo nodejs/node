@@ -49,6 +49,7 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"));
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
   env->SetProtoMethod(t, "start", StatWatcher::Start);
   env->SetProtoMethod(t, "stop", StatWatcher::Stop);
 
@@ -66,6 +67,7 @@ StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_STATWATCHER),
       watcher_(new uv_fs_poll_t) {
   MakeWeak<StatWatcher>(this);
+  Wrap(wrap, this);
   uv_fs_poll_init(env->event_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }
