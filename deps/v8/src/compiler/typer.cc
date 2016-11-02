@@ -1321,7 +1321,7 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathTan:
           return Type::Number();
         case kMathSign:
-          return t->cache_.kMinusOneToOne;
+          return t->cache_.kMinusOneToOneOrMinusZeroOrNaN;
         // Binary math functions.
         case kMathAtan2:
         case kMathPow:
