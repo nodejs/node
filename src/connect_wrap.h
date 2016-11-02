@@ -15,6 +15,7 @@ class ConnectWrap : public ReqWrap<uv_connect_t> {
   ConnectWrap(Environment* env,
               v8::Local<v8::Object> req_wrap_obj,
               AsyncWrap::ProviderType provider);
+  ~ConnectWrap();
 
   size_t self_size() const override { return sizeof(*this); }
 };
