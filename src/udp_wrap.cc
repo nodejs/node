@@ -54,6 +54,7 @@ using v8::Value;
 class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
+  ~SendWrap();
   inline bool have_callback() const;
   size_t msg_size;
   size_t self_size() const override { return sizeof(*this); }
@@ -71,6 +72,11 @@ SendWrap::SendWrap(Environment* env,
 }
 
 
+SendWrap::~SendWrap() {
+  ClearWrap(object());
+}
+
+
 inline bool SendWrap::have_callback() const {
   return have_callback_;
 }
@@ -78,6 +84,7 @@ inline bool SendWrap::have_callback() const {
 
 static void NewSendWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  ClearWrap(args.This());
 }
 
 
@@ -129,6 +136,8 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
 
@@ -136,6 +145,7 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> swt =
       FunctionTemplate::New(env->isolate(), NewSendWrap);
   swt->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(swt, "getAsyncId", AsyncWrap::GetAsyncId);
   swt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"),
               swt->GetFunction());

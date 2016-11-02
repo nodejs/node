@@ -408,6 +408,7 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
         bio_write_(nullptr),
         hello_offset_(0) {
     MakeWeak<Connection>(this);
+    Wrap(wrap, this);
     hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
                         OnClientHelloParseEnd,
                         this);
