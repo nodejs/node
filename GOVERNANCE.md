@@ -143,8 +143,8 @@ items.
 The CTC may invite persons or representatives from certain projects to
 participate in a non-voting capacity.
 
-The meeting chair is responsible for summarizing the discussion of each agenda
-item and sending it as a pull request after the meeting.
+The meeting chair is responsible for ensuring that minutes are taken and that a
+pull request with the minutes is submitted after the meeting.
 
 Due to the challenges of scheduling a global meeting with participants in
 several timezones, the CTC will seek to resolve as many agenda items as possible
