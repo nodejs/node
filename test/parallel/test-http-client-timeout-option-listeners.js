@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
@@ -18,6 +18,10 @@ const options = {
   timeout: 10
 };
 
+process.on('unhandledRejection', function() {
+  common.fail('A promise rejection was unhandled');
+});
+
 server.listen(0, options.host, (e) => {
   options.port = server.address().port;
 
@@ -27,10 +31,6 @@ server.listen(0, options.host, (e) => {
                          'Should be a single timeout listener on the socket');
       server.close();
       agent.destroy();
-    })
-    .catch((e) => {
-      console.log(e);
-      process.exit(1);
     });
 });
 
