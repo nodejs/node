@@ -19,7 +19,7 @@ function cleanup() {
   if [ "$BRANCH" == "master" ]; then
     echo "git cleanup if branch is master"
     git reset --hard HEAD
-    git clean -fd >/dev/null
+    git clean -fdq
     # Copy local files
     rsync -a .v8old/ v8/
   fi
