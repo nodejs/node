@@ -545,12 +545,12 @@ function deepCopy_(src) {
 // these parse out the contents of an H# tag
 var eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
 var classExpr = /^Class:\s*([^ ]+).*?$/i;
-var propExpr = /^(?:property:?\s*)?[^\.]+\.([^ \.\(\)]+)\s*?$/i;
-var braceExpr = /^(?:property:?\s*)?[^\.\[]+(\[[^\]]+\])\s*?$/i;
+var propExpr = /^(?:property:?\s*)?[^.]+\.([^ .()]+)\s*?$/i;
+var braceExpr = /^(?:property:?\s*)?[^.\[]+(\[[^\]]+\])\s*?$/i;
 var classMethExpr =
-  /^class\s*method\s*:?[^\.]+\.([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
+  /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*?$/i;
 var methExpr =
-  /^(?:method:?\s*)?(?:[^\.]+\.)?([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
+  /^(?:method:?\s*)?(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*?$/i;
 var newExpr = /^new ([A-Z][a-zA-Z]+)\([^\)]*\)\s*?$/;
 var paramExpr = /\((.*)\);?$/;
 
