@@ -155,6 +155,10 @@ function allListening() {
   const port2 = server2.address().port;
   const port3 = server3.address().port;
 
+  const port1 = server1.address().port;
+  const port2 = server2.address().port;
+  const port3 = server3.address().port;
+
   // server1: host 'agent1', signed by ca1
   makeReq('/inv1', port1, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
   makeReq('/inv1-ca1', port1,
