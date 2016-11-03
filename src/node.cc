@@ -4262,6 +4262,12 @@ void Init(int* argc,
   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
 
+  // Unconditionally force typed arrays to allocate outside the v8 heap. This
+  // is to prevent memory pointers from being moved around that are returned by
+  // Buffer::Data().
+  const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
+  V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
+
   if (!use_debug_agent) {
     RegisterDebugSignalHandler();
   }
