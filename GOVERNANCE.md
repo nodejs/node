@@ -117,7 +117,8 @@ Collaborator activities as well.
 ### CTC Meetings
 
 The CTC meets weekly in a voice conference call. The meeting is run by a
-designated moderator approved by the CTC. Each meeting is streamed on YouTube.
+designated meeting chair approved by the CTC. Each meeting is streamed on
+YouTube.
 
 Items are added to the CTC agenda which are considered contentious or
 are modifications of governance, contribution policy, CTC membership,
@@ -129,21 +130,21 @@ group of Collaborators.
 
 Any community member or contributor can ask that something be reviewed
 by the CTC by logging a GitHub issue. Any Collaborator, CTC member, or the
-moderator can bring the issue to the CTC's attention by applying the
+meeting chair can bring the issue to the CTC's attention by applying the
 `ctc-review` label. If consensus-seeking among CTC members fails for a
 particular issue, it may be added to the CTC meeting agenda by adding the
 `ctc-agenda` label.
 
-Prior to each CTC meeting, the moderator will share the agenda with
+Prior to each CTC meeting, the meeting chair will share the agenda with
 members of the CTC. CTC members can also add items to the agenda at the
-beginning of each meeting. The moderator and the CTC cannot veto or remove
+beginning of each meeting. The meeting chair and the CTC cannot veto or remove
 items.
 
 The CTC may invite persons or representatives from certain projects to
 participate in a non-voting capacity.
 
-The moderator is responsible for summarizing the discussion of each agenda item
-and sending it as a pull request after the meeting.
+The meeting chair is responsible for summarizing the discussion of each agenda
+item and sending it as a pull request after the meeting.
 
 Due to the challenges of scheduling a global meeting with participants in
 several timezones, the CTC will seek to resolve as many agenda items as possible
@@ -165,8 +166,8 @@ The CTC follows a
 [Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
 decision making model.
 
-When an agenda item has appeared to reach a consensus, the moderator will ask
-"Does anyone object?" as a final call for dissent from the consensus.
+When an agenda item has appeared to reach a consensus, the meeting chair will
+ask "Does anyone object?" as a final call for dissent from the consensus.
 
 If an agenda item cannot reach a consensus, a CTC member can call for either a
 closing vote or a vote to table the issue to the next meeting. All votes
