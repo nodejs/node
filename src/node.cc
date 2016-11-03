@@ -122,7 +122,6 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
-using v8::PropertyHandlerFlags;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::String;
@@ -2685,7 +2684,7 @@ static void EnvGetter(Local<Name> property,
     return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val));
   }
 #else  // _WIN32
-  String::Value key(property);
+  node::TwoByteValue key(isolate, property);
   WCHAR buffer[32767];  // The maximum size allowed for environment variables.
   DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
                                          buffer,
@@ -2711,8 +2710,8 @@ static void EnvSetter(Local<Name> property,
   node::Utf8Value val(info.GetIsolate(), value);
   setenv(*key, *val, 1);
 #else  // _WIN32
-  String::Value key(property);
-  String::Value val(value);
+  node::TwoByteValue key(info.GetIsolate(), property);
+  node::TwoByteValue val(info.GetIsolate(), value);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
   // Environment variables that start with '=' are read-only.
   if (key_ptr[0] != L'=') {
@@ -2732,7 +2731,7 @@ static void EnvQuery(Local<Name> property,
   if (getenv(*key))
     rc = 0;
 #else  // _WIN32
-  String::Value key(property);
+  node::TwoByteValue key(info.GetIsolate(), property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
   if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
       GetLastError() == ERROR_SUCCESS) {
@@ -2756,7 +2755,7 @@ static void EnvDeleter(Local<Name> property,
   node::Utf8Value key(info.GetIsolate(), property);
   unsetenv(*key);
 #else
-  String::Value key(property);
+  node::TwoByteValue key(info.GetIsolate(), property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
   SetEnvironmentVariableW(key_ptr, nullptr);
 #endif
@@ -3155,8 +3154,7 @@ void SetupProcessObject(Environment* env,
           EnvQuery,
           EnvDeleter,
           EnvEnumerator,
-          env->as_external(),
-          PropertyHandlerFlags::kOnlyInterceptStrings));
+          env->as_external()));
 
   Local<Object> process_env =
       process_env_template->NewInstance(env->context()).ToLocalChecked();
