@@ -510,7 +510,7 @@ $ bash -c 'exec -a customArgv0 ./node'
 
 ## process.channel
 <!-- YAML
-added: REPLACEME
+added: v7.1.0
 -->
 
 If the Node.js process was spawned with an IPC channel (see the

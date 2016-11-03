@@ -289,7 +289,7 @@ with small-icu support.
 
 ### `NODE_PRESERVE_SYMLINKS=1`
 <!-- YAML
-added: REPLACEME
+added: v7.1.0
 -->
 
 When set to `1`, instructs the module loader to preserve symbolic links when
