@@ -27,7 +27,7 @@ rl.question('What do you think of Node.js? ', (answer) => {
 });
 ```
 
-*Note* Once this code is invoked, the Node.js application will not
+*Note*: Once this code is invoked, the Node.js application will not
 terminate until the `readline.Interface` is closed because the interface
 waits for data to be received on the `input` stream.
 
@@ -446,6 +446,10 @@ Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.
 
 If the `stream` is a [TTY][], then it must be in raw mode.
+
+*Note*: This is automatically called by any readline instance on its `input`
+if the `input` is a terminal. Closing the `readline` instance does not stop
+the `input` from emitting `'keypress'` events.
 
 ```js
 readline.emitKeypressEvents(process.stdin);
