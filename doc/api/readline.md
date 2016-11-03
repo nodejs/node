@@ -452,6 +452,10 @@ autocompletion is disabled when copy-pasted input is detected.
 
 If the `stream` is a [TTY][], then it must be in raw mode.
 
+*Note*: This is automatically called by any readline instance on its `input`
+if the `input` is a terminal. Closing the `readline` instance does not stop
+the `input` from emitting `'keypress'` events.
+
 ```js
 readline.emitKeypressEvents(process.stdin);
 if (process.stdin.isTTY)
