@@ -39,7 +39,7 @@ static const uint8_t PROTOCOL_JSON[] = {
 
 std::string GetWsUrl(int port, const std::string& id) {
   char buf[1024];
-  snprintf(buf, sizeof(buf), "localhost:%d/%s", port, id.c_str());
+  snprintf(buf, sizeof(buf), "127.0.0.1:%d/%s", port, id.c_str());
   return buf;
 }
 
