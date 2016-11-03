@@ -639,7 +639,6 @@ bool AgentImpl::OnInspectorHandshakeIO(InspectorSocket* socket,
     agent->OnInspectorConnectionIO(socket);
     return true;
   case kInspectorHandshakeFailed:
-    delete socket;
     return false;
   default:
     UNREACHABLE();
