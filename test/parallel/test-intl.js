@@ -50,6 +50,11 @@ if (!common.hasIntl) {
     return;
   }
 
+  // Check casing
+  {
+    assert.strictEqual('I'.toLocaleLowerCase('tr'), 'ı');
+  }
+
   // Check with toLocaleString
   {
     const localeString = dtf.format(date0);

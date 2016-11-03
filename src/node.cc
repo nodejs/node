@@ -4191,6 +4191,14 @@ void Init(int* argc,
                             DispatchDebugMessagesAsyncCallback));
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  // Set the ICU casing flag early
+  // so the user can disable a flag --foo at run-time by passing
+  // --no_foo from the command line.
+  const char icu_case_mapping[] = "--icu_case_mapping";
+  V8::SetFlagsFromString(icu_case_mapping, sizeof(icu_case_mapping) - 1);
+#endif
+
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
   // so the user can disable a flag --foo at run-time by passing
