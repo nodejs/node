@@ -11,7 +11,7 @@ function checkListResponse(err, response) {
   assert.ok(response[0]['devtoolsFrontendUrl']);
   assert.ok(
     response[0]['webSocketDebuggerUrl']
-      .match(/ws:\/\/localhost:\d+\/[0-9A-Fa-f]{8}-/));
+      .match(/ws:\/\/127.0.0.1:\d+\/[0-9A-Fa-f]{8}-/));
 }
 
 function checkVersion(err, response) {
