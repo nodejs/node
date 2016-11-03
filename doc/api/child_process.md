@@ -778,7 +778,7 @@ to send messages.
 
 ### child.channel
 <!-- YAML
-added: REPLACEME
+added: v7.1.0
 -->
 
 * {Object} A pipe representing the IPC channel to the child process.
