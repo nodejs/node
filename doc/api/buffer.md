@@ -2308,7 +2308,7 @@ On 64-bit architectures, this value is `(2^31)-1` (~2GB).
 
 ## buffer.transcode(source, fromEnc, toEnc)
 <!-- YAML
-added: REPLACEME
+added: v7.1.0
 -->
 
 * `source` {Buffer} A `Buffer` instance
