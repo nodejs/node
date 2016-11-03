@@ -36,7 +36,11 @@ assert.doesNotThrow(function() {
 // verify that invalid argument combinations throw
 assert.throws(function() {
   spawn();
-}, /Bad argument/);
+}, /"command" argument must be a string/);
+
+assert.throws(function() {
+  spawn(undefined, { shell: true });
+}, /"command" argument must be a string/);
 
 assert.throws(function() {
   spawn(cmd, null);
