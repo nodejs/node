@@ -72,7 +72,7 @@ function error_test() {
       if (read_buffer !== client_unix.expect) {
         var expect = client_unix.expect;
         if (expect === prompt_multiline)
-          expect = /[\.]{3} /;
+          expect = /[.]{3} /;
         assert.ok(read_buffer.match(expect));
         console.error('match');
       }
