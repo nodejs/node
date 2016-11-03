@@ -99,7 +99,7 @@ The CTC should serve as the final arbiter where required.
 Always modify the original commit message to include additional meta
 information regarding the change process:
 
-- A `Reviewed-By: Name <email>` line for yourself and any
+- A `Reviewed-By: @{Github username}` line for yourself and any
   other Collaborators who have reviewed the change.
   - Useful for @mentions / contact list if something goes wrong in the PR.
   - Protects against the assumption that GitHub will be around forever.
