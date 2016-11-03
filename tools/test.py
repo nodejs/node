@@ -315,7 +315,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # duration_ms is measured in seconds and is read as such by TAP parsers.
     # It should read as "duration including ms" rather than "duration in ms"
     logger.info('  ---')
-    logger.info('  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000))
+    logger.info('  duration: %d.%ds' % (total_seconds, duration.microseconds / 1000))
     logger.info('  ...')
 
   def Done(self):
