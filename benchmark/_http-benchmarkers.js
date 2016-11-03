@@ -37,7 +37,7 @@ AutocannonBenchmarker.prototype.processResults = function(output) {
 
 function WrkBenchmarker() {
   this.name = 'wrk';
-  this.regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
+  this.regexp = /Requests\/sec:[ \t]+([0-9.]+)/;
   const result = child_process.spawnSync('wrk', ['-h']);
   this.present = !(result.error && result.error.code === 'ENOENT');
 }
