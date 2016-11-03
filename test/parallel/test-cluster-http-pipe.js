@@ -25,7 +25,7 @@ if (cluster.isMaster) {
 
 http.createServer(function(req, res) {
   assert.equal(req.connection.remoteAddress, undefined);
-  assert.equal(req.connection.localAddress, undefined); // TODO common.PIPE?
+  assert.equal(req.connection.localAddress, undefined);
   res.writeHead(200);
   res.end('OK');
 }).listen(common.PIPE, function() {
