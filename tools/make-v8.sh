@@ -1,12 +1,9 @@
 #!/bin/bash
 
-if [ $# -eq 0 ]; then
-  # Default branch is master
-  BRANCH="master"
-else
-  # eg: 5.4-lkgr
-  BRANCH="$1"
-fi
+# Get V8 branch from v8/include/v8-version.h
+MAJOR=$(grep V8_MAJOR_VERSION deps/v8/include/v8-version.h | cut -d ' ' -f 3)
+MINOR=$(grep V8_MINOR_VERSION deps/v8/include/v8-version.h | cut -d ' ' -f 3)
+BRANCH=$MAJOR.$MINOR
 
 # clean up if someone presses ctrl-c
 trap cleanup INT
@@ -26,6 +23,7 @@ function cleanup() {
 }
 
 cd deps
+# Preserve local changes
 mv v8 .v8old
 
 echo "Fetching v8 from chromium.googlesource.com"
@@ -41,7 +39,7 @@ cd v8
 echo "Checking out branch:$BRANCH"
 if [ "$BRANCH" != "master" ]; then
    git fetch
-   git checkout origin/$BRANCH
+   git checkout remotes/branch-heads/$BRANCH
 fi
 
 echo "Sync dependencies"
