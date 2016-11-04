@@ -30,4 +30,4 @@ var int = setInterval(function() {
   } else {
     src.write(i++);
   }
-});
+}, 1);
