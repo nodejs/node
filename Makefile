@@ -315,7 +315,7 @@ out/doc/%: doc/%
 # check if ./node is actually set, else use user pre-installed binary
 gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
-	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
 		if [ -x $(NODE) ]; then \
 			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
@@ -327,7 +327,7 @@ out/doc/api/%.json: doc/api/%.md
 # check if ./node is actually set, else use user pre-installed binary
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 out/doc/api/%.html: doc/api/%.md
-	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
 		if [ -x $(NODE) ]; then \
 			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
