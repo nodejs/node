@@ -32,14 +32,19 @@ struct sockaddr;
 
 namespace node {
 
-// Set in node.cc by ParseArgs with the value of --openssl-config.
-// Used in node_crypto.cc when initializing OpenSSL.
-extern const char* openssl_config;
+  // Set in node.cc by ParseArgs with the value of --openssl-config.
+  // Used in node_crypto.cc when initializing OpenSSL.
+  extern const char* openssl_config;
 
 // Set in node.cc by ParseArgs when --preserve-symlinks is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
+
+// Set in node.cc by ParseArgs when --adjacent-node-modules is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/module.js
+extern bool config_adjacent_node_modules;
 
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
