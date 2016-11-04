@@ -67,23 +67,7 @@ inline AsyncWrap::AsyncWrap(Environment* env,
 }
 
 
-inline AsyncWrap::~AsyncWrap() {
-  if (!ran_init_callback())
-    return;
-
-  v8::Local<v8::Function> fn = env()->async_hooks_destroy_function();
-  if (!fn.IsEmpty()) {
-    v8::HandleScope scope(env()->isolate());
-    v8::Local<v8::Value> uid = v8::Number::New(env()->isolate(), get_uid());
-    v8::TryCatch try_catch(env()->isolate());
-    v8::MaybeLocal<v8::Value> ret =
-        fn->Call(env()->context(), v8::Null(env()->isolate()), 1, &uid);
-    if (ret.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-    }
-  }
-}
+inline AsyncWrap::~AsyncWrap() {}
 
 
 inline bool AsyncWrap::ran_init_callback() const {
