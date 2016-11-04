@@ -442,8 +442,8 @@ first argument. To reliably detect write errors, add a listener for the
 
 The return value is `true` if the internal buffer does not exceed 
 `highWaterMark` configured when the stream was created after admitting 
-`chunk`. If false is returned, further attempts to write data to the stream 
-should be paused until the [`'drain'`][] event is emitted. However, the 
+`chunk`. If `false` is returned, further attempts to write data to the stream 
+should stop until the [`'drain'`][] event is emitted. However, the 
 `false` return value is only advisory and the writable stream will 
 unconditionally accept `chunk` even if it has not not been allowed to drain.
 
