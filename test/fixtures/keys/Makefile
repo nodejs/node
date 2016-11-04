@@ -58,6 +58,20 @@ fake-cnnic-root-cert.pem: fake-cnnic-root.cnf fake-cnnic-root-key.pem
 	        -config fake-cnnic-root.cnf
 
 #
+# Create Fake StartCom Root Certificate Authority: fake-startcom-root
+#
+fake-startcom-root-key.pem:
+	openssl genrsa -out fake-startcom-root-key.pem 2048
+
+fake-startcom-root-cert.pem: fake-startcom-root.cnf \
+	fake-startcom-root-key.pem
+	openssl req -new -x509 -days 9999 -config \
+	fake-startcom-root.cnf -key fake-startcom-root-key.pem -out \
+	fake-startcom-root-cert.pem
+	echo '01' > fake-startcom-root-serial
+	touch fake-startcom-root-database.txt
+
+#
 # agent1 is signed by ca1.
 #
 
@@ -253,6 +267,60 @@ agent7-cert.pem: agent7-csr.pem fake-cnnic-root-cert.pem fake-cnnic-root-key.pem
 
 agent7-verify: agent7-cert.pem fake-cnnic-root-cert.pem
 	openssl verify -CAfile fake-cnnic-root-cert.pem agent7-cert.pem
+
+#
+# agent8 is signed by fake-startcom-root with notBefore
+# of Oct 20 23:59:59 2016 GMT
+#
+
+agent8-key.pem:
+	openssl genrsa -out agent8-key.pem 2048
+
+agent8-csr.pem: agent8.cnf agent8-key.pem
+	openssl req -new -config agent8.cnf -key agent8-key.pem \
+	-out agent8-csr.pem
+
+agent8-cert.pem: agent8-csr.pem
+	openssl ca \
+		-config fake-startcom-root.cnf \
+		-keyfile fake-startcom-root-key.pem \
+		-cert fake-startcom-root-cert.pem \
+		-batch \
+		-days 9999 \
+		-passin "pass:password" \
+		-in agent8-csr.pem \
+		-startdate 20161020235959Z \
+		-notext -out agent8-cert.pem
+
+
+agent8-verify: agent8-cert.pem fake-startcom-root-cert.pem
+	openssl verify -CAfile fake-startcom-root-cert.pem \
+	agent8-cert.pem
+
+
+#
+# agent9 is signed by fake-startcom-root with notBefore
+# of Oct 21 00:00:01 2016 GMT
+#
+agent9-key.pem:
+	openssl genrsa -out agent9-key.pem 2048
+
+agent9-csr.pem: agent9.cnf agent9-key.pem
+	openssl req -new -config agent9.cnf -key agent9-key.pem \
+	-out agent9-csr.pem
+
+
+agent9-cert.pem: agent9-csr.pem
+	openssl ca \
+		-config fake-startcom-root.cnf \
+		-keyfile fake-startcom-root-key.pem \
+		-cert fake-startcom-root-cert.pem \
+		-batch \
+		-days 9999 \
+		-passin "pass:password" \
+		-in agent9-csr.pem \
+		-startdate 20161021000001Z \
+		-notext -out agent9-cert.pem
 
 ec-key.pem:
 	openssl ecparam -genkey -out ec-key.pem -name prime256v1
