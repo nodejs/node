@@ -440,10 +440,12 @@ occurs, the `callback` *may or may not* be called with the error as its
 first argument. To reliably detect write errors, add a listener for the
 `'error'` event.
 
-The return value indicates whether the written `chunk` was buffered internally
-and the buffer has exceeded the `highWaterMark` configured when the stream was
-created. If `false` is returned, further attempts to write data to the stream
-should be paused until the [`'drain'`][] event is emitted.
+The return value is `true` if the internal buffer does not exceed
+`highWaterMark` configured when the stream was created after admitting `chunk`.
+If `false` is returned, further attempts to write data to the stream should
+stop until the [`'drain'`][] event is emitted. However, the `false` return
+value is only advisory and the writable stream will unconditionally accept and
+buffer `chunk` even if it has not not been allowed to drain.
 
 A Writable stream in object mode will always ignore the `encoding` argument.
 
