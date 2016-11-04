@@ -13,7 +13,7 @@ const options = {
   agent,
   method: 'GET',
   port: undefined,
-  host: '127.0.0.1',
+  host: common.localhostIPv4,
   path: '/',
   timeout: 10
 };
@@ -37,7 +37,7 @@ server.listen(0, options.host, (e) => {
 function doRequest() {
   return new Promise((resolve, reject) => {
     http.request(options, (response) => {
-      const sockets = agent.sockets[`127.0.0.1:${options.port}:`];
+      const sockets = agent.sockets[`${options.host}:${options.port}:`];
       if (sockets.length !== 1) {
         reject(new Error('Only one socket should be created'));
       }
