@@ -46,7 +46,7 @@ function push() {
 
   console.error('   push #%d', pushes);
   if (r.push(Buffer.allocUnsafe(PUSHSIZE)))
-    setTimeout(push);
+    setTimeout(push, 1);
 }
 
 process.on('exit', function() {
