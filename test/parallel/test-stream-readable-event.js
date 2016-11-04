@@ -20,7 +20,7 @@ const Readable = require('stream').Readable;
     // we're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall(function() {}));
-  });
+  }, 1);
 }
 
 {
@@ -40,7 +40,7 @@ const Readable = require('stream').Readable;
     // assert we're testing what we think we are
     assert(r._readableState.reading);
     r.on('readable', common.mustCall(function() {}));
-  });
+  }, 1);
 }
 
 {
@@ -60,5 +60,5 @@ const Readable = require('stream').Readable;
     // assert we're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall(function() {}));
-  });
+  }, 1);
 }
