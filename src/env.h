@@ -227,7 +227,6 @@ namespace node {
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(as_external, v8::External)                                                \
-  V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
   V(async_hooks_post_function, v8::Function)                                  \
   V(async_hooks_pre_function, v8::Function)                                   \

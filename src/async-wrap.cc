@@ -137,9 +137,6 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Local<Value> post_v = fn_obj->Get(
       env->context(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "post")).ToLocalChecked();
-  Local<Value> destroy_v = fn_obj->Get(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "destroy")).ToLocalChecked();
 
   if (!init_v->IsFunction())
     return env->ThrowTypeError("init callback must be a function");
@@ -150,8 +147,6 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
     env->set_async_hooks_pre_function(pre_v.As<Function>());
   if (post_v->IsFunction())
     env->set_async_hooks_post_function(post_v.As<Function>());
-  if (destroy_v->IsFunction())
-    env->set_async_hooks_destroy_function(destroy_v.As<Function>());
 }
 
 
@@ -177,7 +172,6 @@ static void Initialize(Local<Object> target,
   env->set_async_hooks_init_function(Local<Function>());
   env->set_async_hooks_pre_function(Local<Function>());
   env->set_async_hooks_post_function(Local<Function>());
-  env->set_async_hooks_destroy_function(Local<Function>());
 }
 
 
