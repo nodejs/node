@@ -38,7 +38,7 @@ process.on('exit', function (code) {
       wroteLogFile = false
     }
     if (code) {
-      log.error('code', code)
+      log.verbose('code', code)
     }
   }
 

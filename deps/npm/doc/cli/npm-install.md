@@ -374,7 +374,7 @@ affects a real use-case, it will be investigated.
 * npm-config(7)
 * npmrc(5)
 * npm-registry(7)
-* npm-tag(1)
+* npm-dist-tag(1)
 * npm-uninstall(1)
 * npm-shrinkwrap(1)
 * package.json(5)

@@ -958,6 +958,10 @@ Request.prototype.onRequestResponse = function (response) {
     })
 
     responseContent.on('data', function (chunk) {
+      if (self.timing && !self.responseStarted) {
+        self.responseStartTime = (new Date()).getTime()
+        response.responseStartTime = self.responseStartTime
+      }
       self._destdata = true
       self.emit('data', chunk)
     })

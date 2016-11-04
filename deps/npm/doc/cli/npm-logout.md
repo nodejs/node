@@ -29,7 +29,7 @@ it takes precedence.
 
 ### scope
 
-Default: none
+Default: The scope of your current project, if any, otherwise none.
 
 If specified, you will be logged out of the specified scope. See `npm-scope(7)`.
 

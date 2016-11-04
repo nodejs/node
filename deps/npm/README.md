@@ -27,15 +27,15 @@ terms of use for the default public registry are available at
 
 ## Super Easy Install
 
-npm is bundled with [node](http://nodejs.org/download/).
+npm is bundled with [node](https://nodejs.org/en/download/).
 
 ### Windows Computers
 
-[Get the MSI](http://nodejs.org/download/).  npm is in it.
+[Get the MSI](https://nodejs.org/en/download/).  npm is in it.
 
 ### Apple Macintosh Computers
 
-[Get the pkg](http://nodejs.org/download/).  npm is in it.
+[Get the pkg](https://nodejs.org/en/download/).  npm is in it.
 
 ### Other Sorts of Unices
 

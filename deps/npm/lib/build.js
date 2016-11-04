@@ -66,8 +66,7 @@ function build_ (global, didPre, didRB) {
         [linkStuff, pkg, folder, global, didRB],
         [writeBuiltinConf, pkg, folder],
         didPre !== build._noLC && [lifecycle, pkg, 'install', folder],
-        didPre !== build._noLC && [lifecycle, pkg, 'postinstall', folder],
-        didPre !== build._noLC && npm.config.get('npat') && [lifecycle, pkg, 'test', folder]
+        didPre !== build._noLC && [lifecycle, pkg, 'postinstall', folder]
       ],
       cb)
     })

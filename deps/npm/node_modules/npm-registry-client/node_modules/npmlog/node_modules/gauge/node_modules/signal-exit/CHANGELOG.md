@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="3.0.1"></a>
+## [3.0.1](https://github.com/tapjs/signal-exit/compare/v3.0.0...v3.0.1) (2016-09-08)
+
+
+### Bug Fixes
+
+* do not listen on SIGBUS, SIGFPE, SIGSEGV and SIGILL ([#40](https://github.com/tapjs/signal-exit/issues/40)) ([5b105fb](https://github.com/tapjs/signal-exit/commit/5b105fb))
+
+
+
 <a name="3.0.0"></a>
 # [3.0.0](https://github.com/tapjs/signal-exit/compare/v2.1.2...v3.0.0) (2016-06-13)
 

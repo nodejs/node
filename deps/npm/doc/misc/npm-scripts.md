@@ -8,7 +8,13 @@ following scripts:
 
 * prepublish:
   Run BEFORE the package is published.  (Also run on local `npm
-  install` without any arguments.)
+  install` without any arguments. See below.)
+* prepare:
+  Run both BEFORE the package is published, and on local `npm
+  install` without any arguments. (See below.) This is run
+  AFTER `prepublish`, but BEFORE `prepublishOnly`.
+* prepublishOnly:
+  Run BEFORE the package is published. (See below.)
 * publish, postpublish:
   Run AFTER the package is published.
 * preinstall:
@@ -43,7 +49,30 @@ names will be run for those as well (e.g. `premyscript`, `myscript`,
 `postmyscript`). Scripts from dependencies can be run with `npm explore
 <pkg> -- npm run <stage>`.
 
-## COMMON USES
+## PREPUBLISH AND PREPARE
+
+### DEPRECATION NOTE
+
+Since `npm@1.1.71`, the npm CLI has run the `prepublish` script for both `npm
+publish` and `npm install`, because it's a convenient way to prepare a package
+for use (some common use cases are described in the section below).  It has
+also turned out to be, in practice, [very
+confusing](https://github.com/npm/npm/issues/10074).  As of `npm@4.0.0`, a new
+event has been introduced, `prepare`, that preserves this existing behavior. A
+_new_ event, `prepublishOnly` has been added as a transitional strategy to
+allow users to avoid the confusing behavior of existing npm versions and only
+run on `npm publish` (for instance, running the tests one last time to ensure
+they're in good shape).
+
+**IMPORTANT:** As of `npm@5`, `prepublish` will _only_ be run for `npm
+publish`.  This will make its behavior identical to `prepublishOnly`, so
+`npm@6` or later may drop support for the use of `prepublishOnly`, and then
+maybe we can all forget this embarrassing thing ever happened.
+
+See <https://github.com/npm/npm/issues/10074> for a much lengthier
+justification, with further reading, for this change.
+
+### USE CASES
 
 If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the

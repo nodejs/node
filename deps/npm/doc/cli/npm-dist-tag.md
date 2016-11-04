@@ -77,7 +77,6 @@ begin with a number or the letter `v`.
 
 ## SEE ALSO
 
-* npm-tag(1)
 * npm-publish(1)
 * npm-install(1)
 * npm-dedupe(1)

@@ -62,7 +62,7 @@ test('setup', function (t) {
 })
 
 test('transitive-deps-of-dev-deps', function (t) {
-  common.npm(['shrinkwrap', '--loglevel=error'], {cwd: testdir}, function (err, code, stdout, stderr) {
+  common.npm(['shrinkwrap', '--loglevel=error', '--only=prod'], {cwd: testdir}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 0, 'shrinkwrap ran ok')
     t.comment(stdout.trim())
