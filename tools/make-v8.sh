@@ -16,13 +16,11 @@ function cleanup() {
   rm .gclient || true
   rm .gclient_entries || true
   rm -rf _bad_scm/ || true
-  if [ "$BRANCH" == "master" ]; then
-    echo "git cleanup if branch is master"
-    git reset --hard HEAD
-    git clean -fdq
-    # Copy local files
-    rsync -a .v8old/ v8/
-  fi
+  echo "git cleanup"
+  git reset --hard HEAD
+  git clean -e .v8old -ffdq
+  # Copy local files
+  rsync -a .v8old/ v8/
   rm -rf .v8old
   exit 0
 }
