@@ -1,7 +1,9 @@
 'use strict';
 var common = require('../common');
 
-// this test only fails with CentOS 6.3 using kernel version 2.6.32
+// https://github.com/nodejs/node-v0.x-archive/issues/5504
+//
+// This test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
 // that case.  On sunos, the `write` call fails with EPIPE.
 //
@@ -54,7 +56,7 @@ function parent() {
     setTimeout(function() {
       throw new Error('hang');
     });
-  }, common.platformTimeout(2000)).unref();
+  }, common.platformTimeout(5000)).unref();
 
   var s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
