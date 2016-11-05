@@ -37,10 +37,8 @@ echo "V8 fetched"
 cd v8
 
 echo "Checking out branch:$BRANCH"
-if [ "$BRANCH" != "master" ]; then
-   git fetch
-   git checkout remotes/branch-heads/$BRANCH
-fi
+git fetch
+git checkout remotes/branch-heads/$BRANCH
 
 echo "Sync dependencies"
 gclient sync
