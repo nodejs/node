@@ -297,7 +297,7 @@ console.log(Debug.findScript(process.exit).name);  // 'internal/process.js'
 implementation and may change (or even be removed) without prior warning.
 
 The `Debug` object can also be made available using the V8-specific
-`--expose_debug_as=` [command line option][cli.md].
+`--expose_debug_as=` [command line option][].
 
 ## vm.runInNewContext(code[, sandbox][, options])
 <!-- YAML
@@ -455,3 +455,4 @@ associating it with the `sandbox` object is what this document refers to as
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [V8 Embedder's Guide]: https://developers.google.com/v8/embed#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
+[command line option]: cli.html
