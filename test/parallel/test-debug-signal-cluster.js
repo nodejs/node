@@ -51,10 +51,6 @@ function onNoMoreLines() {
   process.exit();
 }
 
-setTimeout(function testTimedOut() {
-  common.fail('test timed out');
-}, common.platformTimeout(4000)).unref();
-
 process.on('exit', function onExit() {
   // Kill processes in reverse order to avoid timing problems on Windows where
   // the parent process is killed before the children.
