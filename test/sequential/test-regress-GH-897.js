@@ -7,11 +7,11 @@
 //
 // Ref: https://github.com/nodejs/node-v0.x-archive/pull/897
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const t = Date.now();
-setTimeout(function() {
+setTimeout(common.mustCall(function() {
   const diff = Date.now() - t;
   assert.ok(diff < 100, `timer fired after ${diff} ms`);
-}, 0.1);
+}), 0.1);
