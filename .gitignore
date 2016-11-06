@@ -93,3 +93,9 @@ test.tap
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
+
+# mac installer files
+/tools/osx-pkg/osx-pkg-out.pkgproj
+/tools/osx-pkg/strings/license.rtf
+/tools/osx-pkg/strings/**/*.out.rtf
+/tools/osx-pkg/scripts/nodejs-run-uninstall

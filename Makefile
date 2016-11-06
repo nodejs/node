@@ -484,7 +484,7 @@ BINARYTAR=$(BINARYNAME).tar
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 XZ_COMPRESSION ?= 9
 PKG=$(TARNAME).pkg
-PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
+PACKAGESBUILD ?= /usr/local/bin/packagesbuild
 PKGDIR=out/dist-osx
 
 release-only:
@@ -514,6 +514,26 @@ release-only:
 		exit 1 ; \
 	fi
 
+pre-pkg:
+	touch tools/osx-pkg/scripts/nodejs-run-uninstall # empty file for uninstall step
+	$(NODE) tools/license2rtf.js < LICENSE > tools/osx-pkg/strings/license.rtf
+	cat tools/osx-pkg/osx-pkg.pkgproj | \
+		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' \
+		-e 's|introduction.rtf|introduction.out.rtf|g' \
+		-e 's|summary.rtf|summary.out.rtf|g' > \
+		tools/osx-pkg/osx-pkg-out.pkgproj
+	$(foreach dir, \
+		$(shell echo tools/osx-pkg/strings/*/), \
+		cat $(dir)introduction.rtf | \
+		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > \
+		$(dir)introduction.out.rtf && \
+		cat $(dir)summary.rtf | \
+		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > \
+		$(dir)summary.out.rtf; \
+	)
+
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
@@ -522,16 +542,13 @@ $(PKG): release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
-	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
-		| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
-		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
-		> tools/osx-pkg.pmdoc/index.xml
-	$(PACKAGEMAKER) \
-		--id "org.nodejs.pkg" \
-		--doc tools/osx-pkg.pmdoc \
-		--out $(PKG)
+	$(MAKE) all V=$(V)
+	NODE_INSTALL_NODE_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
+	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
+	NODE_INSTALL_NPM_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/npm' '$(PREFIX)'
+	$(MAKE) pre-pkg V=$(V)
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)/node" bash tools/osx-codesign.sh
+	$(PACKAGESBUILD) tools/osx-pkg/osx-pkg-out.pkgproj
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 pkg: $(PKG)
@@ -592,7 +609,7 @@ $(TARBALL)-headers: release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm -f
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)
