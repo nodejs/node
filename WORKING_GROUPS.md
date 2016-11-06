@@ -41,66 +41,65 @@ back in to the CTC.
 
 ### [Website](https://github.com/nodejs/nodejs.org)
 
-The website working group's purpose is to build and maintain a public
-website for the `Node.js` project.
+The website Working Group's purpose is to build and maintain a public
+website for the Node.js project.
 
-Its responsibilities are:
-* Develop and maintain a build and automation system for `nodejs.org`.
-* Ensure the site is regularly updated with changes made to `Node.js` like
-releases and features.
-* Foster and enable a community of translators.
+Responsibilities include:
+* Developing and maintaining a build and automation system for nodejs.org.
+* Ensuring the site is regularly updated with changes made to Node.js, like
+  releases and features.
+* Fostering and enabling a community of translators.
 
 ### [Streams](https://github.com/nodejs/readable-stream)
 
-The Streams WG is dedicated to the support and improvement of the Streams API
-as used in Node.js and the npm ecosystem. We seek to create a composable API that
-solves the problem of representing multiple occurrences of an event over time
-in a humane, low-overhead fashion. Improvements to the API will be driven by
-the needs of the ecosystem; interoperability and backwards compatibility with
-other solutions and prior versions are paramount in importance. Our
-responsibilities include:
+The Streams Working Group is dedicated to the support and improvement of the
+Streams API as used in Node.js and the npm ecosystem. We seek to create a
+composable API that solves the problem of representing multiple occurrences
+of an event over time in a humane, low-overhead fashion. Improvements to the
+API will be driven by the needs of the ecosystem; interoperability and
+backwards compatibility with other solutions and prior versions are paramount
+in importance.
 
+Responsibilities include:
 * Addressing stream issues on the Node.js issue tracker.
 * Authoring and editing stream documentation within the Node.js project.
 * Reviewing changes to stream subclasses within the Node.js project.
 * Redirecting changes to streams from the Node.js project to this project.
 * Assisting in the implementation of stream providers within Node.js.
-* Recommending versions of readable-stream to be included in Node.js.
-* Messaging about the future of streams to give the community advance notice of changes.
-
+* Recommending versions of `readable-stream` to be included in Node.js.
+* Messaging about the future of streams to give the community advance notice of
+  changes.
 
 ### [Build](https://github.com/nodejs/build)
 
-The build working group's purpose is to create and maintain a
-distributed automation infrastructure.
+The Build Working Group's purpose is to create and maintain a distributed
+automation infrastructure.
 
-Its responsibilities are:
-* Produce Packages for all target platforms.
-* Run tests.
-* Run performance testing and comparisons.
-* Creates and manages build-containers.
-
+Responsibilities include:
+* Producing packages for all target platforms.
+* Running tests.
+* Running performance testing and comparisons.
+* Creating and managing build-containers.
 
 ### [Diagnostics](https://github.com/nodejs/diagnostics)
 
-The diagnostics working group's purpose is to surface a set of comprehensive,
-documented, and extensible diagnostic interfaces for use by
-Node.js tools and JavaScript VMs.
+The Diagnostics Working Group's purpose is to surface a set of comprehensive,
+documented, and extensible diagnostic interfaces for use by Node.js tools and
+JavaScript VMs.
 
-Its responsibilities are:
-
-* Collaborate with V8 to integrate `v8_inspector` into Node.js.
-* Collaborate with V8 to integrate `trace_event` into Node.js.
-* Collaborate with Core to refine `async_wrap` and `async_hooks`.
-* Maintain and improve OS trace system integration (e.g. ETW, LTTNG, dtrace).
-* Document diagnostic capabilities and APIs in Node.js and its components.
-* Explore opportunities and gaps, discuss feature requests, and address
+Responsibilities include:
+* Collaborating with V8 to integrate `v8_inspector` into Node.js.
+* Collaborating with V8 to integrate `trace_event` into Node.js.
+* Collaborating with Core to refine `async_wrap` and `async_hooks`.
+* Maintaining and improving OS trace system integration (e.g. ETW, LTTNG, dtrace).
+* Documenting diagnostic capabilities and APIs in Node.js and its components.
+* Exploring opportunities and gaps, discussing feature requests, and addressing
   conflicts in Node.js diagnostics.
-* Foster an ecosystem of diagnostics tools for Node.js.
+* Fostering an ecosystem of diagnostics tools for Node.js.
 
 ### i18n
 
-The i18n working groups handle more than just translations. They
+The i18n Working Groups handle more than just translations. They
 are endpoints for community members to collaborate with each
 other in their language of choice.
 
@@ -108,16 +107,14 @@ Each team is organized around a common spoken language. Each
 language community might then produce multiple localizations for
 various project resources.
 
-Their responsibilities are:
-* Translations of any Node.js materials they believe are relevant to their
-community.
-* Review processes for keeping translations up
-to date and of high quality.
-* Social media channels in their language.
-* Promotion of Node.js speakers for meetups and conferences in their
-language.
+Responsibilities include:
+* Translating any Node.js materials they believe are relevant to their
+  community.
+* Reviewing processes for keeping translations up to date and of high quality.
+* Managing and monitoring social media channels in their language.
+* Promoting Node.js speakers for meetups and conferences in their language.
 
-Note that the i18n working groups are distinct from the [Intl](#Intl) working group.
+Note that the i18n Working Groups are distinct from the [Intl](#Intl) Working Group.
 
 Each language community maintains its own membership.
 
@@ -159,33 +156,37 @@ Each language community maintains its own membership.
 ### [Intl](https://github.com/nodejs/Intl)
 
 The Intl Working Group is dedicated to support and improvement of
-Internationalization (i18n) and Localization (l10n) in Node. Its responsibilities are:
+Internationalization (i18n) and Localization (l10n) in Node.
 
-1. Functionality & compliance (standards: ECMA, Unicode…)
-2. Support for Globalization and Internationalization issues that come up in the tracker
-3. Guidance and Best Practices
-4. Refinement of existing `Intl` implementation
+Responsibilities include:
+* Ensuring functionality & compliance (standards: ECMA, Unicode…)
+* Supporting Globalization and Internationalization issues that come up
+  in the tracker
+* Communicating guidance and best practices
+* Refining the existing `Intl` implementation
 
-The Intl WG is not responsible for translation of content. That is the responsibility of the specific [i18n](#i18n) group for each language.
+The Intl Working Group is not responsible for translation of content. That is the
+responsibility of the specific [i18n](#i18n) group for each language.
 
 ### [Evangelism](https://github.com/nodejs/evangelism)
 
-The evangelism working group promotes the accomplishments
+The Evangelism Working Group promotes the accomplishments
 of Node.js and lets the community know how they can get involved.
 
-Their responsibilities are:
-* Project messaging.
-* Official project social media.
-* Promotion of speakers for meetups and conferences.
-* Promotion of community events.
+Responsibilities include:
+* Facilitating project messaging.
+* Managing official project social media.
+* Handling the promotion of speakers for meetups and conferences.
+* Handling the promotion of community events.
 * Publishing regular update summaries and other promotional
-content.
+  content.
 
 ### [HTTP](https://github.com/nodejs/http)
 
-The HTTP working group is chartered for the support and improvement of the
-HTTP implementation in Node. Its responsibilities are:
+The HTTP Working Group is chartered for the support and improvement of the
+HTTP implementation in Node.js.
 
+Responsibilities include:
 * Addressing HTTP issues on the Node.js issue tracker.
 * Authoring and editing HTTP documentation within the Node.js project.
 * Reviewing changes to HTTP functionality within the Node.js project.
@@ -197,39 +198,36 @@ HTTP implementation in Node. Its responsibilities are:
 
 ### [Roadmap](https://github.com/nodejs/roadmap)
 
-The roadmap working group is responsible for user community outreach
+The Roadmap Working Group is responsible for user community outreach
 and the translation of their concerns into a plan of action for Node.js.
 
 The final [ROADMAP](./ROADMAP.md) document is still owned by the TC and requires
 the same approval for changes as any other project asset.
 
 Their responsibilities are:
-* Attract and summarize user community needs and feedback.
-* Find or potentially create tools that allow for broader participation.
-* Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
-
+* Attracting and summarizing user community needs and feedback.
+* Finding or potentially creating tools that allow for broader participation.
+* Creating Pull Requests for relevant changes to [ROADMAP.md](./ROADMAP.md)
 
 ### [Docker](https://github.com/nodejs/docker-iojs)
 
-The Docker working group's purpose is to build, maintain, and improve official
-Docker images for the `Node.js` project.
+The Docker Working Group's purpose is to build, maintain, and improve official
+Docker images for the Node.js project.
 
-Their responsibilities are:
-* Keep the official Docker images updated in line with new `Node.js` releases.
+Responsibilities include:
+* Keeping the official Docker images updated in line with new Node.js releases.
 * Decide and implement image improvements and/or fixes.
 * Maintain and improve the images' documentation.
-
 
 ### [Addon API](https://github.com/nodejs/nan)
 
 The Addon API Working Group is responsible for maintaining the NAN project and
 corresponding _nan_ package in npm. The NAN project makes available an
-abstraction layer for native add-on authors for both Node.js and Node.js,
+abstraction layer for native add-on authors for Node.js,
 assisting in the writing of code that is compatible with many actively used
-versions of Node.js, Node.js, V8 and libuv.
+versions of Node.js, V8 and libuv.
 
-Their responsibilities are:
-
+Responsibilities include:
 * Maintaining the [NAN](https://github.com/nodejs/nan) GitHub repository,
   including code, issues and documentation.
 * Maintaining the [addon-examples](https://github.com/nodejs/node-addon-examples)
@@ -247,48 +245,46 @@ The current members can be found in their
 
 ### [Benchmarking](https://github.com/nodejs/benchmarking)
 
-The purpose of the Benchmark working group is to gain consensus
-for an agreed set of benchmarks that can be used to:
+The purpose of the Benchmark Working Group is to gain consensus
+on an agreed set of benchmarks that can be used to:
 
-+ track and evangelize performance gains made between Node releases
-+ avoid performance regressions between releases
+* track and evangelize performance gains made between Node.js releases
+* avoid performance regressions between releases
 
-Its responsibilities are:
-
-+ Identify 1 or more benchmarks that reflect customer usage.
-   Likely need more than one to cover typical Node use cases
-   including low-latency and high concurrency
-+ Work to get community consensus on the list chosen
-+ Add regular execution of chosen benchmarks to Node builds
-+ Track/publicize performance between builds/releases
+Responsibilities include:
+* Identifying 1 or more benchmarks that reflect customer usage.
+  Likely will need more than one to cover typical Node.js use cases
+  including low-latency and high concurrency
+* Working to get community consensus on the list chosen
+* Adding regular execution of chosen benchmarks to Node.js builds
+* Tracking/publicizing performance between builds/releases
 
 ### [Post-mortem](https://github.com/nodejs/post-mortem)
 
-The Post-mortem Diagnostics working group is dedicated to the support
+The Post-mortem Diagnostics Working Group is dedicated to the support
 and improvement of postmortem debugging for Node.js. It seeks to
 elevate the role of postmortem debugging for Node, to assist in the
 development of techniques and tools, and to make techniques and tools
 known and available to Node.js users.
 
-Its responsibilities are:
-
-+ Defining and adding interfaces/APIs in order to allow dumps
-  to be generated when needed
-+ Defining and adding common structures to the dumps generated
-  in order to support tools that want to introspect those dumps
+Responsibilities include:
+* Defining and adding interfaces/APIs in order to allow dumps
+  to be generated when needed.
+* Defining and adding common structures to the dumps generated
+  in order to support tools that want to introspect those dumps.
 
 ### [Documentation](https://github.com/nodejs/docs)
 
-The Documentation working group exists to support the improvement of Node.js
+The Documentation Working Group exists to support the improvement of Node.js
 documentation, both in the core API documentation, and elsewhere, such as the
-Node.js website. Its intent is to work closely with Evangelism, Website, and
-Intl working groups to make excellent documentation available and accessible
+Node.js website. Its intent is to work closely with the Evangelism, Website, and
+Intl Working Groups to make excellent documentation available and accessible
 to all.
 
-Its responsibilities are:
-
+Responsibilities include:
 * Defining and maintaining documentation style and content standards.
-* Producing documentation in a format acceptable for the Website WG to consume.
+* Producing documentation in a format acceptable for the Website Working Group
+  to consume.
 * Ensuring that Node's documentation addresses a wide variety of audiences.
 * Creating and operating a process for documentation review that produces
   quality documentation and avoids impeding the progress of Core work.
@@ -298,8 +294,7 @@ Its responsibilities are:
 The Node.js Testing Working Group's purpose is to extend and improve testing of
 the Node.js source code.
 
-Its responsibilities are:
-
+Responsibilities include:
 * Coordinating an overall strategy for improving testing.
 * Documenting guidelines around tests.
 * Working with the Build Working Group to improve continuous integration.
