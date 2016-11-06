@@ -41,6 +41,8 @@ extern const char* openssl_config;
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
 
+extern bool config_deprecate_soon;
+
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 

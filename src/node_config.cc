@@ -44,6 +44,9 @@ void InitConfig(Local<Object> target,
 
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+
+  if (config_deprecate_soon)
+    READONLY_BOOLEAN_PROPERTY("deprecateSoon");
 }  // InitConfig
 
 }  // namespace node
