@@ -19,16 +19,11 @@ const proc = spawn(process.execPath, args, { stdio: 'pipe' });
 proc.stdout.setEncoding('utf8');
 proc.stderr.setEncoding('utf8');
 
-function fail() {
-  common.fail('the program should not hang');
-}
-
-const timer = setTimeout(fail, common.platformTimeout(4000));
-
 let stdout = '';
 let stderr = '';
 
 let nextCount = 0;
+let exit = false;
 
 proc.stdout.on('data', (data) => {
   stdout += data;
@@ -38,8 +33,8 @@ proc.stdout.on('data', (data) => {
       stdout.includes('> 4') && nextCount < 4) {
     nextCount++;
     proc.stdin.write('n\n');
-  } else if (stdout.includes('{ a: \'b\' }')) {
-    clearTimeout(timer);
+  } else if (!exit && (stdout.includes('< { a: \'b\' }'))) {
+    exit = true;
     proc.stdin.write('.exit\n');
   } else if (stdout.includes('program terminated')) {
     // Catch edge case present in v4.x
@@ -49,15 +44,6 @@ proc.stdout.on('data', (data) => {
 });
 
 proc.stderr.on('data', (data) => stderr += data);
-
-// FIXME
-// This test has been periodically failing on certain systems due to
-// uncaught errors on proc.stdin. This will stop the process from
-// exploding but is still not an elegant solution. Likely a deeper bug
-// causing this problem.
-proc.stdin.on('error', (err) => {
-  console.error(err);
-});
 
 process.on('exit', (code) => {
   assert.equal(code, 0, 'the program should exit cleanly');
