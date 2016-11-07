@@ -15,7 +15,6 @@ prefix parallel
 [$arch==arm || $arch==arm64]
 
 [$system==solaris] # Also applies to SmartOS
-test-tick-processor-unknown: PASS,FLAKY
 
 [$system==freebsd]
 
