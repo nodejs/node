@@ -145,7 +145,7 @@ function checkDomains() {
     throw new Error('UNREACHABLE');
   }
 
-  process.nextTick(common.mustCall(testTimer.bind(null, 3)));
-  setImmediate(common.mustCall(testTimer.bind(null, 2)));
-  setTimeout(common.mustCall(testTimer.bind(null, 1)), 1);
+  process.nextTick(common.mustCall(testTimer), 3);
+  setImmediate(common.mustCall(testTimer), 2);
+  setTimeout(common.mustCall(testTimer), 1, 1);
 }
