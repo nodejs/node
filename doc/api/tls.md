@@ -885,9 +885,7 @@ socket.on('end', () => {
   server.close();
 });
 ```
-
 Or
-
 ```js
 const tls = require('tls');
 const fs = require('fs');
@@ -911,6 +909,21 @@ socket.on('end', () => {
 });
 ```
 
+Note from the above example that if you don't wrap the `net.Socket` in a
+ `TLSSocket`, then the connect works as expected.If you're using TLS from
+the start, then just use `tls.connect()`.But if you pass in a `net.Socket`, 
+you start the `net.Socket`.
+The following explains it:
+
+```js
+var Socket = require('net').Socket;
+var tls = require('tls');
+var sock = new Socket();
+var secureSock = tls.connect({ socket: s }, function() {
+  console.log("The tls socket connected. Yay!");
+});
+sock.connect({port: 6697, host: "irc.freenode.net"});
+```
 
 ## tls.createSecureContext(options)
 <!-- YAML
