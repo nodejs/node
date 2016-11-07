@@ -132,38 +132,20 @@ function checkDomains() {
     }));
   }), 1);
 
-  // Make sure nextTick, setImmediate and setTimeout can all recover properly
-  // after a thrown makeCallback call.
-  process.nextTick(common.mustCall(function() {
+  function testTimer(id) {
+    // Make sure nextTick, setImmediate and setTimeout can all recover properly
+    // after a thrown makeCallback call.
     const d = domain.create();
     d.on('error', common.mustCall(function(e) {
-      assert.strictEqual(e.message, 'throw from domain 3');
+      assert.strictEqual(e.message, `throw from domain ${id}`);
     }));
     makeCallback({domain: d}, function() {
-      throw new Error('throw from domain 3');
+      throw new Error(`throw from domain ${id}`);
     });
     throw new Error('UNREACHABLE');
-  }));
+  }
 
-  setImmediate(common.mustCall(function() {
-    const d = domain.create();
-    d.on('error', common.mustCall(function(e) {
-      assert.strictEqual(e.message, 'throw from domain 2');
-    }));
-    makeCallback({domain: d}, function() {
-      throw new Error('throw from domain 2');
-    });
-    throw new Error('UNREACHABLE');
-  }));
-
-  setTimeout(common.mustCall(function() {
-    const d = domain.create();
-    d.on('error', common.mustCall(function(e) {
-      assert.strictEqual(e.message, 'throw from domain 1');
-    }));
-    makeCallback({domain: d}, function() {
-      throw new Error('throw from domain 1');
-    });
-    throw new Error('UNREACHABLE');
-  }));
+  process.nextTick(common.mustCall(testTimer), 3);
+  setImmediate(common.mustCall(testTimer), 2);
+  setTimeout(common.mustCall(testTimer), 1, 1);
 }
