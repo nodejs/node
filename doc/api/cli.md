@@ -107,12 +107,12 @@ added: v0.11.14
 
 Throw errors for deprecations.
 
-### `--deprecate-soon`
+### `--deprecated-in-docs`
 <!-- YAML
 added: REPLACEME
 -->
 
-Show warnings for APIs that are expected to be deprecated soon.
+Show warnings for APIs that have been deprecated in the documentation.
 
 ### `--no-warnings`
 <!-- YAML

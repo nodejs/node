@@ -1,21 +1,20 @@
 'use strict';
 
-// Tests the --deprecate-soon command line option and warning emission.
+// Tests the --deprecated-in-docs command line option and warning emission.
 
 const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
-const deprecateSoon = process.binding('config').deprecateSoon;
+const deprecateInDocs = process.binding('config').deprecateInDocs;
 
 if (process.argv[2] === 'child') {
   const util = require('internal/util');
-  const fn = util.deprecateSoon(() => {}, 'this will be deprecated soon');
+  const fn = util.deprecatedInDocs(() => {}, 'this is deprecated in the docs');
 
-  const count = deprecateSoon ? 1 : 0;
   process.on('warning', common.mustCall((warning) => {
-    assert.strictEqual(warning.name, 'DeprecateSoonWarning');
-    assert.strictEqual(warning.message, 'this will be deprecated soon');
-  }, count));
+    assert.strictEqual(warning.name, 'DeprecatedInDocsWarning');
+    assert.strictEqual(warning.message, 'this is deprecated in the docs');
+  }, deprecateInDocs ? 1 : 0));
   fn();
 } else {
   const options = [
@@ -24,13 +23,14 @@ if (process.argv[2] === 'child') {
     'child'
   ];
 
-  // Do not emit the deprecate soon warning
+  // Do not emit the deprecated in docs warning
   assert.strictEqual(
     spawnSync(process.execPath, options).status, 0,
     'deprecation warning was printed');
 
-  options.unshift('--deprecate-soon');
+  options.unshift('--deprecated-in-docs');
 
+  // Emit the deprecated in docs warning
   assert.strictEqual(
     spawnSync(process.execPath, options).status, 0,
     'deprecation warning was not printed properly');
