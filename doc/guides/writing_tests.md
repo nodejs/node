@@ -3,11 +3,13 @@
 ## What is a test?
 
 A test must be a node script that exercises a specific functionality provided
-by node and checks that it behaves as expected. It should return 0 on success,
+by node and checks that it behaves as expected. It should exit with code `0` on success,
 otherwise it will fail. A test will fail if:
 
-- It exits by calling `process.exit(code)` where `code != 0`
-- It exits due to an uncaught exception.
+- It exits by setting `process.exitCode` to a non-zero number.
+  - This is most often done by having an assertion throw an uncaught
+    Error.
+  - Occasionally, using `process.exit(code)` may be appropriate.
 - It never exits. In this case, the test runner will terminate the test because
   it sets a maximum time limit.
 
