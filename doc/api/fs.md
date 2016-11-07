@@ -1849,13 +1849,12 @@ added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `data` {String}
 * `position` {Integer}
 * `encoding` {String}
 * `callback` {Function}
 
-Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
-then the value will be coerced to a string.
+Write `data` to the file specified by `fd`.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
