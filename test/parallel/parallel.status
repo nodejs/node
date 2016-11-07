@@ -16,7 +16,6 @@ prefix parallel
 
 [$system==solaris] # Also applies to SmartOS
 test-debug-signal-cluster         : PASS,FLAKY
-test-tick-processor-unknown: PASS,FLAKY
 
 [$system==freebsd]
 
