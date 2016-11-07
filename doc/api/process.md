@@ -447,6 +447,8 @@ generate a core file.
 added: v0.5.0
 -->
 
+* {String}
+
 The `process.arch` property returns a String identifying the processor
 architecture that the Node.js process is currently running on. For instance
 `'arm'`, `'ia32'`, or `'x64'`.
@@ -459,6 +461,8 @@ console.log(`This processor architecture is ${process.arch}`);
 <!-- YAML
 added: v0.1.27
 -->
+
+* {Array}
 
 The `process.argv` property returns an array containing the command line
 arguments passed when the Node.js process was launched. The first element will
@@ -496,6 +500,8 @@ Would generate the output:
 <!-- YAML
 added: 6.4.0
 -->
+
+* {String}
 
 The `process.argv0` property stores a read-only copy of the original value of
 `argv[0]` passed when Node.js starts.
@@ -545,6 +551,8 @@ catch (err) {
 added: v0.7.7
 -->
 
+* {Object}
+
 The `process.config` property returns an Object containing the JavaScript
 representation of the configure options used to compile the current Node.js
 executable. This is the same as the `config.gypi` file that was produced when
@@ -588,6 +596,8 @@ replace the value of `process.config`.
 added: v0.7.2
 -->
 
+* {Boolean}
+
 If the Node.js process is spawned with an IPC channel (see the [Child Process][]
 and [Cluster][] documentation), the `process.connected` property will return
 `true` so long as the IPC channel is connected and will return `false` after
@@ -603,6 +613,9 @@ added: v6.1.0
 
 * `previousValue` {Object} A previous return value from calling
   `process.cpuUsage()`
+* Return: {Object}
+    * `user` {Integer}
+    * `system` {Integer}
 
 The `process.cpuUsage()` method returns the user and system CPU time usage of
 the current process, in an object with properties `user` and `system`, whose
@@ -629,6 +642,8 @@ console.log(process.cpuUsage(startUsage));
 <!-- YAML
 added: v0.1.8
 -->
+
+* Return: {String}
 
 The `process.cwd()` method returns the current working directory of the Node.js
 process.
@@ -657,6 +672,8 @@ If the Node.js process was not spawned with an IPC channel,
 <!-- YAML
 added: v0.1.27
 -->
+
+* {Object}
 
 The `process.env` property returns an object containing the user environment.
 See environ(7).
@@ -822,6 +839,8 @@ emitMyWarning();
 added: v0.7.7
 -->
 
+* {Object}
+
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
 appear in the array returned by the [`process.argv`][] property, and do not
@@ -852,13 +871,15 @@ And `process.argv`:
 added: v0.1.100
 -->
 
+* {String}
+
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process.
 
 For example:
 
-```sh
-/usr/local/bin/node
+```js
+'/usr/local/bin/node'
 ```
 
 
@@ -931,6 +952,8 @@ is safer than calling `process.exit()`.
 added: v0.11.8
 -->
 
+* {Integer}
+
 A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
@@ -961,6 +984,8 @@ or Android)
 added: v2.0.0
 -->
 
+* Return: {Object}
+
 The `process.geteuid()` method returns the numerical effective user identity of
 the process. (See geteuid(2).)
 
@@ -977,6 +1002,8 @@ Android)
 <!-- YAML
 added: v0.1.31
 -->
+
+* Return: {Object}
 
 The `process.getgid()` method returns the numerical group identity of the
 process. (See getgid(2).)
@@ -996,6 +1023,8 @@ Android)
 added: v0.9.4
 -->
 
+* Return: {Array}
+
 The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
 Node.js ensures it always is.
@@ -1007,6 +1036,8 @@ Android)
 <!-- YAML
 added: v0.1.28
 -->
+
+* Return: {Integer}
 
 The `process.getuid()` method returns the numeric user identity of the process.
 (See getuid(2).)
@@ -1140,6 +1171,11 @@ is no entry script.
 added: v0.1.16
 -->
 
+* Return: {Object}
+    * `rss` {Integer}
+    * `heapTotal` {Integer}
+    * `heapUsed` {Integer}
+
 The `process.memoryUsage()` method returns an object describing the memory usage
 of the Node.js process measured in bytes.
 
@@ -1259,6 +1295,8 @@ happening, just like a `while(true);` loop.
 added: v0.1.15
 -->
 
+* {Integer}
+
 The `process.pid` property returns the PID of the process.
 
 ```js
@@ -1269,6 +1307,8 @@ console.log(`This process is pid ${process.pid}`);
 <!-- YAML
 added: v0.1.16
 -->
+
+* {String}
 
 The `process.platform` property returns a string identifying the operating
 system platform on which the Node.js process is running. For instance
@@ -1471,6 +1511,8 @@ Android)
 
 ## process.stderr
 
+* {Stream}
+
 The `process.stderr` property returns a [Writable][] stream equivalent to or
 associated with `stderr` (fd `2`).
 
@@ -1490,6 +1532,8 @@ To check if Node.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
 
 ## process.stdin
+
+* {Stream}
 
 The `process.stdin` property returns a [Readable][] stream equivalent to or
 associated with `stdin` (fd `0`).
@@ -1520,6 +1564,8 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
 
 ## process.stdout
+
+* {Stream}
 
 The `process.stdout` property returns a [Writable][] stream equivalent to or
 associated with `stdout` (fd `1`).
@@ -1576,6 +1622,8 @@ See the [TTY][] documentation for more information.
 added: v0.1.104
 -->
 
+* {String}
+
 The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
 the current value of `ps`.
@@ -1615,6 +1663,8 @@ console.log(
 added: v0.5.0
 -->
 
+* Return: {Number}
+
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.
 
@@ -1622,6 +1672,8 @@ process has been running.
 <!-- YAML
 added: v0.1.3
 -->
+
+* {String}
 
 The `process.version` property returns the Node.js version string.
 
@@ -1633,6 +1685,8 @@ console.log(`Version: ${process.version}`);
 <!-- YAML
 added: v0.2.0
 -->
+
+* {Object}
 
 The `process.versions` property returns an object listing the version strings of
 Node.js and its dependencies.
