@@ -259,7 +259,7 @@ TestSession.prototype.expectStderrOutput = function(regexp) {
 
 TestSession.prototype.runNext_ = function() {
   if (this.task_) {
-    setTimeout(() => {
+    setImmediate(() => {
       this.task_(() => {
         this.task_ = this.task_.next_;
         this.runNext_();
@@ -338,7 +338,7 @@ Harness.prototype.addStderrFilter = function(regexp, callback) {
 };
 
 Harness.prototype.run_ = function() {
-  setTimeout(() => {
+  setImmediate(() => {
     this.task_(() => {
       this.task_ = this.task_.next_;
       if (this.task_)
