@@ -241,6 +241,9 @@ test-debugger: all
 test-inspector: all
 	$(PYTHON) tools/test.py inspector
 
+test-tick-processor: all
+	$(PYTHON) tools/test.py tick-processor
+
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
