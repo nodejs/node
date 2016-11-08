@@ -27,32 +27,26 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Simple wrapper for running valgrind and checking the output on
-# stderr for memory leaks.
-# Uses valgrind from third_party/valgrind. Assumes the executable is passed
-# with a path relative to the v8 root.
-
-
 from os import path
-import platform
-import re
 import subprocess
 import sys
 
-V8_ROOT = path.dirname(path.dirname(path.abspath(__file__)))
+NODE_ROOT = path.dirname(path.dirname(path.abspath(__file__)))
 
 VALGRIND_ARGUMENTS = [
   'valgrind',
   '--error-exitcode=1',
-  '--leak-check=full',
   '--smc-check=all',
+  # Node.js does not clean up on exit so don't complain about
+  # memory leaks but do complain about invalid memory access.
+  '--quiet',
 ]
 
 if len(sys.argv) < 2:
   print 'Please provide an executable to analyze.'
   sys.exit(1)
 
-executable = path.join(V8_ROOT, sys.argv[1])
+executable = path.join(NODE_ROOT, sys.argv[1])
 if not path.exists(executable):
   print 'Cannot find the file specified: %s' % executable
   sys.exit(1)
@@ -62,33 +56,10 @@ command = VALGRIND_ARGUMENTS + [executable] + sys.argv[2:]
 
 # Run valgrind.
 process = subprocess.Popen(command, stderr=subprocess.PIPE)
-code = process.wait();
-errors = process.stderr.readlines();
+code = process.wait()
+errors = process.stderr.readlines()
 
 # If valgrind produced an error, we report that to the user.
 if code != 0:
   sys.stderr.writelines(errors)
   sys.exit(code)
-
-# Look through the leak details and make sure that we don't
-# have any definitely, indirectly, and possibly lost bytes.
-LEAK_RE = r"(?:definitely|indirectly|possibly) lost: "
-LEAK_LINE_MATCHER = re.compile(LEAK_RE)
-LEAK_OKAY_MATCHER = re.compile(r"lost: 0 bytes in 0 blocks")
-leaks = []
-for line in errors:
-  if LEAK_LINE_MATCHER.search(line):
-    leaks.append(line)
-    if not LEAK_OKAY_MATCHER.search(line):
-      sys.stderr.writelines(errors)
-      sys.exit(1)
-
-# Make sure we found between 2 and 3 leak lines.
-if len(leaks) < 2 or len(leaks) > 3:
-  sys.stderr.writelines(errors)
-  sys.stderr.write('\n\n#### Malformed valgrind output.\n#### Exiting.\n')
-  sys.exit(1)
-
-# No leaks found.
-sys.stderr.writelines(errors)
-sys.exit(0)
