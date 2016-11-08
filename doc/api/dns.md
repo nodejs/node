@@ -148,7 +148,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is the error code.
 const dns = require('dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
-    // Prints: localhost ssh
+  // Prints: localhost ssh
 });
 ```
 

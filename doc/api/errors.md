@@ -258,7 +258,7 @@ the stack trace of the `Error`, however changing this property after the
 ```js
 const err = new Error('The message');
 console.log(err.message);
-  // Prints: The message
+// Prints: The message
 ```
 
 #### error.stack

@@ -35,7 +35,7 @@ Example: running `node example.js` from `/Users/mjr`
 
 ```js
 console.log(__dirname);
-// /Users/mjr
+// Prints: /Users/mjr
 ```
 
 `__dirname` isn't actually a global but rather local to each module.
@@ -68,7 +68,7 @@ Example: running `node example.js` from `/Users/mjr`
 
 ```js
 console.log(__filename);
-// /Users/mjr/example.js
+// Prints: /Users/mjr/example.js
 ```
 
 `__filename` isn't actually a global but rather local to each module.

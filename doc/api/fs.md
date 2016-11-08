@@ -918,7 +918,7 @@ For example, the following program retains only the first four bytes of the file
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
-  // prints Node.js
+// Prints: Node.js
 
 // get the file descriptor of the file to be truncated
 const fd = fs.openSync('temp.txt', 'r+');
@@ -928,7 +928,7 @@ fs.ftruncate(fd, 4, (err) => {
   assert.ifError(err);
   console.log(fs.readFileSync('temp.txt', 'utf8'));
 });
-  // prints Node
+// Prints: Node
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
@@ -936,7 +936,7 @@ extended part is filled with null bytes ('\0'). For example,
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf-8'));
-  // prints Node.js
+// Prints: Node.js
 
 // get the file descriptor of the file to be truncated
 const fd = fs.openSync('temp.txt', 'r+');
@@ -946,8 +946,8 @@ fs.ftruncate(fd, 10, (err) => {
   assert.ifError(!err);
   console.log(fs.readFileSync('temp.txt'));
 });
-  // prints <Buffer 4e 6f 64 65 2e 6a 73 00 00 00>
-  // ('Node.js\0\0\0' in UTF8)
+// Prints: <Buffer 4e 6f 64 65 2e 6a 73 00 00 00>
+// ('Node.js\0\0\0' in UTF8)
 ```
 
 The last three bytes are null bytes ('\0'), to compensate the over-truncation.
@@ -1127,7 +1127,7 @@ Example:
 fs.mkdtemp('/tmp/foo-', (err, folder) => {
   if (err) throw err;
   console.log(folder);
-    // Prints: /tmp/foo-itXde2
+  // Prints: /tmp/foo-itXde2
 });
 ```
 
@@ -1145,10 +1145,10 @@ const tmpDir = '/tmp';
 fs.mkdtemp(tmpDir, (err, folder) => {
   if (err) throw err;
   console.log(folder);
-    // Will print something similar to `/tmpabc123`.
-    // Note that a new temporary directory is created
-    // at the file system root rather than *within*
-    // the /tmp directory.
+  // Will print something similar to `/tmpabc123`.
+  // Note that a new temporary directory is created
+  // at the file system root rather than *within*
+  // the /tmp directory.
 });
 
 // This method is *CORRECT*:
@@ -1156,9 +1156,9 @@ const path = require('path');
 fs.mkdtemp(tmpDir + path.sep, (err, folder) => {
   if (err) throw err;
   console.log(folder);
-    // Will print something similar to `/tmp/abc123`.
-    // A new temporary directory is created within
-    // the /tmp directory.
+  // Will print something similar to `/tmp/abc123`.
+  // A new temporary directory is created within
+  // the /tmp directory.
 });
 ```
 

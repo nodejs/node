@@ -140,7 +140,8 @@ Once built, the binary Addon can be used from within Node.js by pointing
 // hello.js
 const addon = require('./build/Release/addon');
 
-console.log(addon.hello()); // 'world'
+console.log(addon.hello());
+// Prints: 'world'
 ```
 
 Please see the examples below for further information or
@@ -372,7 +373,8 @@ To test it, run the following JavaScript:
 const addon = require('./build/Release/addon');
 
 addon((msg) => {
-  console.log(msg); // 'hello world'
+  console.log(msg);
+// Prints: 'hello world'
 });
 ```
 
@@ -423,7 +425,8 @@ const addon = require('./build/Release/addon');
 
 var obj1 = addon('hello');
 var obj2 = addon('world');
-console.log(obj1.msg, obj2.msg); // 'hello world'
+console.log(obj1.msg, obj2.msg);
+// Prints: 'hello world'
 ```
 
 
@@ -480,7 +483,8 @@ To test:
 const addon = require('./build/Release/addon');
 
 var fn = addon();
-console.log(fn()); // 'hello world'
+console.log(fn());
+// Prints: 'hello world'
 ```
 
 
@@ -642,9 +646,12 @@ Test it with:
 const addon = require('./build/Release/addon');
 
 var obj = new addon.MyObject(10);
-console.log(obj.plusOne()); // 11
-console.log(obj.plusOne()); // 12
-console.log(obj.plusOne()); // 13
+console.log(obj.plusOne());
+// Prints: 11
+console.log(obj.plusOne());
+// Prints: 12
+console.log(obj.plusOne());
+// Prints: 13
 ```
 
 ### Factory of wrapped objects
@@ -834,14 +841,20 @@ Test it with:
 const createObject = require('./build/Release/addon');
 
 var obj = createObject(10);
-console.log(obj.plusOne()); // 11
-console.log(obj.plusOne()); // 12
-console.log(obj.plusOne()); // 13
+console.log(obj.plusOne());
+// Prints: 11
+console.log(obj.plusOne());
+// Prints: 12
+console.log(obj.plusOne());
+// Prints: 13
 
 var obj2 = createObject(20);
-console.log(obj2.plusOne()); // 21
-console.log(obj2.plusOne()); // 22
-console.log(obj2.plusOne()); // 23
+console.log(obj2.plusOne());
+// Prints: 21
+console.log(obj2.plusOne());
+// Prints: 22
+console.log(obj2.plusOne());
+// Prints: 23
 ```
 
 
@@ -1013,7 +1026,8 @@ var obj1 = addon.createObject(10);
 var obj2 = addon.createObject(20);
 var result = addon.add(obj1, obj2);
 
-console.log(result); // 30
+console.log(result);
+// Prints: 30
 ```
 
 ### AtExit hooks
