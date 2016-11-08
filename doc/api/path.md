@@ -61,6 +61,7 @@ added: v0.1.25
 
 * `path` {String}
 * `ext` {String} An optional file extension
+* Return: {String}
 
 The `path.basename()` methods returns the last portion of a `path`, similar to
 the Unix `basename` command.
@@ -82,6 +83,8 @@ and is not a string.
 <!-- YAML
 added: v0.9.3
 -->
+
+* {String}
 
 Provides the platform-specific path delimiter:
 
@@ -114,6 +117,7 @@ added: v0.1.16
 -->
 
 * `path` {String}
+* Return: {String}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
 the Unix `dirname` command.
@@ -133,6 +137,7 @@ added: v0.1.25
 -->
 
 * `path` {String}
+* Return: {String}
 
 The `path.extname()` method returns the extension of the `path`, from the last
 occurrence of the `.` (period) character to end of string in the last portion of
@@ -168,10 +173,11 @@ added: v0.11.15
 
 * `pathObject` {Object}
   * `dir` {String}
-  * `root` {String} 
+  * `root` {String}
   * `base` {String}
   * `name` {String}
   * `ext` {String}
+* Return: {String}
 
 The `path.format()` method returns a path string from an object. This is the
 opposite of [`path.parse()`][].
@@ -244,6 +250,7 @@ added: v0.11.2
 -->
 
 * `path` {String}
+* Return: {Boolean}
 
 The `path.isAbsolute()` method determines if `path` is an absolute path.
 
@@ -278,6 +285,7 @@ added: v0.1.16
 -->
 
 * `...paths` {String} A sequence of path segments
+* Return: {String}
 
 The `path.join()` method joins all given `path` segments together using the
 platform specific separator as a delimiter, then normalizes the resulting path.
@@ -304,6 +312,7 @@ added: v0.1.23
 -->
 
 * `path` {String}
+* Return: {String}
 
 The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
 `'.'` segments.
@@ -337,6 +346,7 @@ added: v0.11.15
 -->
 
 * `path` {String}
+* Return: {Object}
 
 The `path.parse()` method returns an object whose properties represent
 significant elements of the `path`.
@@ -404,6 +414,8 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.11.15
 -->
 
+* {Object}
+
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
@@ -414,6 +426,7 @@ added: v0.5.0
 
 * `from` {String}
 * `to` {String}
+* Return: {String}
 
 The `path.relative()` method returns the relative path from `from` to `to`.
 If `from` and `to` each resolve to the same path (after calling `path.resolve()`
@@ -444,6 +457,7 @@ added: v0.3.4
 -->
 
 * `...paths` {String} A sequence of paths or path segments
+* Return: {String}
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
 an absolute path.
@@ -485,6 +499,8 @@ A [`TypeError`][] is thrown if any of the arguments is not a string.
 added: v0.7.9
 -->
 
+* {String}
+
 Provides the platform-specific path segment separator:
 
 * `\` on Windows
@@ -508,6 +524,8 @@ On Windows:
 <!-- YAML
 added: v0.11.15
 -->
+
+* {Object}
 
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
