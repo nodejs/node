@@ -406,7 +406,7 @@ Example:
 ```js
 const buf = new Buffer(5);
 
-// Prints (contents may vary): <Buffer 78 e0 82 02 01>
+// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
 console.log(buf);
 
 buf.fill(0);
@@ -525,7 +525,7 @@ Example:
 ```js
 const buf = Buffer.allocUnsafe(5);
 
-// Prints (contents may vary): <Buffer 78 e0 82 02 01>
+// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
 console.log(buf);
 
 buf.fill(0);
@@ -1755,12 +1755,12 @@ Examples:
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 
-// Prints <Buffer 01 02 03 04 05 06 07 08>
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
 console.log(buf1);
 
 buf1.swap32();
 
-// Prints <Buffer 04 03 02 01 08 07 06 05>
+// Prints: <Buffer 04 03 02 01 08 07 06 05>
 console.log(buf1);
 
 
@@ -1785,12 +1785,12 @@ Examples:
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 
-// Prints <Buffer 01 02 03 04 05 06 07 08>
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
 console.log(buf1);
 
 buf1.swap64();
 
-// Prints <Buffer 08 07 06 05 04 03 02 01>
+// Prints: <Buffer 08 07 06 05 04 03 02 01>
 console.log(buf1);
 
 
@@ -2327,7 +2327,7 @@ sequence cannot be adequately represented in the target encoding. For instance:
 ```js
 const newBuf = buffer.transcode(Buffer.from('€'), 'utf8', 'ascii');
 console.log(newBuf.toString('ascii'));
-  // prints '?'
+// Prints: '?'
 ```
 
 Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
@@ -2397,7 +2397,7 @@ const SlowBuffer = require('buffer').SlowBuffer;
 
 const buf = new SlowBuffer(5);
 
-// Prints (contents may vary): <Buffer 78 e0 82 02 01>
+// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
 console.log(buf);
 
 buf.fill(0);

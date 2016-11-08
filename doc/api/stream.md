@@ -1696,11 +1696,11 @@ myTransform.setEncoding('ascii');
 myTransform.on('data', (chunk) => console.log(chunk));
 
 myTransform.write(1);
-  // Prints: 01
+// Prints: 01
 myTransform.write(10);
-  // Prints: 0a
+// Prints: 0a
 myTransform.write(100);
-  // Prints: 64
+// Prints: 64
 ```
 
 ### Implementing a Transform Stream
