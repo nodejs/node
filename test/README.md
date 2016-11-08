@@ -122,7 +122,7 @@ Various tests that are run sequentially.
 
 Test configuration utility used by various test suites.
 
-### inspector
+### tick-processor
 
 Tests for the V8 tick processor integration. The tests are for the logic in
 `lib/internal/v8_prof_processor.js` and `lib/internal/v8_prof_polyfill.js`. The
