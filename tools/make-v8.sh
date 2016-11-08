@@ -26,7 +26,7 @@ cd deps
 # Preserve local changes
 mv v8 .v8old
 
-echo "Fetching v8 from chromium.googlesource.com"
+echo "Fetching V8 from chromium.googlesource.com"
 fetch v8
 if [ "$?" -ne 0 ]; then
   echo "V8 fetch failed"
@@ -37,7 +37,6 @@ echo "V8 fetched"
 cd v8
 
 echo "Checking out branch:$BRANCH"
-git fetch
 git checkout remotes/branch-heads/$BRANCH
 
 echo "Sync dependencies"
