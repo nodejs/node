@@ -1623,6 +1623,7 @@ added: v0.1.104
 -->
 
 * {String}
+
 The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
 the current value of `ps`.
