@@ -725,13 +725,13 @@ specific process warnings. These can be listened for by adding a handler to the
 ```js
 // Emit a warning using a string...
 process.emitWarning('Something happened!');
-  // Emits: (node: 56338) Warning: Something happened!
+// Emits: (node: 56338) Warning: Something happened!
 ```
 
 ```js
 // Emit a warning using a string and a name...
 process.emitWarning('Something Happened!', 'CustomWarning');
-  // Emits: (node:56338) CustomWarning: Something Happened!
+// Emits: (node:56338) CustomWarning: Something Happened!
 ```
 
 In each of the previous examples, an `Error` object is generated internally by
@@ -756,7 +756,7 @@ const myWarning = new Error('Warning! Something happened!');
 myWarning.name = 'CustomWarning';
 
 process.emitWarning(myWarning);
-  // Emits: (node:56338) CustomWarning: Warning! Something Happened!
+// Emits: (node:56338) CustomWarning: Warning! Something Happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
@@ -789,9 +789,9 @@ function emitMyWarning() {
   }
 }
 emitMyWarning();
-  // Emits: (node: 56339) Warning: Only warn once!
+// Emits: (node: 56339) Warning: Only warn once!
 emitMyWarning();
-  // Emits nothing
+// Emits nothing
 ```
 
 ## process.execArgv

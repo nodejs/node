@@ -24,14 +24,14 @@ On POSIX:
 
 ```js
 path.basename('C:\\temp\\myfile.html');
-  // returns 'C:\temp\myfile.html'
+// Returns: 'C:\temp\myfile.html'
 ```
 
 On Windows:
 
 ```js
 path.basename('C:\\temp\\myfile.html');
-  // returns 'myfile.html'
+// Returns: 'myfile.html'
 ```
 
 To achieve consistent results when working with Windows file paths on any
@@ -41,7 +41,7 @@ On POSIX and Windows:
 
 ```js
 path.win32.basename('C:\\temp\\myfile.html');
-  // returns 'myfile.html'
+// Returns: 'myfile.html'
 ```
 
 To achieve consistent results when working with POSIX file paths on any
@@ -51,7 +51,7 @@ On POSIX and Windows:
 
 ```js
 path.posix.basename('/tmp/myfile.html');
-  // returns 'myfile.html'
+// Returns: 'myfile.html'
 ```
 
 ## path.basename(path[, ext])
@@ -70,10 +70,10 @@ For example:
 
 ```js
 path.basename('/foo/bar/baz/asdf/quux.html')
-  // returns 'quux.html'
+// Returns: 'quux.html'
 
 path.basename('/foo/bar/baz/asdf/quux.html', '.html')
-  // returns 'quux'
+// Returns: 'quux'
 ```
 
 A [`TypeError`][] is thrown if `path` is not a string or if `ext` is given
@@ -95,20 +95,20 @@ For example, on POSIX:
 
 ```js
 console.log(process.env.PATH)
-// '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
+// Prints: '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
 
 process.env.PATH.split(path.delimiter)
-// returns ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
+// Returns: ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
 ```
 
 On Windows:
 
 ```js
 console.log(process.env.PATH)
-// 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
+// Prints: 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
 
 process.env.PATH.split(path.delimiter)
-// returns ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
+// Returns: ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
 ## path.dirname(path)
@@ -126,7 +126,7 @@ For example:
 
 ```js
 path.dirname('/foo/bar/baz/asdf/quux')
-// returns '/foo/bar/baz/asdf'
+// Returns: '/foo/bar/baz/asdf'
 ```
 
 A [`TypeError`][] is thrown if `path` is not a string.
@@ -149,19 +149,19 @@ For example:
 
 ```js
 path.extname('index.html')
-// returns '.html'
+// Returns: '.html'
 
 path.extname('index.coffee.md')
-// returns '.md'
+// Returns: '.md'
 
 path.extname('index.')
-// returns '.'
+// Returns: '.'
 
 path.extname('index')
-// returns ''
+// Returns: ''
 
 path.extname('.index')
-// returns ''
+// Returns: ''
 ```
 
 A [`TypeError`][] is thrown if `path` is not a string.
@@ -205,7 +205,7 @@ path.format({
   dir: '/home/user/dir',
   base: 'file.txt'
 });
-// returns '/home/user/dir/file.txt'
+// Returns: '/home/user/dir/file.txt'
 
 // `root` will be used if `dir` is not specified.
 // If only `root` is provided or `dir` is equal to `root` then the
@@ -214,7 +214,7 @@ path.format({
   root: '/',
   base: 'file.txt'
 });
-// returns '/file.txt'
+// Returns: '/file.txt'
 
 // `name` + `ext` will be used if `base` is not specified.
 path.format({
@@ -222,13 +222,13 @@ path.format({
   name: 'file',
   ext: '.txt'
 });
-// returns '/file.txt'
+// Returns: '/file.txt'
 
 // `base` will be returned if `dir` or `root` are not provided.
 path.format({
   base: 'file.txt'
 });
-// returns 'file.txt'
+// Returns: 'file.txt'
 ```
 
 On Windows:
@@ -241,7 +241,7 @@ path.format({
     ext : ".txt",
     name : "file"
 });
-// returns 'C:\\path\\dir\\file.txt'
+// Returns: 'C:\\path\\dir\\file.txt'
 ```
 
 ## path.isAbsolute(path)
@@ -298,7 +298,7 @@ For example:
 
 ```js
 path.join('/foo', 'bar', 'baz/asdf', 'quux', '..')
-// returns '/foo/bar/baz/asdf'
+// Returns: '/foo/bar/baz/asdf'
 
 path.join('foo', {}, 'bar')
 // throws TypeError: Arguments to path.join must be strings
@@ -328,14 +328,14 @@ For example on POSIX:
 
 ```js
 path.normalize('/foo/bar//baz/asdf/quux/..')
-// returns '/foo/bar/baz/asdf'
+// Returns: '/foo/bar/baz/asdf'
 ```
 
 On Windows:
 
 ```js
 path.normalize('C:\\temp\\\\foo\\bar\\..\\');
-// returns 'C:\\temp\\foo\\'
+// Returns: 'C:\\temp\\foo\\'
 ```
 
 A [`TypeError`][] is thrown if `path` is not a string.
@@ -363,7 +363,7 @@ For example on POSIX:
 
 ```js
 path.parse('/home/user/dir/file.txt')
-// returns
+// Returns:
 // {
 //    root : "/",
 //    dir : "/home/user/dir",
@@ -387,7 +387,7 @@ On Windows:
 
 ```js
 path.parse('C:\\path\\dir\\file.txt')
-// returns
+// Returns:
 // {
 //    root : "C:\\",
 //    dir : "C:\\path\\dir",
@@ -439,14 +439,14 @@ For example on POSIX:
 
 ```js
 path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
-// returns '../../impl/bbb'
+// Returns: '../../impl/bbb'
 ```
 
 On Windows:
 
 ```js
 path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
-// returns '..\\..\\impl\\bbb'
+// Returns: '..\\..\\impl\\bbb'
 ```
 
 A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
@@ -482,10 +482,10 @@ For example:
 
 ```js
 path.resolve('/foo/bar', './baz')
-// returns '/foo/bar/baz'
+// Returns: '/foo/bar/baz'
 
 path.resolve('/foo/bar', '/tmp/file/')
-// returns '/tmp/file'
+// Returns: '/tmp/file'
 
 path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
 // if the current working directory is /home/myself/node,
@@ -510,14 +510,14 @@ For example on POSIX:
 
 ```js
 'foo/bar/baz'.split(path.sep)
-// returns ['foo', 'bar', 'baz']
+// Returns: ['foo', 'bar', 'baz']
 ```
 
 On Windows:
 
 ```js
 'foo\\bar\\baz'.split(path.sep)
-// returns ['foo', 'bar', 'baz']
+// Returns: ['foo', 'bar', 'baz']
 ```
 
 ## path.win32
