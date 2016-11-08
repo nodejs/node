@@ -58,7 +58,7 @@ will be supported actively until April 2017 and maintained until April 2018.
 
 This LTS release comes with 219 commits. This includes 80 commits that are docs related, 58 commits that are test related, 20 commits that are build / tool related, and 9 commits that are updates to dependencies.
 
-## Notable Changes
+### Notable Changes
 
 * **build**: It is now possible to build the documentation from the release tarball (Anna Henningsen) [#8413](https://github.com/nodejs/node/pull/8413)
 * **buffer**: Buffer.alloc() will no longer incorrectly return a zero filled buffer when an encoding is passed (Teddy Katz) [#9238](https://github.com/nodejs/node/pull/9238)
@@ -66,7 +66,7 @@ This LTS release comes with 219 commits. This includes 80 commits that are docs 
 * **repl**: Enable tab completion for global properties (Lance Ball) [#7369](https://github.com/nodejs/node/pull/7369)
 * **url**: `url.format()` will now encode all `#` in `search` (Ilkka Myller) [#8072](https://github.com/nodejs/node/pull/8072)
 
-## Commits
+### Commits
 
 * [[`06a1c9bf80`](https://github.com/nodejs/node/commit/06a1c9bf80)] - **assert**: remove code that is never reached (Rich Trott) [#8132](https://github.com/nodejs/node/pull/8132)
 * [[`861e584d46`](https://github.com/nodejs/node/commit/861e584d46)] - **async_wrap**: add a missing case to test-async-wrap-throw-no-init (yorkie) [#8198](https://github.com/nodejs/node/pull/8198)
