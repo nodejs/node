@@ -613,9 +613,9 @@ added: v6.1.0
 
 * `previousValue` {Object} A previous return value from calling
   `process.cpuUsage()`
-* return: {Object}
-    * `user` {Number}
-    * `system` {Number}
+* Return: {Object}
+    * `user` {Integer}
+    * `system` {Integer}
 
 The `process.cpuUsage()` method returns the user and system CPU time usage of
 the current process, in an object with properties `user` and `system`, whose
@@ -643,7 +643,7 @@ console.log(process.cpuUsage(startUsage));
 added: v0.1.8
 -->
 
-* return: {String}
+* Return: {String}
 
 The `process.cwd()` method returns the current working directory of the Node.js
 process.
@@ -878,7 +878,7 @@ that started the Node.js process.
 
 For example:
 
-```sh
+```js
 '/usr/local/bin/node'
 ```
 
@@ -952,7 +952,7 @@ is safer than calling `process.exit()`.
 added: v0.11.8
 -->
 
-* {Number}
+* {Integer}
 
 A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
@@ -984,7 +984,7 @@ or Android)
 added: v2.0.0
 -->
 
-* return: {Object}
+* Return: {Object}
 
 The `process.geteuid()` method returns the numerical effective user identity of
 the process. (See geteuid(2).)
@@ -1003,7 +1003,7 @@ Android)
 added: v0.1.31
 -->
 
-* return: {Object}
+* Return: {Object}
 
 The `process.getgid()` method returns the numerical group identity of the
 process. (See getgid(2).)
@@ -1023,7 +1023,7 @@ Android)
 added: v0.9.4
 -->
 
-* return: {Array}
+* Return: {Array}
 
 The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
@@ -1037,7 +1037,7 @@ Android)
 added: v0.1.28
 -->
 
-* return: {Number}
+* Return: {Integer}
 
 The `process.getuid()` method returns the numeric user identity of the process.
 (See getuid(2).)
@@ -1171,10 +1171,10 @@ is no entry script.
 added: v0.1.16
 -->
 
-* return: {Object}
-    * `rss` {Number}
-    * `heapTotal` {Number}
-    * `heapUsed` {Number}
+* Return: {Object}
+    * `rss` {Integer}
+    * `heapTotal` {Integer}
+    * `heapUsed` {Integer}
 
 The `process.memoryUsage()` method returns an object describing the memory usage
 of the Node.js process measured in bytes.
@@ -1295,7 +1295,7 @@ happening, just like a `while(true);` loop.
 added: v0.1.15
 -->
 
-* {Number}
+* {Integer}
 
 The `process.pid` property returns the PID of the process.
 
@@ -1662,7 +1662,7 @@ console.log(
 added: v0.5.0
 -->
 
-* return: {Number}
+* Return: {Number}
 
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.
@@ -1685,7 +1685,7 @@ console.log(`Version: ${process.version}`);
 added: v0.2.0
 -->
 
-* return: {Object}
+* Return: {Object}
 
 The `process.versions` property returns an object listing the version strings of
 Node.js and its dependencies.
