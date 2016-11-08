@@ -1685,7 +1685,7 @@ console.log(`Version: ${process.version}`);
 added: v0.2.0
 -->
 
-* Return: {Object}
+* {Object}
 
 The `process.versions` property returns an object listing the version strings of
 Node.js and its dependencies.
