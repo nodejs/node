@@ -177,7 +177,7 @@ added: v0.11.15
   * `base` {String}
   * `name` {String}
   * `ext` {String}
-  * Return: {String}
+* Return: {String}
 
 The `path.format()` method returns a path string from an object. This is the
 opposite of [`path.parse()`][].
