@@ -127,7 +127,7 @@ Test configuration utility used by various test suites.
 Tests for the V8 tick processor integration. The tests are for the logic in
 `lib/internal/v8_prof_processor.js` and `lib/internal/v8_prof_polyfill.js`. The
 tests confirm that the profile processor packages the correct set of scripts
-from v8 and introduces the correct platform specific logic.
+from V8 and introduces the correct platform specific logic.
 
 | Runs on CI |
 |:----------:|
