@@ -40,13 +40,9 @@ import subprocess
 import sys
 
 V8_ROOT = path.dirname(path.dirname(path.abspath(__file__)))
-MACHINE = 'linux_x64' if platform.machine() == 'x86_64' else 'linux_x86'
-VALGRIND_ROOT = path.join(V8_ROOT, 'third_party', 'valgrind', MACHINE)
-VALGRIND_BIN = path.join(VALGRIND_ROOT, 'bin', 'valgrind')
-VALGRIND_LIB = path.join(VALGRIND_ROOT, 'lib', 'valgrind')
 
 VALGRIND_ARGUMENTS = [
-  VALGRIND_BIN,
+  'valgrind',
   '--error-exitcode=1',
   '--leak-check=full',
   '--smc-check=all',
@@ -65,11 +61,7 @@ if not path.exists(executable):
 command = VALGRIND_ARGUMENTS + [executable] + sys.argv[2:]
 
 # Run valgrind.
-process = subprocess.Popen(
-    command,
-    stderr=subprocess.PIPE,
-    env={'VALGRIND_LIB': VALGRIND_LIB}
-)
+process = subprocess.Popen(command, stderr=subprocess.PIPE)
 code = process.wait();
 errors = process.stderr.readlines();
 
