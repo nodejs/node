@@ -445,7 +445,7 @@ The return value is `true` if the internal buffer does not exceed
 `chunk`. If `false` is returned, further attempts to write data to the stream 
 should stop until the [`'drain'`][] event is emitted. However, the 
 `false` return value is only advisory and the writable stream will 
-unconditionally accept `chunk` even if it has not not been allowed to drain.
+unconditionally accept and buffer `chunk` even if it has not not been allowed to drain.
 
 A Writable stream in object mode will always ignore the `encoding` argument.
 
