@@ -125,9 +125,6 @@ test: all
 test-parallel: all
 	$(PYTHON) tools/test.py --mode=release parallel -J
 
-test-valgrind: all
-	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
-
 test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
@@ -190,9 +187,6 @@ test-build: | all build-addons
 
 test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=debug,release
-
-test-all-valgrind: test-build
-	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons
 CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential

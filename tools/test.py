@@ -1330,8 +1330,6 @@ def BuildOptions():
       default=[], action="append")
   result.add_option("--expect-fail", dest="expect_fail",
       help="Expect test cases to fail", default=False, action="store_true")
-  result.add_option("--valgrind", help="Run tests through valgrind",
-      default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
   result.add_option("--flaky-tests",
@@ -1517,12 +1515,6 @@ def Main():
     for arg in args:
       path = SplitPath(arg)
       paths.append(path)
-
-  # Check for --valgrind option. If enabled, we overwrite the special
-  # command flag with a command that uses the run-valgrind.py script.
-  if options.valgrind:
-    run_valgrind = join(workspace, "tools", "run-valgrind.py")
-    options.special_command = "python -u " + run_valgrind + " @"
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)

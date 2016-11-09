@@ -43,7 +43,7 @@ class MessageTestCase(test.TestCase):
     self.mode = mode
 
   def IgnoreLine(self, str):
-    """Ignore empty lines and valgrind output."""
+    """Ignore empty lines"""
     if not str.strip(): return True
     else: return str.startswith('==') or str.startswith('**')
 
