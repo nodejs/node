@@ -16,16 +16,16 @@ function cleanup() {
   find v8 -name ".git" | xargs rm -rf || true
   echo "git cleanup"
   git reset --hard HEAD
-  git clean -e .v8old -fdq
-  # Copy local files
-  rsync -a .v8old/ v8/
-  rm -rf .v8old
+  git clean -fdq
+  # unstash local changes
+  git stash pop
   exit 0
 }
 
 cd deps
-# Preserve local changes
-mv v8 .v8old
+# stash local changes
+git stash
+rm -rf v8
 
 echo "Fetching V8 from chromium.googlesource.com"
 fetch v8
