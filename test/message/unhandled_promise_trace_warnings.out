@@ -1,0 +1,31 @@
+(node:*) Error: This was rejected
+    at * (*test*message*unhandled_promise_trace_warnings.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+(node:*) DeprecationWarning: Unhandled promise rejections are deprecated. In the future, promise rejections that are not handled will terminate the Node.js process with a non-zero exit code.
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+(node:*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
+    at getAsynchronousRejectionWarningObject (internal/process/promises.js:*)
+    at rejectionHandled (internal/process/promises.js:*)
+    at *
+    at Promise.then (native)
+    at Promise.catch (native)
+    at Immediate.setImmediate (*test*message*unhandled_promise_trace_warnings.js:*)
+    at *
+    at *
+    at *
