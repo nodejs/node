@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_AGENT_H_
 #define SRC_INSPECTOR_AGENT_H_
 
+#include <stddef.h>
+
 #if !HAVE_INSPECTOR
 #error("This header can only be used when inspector is enabled")
 #endif
@@ -36,7 +38,6 @@ class Agent {
   bool IsStarted();
   bool IsConnected();
   void WaitForDisconnect();
-
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
  private:
