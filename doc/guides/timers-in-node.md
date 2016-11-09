@@ -10,7 +10,7 @@ period of time. Timers do not need to be imported via `require()`, since
 all the methods are available globally to emulate the browser JavaScript API.
 To fully understand when timer functions will be executed, it's a good idea to
 read up on the the Node.js
-[Event Loop](../topics/event-loop-timers-and-nexttick).
+[Event Loop](../topics/event-loop-timers-and-nexttick.md).
 
 ## Controlling the Time Continuum with Node.js
 
