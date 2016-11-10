@@ -3,13 +3,17 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 const path = require('path');
+const fs = require('fs');
+const util = require('util');
+const stream = require('stream');
 
-var zlibPairs =
-    [[zlib.Deflate, zlib.Inflate],
-     [zlib.Gzip, zlib.Gunzip],
-     [zlib.Deflate, zlib.Unzip],
-     [zlib.Gzip, zlib.Unzip],
-     [zlib.DeflateRaw, zlib.InflateRaw]];
+var zlibPairs = [
+  [zlib.Deflate, zlib.Inflate],
+  [zlib.Gzip, zlib.Gunzip],
+  [zlib.Deflate, zlib.Unzip],
+  [zlib.Gzip, zlib.Unzip],
+  [zlib.DeflateRaw, zlib.InflateRaw]
+];
 
 // how fast to trickle through the slowstream
 var trickle = [128, 1024, 1024 * 1024];
@@ -36,8 +40,6 @@ if (!process.env.PUMMEL) {
   strategy = [0];
 }
 
-var fs = require('fs');
-
 var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
@@ -45,13 +47,10 @@ if (process.env.FAST) {
   testFiles = ['person.jpg'];
 }
 
-var tests = {};
+const tests = {};
 testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
 });
-
-var util = require('util');
-var stream = require('stream');
 
 
 // stream that saves everything
@@ -197,11 +196,16 @@ Object.keys(tests).forEach(function(file) {
                 ss.pipe(def).pipe(inf).pipe(buf);
                 ss.end(test);
               });
-            }); }); }); }); }); }); // sad stallman is sad.
+            });
+          });
+        });
+      });
+    });
+  });
 });
 
 process.on('exit', function(code) {
   console.log('1..' + done);
-  assert.equal(done, total, (total - done) + ' tests left unfinished');
-  assert.ok(!failures, 'some test failures');
+  assert.strictEqual(done, total, (total - done) + ' tests left unfinished');
+  assert.strictEqual(failures, 0, 'some test failures');
 });
