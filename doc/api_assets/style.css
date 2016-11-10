@@ -274,6 +274,7 @@ pre {
 
 pre > code {
   font-size: .8em;
+  padding: 0;
 }
 
 pre + h3 {
