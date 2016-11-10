@@ -1,8 +1,7 @@
 'use strict';
-
+const common = require('../common.js');
 const assert = require('assert');
 const cp = require('child_process');
-const common = require('../common.js');
 const fs = require('fs');
 
 const CODE = 'for (var i = 0; i < 100000; i++) { \"test\" + i }';
