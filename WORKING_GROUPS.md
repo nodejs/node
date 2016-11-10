@@ -24,7 +24,6 @@ back in to the CTC.
 * [Diagnostics](#diagnostics)
 * [i18n](#i18n)
 * [Evangelism](#evangelism)
-* [Roadmap](#roadmap)
 * [Docker](#docker)
 * [Addon API](#addon-api)
 * [Benchmarking](#benchmarking)
@@ -195,19 +194,6 @@ Responsibilities include:
 * Advising the CTC on all HTTP related issues and discussions.
 * Messaging about the future of HTTP to give the community advance notice of
   changes.
-
-### [Roadmap](https://github.com/nodejs/roadmap)
-
-The Roadmap Working Group is responsible for user community outreach
-and the translation of their concerns into a plan of action for Node.js.
-
-The final [ROADMAP](./ROADMAP.md) document is still owned by the TC and requires
-the same approval for changes as any other project asset.
-
-Their responsibilities are:
-* Attracting and summarizing user community needs and feedback.
-* Finding or potentially creating tools that allow for broader participation.
-* Creating Pull Requests for relevant changes to [ROADMAP.md](./ROADMAP.md)
 
 ### [Docker](https://github.com/nodejs/docker-iojs)
 
