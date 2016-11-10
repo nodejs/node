@@ -273,6 +273,7 @@ pre {
 }
 
 pre > code {
+  padding: 0;
   font-size: .8em;
 }
 
