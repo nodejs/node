@@ -603,7 +603,7 @@ added: v6.1.0
 
 * `previousValue` {Object} A previous return value from calling
   `process.cpuUsage()`
-* Return: {Object}
+* Returns: {Object}
     * `user` {Integer}
     * `system` {Integer}
 
@@ -633,7 +633,7 @@ console.log(process.cpuUsage(startUsage));
 added: v0.1.8
 -->
 
-* Return: {String}
+* Returns: {String}
 
 The `process.cwd()` method returns the current working directory of the Node.js
 process.
@@ -974,7 +974,7 @@ or Android)
 added: v2.0.0
 -->
 
-* Return: {Object}
+* Returns: {Object}
 
 The `process.geteuid()` method returns the numerical effective user identity of
 the process. (See geteuid(2).)
@@ -993,7 +993,7 @@ Android)
 added: v0.1.31
 -->
 
-* Return: {Object}
+* Returns: {Object}
 
 The `process.getgid()` method returns the numerical group identity of the
 process. (See getgid(2).)
@@ -1013,7 +1013,7 @@ Android)
 added: v0.9.4
 -->
 
-* Return: {Array}
+* Returns: {Array}
 
 The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
@@ -1027,7 +1027,7 @@ Android)
 added: v0.1.28
 -->
 
-* Return: {Integer}
+* Returns: {Integer}
 
 The `process.getuid()` method returns the numeric user identity of the process.
 (See getuid(2).)
@@ -1161,7 +1161,7 @@ is no entry script.
 added: v0.1.16
 -->
 
-* Return: {Object}
+* Returns: {Object}
     * `rss` {Integer}
     * `heapTotal` {Integer}
     * `heapUsed` {Integer}
@@ -1363,7 +1363,7 @@ added: v0.5.9
 * `sendHandle` {Handle object}
 * `options` {Object}
 * `callback` {Function}
-* Return: {Boolean}
+* Returns: {Boolean}
 
 If Node.js is spawned with an IPC channel, the `process.send()` method can be
 used to send messages to the parent process. Messages will be received as a
@@ -1657,7 +1657,7 @@ console.log(
 added: v0.5.0
 -->
 
-* Return: {Number}
+* Returns: {Number}
 
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.
