@@ -277,6 +277,15 @@ inline uint64_t Environment::timer_base() const {
   return timer_base_;
 }
 
+inline int Environment::bootstrap_script_id() const {
+  CHECK(!internal_script_ids_.empty());
+  return internal_script_ids_[0];
+}
+
+inline std::vector<int>* Environment::internal_script_ids() {
+  return &internal_script_ids_;
+}
+
 inline bool Environment::using_domains() const {
   return using_domains_;
 }
