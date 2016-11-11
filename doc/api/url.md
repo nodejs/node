@@ -176,8 +176,9 @@ The formatting process operates as follows:
   * If the `urlObject.pathname` *does not start* with an ASCII forward slash
     (`/`), then the literal string '/' is appended to `result`.
   * The value of `urlObject.pathname` is appended to `result`.
-* Otherwise, if `urlObject.pathname` is not `undefined` and is not a string, an
-  [`Error`][] is thrown.
+* Otherwise, if `urlObject.pathname` is not `undefined` and is not a string, the
+  value of `urlObject.pathname` will be the result of `urlObject.pathname.toString()`
+  in place.
 * If the `urlObject.search` property is `undefined` and if the `urlObject.query`
   property is an `Object`, the literal string `?` is appended to `result`
   followed by the output of calling the [`querystring`][] module's `stringify()`
