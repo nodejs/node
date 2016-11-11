@@ -938,7 +938,7 @@ added: v0.5.9
 * `message` {Object}
 * `sendHandle` {Handle object}
 * `callback` {Function}
-* Return: {Boolean}
+* Returns: {Boolean}
 
 When Node.js is spawned with an IPC channel attached, it can send messages to its
 parent process using `process.send()`. Each will be received as a

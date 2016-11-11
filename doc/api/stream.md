@@ -254,7 +254,7 @@ end
 
 #### readable.isPaused()
 
-* Return: {Boolean}
+* Returns: {Boolean}
 
 This method returns whether or not the `readable` has been **explicitly**
 paused by client code (using [`stream.pause()`][stream-pause] without a
@@ -272,7 +272,7 @@ readable.isPaused() // === false
 
 #### readable.pause()
 
-* Return: `this`
+* Returns: `this`
 
 This method will cause a stream in flowing mode to stop emitting
 [`'data'`][] events, switching out of flowing mode. Any data that becomes
@@ -382,7 +382,7 @@ event has been triggered will return `null`. No runtime error will be raised.
 
 #### readable.resume()
 
-* Return: `this`
+* Returns: `this`
 
 This method will cause the readable stream to resume emitting [`'data'`][]
 events.
@@ -403,7 +403,7 @@ readable.on('end', () => {
 #### readable.setEncoding(encoding)
 
 * `encoding` {String} The encoding to use.
-* Return: `this`
+* Returns: `this`
 
 Call this function to cause the stream to return strings of the specified
 encoding instead of Buffer objects. For example, if you do
