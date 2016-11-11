@@ -414,7 +414,7 @@ added: v0.7.0
 * `message` {Object}
 * `sendHandle` {Handle}
 * `callback` {Function}
-* Return: Boolean
+* Returns: Boolean
 
 Send a message to a worker or master, optionally with a handle.
 

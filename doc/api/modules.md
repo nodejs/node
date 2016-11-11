@@ -601,7 +601,7 @@ added: v0.5.1
 -->
 
 * `id` {String}
-* Return: {Object} `module.exports` from the resolved module
+* Returns: {Object} `module.exports` from the resolved module
 
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.
