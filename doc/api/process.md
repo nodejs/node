@@ -768,9 +768,7 @@ Returns an object describing the memory usage of the Node.js process
 measured in bytes.
 
 ```js
-const util = require('util');
-
-console.log(util.inspect(process.memoryUsage()));
+console.log(process.memoryUsage());
 ```
 
 This will generate:
