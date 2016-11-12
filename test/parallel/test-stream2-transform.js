@@ -106,6 +106,14 @@ test('object passthrough', function(t) {
   t.end();
 });
 
+test('passthrough constructor', function(t) {
+  const pt = PassThrough();
+
+  assert(pt instanceof PassThrough);
+
+  t.end();
+});
+
 test('simple transform', function(t) {
   var pt = new Transform();
   pt._transform = function(c, e, cb) {
