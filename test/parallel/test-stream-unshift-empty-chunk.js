@@ -11,7 +11,7 @@ var nChunks = 10;
 var chunk = Buffer.alloc(10, 'x');
 
 r._read = function(n) {
-  setTimeout(function() {
+  setImmediate(function() {
     r.push(--nChunks === 0 ? null : chunk);
   });
 };
