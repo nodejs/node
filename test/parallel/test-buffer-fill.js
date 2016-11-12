@@ -261,8 +261,8 @@ function writeToFill(string, offset, end, encoding) {
 
   // Correction for UCS2 operations.
   if (os.endianness() === 'BE' && encoding === 'ucs2') {
-    for (var i = 0; i < buf2.length; i += 2) {
-      var tmp = buf2[i];
+    for (let i = 0; i < buf2.length; i += 2) {
+      let tmp = buf2[i];
       buf2[i] = buf2[i + 1];
       buf2[i + 1] = tmp;
     }
