@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const net = require('net');
 
 function explicit(req, res) {
   assert.throws(() => {
@@ -32,8 +33,10 @@ const server = http.createServer((req, res) => {
   } else {
     implicit(req, res);
   }
-}).listen(common.PORT, common.mustCall(() => {
-  const url = `http://localhost:${common.PORT}`;
+}).listen(0, common.mustCall(() => {
+  const addr = server.address().address;
+  const hostname = net.isIPv6(addr) ? `[${addr}1]` : addr;
+  const url = `http://${hostname}:${server.address().port}`;
   let left = 2;
   const check = common.mustCall((res) => {
     left--;
