@@ -113,7 +113,7 @@ To test if Node.js was built correctly:
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
-### Android / Android-based devices (e.g., Firefox OS)
+### Android / Android-based devices (e.g. Firefox OS)
 
 Although these instructions for building on Android are provided, please note
 that Android is not an officially supported platform at this time. Patches to
