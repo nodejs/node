@@ -2247,11 +2247,15 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
       Number::New(env->isolate(), v8_heap_stats.total_heap_size());
   Local<Number> heap_used =
       Number::New(env->isolate(), v8_heap_stats.used_heap_size());
+  Local<Number> external_mem =
+      Number::New(env->isolate(),
+                  env->isolate()->AdjustAmountOfExternalAllocatedMemory(0));
 
   Local<Object> info = Object::New(env->isolate());
   info->Set(env->rss_string(), Number::New(env->isolate(), rss));
   info->Set(env->heap_total_string(), heap_total);
   info->Set(env->heap_used_string(), heap_used);
+  info->Set(env->external_string(), external_mem);
 
   args.GetReturnValue().Set(info);
 }
