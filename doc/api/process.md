@@ -1182,9 +1182,7 @@ of the Node.js process measured in bytes.
 For example, the code:
 
 ```js
-const util = require('util');
-
-console.log(util.inspect(process.memoryUsage()));
+console.log(process.memoryUsage());
 ```
 
 Will generate:
