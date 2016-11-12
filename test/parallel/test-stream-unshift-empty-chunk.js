@@ -12,7 +12,7 @@ var chunk = new Buffer(10);
 chunk.fill('x');
 
 r._read = function(n) {
-  setTimeout(function() {
+  setImmediate(function() {
     r.push(--nChunks === 0 ? null : chunk);
   });
 };
