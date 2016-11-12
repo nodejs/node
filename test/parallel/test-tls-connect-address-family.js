@@ -18,10 +18,10 @@ function runTest() {
   const ciphers = 'AECDH-NULL-SHA';
   tls.createServer({ ciphers }, common.mustCall(function() {
     this.close();
-  })).listen(common.PORT, '::1', common.mustCall(function() {
+  })).listen(0, '::1', common.mustCall(function() {
     const options = {
       host: 'localhost',
-      port: common.PORT,
+      port: this.address().port,
       family: 6,
       ciphers: ciphers,
       rejectUnauthorized: false,
