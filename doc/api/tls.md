@@ -759,7 +759,7 @@ added: v0.11.3
     to be used when checking the server's hostname against the certificate.
     This should throw an error if verification fails. The method should return
     `undefined` if the `servername` and `cert` are verified.
-  * `secureProtocol` {string} The SSL method to use, e.g., `SSLv3_method` to
+  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
@@ -833,7 +833,7 @@ added: v0.11.3
     to be used when checking the server's hostname against the certificate.
     This should throw an error if verification fails. The method should return
     `undefined` if the `servername` and `cert` are verified.
-  * `secureProtocol` {string} The SSL method to use, e.g., `SSLv3_method` to
+  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
@@ -1023,7 +1023,7 @@ added: v0.3.2
     session resumption. If `requestCert` is `true`, the default is a 128 bit
     truncated SHA1 hash value generated from the command-line. Otherwise, a
     default is not provided.
-  * `secureProtocol` {string} The SSL method to use, e.g., `SSLv3_method` to
+  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
