@@ -1518,7 +1518,7 @@ added: v0.3.6
   * `headers` {Object} An object containing request headers.
   * `auth` {String} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {String} Controls [`Agent`][] behavior. When an Agent is used request will
+  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. When an Agent is used request will
     default to `Connection: keep-alive`. Possible values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.
