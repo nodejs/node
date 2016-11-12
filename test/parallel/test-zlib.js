@@ -3,6 +3,9 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 const path = require('path');
+const fs = require('fs');
+const util = require('util');
+const stream = require('stream');
 
 var zlibPairs = [
   [zlib.Deflate, zlib.Inflate],
@@ -37,8 +40,6 @@ if (!process.env.PUMMEL) {
   strategy = [0];
 }
 
-const fs = require('fs');
-
 var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
@@ -50,9 +51,6 @@ const tests = {};
 testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
 });
-
-const util = require('util');
-const stream = require('stream');
 
 
 // stream that saves everything
