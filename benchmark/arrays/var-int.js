@@ -8,7 +8,7 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var type = conf.type;
+  const type = conf.type;
   var clazz = global[type];
   var n = +conf.n;
 
