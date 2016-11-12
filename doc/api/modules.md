@@ -129,7 +129,7 @@ looking for missing dependencies in `/usr/node_modules` or `/node_modules`.
 
 In order to make modules available to the Node.js REPL, it might be useful to
 also add the `/usr/lib/node_modules` folder to the `$NODE_PATH` environment
-variable.  Since the module lookups using `node_modules` folders are all
+variable.  Since the module look up using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
