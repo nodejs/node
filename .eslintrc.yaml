@@ -139,6 +139,7 @@ rules:
   assert-fail-single-argument: 2
   assert-throws-arguments: [2, { requireTwo: false }]
   new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
+  no-useless-regex-char-class-escape: [2, { override: ['[', ']'] }]
 
 # Global scoped method and vars
 globals:
