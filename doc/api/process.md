@@ -821,11 +821,10 @@ so, it is recommended to place the `emitWarning()` behind a simple boolean
 flag as illustrated in the example below:
 
 ```js
-var warned = false;
 function emitMyWarning() {
-  if (!warned) {
+  if (!emitMyWarning.warned) {
+    emitMyWarning.warned = true;
     process.emitWarning('Only warn once!');
-    warned = true;
   }
 }
 emitMyWarning();
