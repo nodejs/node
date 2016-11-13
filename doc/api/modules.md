@@ -481,23 +481,26 @@ added: v0.1.16
 
 * {Object}
 
-`module.exports` object is used to export values in a js file. It is
-initialized as `{}` by Module system, and passed to `The module wrapper` as argument(This makes `module.exports` and `exports` available in a js file,
-the details will be described below). `require` return the processed
-`module.exports` as the exports of a module.
+The `module.exports` object is used to export values in a js file. It is
+initialized as `{}` by Module system, and passed to
+[module wrapper](#modules_the_module_wrapper) as argument. (This makes
+`module.exports` and `exports` available in a js file, the details will be
+described below.) `require` returns the processed `module.exports` as the
+exports of a module.
 
 #### exports alias
 <!-- YAML
 added: v0.1.16
 -->
 
-There is no magic behind `exports`, it is the `module.exports` passed to
-`The module wrapper` as the first argument.
+There is no magic behind `exports`. It is the `module.exports` passed to
+[module wrapper](#modules_the_module_wrapper) as the first argument.
 
-Here is a minimized code logic of `require` to illustrate the export principle,
-and how `module.exports` and `exports` works:<br/>
+Here is a minimized code logic of `require` to illustrate the export
+principle, and how `module.exports` and `exports` works:<br/>
 
-As described in `The module wrapper`, your js file will be wrapped like this:
+As described in [module wrapper](#modules_the_module_wrapper), your js file
+will be wrapped like this:
 ```js
 (function (exports, require, module, __filename, __dirname) { // fileWrapper
 // Your module code actually lives in here
@@ -529,10 +532,10 @@ points:
 As a result, the export results of a module is a returned value of
 `module.exports` at the tickcount which `require` is returned.
 
-Let's illustrate the behaviors and principles with codes. ( You can use either
-`_require` or directly a js file to check these behaviors. )
+Let's illustrate the behaviors and principles with codes. (You can use either
+`_require` or directly a js file to check these behaviors.)
 
-Synchronize behaviors( Demonstrate with the minimized `_require` above ):
+Synchronize behaviors (Demonstrate with the minimized `_require` above) :
 ```js
 function synchronize(exports, _, module) { // the module wrapper
   // Your module codes actually lives below:
@@ -561,7 +564,7 @@ console.log(exported);
 */
 ```
 
-Asynchronous behaviors ( directly check in file):<br/>
+Asynchronous behaviors (directly checking in file) :<br/>
 Assume you have a `x.js`:
 ```js
 // Let's name the exported value, to make things clearly.
@@ -591,7 +594,8 @@ setTimeout( () => {
 There is one more thing to notice: `this`. Because `module.exports` was passed
 as `this` argument for `The module wrapper`, you may used `this` as an alias of
 `exports` to export values previously, But since `this` is an undocumented
-value, the behavior of `this` is not guaranteed. Ex: when you use `babel`, `transform-es2015-modules-commonjs` will break `this`, so you should not use
+value, the behavior of `this` is not guaranteed. Ex: when you use `babel`,
+`transform-es2015-modules-commonjs` will break `this`, so you should not use
 `this` as a shortcut for export.
 
 **As a guideline**, never use 'this' to export, and if the `exports` and
