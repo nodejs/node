@@ -64,7 +64,7 @@ std::string MapToString(const std::map<std::string, std::string> object) {
     json << name_value.second << "\"";
     first = false;
   }
-  json << "\n} ]";
+  json << "\n} ]\n\n";
   return json.str();
 }
 
@@ -250,7 +250,7 @@ class AgentImpl {
   void WaitForFrontendMessage();
   void NotifyMessageReceived();
   State ToState(State state);
-  void SendTargentsListResponse(InspectorSocket* socket);
+  void SendListResponse(InspectorSocket* socket);
   bool RespondToGet(InspectorSocket* socket, const std::string& path);
 
   uv_sem_t start_sem_;
@@ -677,7 +677,7 @@ void AgentImpl::OnRemoteDataIO(InspectorSocket* socket,
   }
 }
 
-void AgentImpl::SendTargentsListResponse(InspectorSocket* socket) {
+void AgentImpl::SendListResponse(InspectorSocket* socket) {
   std::map<std::string, std::string> response;
   response["description"] = "node.js instance";
   response["faviconUrl"] = "https://nodejs.org/static/favicon.ico";
@@ -710,7 +710,7 @@ bool AgentImpl::RespondToGet(InspectorSocket* socket, const std::string& path) {
     return false;
 
   if (match_path_segment(command, "list") || command[0] == '\0') {
-    SendTargentsListResponse(socket);
+    SendListResponse(socket);
     return true;
   } else if (match_path_segment(command, "protocol")) {
     SendProtocolJson(socket);
