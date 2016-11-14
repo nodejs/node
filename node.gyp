@@ -928,7 +928,15 @@
       'targets': [
         {
           'target_name': 'node',
-          'type': 'executable',
+          'conditions': [
+            ['node_shared=="true"', {
+              'type': 'shared_library',
+              'ldflags': ['--shared'],
+              'product_extension': '<(shlib_suffix)',
+            }, {
+              'type': 'executable',
+            }],
+          ],
           'dependencies': ['<(node_core_target_name)', 'node_exp'],
 
           'include_dirs': [
