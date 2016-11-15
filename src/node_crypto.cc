@@ -698,7 +698,7 @@ static X509_STORE* NewRootCertStore() {
 
       if (x509 == nullptr) {
         // Parse errors from the built-in roots are fatal.
-        abort();
+        ABORT();
         return nullptr;
       }
 
