@@ -114,9 +114,10 @@ No decoding of the `path` is performed.
 
 ### urlObject.query
 
-The `query` property is either the "params" portion of the query string (
-everything *except* the leading ASCII question mark (`?`), or an object
-returned by the [`querystring`][] module's `parse()` method:
+The `query` property is either the query string without the leading ASCII
+question mark (`?`), or an object returned by the [`querystring`][] module's
+`parse()` method. Whether the `query` property is a string or object is
+determined by the `parseQueryString` argument passed to `url.parse()`.
 
 For example: `'query=string'` or `{'query': 'string'}`
 
