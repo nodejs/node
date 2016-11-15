@@ -1451,7 +1451,6 @@ keys:
 * `padding` : An optional padding value, one of the following:
   * `crypto.constants.RSA_NO_PADDING`
   * `crypto.constants.RSA_PKCS1_PADDING`
-  * `crypto.constants.RSA_PKCS1_OAEP_PADDING`
 
 All paddings are defined in `crypto.constants`.
 
