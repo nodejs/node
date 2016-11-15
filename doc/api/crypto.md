@@ -1405,7 +1405,6 @@ keys:
 * `padding` : An optional padding value, one of the following:
   * `constants.RSA_NO_PADDING`
   * `constants.RSA_PKCS1_PADDING`
-  * `constants.RSA_PKCS1_OAEP_PADDING`
 
 All paddings are defined in the `constants` module.
 
