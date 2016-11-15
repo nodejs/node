@@ -1,3 +1,27 @@
+v3.4.0 2016-06-28
+
+* [[`ce5fd04e94`](https://github.com/nodejs/node-gyp/commit/ce5fd04e94)] - **deps**: update minimatch version (delphiactual) [#961](https://github.com/nodejs/node-gyp/pull/961)
+* [[`77383ddd85`](https://github.com/nodejs/node-gyp/commit/77383ddd85)] - Replace fs.accessSync call to fs.statSync (Richard Lau) [#955](https://github.com/nodejs/node-gyp/pull/955)
+* [[`0dba4bda57`](https://github.com/nodejs/node-gyp/commit/0dba4bda57)] - **test**: add simple addon test (Richard Lau) [#955](https://github.com/nodejs/node-gyp/pull/955)
+* [[`c4344b3889`](https://github.com/nodejs/node-gyp/commit/c4344b3889)] - **doc**: add --target option to README (Gibson Fahnestock) [#958](https://github.com/nodejs/node-gyp/pull/958)
+* [[`cc778e9215`](https://github.com/nodejs/node-gyp/commit/cc778e9215)] - Override BUILDING_UV_SHARED, BUILDING_V8_SHARED. (Ben Noordhuis) [#915](https://github.com/nodejs/node-gyp/pull/915)
+* [[`af35b2ad32`](https://github.com/nodejs/node-gyp/commit/af35b2ad32)] - Move VC++ Build Tools to Build Tools landing page. (Andrew Pardoe) [#953](https://github.com/nodejs/node-gyp/pull/953)
+* [[`f31482e226`](https://github.com/nodejs/node-gyp/commit/f31482e226)] - **win**: work around __pfnDliNotifyHook2 type change (Alexis Campailla) [#952](https://github.com/nodejs/node-gyp/pull/952)
+* [[`3df8222fa5`](https://github.com/nodejs/node-gyp/commit/3df8222fa5)] - Allow for npmlog@3.x (Rebecca Turner) [#950](https://github.com/nodejs/node-gyp/pull/950)
+* [[`a4fa07b390`](https://github.com/nodejs/node-gyp/commit/a4fa07b390)] - More verbose error on locating msbuild.exe failure. (Mateusz Jaworski) [#930](https://github.com/nodejs/node-gyp/pull/930)
+* [[`4ee31329e0`](https://github.com/nodejs/node-gyp/commit/4ee31329e0)] - **doc**: add command options to README.md (Gibson Fahnestock) [#937](https://github.com/nodejs/node-gyp/pull/937)
+* [[`c8c7ca86b9`](https://github.com/nodejs/node-gyp/commit/c8c7ca86b9)] - Add --silent option for zero output. (Gibson Fahnestock) [#937](https://github.com/nodejs/node-gyp/pull/937)
+* [[`ac29d23a7c`](https://github.com/nodejs/node-gyp/commit/ac29d23a7c)] - Upgrade to glob@7.0.3. (Ben Noordhuis) [#943](https://github.com/nodejs/node-gyp/pull/943)
+* [[`15fd56be3d`](https://github.com/nodejs/node-gyp/commit/15fd56be3d)] - Enable V8 deprecation warnings for native modules (Matt Loring) [#920](https://github.com/nodejs/node-gyp/pull/920)
+* [[`7f1c1b960c`](https://github.com/nodejs/node-gyp/commit/7f1c1b960c)] - **gyp**: improvements for android generator (Robert Chiras) [#935](https://github.com/nodejs/node-gyp/pull/935)
+* [[`088082766c`](https://github.com/nodejs/node-gyp/commit/088082766c)] - Update Windows install instructions (Sara Itani) [#867](https://github.com/nodejs/node-gyp/pull/867)
+* [[`625c1515f9`](https://github.com/nodejs/node-gyp/commit/625c1515f9)] - **gyp**: inherit CC/CXX for CC/CXX.host (Johan Bergström) [#908](https://github.com/nodejs/node-gyp/pull/908)
+* [[`3bcb1720e4`](https://github.com/nodejs/node-gyp/commit/3bcb1720e4)] - Add support for the Python launcher on Windows (Patrick Westerhoff) [#894](https://github.com/nodejs/node-gyp/pull/894
+
+v3.3.1 2016-03-04
+
+* [[`a981ef847a`](https://github.com/nodejs/node-gyp/commit/a981ef847a)] - **gyp**: fix android generator (Robert Chiras) [#889](https://github.com/nodejs/node-gyp/pull/889)
+
 v3.3.0 2016-02-16
 
 * [[`818d854a4d`](https://github.com/nodejs/node-gyp/commit/818d854a4d)] - Introduce NODEJS_ORG_MIRROR and IOJS_ORG_MIRROR (Rod Vagg) [#878](https://github.com/nodejs/node-gyp/pull/878)

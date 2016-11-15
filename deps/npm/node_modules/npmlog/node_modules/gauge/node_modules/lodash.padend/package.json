@@ -1,0 +1,83 @@
+{
+  "name": "lodash.padend",
+  "version": "4.5.0",
+  "description": "The lodash method `_.padEnd` exported as a module.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "keywords": [
+    "lodash-modularized",
+    "padend"
+  ],
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine.bublitz@gmail.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "dependencies": {
+    "lodash._baseslice": "~4.0.0",
+    "lodash._basetostring": "~4.12.0",
+    "lodash.tostring": "^4.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "_id": "lodash.padend@4.5.0",
+  "_shasum": "a289e9377ee2e6de8ba7f11f3a8eb326070b7619",
+  "_from": "lodash.padend@>=4.1.0 <5.0.0",
+  "_npmVersion": "2.15.5",
+  "_nodeVersion": "5.5.0",
+  "_npmUser": {
+    "name": "jdalton",
+    "email": "john.david.dalton@gmail.com"
+  },
+  "dist": {
+    "shasum": "a289e9377ee2e6de8ba7f11f3a8eb326070b7619",
+    "tarball": "https://registry.npmjs.org/lodash.padend/-/lodash.padend-4.5.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "jdalton",
+      "email": "john.david.dalton@gmail.com"
+    },
+    {
+      "name": "mathias",
+      "email": "mathias@qiwi.be"
+    },
+    {
+      "name": "phated",
+      "email": "blaine.bublitz@gmail.com"
+    }
+  ],
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/lodash.padend-4.5.0.tgz_1463062451966_0.5034168094862252"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/lodash.padend/-/lodash.padend-4.5.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

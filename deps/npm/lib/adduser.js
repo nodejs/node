@@ -1,4 +1,3 @@
-
 module.exports = adduser
 
 var log = require("npmlog")
@@ -11,7 +10,8 @@ try {
   crypto = require("crypto")
 } catch (ex) {}
 
-adduser.usage = "npm adduser\nThen enter stuff at the prompts"
+adduser.usage = 'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]' +
+                '\n\naliases: login'
 
 function adduser (args, cb) {
   npm.spinner.stop()

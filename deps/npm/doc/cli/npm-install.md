@@ -171,6 +171,7 @@ after packing it up into a tarball (b).
     to the environment when running git:
 
     * `GIT_ASKPASS`
+    * `GIT_EXEC_PATH`
     * `GIT_PROXY_COMMAND`
     * `GIT_SSH`
     * `GIT_SSH_COMMAND`
@@ -249,6 +250,9 @@ local copy exists on disk.
 
 The `--global` argument will cause npm to install the package globally
 rather than locally.  See `npm-folders(5)`.
+
+The `--ignore-scripts` argument will cause npm to not execute any
+scripts defined in the package.json. See `npm-scripts(7)`.
 
 The `--link` argument will cause npm to link global installs into the
 local space in some cases.

@@ -40,7 +40,7 @@ console.log(validate.errors)
 You can also pass the schema as a string
 
 ``` js
-var validate = validate('{"type": ... }')
+var validate = validator('{"type": ... }')
 ```
 
 Optionally you can use the require submodule to load a schema from `__dirname`
@@ -128,7 +128,7 @@ var validate = validator({
 })
 
 validate({hello: 100});
-console.log(validate.errors) // {field: 'data.hello', message: 'is the wrong type', value: 100}
+console.log(validate.errors) // {field: 'data.hello', message: 'is the wrong type', value: 100, type: 'string'}
 ```
 
 ## Greedy mode tries to validate as much as possible

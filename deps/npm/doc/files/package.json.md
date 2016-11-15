@@ -204,6 +204,7 @@ Conversely, some files are always ignored:
 * `._*`
 * `npm-debug.log`
 * `.npmrc`
+* `node_modules`
 
 ## main
 
@@ -247,6 +248,10 @@ would be the same as this:
     { "name": "my-program"
     , "version": "1.2.5"
     , "bin" : { "my-program" : "./path/to/program" } }
+
+Please make sure that your file(s) referenced in `bin` starts with
+`#!/usr/bin/env node`, otherwise the scripts are started without the node
+executable!
 
 ## man
 
@@ -644,8 +649,8 @@ are capable of properly installing your program.  For example:
 
     { "engines" : { "npm" : "~1.0.20" } }
 
-Note that, unless the user has set the `engine-strict` config flag, this
-field is advisory only.
+Unless the user has set the `engine-strict` config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency.
 
 ## engineStrict
 
@@ -733,10 +738,10 @@ npm will default some values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"scripts":{"preinstall": "node-gyp rebuild"}`
+* `"scripts":{"install": "node-gyp rebuild"}`
 
-  If there is a `binding.gyp` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-gyp.
+  If there is a `binding.gyp` file in the root of your package and you have not defined an `install` or `preinstall` script, npm will
+  default the `install` command to compile using node-gyp.
 
 * `"contributors": [...]`
 

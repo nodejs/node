@@ -7,6 +7,9 @@ var dashdash = require('dashdash');
 var sshpk = require('../lib/index');
 var fs = require('fs');
 var path = require('path');
+var tty = require('tty');
+var readline = require('readline');
+var getPassword = require('getpass').getPass;
 
 var options = [
 	{
@@ -131,7 +134,9 @@ if (require.main === module) {
 		while ((data = inFile.read()))
 			bufs.push(data);
 	});
-	inFile.on('end', function () {
+	var parseOpts = {};
+	parseOpts.filename = inFileName;
+	inFile.on('end', function processKey() {
 		var buf = Buffer.concat(bufs);
 		var fmt = 'auto';
 		if (opts.informat)
@@ -140,8 +145,15 @@ if (require.main === module) {
 		if (opts.private)
 			f = sshpk.parsePrivateKey;
 		try {
-			var key = f(buf, fmt, inFileName);
+			var key = f(buf, fmt, parseOpts);
 		} catch (e) {
+			if (e.name === 'KeyEncryptedError') {
+				getPassword(function (err, pw) {
+					parseOpts.passphrase = pw;
+					processKey();
+				});
+				return;
+			}
 			console.error('sshpk-conv: ' +
 			    e.name + ': ' + e.message);
 			process.exit(1);
