@@ -92,7 +92,16 @@ function regRequest (uri, params, cb_) {
 }
 
 function makeRequest (uri, params, cb_) {
-  var cb = once(cb_)
+  var socket
+  var cb = once(function (er, parsed, raw, response) {
+    if (socket) {
+      // The socket might be returned to a pool for re-use, so don’t keep
+      // the 'error' listener from here attached.
+      socket.removeListener('error', cb)
+    }
+
+    return cb_(er, parsed, raw, response)
+  })
 
   var parsed = url.parse(uri)
   var headers = {}
@@ -146,12 +155,41 @@ function makeRequest (uri, params, cb_) {
   this.log.http('request', params.method, parsed.href || '/')
 
   var done = requestDone.call(this, params.method, uri, cb)
-  var req = request(opts, decodeResponseBody(done))
+  var req = request(opts, params.streaming ? undefined : decodeResponseBody(done))
 
   req.on('error', cb)
+
+  // This should not be necessary, as the HTTP implementation in Node
+  // passes errors occurring on the socket to the request itself. Being overly
+  // cautious comes at a low cost, though.
   req.on('socket', function (s) {
-    s.on('error', cb)
+    socket = s
+    socket.on('error', cb)
   })
+
+  if (params.streaming) {
+    req.on('response', function (response) {
+      if (response.statusCode >= 400) {
+        var parts = []
+        response.on('data', function (data) {
+          parts.push(data)
+        })
+        response.on('end', function () {
+          decodeResponseBody(done)(null, response, Buffer.concat(parts))
+        })
+      } else {
+        response.on('end', function () {
+          // don't ever re-use connections that had server errors.
+          // those sockets connect to the Bad Place!
+          if (response.socket && response.statusCode > 500) {
+            response.socket.destroy()
+          }
+        })
+
+        return cb(null, response)
+      }
+    })
+  }
 
   if (params.body && (params.body instanceof Stream)) {
     params.body.pipe(req)

@@ -10,3 +10,11 @@ tap.test('erroneous package data', function (t) {
     t.end()
   })
 })
+
+tap.test('ENOTDIR for non-directory packages', function (t) {
+  readJson(path.resolve(__filename, 'package.json'), function (er, data) {
+    t.ok(er)
+    t.equal(er.code, 'ENOTDIR')
+    t.end()
+  })
+})

@@ -20,9 +20,9 @@ following scripts:
 * postuninstall:
   Run AFTER the package is uninstalled.
 * preversion, version:
-  Run BEFORE bump the package version.
+  Run BEFORE bumping the package version.
 * postversion:
-  Run AFTER bump the package version.
+  Run AFTER bumping the package version.
 * pretest, test, posttest:
   Run by the `npm test` command.
 * prestop, stop, poststop:
@@ -34,9 +34,10 @@ following scripts:
   stop and start scripts if no `restart` script is provided.
 
 Additionally, arbitrary scripts can be executed by running `npm
-run-script <pkg> <stage>`. *Pre* and *post* commands with matching
+run-script <stage>`. *Pre* and *post* commands with matching
 names will be run for those as well (e.g. `premyscript`, `myscript`,
-`postmyscript`).
+`postmyscript`). Scripts from dependencies can be run with `npm explore
+<pkg> -- npm run <stage>`.
 
 ## COMMON USES
 
@@ -71,7 +72,8 @@ npm will default some script values based on package contents.
 
 * `"install": "node-gyp rebuild"`:
 
-  If there is a `bindings.gyp` file in the root of your package, npm will
+  If there is a `binding.gyp` file in the root of your package and you
+  haven't defined your own `install` or `preinstall` scripts, npm will
   default the `install` command to compile using node-gyp.
 
 ## USER

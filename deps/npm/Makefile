@@ -176,7 +176,7 @@ test: doc
 tag:
 	npm tag npm@$(PUBLISHTAG) latest
 
-publish: link doc
+publish: link doc-clean doc
 	@git push origin :v$(shell npm -v) 2>&1 || true
 	git clean -fd &&\
 	git push origin $(BRANCH) &&\

@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-scripts</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/misc/npm-scripts.html">
   <script async=true src="../../static/toc.js"></script>
@@ -28,9 +28,9 @@ Run BEFORE the package is uninstalled.</li>
 <li>postuninstall:
 Run AFTER the package is uninstalled.</li>
 <li>preversion, version:
-Run BEFORE bump the package version.</li>
+Run BEFORE bumping the package version.</li>
 <li>postversion:
-Run AFTER bump the package version.</li>
+Run AFTER bumping the package version.</li>
 <li>pretest, test, posttest:
 Run by the <code>npm test</code> command.</li>
 <li>prestop, stop, poststop:
@@ -42,9 +42,10 @@ Run by the <code>npm restart</code> command. Note: <code>npm restart</code> will
 stop and start scripts if no <code>restart</code> script is provided.</li>
 </ul>
 <p>Additionally, arbitrary scripts can be executed by running <code>npm
-run-script &lt;pkg&gt; &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
+run-script &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
 names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
-<code>postmyscript</code>).</p>
+<code>postmyscript</code>). Scripts from dependencies can be run with `npm explore</p>
+<p><pkg> -- npm run <stage>`.</p>
 <h2 id="common-uses">COMMON USES</h2>
 <p>If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
@@ -74,7 +75,8 @@ other system tools on the target machines.</li>
 will default the <code>start</code> command to <code>node server.js</code>.</p>
 </li>
 <li><p><code>&quot;install&quot;: &quot;node-gyp rebuild&quot;</code>:</p>
-<p>If there is a <code>bindings.gyp</code> file in the root of your package, npm will
+<p>If there is a <code>binding.gyp</code> file in the root of your package and you
+haven&#39;t defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
 default the <code>install</code> command to compile using node-gyp.</p>
 </li>
 </ul>
@@ -207,5 +209,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@2.15.1</p>
+<p id="footer">npm-scripts &mdash; npm@2.15.11</p>
 

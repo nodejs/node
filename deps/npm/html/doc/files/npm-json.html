@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>package.json</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/files/package.json.html">
   <script async=true src="../../static/toc.js"></script>
@@ -161,6 +161,7 @@ works just like a <code>.gitignore</code>.</p>
 <li><code>._*</code></li>
 <li><code>npm-debug.log</code></li>
 <li><code>.npmrc</code></li>
+<li><code>node_modules</code></li>
 </ul>
 <h2 id="main">main</h2>
 <p>The main field is a module ID that is the primary entry point to your program.
@@ -190,7 +191,10 @@ of the package, then you can just supply it as a string.  For example:</p>
 <pre><code>{ &quot;name&quot;: &quot;my-program&quot;
 , &quot;version&quot;: &quot;1.2.5&quot;
 , &quot;bin&quot; : { &quot;my-program&quot; : &quot;./path/to/program&quot; } }
-</code></pre><h2 id="man">man</h2>
+</code></pre><p>Please make sure that your file(s) referenced in <code>bin</code> starts with
+<code>#!/usr/bin/env node</code>, otherwise the scripts are started without the node
+executable!</p>
+<h2 id="man">man</h2>
 <p>Specify either a single file or an array of filenames to put in place for the
 <code>man</code> program to find.</p>
 <p>If only a single file is provided, then it&#39;s installed such that it is the
@@ -486,8 +490,8 @@ that it works on node.</p>
 <p>You can also use the &quot;engines&quot; field to specify which versions of npm
 are capable of properly installing your program.  For example:</p>
 <pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }
-</code></pre><p>Note that, unless the user has set the <code>engine-strict</code> config flag, this
-field is advisory only.</p>
+</code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency.</p>
 <h2 id="enginestrict">engineStrict</h2>
 <p><strong>NOTE: This feature is deprecated and will be removed in npm 3.0.0.</strong></p>
 <p>If you are sure that your module will <em>definitely not</em> run properly on
@@ -545,9 +549,9 @@ overridden.</p>
 <p>If there is a <code>server.js</code> file in the root of your package, then npm
 will default the <code>start</code> command to <code>node server.js</code>.</p>
 </li>
-<li><p><code>&quot;scripts&quot;:{&quot;preinstall&quot;: &quot;node-gyp rebuild&quot;}</code></p>
-<p>If there is a <code>binding.gyp</code> file in the root of your package, npm will
-default the <code>preinstall</code> command to compile using node-gyp.</p>
+<li><p><code>&quot;scripts&quot;:{&quot;install&quot;: &quot;node-gyp rebuild&quot;}</code></p>
+<p>If there is a <code>binding.gyp</code> file in the root of your package and you have not defined an <code>install</code> or <code>preinstall</code> script, npm will
+default the <code>install</code> command to compile using node-gyp.</p>
 </li>
 <li><p><code>&quot;contributors&quot;: [...]</code></p>
 <p>If there is an <code>AUTHORS</code> file in the root of your package, npm will
@@ -581,5 +585,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@2.15.1</p>
+<p id="footer">package.json &mdash; npm@2.15.11</p>
 

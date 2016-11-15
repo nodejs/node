@@ -62,8 +62,18 @@ This will result in one or more `change` events being emitted.
 Events
 ======
 
-All tracker objects emit `change` events with an argument of the name of the
-thing changing.
+All tracker objects emit `change` events with the following arguments:
+
+```
+function (name, completed, tracker)
+```
+
+`name` is the name of the tracker that originally emitted the event,
+or if it didn't have one, the first containing tracker group that had one.
+
+`completed` is the percent complete (as returned by `tracker.completed()` method).
+
+`tracker` is the tracker object that you are listening for events on.
 
 TrackerGroup
 ============

@@ -26,10 +26,12 @@ same.
 
 The four relevant files are:
 
-* per-project config file (/path/to/my/project/.npmrc)
-* per-user config file (~/.npmrc)
-* global config file ($PREFIX/npmrc)
-* npm builtin config file (/path/to/npm/npmrc)
+* per-project configuration file (`/path/to/my/project/.npmrc`)
+* per-user configuration file (defaults to `$HOME/.npmrc`; configurable via CLI
+  option `--userconfig` or environment variable `$NPM_CONF_USERCONFIG`)
+* global configuration file (defaults to `$PREFIX/etc/npmrc`; configurable via
+  CLI option `--globalconfig` or environment variable `$NPM_CONF_GLOBALCONFIG`)
+* npm's built-in configuration file (`/path/to/npm/npmrc`)
 
 See npmrc(5) for more details.
 
@@ -228,7 +230,12 @@ explicitly used, and that only GET requests use the cache.
 * Default: `null`
 * Type: String
 
-A client certificate to pass when accessing the registry.
+A client certificate to pass when accessing the registry.  Values should be in
+PEM format with newlines replaced by the string "\n". For example:
+
+    cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+
+It is _not_ the path to a certificate file (and there is no "certfile" option).
 
 ### color
 
@@ -470,7 +477,12 @@ change.  Only the output from `npm ls --json` is currently valid.
 * Default: `null`
 * Type: String
 
-A client key to pass when accessing the registry.
+A client key to pass when accessing the registry.  Values should be in PEM
+format with newlines replaced by the string "\n". For example:
+
+    key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
+
+It is _not_ the path to a key file (and there is no "keyfile" option).
 
 ### link
 

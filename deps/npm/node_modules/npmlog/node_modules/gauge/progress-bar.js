@@ -3,8 +3,8 @@ var hasUnicode = require("has-unicode")
 var ansi = require("ansi")
 var align = {
   center: require("lodash.pad"),
-  left:   require("lodash.padright"),
-  right:  require("lodash.padleft")
+  left:   require("lodash.padend"),
+  right:  require("lodash.padstart")
 }
 var defaultStream = process.stderr
 function isTTY() {

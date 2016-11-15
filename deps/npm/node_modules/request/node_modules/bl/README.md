@@ -96,7 +96,7 @@ bl.pipe(fs.createWriteStream('gibberish.txt'))
 
 --------------------------------------------------------
 <a name="ctor"></a>
-### new BufferList([ callback | buffer | buffer array ])
+### new BufferList([ callback | Buffer | Buffer array | BufferList | BufferList array | String ])
 The constructor takes an optional callback, if supplied, the callback will be called with an error argument followed by a reference to the **bl** instance, when `bl.end()` is called (i.e. from a piped stream). This is a convenient method of collecting the entire contents of a stream, particularly when the stream is *chunky*, such as a network stream.
 
 Normally, no arguments are required for the constructor, but you can initialise the list by passing in a single `Buffer` object or an array of `Buffer` object.
@@ -120,8 +120,8 @@ Get the length of the list in bytes. This is the sum of the lengths of all of th
 
 --------------------------------------------------------
 <a name="append"></a>
-### bl.append(buffer)
-`append(buffer)` adds an additional buffer or BufferList to the internal list.
+### bl.append(Buffer | Buffer array | BufferList | BufferList array | String)
+`append(buffer)` adds an additional buffer or BufferList to the internal list. `this` is returned so it can be chained.
 
 --------------------------------------------------------
 <a name="get"></a>

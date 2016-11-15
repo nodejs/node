@@ -18,7 +18,7 @@ module.exports = addLocal
 
 function addLocal (p, pkgData, cb_) {
   assert(typeof p === "object", "must have spec info")
-  assert(typeof cb === "function", "must have callback")
+  assert(typeof cb_ === "function", "must have callback")
 
   pkgData = pkgData || {}
 
@@ -89,17 +89,20 @@ function addLocalDirectory (p, pkgData, shasum, cb) {
 
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(pj), function (er, made) {
-        if (er) return cb(er)
+        if (er) return wrapped(er)
         var fancy = !pathIsInside(p, npm.tmp)
         tar.pack(tgz, p, data, fancy, function (er) {
           if (er) {
             log.error("addLocalDirectory", "Could not pack", p, "to", tgz)
-            return cb(er)
+            return wrapped(er)
           }
 
-          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) wrapped()
+          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) return wrapped()
 
-          chownr(made || tgz, cs.uid, cs.gid, wrapped)
+          chownr(made || tgz, cs.uid, cs.gid, function (er) {
+            if (er && er.code === 'ENOENT') return wrapped()
+            wrapped(er)
+          })
         })
       })
     })

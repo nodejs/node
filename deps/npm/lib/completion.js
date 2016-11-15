@@ -159,7 +159,7 @@ function dumpScript (cb) {
 
     process.stdout.write(d, function () { cb() })
     process.stdout.on("error", function (er) {
-      // Darwin is a real dick sometimes.
+      // Darwin is a pain sometimes.
       //
       // This is necessary because the "source" or "." program in
       // bash on OS X closes its file argument before reading
