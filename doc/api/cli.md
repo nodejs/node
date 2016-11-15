@@ -129,6 +129,20 @@ added: v2.1.0
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
+### `--enable-tracing`
+<!-- YAML
+added: v7.1.0
+-->
+
+Enables the collection of trace event tracing information.
+
+### `--enabled-categories=list`
+<!-- YAML
+added: v7.1.0
+-->
+
+A comma separated list of categories that should be traced when trace event
+tracing is enabled using `--enable-tracing`.
 
 ### `--zero-fill-buffers`
 <!-- YAML
