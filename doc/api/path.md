@@ -235,11 +235,11 @@ On Windows:
 
 ```js
 path.format({
-    root : "C:\\",
     dir : "C:\\path\\dir",
+    root : "C:\\",
     base : "file.txt",
-    ext : ".txt",
-    name : "file"
+    name : "file",
+    ext : ".txt"
 });
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
@@ -353,11 +353,11 @@ significant elements of the `path`.
 
 The returned object will have the following properties:
 
-* `root` {String}
 * `dir` {String}
+* `root` {String}
 * `base` {String}
-* `ext` {String}
 * `name` {String}
+* `ext` {String}
 
 For example on POSIX:
 
@@ -365,11 +365,11 @@ For example on POSIX:
 path.parse('/home/user/dir/file.txt')
 // Returns:
 // {
-//    root : "/",
 //    dir : "/home/user/dir",
+//    root : "/",
 //    base : "file.txt",
-//    ext : ".txt",
-//    name : "file"
+//    name : "file",
+//    ext : ".txt"
 // }
 ```
 
@@ -389,11 +389,11 @@ On Windows:
 path.parse('C:\\path\\dir\\file.txt')
 // Returns:
 // {
-//    root : "C:\\",
 //    dir : "C:\\path\\dir",
+//    root : "C:\\",
 //    base : "file.txt",
-//    ext : ".txt",
-//    name : "file"
+//    name : "file",
+//    ext : ".txt"
 // }
 ```
 
