@@ -158,11 +158,11 @@ var req = https.request(options, (res) => {
     process.stdout.write(d);
   });
 });
-req.end();
 
 req.on('error', (e) => {
   console.error(e);
 });
+req.end();
 ```
 
 The options argument has the following options
