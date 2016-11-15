@@ -9,7 +9,7 @@ Deflate/Inflate. It can be accessed using:
 const zlib = require('zlib');
 ```
 
-Compressing or decompressing a stream (such as a file) can be accomplished by 
+Compressing or decompressing a stream (such as a file) can be accomplished by
 piping the source stream data through a `zlib` stream into a destination stream:
 
 ```js
@@ -46,12 +46,12 @@ zlib.unzip(buffer, (err, buffer) => {
 ## Compressing HTTP requests and responses
 
 The `zlib` module can be used to implement support for the `gzip` and `deflate`
-content-encoding mechanisms defined by 
+content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
 The HTTP [`Accept-Encoding`][] header is used within an http request to identify
-the compression encodings accepted by the client. The [`Content-Encoding`][] 
-header is used to identify the compression encodings actually applied to a 
+the compression encodings accepted by the client. The [`Content-Encoding`][]
+header is used to identify the compression encodings actually applied to a
 message.
 
 **Note: the examples given below are drastically simplified to show
@@ -230,7 +230,7 @@ not surprising. This section is taken almost directly from the
 [zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
 details.
 
-*Note*: Previously, the constants were available directly from 
+*Note*: Previously, the constants were available directly from
 `require('zlib')`, for instance `zlib.Z_NO_FLUSH`. Accessing the constants
 directly from the module is currently still possible but should be considered
 deprecated.
@@ -444,8 +444,8 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional 
-second argument to supply options to the `zlib` classes and will call the 
+All of these take a [Buffer][] or string as the first argument, an optional
+second argument to supply options to the `zlib` classes and will call the
 supplied callback with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but
