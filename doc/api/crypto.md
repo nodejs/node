@@ -1620,7 +1620,7 @@ See the reference for other recommendations and details.
 
 ## Crypto Constants
 
-The following constants exported by `crypto.constants` apply to various uses of 
+The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### OpenSSL Options
@@ -1639,13 +1639,13 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   <tr>
     <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
     <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
-    clients or servers. See 
+    clients or servers. See
     https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
     <td>Uses the server's preferences instead of the clients when selecting a
-    cipher. See 
+    cipher. See
     https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
