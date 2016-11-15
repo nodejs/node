@@ -36,6 +36,8 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
+[**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
+
 ## Accepting Modifications
 
 All modifications to the Node.js code and documentation should be
@@ -60,19 +62,20 @@ and work schedules. Trivial changes (e.g. those which fix minor bugs
 or improve performance without affecting API or causing other
 wide-reaching impact) may be landed after a shorter delay.
 
-For non-breaking changes, if there is no disagreement amongst Collaborators, a
-pull request may be landed given appropriate review. Where there is discussion
-amongst Collaborators, consensus should be sought if possible. The
-lack of consensus may indicate the need to elevate discussion to the
-CTC for resolution (see below).
+For non-breaking changes, if there is no disagreement amongst
+Collaborators, a pull request may be landed given appropriate review.
+Where there is discussion amongst Collaborators, consensus should be
+sought if possible. The lack of consensus may indicate the need to
+elevate discussion to the CTC for resolution (see below).
 
-Breaking changes (that is, pull requests that require an increase in the
-major version number, known as `semver-major` changes) must be elevated for
-review by the CTC. This does not necessarily mean that the PR must be put onto
-the CTC meeting agenda. If multiple CTC members approve (`LGTM`) the PR and no
-Collaborators oppose the PR, it can be landed. Where there is disagreement among
-CTC members or objections from one or more Collaborators, `semver-major` pull
-requests should be put on the CTC meeting agenda.
+Breaking changes (that is, pull requests that require an increase in
+the major version number, known as `semver-major` changes) must be
+elevated for review by the CTC. This does not necessarily mean that the
+PR must be put onto the CTC meeting agenda. If multiple CTC members
+approve (`LGTM`) the PR and no Collaborators oppose the PR, it can be
+landed. Where there is disagreement among CTC members or objections
+from one or more Collaborators, `semver-major` pull requests should be
+put on the CTC meeting agenda.
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -96,13 +99,20 @@ The CTC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
+* Please never use GitHub's green ["Merge Pull Request"](https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-using-the-github-web-interface) button.
+  * If you do, please force-push removing the merge.
+  * Reasons for not using the web interface button:
+    * The merge method will add an unnecessary merge commit.
+    * The rebase & merge method adds metadata to the commit title.
+    * The rebase method changes the author.
+    * The squash & merge method has been known to add metadata to the
+    commit title.
+    * If more than one author has contributed to the PR, only the
+    latest author will be considered during the squashing.
+
 Always modify the original commit message to include additional meta
 information regarding the change process:
 
-- A `Reviewed-By: Name <email>` line for yourself and any
-  other Collaborators who have reviewed the change.
-  - Useful for @mentions / contact list if something goes wrong in the PR.
-  - Protects against the assumption that GitHub will be around forever.
 - A `PR-URL:` line that references the *full* GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
   conversation that led up to that change.
@@ -110,6 +120,10 @@ information regarding the change process:
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
   appropriate.
+- A `Reviewed-By: Name <email>` line for yourself and any
+  other Collaborators who have reviewed the change.
+  - Useful for @mentions / contact list if something goes wrong in the PR.
+  - Protects against the assumption that GitHub will be around forever.
 
 Review the commit message to ensure that it adheres to the guidelines
 outlined in the [contributing](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit) guide.
@@ -119,7 +133,6 @@ See the commit log for examples such as
 exactly how to format your commit messages.
 
 Additionally:
-
 - Double check PRs to make sure the person's _full name_ and email
   address are correct before merging.
 - Except when updating dependencies, all commits should be self
@@ -224,16 +237,36 @@ Save the file and close the editor. You'll be asked to enter a new
 commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
+* The commit message text must conform to the [commit message guidelines](../CONTRIBUTING.md#step-3-commit).
 
 Time to push it:
 
 ```text
 $ git push origin master
 ```
+* Optional: Force push the amended commit to the branch you used to
+open the pull request. If your branch is called `bugfix`, then the
+command would be `git push --force-with-lease origin master:bugfix`.
+When the pull request is closed, this will cause the pull request to
+show the purple merged status rather than the red closed status that is
+usually used for pull requests that weren't merged. Only do this when
+landing your own contributions.
+
+* Close the pull request with a "Landed in `<commit hash>`" comment. If
+your pull request shows the purple merged status then you should still
+add the "Landed in <commit hash>..<commit hash>" comment if you added
+multiple commits.
+
+* `./configure && make -j8 test`
+  * `-j8` builds node in parallel with 8 threads. Adjust to the number
+  of cores or processor-level threads your processor has (or slightly
+  more) for best results.
 
 ### I Just Made a Mistake
 
-With `git`, there's a way to override remote trees by force pushing
+* Ping a CTC member.
+* `#node-dev` on freenode
+* With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typos in commit
@@ -241,6 +274,9 @@ messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.
+  * Use `--force-with-lease` to minimize the chance of overwriting
+  someone else's change.
+  * Post to `#node-dev` (IRC) if you force push.
 
 ### Long Term Support
 
