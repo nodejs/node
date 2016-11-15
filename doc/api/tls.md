@@ -370,6 +370,7 @@ when the server has no more open connections.
 ### server.connections
 <!-- YAML
 added: v0.3.2
+deprecated: v0.9.7
 -->
 
 Returns the current number of concurrent connections on the server.
