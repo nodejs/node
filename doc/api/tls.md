@@ -553,7 +553,7 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
-### tlsSocket.getPeerCertificate([ detailed ])
+### tlsSocket.getPeerCertificate([detailed])
 <!-- YAML
 added: v0.11.4
 -->
