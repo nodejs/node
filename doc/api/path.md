@@ -456,7 +456,7 @@ A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
 added: v0.3.4
 -->
 
-* `...paths` {String} A sequence of paths or path segments
+* `...paths` {String} An optional sequence of paths or path segments
 * Returns: {String}
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
