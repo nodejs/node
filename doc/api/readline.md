@@ -21,7 +21,7 @@ const rl = readline.createInterface({
 
 rl.question('What do you think of Node.js? ', (answer) => {
   // TODO: Log the answer in a database
-  console.log('Thank you for your valuable feedback:', answer);
+  console.log(`Thank you for your valuable feedback: ${answer}`);
 
   rl.close();
 });
@@ -403,8 +403,8 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 
 ```js
 function completer(line) {
-  var completions = '.help .error .exit .quit .q'.split(' ');
-  var hits = completions.filter((c) => { return c.indexOf(line) == 0 });
+  const completions = '.help .error .exit .quit .q'.split(' ');
+  const hits = completions.filter((c) => { return c.indexOf(line) === 0 });
   // show all completions if none found
   return [hits.length ? hits : completions, line];
 }
@@ -512,7 +512,7 @@ const rl = readline.createInterface({
 });
 
 rl.on('line', (line) => {
-  console.log('Line from file:', line);
+  console.log(`Line from file: ${line}`);
 });
 ```
 
