@@ -207,7 +207,7 @@ added: v0.7.5
 **This does not work on Windows.**
 
 Emitted whenever the `input` stream is sent to the background with `^Z`,
-respectively known as `SIGTSTP`, and then continued with `fg(1)`. This event
+respectively known as `SIGTSTP`, and then continued with fg(1). This event
 only emits if the stream was not paused before sending the program to the
 background.
 
