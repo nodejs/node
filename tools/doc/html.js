@@ -263,7 +263,7 @@ var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 // Returns modified text, with such refs replace with HTML links, for example
 // '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
 function linkManPages(text) {
-  return text.replace(/ ([a-z]+)\((\d)\)/gm, function(match, name, number) {
+  return text.replace(/ ([a-z.]+)\((\d)\)/gm, function(match, name, number) {
     // name consists of lowercase letters, number is a single digit
     var displayAs = name + '(' + number + ')';
     if (BSD_ONLY_SYSCALLS.has(name)) {
