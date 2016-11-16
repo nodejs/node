@@ -37,6 +37,7 @@ set build_release=
 set configure_flags=
 set build_addons=
 set enable_vtune_profiling=
+set dll=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -76,6 +77,7 @@ if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_profiling="--enable-vtune-profiling"&goto arg-ok
+if /i "%1"=="dll"           set dll=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -105,6 +107,7 @@ if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_
 if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 if defined release_urlbase set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg set configure_flags=%configure_flags% %download_arg%
+if defined dll set configure_flags=%configure_flags% --shared
 
 if "%i18n_arg%"=="full-icu" set configure_flags=%configure_flags% --with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set configure_flags=%configure_flags% --with-intl=small-icu

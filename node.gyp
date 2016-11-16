@@ -242,7 +242,7 @@
             'NODE_SHARED_MODE',
          ],
           'conditions': [
-            [ 'node_module_version!=""', {
+            [ 'node_module_version!="" and OS!="win"', {
               'product_extension': 'so.<(node_module_version)',
             }]
           ],
