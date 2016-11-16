@@ -535,7 +535,7 @@ possible to connect to a long-running Node.js process without restarting it.
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 
-For an example of running a REPL instance over `curl(1)`,
+For an example of running a REPL instance over curl(1),
 see: https://gist.github.com/2053342
 
 [stream]: stream.html

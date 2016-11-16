@@ -184,7 +184,7 @@ added: v0.1.100
 
 Prints to `stderr` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
-values similar to `printf(3)` (the arguments are all passed to
+values similar to printf(3) (the arguments are all passed to
 [`util.format()`][]).
 
 ```js
@@ -213,7 +213,7 @@ added: v0.1.100
 
 Prints to `stdout` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
-values similar to `printf(3)` (the arguments are all passed to
+values similar to printf(3) (the arguments are all passed to
 [`util.format()`][]).
 
 ```js

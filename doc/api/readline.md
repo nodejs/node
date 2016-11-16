@@ -124,7 +124,7 @@ added: v0.7.5
 
 The `'SIGCONT'` event is emitted when a Node.js process previously moved into
 the background using `<ctrl>-Z` (i.e. `SIGTSTP`) is then brought back to the
-foreground using `fg(1)`.
+foreground using fg(1).
 
 If the `input` stream was paused *before* the `SIGTSTP` request, this event will
 not be emitted.
@@ -174,7 +174,7 @@ input, typically known as `SIGTSTP`. If there are no `SIGTSTP` event listeners
 registered when the `input` stream receives a `SIGTSTP`, the Node.js process
 will be sent to the background.
 
-When the program is resumed using `fg(1)`, the `'pause'` and `SIGCONT` events
+When the program is resumed using fg(1), the `'pause'` and `SIGCONT` events
 will be emitted. These can be used to resume the `input` stream.
 
 The `'pause'` and `'SIGCONT'` events will not be emitted if the `input` was
