@@ -290,7 +290,7 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   sigset_t saved_sigmask;
   int err;
 
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
 
   /* If the user supplies signum == 0, then return an error already. If the
    * signum is otherwise invalid then uv__signal_register will find out
@@ -434,7 +434,7 @@ static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2) {
 
 
 int uv_signal_stop(uv_signal_t* handle) {
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
   uv__signal_stop(handle);
   return 0;
 }

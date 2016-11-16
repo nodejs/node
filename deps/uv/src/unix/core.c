@@ -98,7 +98,7 @@ uint64_t uv_hrtime(void) {
 
 
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
 
   handle->flags |= UV_CLOSING;
   handle->close_cb = close_cb;
