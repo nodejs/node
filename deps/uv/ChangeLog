@@ -1,4 +1,25 @@
-2016.10.25, Version 1.10.0 (Stable)
+2016.11.17, Version 1.10.1 (Stable), 2e49e332bdede6db7cf17fa784a902e8386d5d86
+
+Changes since version 1.10.0:
+
+* Now working on version 1.10.1 (cjihrig)
+
+* win: fix anonymous union syntax (Brad King)
+
+* unix: use uv__is_closing everywhere (Santiago Gimeno)
+
+* win: add missing break statement (cjihrig)
+
+* doc: fix wrong man page link for uv_fs_lstat() (Michele Caini)
+
+* win, tty: handle empty buffer in uv_tty_write_bufs (Hitesh Kanwathirtha)
+
+* doc: add cjihrig alternative GPG ID (cjihrig)
+
+* Revert "win,tty: add support for ANSI codes in win10 v1511" (Ben Noordhuis)
+
+
+2016.10.25, Version 1.10.0 (Stable), c8a373c729b4c9392e0e14fc53cd6b67b3051ab9
 
 Changes since version 1.9.1:
 
