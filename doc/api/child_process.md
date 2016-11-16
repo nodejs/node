@@ -575,7 +575,7 @@ added: v0.11.12
   * `input` {String|Buffer} The value which will be passed as stdin to the
     spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration. (Default: `'pipe'`)
+  * `stdio` {String | Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
@@ -613,7 +613,7 @@ added: v0.11.12
   * `input` {String|Buffer} The value which will be passed as stdin to the
     spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration. (Default: `'pipe'`)
+  * `stdio` {String | Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
@@ -657,7 +657,7 @@ added: v0.11.12
   * `input` {String|Buffer} The value which will be passed as stdin to the
     spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration.
+  * `stdio` {String | Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
