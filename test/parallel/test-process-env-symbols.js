@@ -5,10 +5,8 @@ const assert = require('assert');
 const symbol = Symbol('sym');
 const errRegExp = /^TypeError: Cannot convert a Symbol value to a string$/;
 
-// Verify that getting via a symbol key throws.
-assert.throws(() => {
-  process.env[symbol];
-}, errRegExp);
+// Verify that getting via a symbol key returns undefined.
+assert.strictEqual(process.env[symbol], undefined);
 
 // Verify that assigning via a symbol key throws.
 assert.throws(() => {
@@ -24,3 +22,6 @@ assert.throws(() => {
 assert.throws(() => {
   symbol in process.env;
 }, errRegExp);
+
+// Checks that well-known symbols like `Symbol.toStringTag` won’t throw.
+assert.doesNotThrow(() => Object.prototype.toString.call(process.env));

@@ -930,3 +930,5 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
     util.inspect.defaultOptions = 'bad';
   }, /"options" must be an object/);
 }
+
+assert.doesNotThrow(() => util.inspect(process));
