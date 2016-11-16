@@ -824,7 +824,7 @@ added: v0.1.90
 * `signal` {String}
 
 The `child.kill()` methods sends a signal to the child process. If no argument
-is given, the process will be sent the `'SIGTERM'` signal. See `signal(7)` for
+is given, the process will be sent the `'SIGTERM'` signal. See signal(7) for
 a list of available signals.
 
 ```js
