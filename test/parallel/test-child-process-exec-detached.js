@@ -2,25 +2,21 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const execFile = require('child_process').execFile;
-const childPath = require.resolve(common.fixturesDir + '/parent-process-exec-nonpersistent.js');
+const cp = require('child_process');
+const childPath = path.join(common.fixturesDir, 'parent-process-exec-nonpersistent.js');
 
-var persistentPid = -1;
+let persistentPid = -1;
 
-const execParent = execFile(process.execPath, [ childPath], {
-  timeout: 1000
-});
+const execParent = cp.fork(childPath);
 
-execParent.stdout.on('data', function(data) {
-  persistentPid = data;
-});
+execParent.on('message', common.mustCall((msg) => {
+  persistentPid = msg;
+}));
+
+execParent.on('close', common.mustCall((code, sig) => {
+  assert.equal(sig, null);
+}));
 
 process.on('exit', () => {
   assert.notStrictEqual(persistentPid, -1);
-  assert.throws(function(data) {
-    process.kill(execParent.pid);
-  });
-  assert.doesNotThrow(function() {
-    process.kill(persistentPid);
-  });
 });

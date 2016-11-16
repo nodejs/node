@@ -1,13 +1,14 @@
-
-var execFile = require('child_process').execFile,
-    path = require('path'),
-    childPath = path.join(__dirname, 'child-process-persistent.js');
+'use strict';
+const execFile = require('child_process').execFile;
+const path = require('path');
+const childPath = path.join(__dirname, 'child-process-persistent.js');
 
 var child = execFile(process.execPath, [ childPath ], {
   detached: true,
+  timeout: 100,
   stdio: 'ignore'
 });
 
-console.log(child.pid);
+process.send(child.pid);
 
 child.unref();
