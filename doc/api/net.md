@@ -513,7 +513,7 @@ added: v0.1.90
 -->
 
 As [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`],
-with options either as either `{port: port, host: host}` or `{path: path}`.
+with options as either `{port: port, host: host}` or `{path: path}`.
 
 ### socket.connecting
 <!-- YAML
