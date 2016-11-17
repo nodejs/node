@@ -1,18 +1,25 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var cat = spawn(common.isWindows ? 'cmd' : 'cat');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const constants = process.binding('constants');
 
-cat.stdout.on('end', common.mustCall(function() {}));
-cat.stderr.on('data', common.fail);
-cat.stderr.on('end', common.mustCall(function() {}));
+function runTest(sig) {
+  const cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
-cat.on('exit', common.mustCall(function(code, signal) {
-  assert.strictEqual(code, null);
-  assert.strictEqual(signal, 'SIGTERM');
-}));
+  cat.stdout.on('end', common.mustCall(function() {}));
+  cat.stderr.on('data', common.fail);
+  cat.stderr.on('end', common.mustCall(function() {}));
 
-assert.equal(cat.killed, false);
-cat.kill();
-assert.equal(cat.killed, true);
+  cat.on('exit', common.mustCall(function(code, signal) {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGTERM');
+  }));
+
+  assert.equal(cat.killed, false);
+  cat.kill();
+  assert.equal(cat.killed, true);
+}
+
+runTest(constants.os.signals.SIGTERM);
+runTest('SIGTERM');

@@ -1,4 +1,4 @@
-# Child Process
+#n Child Process
 
 > Stability: 2 - Stable
 
@@ -821,10 +821,11 @@ within the child process to close the IPC channel as well.
 added: v0.1.90
 -->
 
-* `signal` {String}
+* `signal` {String|Number} The signal to send, either as a string or number.
+  Defaults to `'SIGTERM'`.
 
-The `child.kill()` methods sends a signal to the child process. If no argument
-is given, the process will be sent the `'SIGTERM'` signal. See signal(7) for
+The `child.kill()` method sends a signal to the child process. If no argument
+is given, the process will be sent the `'SIGTERM'` signal. See `signal(7)` for
 a list of available signals.
 
 ```js
