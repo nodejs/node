@@ -213,7 +213,7 @@ class ContextifyContext {
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
 #if HAVE_INSPECTOR
     env->ContextCreated(
-      new node::inspector::ContextInfo(ctx, 1, "vm Module Context"));
+        new node::inspector::ContextInfo(ctx, 1, "vm Module Context"));
 #endif
 
     if (ctx.IsEmpty()) {

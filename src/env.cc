@@ -36,7 +36,7 @@ void Environment::Start(int argc,
 
 #if HAVE_INSPECTOR
   ContextCreated(
-    new node::inspector::ContextInfo(context(), 1, "NodeJS Main Context"));
+      new node::inspector::ContextInfo(context(), 1, "NodeJS Main Context"));
 #endif
 
   uv_check_init(event_loop(), immediate_check_handle());

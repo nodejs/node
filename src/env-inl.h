@@ -175,7 +175,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       debugger_agent_(this),
 #if HAVE_INSPECTOR
       inspector_agent_(this),
-#endif
+#endif  // HAVE_INSPECTOR
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       context_(context->GetIsolate(), context) {
@@ -376,7 +376,8 @@ inline void Environment::ContextDestroyed(v8::Local<v8::Context> context) {
     }
   }
 }
-#endif
+
+#endif  // HAVE_INSPECTOR
 
 inline void Environment::ThrowError(const char* errmsg) {
   ThrowError(v8::Exception::Error, errmsg);

@@ -326,17 +326,17 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
                     running_nested_loop_(false),
                     inspector_(V8Inspector::create(env->isolate(), this)) {
     v8::HandleScope handles(env_->isolate());
-    for (auto it : *(env->contexts())) {
+    for (auto it : *env->contexts()) {
       contextCreated(it);
     }
   }
 
   void contextCreated(const node::inspector::ContextInfo* info) {
     inspector()->contextCreated(
-      v8_inspector::V8ContextInfo(
-        info->context(env_->isolate()),
-        info->groupId(),
-        info->name()));
+        v8_inspector::V8ContextInfo(
+          info->context(env_->isolate()),
+          info->groupId(),
+          info->name()));
   }
 
   void contextDestroyed(v8::Local<v8::Context> context) {

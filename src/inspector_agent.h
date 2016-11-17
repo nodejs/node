@@ -27,23 +27,20 @@ class AgentImpl;
 
 class ContextInfo {
  public:
-  explicit ContextInfo(v8::Local<v8::Context> context, int groupId,
+  explicit ContextInfo(v8::Local<v8::Context> context, const int groupId,
                        const char* name)
-                       : groupId_(groupId),
+                       : group_id_(groupId),
                        name_(name) {
                        context_.Reset(context->GetIsolate(), context);
-  }
-  ~ContextInfo() {
-    context_.Reset();
   }
   inline v8::Local<v8::Context> context(v8::Isolate* isolate) const {
     return context_.Get(isolate);
   }
-  int groupId() const { return groupId_; }
+  int groupId() const { return group_id_; }
   const char* name() const { return name_; }
  private:
   v8::Persistent<v8::Context> context_;
-  int groupId_;
+  const int group_id_;
   const char* name_;
 };
 
