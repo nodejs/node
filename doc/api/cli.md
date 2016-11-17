@@ -131,14 +131,14 @@ of the event loop.
 
 ### `--enable-tracing`
 <!-- YAML
-added: v7.1.0
+added: REPLACEME
 -->
 
 Enables the collection of trace event tracing information.
 
-### `--enabled-categories=list`
+### `--enabled-categories`
 <!-- YAML
-added: v7.1.0
+added: REPLACEME
 -->
 
 A comma separated list of categories that should be traced when trace event

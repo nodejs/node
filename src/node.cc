@@ -3483,7 +3483,7 @@ static void PrintHelp() {
          "  --trace-sync-io       show stack trace when use of sync IO\n"
          "                        is detected after the first tick\n"
          "  --enable-tracing      track trace events\n"
-         "  --enabled-categories= comma separated list of trace event\n"
+         "  --enabled-categories  comma separated list of trace event\n"
          "                        categories to record\n"
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
@@ -3635,8 +3635,14 @@ static void ParseArgs(int* argc,
       trace_sync_io = true;
     } else if (strcmp(arg, "--enable-tracing") == 0) {
       trace_enabled = true;
-    } else if (strncmp(arg, "--enabled-categories=", 21) == 0) {
-      trace_enabled_categories = arg + 21;
+    } else if (strcmp(arg, "--enabled-categories") == 0) {
+      const char* categories = argv[index + 1];
+      if (categories == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      trace_enabled_categories = categories;
     } else if (strcmp(arg, "--track-heap-objects") == 0) {
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
