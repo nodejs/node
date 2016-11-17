@@ -343,7 +343,7 @@ added: v0.5.3
   `cert`, `ca`, etc).
 
 The `server.addContext()` method adds a secure context that will be used if
-the client request's SNS hostname matches the supplied `hostname` (or wildcard).
+the client request's SNI hostname matches the supplied `hostname` (or wildcard).
 
 ### server.address()
 <!-- YAML
