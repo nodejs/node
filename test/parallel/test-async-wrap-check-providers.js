@@ -46,7 +46,7 @@ async_wrap.setupHooks({ init });
 async_wrap.enable();
 
 
-setTimeout(function() { });
+setTimeout(function() { }, 1);
 
 fs.stat(__filename, noop);
 
