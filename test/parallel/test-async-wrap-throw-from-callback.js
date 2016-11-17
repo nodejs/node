@@ -40,8 +40,8 @@ if (typeof process.argv[2] === 'string') {
 } else {
 
   process.on('exit', (code) => {
-    assert.equal(msgCalled, callbacks.length);
-    assert.equal(msgCalled, msgReceived);
+    assert.strictEqual(msgCalled, callbacks.length);
+    assert.strictEqual(msgCalled, msgReceived);
   });
 
   callbacks.forEach((item) => {
@@ -58,7 +58,7 @@ if (typeof process.argv[2] === 'string') {
       if (errstring.includes('Error: ' + item))
         msgReceived++;
 
-      assert.equal(code, 1, `${item} closed with code ${code}`);
+      assert.strictEqual(code, 1, `${item} closed with code ${code}`);
     });
   });
 }
