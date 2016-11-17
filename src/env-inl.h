@@ -60,6 +60,8 @@ inline uint32_t* IsolateData::zero_fill_field() const {
 }
 
 inline Environment::AsyncHooks::AsyncHooks() : fields_(), uid_fields_() {
+  // kAsyncUidCntr should start at 1 because that'll be the id for bootstrap.
+  uid_fields_[AsyncHooks::kAsyncUidCntr] = 1;
 }
 
 inline uint32_t* Environment::AsyncHooks::fields() {

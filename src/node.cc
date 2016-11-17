@@ -4360,6 +4360,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
+    Environment::AsyncHooks::ExecScope exec_scope(&env, 1, 0);
     LoadEnvironment(&env);
   }
 
