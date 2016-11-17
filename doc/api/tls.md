@@ -365,7 +365,7 @@ added: v0.3.2
 The `server.close()` method stops the server from accepting new connections.
 
 This function operates asynchronously. The `'close'` event will be emitted
-when the the server is finally closed.
+when the server has no more open connections.
 
 ### server.connections
 <!-- YAML
