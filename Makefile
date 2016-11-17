@@ -303,8 +303,7 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc-only: $(apidocs_html) $(apidocs_json)
-doc: $(NODE_EXE) doc-only
+doc: $(apidocs_html) $(apidocs_json)
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -750,5 +749,5 @@ endif
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
-	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci doc-only \
+	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci \
 	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci
