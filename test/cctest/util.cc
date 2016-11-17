@@ -94,34 +94,41 @@ namespace node {
   void LowMemoryNotification() {}
 }
 
+#define TEST_AND_FREE(expression)                                             \
+  do {                                                                        \
+    auto pointer = expression;                                                \
+    EXPECT_NE(nullptr, pointer);                                              \
+    free(pointer);                                                            \
+  } while (0)
+
 TEST(UtilTest, Malloc) {
   using node::Malloc;
-  EXPECT_NE(nullptr, Malloc<char>(0));
-  EXPECT_NE(nullptr, Malloc<char>(1));
-  EXPECT_NE(nullptr, Malloc(0));
-  EXPECT_NE(nullptr, Malloc(1));
+  TEST_AND_FREE(Malloc<char>(0));
+  TEST_AND_FREE(Malloc<char>(1));
+  TEST_AND_FREE(Malloc(0));
+  TEST_AND_FREE(Malloc(1));
 }
 
 TEST(UtilTest, Calloc) {
   using node::Calloc;
-  EXPECT_NE(nullptr, Calloc<char>(0));
-  EXPECT_NE(nullptr, Calloc<char>(1));
-  EXPECT_NE(nullptr, Calloc(0));
-  EXPECT_NE(nullptr, Calloc(1));
+  TEST_AND_FREE(Calloc<char>(0));
+  TEST_AND_FREE(Calloc<char>(1));
+  TEST_AND_FREE(Calloc(0));
+  TEST_AND_FREE(Calloc(1));
 }
 
 TEST(UtilTest, UncheckedMalloc) {
   using node::UncheckedMalloc;
-  EXPECT_NE(nullptr, UncheckedMalloc<char>(0));
-  EXPECT_NE(nullptr, UncheckedMalloc<char>(1));
-  EXPECT_NE(nullptr, UncheckedMalloc(0));
-  EXPECT_NE(nullptr, UncheckedMalloc(1));
+  TEST_AND_FREE(UncheckedMalloc<char>(0));
+  TEST_AND_FREE(UncheckedMalloc<char>(1));
+  TEST_AND_FREE(UncheckedMalloc(0));
+  TEST_AND_FREE(UncheckedMalloc(1));
 }
 
 TEST(UtilTest, UncheckedCalloc) {
   using node::UncheckedCalloc;
-  EXPECT_NE(nullptr, UncheckedCalloc<char>(0));
-  EXPECT_NE(nullptr, UncheckedCalloc<char>(1));
-  EXPECT_NE(nullptr, UncheckedCalloc(0));
-  EXPECT_NE(nullptr, UncheckedCalloc(1));
+  TEST_AND_FREE(UncheckedCalloc<char>(0));
+  TEST_AND_FREE(UncheckedCalloc<char>(1));
+  TEST_AND_FREE(UncheckedCalloc(0));
+  TEST_AND_FREE(UncheckedCalloc(1));
 }
