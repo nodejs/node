@@ -200,7 +200,7 @@ static void After(uv_fs_t *req) {
       case UV_FS_OPEN:
         env->insert_fd_async_ids(req->result,
                                  req_wrap->get_id(),
-                                 env->exchange_init_trigger_id(0));
+                                 req_wrap->get_trigger_id());
         argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
@@ -417,7 +417,6 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 
   int fd = args[0]->Int32Value();
   // TODO(trevnorris): Won't these values be needed for the destroy callbacks?
-  // XXX Wouldn't fd_async_id_map_[n][1] be the triggerId of the close() call?
   env->erase_fd_async_id(fd);
 
   if (args[1]->IsObject()) {
@@ -1020,10 +1019,6 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(open, args[3], UTF8, *path, flags, mode)
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
-    // TODO(trevnorris): Is this really necessary for sync calls?
-    env->insert_fd_async_ids(SYNC_RESULT,
-                             env->current_async_id(),
-                             env->trigger_id());
     args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
