@@ -394,7 +394,7 @@ added: v0.3.2
   on any IPv6 address (`::`) when IPv6 is available, or any IPv4 address
   (`0.0.0.0`) otherwise.
 * `callback` {Function} A callback function to be invoked when the server has
-  begun listening the the `port` and `hostname`.
+  begun listening on the `port` and `hostname`.
 
 The `server.listen()` methods instructs the server to begin accepting
 connections on the specified `port` and `hostname`.
