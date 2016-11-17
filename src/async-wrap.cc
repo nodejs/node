@@ -286,6 +286,13 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
 }
 
 
+void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
+  AsyncWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  wrap->Reset();
+}
+
+
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \

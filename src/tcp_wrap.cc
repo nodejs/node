@@ -65,6 +65,7 @@ void TCPWrap::Initialize(Local<Object> target,
                              Null(env->isolate()));
 
   env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
 
