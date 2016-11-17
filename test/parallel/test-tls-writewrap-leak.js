@@ -20,7 +20,7 @@ const server = net.createServer(common.mustCall((c) => {
   });
 
   c.write('hello', common.mustCall((err) => {
-    assert.equal(err.code, 'ECANCELED');
+    assert.strictEqual(err.code, 'ECANCELED');
     server.close();
   }));
 }));
