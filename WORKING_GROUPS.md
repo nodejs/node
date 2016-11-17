@@ -12,9 +12,12 @@ Groups are not formed to *begin* a set of tasks but instead are formed
 once that work is already underway and the contributors
 think it would benefit from being done as an autonomous project.
 
-If the work defined in a Working Group charter is completed the Working
-Group should be dissolved and the responsibility for governance absorbed
-back in to the CTC.
+If the work defined in a Working Group's charter is complete, the charter
+should be revoked.
+
+A Working Group's charter can be revoked either by consensus of the Working
+Group's members or by a CTC vote. Once revoked, any future work that arises
+becomes the responsibility of the CTC.
 
 ## Current Working Groups
 
