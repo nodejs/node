@@ -35,6 +35,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -533,17 +534,25 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 // comes from not creating Error objects on failure.
 static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uv_loop_t* loop = env->event_loop();
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(env->isolate(), args[0]);
 
+  MaybeLocal<String> content = InternalModuleReadFile(env, *path);
+  if (!content.IsEmpty()) {
+    args.GetReturnValue().Set(content.ToLocalChecked());
+  }
+}
+
+MaybeLocal<String> InternalModuleReadFile(Environment* env, const char* path) {
+  uv_loop_t* loop = env->event_loop();
+
   uv_fs_t open_req;
-  const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
+  const int fd = uv_fs_open(loop, &open_req, path, O_RDONLY, 0, nullptr);
   uv_fs_req_cleanup(&open_req);
 
   if (fd < 0) {
-    return;
+    return MaybeLocal<String>();
   }
 
   const size_t kBlockSize = 32 << 10;
@@ -580,7 +589,7 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
                           &chars[start],
                           String::kNormalString,
                           offset - start);
-  args.GetReturnValue().Set(chars_string);
+  return chars_string;
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to

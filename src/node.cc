@@ -166,6 +166,8 @@ static node_module* modlist_addon;
 static const char* icu_data_dir = nullptr;
 #endif
 
+const char* internal_modules_source_dir = nullptr;
+
 // used by C++ modules as well
 bool no_deprecation = false;
 
@@ -3758,6 +3760,8 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
 #endif
+    } else if (strncmp(arg, "--internal-modules-source-dir=", 30) == 0) {
+      internal_modules_source_dir = arg + 30;
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
