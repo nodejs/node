@@ -33,6 +33,7 @@ stream.on('finish', common.mustCall(function() {
   fs.readFile(file, 'utf8', common.mustCall(function(err, buf) {
     assert.ok(err instanceof Error);
     assert.strictEqual('"toString()" failed', err.message);
+    assert.strictEqual(buf, undefined);
   }));
 }));
 
