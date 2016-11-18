@@ -38,7 +38,7 @@ function doRequest() {
     http.request(options, (response) => {
       const sockets = agent.sockets[`${options.host}:${options.port}:`];
       if (sockets.length !== 1) {
-        reject(new Error('Only one socket should be created'));
+        return reject(new Error('Only one socket should be created'));
       }
       const socket = sockets[0];
       const timeoutEvent = socket._events.timeout;
