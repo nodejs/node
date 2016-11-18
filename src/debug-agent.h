@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_mutex.h"
+#include "node_debug_options.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -76,7 +77,7 @@ class Agent {
   typedef void (*DispatchHandler)(node::Environment* env);
 
   // Start the debugger agent thread
-  bool Start(const char* host, int port, bool wait);
+  bool Start(const DebugOptions& options);
   // Listen for debug events
   void Enable();
   // Stop the debugger agent
@@ -114,9 +115,8 @@ class Agent {
   };
 
   State state_;
+  DebugOptions options_;
 
-  std::string host_;
-  int port_;
   bool wait_;
 
   uv_sem_t start_sem_;
