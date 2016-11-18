@@ -2,7 +2,7 @@
 
 import sys
 if sys.version_info >= (3, 0):
-  sys.stdout.write("Python 3.x is not compatible at this time\n")
+  sys.stdout.write("Python 3 is not supported, please use Python 2.6 or 2.7\n")
   sys.exit(1)
 
 import errno
@@ -1154,7 +1154,8 @@ def configure_intl(o):
         os.rename(tmp_icu, icu_full_path)
         shutil.rmtree(icu_tmp_path)
       else:
-        print(' Error: --with-icu-source=%s did not result in an "icu" dir.' % with_icu_source)
+        print(' Error: --with-icu-source=%s did not result in an "icu" dir.' % \
+               with_icu_source)
         shutil.rmtree(icu_tmp_path)
         sys.exit(1)
 
