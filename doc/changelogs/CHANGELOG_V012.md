@@ -35,7 +35,7 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** Node.js v0.12 is covered by the 
+**Note:** Node.js v0.12 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until December 31st, 2016.
 

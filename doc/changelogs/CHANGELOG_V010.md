@@ -68,7 +68,7 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** Node.js v0.10 is covered by the 
+**Note:** Node.js v0.10 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until October 2016.
 
@@ -311,11 +311,11 @@ https://github.com/nodejs/node/commit/8d045a30e95602b443eb259a5021d33feb4df079
 * child_process: properly support optional args (cjihrig)
 * crypto: Disable autonegotiation for SSLv2/3 by default (Fedor Indutny,
   Timothy J Fontaine, Alexis Campailla)
- 
+
   This is a behavior change, by default we will not allow the negotiation to
   SSLv2 or SSLv3. If you want this behavior, run Node.js with either
   `--enable-ssl2` or `--enable-ssl3` respectively.
- 
+
   This does not change the behavior for users specifically requesting
   `SSLv2_method` or `SSLv3_method`. While this behavior is not advised, it is
   assumed you know what you're doing since you're specifically asking to use
