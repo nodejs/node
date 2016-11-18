@@ -1,24 +1,18 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 // spawn a node child process in "interactive" mode (force the repl)
-var cp = spawn(process.execPath, ['-i']);
-var gotToEnd = false;
+const cp = spawn(process.execPath, ['-i']);
 var timeoutId = setTimeout(function() {
-  throw new Error('timeout!');
-}, common.platformTimeout(1000)); // give node + the repl 1 second to boot up
+  common.fail('timeout!');
+}, common.platformTimeout(5000)); // give node + the repl 5 seconds to start
 
 cp.stdout.setEncoding('utf8');
 
-cp.stdout.once('data', function(b) {
+cp.stdout.once('data', common.mustCall(function(b) {
   clearTimeout(timeoutId);
-  assert.equal(b, '> ');
-  gotToEnd = true;
+  assert.strictEqual(b, '> ');
   cp.kill();
-});
-
-process.on('exit', function() {
-  assert(gotToEnd);
-});
+}));

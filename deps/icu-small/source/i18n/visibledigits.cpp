@@ -1,5 +1,7 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
- * Copyright (C) 2015, International Business Machines
+ * Copyright (C) 2016, International Business Machines
  * Corporation and others.  All Rights Reserved.
  *
  * file name: visibledigits.cpp
@@ -84,8 +86,11 @@ double VisibleDigits::computeAbsDoubleValue() const {
     }
 
     // stack allocate a decNumber to hold MAX_DBL_DIGITS+3 significant digits
-    char rawNumber[sizeof(decNumber) + MAX_DBL_DIGITS+3];
-    decNumber *numberPtr = (decNumber *) rawNumber;
+    struct {
+        decNumber  decNum;
+        char       digits[MAX_DBL_DIGITS+3];
+    } decNumberWithStorage;
+    decNumber *numberPtr = &decNumberWithStorage.decNum;
 
     int32_t mostSig = fInterval.getMostSignificantExclusive();
     int32_t mostSigNonZero = fExponent + fDigits.length();
@@ -109,15 +114,8 @@ double VisibleDigits::computeAbsDoubleValue() const {
     char str[MAX_DBL_DIGITS+18];
     uprv_decNumberToString(numberPtr, str);
     U_ASSERT(uprv_strlen(str) < MAX_DBL_DIGITS+18);
-    char decimalSeparator = DigitList::getStrtodDecimalSeparator();
-    if (decimalSeparator != '.') {
-        char *decimalPt = strchr(str, '.');
-        if (decimalPt != NULL) {
-            *decimalPt = decimalSeparator;
-        }
-    }
     char *unused = NULL;
-    return uprv_strtod(str, &unused);
+    return DigitList::decimalStrToDouble(str, &unused);
 }
 
 void VisibleDigits::getFixedDecimal(
@@ -165,7 +163,8 @@ void VisibleDigits::getFixedDecimal(
     // f (decimal digits)
     // skip over any leading 0's in fraction digits.
     int32_t idx = -1;
-    for (; idx >= -v && getDigitByExponent(idx) == 0; --idx);
+    for (; idx >= -v && getDigitByExponent(idx) == 0; --idx)
+      ;
 
     // Only process up to first 18 non zero fraction digits for decimalDigits
     // since that is all we can fit into an int64.

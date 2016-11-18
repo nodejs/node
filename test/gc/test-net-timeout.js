@@ -69,7 +69,7 @@ function status() {
       global.gc();
       console.log('All should be collected now.');
       console.log('Collected: %d/%d', countGC, count);
-      assert(count === countGC);
+      assert.strictEqual(count, countGC);
       process.exit(0);
     }, 200);
   }

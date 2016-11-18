@@ -6,6 +6,8 @@
 
 #if V8_TARGET_ARCH_S390
 
+#include <memory>
+
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
 #include "src/s390/simulator-s390.h"
@@ -14,56 +16,6 @@ namespace v8 {
 namespace internal {
 
 #define __ masm.
-
-#if defined(USE_SIMULATOR)
-byte* fast_exp_s390_machine_code = nullptr;
-double fast_exp_simulator(double x, Isolate* isolate) {
-  return Simulator::current(isolate)->CallFPReturnsDouble(
-      fast_exp_s390_machine_code, x, 0);
-}
-#endif
-
-UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == nullptr) return nullptr;
-  ExternalReference::InitializeMathExpData();
-
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
-                      CodeObjectRequired::kNo);
-
-  {
-    DoubleRegister input = d0;
-    DoubleRegister result = d2;
-    DoubleRegister double_scratch1 = d3;
-    DoubleRegister double_scratch2 = d4;
-    Register temp1 = r6;
-    Register temp2 = r7;
-    Register temp3 = r8;
-
-    __ Push(temp3, temp2, temp1);
-    MathExpGenerator::EmitMathExp(&masm, input, result, double_scratch1,
-                                  double_scratch2, temp1, temp2, temp3);
-    __ Pop(temp3, temp2, temp1);
-    __ ldr(d0, result);
-    __ Ret();
-  }
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  DCHECK(ABI_USES_FUNCTION_DESCRIPTORS || !RelocInfo::RequiresRelocation(desc));
-
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-
-#if !defined(USE_SIMULATOR)
-  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
-#else
-  fast_exp_s390_machine_code = buffer;
-  return &fast_exp_simulator;
-#endif
-}
 
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 #if defined(USE_SIMULATOR)
@@ -172,7 +124,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiToDoubleArrayOffset(r14, length);
   __ AddP(r14, Operand(FixedDoubleArray::kHeaderSize));
   __ Allocate(r14, array, r9, scratch2, &gc_required, DOUBLE_ALIGNMENT);
-
+  __ SubP(array, array, Operand(kHeapObjectTag));
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch2, Heap::kFixedDoubleArrayMapRootIndex);
   __ StoreP(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
@@ -302,12 +254,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AddP(array_size, r0);
   __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
               NO_ALLOCATION_FLAGS);
-  // array: destination FixedArray, not tagged as heap object
+  // array: destination FixedArray, tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
-  __ StoreP(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ StoreP(scratch, MemOperand(array, HeapObject::kMapOffset));
-  __ AddP(array, Operand(kHeapObjectTag));
+  __ StoreP(length, FieldMemOperand(array, FixedDoubleArray::kLengthOffset),
+            r0);
+  __ StoreP(scratch, FieldMemOperand(array, HeapObject::kMapOffset), r0);
 
   // Prepare for conversion loop.
   Register src_elements = elements;
@@ -507,95 +459,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm, Register string,
   __ bind(&done);
 }
 
-static MemOperand ExpConstant(int index, Register base) {
-  return MemOperand(base, index * kDoubleSize);
-}
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm, DoubleRegister input,
-                                   DoubleRegister result,
-                                   DoubleRegister double_scratch1,
-                                   DoubleRegister double_scratch2,
-                                   Register temp1, Register temp2,
-                                   Register temp3) {
-  DCHECK(!input.is(result));
-  DCHECK(!input.is(double_scratch1));
-  DCHECK(!input.is(double_scratch2));
-  DCHECK(!result.is(double_scratch1));
-  DCHECK(!result.is(double_scratch2));
-  DCHECK(!double_scratch1.is(double_scratch2));
-  DCHECK(!temp1.is(temp2));
-  DCHECK(!temp1.is(temp3));
-  DCHECK(!temp2.is(temp3));
-  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
-  DCHECK(!masm->serializer_enabled());  // External references not serializable.
-
-  Label zero, infinity, done;
-
-  __ mov(temp3, Operand(ExternalReference::math_exp_constants(0)));
-
-  __ LoadDouble(double_scratch1, ExpConstant(0, temp3));
-  __ cdbr(double_scratch1, input);
-  __ ldr(result, input);
-  __ bunordered(&done, Label::kNear);
-  __ bge(&zero, Label::kNear);
-
-  __ LoadDouble(double_scratch2, ExpConstant(1, temp3));
-  __ cdbr(input, double_scratch2);
-  __ bge(&infinity, Label::kNear);
-
-  __ LoadDouble(double_scratch1, ExpConstant(3, temp3));
-  __ LoadDouble(result, ExpConstant(4, temp3));
-
-  // Do not generate madbr, as intermediate result are not
-  // rounded properly
-  __ mdbr(double_scratch1, input);
-  __ adbr(double_scratch1, result);
-
-  // Move low word of double_scratch1 to temp2
-  __ lgdr(temp2, double_scratch1);
-  __ nihf(temp2, Operand::Zero());
-
-  __ sdbr(double_scratch1, result);
-  __ LoadDouble(result, ExpConstant(6, temp3));
-  __ LoadDouble(double_scratch2, ExpConstant(5, temp3));
-  __ mdbr(double_scratch1, double_scratch2);
-  __ sdbr(double_scratch1, input);
-  __ sdbr(result, double_scratch1);
-  __ ldr(double_scratch2, double_scratch1);
-  __ mdbr(double_scratch2, double_scratch2);
-  __ mdbr(result, double_scratch2);
-  __ LoadDouble(double_scratch2, ExpConstant(7, temp3));
-  __ mdbr(result, double_scratch2);
-  __ sdbr(result, double_scratch1);
-  __ LoadDouble(double_scratch2, ExpConstant(8, temp3));
-  __ adbr(result, double_scratch2);
-  __ ShiftRight(temp1, temp2, Operand(11));
-  __ AndP(temp2, Operand(0x7ff));
-  __ AddP(temp1, Operand(0x3ff));
-
-  // Must not call ExpConstant() after overwriting temp3!
-  __ mov(temp3, Operand(ExternalReference::math_exp_log_table()));
-  __ ShiftLeft(temp2, temp2, Operand(3));
-
-  __ lg(temp2, MemOperand(temp2, temp3));
-  __ sllg(temp1, temp1, Operand(52));
-  __ ogr(temp2, temp1);
-  __ ldgr(double_scratch1, temp2);
-
-  __ mdbr(result, double_scratch1);
-  __ b(&done, Label::kNear);
-
-  __ bind(&zero);
-  __ lzdr(kDoubleRegZero);
-  __ ldr(result, kDoubleRegZero);
-  __ b(&done, Label::kNear);
-
-  __ bind(&infinity);
-  __ LoadDouble(result, ExpConstant(2, temp3));
-
-  __ bind(&done);
-}
-
 #undef __
 
 CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
@@ -605,7 +468,7 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  base::SmartPointer<CodePatcher> patcher(
+  std::unique_ptr<CodePatcher> patcher(
       new CodePatcher(isolate, young_sequence_.start(),
                       young_sequence_.length(), CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());

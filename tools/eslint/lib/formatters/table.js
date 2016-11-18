@@ -78,7 +78,7 @@ function drawTable(messages) {
                 wrapWord: true
             }
         },
-        drawHorizontalLine: function(index) {
+        drawHorizontalLine(index) {
             return index === 1;
         }
     });
@@ -97,7 +97,7 @@ function drawReport(results) {
             return "";
         }
 
-        return "\n" + result.filePath + "\n\n" + drawTable(result.messages);
+        return `\n${result.filePath}\n\n${drawTable(result.messages)}`;
     });
 
     files = files.filter(function(content) {
@@ -129,7 +129,7 @@ module.exports = function(report) {
         result = drawReport(report);
     }
 
-    result += "\n" + table([
+    result += `\n${table([
         [
             chalk.red(pluralize("Error", errorCount, true))
         ],
@@ -143,10 +143,10 @@ module.exports = function(report) {
                 wrapWord: true
             }
         },
-        drawHorizontalLine: function() {
+        drawHorizontalLine() {
             return true;
         }
-    });
+    })}`;
 
     return result;
 };

@@ -35,14 +35,14 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {},
             allowEmptyCatch = options.allowEmptyCatch || false;
 
         const sourceCode = context.getSourceCode();
 
         return {
-            BlockStatement: function(node) {
+            BlockStatement(node) {
 
                 // if the body is not empty, we can just return immediately
                 if (node.body.length !== 0) {
@@ -66,7 +66,7 @@ module.exports = {
                 context.report(node, "Empty block statement.");
             },
 
-            SwitchStatement: function(node) {
+            SwitchStatement(node) {
 
                 if (typeof node.cases === "undefined" || node.cases.length === 0) {
                     context.report(node, "Empty switch statement.");

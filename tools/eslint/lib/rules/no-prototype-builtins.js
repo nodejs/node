@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const DISALLOWED_PROPS = [
             "hasOwnProperty",
             "isPrototypeOf",
@@ -42,7 +42,7 @@ module.exports = {
                     message: "Do not access Object.prototype method '{{prop}}' from target object.",
                     loc: node.callee.property.loc.start,
                     data: {prop: propName},
-                    node: node
+                    node
                 });
             }
         }

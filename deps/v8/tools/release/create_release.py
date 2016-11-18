@@ -223,6 +223,27 @@ class CommitBranch(Step):
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
+class FixBrokenTag(Step):
+  MESSAGE = "Check for a missing tag and fix that instead."
+
+  def RunStep(self):
+    commit = None
+    try:
+      commit = self.GitLog(
+          n=1, format="%H",
+          grep=self["commit_title"],
+          branch="origin/%s" % self["version"],
+      )
+    except GitFailedException:
+      # In the normal case, the remote doesn't exist yet and git will fail.
+      pass
+    if commit:
+      print "Found %s. Trying to repair tag and bail out." % self["version"]
+      self.Git("tag %s %s" % (self["version"], commit))
+      self.Git("push origin refs/tags/%s" % self["version"])
+      return True
+
+
 class PushBranch(Step):
   MESSAGE = "Push changes."
 
@@ -303,6 +324,7 @@ class CreateRelease(ScriptsBase):
       SetVersion,
       EnableMergeWatchlist,
       CommitBranch,
+      FixBrokenTag,
       PushBranch,
       TagRevision,
       CleanUp,

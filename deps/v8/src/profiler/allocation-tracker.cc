@@ -149,11 +149,10 @@ void AddressToTraceMap::Clear() {
 
 
 void AddressToTraceMap::Print() {
-  PrintF("[AddressToTraceMap (%" V8_SIZET_PREFIX V8PRIuPTR "): \n",
-         ranges_.size());
+  PrintF("[AddressToTraceMap (%" PRIuS "): \n", ranges_.size());
   for (RangeMap::iterator it = ranges_.begin(); it != ranges_.end(); ++it) {
-    PrintF("[%p - %p] => %u\n", it->second.start, it->first,
-        it->second.trace_node_id);
+    PrintF("[%p - %p] => %u\n", static_cast<void*>(it->second.start),
+           static_cast<void*>(it->first), it->second.trace_node_id);
   }
   PrintF("]\n");
 }
@@ -191,12 +190,10 @@ void AllocationTracker::DeleteFunctionInfo(FunctionInfo** info) {
     delete *info;
 }
 
-
-AllocationTracker::AllocationTracker(
-    HeapObjectsMap* ids, StringsStorage* names)
+AllocationTracker::AllocationTracker(HeapObjectsMap* ids, StringsStorage* names)
     : ids_(ids),
       names_(names),
-      id_to_function_info_index_(HashMap::PointersMatch),
+      id_to_function_info_index_(base::HashMap::PointersMatch),
       info_index_for_other_state_(0) {
   FunctionInfo* info = new FunctionInfo();
   info->name = "(root)";
@@ -231,7 +228,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
   Isolate* isolate = heap->isolate();
   int length = 0;
-  StackTraceFrameIterator it(isolate);
+  JavaScriptFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
     SharedFunctionInfo* shared = frame->function()->shared();
@@ -262,7 +259,7 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
 
 unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
                                             SnapshotObjectId id) {
-  HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
+  base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == NULL) {
     FunctionInfo* info = new FunctionInfo();
@@ -307,9 +304,8 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
       info_(info) {
   script_ = Handle<Script>::cast(
       script->GetIsolate()->global_handles()->Create(script));
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
-                          this,
-                          &HandleWeakScript);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
+                          &HandleWeakScript, v8::WeakCallbackType::kParameter);
 }
 
 
@@ -327,9 +323,8 @@ void AllocationTracker::UnresolvedLocation::Resolve() {
   info_->column = Script::GetColumnNumber(script_, start_position_);
 }
 
-
 void AllocationTracker::UnresolvedLocation::HandleWeakScript(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
+    const v8::WeakCallbackInfo<void>& data) {
   UnresolvedLocation* loc =
       reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
   GlobalHandles::Destroy(reinterpret_cast<Object**>(loc->script_.location()));

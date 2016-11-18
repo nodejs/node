@@ -39,7 +39,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0] || {};
         const ALLOWED_VARIABLES = options.allow ? options.allow : [];
@@ -107,7 +107,13 @@ module.exports = {
                 const identifier = node.id.name;
 
                 if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
-                    context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                    context.report({
+                        node,
+                        message: "Unexpected dangling '_' in '{{identifier}}'.",
+                        data: {
+                            identifier
+                        }
+                    });
                 }
             }
         }
@@ -123,7 +129,13 @@ module.exports = {
 
             if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
                 !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
-                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                context.report({
+                    node,
+                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    data: {
+                        identifier
+                    }
+                });
             }
         }
 
@@ -142,7 +154,13 @@ module.exports = {
                 !(isMemberOfThis && allowAfterThis) &&
                 !(isMemberOfSuper && allowAfterSuper) &&
                 !isSpecialCaseIdentifierForMemberExpression(identifier) && !isAllowed(identifier)) {
-                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                context.report({
+                    node,
+                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    data: {
+                        identifier
+                    }
+                });
             }
         }
 

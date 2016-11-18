@@ -17,70 +17,71 @@ class CodeSerializer : public Serializer {
                                Handle<SharedFunctionInfo> info,
                                Handle<String> source);
 
+  ScriptData* Serialize(Handle<HeapObject> obj);
+
   MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
-  static const int kSourceObjectIndex = 0;
-  STATIC_ASSERT(kSourceObjectReference == kSourceObjectIndex);
-
-  static const int kCodeStubsBaseIndex = 1;
-
-  String* source() const {
-    DCHECK(!AllowHeapAllocation::IsAllowed());
-    return source_;
-  }
-
   const List<uint32_t>* stub_keys() const { return &stub_keys_; }
 
- private:
-  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source)
-      : Serializer(isolate, sink), source_(source) {
-    back_reference_map_.AddSourceString(source);
-  }
+  uint32_t source_hash() const { return source_hash_; }
 
+ protected:
+  explicit CodeSerializer(Isolate* isolate, uint32_t source_hash)
+      : Serializer(isolate), source_hash_(source_hash) {}
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
+  virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+                                   WhereToPoint where_to_point) {
+    UNREACHABLE();
+  }
+
+  void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
+                        WhereToPoint where_to_point);
+
+ private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
-  void SerializeIC(Code* ic, HowToCode how_to_code,
-                   WhereToPoint where_to_point);
-  void SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
+  void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
-  void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
-  int AddCodeStubKey(uint32_t stub_key);
 
   DisallowHeapAllocation no_gc_;
-  String* source_;
+  uint32_t source_hash_;
   List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
+};
+
+class WasmCompiledModuleSerializer : public CodeSerializer {
+ public:
+  static std::unique_ptr<ScriptData> SerializeWasmModule(
+      Isolate* isolate, Handle<FixedArray> compiled_module);
+  static MaybeHandle<FixedArray> DeserializeWasmModule(Isolate* isolate,
+                                                       ScriptData* data);
+
+ protected:
+  void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+                           WhereToPoint where_to_point) override {
+    Code::Kind kind = code_object->kind();
+    if (kind == Code::WASM_FUNCTION || kind == Code::WASM_TO_JS_FUNCTION ||
+        kind == Code::JS_TO_WASM_FUNCTION) {
+      SerializeGeneric(code_object, how_to_code, where_to_point);
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+ private:
+  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)
+      : CodeSerializer(isolate, source_hash) {}
+  DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
 };
 
 // Wrapper around ScriptData to provide code-serializer-specific functionality.
 class SerializedCodeData : public SerializedData {
  public:
-  // Used when consuming.
-  static SerializedCodeData* FromCachedData(Isolate* isolate,
-                                            ScriptData* cached_data,
-                                            String* source);
-
-  // Used when producing.
-  SerializedCodeData(const List<byte>& payload, const CodeSerializer& cs);
-
-  // Return ScriptData object and relinquish ownership over it to the caller.
-  ScriptData* GetScriptData();
-
-  Vector<const Reservation> Reservations() const;
-  Vector<const byte> Payload() const;
-
-  Vector<const uint32_t> CodeStubKeys() const;
-
- private:
-  explicit SerializedCodeData(ScriptData* data);
-
   enum SanityCheckResult {
     CHECK_SUCCESS = 0,
     MAGIC_NUMBER_MISMATCH = 1,
@@ -91,10 +92,35 @@ class SerializedCodeData : public SerializedData {
     CHECKSUM_MISMATCH = 6
   };
 
-  SanityCheckResult SanityCheck(Isolate* isolate, String* source) const;
+  // Used when consuming.
+  static const SerializedCodeData FromCachedData(
+      Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
+      SanityCheckResult* rejection_result);
 
-  uint32_t SourceHash(String* source) const;
+  // Used when producing.
+  SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);
 
+  // Return ScriptData object and relinquish ownership over it to the caller.
+  ScriptData* GetScriptData();
+
+  Vector<const Reservation> Reservations() const;
+  Vector<const byte> Payload() const;
+
+  Vector<const uint32_t> CodeStubKeys() const;
+
+  static uint32_t SourceHash(Handle<String> source);
+
+ private:
+  explicit SerializedCodeData(ScriptData* data);
+  SerializedCodeData(const byte* data, int size)
+      : SerializedData(const_cast<byte*>(data), size) {}
+
+  Vector<const byte> DataWithoutHeader() const {
+    return Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
+  }
+
+  SanityCheckResult SanityCheck(Isolate* isolate,
+                                uint32_t expected_source_hash) const;
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and external reference count
   // [1] version hash

@@ -33,10 +33,6 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 #define __ masm.
 
-UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
-  return nullptr;
-}
-
 
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   size_t actual_size;
@@ -269,14 +265,14 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ push(eax);
   __ push(ebx);
+  __ push(esi);
 
   __ mov(edi, FieldOperand(edi, FixedArray::kLengthOffset));
 
   // Allocate new FixedDoubleArray.
   // edx: receiver
   // edi: length of source FixedArray (smi-tagged)
-  AllocationFlags flags =
-      static_cast<AllocationFlags>(TAG_OBJECT | DOUBLE_ALIGNMENT);
+  AllocationFlags flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT);
   __ Allocate(FixedDoubleArray::kHeaderSize, times_8, edi,
               REGISTER_VALUE_IS_SMI, eax, ebx, no_reg, &gc_required, flags);
 
@@ -302,8 +298,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
+
   // Restore registers before jumping into runtime.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(esi);
   __ pop(ebx);
   __ pop(eax);
   __ jmp(fail);
@@ -339,11 +336,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ sub(edi, Immediate(Smi::FromInt(1)));
   __ j(not_sign, &loop);
 
+  // Restore registers.
+  __ pop(esi);
   __ pop(ebx);
   __ pop(eax);
-
-  // Restore esi.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
   // eax: value
@@ -391,7 +387,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Allocate new FixedArray.
   // ebx: length of source FixedDoubleArray (smi-tagged)
   __ lea(edi, Operand(ebx, times_2, FixedArray::kHeaderSize));
-  __ Allocate(edi, eax, esi, no_reg, &gc_required, TAG_OBJECT);
+  __ Allocate(edi, eax, esi, no_reg, &gc_required, NO_ALLOCATION_FLAGS);
 
   // eax: destination FixedArray
   // ebx: number of elements

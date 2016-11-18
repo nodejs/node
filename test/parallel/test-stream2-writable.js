@@ -45,7 +45,7 @@ function run() {
   var fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     equal: assert.equal,
     end: function() {
       count--;
@@ -154,7 +154,7 @@ test('write bufferize', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[ i % encodings.length ];
+    var enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
@@ -168,7 +168,7 @@ test('write no bufferize', function(t) {
   });
 
   tw._write = function(chunk, encoding, cb) {
-    assert(typeof chunk === 'string');
+    assert.strictEqual(typeof chunk, 'string');
     chunk = Buffer.from(chunk, encoding);
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
@@ -192,7 +192,7 @@ test('write no bufferize', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[ i % encodings.length ];
+    var enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });

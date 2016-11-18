@@ -166,6 +166,12 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as \fB\-\-enable\-fips\fR)
 
 .TP
+.BR \-\-openssl\-config =\fIfile\fR
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+\fB./configure \-\-openssl\-fips\fR.
+
+.TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
 
@@ -202,8 +208,26 @@ Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. \fBAvoid use.\fR
 
 
-.SH RESOURCES AND DOCUMENTATION
+.SH BUGS
+Bugs are tracked in GitHub Issues:
+.ur https://github.com/nodejs/node/issues
 
+
+.SH AUTHORS
+Written and maintained by 1000+ contributors:
+.ur https://github.com/nodejs/node/blob/master/AUTHORS
+
+
+.SH COPYRIGHT
+Copyright Node.js contributors. Node.js is available under the MIT license.
+
+Node.js also includes external libraries that are available under a variety
+of licenses. See
+.ur https://github.com/nodejs/node/blob/master/LICENSE
+for the full license text.
+
+
+.SH RESOURCES AND DOCUMENTATION
 Website:
 .ur https://nodejs.org/
 
@@ -218,6 +242,7 @@ Mailing list:
 
 IRC (general questions):
 .ur "chat.freenode.net #node.js"
+(unofficial)
 
-IRC (node core development):
+IRC (Node.js core development):
 .ur "chat.freenode.net #node-dev"

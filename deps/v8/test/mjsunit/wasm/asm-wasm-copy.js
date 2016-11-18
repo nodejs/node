@@ -22,6 +22,7 @@
     }
     return { func: func };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
-  assertEquals(asmModule().func(), wasm.func());
+  var wasm = asmModule();
+  var js = eval('(' + asmModule.toString().replace('use asm', '') + ')')();
+  assertEquals(js.func(), wasm.func());
 })();

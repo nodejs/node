@@ -9,15 +9,15 @@
 #include "src/arguments.h"
 #include "src/assembler.h"
 #include "src/base/atomicops.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/debug/liveedit.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
 #include "src/frames.h"
-#include "src/hashmap.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/runtime/runtime.h"
+#include "src/source-position-table.h"
 #include "src/string-stream.h"
 #include "src/v8threads.h"
 
@@ -38,9 +38,10 @@ enum StepAction : int8_t {
   StepNext = 1,   // Step to the next statement in the current function.
   StepIn = 2,     // Step into new functions invoked or the next statement
                   // in the current function.
-  StepFrame = 3   // Step into a new frame or return to previous frame.
-};
+  StepFrame = 3,  // Step into a new frame or return to previous frame.
 
+  LastStepAction = StepFrame
+};
 
 // Type of exception break. NOTE: These values are in macros.py as well.
 enum ExceptionBreakType {
@@ -60,24 +61,23 @@ enum BreakPositionAlignment {
   BREAK_POSITION_ALIGNED = 1
 };
 
+enum DebugBreakType {
+  NOT_DEBUG_BREAK,
+  DEBUGGER_STATEMENT,
+  DEBUG_BREAK_SLOT,
+  DEBUG_BREAK_SLOT_AT_CALL,
+  DEBUG_BREAK_SLOT_AT_RETURN,
+  DEBUG_BREAK_SLOT_AT_TAIL_CALL,
+};
 
 class BreakLocation {
  public:
-  // Find the break point at the supplied address, or the closest one before
-  // the address.
-  static BreakLocation FromCodeOffset(Handle<DebugInfo> debug_info, int offset);
-
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
                                  JavaScriptFrame* frame);
 
-  static void AllForStatementPosition(Handle<DebugInfo> debug_info,
-                                      int statement_position,
-                                      List<BreakLocation>* result_out);
-
-  static BreakLocation FromPosition(Handle<DebugInfo> debug_info, int position,
-                                    BreakPositionAlignment alignment);
-
-  bool IsDebugBreak() const;
+  static void AllAtCurrentStatement(Handle<DebugInfo> debug_info,
+                                    JavaScriptFrame* frame,
+                                    List<BreakLocation>* result_out);
 
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
@@ -88,138 +88,137 @@ class BreakLocation {
   inline bool IsDebuggerStatement() const {
     return type_ == DEBUGGER_STATEMENT;
   }
-  inline bool HasBreakPoint() const {
-    return debug_info_->HasBreakPoint(code_offset_);
-  }
 
-  Handle<Object> BreakPointObjects() const;
-
-  void SetBreakPoint(Handle<Object> break_point_object);
-  void ClearBreakPoint(Handle<Object> break_point_object);
-
-  void SetOneShot();
-  void ClearOneShot();
+  bool HasBreakPoint(Handle<DebugInfo> debug_info) const;
 
   inline int position() const { return position_; }
-  inline int statement_position() const { return statement_position_; }
-
-  inline int code_offset() const { return code_offset_; }
-  inline Isolate* isolate() { return debug_info_->GetIsolate(); }
-
-  inline AbstractCode* abstract_code() const {
-    return debug_info_->abstract_code();
-  }
-
- protected:
-  enum DebugBreakType {
-    NOT_DEBUG_BREAK,
-    DEBUGGER_STATEMENT,
-    DEBUG_BREAK_SLOT,
-    DEBUG_BREAK_SLOT_AT_CALL,
-    DEBUG_BREAK_SLOT_AT_RETURN,
-    DEBUG_BREAK_SLOT_AT_TAIL_CALL,
-  };
-
-  BreakLocation(Handle<DebugInfo> debug_info, DebugBreakType type,
-                int code_offset, int position, int statement_position);
-
-  class Iterator {
-   public:
-    virtual ~Iterator() {}
-
-    virtual BreakLocation GetBreakLocation() = 0;
-    virtual bool Done() const = 0;
-    virtual void Next() = 0;
-
-    void SkipTo(int count) {
-      while (count-- > 0) Next();
-    }
-
-    virtual int code_offset() = 0;
-    int break_index() const { return break_index_; }
-    inline int position() const { return position_; }
-    inline int statement_position() const { return statement_position_; }
-
-   protected:
-    explicit Iterator(Handle<DebugInfo> debug_info);
-    int ReturnPosition();
-
-    Isolate* isolate() { return debug_info_->GetIsolate(); }
-
-    Handle<DebugInfo> debug_info_;
-    int break_index_;
-    int position_;
-    int statement_position_;
-
-   private:
-    DisallowHeapAllocation no_gc_;
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
-  };
-
-  class CodeIterator : public Iterator {
-   public:
-    CodeIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
-    ~CodeIterator() override {}
-
-    BreakLocation GetBreakLocation() override;
-    bool Done() const override { return reloc_iterator_.done(); }
-    void Next() override;
-
-    int code_offset() override {
-      return static_cast<int>(
-          rinfo()->pc() -
-          debug_info_->abstract_code()->GetCode()->instruction_start());
-    }
-
-   private:
-    int GetModeMask(BreakLocatorType type);
-    RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
-    RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
-
-    RelocIterator reloc_iterator_;
-    DISALLOW_COPY_AND_ASSIGN(CodeIterator);
-  };
-
-  class BytecodeArrayIterator : public Iterator {
-   public:
-    BytecodeArrayIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
-    ~BytecodeArrayIterator() override {}
-
-    BreakLocation GetBreakLocation() override;
-    bool Done() const override { return source_position_iterator_.done(); }
-    void Next() override;
-
-    int code_offset() override {
-      return source_position_iterator_.bytecode_offset();
-    }
-
-   private:
-    DebugBreakType GetDebugBreakType();
-
-    interpreter::SourcePositionTableIterator source_position_iterator_;
-    BreakLocatorType break_locator_type_;
-    int start_position_;
-    DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);
-  };
-
-  static Iterator* GetIterator(Handle<DebugInfo> debug_info,
-                               BreakLocatorType type = ALL_BREAK_LOCATIONS);
 
  private:
-  friend class Debug;
+  BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
+                int code_offset, int position)
+      : abstract_code_(abstract_code),
+        code_offset_(code_offset),
+        type_(type),
+        position_(position) {
+    DCHECK_NE(NOT_DEBUG_BREAK, type_);
+  }
 
-  static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info, int offset);
+  static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
+                                      Handle<AbstractCode> abstract_code,
+                                      int offset);
 
   void SetDebugBreak();
   void ClearDebugBreak();
 
-  Handle<DebugInfo> debug_info_;
+  Handle<AbstractCode> abstract_code_;
   int code_offset_;
   DebugBreakType type_;
   int position_;
-  int statement_position_;
+
+  friend class CodeBreakIterator;
+  friend class BytecodeArrayBreakIterator;
 };
 
+class BreakIterator {
+ public:
+  static std::unique_ptr<BreakIterator> GetIterator(
+      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code,
+      BreakLocatorType type = ALL_BREAK_LOCATIONS);
+
+  virtual ~BreakIterator() {}
+
+  virtual BreakLocation GetBreakLocation() = 0;
+  virtual bool Done() const = 0;
+  virtual void Next() = 0;
+
+  void SkipTo(int count) {
+    while (count-- > 0) Next();
+  }
+
+  virtual int code_offset() = 0;
+  int break_index() const { return break_index_; }
+  inline int position() const { return position_; }
+  inline int statement_position() const { return statement_position_; }
+
+  virtual bool IsDebugBreak() = 0;
+  virtual void ClearDebugBreak() = 0;
+  virtual void SetDebugBreak() = 0;
+
+ protected:
+  explicit BreakIterator(Handle<DebugInfo> debug_info,
+                         BreakLocatorType break_locator_type);
+
+  int BreakIndexFromPosition(int position, BreakPositionAlignment alignment);
+
+  Isolate* isolate() { return debug_info_->GetIsolate(); }
+
+  Handle<DebugInfo> debug_info_;
+  int break_index_;
+  int position_;
+  int statement_position_;
+  BreakLocatorType break_locator_type_;
+
+ private:
+  DisallowHeapAllocation no_gc_;
+  DISALLOW_COPY_AND_ASSIGN(BreakIterator);
+};
+
+class CodeBreakIterator : public BreakIterator {
+ public:
+  CodeBreakIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
+  ~CodeBreakIterator() override {}
+
+  BreakLocation GetBreakLocation() override;
+  bool Done() const override { return reloc_iterator_.done(); }
+  void Next() override;
+
+  bool IsDebugBreak() override;
+  void ClearDebugBreak() override;
+  void SetDebugBreak() override;
+
+  void SkipToPosition(int position, BreakPositionAlignment alignment);
+
+  int code_offset() override {
+    return static_cast<int>(rinfo()->pc() -
+                            debug_info_->DebugCode()->instruction_start());
+  }
+
+ private:
+  int GetModeMask(BreakLocatorType type);
+  DebugBreakType GetDebugBreakType();
+
+  RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
+  RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
+
+  RelocIterator reloc_iterator_;
+  SourcePositionTableIterator source_position_iterator_;
+  DISALLOW_COPY_AND_ASSIGN(CodeBreakIterator);
+};
+
+class BytecodeArrayBreakIterator : public BreakIterator {
+ public:
+  BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info,
+                             BreakLocatorType type);
+  ~BytecodeArrayBreakIterator() override {}
+
+  BreakLocation GetBreakLocation() override;
+  bool Done() const override { return source_position_iterator_.done(); }
+  void Next() override;
+
+  bool IsDebugBreak() override;
+  void ClearDebugBreak() override;
+  void SetDebugBreak() override;
+
+  void SkipToPosition(int position, BreakPositionAlignment alignment);
+
+  int code_offset() override { return source_position_iterator_.code_offset(); }
+
+ private:
+  DebugBreakType GetDebugBreakType();
+
+  SourcePositionTableIterator source_position_iterator_;
+  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBreakIterator);
+};
 
 // Linked list holding debug info objects. The debug info objects are kept as
 // weak handles to avoid a debug info object to keep a function alive.
@@ -239,7 +238,6 @@ class DebugInfoListNode {
   // Next pointer for linked list.
   DebugInfoListNode* next_;
 };
-
 
 
 // Message delivered to the message handler callback. This is either a debugger
@@ -305,6 +303,8 @@ class EventDetailsImpl : public v8::Debug::EventDetails {
   virtual v8::Local<v8::Context> GetEventContext() const;
   virtual v8::Local<v8::Value> GetCallbackData() const;
   virtual v8::Debug::ClientData* GetClientData() const;
+  virtual v8::Isolate* GetIsolate() const;
+
  private:
   DebugEvent event_;  // Debug event causing the break.
   Handle<JSObject> exec_state_;         // Current execution state.
@@ -417,7 +417,6 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnPromiseEvent(Handle<JSObject> data);
   void OnAsyncTaskEvent(Handle<JSObject> data);
 
   // API facing.
@@ -448,21 +447,20 @@ class Debug {
                               int* source_position,
                               BreakPositionAlignment alignment);
   void ClearBreakPoint(Handle<Object> break_point_object);
-  void ClearAllBreakPoints();
-  void FloodWithOneShot(Handle<JSFunction> function,
-                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
   // Stepping handling.
   void PrepareStep(StepAction step_action);
   void PrepareStepIn(Handle<JSFunction> function);
+  void PrepareStepInSuspendedGenerator();
   void PrepareStepOnThrow();
   void ClearStepping();
   void ClearStepOut();
-  void EnableStepIn();
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+
+  void RecordAsyncFunction(Handle<JSGeneratorObject> generator_object);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -498,9 +496,7 @@ class Debug {
   char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
-
-  // Record function from which eval was called.
-  static void RecordEvalCaller(Handle<Script> script);
+  void Iterate(ObjectVisitor* v);
 
   bool CheckExecutionState(int id) {
     return is_active() && !debug_context().is_null() && break_id() != 0 &&
@@ -544,8 +540,12 @@ class Debug {
     return reinterpret_cast<Address>(&after_break_target_);
   }
 
-  Address step_in_enabled_address() {
-    return reinterpret_cast<Address>(&thread_local_.step_in_enabled_);
+  Address last_step_action_address() {
+    return reinterpret_cast<Address>(&thread_local_.last_step_action_);
+  }
+
+  Address suspended_generator_address() {
+    return reinterpret_cast<Address>(&thread_local_.suspended_generator_);
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
@@ -568,6 +568,14 @@ class Debug {
     return break_disabled_ || in_debug_event_listener_;
   }
 
+  void clear_suspended_generator() {
+    thread_local_.suspended_generator_ = Smi::FromInt(0);
+  }
+
+  bool has_suspended_generator() const {
+    return thread_local_.suspended_generator_ != Smi::FromInt(0);
+  }
+
   void OnException(Handle<Object> exception, Handle<Object> promise);
 
   // Constructors for debug event objects.
@@ -580,8 +588,6 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakePromiseEvent(
-      Handle<JSObject> promise_event);
   MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
       Handle<JSObject> task_event);
 
@@ -605,10 +611,25 @@ class Debug {
                             bool auto_continue);
   void InvokeMessageHandler(MessageImpl message);
 
+  // Find the closest source position for a break point for a given position.
+  int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position,
+                            BreakPositionAlignment alignment);
+  // Instrument code to break at break points.
+  void ApplyBreakPoints(Handle<DebugInfo> debug_info);
+  // Clear code from instrumentation.
+  void ClearBreakPoints(Handle<DebugInfo> debug_info);
+  // Clear all code from instrumentation.
+  void ClearAllBreakPoints();
+  // Instrument a function with one-shots.
+  void FloodWithOneShot(Handle<JSFunction> function,
+                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
+  // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
+
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
-  Handle<Object> CheckBreakPoints(BreakLocation* location,
+  Handle<Object> CheckBreakPoints(Handle<DebugInfo> debug_info,
+                                  BreakLocation* location,
                                   bool* has_break_points = nullptr);
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);
@@ -681,11 +702,6 @@ class Debug {
     // Frame pointer of the target frame we want to arrive at.
     Address target_fp_;
 
-    // Whether functions are flooded on entry for step-in and step-frame.
-    // If we stepped out to the embedder, disable flooding to spill stepping
-    // to the next call that the embedder makes.
-    bool step_in_enabled_;
-
     // Stores the way how LiveEdit has patched the stack. It is used when
     // debugger returns control back to user script.
     LiveEdit::FrameDropMode frame_drop_mode_;
@@ -693,6 +709,8 @@ class Debug {
     // Value of accumulator in interpreter frames. In non-interpreter frames
     // this value will be the hole.
     Handle<Object> return_value_;
+
+    Object* suspended_generator_;
   };
 
   // Storage location for registers when handling debug break calls

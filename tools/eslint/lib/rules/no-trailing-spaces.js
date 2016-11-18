@@ -31,12 +31,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         const BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
-            SKIP_BLANK = "^" + BLANK_CLASS + "*$",
-            NONBLANK = BLANK_CLASS + "+$";
+            SKIP_BLANK = `^${BLANK_CLASS}*$`,
+            NONBLANK = `${BLANK_CLASS}+$`;
 
         const options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false;
@@ -57,10 +57,10 @@ module.exports = {
              * plugin.
              */
             context.report({
-                node: node,
+                node,
                 loc: location,
                 message: "Trailing spaces not allowed.",
-                fix: function(fixer) {
+                fix(fixer) {
                     return fixer.removeRange(fixRange);
                 }
             });
@@ -114,6 +114,7 @@ module.exports = {
                         // If the line has only whitespace, and skipBlankLines
                         // is true, don't report it
                         if (skipBlankLines && skipMatch.test(lines[i])) {
+                            totalLength += lineLength;
                             continue;
                         }
 

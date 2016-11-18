@@ -40,6 +40,16 @@ class ExternalReferenceTable {
     refs_.Add(entry);
   }
 
+  void AddReferences(Isolate* isolate);
+  void AddBuiltins(Isolate* isolate);
+  void AddRuntimeFunctions(Isolate* isolate);
+  void AddStatCounters(Isolate* isolate);
+  void AddIsolateAddresses(Isolate* isolate);
+  void AddAccessors(Isolate* isolate);
+  void AddStubCache(Isolate* isolate);
+  void AddDeoptEntries(Isolate* isolate);
+  void AddApiReferences(Isolate* isolate);
+
   List<ExternalReferenceEntry> refs_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);

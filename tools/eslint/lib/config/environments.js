@@ -66,7 +66,7 @@ module.exports = {
     importPlugin(plugin, pluginName) {
         if (plugin.environments) {
             Object.keys(plugin.environments).forEach(function(envName) {
-                this.define(pluginName + "/" + envName, plugin.environments[envName]);
+                this.define(`${pluginName}/${envName}`, plugin.environments[envName]);
             }, this);
         }
     },

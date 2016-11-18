@@ -59,9 +59,9 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 const currentScope = context.getScope();
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {

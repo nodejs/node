@@ -44,8 +44,8 @@ function writeFile(config, format) {
         extname = ".json";
     }
 
-    ConfigFile.write(config, "./.eslintrc" + extname);
-    log.info("Successfully created .eslintrc" + extname + " file in " + process.cwd());
+    ConfigFile.write(config, `./.eslintrc${extname}`);
+    log.info(`Successfully created .eslintrc${extname} file in ${process.cwd()}`);
 
     if (config.installedESLint) {
         log.info("ESLint was installed locally. We recommend using this local copy instead of your globally-installed copy.");
@@ -63,11 +63,11 @@ function installModules(config) {
     // Create a list of modules which should be installed based on config
     if (config.plugins) {
         modules = modules.concat(config.plugins.map(function(name) {
-            return "eslint-plugin-" + name;
+            return `eslint-plugin-${name}`;
         }));
     }
     if (config.extends && config.extends.indexOf("eslint:") === -1) {
-        modules.push("eslint-config-" + config.extends);
+        modules.push(`eslint-config-${config.extends}`);
     }
 
     // Determine which modules are already installed
@@ -93,7 +93,7 @@ function installModules(config) {
     });
 
     if (modulesToInstall.length > 0) {
-        log.info("Installing " + modulesToInstall.join(", "));
+        log.info(`Installing ${modulesToInstall.join(", ")}`);
         npmUtil.installSyncSaveDev(modulesToInstall);
     }
 }
@@ -150,7 +150,7 @@ function configureRules(answers, config) {
     registry = registry.lintSourceCode(sourceCodes, newConfig, function(total) {
         bar.tick((BAR_TOTAL - BAR_SOURCE_CODE_TOTAL) / total); // Subtract out ticks used at beginning
     });
-    debug("\nRegistry: " + util.inspect(registry.rules, {depth: null}));
+    debug(`\nRegistry: ${util.inspect(registry.rules, {depth: null})}`);
 
     // Create a list of recommended rules, because we don't want to disable them
     const recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
@@ -198,9 +198,9 @@ function configureRules(answers, config) {
         return (newConfig.rules[ruleId] !== 0);
     }).length;
     const resultMessage = [
-        "\nEnabled " + enabledRules + " out of " + totalRules,
-        "rules based on " + fileQty,
-        "file" + ((fileQty === 1) ? "." : "s.")
+        `\nEnabled ${enabledRules} out of ${totalRules}`,
+        `rules based on ${fileQty}`,
+        `file${(fileQty === 1) ? "." : "s."}`
     ].join(" ");
 
     log.info(resultMessage);
@@ -305,8 +305,8 @@ function promptUser(callback) {
             type: "list",
             name: "styleguide",
             message: "Which style guide do you want to follow?",
-            choices: [{name: "Google", value: "google"}, {name: "AirBnB", value: "airbnb"}, {name: "Standard", value: "standard"}],
-            when: function(answers) {
+            choices: [{name: "Google", value: "google"}, {name: "Airbnb", value: "airbnb"}, {name: "Standard", value: "standard"}],
+            when(answers) {
                 answers.packageJsonExists = npmUtil.checkPackageJson();
                 return answers.source === "guide" && answers.packageJsonExists;
             }
@@ -315,10 +315,10 @@ function promptUser(callback) {
             type: "input",
             name: "patterns",
             message: "Which file(s), path(s), or glob(s) should be examined?",
-            when: function(answers) {
+            when(answers) {
                 return (answers.source === "auto");
             },
-            validate: function(input) {
+            validate(input) {
                 if (input.trim().length === 0 && input.trim() !== ",") {
                     return "You must tell us what code to examine. Try again.";
                 }
@@ -331,7 +331,7 @@ function promptUser(callback) {
             message: "What format do you want your config file to be in?",
             default: "JavaScript",
             choices: ["JavaScript", "YAML", "JSON"],
-            when: function(answers) {
+            when(answers) {
                 return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
             }
         }
@@ -367,7 +367,7 @@ function promptUser(callback) {
                 name: "modules",
                 message: "Are you using ES6 modules?",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.es6 === true;
                 }
             },
@@ -383,7 +383,7 @@ function promptUser(callback) {
                 name: "commonjs",
                 message: "Do you use CommonJS?",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.env.some(function(env) {
                         return env === "browser";
                     });
@@ -400,7 +400,7 @@ function promptUser(callback) {
                 name: "react",
                 message: "Do you use React",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.jsx;
                 }
             }
@@ -479,9 +479,9 @@ function promptUser(callback) {
 //------------------------------------------------------------------------------
 
 const init = {
-    getConfigForStyleGuide: getConfigForStyleGuide,
-    processAnswers: processAnswers,
-    initializeConfig: /* istanbul ignore next */ function(callback) {
+    getConfigForStyleGuide,
+    processAnswers,
+    /* istanbul ignore next */initializeConfig(callback) {
         promptUser(callback);
     }
 };

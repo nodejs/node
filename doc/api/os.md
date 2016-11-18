@@ -398,7 +398,7 @@ The following signal constants are exported by `os.constants.signals`:
   </tr>
   <tr>
     <td><code>SIGTRAP</code></td>
-    <td>Sent to a proces when an exception has occurred.</td>
+    <td>Sent to a process when an exception has occurred.</td>
   </tr>
   <tr>
     <td><code>SIGABRT</code></td>

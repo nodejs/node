@@ -141,3 +141,7 @@ assert.throws(function() {
 
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));
+
+assert.throws(function() {
+  tls.createSecureContext({ crl: 'not a CRL' });
+}, '/Failed to parse CRL/');

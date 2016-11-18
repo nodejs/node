@@ -171,7 +171,7 @@ function validate(config, source) {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    getRuleOptionsSchema: getRuleOptionsSchema,
-    validate: validate,
-    validateRuleOptions: validateRuleOptions
+    getRuleOptionsSchema,
+    validate,
+    validateRuleOptions
 };

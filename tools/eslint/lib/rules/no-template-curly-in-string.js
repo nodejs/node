@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "Disallow template literal placeholder syntax in regular strings",
+            description: "disallow template literal placeholder syntax in regular strings",
             category: "Possible Errors",
             recommended: false
         },
@@ -19,14 +19,14 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const regex = /\$\{[^}]+\}/;
 
         return {
-            Literal: function(node) {
+            Literal(node) {
                 if (typeof node.value === "string" && regex.test(node.value)) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected template string expression."
                     });
                 }

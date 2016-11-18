@@ -35,4 +35,4 @@ The above alias can be modified slightly to produce a debug build, rather than a
 `alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs out/Debug/node node_g'`
 
 
-[Ninja]: https://martine.github.io/ninja/
+[Ninja]: https://ninja-build.org/

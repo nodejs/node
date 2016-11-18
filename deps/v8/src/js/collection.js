@@ -14,16 +14,15 @@ var GlobalMap = global.Map;
 var GlobalObject = global.Object;
 var GlobalSet = global.Set;
 var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
-var IntRandom;
-var MakeTypeError;
+var MathRandom;
 var MapIterator;
 var NumberIsNaN;
 var SetIterator;
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  IntRandom = from.IntRandom;
-  MakeTypeError = from.MakeTypeError;
+  MathRandom = from.MathRandom;
   MapIterator = from.MapIterator;
   NumberIsNaN = from.NumberIsNaN;
   SetIterator = from.SetIterator;
@@ -112,7 +111,7 @@ function GetExistingHash(key) {
 function GetHash(key) {
   var hash = GetExistingHash(key);
   if (IS_UNDEFINED(hash)) {
-    hash = IntRandom() | 0;
+    hash = (MathRandom() * 0x40000000) | 0;
     if (hash === 0) hash = 1;
     SET_PRIVATE(key, hashCodeSymbol, hash);
   }
@@ -126,7 +125,7 @@ function GetHash(key) {
 
 function SetConstructor(iterable) {
   if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "Set");
+    throw %make_type_error(kConstructorNotFunction, "Set");
   }
 
   %_SetInitialize(this);
@@ -134,7 +133,7 @@ function SetConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
     if (!IS_CALLABLE(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, adder, 'add', this);
+      throw %make_type_error(kPropertyNotFunction, adder, 'add', this);
     }
 
     for (var value of iterable) {
@@ -146,7 +145,7 @@ function SetConstructor(iterable) {
 
 function SetAdd(key) {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, 'Set.prototype.add', this);
+    throw %make_type_error(kIncompatibleMethodReceiver, 'Set.prototype.add', this);
   }
   // Normalize -0 to +0 as required by the spec.
   // Even though we use SameValueZero as the comparison for the keys we don't
@@ -186,7 +185,7 @@ function SetAdd(key) {
 
 function SetHas(key) {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, 'Set.prototype.has', this);
+    throw %make_type_error(kIncompatibleMethodReceiver, 'Set.prototype.has', this);
   }
   var table = %_JSCollectionGetTable(this);
   var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
@@ -198,7 +197,7 @@ function SetHas(key) {
 
 function SetDelete(key) {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set.prototype.delete', this);
   }
   var table = %_JSCollectionGetTable(this);
@@ -221,7 +220,7 @@ function SetDelete(key) {
 
 function SetGetSize() {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set.prototype.size', this);
   }
   var table = %_JSCollectionGetTable(this);
@@ -231,7 +230,7 @@ function SetGetSize() {
 
 function SetClearJS() {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set.prototype.clear', this);
   }
   %_SetClear(this);
@@ -240,11 +239,11 @@ function SetClearJS() {
 
 function SetForEach(f, receiver) {
   if (!IS_SET(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Set.prototype.forEach', this);
   }
 
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
 
   var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
   var key;
@@ -254,6 +253,12 @@ function SetForEach(f, receiver) {
     %_Call(f, receiver, key, key, this);
   }
 }
+
+
+function SetSpecies() {
+  return this;
+}
+
 
 // -------------------------------------------------------------------
 
@@ -265,6 +270,8 @@ function SetForEach(f, receiver) {
                   DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(SetForEach, 1);
+
+utils.InstallGetter(GlobalSet, speciesSymbol, SetSpecies);
 
 // Set up the non-enumerable functions on the Set prototype object.
 utils.InstallGetter(GlobalSet.prototype, "size", SetGetSize);
@@ -282,7 +289,7 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 
 function MapConstructor(iterable) {
   if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "Map");
+    throw %make_type_error(kConstructorNotFunction, "Map");
   }
 
   %_MapInitialize(this);
@@ -290,12 +297,12 @@ function MapConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
     if (!IS_CALLABLE(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, adder, 'set', this);
+      throw %make_type_error(kPropertyNotFunction, adder, 'set', this);
     }
 
     for (var nextItem of iterable) {
       if (!IS_RECEIVER(nextItem)) {
-        throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
+        throw %make_type_error(kIteratorValueNotAnObject, nextItem);
       }
       %_Call(adder, this, nextItem[0], nextItem[1]);
     }
@@ -305,7 +312,7 @@ function MapConstructor(iterable) {
 
 function MapGet(key) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.get', this);
   }
   var table = %_JSCollectionGetTable(this);
@@ -320,7 +327,7 @@ function MapGet(key) {
 
 function MapSet(key, value) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.set', this);
   }
   // Normalize -0 to +0 as required by the spec.
@@ -368,7 +375,7 @@ function MapSet(key, value) {
 
 function MapHas(key) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.has', this);
   }
   var table = %_JSCollectionGetTable(this);
@@ -380,7 +387,7 @@ function MapHas(key) {
 
 function MapDelete(key) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.delete', this);
   }
   var table = %_JSCollectionGetTable(this);
@@ -403,7 +410,7 @@ function MapDelete(key) {
 
 function MapGetSize() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.size', this);
   }
   var table = %_JSCollectionGetTable(this);
@@ -413,7 +420,7 @@ function MapGetSize() {
 
 function MapClearJS() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.clear', this);
   }
   %_MapClear(this);
@@ -422,17 +429,22 @@ function MapClearJS() {
 
 function MapForEach(f, receiver) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Map.prototype.forEach', this);
   }
 
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
 
   var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
     %_Call(f, receiver, value_array[1], value_array[0], this);
   }
+}
+
+
+function MapSpecies() {
+  return this;
 }
 
 // -------------------------------------------------------------------
@@ -445,6 +457,8 @@ function MapForEach(f, receiver) {
     GlobalMap.prototype, toStringTagSymbol, "Map", DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(MapForEach, 1);
+
+utils.InstallGetter(GlobalMap, speciesSymbol, MapSpecies);
 
 // Set up the non-enumerable functions on the Map prototype object.
 utils.InstallGetter(GlobalMap.prototype, "size", MapGetSize);

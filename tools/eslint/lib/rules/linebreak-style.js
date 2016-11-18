@@ -26,7 +26,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
             EXPECTED_CRLF_MSG = "Expected linebreaks to be 'CRLF' but found 'LF'.";
@@ -75,7 +75,7 @@ module.exports = {
                     const range = [index, index + match[0].length];
 
                     context.report({
-                        node: node,
+                        node,
                         loc: {
                             line: i,
                             column: sourceCode.lines[i - 1].length

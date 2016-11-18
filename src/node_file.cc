@@ -137,7 +137,7 @@ static inline bool IsInt64(double x) {
 
 static void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
-  CHECK_EQ(&req_wrap->req_, req);
+  CHECK_EQ(req_wrap->req(), req);
   req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
 
   Environment* env = req_wrap->env();
@@ -320,7 +320,7 @@ static void After(uv_fs_t *req) {
 
   req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
-  uv_fs_req_cleanup(&req_wrap->req_);
+  uv_fs_req_cleanup(req_wrap->req());
   req_wrap->Dispose();
 }
 
@@ -337,18 +337,18 @@ class fs_req_wrap {
 };
 
 
-#define ASYNC_DEST_CALL(func, req, dest, encoding, ...)                       \
+#define ASYNC_DEST_CALL(func, request, dest, encoding, ...)                   \
   Environment* env = Environment::GetCurrent(args);                           \
-  CHECK(req->IsObject());                                                     \
-  FSReqWrap* req_wrap = FSReqWrap::New(env, req.As<Object>(),                 \
+  CHECK(request->IsObject());                                                 \
+  FSReqWrap* req_wrap = FSReqWrap::New(env, request.As<Object>(),             \
                                        #func, dest, encoding);                \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
-                           &req_wrap->req_,                                   \
+                           req_wrap->req(),                                   \
                            __VA_ARGS__,                                       \
                            After);                                            \
   req_wrap->Dispatched();                                                     \
   if (err < 0) {                                                              \
-    uv_fs_t* uv_req = &req_wrap->req_;                                        \
+    uv_fs_t* uv_req = req_wrap->req();                                        \
     uv_req->result = err;                                                     \
     uv_req->path = nullptr;                                                   \
     After(uv_req);                                                            \
@@ -433,21 +433,19 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   //     crash();
   //   }
   //
-  // We need to check the return value of Integer::New() and Date::New()
+  // We need to check the return value of Number::New() and Date::New()
   // and make sure that we bail out when V8 returns an empty handle.
 
-  // Integers.
+  // Unsigned integers. It does not actually seem to be specified whether
+  // uid and gid are unsigned or not, but in practice they are unsigned,
+  // and Node’s (F)Chown functions do check their arguments for unsignedness.
 #define X(name)                                                               \
-  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  Local<Value> name = Integer::NewFromUnsigned(env->isolate(), s->st_##name); \
   if (name.IsEmpty())                                                         \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
-  X(dev)
-  X(mode)
-  X(nlink)
   X(uid)
   X(gid)
-  X(rdev)
 # if defined(__POSIX__)
   X(blksize)
 # else
@@ -455,12 +453,24 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 # endif
 #undef X
 
+  // Integers.
+#define X(name)                                                               \
+  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  if (name.IsEmpty())                                                         \
+    return Local<Object>();                                                   \
+
+  X(dev)
+  X(mode)
+  X(nlink)
+  X(rdev)
+#undef X
+
   // Numbers.
 #define X(name)                                                               \
   Local<Value> name = Number::New(env->isolate(),                             \
                                   static_cast<double>(s->st_##name));         \
   if (name.IsEmpty())                                                         \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
   X(ino)
   X(size)
@@ -479,7 +489,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
         (static_cast<double>(s->st_##name.tv_nsec / 1000000)));               \
                                                                               \
   if (name##_msec.IsEmpty())                                                  \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
   X(atim)
   X(mtim)
@@ -536,10 +546,11 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  const size_t kBlockSize = 32 << 10;
   std::vector<char> chars;
   int64_t offset = 0;
-  for (;;) {
-    const size_t kBlockSize = 32 << 10;
+  ssize_t numchars;
+  do {
     const size_t start = chars.size();
     chars.resize(start + kBlockSize);
 
@@ -548,26 +559,19 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     buf.len = kBlockSize;
 
     uv_fs_t read_req;
-    const ssize_t numchars =
-        uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
+    numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
     uv_fs_req_cleanup(&read_req);
 
     CHECK_GE(numchars, 0);
-    if (static_cast<size_t>(numchars) < kBlockSize) {
-      chars.resize(start + numchars);
-    }
-    if (numchars == 0) {
-      break;
-    }
     offset += numchars;
-  }
+  } while (static_cast<size_t>(numchars) == kBlockSize);
 
   uv_fs_t close_req;
   CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
   uv_fs_req_cleanup(&close_req);
 
   size_t start = 0;
-  if (chars.size() >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
+  if (offset >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
   }
 
@@ -575,7 +579,7 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
       String::NewFromUtf8(env->isolate(),
                           &chars[start],
                           String::kNormalString,
-                          chars.size() - start);
+                          offset - start);
   args.GetReturnValue().Set(chars_string);
 }
 
@@ -1154,7 +1158,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap* req_wrap =
       FSReqWrap::New(env, req.As<Object>(), "write", buf, UTF8, ownership);
   int err = uv_fs_write(env->event_loop(),
-                        &req_wrap->req_,
+                        req_wrap->req(),
                         fd,
                         &uvbuf,
                         1,
@@ -1162,7 +1166,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
                         After);
   req_wrap->Dispatched();
   if (err < 0) {
-    uv_fs_t* uv_req = &req_wrap->req_;
+    uv_fs_t* uv_req = req_wrap->req();
     uv_req->result = err;
     uv_req->path = nullptr;
     After(uv_req);

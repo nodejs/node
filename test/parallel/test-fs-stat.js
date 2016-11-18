@@ -6,7 +6,7 @@ var fs = require('fs');
 fs.stat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);
   assert.ok(stats.mtime instanceof Date);
-  assert(this === global);
+  assert.strictEqual(this, global);
 }));
 
 fs.stat('.', common.mustCall(function(err, stats) {
@@ -17,7 +17,7 @@ fs.stat('.', common.mustCall(function(err, stats) {
 fs.lstat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);
   assert.ok(stats.mtime instanceof Date);
-  assert(this === global);
+  assert.strictEqual(this, global);
 }));
 
 // fstat
@@ -29,10 +29,10 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
     assert.ifError(err);
     assert.ok(stats.mtime instanceof Date);
     fs.close(fd);
-    assert(this === global);
+    assert.strictEqual(this, global);
   }));
 
-  assert(this === global);
+  assert.strictEqual(this, global);
 }));
 
 // fstatSync

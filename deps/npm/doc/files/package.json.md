@@ -203,6 +203,7 @@ Conversely, some files are always ignored:
 * `.npmrc`
 * `node_modules`
 * `config.gypi`
+* `*.orig`
 
 ## main
 
@@ -246,6 +247,10 @@ would be the same as this:
     { "name": "my-program"
     , "version": "1.2.5"
     , "bin" : { "my-program" : "./path/to/program" } }
+
+Please make sure that your file(s) referenced in `bin` starts with
+`#!/usr/bin/env node`, otherwise the scripts are started without the node
+executable!
 
 ## man
 
@@ -467,7 +472,8 @@ included.  For example:
       "version": "0.0.0",
       "dependencies": {
         "express": "visionmedia/express",
-        "mocha": "visionmedia/mocha#4727d357ea"
+        "mocha": "visionmedia/mocha#4727d357ea",
+        "module": "user/repo#feature\/branch"
       }
     }
 

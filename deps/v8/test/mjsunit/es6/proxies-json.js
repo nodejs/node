@@ -35,7 +35,10 @@ function testStringify(expected, object) {
   // Test fast case that bails out to slow case.
   assertEquals(expected, JSON.stringify(object));
   // Test slow case.
-  assertEquals(expected, JSON.stringify(object, undefined, 0));
+  assertEquals(expected, JSON.stringify(object, (key, value) => value));
+  // Test gap.
+  assertEquals(JSON.stringify(object, null, "="),
+               JSON.stringify(object, (key, value) => value, "="));
 }
 
 
@@ -66,6 +69,7 @@ testStringify(undefined, proxy_fun);
 testStringify('[1,null]', [1, proxy_fun]);
 
 var parent1a = { b: proxy1 };
+testStringify('{"b":{"a":"A","b":"B","c":"C"}}', parent1a);
 testStringify('{"b":{"a":"A","b":"B","c":"C"}}', parent1a);
 
 var parent1b = { a: 123, b: proxy1, c: true };
@@ -503,3 +507,56 @@ for (var i in log) assertSame(target, log[i][1]);
 assertEquals(["get", target, "length", proxy], log[0]);
 assertEquals(["get", target, "0", proxy], log[1]);
 assertEquals(["deleteProperty", target, "0"], log[2]);
+
+proxy = new Proxy([], {
+  get: function(target, property) {
+    if (property == "length") return 7;
+    return 0;
+  },
+});
+assertEquals('[[0,0,0,0,0,0,0]]', JSON.stringify([proxy]));
+
+proxy = new Proxy([], {
+  get: function(target, property) {
+    if (property == "length") return 1E40;
+    return 0;
+  },
+});
+assertThrows(() => JSON.stringify([proxy]), RangeError);
+
+log = [];
+proxy = new Proxy({}, {
+  ownKeys: function() {
+    log.push("ownKeys");
+    return ["0", "a", "b"];
+  },
+  get: function(target, property) {
+    log.push("get " + property);
+    return property.toUpperCase();
+  },
+  getOwnPropertyDescriptor: function(target, property) {
+    log.push("descriptor " + property);
+    return {enumerable: true, configurable: true};
+  },
+  isExtensible: assertUnreachable,
+  has: assertUnreachable,
+  getPrototypeOf: assertUnreachable,
+  setPrototypeOf: assertUnreachable,
+  preventExtensions: assertUnreachable,
+  setPrototypeOf: assertUnreachable,
+  defineProperty: assertUnreachable,
+  set: assertUnreachable,
+  deleteProperty: assertUnreachable,
+  apply: assertUnreachable,
+  construct: assertUnreachable,
+});
+
+assertEquals('[{"0":"0","a":"A","b":"B"}]', JSON.stringify([proxy]));
+assertEquals(['get toJSON',
+              'ownKeys',
+              'descriptor 0',
+              'descriptor a',
+              'descriptor b',
+              'get 0',
+              'get a',
+              'get b'], log);

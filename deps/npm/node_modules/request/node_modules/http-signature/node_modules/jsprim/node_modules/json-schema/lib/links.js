@@ -3,8 +3,22 @@
  * Copyright (c) 2007 Kris Zyp SitePen (www.sitepen.com)
  * Licensed under the MIT (MIT-LICENSE.txt) license.
  */
-({define:typeof define!="undefined"?define:function(deps, factory){module.exports = factory();}}).
-define([], function(){
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([], function () {
+            return factory();
+        });
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory();
+    } else {
+        // Browser globals
+        root.jsonSchemaLinks = factory();
+    }
+}(this, function () {// setup primitive classes to be JSON Schema types
 var exports = {};
 exports.cacheLinks = true;
 exports.getLink = function(relation, instance, schema){
@@ -49,4 +63,4 @@ exports.substitute = function(linkTemplate, instance){
 		});
 };
 return exports;
-});
+}));

@@ -1,6 +1,6 @@
-## Building Node.js
+# Building Node.js
 
-Depending on what platform or features you require the build process may
+Depending on what platform or features you require, the build process may
 differ slightly. After you've successfully built a binary, running the
 test suite to validate that the binary works as intended is a good next step.
 
@@ -25,35 +25,21 @@ On OS X, you will also need:
   * This step will install `gcc` and the related toolchain containing `make`
 
 On FreeBSD and OpenBSD, you may also need:
-* libexecinfo (FreeBSD and OpenBSD only)
+* libexecinfo
 
+To build Node.js:
 
 ```console
 $ ./configure
 $ make
-$ [sudo] make install
 ```
 
-If your Python binary is in a non-standard location or has a
-non-standard name, run the following instead:
-
-```console
-$ export PYTHON=/path/to/python
-$ $PYTHON ./configure
-$ make
-$ [sudo] make install
-```
+Note that the above requires that `python` resolve to Python 2.6 or 2.7 and not a newer version.
 
 To run the tests:
 
 ```console
 $ make test
-```
-
-To run the native module tests:
-
-```console
-$ make test-addons
 ```
 
 To run the npm test suite:
@@ -76,10 +62,8 @@ $ make doc
 If you have an existing Node.js you can build just the docs with:
 
 ```console
-$ NODE=node make doc-only
+$ NODE=/path/to/node make doc-only
 ```
-
-(Where `node` is the path to your executable.)
 
 To read the documentation:
 
@@ -90,7 +74,13 @@ $ man doc/node.1
 To test if Node.js was built correctly:
 
 ```console
-$ node -e "console.log('Hello from Node.js ' + process.version)"
+$ ./node -e "console.log('Hello from Node.js ' + process.version)"
+```
+
+To install this version of Node.js into a system directory:
+
+```console
+$ [sudo] make install
 ```
 
 
@@ -108,13 +98,13 @@ Prerequisites:
   and tools which can be included in the global `PATH`.
 
 ```console
-> vcbuild nosign
+> .\vcbuild nosign
 ```
 
 To run the tests:
 
 ```console
-> vcbuild test
+> .\vcbuild test
 ```
 
 To test if Node.js was built correctly:
@@ -172,7 +162,7 @@ $ ./configure --with-intl=full-icu --download=all
 ##### Windows:
 
 ```console
-> vcbuild full-icu download-all
+> .\vcbuild full-icu download-all
 ```
 
 #### Building without Intl support
@@ -189,7 +179,7 @@ $ ./configure --without-intl
 ##### Windows:
 
 ```console
-> vcbuild without-intl
+> .\vcbuild without-intl
 ```
 
 #### Use existing installed ICU (Unix / OS X only):
@@ -232,7 +222,7 @@ First unpack latest ICU to `deps/icu`
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```console
-> vcbuild full-icu
+> .\vcbuild full-icu
 ```
 
 ## Building Node.js with FIPS-compliant OpenSSL
@@ -240,7 +230,7 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 NOTE: Windows is not yet supported
 
 It is possible to build Node.js with
-[OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
+[OpenSSL FIPS module](https://www.openssl.org/docs/fipsnotes.html).
 
 **Note**: building in this way does **not** allow you to claim that the
 runtime is FIPS 140-2 validated. Instead you can indicate that the runtime

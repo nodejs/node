@@ -46,7 +46,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = {};
         const config = context.options[0] || "always";
 
@@ -162,9 +162,9 @@ module.exports = {
             if (requirePaddingFor(node)) {
                 if (!blockHasTopPadding) {
                     context.report({
-                        node: node,
+                        node,
                         loc: { line: openBrace.loc.start.line, column: openBrace.loc.start.column },
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextAfter(openBrace, "\n");
                         },
                         message: ALWAYS_MESSAGE
@@ -172,9 +172,9 @@ module.exports = {
                 }
                 if (!blockHasBottomPadding) {
                     context.report({
-                        node: node,
+                        node,
                         loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextBefore(closeBrace, "\n");
                         },
                         message: ALWAYS_MESSAGE
@@ -185,9 +185,9 @@ module.exports = {
                     const nextToken = sourceCode.getTokenOrCommentAfter(openBrace);
 
                     context.report({
-                        node: node,
+                        node,
                         loc: { line: openBrace.loc.start.line, column: openBrace.loc.start.column },
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.replaceTextRange([openBrace.end, nextToken.start - nextToken.loc.start.column], "\n");
                         },
                         message: NEVER_MESSAGE
@@ -198,10 +198,10 @@ module.exports = {
                     const previousToken = sourceCode.getTokenOrCommentBefore(closeBrace);
 
                     context.report({
-                        node: node,
+                        node,
                         loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
                         message: NEVER_MESSAGE,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.replaceTextRange([previousToken.end, closeBrace.start - closeBrace.loc.start.column], "\n");
                         }
                     });

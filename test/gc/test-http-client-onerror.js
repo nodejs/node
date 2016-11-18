@@ -76,4 +76,3 @@ function status() {
     process.exit(0);
   }
 }
-

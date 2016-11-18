@@ -59,11 +59,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            ThrowStatement: function(node) {
+            ThrowStatement(node) {
                 if (!couldBeError(node.argument)) {
                     context.report(node, "Expected an object to be thrown.");
                 } else if (node.argument.type === "Identifier") {

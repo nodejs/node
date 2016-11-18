@@ -31,7 +31,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0] || {},
             ignoreChainWithDepth = options.ignoreChainWithDepth || 2;
@@ -54,7 +54,7 @@ module.exports = {
         }
 
         return {
-            "CallExpression:exit": function(node) {
+            "CallExpression:exit"(node) {
                 if (!node.callee || node.callee.type !== "MemberExpression") {
                     return;
                 }
@@ -69,11 +69,14 @@ module.exports = {
                 }
 
                 if (depth > ignoreChainWithDepth && callee.property.loc.start.line === callee.object.loc.end.line) {
-                    context.report(
-                        callee.property,
-                        callee.property.loc.start,
-                        "Expected line break before `" + getPropertyText(callee) + "`."
-                    );
+                    context.report({
+                        node: callee.property,
+                        loc: callee.property.loc.start,
+                        message: "Expected line break before `{{callee}}`.",
+                        data: {
+                            callee: getPropertyText(callee)
+                        }
+                    });
                 }
             }
         };

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 const stdlib = {
   Math: Math,
@@ -54,21 +54,18 @@ function checkView(view, load, shift) {
   }
 }
 
-function RunThreeWayTest(asmfunc, expect) {
+function RunAsmJsTest(asmfunc, expect) {
   var asm_source = asmfunc.toString();
   var nonasm_source = asm_source.replace(new RegExp("use asm"), "");
 
-  var js_module = eval("(" + nonasm_source + ")")(stdlib, {}, buffer);
   print("Testing " + asmfunc.name + " (js)...");
+  var js_module = eval("(" + nonasm_source + ")")(stdlib, {}, buffer);
   expect(js_module);
 
   print("Testing " + asmfunc.name + " (asm.js)...");
   var asm_module = asmfunc(stdlib, {}, buffer);
+  assertTrue(%IsAsmWasmCode(asmfunc));
   expect(asm_module);
-
-  print("Testing " + asmfunc.name + " (wasm)...");
-  var wasm_module = Wasm.instantiateModuleFromAsm(asm_source, null, buffer);
-  expect(wasm_module);
 }
 
 function LoadAt_i32(stdlib, foreign, buffer) {
@@ -81,7 +78,7 @@ function LoadAt_i32(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_i32, function(module) {
+RunAsmJsTest(LoadAt_i32, function(module) {
   var load = module.load;
   assertEquals(BASE, load(0));
   assertEquals(BASE | 0x30, load(0x30));
@@ -110,7 +107,7 @@ function LoadAt_i16(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_i16, function(module) {
+RunAsmJsTest(LoadAt_i16, function(module) {
   var load = module.load;
   var LOWER = (BASE << 16) >> 16;
   var UPPER = BASE >> 16;
@@ -146,7 +143,7 @@ function LoadAt_u16(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_u16, function(module) {
+RunAsmJsTest(LoadAt_u16, function(module) {
   var load = module.load;
   for (index of OOB_INDEXES) assertEquals(0, load(index));
   checkView(new Uint16Array(buffer), load, 1);
@@ -162,7 +159,7 @@ function LoadAt_i8(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_i8, function(module) {
+RunAsmJsTest(LoadAt_i8, function(module) {
   var load = module.load;
   for (index of OOB_INDEXES) assertEquals(0, load(index));
   checkView(new Int8Array(buffer), load, 0);
@@ -178,7 +175,7 @@ function LoadAt_u8(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_u8, function(module) {
+RunAsmJsTest(LoadAt_u8, function(module) {
   var load = module.load;
   for (index of OOB_INDEXES) assertEquals(0, load(index));
   checkView(new Uint8Array(buffer), load, 0);
@@ -195,7 +192,7 @@ function LoadAt_u32(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_u32, function(module) {
+RunAsmJsTest(LoadAt_u32, function(module) {
   var load = module.load;
   for (index of OOB_INDEXES) assertEquals(0, load(index));
   checkView(new Uint32Array(buffer), load, 2);
@@ -212,7 +209,7 @@ function LoadAt_f32(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_f32, function(module) {
+RunAsmJsTest(LoadAt_f32, function(module) {
   var load = module.load;
   for (index of OOB_INDEXES) assertEquals(NaN, load(index));
   checkView(new Float32Array(buffer), load, 2);
@@ -228,7 +225,7 @@ function LoadAt_f64(stdlib, foreign, buffer) {
   return {load: load};
 }
 
-RunThreeWayTest(LoadAt_f64, function(module) {
+RunAsmJsTest(LoadAt_f64, function(module) {
   var load = module.load;
   for (index of OOB_INDEXES) assertEquals(NaN, load(index));
   checkView(new Float64Array(buffer), load, 3);

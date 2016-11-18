@@ -255,7 +255,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
 
-  // send(req, list, port, address, hasCallback)
+  // send(req, list, list.length, port, address, hasCallback)
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsArray());
   CHECK(args[2]->IsUint32());
@@ -275,13 +275,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
-  // allocate uv_buf_t of the correct size
-  // if bigger than 16 elements
-  uv_buf_t bufs_[16];
-  uv_buf_t* bufs = bufs_;
-
-  if (arraysize(bufs_) < count)
-    bufs = new uv_buf_t[count];
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
 
   // construct uv_buf_t array
   for (size_t i = 0; i < count; i++) {
@@ -311,17 +305,13 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   }
 
   if (err == 0) {
-    err = uv_udp_send(&req_wrap->req_,
+    err = uv_udp_send(req_wrap->req(),
                       &wrap->handle_,
-                      bufs,
+                      *bufs,
                       count,
                       reinterpret_cast<const sockaddr*>(&addr),
                       OnSend);
   }
-
-  // Deallocate space
-  if (bufs != bufs_)
-    delete[] bufs;
 
   req_wrap->Dispatched();
   if (err)
@@ -364,7 +354,6 @@ void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// TODO(bnoordhuis) share with StreamWrap::AfterWrite() in stream_wrap.cc
 void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   SendWrap* req_wrap = static_cast<SendWrap*>(req->data);
   if (req_wrap->have_callback()) {
@@ -384,13 +373,8 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 void UDPWrap::OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf) {
-  buf->base = static_cast<char*>(malloc(suggested_size));
+  buf->base = node::Malloc(suggested_size);
   buf->len = suggested_size;
-
-  if (buf->base == nullptr && suggested_size > 0) {
-    FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t, uv_buf_t*)",
-               "Out Of Memory");
-  }
 }
 
 
@@ -426,7 +410,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     return;
   }
 
-  char* base = static_cast<char*>(realloc(buf->base, nread));
+  char* base = node::UncheckedRealloc(buf->base, nread);
   argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
   wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);

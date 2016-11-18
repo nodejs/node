@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-var stream = require('stream');
-var Stream = stream.Stream;
-var util = require('util');
-var zlib = require('zlib');
+const stream = require('stream');
+const Stream = stream.Stream;
+const util = require('util');
+const zlib = require('zlib');
 
 
 // emit random bytes, and keep a shasum
@@ -73,12 +73,12 @@ RandomReadStream.prototype._process = function() {
   // figure out how many bytes to output
   // if finished, then just emit end.
   var block = this._opt.block;
-  var jitter = this._opt.jitter;
+  const jitter = this._opt.jitter;
   if (jitter) {
     block += Math.ceil(Math.random() * jitter - (jitter / 2));
   }
   block = Math.min(block, this._remaining);
-  var buf = Buffer.allocUnsafe(block);
+  const buf = Buffer.allocUnsafe(block);
   for (var i = 0; i < block; i++) {
     buf[i] = Math.random() * 256;
   }

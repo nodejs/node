@@ -2048,7 +2048,7 @@ TEST(movz_movn) {
                         v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
-      int64_t rt;
+      int32_t rt;
       double a;
       double b;
       double bold;
@@ -3190,6 +3190,8 @@ TEST(jump_tables1) {
   __ addiu(sp, sp, 4);
   __ jr(ra);
   __ nop();
+
+  CHECK_EQ(assm.UnboundLabelsCount(), 0);
 
   CodeDesc desc;
   assm.GetCode(&desc);

@@ -87,7 +87,7 @@ module.exports = {
         fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         /**
@@ -139,10 +139,10 @@ module.exports = {
             const varToken = sourceCode.getFirstToken(node);
 
             context.report({
-                node: node,
+                node,
                 message: "Unexpected var, use let or const instead.",
 
-                fix: function(fixer) {
+                fix(fixer) {
                     if (canFix(node)) {
                         return fixer.replaceText(varToken, "let");
                     }
@@ -152,7 +152,7 @@ module.exports = {
         }
 
         return {
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (node.kind === "var") {
                     report(node);
                 }

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -841,6 +843,12 @@
  * This is only used for non-ICU-API functions.
  * When a function is a public ICU API,
  * you must use the U_CAPI and U_EXPORT2 qualifiers.
+ *
+ * Please note, you need to use U_CALLCONV after the *.
+ *
+ * NO : "static const char U_CALLCONV *func( . . . )"
+ * YES: "static const char* U_CALLCONV func( . . . )"
+ *
  * @stable ICU 2.0
  */
 #if U_PLATFORM == U_PF_OS390 && defined(__cplusplus)

@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
 
                 if (node.property &&
                         (node.property.type === "Identifier" && node.property.name === "__proto__" && !node.computed) ||

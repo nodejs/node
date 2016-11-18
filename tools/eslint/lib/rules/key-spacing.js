@@ -136,7 +136,7 @@ function initOptions(toOptions, fromOptions) {
         if (toOptions.multiLine.align) {
             toOptions.align = {
                 on: toOptions.multiLine.align.on,
-                mode: toOptions.multiLine.mode,
+                mode: toOptions.multiLine.align.mode || toOptions.multiLine.mode,
                 beforeColon: toOptions.multiLine.align.beforeColon,
                 afterColon: toOptions.multiLine.align.afterColon
             };
@@ -289,6 +289,9 @@ module.exports = {
                         multiLine: {
                             type: "object",
                             properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
                                 beforeColon: {
                                     type: "boolean"
                                 },
@@ -323,7 +326,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * OPTIONS
@@ -464,7 +467,7 @@ module.exports = {
                         computed: property.computed ? "computed " : "",
                         key: getKey(property)
                     },
-                    fix: fix
+                    fix
                 });
             }
         }
@@ -616,7 +619,7 @@ module.exports = {
         if (alignmentOptions) { // Verify vertical alignment
 
             return {
-                ObjectExpression: function(node) {
+                ObjectExpression(node) {
                     if (isSingleLine(node)) {
                         verifyListSpacing(node.properties.filter(isKeyValueProperty));
                     } else {
@@ -628,7 +631,7 @@ module.exports = {
         } else { // Obey beforeColon and afterColon in each property as configured
 
             return {
-                Property: function(node) {
+                Property(node) {
                     verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
                 }
             };

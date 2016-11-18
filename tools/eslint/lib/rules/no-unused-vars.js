@@ -58,9 +58,10 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        const MESSAGE = "'{{name}}' is defined but never used.";
+        const DEFINED_MESSAGE = "'{{name}}' is defined but never used.";
+        const ASSIGNED_MESSAGE = "'{{name}}' is assigned a value but never used.";
 
         const config = {
             vars: "all",
@@ -415,6 +416,33 @@ module.exports = {
         }
 
         /**
+         * Checks whether the given variable is the last parameter in the non-ignored parameters.
+         *
+         * @param {escope.Variable} variable - The variable to check.
+         * @returns {boolean} `true` if the variable is the last.
+         */
+        function isLastInNonIgnoredParameters(variable) {
+            const def = variable.defs[0];
+
+            // This is the last.
+            if (def.index === def.node.params.length - 1) {
+                return true;
+            }
+
+            // if all parameters preceded by this variable are ignored and unused, this is the last.
+            if (config.argsIgnorePattern) {
+                const params = context.getDeclaredVariables(def.node);
+                const posteriorParams = params.slice(params.indexOf(variable) + 1);
+
+                if (posteriorParams.every(v => v.references.length === 0 && config.argsIgnorePattern.test(v.name))) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /**
          * Gets an array of variables without read references.
          * @param {Scope} scope - an escope Scope object.
          * @param {Variable[]} unusedVars - an array that saving result.
@@ -466,7 +494,7 @@ module.exports = {
                         if (type === "Parameter") {
 
                             // skip any setter argument
-                            if (def.node.parent.type === "Property" && def.node.parent.kind === "set") {
+                            if ((def.node.parent.type === "Property" || def.node.parent.type === "MethodDefinition") && def.node.parent.kind === "set") {
                                 continue;
                             }
 
@@ -481,7 +509,7 @@ module.exports = {
                             }
 
                             // if "args" option is "after-used", skip all but the last parameter
-                            if (config.args === "after-used" && def.index < def.node.params.length - 1) {
+                            if (config.args === "after-used" && !isLastInNonIgnoredParameters(variable)) {
                                 continue;
                             }
                         } else {
@@ -514,7 +542,7 @@ module.exports = {
          * @private
          */
         function getColumnInComment(variable, comment) {
-            const namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
+            const namePattern = new RegExp(`[\\s,]${lodash.escapeRegExp(variable.name)}(?:$|[\\s,:])`, "g");
 
             // To ignore the first text "global".
             namePattern.lastIndex = comment.value.indexOf("global") + 6;
@@ -550,7 +578,7 @@ module.exports = {
 
             return {
                 line: baseLoc.line + lineInComment,
-                column: column
+                column
             };
         }
 
@@ -559,7 +587,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            "Program:exit": function(programNode) {
+            "Program:exit"(programNode) {
                 const unusedVars = collectUnusedVariables(context.getScope(), []);
 
                 for (let i = 0, l = unusedVars.length; i < l; ++i) {
@@ -569,13 +597,13 @@ module.exports = {
                         context.report({
                             node: programNode,
                             loc: getLocation(unusedVar),
-                            message: MESSAGE,
+                            message: DEFINED_MESSAGE,
                             data: unusedVar
                         });
                     } else if (unusedVar.defs.length > 0) {
                         context.report({
                             node: unusedVar.identifiers[0],
-                            message: MESSAGE,
+                            message: unusedVar.references.some(ref => ref.isWrite()) ? ASSIGNED_MESSAGE : DEFINED_MESSAGE,
                             data: unusedVar
                         });
                     }

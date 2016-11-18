@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
@@ -29,26 +29,13 @@ process.setMaxListeners(256);
   });
 
   [0, 1, 2, 4, 16, 256, 1024].forEach(function(len) {
-    f(len, checkCall(function(ex, buf) {
-      assert.equal(null, ex);
-      assert.equal(len, buf.length);
+    f(len, common.mustCall(function(ex, buf) {
+      assert.strictEqual(null, ex);
+      assert.strictEqual(len, buf.length);
       assert.ok(Buffer.isBuffer(buf));
     }));
   });
 });
-
-// assert that the callback is indeed called
-function checkCall(cb, desc) {
-  var called_ = false;
-
-  process.on('exit', function() {
-    assert.equal(true, called_, desc || ('callback not called: ' + cb));
-  });
-
-  return function() {
-    return called_ = true, cb.apply(cb, Array.prototype.slice.call(arguments));
-  };
-}
 
 // #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
 // length exceeds max acceptable value"

@@ -85,7 +85,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Ensures that an assignment uses the shorthand form where possible.

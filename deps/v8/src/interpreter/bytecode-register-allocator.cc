@@ -14,7 +14,8 @@ TemporaryRegisterAllocator::TemporaryRegisterAllocator(Zone* zone,
                                                        int allocation_base)
     : free_temporaries_(zone),
       allocation_base_(allocation_base),
-      allocation_count_(0) {}
+      allocation_count_(0),
+      observer_(nullptr) {}
 
 Register TemporaryRegisterAllocator::first_temporary_register() const {
   DCHECK(allocation_count() > 0);
@@ -24,6 +25,12 @@ Register TemporaryRegisterAllocator::first_temporary_register() const {
 Register TemporaryRegisterAllocator::last_temporary_register() const {
   DCHECK(allocation_count() > 0);
   return Register(allocation_base() + allocation_count() - 1);
+}
+
+void TemporaryRegisterAllocator::set_observer(
+    TemporaryRegisterObserver* observer) {
+  DCHECK(observer_ == nullptr);
+  observer_ = observer;
 }
 
 int TemporaryRegisterAllocator::AllocateTemporaryRegister() {
@@ -140,6 +147,9 @@ void TemporaryRegisterAllocator::BorrowConsecutiveTemporaryRegister(
 void TemporaryRegisterAllocator::ReturnTemporaryRegister(int reg_index) {
   DCHECK(free_temporaries_.find(reg_index) == free_temporaries_.end());
   free_temporaries_.insert(reg_index);
+  if (observer_) {
+    observer_->TemporaryRegisterFreeEvent(Register(reg_index));
+  }
 }
 
 BytecodeRegisterAllocator::BytecodeRegisterAllocator(
@@ -156,7 +166,6 @@ BytecodeRegisterAllocator::~BytecodeRegisterAllocator() {
   allocated_.clear();
 }
 
-
 Register BytecodeRegisterAllocator::NewRegister() {
   int allocated = -1;
   if (next_consecutive_count_ <= 0) {
@@ -170,7 +179,6 @@ Register BytecodeRegisterAllocator::NewRegister() {
   return Register(allocated);
 }
 
-
 bool BytecodeRegisterAllocator::RegisterIsAllocatedInThisScope(
     Register reg) const {
   for (auto i = allocated_.begin(); i != allocated_.end(); i++) {
@@ -179,7 +187,6 @@ bool BytecodeRegisterAllocator::RegisterIsAllocatedInThisScope(
   return false;
 }
 
-
 void BytecodeRegisterAllocator::PrepareForConsecutiveAllocations(size_t count) {
   if (static_cast<int>(count) > next_consecutive_count_) {
     next_consecutive_register_ =
@@ -187,7 +194,6 @@ void BytecodeRegisterAllocator::PrepareForConsecutiveAllocations(size_t count) {
     next_consecutive_count_ = static_cast<int>(count);
   }
 }
-
 
 Register BytecodeRegisterAllocator::NextConsecutiveRegister() {
   DCHECK_GE(next_consecutive_register_, 0);

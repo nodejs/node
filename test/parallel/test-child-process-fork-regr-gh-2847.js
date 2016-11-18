@@ -44,19 +44,24 @@ var server = net.createServer(function(s) {
   }
 
   worker.process.once('close', common.mustCall(function() {
-    // Otherwise the crash on `_channel.fd` access may happen
-    assert(worker.process._channel === null);
+    // Otherwise the crash on `channel.fd` access may happen
+    assert.strictEqual(worker.process.channel, null);
     server.close();
   }));
 
-  send();
-  send(function(err) {
-    // Ignore errors when sending the second handle because the worker
-    // may already have exited.
-    if (err) {
-      if (err.code !== 'ECONNREFUSED') {
-        throw err;
-      }
-    }
+  worker.on('online', function() {
+    send(function(err) {
+      assert.ifError(err);
+      send(function(err) {
+        // Ignore errors when sending the second handle because the worker
+        // may already have exited.
+        if (err) {
+          if ((err.message !== 'channel closed') &&
+             (err.code !== 'ECONNREFUSED')) {
+            throw err;
+          }
+        }
+      });
+    });
   });
 });

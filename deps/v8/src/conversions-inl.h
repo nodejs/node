@@ -97,6 +97,13 @@ int32_t DoubleToInt32(double x) {
   }
 }
 
+bool DoubleToSmiInteger(double value, int* smi_int_value) {
+  if (IsMinusZero(value)) return false;
+  int i = FastD2IChecked(value);
+  if (value != i || !Smi::IsValid(i)) return false;
+  *smi_int_value = i;
+  return true;
+}
 
 bool IsSmiDouble(double value) {
   return !IsMinusZero(value) && value >= Smi::kMinValue &&
@@ -132,8 +139,9 @@ int64_t NumberToInt64(Object* number) {
   return static_cast<int64_t>(number->Number());
 }
 
-bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
-  SealHandleScope shs(isolate);
+bool TryNumberToSize(Object* number, size_t* result) {
+  // Do not create handles in this function! Don't use SealHandleScope because
+  // the function can be used concurrently.
   if (number->IsSmi()) {
     int value = Smi::cast(number)->value();
     DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
@@ -155,10 +163,9 @@ bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
   }
 }
 
-
-size_t NumberToSize(Isolate* isolate, Object* number) {
+size_t NumberToSize(Object* number) {
   size_t result = 0;
-  bool is_valid = TryNumberToSize(isolate, number, &result);
+  bool is_valid = TryNumberToSize(number, &result);
   CHECK(is_valid);
   return result;
 }

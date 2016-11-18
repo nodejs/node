@@ -34,23 +34,25 @@ HType HType::FromFieldType(Handle<FieldType> type, Zone* temp_zone) {
 
 // static
 HType HType::FromValue(Handle<Object> value) {
-  if (value->IsSmi()) return HType::Smi();
-  if (value->IsNull()) return HType::Null();
-  if (value->IsHeapNumber()) {
+  Object* raw_value = *value;
+  if (raw_value->IsSmi()) return HType::Smi();
+  DCHECK(raw_value->IsHeapObject());
+  Isolate* isolate = HeapObject::cast(*value)->GetIsolate();
+  if (raw_value->IsNull(isolate)) return HType::Null();
+  if (raw_value->IsHeapNumber()) {
     double n = Handle<v8::internal::HeapNumber>::cast(value)->value();
     return IsSmiDouble(n) ? HType::Smi() : HType::HeapNumber();
   }
-  if (value->IsString()) return HType::String();
-  if (value->IsBoolean()) return HType::Boolean();
-  if (value->IsUndefined()) return HType::Undefined();
-  if (value->IsJSArray()) {
-    DCHECK(!value->IsUndetectable());
+  if (raw_value->IsString()) return HType::String();
+  if (raw_value->IsBoolean()) return HType::Boolean();
+  if (raw_value->IsUndefined(isolate)) return HType::Undefined();
+  if (raw_value->IsJSArray()) {
+    DCHECK(!raw_value->IsUndetectable());
     return HType::JSArray();
   }
-  if (value->IsJSObject() && !value->IsUndetectable()) {
+  if (raw_value->IsJSObject() && !raw_value->IsUndetectable()) {
     return HType::JSObject();
   }
-  DCHECK(value->IsHeapObject());
   return HType::HeapObject();
 }
 

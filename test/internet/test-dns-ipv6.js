@@ -179,7 +179,12 @@ TEST(function test_lookup_all_ipv6(done) {
 
 TEST(function test_lookupservice_ip_ipv6(done) {
   var req = dns.lookupService('::1', 80, function(err, host, service) {
-    if (err) throw err;
+    if (err) {
+      // Not skipping the test, rather checking an alternative result,
+      // i.e. that ::1 may not be configured (e.g. in /etc/hosts)
+      assert.strictEqual(err.code, 'ENOTFOUND');
+      return done();
+    }
     assert.equal(typeof host, 'string');
     assert(host);
     assert(['http', 'www', '80'].includes(service));

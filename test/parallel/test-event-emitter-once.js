@@ -1,8 +1,9 @@
 'use strict';
 const common = require('../common');
-var events = require('events');
+const assert = require('assert');
+const EventEmitter = require('events');
 
-var e = new events.EventEmitter();
+const e = new EventEmitter();
 
 e.once('hello', common.mustCall(function(a, b) {}));
 
@@ -26,3 +27,10 @@ e.once('e', common.mustCall(function() {
 e.once('e', common.mustCall(function() {}));
 
 e.emit('e');
+
+// Verify that the listener must be a function
+assert.throws(() => {
+  const ee = new EventEmitter();
+
+  ee.once('foo', null);
+}, /^TypeError: "listener" argument must be a function$/);

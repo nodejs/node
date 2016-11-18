@@ -33,8 +33,6 @@
   'dfg-inline-arguments-become-int32': [PASS, FAIL],
   'dfg-inline-arguments-reset': [PASS, FAIL],
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
-  # TODO(turbofan): We run out of stack earlier on 64-bit for now.
-  'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
 }],  # ALWAYS
@@ -70,6 +68,14 @@
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == ppc or arch == ppc64'
+['arch == s390 or arch == s390x', {
+  # Too slow.
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
+['arch == x87', {
+  # Too slow.
+  'dfg-negative-array-index': [SKIP],
+}], # 'arch == x87'
 
 ##############################################################################
 ['asan == True', {
@@ -97,17 +103,24 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
-['ignition == True', {
-  # TODO(4680): Throws a RangeError due to stack overflow. Need investigation.
-  'fast/js/excessive-comma-usage': [SKIP],  # Stack is brittle, SKIP not FAIL.
-}],  # ignition == True
-
-##############################################################################
-['ignition == True and msan', {
+['variant == ignition and msan', {
   # TODO(mythria,4680): Too slow and timeout on ignition.
   'dfg-double-vote-fuzz': [SKIP],
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # ignition == True and msan
+}],  # variant == ignition and msan
+
+##############################################################################
+['variant == ignition_turbofan and msan', {
+  # TODO(mythria,4680): Too slow and timeout on ignition.
+  'dfg-double-vote-fuzz': [SKIP],
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # variant == ignition_turbofan and msan
+
+##############################################################################
+['arch == arm64 and msan', {
+  # Stack size too large with masm on Arm64.
+  'fast/js/excessive-comma-usage': [SKIP],
+}],  # arch == arm64 and msan
 
 ##############################################################################
 ['gcov_coverage', {

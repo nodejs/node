@@ -6,20 +6,20 @@
 // - the worker.exitedAfterDisconnect flag, and worker.state are correct
 // - the worker process actually goes away
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
-  var http = require('http');
-  var server = http.Server(function() { });
+  const http = require('http');
+  const server = http.Server(() => { });
 
-  server.once('listening', function() { });
+  server.once('listening', common.mustCall(() => { }));
   server.listen(common.PORT, '127.0.0.1');
 
 } else if (cluster.isMaster) {
 
-  var KILL_SIGNAL = 'SIGKILL',
+  const KILL_SIGNAL = 'SIGKILL',
     expected_results = {
       cluster_emitDisconnect: [1, "the cluster did not emit 'disconnect'"],
       cluster_emitExit: [1, "the cluster did not emit 'exit'"],
@@ -45,40 +45,40 @@ if (cluster.isWorker) {
 
 
   // start worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   // when the worker is up and running, kill it
-  worker.once('listening', function() {
+  worker.once('listening', common.mustCall(() => {
     worker.process.kill(KILL_SIGNAL);
-  });
+  }));
 
 
   // Check cluster events
-  cluster.on('disconnect', function() {
+  cluster.on('disconnect', common.mustCall(() => {
     results.cluster_emitDisconnect += 1;
-  });
-  cluster.on('exit', function(worker) {
+  }));
+  cluster.on('exit', common.mustCall((worker) => {
     results.cluster_exitCode = worker.process.exitCode;
     results.cluster_signalCode = worker.process.signalCode;
     results.cluster_emitExit += 1;
-  });
+  }));
 
   // Check worker events and properties
-  worker.on('disconnect', function() {
+  worker.on('disconnect', common.mustCall(() => {
     results.worker_emitDisconnect += 1;
     results.worker_exitedAfter = worker.exitedAfterDisconnect;
     results.worker_state = worker.state;
-  });
+  }));
 
   // Check that the worker died
-  worker.once('exit', function(exitCode, signalCode) {
+  worker.once('exit', common.mustCall((exitCode, signalCode) => {
     results.worker_exitCode = exitCode;
     results.worker_signalCode = signalCode;
     results.worker_emitExit += 1;
-    results.worker_died = !alive(worker.process.pid);
-  });
+    results.worker_died = !common.isAlive(worker.process.pid);
+  }));
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     checkResults(expected_results, results);
   });
 }
@@ -86,25 +86,13 @@ if (cluster.isWorker) {
 // some helper functions ...
 
 function checkResults(expected_results, results) {
-  for (var k in expected_results) {
+  for (const k in expected_results) {
     const actual = results[k];
     const expected = expected_results[k];
 
-    var msg = (expected[1] || '') +
-              (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
-    if (expected && expected.length) {
-      assert.equal(actual, expected[0], msg);
-    } else {
-      assert.equal(actual, expected, msg);
-    }
-  }
-}
-
-function alive(pid) {
-  try {
-    process.kill(pid, 'SIGCONT');
-    return true;
-  } catch (e) {
-    return false;
+    assert.strictEqual(actual,
+                       expected && expected.length ? expected[0] : expected,
+                       (expected[1] || '') +
+                         ` [expected: ${expected[0]} / actual: ${actual}]`);
   }
 }

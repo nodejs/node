@@ -10,6 +10,7 @@
 #include <cstdarg>
 
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 
@@ -62,10 +63,10 @@ class Log {
     ~MessageBuilder() { }
 
     // Append string data to the log message.
-    void Append(const char* format, ...);
+    void PRINTF_FORMAT(2, 3) Append(const char* format, ...);
 
     // Append string data to the log message.
-    void AppendVA(const char* format, va_list args);
+    void PRINTF_FORMAT(2, 0) AppendVA(const char* format, va_list args);
 
     // Append a character to the log message.
     void Append(const char c);

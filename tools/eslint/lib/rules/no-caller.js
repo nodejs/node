@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 const objectName = node.object.name,
                     propertyName = node.property.name;
 

@@ -70,9 +70,14 @@ function canBecomeVariableDeclaration(identifier) {
  *
  * If the variable should not change to const, this function returns null.
  * - If the variable is reassigned.
- * - If the variable is never initialized and assigned.
+ * - If the variable is never initialized nor assigned.
  * - If the variable is initialized in a different scope from the declaration.
  * - If the unique assignment of the variable cannot change to a declaration.
+ *   e.g. `if (a) b = 1` / `return (b = 1)`
+ * - If the variable is declared in the global scope and `eslintUsed` is `true`.
+ *   `/*exported foo` directive comment makes such variables. This rule does not
+ *   warn such variables because this rule cannot distinguish whether the
+ *   exported variables are reassigned or not.
  *
  * @param {escope.Variable} variable - A variable to get.
  * @param {boolean} ignoreReadBeforeAssign -
@@ -82,7 +87,7 @@ function canBecomeVariableDeclaration(identifier) {
  *      Otherwise, null.
  */
 function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
-    if (variable.eslintUsed) {
+    if (variable.eslintUsed && variable.scope.type === "global") {
         return null;
     }
 
@@ -247,7 +252,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const checkingMixedDestructuring = options.destructuring !== "all";
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
@@ -261,7 +266,7 @@ module.exports = {
          */
         function report(node) {
             const reportArgs = {
-                    node: node,
+                    node,
                     message: "'{{name}}' is never reassigned. Use 'const' instead.",
                     data: node
                 },
@@ -345,11 +350,11 @@ module.exports = {
         }
 
         return {
-            Program: function() {
+            Program() {
                 variables = [];
             },
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 if (checkingMixedDestructuring) {
                     variables.forEach(checkVariable);
                 } else {
@@ -360,7 +365,7 @@ module.exports = {
                 variables = null;
             },
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (node.kind === "let" && !isInitOfForStatement(node)) {
                     pushAll(variables, context.getDeclaredVariables(node));
                 }

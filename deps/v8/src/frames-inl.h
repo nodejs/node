@@ -98,6 +98,35 @@ inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
+inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
+    : ExitFrame(iterator) {}
+
+inline Object* BuiltinExitFrame::receiver_slot_object() const {
+  // The receiver is the first argument on the frame.
+  // fp[1]: return address.
+  // fp[2]: the last argument (new target).
+  // fp[4]: argc.
+  // fp[2 + argc - 1]: receiver.
+  Object* argc_slot = argc_slot_object();
+  DCHECK(argc_slot->IsSmi());
+  int argc = Smi::cast(argc_slot)->value();
+
+  const int receiverOffset =
+      BuiltinExitFrameConstants::kNewTargetOffset + (argc - 1) * kPointerSize;
+  return Memory::Object_at(fp() + receiverOffset);
+}
+
+inline Object* BuiltinExitFrame::argc_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kArgcOffset);
+}
+
+inline Object* BuiltinExitFrame::target_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kTargetOffset);
+}
+
+inline Object* BuiltinExitFrame::new_target_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kNewTargetOffset);
+}
 
 inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
@@ -111,14 +140,6 @@ inline Object* StandardFrame::GetExpression(int index) const {
 
 inline void StandardFrame::SetExpression(int index, Object* value) {
   Memory::Object_at(GetExpressionAddress(index)) = value;
-}
-
-
-inline Object* StandardFrame::context() const {
-  const int offset = StandardFrameConstants::kContextOffset;
-  Object* maybe_result = Memory::Object_at(fp() + offset);
-  DCHECK(!maybe_result->IsSmi());
-  return maybe_result;
 }
 
 
@@ -165,12 +186,6 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   return caller_sp() + parameter_offset;
 }
 
-
-Object* JavaScriptFrame::GetParameter(int index) const {
-  return Memory::Object_at(GetParameterSlot(index));
-}
-
-
 inline Address JavaScriptFrame::GetOperandSlot(int index) const {
   Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
   DCHECK(IsAddressAligned(base, kPointerSize));
@@ -199,11 +214,6 @@ inline int JavaScriptFrame::ComputeOperandsCount() const {
 }
 
 
-inline Object* JavaScriptFrame::receiver() const {
-  return GetParameter(-1);
-}
-
-
 inline void JavaScriptFrame::set_receiver(Object* value) {
   Memory::Object_at(GetParameterSlot(-1)) = value;
 }
@@ -214,16 +224,10 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 }
 
 
-inline JSFunction* JavaScriptFrame::function() const {
-  return JSFunction::cast(function_slot_object());
-}
-
-
 inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
   return Memory::Object_at(fp() + offset);
 }
-
 
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
@@ -242,6 +246,9 @@ inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
 inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
     StackFrameIteratorBase* iterator) : JavaScriptFrame(iterator) {
 }
+
+inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
 
 inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
@@ -288,10 +295,33 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   return static_cast<JavaScriptFrame*>(frame);
 }
 
+inline StandardFrame* StackTraceFrameIterator::frame() const {
+  StackFrame* frame = iterator_.frame();
+  DCHECK(frame->is_java_script() || frame->is_arguments_adaptor() ||
+         frame->is_wasm());
+  return static_cast<StandardFrame*>(frame);
+}
+
+bool StackTraceFrameIterator::is_javascript() const {
+  return frame()->is_java_script();
+}
+
+bool StackTraceFrameIterator::is_wasm() const { return frame()->is_wasm(); }
+
+JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
+  DCHECK(is_javascript());
+  return static_cast<JavaScriptFrame*>(frame());
+}
+
+WasmFrame* StackTraceFrameIterator::wasm_frame() const {
+  DCHECK(is_wasm());
+  return static_cast<WasmFrame*>(frame());
+}
 
 inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());
-  DCHECK(frame_->is_java_script() || frame_->is_exit());
+  DCHECK(frame_->is_java_script() || frame_->is_exit() ||
+         frame_->is_builtin_exit());
   return frame_;
 }
 

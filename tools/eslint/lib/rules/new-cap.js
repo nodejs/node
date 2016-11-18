@@ -37,7 +37,7 @@ function checkArray(obj, key, fallback) {
 
     /* istanbul ignore if */
     if (Object.prototype.hasOwnProperty.call(obj, key) && !Array.isArray(obj[key])) {
-        throw new TypeError(key + ", if provided, must be an Array");
+        throw new TypeError(`${key}, if provided, must be an Array`);
     }
     return obj[key] || fallback;
 }
@@ -75,7 +75,7 @@ function calculateCapIsNewExceptions(config) {
 module.exports = {
     meta: {
         docs: {
-            description: "require constructor `function` names to begin with a capital letter",
+            description: "require constructor names to begin with a capital letter",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -117,7 +117,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
 

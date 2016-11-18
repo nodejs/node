@@ -33,7 +33,6 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithParameter) {
   EXPECT_EQ(kX64Movsxlq, s[0]->arch_opcode());
 }
 
-
 TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Uint32());
   m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
@@ -71,6 +70,41 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
   EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
 }
 
+namespace {
+struct LoadWithToInt64Extension {
+  MachineType type;
+  ArchOpcode expected_opcode;
+};
+
+std::ostream& operator<<(std::ostream& os,
+                         const LoadWithToInt64Extension& i32toi64) {
+  return os << i32toi64.type;
+}
+
+static const LoadWithToInt64Extension kLoadWithToInt64Extensions[] = {
+    {MachineType::Int8(), kX64Movsxbq},
+    {MachineType::Uint8(), kX64Movzxbq},
+    {MachineType::Int16(), kX64Movsxwq},
+    {MachineType::Uint16(), kX64Movzxwq},
+    {MachineType::Int32(), kX64Movsxlq}};
+
+}  // namespace
+
+typedef InstructionSelectorTestWithParam<LoadWithToInt64Extension>
+    InstructionSelectorChangeInt32ToInt64Test;
+
+TEST_P(InstructionSelectorChangeInt32ToInt64Test, ChangeInt32ToInt64WithLoad) {
+  const LoadWithToInt64Extension extension = GetParam();
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer());
+  m.Return(m.ChangeInt32ToInt64(m.Load(extension.type, m.Parameter(0))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(extension.expected_opcode, s[0]->arch_opcode());
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorChangeInt32ToInt64Test,
+                        ::testing::ValuesIn(kLoadWithToInt64Extensions));
 
 // -----------------------------------------------------------------------------
 // Loads and stores
@@ -1134,71 +1168,6 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
   }
 }
 
-
-TEST_F(InstructionSelectorTest, Float32SubWithMinusZeroAndParameter) {
-  {
-    StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
-    m.Return(n);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat32Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-  {
-    StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
-    m.Return(n);
-    Stream s = m.Build(AVX);
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat32Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-}
-
-
-TEST_F(InstructionSelectorTest, Float64SubWithMinusZeroAndParameter) {
-  {
-    StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
-    m.Return(n);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat64Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-  {
-    StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
-    m.Return(n);
-    Stream s = m.Build(AVX);
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat64Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-}
-
-
 // -----------------------------------------------------------------------------
 // Miscellaneous.
 
@@ -1332,6 +1301,55 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, LoadAndWord64ShiftRight32) {
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Uint64(), p0);
+    Node* const shift = m.Word64Shr(load, m.Int32Constant(32));
+    m.Return(shift);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Int64(), p0);
+    Node* const shift = m.Word64Sar(load, m.Int32Constant(32));
+    m.Return(shift);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movsxlq, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Int64(), p0);
+    Node* const shift = m.Word64Sar(load, m.Int32Constant(32));
+    Node* const truncate = m.TruncateInt64ToInt32(shift);
+    m.Return(truncate);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
 }
 
 }  // namespace compiler

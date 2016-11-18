@@ -18,8 +18,8 @@ const Register kReturnRegister1 = {Register::kCode_v1};
 const Register kReturnRegister2 = {Register::kCode_a0};
 const Register kJSFunctionRegister = {Register::kCode_a1};
 const Register kContextRegister = {Register::kCpRegister};
+const Register kAllocateSizeRegister = {Register::kCode_a0};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_a7};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t0};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t1};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_t2};
@@ -587,6 +587,15 @@ class MacroAssembler: public Assembler {
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register scratch1,
+                    Register scratch2, AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_new,
+                    Register scratch, AllocationFlags flags);
+
   void AllocateTwoByteString(Register result,
                              Register length,
                              Register scratch1,
@@ -621,7 +630,6 @@ class MacroAssembler: public Assembler {
                           Register scratch2,
                           Register heap_number_map,
                           Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
 
   void AllocateHeapNumberWithValue(Register result,
@@ -714,12 +722,28 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
+  // Change endianness
+  void ByteSwapSigned(Register dest, Register src, int operand_size);
+  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
+
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
+  void Ulh(Register rd, const MemOperand& rs);
+  void Ulhu(Register rd, const MemOperand& rs);
+  void Ush(Register rd, const MemOperand& rs, Register scratch);
+
   void Ulw(Register rd, const MemOperand& rs);
+  void Ulwu(Register rd, const MemOperand& rs);
   void Usw(Register rd, const MemOperand& rs);
-  void Uld(Register rd, const MemOperand& rs, Register scratch = at);
-  void Usd(Register rd, const MemOperand& rs, Register scratch = at);
+
+  void Uld(Register rd, const MemOperand& rs);
+  void Usd(Register rd, const MemOperand& rs);
+
+  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
+
+  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
 
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);
@@ -856,6 +880,12 @@ class MacroAssembler: public Assembler {
   void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Neg_s(FPURegister fd, FPURegister fs);
+  void Neg_d(FPURegister fd, FPURegister fs);
+
+  // MIPS64 R6 instruction macros.
+  void Bovc(Register rt, Register rs, Label* L);
+  void Bnvc(Register rt, Register rs, Label* L);
 
   // ---------------------------------------------------------------------------
   // FPU macros. These do not handle special cases like NaN or +- inf.
@@ -908,6 +938,12 @@ class MacroAssembler: public Assembler {
   void Round_w_d(FPURegister fd, FPURegister fs);
   void Floor_w_d(FPURegister fd, FPURegister fs);
   void Ceil_w_d(FPURegister fd, FPURegister fs);
+
+  // Preserve value of a NaN operand
+  void SubNanPreservePayloadAndSign_s(FPURegister fd, FPURegister fs,
+                                      FPURegister ft);
+  void SubNanPreservePayloadAndSign_d(FPURegister fd, FPURegister fs,
+                                      FPURegister ft);
 
   void Madd_d(FPURegister fd,
               FPURegister fr,
@@ -1034,8 +1070,8 @@ class MacroAssembler: public Assembler {
   // argc - argument count to be dropped by LeaveExitFrame.
   // save_doubles - saves FPU registers on stack, currently disabled.
   // stack_space - extra stack space.
-  void EnterExitFrame(bool save_doubles,
-                      int stack_space = 0);
+  void EnterExitFrame(bool save_doubles, int stack_space = 0,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles, Register arg_count,
@@ -1357,6 +1393,24 @@ class MacroAssembler: public Assembler {
                     Label* overflow_label, Label* no_overflow_label,
                     Register scratch = at);
 
+  inline void MulBranchOvf(Register dst, Register left, const Operand& right,
+                           Label* overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
+  }
+
+  inline void MulBranchNoOvf(Register dst, Register left, const Operand& right,
+                             Label* no_overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
+  }
+
+  void MulBranchOvf(Register dst, Register left, const Operand& right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  void MulBranchOvf(Register dst, Register left, Register right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
   inline void DaddBranchOvf(Register dst, Register left, const Operand& right,
                             Label* overflow_label, Register scratch = at) {
     DaddBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
@@ -1518,7 +1572,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT);
+                               BranchDelaySlot bd = PROTECT,
+                               bool builtin_exit_frame = false);
 
   struct Unresolved {
     int pc;
@@ -1714,6 +1769,10 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
+
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
 
@@ -1817,6 +1876,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
+
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
   // Expects object in a0 and returns map with validated enum cache
   // in a0.  Assumes that any other register can be used as a scratch.
@@ -2001,14 +2063,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   }
 }
 
-#ifdef GENERATED_CODE_COVERAGE
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm) masm->stop(__FILE_LINE__); masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
 
 }  // namespace internal
 }  // namespace v8

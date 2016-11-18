@@ -32,13 +32,14 @@ class Callable final BASE_EMBEDDED {
 class CodeFactory final {
  public:
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode);
-  static Callable LoadICInOptimizedCode(Isolate* isolate,
-                                        TypeofMode typeof_mode,
-                                        InlineCacheState initialization_state);
+  static Callable LoadIC(Isolate* isolate);
+  static Callable LoadICInOptimizedCode(Isolate* isolate);
+  static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
+  static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
+                                              TypeofMode typeof_mode);
   static Callable KeyedLoadIC(Isolate* isolate);
-  static Callable KeyedLoadICInOptimizedCode(
-      Isolate* isolate, InlineCacheState initialization_state);
+  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
+  static Callable KeyedLoadIC_Megamorphic(Isolate* isolate);
   static Callable CallIC(Isolate* isolate, int argc,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);
@@ -47,23 +48,25 @@ class CodeFactory final {
       ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
-  static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode,
-                                         InlineCacheState initialization_state);
+  static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
-  static Callable KeyedStoreICInOptimizedCode(
-      Isolate* isolate, LanguageMode mode,
-      InlineCacheState initialization_state);
+  static Callable KeyedStoreICInOptimizedCode(Isolate* isolate,
+                                              LanguageMode mode);
 
-  static Callable StoreInterceptor(Isolate* isolate);
+  static Callable ResumeGenerator(Isolate* isolate);
 
   static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
   static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
 
+  static Callable ApiGetter(Isolate* isolate);
+
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
+
+  static Callable GetProperty(Isolate* isolate);
 
   static Callable ToBoolean(Isolate* isolate);
 
@@ -75,6 +78,10 @@ class CodeFactory final {
   static Callable ToInteger(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
   static Callable ToObject(Isolate* isolate);
+  static Callable NonPrimitiveToPrimitive(
+      Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+  static Callable OrdinaryToPrimitive(Isolate* isolate,
+                                      OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
   static Callable RegExpConstructResult(Isolate* isolate);
@@ -82,9 +89,17 @@ class CodeFactory final {
 
   static Callable Add(Isolate* isolate);
   static Callable Subtract(Isolate* isolate);
+  static Callable Multiply(Isolate* isolate);
+  static Callable Divide(Isolate* isolate);
+  static Callable Modulus(Isolate* isolate);
+  static Callable ShiftRight(Isolate* isolate);
+  static Callable ShiftRightLogical(Isolate* isolate);
+  static Callable ShiftLeft(Isolate* isolate);
   static Callable BitwiseAnd(Isolate* isolate);
   static Callable BitwiseOr(Isolate* isolate);
   static Callable BitwiseXor(Isolate* isolate);
+  static Callable Inc(Isolate* isolate);
+  static Callable Dec(Isolate* isolate);
   static Callable LessThan(Isolate* isolate);
   static Callable LessThanOrEqual(Isolate* isolate);
   static Callable GreaterThan(Isolate* isolate);
@@ -111,21 +126,25 @@ class CodeFactory final {
   static Callable FastCloneShallowArray(Isolate* isolate);
   static Callable FastCloneShallowObject(Isolate* isolate, int length);
 
-  static Callable FastNewContext(Isolate* isolate, int slot_count);
-  static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
-                                 FunctionKind kind);
+  static Callable FastNewFunctionContext(Isolate* isolate);
+  static Callable FastNewClosure(Isolate* isolate);
   static Callable FastNewObject(Isolate* isolate);
-  static Callable FastNewRestParameter(Isolate* isolate);
-  static Callable FastNewSloppyArguments(Isolate* isolate);
-  static Callable FastNewStrictArguments(Isolate* isolate);
+  static Callable FastNewRestParameter(Isolate* isolate,
+                                       bool skip_stub_frame = false);
+  static Callable FastNewSloppyArguments(Isolate* isolate,
+                                         bool skip_stub_frame = false);
+  static Callable FastNewStrictArguments(Isolate* isolate,
+                                         bool skip_stub_frame = false);
+
+  static Callable CopyFastSmiOrObjectElements(Isolate* isolate);
+  static Callable GrowFastDoubleElements(Isolate* isolate);
+  static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
-  static Callable AllocateMutableHeapNumber(Isolate* isolate);
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
   static Callable Allocate##Type(Isolate* isolate);
   SIMD128_TYPES(SIMD128_ALLOC)
 #undef SIMD128_ALLOC
-  static Callable AllocateInNewSpace(Isolate* isolate);
 
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
@@ -135,11 +154,15 @@ class CodeFactory final {
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Construct(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
+  static Callable HasProperty(Isolate* isolate);
+  static Callable ForInFilter(Isolate* isolate);
 
-  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
-                                             TailCallMode tail_call_mode);
+  static Callable InterpreterPushArgsAndCall(
+      Isolate* isolate, TailCallMode tail_call_mode,
+      CallableType function_type = CallableType::kAny);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
+  static Callable InterpreterOnStackReplacement(Isolate* isolate);
 };
 
 }  // namespace internal

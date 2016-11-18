@@ -108,7 +108,7 @@ function addTest(input, output) {
 }
 
 var handshakeLines = [
-  /listening on \d+\.\d+\.\d+\.\d+:\d+/,
+  /listening on /,
   /connecting.* ok/
 ];
 

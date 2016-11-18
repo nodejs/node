@@ -34,7 +34,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const message = "Expected parentheses around arrow function argument.";
         const asNeededMessage = "Unexpected parentheses around single function argument.";
         const asNeeded = context.options[0] === "as-needed";
@@ -51,7 +51,7 @@ module.exports = {
          * @returns {void}
          */
         function parens(node) {
-            const token = sourceCode.getFirstToken(node);
+            const token = sourceCode.getFirstToken(node, node.async ? 1 : 0);
 
             // "as-needed", { "requireForBlockBody": true }: x => x
             if (
@@ -62,9 +62,9 @@ module.exports = {
             ) {
                 if (token.type === "Punctuator" && token.value === "(") {
                     context.report({
-                        node: node,
+                        node,
                         message: requireForBlockBodyMessage,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             const paramToken = context.getTokenAfter(token);
                             const closingParenToken = context.getTokenAfter(paramToken);
 
@@ -84,10 +84,10 @@ module.exports = {
             ) {
                 if (token.type !== "Punctuator" || token.value !== "(") {
                     context.report({
-                        node: node,
+                        node,
                         message: requireForBlockBodyNoParensMessage,
-                        fix: function(fixer) {
-                            return fixer.replaceText(token, "(" + token.value + ")");
+                        fix(fixer) {
+                            return fixer.replaceText(token, `(${token.value})`);
                         }
                     });
                 }
@@ -98,9 +98,9 @@ module.exports = {
             if (asNeeded && node.params.length === 1 && node.params[0].type === "Identifier") {
                 if (token.type === "Punctuator" && token.value === "(") {
                     context.report({
-                        node: node,
+                        node,
                         message: asNeededMessage,
-                        fix: function(fixer) {
+                        fix(fixer) {
                             const paramToken = context.getTokenAfter(token);
                             const closingParenToken = context.getTokenAfter(paramToken);
 
@@ -120,10 +120,10 @@ module.exports = {
                 // (x) => x
                 if (after.value !== ")") {
                     context.report({
-                        node: node,
-                        message: message,
-                        fix: function(fixer) {
-                            return fixer.replaceText(token, "(" + token.value + ")");
+                        node,
+                        message,
+                        fix(fixer) {
+                            return fixer.replaceText(token, `(${token.value})`);
                         }
                     });
                 }

@@ -15,7 +15,14 @@ namespace base {
 
 void* AccountingAllocator::Allocate(size_t bytes) {
   void* memory = malloc(bytes);
-  if (memory) NoBarrier_AtomicIncrement(&current_memory_usage_, bytes);
+  if (memory) {
+    AtomicWord current =
+        NoBarrier_AtomicIncrement(&current_memory_usage_, bytes);
+    AtomicWord max = NoBarrier_Load(&max_memory_usage_);
+    while (current > max) {
+      max = NoBarrier_CompareAndSwap(&max_memory_usage_, max, current);
+    }
+  }
   return memory;
 }
 
@@ -27,6 +34,10 @@ void AccountingAllocator::Free(void* memory, size_t bytes) {
 
 size_t AccountingAllocator::GetCurrentMemoryUsage() const {
   return NoBarrier_Load(&current_memory_usage_);
+}
+
+size_t AccountingAllocator::GetMaxMemoryUsage() const {
+  return NoBarrier_Load(&max_memory_usage_);
 }
 
 }  // namespace base

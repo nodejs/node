@@ -17,7 +17,7 @@ const unzip = zlib.createUnzip()
   .on('data', (data) => resultBuffers.push(data))
   .on('finish', common.mustCall(() => {
     assert.deepStrictEqual(Buffer.concat(resultBuffers).toString(), 'abcdef',
-      'result should match original string');
+                           'result should match original string');
   }));
 
 for (let i = 0; i < data.length; i++) {

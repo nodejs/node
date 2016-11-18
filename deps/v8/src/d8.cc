@@ -19,6 +19,7 @@
 
 #ifndef V8_SHARED
 #include <algorithm>
+#include <fstream>
 #include <vector>
 #endif  // !V8_SHARED
 
@@ -34,13 +35,16 @@
 #include "src/ostreams.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/libplatform/v8-tracing.h"
 #ifndef V8_SHARED
 #include "src/api.h"
 #include "src/base/cpu.h"
+#include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
+#include "src/interpreter/interpreter.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -133,7 +137,7 @@ class PredictablePlatform : public Platform {
   }
 
   uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, uint64_t id,
+                         const char* name, const char* scope, uint64_t id,
                          uint64_t bind_id, int numArgs, const char** argNames,
                          const uint8_t* argTypes, const uint64_t* argValues,
                          unsigned int flags) override {
@@ -203,6 +207,129 @@ Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
 
 }  // namespace
 
+namespace tracing {
+
+namespace {
+
+// String options that can be used to initialize TraceOptions.
+const char kRecordUntilFull[] = "record-until-full";
+const char kRecordContinuously[] = "record-continuously";
+const char kRecordAsMuchAsPossible[] = "record-as-much-as-possible";
+
+const char kRecordModeParam[] = "record_mode";
+const char kEnableSamplingParam[] = "enable_sampling";
+const char kEnableSystraceParam[] = "enable_systrace";
+const char kEnableArgumentFilterParam[] = "enable_argument_filter";
+const char kIncludedCategoriesParam[] = "included_categories";
+const char kExcludedCategoriesParam[] = "excluded_categories";
+
+class TraceConfigParser {
+ public:
+  static void FillTraceConfig(v8::Isolate* isolate,
+                              platform::tracing::TraceConfig* trace_config,
+                              const char* json_str) {
+    HandleScope outer_scope(isolate);
+    Local<Context> context = Context::New(isolate);
+    Context::Scope context_scope(context);
+    HandleScope inner_scope(isolate);
+
+    Local<String> source =
+        String::NewFromUtf8(isolate, json_str, NewStringType::kNormal)
+            .ToLocalChecked();
+    Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
+    Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
+
+    trace_config->SetTraceRecordMode(
+        GetTraceRecordMode(isolate, context, trace_config_object));
+    if (GetBoolean(isolate, context, trace_config_object,
+                   kEnableSamplingParam)) {
+      trace_config->EnableSampling();
+    }
+    if (GetBoolean(isolate, context, trace_config_object,
+                   kEnableSystraceParam)) {
+      trace_config->EnableSystrace();
+    }
+    if (GetBoolean(isolate, context, trace_config_object,
+                   kEnableArgumentFilterParam)) {
+      trace_config->EnableArgumentFilter();
+    }
+    UpdateCategoriesList(isolate, context, trace_config_object,
+                         kIncludedCategoriesParam, trace_config);
+    UpdateCategoriesList(isolate, context, trace_config_object,
+                         kExcludedCategoriesParam, trace_config);
+  }
+
+ private:
+  static bool GetBoolean(v8::Isolate* isolate, Local<Context> context,
+                         Local<v8::Object> object, const char* property) {
+    Local<Value> value = GetValue(isolate, context, object, property);
+    if (value->IsNumber()) {
+      Local<Boolean> v8_boolean = value->ToBoolean(context).ToLocalChecked();
+      return v8_boolean->Value();
+    }
+    return false;
+  }
+
+  static int UpdateCategoriesList(
+      v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
+      const char* property, platform::tracing::TraceConfig* trace_config) {
+    Local<Value> value = GetValue(isolate, context, object, property);
+    if (value->IsArray()) {
+      Local<Array> v8_array = Local<Array>::Cast(value);
+      for (int i = 0, length = v8_array->Length(); i < length; ++i) {
+        Local<Value> v = v8_array->Get(context, i)
+                             .ToLocalChecked()
+                             ->ToString(context)
+                             .ToLocalChecked();
+        String::Utf8Value str(v->ToString(context).ToLocalChecked());
+        if (kIncludedCategoriesParam == property) {
+          trace_config->AddIncludedCategory(*str);
+        } else {
+          trace_config->AddExcludedCategory(*str);
+        }
+      }
+      return v8_array->Length();
+    }
+    return 0;
+  }
+
+  static platform::tracing::TraceRecordMode GetTraceRecordMode(
+      v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object) {
+    Local<Value> value = GetValue(isolate, context, object, kRecordModeParam);
+    if (value->IsString()) {
+      Local<String> v8_string = value->ToString(context).ToLocalChecked();
+      String::Utf8Value str(v8_string);
+      if (strcmp(kRecordUntilFull, *str) == 0) {
+        return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
+      } else if (strcmp(kRecordContinuously, *str) == 0) {
+        return platform::tracing::TraceRecordMode::RECORD_CONTINUOUSLY;
+      } else if (strcmp(kRecordAsMuchAsPossible, *str) == 0) {
+        return platform::tracing::TraceRecordMode::RECORD_AS_MUCH_AS_POSSIBLE;
+      }
+    }
+    return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
+  }
+
+  static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
+                               Local<v8::Object> object, const char* property) {
+    Local<String> v8_str =
+        String::NewFromUtf8(isolate, property, NewStringType::kNormal)
+            .ToLocalChecked();
+    return object->Get(context, v8_str).ToLocalChecked();
+  }
+};
+
+}  // namespace
+
+static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
+    v8::Isolate* isolate, const char* json_str) {
+  platform::tracing::TraceConfig* trace_config =
+      new platform::tracing::TraceConfig();
+  TraceConfigParser::FillTraceConfig(isolate, trace_config, json_str);
+  return trace_config;
+}
+
+}  // namespace tracing
 
 class PerIsolateData {
  public:
@@ -336,7 +463,9 @@ MaybeLocal<Script> Shell::CompileString(
     ScriptCompiler::CompileOptions compile_options, SourceType source_type) {
   Local<Context> context(isolate->GetCurrentContext());
   ScriptOrigin origin(name);
-  if (compile_options == ScriptCompiler::kNoCompileOptions) {
+  // TODO(adamk): Make use of compile options for Modules.
+  if (compile_options == ScriptCompiler::kNoCompileOptions ||
+      source_type == MODULE) {
     ScriptCompiler::Source script_source(source, origin);
     return source_type == SCRIPT
                ? ScriptCompiler::Compile(context, &script_source,
@@ -356,11 +485,9 @@ MaybeLocal<Script> Shell::CompileString(
     DCHECK(false);  // A new compile option?
   }
   if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
+  DCHECK_EQ(SCRIPT, source_type);
   MaybeLocal<Script> result =
-      source_type == SCRIPT
-          ? ScriptCompiler::Compile(context, &cached_source, compile_options)
-          : ScriptCompiler::CompileModule(context, &cached_source,
-                                          compile_options);
+      ScriptCompiler::Compile(context, &cached_source, compile_options);
   CHECK(data == NULL || !data->rejected);
   return result;
 }
@@ -521,9 +648,8 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global());
 }
 
-
-// Realm.create() creates a new realm and returns its index.
-void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+MaybeLocal<Context> Shell::CreateRealm(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -540,12 +666,29 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (context.IsEmpty()) {
     DCHECK(try_catch.HasCaught());
     try_catch.ReThrow();
-    return;
+    return MaybeLocal<Context>();
   }
   data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
+  return context;
 }
 
+// Realm.create() creates a new realm with a distinct security token
+// and returns its index.
+void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CreateRealm(args);
+}
+
+// Realm.createAllowCrossRealmAccess() creates a new realm with the same
+// security token as the current realm.
+void Shell::RealmCreateAllowCrossRealmAccess(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<Context> context;
+  if (CreateRealm(args).ToLocal(&context)) {
+    context->SetSecurityToken(
+        args.GetIsolate()->GetEnteredContext()->GetSecurityToken());
+  }
+}
 
 // Realm.dispose(i) disposes the reference to the realm i.
 void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -907,25 +1050,28 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     // Print (filename):(line number): (message).
     v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
-    int linenum =
-        message->GetLineNumber(isolate->GetCurrentContext()).FromJust();
+    Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
+    int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);
-    // Print line of source code.
-    v8::String::Utf8Value sourceline(
-        message->GetSourceLine(isolate->GetCurrentContext()).ToLocalChecked());
-    const char* sourceline_string = ToCString(sourceline);
-    printf("%s\n", sourceline_string);
-    // Print wavy underline (GetUnderline is deprecated).
-    int start =
-        message->GetStartColumn(isolate->GetCurrentContext()).FromJust();
-    for (int i = 0; i < start; i++) {
-      printf(" ");
+    Local<String> sourceline;
+    if (message->GetSourceLine(isolate->GetCurrentContext())
+            .ToLocal(&sourceline)) {
+      // Print line of source code.
+      v8::String::Utf8Value sourcelinevalue(sourceline);
+      const char* sourceline_string = ToCString(sourcelinevalue);
+      printf("%s\n", sourceline_string);
+      // Print wavy underline (GetUnderline is deprecated).
+      int start =
+          message->GetStartColumn(isolate->GetCurrentContext()).FromJust();
+      for (int i = 0; i < start; i++) {
+        printf(" ");
+      }
+      int end = message->GetEndColumn(isolate->GetCurrentContext()).FromJust();
+      for (int i = start; i < end; i++) {
+        printf("^");
+      }
+      printf("\n");
     }
-    int end = message->GetEndColumn(isolate->GetCurrentContext()).FromJust();
-    for (int i = start; i < end; i++) {
-      printf("^");
-    }
-    printf("\n");
     Local<Value> stack_trace_string;
     if (try_catch->StackTrace(isolate->GetCurrentContext())
             .ToLocal(&stack_trace_string) &&
@@ -1067,8 +1213,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   Local<Function> fun = Local<Function>::New(isolate, stringify_function_);
   Local<Value> argv[1] = {value};
   v8::TryCatch try_catch(isolate);
-  MaybeLocal<Value> result =
-      fun->Call(context, Undefined(isolate), 1, argv).ToLocalChecked();
+  MaybeLocal<Value> result = fun->Call(context, Undefined(isolate), 1, argv);
   if (result.IsEmpty()) return String::Empty(isolate);
   return result.ToLocalChecked().As<String>();
 }
@@ -1114,6 +1259,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Version));
+  global_template->Set(
+      Symbol::GetToStringTag(isolate),
+      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
+          .ToLocalChecked());
 
   // Bind the Realm object.
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
@@ -1133,6 +1282,11 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "create", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, RealmCreate));
+  realm_template->Set(
+      String::NewFromUtf8(isolate, "createAllowCrossRealmAccess",
+                          NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
   realm_template->Set(
       String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
           .ToLocalChecked(),
@@ -1275,6 +1429,21 @@ struct CounterAndKey {
 inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
   return strcmp(lhs.key, rhs.key) < 0;
 }
+
+void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+
+  Local<Object> dispatch_counters = reinterpret_cast<i::Isolate*>(isolate)
+                                        ->interpreter()
+                                        ->GetDispatchCountersObject();
+  std::ofstream dispatch_counters_stream(
+      i::FLAG_trace_ignition_dispatches_output_file);
+  dispatch_counters_stream << *String::Utf8Value(
+      JSON::Stringify(context, dispatch_counters).ToLocalChecked());
+}
+
 #endif  // !V8_SHARED
 
 
@@ -1312,6 +1481,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
            "-------------+\n");
     delete [] counters;
   }
+
   delete counters_file_;
   delete counter_map_;
 #endif  // !V8_SHARED
@@ -1439,11 +1609,6 @@ void Shell::RunShell(Isolate* isolate) {
   while (true) {
     HandleScope inner_scope(isolate);
     printf("d8> ");
-#if defined(__native_client__)
-    // Native Client libc is used to being embedded in Chrome and
-    // has trouble recognizing when to flush.
-    fflush(stdout);
-#endif
     Local<String> input = Shell::ReadFromStdin(isolate);
     if (input.IsEmpty()) break;
     ExecuteString(isolate, input, name, true, true);
@@ -1951,6 +2116,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         return false;
       }
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--enable-tracing") == 0) {
+      options.trace_enabled = true;
+      argv[i] = NULL;
+    } else if (strncmp(argv[i], "--trace-config=", 15) == 0) {
+      options.trace_config = argv[i] + 15;
+      argv[i] = NULL;
     }
   }
 
@@ -2367,6 +2538,10 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 
 
 int Shell::Main(int argc, char* argv[]) {
+  std::ofstream trace_file;
+#ifndef V8_SHARED
+  v8::base::debug::EnableInProcessStackDumping();
+#endif
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
@@ -2383,7 +2558,7 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_MSC_VER)
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
-  v8::V8::InitializeICU(options.icu_data_file);
+  v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 #ifndef V8_SHARED
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
@@ -2434,6 +2609,38 @@ int Shell::Main(int argc, char* argv[]) {
     Initialize(isolate);
     PerIsolateData data(isolate);
 
+    if (options.trace_enabled) {
+      trace_file.open("v8_trace.json");
+      platform::tracing::TracingController* tracing_controller =
+          new platform::tracing::TracingController();
+      platform::tracing::TraceBuffer* trace_buffer =
+          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+              platform::tracing::TraceBuffer::kRingBufferChunks,
+              platform::tracing::TraceWriter::CreateJSONTraceWriter(
+                  trace_file));
+      platform::tracing::TraceConfig* trace_config;
+      if (options.trace_config) {
+        int size = 0;
+        char* trace_config_json_str =
+            ReadChars(nullptr, options.trace_config, &size);
+        trace_config =
+            tracing::CreateTraceConfigFromJSON(isolate, trace_config_json_str);
+        delete[] trace_config_json_str;
+      } else {
+        trace_config =
+            platform::tracing::TraceConfig::CreateDefaultTraceConfig();
+      }
+      tracing_controller->Initialize(trace_buffer);
+      tracing_controller->StartTracing(trace_config);
+#ifndef V8_SHARED
+      if (!i::FLAG_verify_predictable) {
+        platform::SetTracingController(g_platform, tracing_controller);
+      }
+#else
+      platform::SetTracingController(g_platform, tracing_controller);
+#endif
+    }
+
 #ifndef V8_SHARED
     if (options.dump_heap_constants) {
       DumpHeapConstants(reinterpret_cast<i::Isolate*>(isolate));
@@ -2475,6 +2682,13 @@ int Shell::Main(int argc, char* argv[]) {
     if (options.use_interactive_shell()) {
       RunShell(isolate);
     }
+
+#ifndef V8_SHARED
+    if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches &&
+        i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
+      WriteIgnitionDispatchCountersFile(isolate);
+    }
+#endif
 
     // Shut down contexts and collect garbage.
     evaluation_context_.Reset();

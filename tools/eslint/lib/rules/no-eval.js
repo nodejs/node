@@ -93,7 +93,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const allowIndirect = Boolean(
             context.options[0] &&
             context.options[0].allowIndirect
@@ -116,8 +116,8 @@ module.exports = {
 
             funcInfo = {
                 upper: funcInfo,
-                node: node,
-                strict: strict,
+                node,
+                strict,
                 defaultThis: false,
                 initialized: strict
             };
@@ -157,7 +157,7 @@ module.exports = {
             }
 
             context.report({
-                node: node,
+                node,
                 loc: locationNode.loc.start,
                 message: "eval can be harmful."
             });
@@ -228,7 +228,7 @@ module.exports = {
 
             // Checks only direct calls to eval. It's simple!
             return {
-                "CallExpression:exit": function(node) {
+                "CallExpression:exit"(node) {
                     const callee = node.callee;
 
                     if (isIdentifier(callee, "eval")) {
@@ -239,7 +239,7 @@ module.exports = {
         }
 
         return {
-            "CallExpression:exit": function(node) {
+            "CallExpression:exit"(node) {
                 const callee = node.callee;
 
                 if (isIdentifier(callee, "eval")) {
@@ -247,7 +247,7 @@ module.exports = {
                 }
             },
 
-            Program: function(node) {
+            Program(node) {
                 const scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {},
                     strict =
@@ -257,14 +257,14 @@ module.exports = {
 
                 funcInfo = {
                     upper: null,
-                    node: node,
-                    strict: strict,
+                    node,
+                    strict,
                     defaultThis: true,
                     initialized: true
                 };
             },
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 const globalScope = context.getScope();
 
                 exitVarScope();
@@ -279,7 +279,7 @@ module.exports = {
             ArrowFunctionExpression: enterVarScope,
             "ArrowFunctionExpression:exit": exitVarScope,
 
-            ThisExpression: function(node) {
+            ThisExpression(node) {
                 if (!isMember(node.parent, "eval")) {
                     return;
                 }

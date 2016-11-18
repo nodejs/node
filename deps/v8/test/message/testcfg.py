@@ -86,13 +86,7 @@ class MessageTestSuite(testsuite.TestSuite):
     if not string: return True
     if not string.strip(): return True
     return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID") or
-            # These five patterns appear in normal Native Client output.
-            string.startswith("DEBUG MODE ENABLED") or
-            string.startswith("tools/nacl-run.py") or
-            string.find("BYPASSING ALL ACL CHECKS") > 0 or
-            string.find("Native Client module will be loaded") > 0 or
-            string.find("NaClHostDescOpen:") > 0)
+            string.startswith("ANDROID"))
 
   def IsFailureOutput(self, testcase):
     output = testcase.output

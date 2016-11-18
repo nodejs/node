@@ -30,7 +30,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const allowSameLine = context.options[0] && Boolean(context.options[0].allowMultiplePropertiesPerLine);
         const errorMessage = allowSameLine ?
             "Object properties must go on a new line if they aren't all on the same line." :
@@ -39,7 +39,7 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         return {
-            ObjectExpression: function(node) {
+            ObjectExpression(node) {
                 if (allowSameLine) {
                     if (node.properties.length > 1) {
                         const firstTokenOfFirstProperty = sourceCode.getFirstToken(node.properties[0]);
@@ -59,7 +59,7 @@ module.exports = {
 
                     if (lastTokenOfPreviousProperty.loc.end.line === firstTokenOfCurrentProperty.loc.start.line) {
                         context.report({
-                            node: node,
+                            node,
                             loc: firstTokenOfCurrentProperty.loc.start,
                             message: errorMessage
                         });

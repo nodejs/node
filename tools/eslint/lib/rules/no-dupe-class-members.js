@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let stack = [];
 
         /**
@@ -34,7 +34,7 @@ module.exports = {
          */
         function getState(name, isStatic) {
             const stateMap = stack[stack.length - 1];
-            const key = "$" + name; // to avoid "__proto__".
+            const key = `$${name}`; // to avoid "__proto__".
 
             if (!stateMap[key]) {
                 stateMap[key] = {
@@ -65,22 +65,22 @@ module.exports = {
         return {
 
             // Initializes the stack of state of member declarations.
-            Program: function() {
+            Program() {
                 stack = [];
             },
 
             // Initializes state of member declarations for the class.
-            ClassBody: function() {
+            ClassBody() {
                 stack.push(Object.create(null));
             },
 
             // Disposes the state for the class.
-            "ClassBody:exit": function() {
+            "ClassBody:exit"() {
                 stack.pop();
             },
 
             // Reports the node if its name has been declared already.
-            MethodDefinition: function(node) {
+            MethodDefinition(node) {
                 if (node.computed) {
                     return;
                 }
@@ -101,7 +101,7 @@ module.exports = {
                 }
 
                 if (isDuplicate) {
-                    context.report(node, "Duplicate name '{{name}}'.", {name: name});
+                    context.report(node, "Duplicate name '{{name}}'.", {name});
                 }
             }
         };

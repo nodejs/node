@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <vector>
 
 #include "test/cctest/interpreter/bytecode-expectations-printer.h"
@@ -12,7 +13,6 @@
 #include "include/v8.h"
 
 #include "src/base/logging.h"
-#include "src/base/smart-pointers.h"
 #include "src/compiler.h"
 #include "src/interpreter/interpreter.h"
 
@@ -90,17 +90,6 @@ class ProgramOptions final {
   std::string test_function_name_;
 };
 
-class ArrayBufferAllocator final : public v8::ArrayBuffer::Allocator {
- public:
-  void* Allocate(size_t length) override {
-    void* data = AllocateUninitialized(length);
-    if (data != nullptr) memset(data, 0, length);
-    return data;
-  }
-  void* AllocateUninitialized(size_t length) override { return malloc(length); }
-  void Free(void* data, size_t) override { free(data); }
-};
-
 class V8InitializationScope final {
  public:
   explicit V8InitializationScope(const char* exec_path);
@@ -110,7 +99,8 @@ class V8InitializationScope final {
   v8::Isolate* isolate() const { return isolate_; }
 
  private:
-  v8::base::SmartPointer<v8::Platform> platform_;
+  std::unique_ptr<v8::Platform> platform_;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
   v8::Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(V8InitializationScope);
@@ -350,14 +340,14 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   i::FLAG_always_opt = false;
   i::FLAG_allow_natives_syntax = true;
 
-  v8::V8::InitializeICU();
+  v8::V8::InitializeICUDefaultLocation(exec_path);
   v8::V8::InitializeExternalStartupData(exec_path);
   v8::V8::InitializePlatform(platform_.get());
   v8::V8::Initialize();
 
-  ArrayBufferAllocator allocator;
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = &allocator;
+  allocator_.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  create_params.array_buffer_allocator = allocator_.get();
 
   isolate_ = v8::Isolate::New(create_params);
 }

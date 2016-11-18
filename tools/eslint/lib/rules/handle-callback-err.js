@@ -24,7 +24,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const errorArgument = context.options[0] || "err";
 

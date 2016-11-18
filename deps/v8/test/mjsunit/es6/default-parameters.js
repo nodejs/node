@@ -350,14 +350,15 @@
 (function TestDirectiveThrows() {
   "use strict";
 
-  assertThrows(function(){ eval("function(x=1){'use strict';}") }, SyntaxError);
-  assertThrows(function(){ eval("(x=1) => {'use strict';}") }, SyntaxError);
-  assertThrows(
-    function(){ eval("(class{foo(x=1) {'use strict';}});") }, SyntaxError);
+  assertThrows("(function(x=1){'use strict';})", SyntaxError);
+  assertThrows("(x=1) => {'use strict';}", SyntaxError);
+  assertThrows("(class{foo(x=1) {'use strict';}});", SyntaxError);
 
-  assertThrows(
-    function(){ eval("function(a, x=1){'use strict';}") }, SyntaxError);
-  assertThrows(function(){ eval("(a, x=1) => {'use strict';}") }, SyntaxError);
-  assertThrows(
-    function(){ eval("(class{foo(a, x=1) {'use strict';}});") }, SyntaxError);
+  assertThrows("(function(a, x=1){'use strict';})", SyntaxError);
+  assertThrows("(a, x=1) => {'use strict';}", SyntaxError);
+  assertThrows("(class{foo(a, x=1) {'use strict';}});", SyntaxError);
+
+  assertThrows("(function({x}){'use strict';})", SyntaxError);
+  assertThrows("({x}) => {'use strict';}", SyntaxError);
+  assertThrows("(class{foo({x}) {'use strict';}});", SyntaxError);
 })();

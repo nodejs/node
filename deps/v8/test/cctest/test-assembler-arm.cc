@@ -412,29 +412,26 @@ TEST(6) {
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(&assm, ARMv7);
-    __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
-    __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
-    __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
-    __ add(r0, r1, Operand(r2));
-    __ add(r0, r0, Operand(r3));
-    __ mov(pc, Operand(lr));
+  __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
+  __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
+  __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
+  __ add(r0, r1, Operand(r2));
+  __ add(r0, r0, Operand(r3));
+  __ mov(pc, Operand(lr));
 
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res = reinterpret_cast<int>(
-        CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
-    ::printf("f() = %d\n", res);
-    CHECK_EQ(382, res);
-  }
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(382, res);
 }
 
 
@@ -2231,6 +2228,272 @@ TEST(ARMv8_vrintX) {
   }
 }
 
+TEST(ARMv8_vsel) {
+  // Test the vsel floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // Used to indicate whether a condition passed or failed.
+  static constexpr float kResultPass = 1.0f;
+  static constexpr float kResultFail = -kResultPass;
+
+  struct ResultsF32 {
+    float vseleq_;
+    float vselge_;
+    float vselgt_;
+    float vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    float vselne_;
+    float vsellt_;
+    float vselle_;
+    float vselvc_;
+  };
+
+  struct ResultsF64 {
+    double vseleq_;
+    double vselge_;
+    double vselgt_;
+    double vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    double vselne_;
+    double vsellt_;
+    double vselle_;
+    double vselvc_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVsel(uint32_t nzcv,
+    //                ResultsF32* results_f32,
+    //                ResultsF64* results_f64);
+    __ msr(CPSR_f, Operand(r0));
+
+    __ vmov(s1, kResultPass);
+    __ vmov(s2, kResultFail);
+
+    __ vsel(eq, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vseleq_));
+    __ vsel(ge, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselge_));
+    __ vsel(gt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselgt_));
+    __ vsel(vs, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvs_));
+
+    __ vsel(ne, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselne_));
+    __ vsel(lt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vsellt_));
+    __ vsel(le, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselle_));
+    __ vsel(vc, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvc_));
+
+    __ vmov(d1, kResultPass);
+    __ vmov(d2, kResultFail);
+
+    __ vsel(eq, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vseleq_));
+    __ vsel(ge, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselge_));
+    __ vsel(gt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselgt_));
+    __ vsel(vs, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvs_));
+
+    __ vsel(ne, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselne_));
+    __ vsel(lt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vsellt_));
+    __ vsel(le, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselle_));
+    __ vsel(vc, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvc_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F5 f = FUNCTION_CAST<F5>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+    STATIC_ASSERT(kResultPass == -kResultFail);
+#define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)                \
+  do {                                                                        \
+    ResultsF32 results_f32;                                                   \
+    ResultsF64 results_f64;                                                   \
+    uint32_t nzcv = (n << 31) | (z << 30) | (c << 29) | (v << 28);            \
+    dummy = CALL_GENERATED_CODE(isolate, f, nzcv, &results_f32, &results_f64, \
+                                0, 0);                                        \
+    CHECK_EQ(vseleq, results_f32.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f32.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f32.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f32.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f32.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f32.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f32.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f32.vselvc_);                                   \
+    CHECK_EQ(vseleq, results_f64.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f64.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f64.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f64.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f64.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f64.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f64.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f64.vselvc_);                                   \
+  } while (0);
+
+    //         N  Z  C  V  vseleq       vselge       vselgt       vselvs
+    CHECK_VSEL(0, 0, 0, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 0, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 0, 1, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 1, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 0, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 0, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 1, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 1, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(1, 0, 0, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 0, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 0, 1, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 1, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 1, 0, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 0, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+    CHECK_VSEL(1, 1, 1, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 1, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+
+#undef CHECK_VSEL
+  }
+}
+
+TEST(unaligned_loads) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t ldrh;
+    uint32_t ldrsh;
+    uint32_t ldr;
+  } T;
+  T t;
+
+  Assembler assm(isolate, NULL, 0);
+  __ ldrh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrh)));
+  __ ldrsh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrsh)));
+  __ ldr(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldr)));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  uint64_t data = UINT64_C(0x84838281807f7e7d);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 0, 0, 0);
+  CHECK_EQ(0x00007e7d, t.ldrh);
+  CHECK_EQ(0x00007e7d, t.ldrsh);
+  CHECK_EQ(0x807f7e7d, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 1, 0, 0);
+  CHECK_EQ(0x00007f7e, t.ldrh);
+  CHECK_EQ(0x00007f7e, t.ldrsh);
+  CHECK_EQ(0x81807f7e, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 2, 0, 0);
+  CHECK_EQ(0x0000807f, t.ldrh);
+  CHECK_EQ(0xffff807f, t.ldrsh);
+  CHECK_EQ(0x8281807f, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 3, 0, 0);
+  CHECK_EQ(0x00008180, t.ldrh);
+  CHECK_EQ(0xffff8180, t.ldrsh);
+  CHECK_EQ(0x83828180, t.ldr);
+}
+
+TEST(unaligned_stores) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  __ strh(r3, MemOperand(r0, r2));
+  __ str(r3, MemOperand(r1, r2));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 0, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000000000ba98), strh);
+    CHECK_EQ(UINT64_C(0x00000000fedcba98), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 1, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x0000000000ba9800), strh);
+    CHECK_EQ(UINT64_C(0x000000fedcba9800), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 2, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x00000000ba980000), strh);
+    CHECK_EQ(UINT64_C(0x0000fedcba980000), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 3, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000ba98000000), strh);
+    CHECK_EQ(UINT64_C(0x00fedcba98000000), str);
+  }
+}
 
 TEST(regress4292_b) {
   CcTest::InitializeVM();

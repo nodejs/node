@@ -51,12 +51,12 @@ listener is attached.
 const myEmitter = new MyEmitter();
 myEmitter.on('event', function(a, b) {
   console.log(a, b, this);
-    // Prints:
-    //   a b MyEmitter {
-    //     domain: null,
-    //     _events: { event: [Function] },
-    //     _eventsCount: 1,
-    //     _maxListeners: undefined }
+  // Prints:
+  //   a b MyEmitter {
+  //     domain: null,
+  //     _events: { event: [Function] },
+  //     _eventsCount: 1,
+  //     _maxListeners: undefined }
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -68,7 +68,7 @@ the `this` keyword will no longer reference the `EventEmitter` instance:
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
-    // Prints: a b {}
+  // Prints: a b {}
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -103,9 +103,9 @@ myEmitter.on('event', () => {
   console.log(++m);
 });
 myEmitter.emit('event');
-  // Prints: 1
+// Prints: 1
 myEmitter.emit('event');
-  // Prints: 2
+// Prints: 2
 ```
 
 Using the `eventEmitter.once()` method, it is possible to register a listener
@@ -119,9 +119,9 @@ myEmitter.once('event', () => {
   console.log(++m);
 });
 myEmitter.emit('event');
-  // Prints: 1
+// Prints: 1
 myEmitter.emit('event');
-  // Ignored
+// Ignored
 ```
 
 ## Error events
@@ -137,7 +137,7 @@ stack trace is printed, and the Node.js process exits.
 ```js
 const myEmitter = new MyEmitter();
 myEmitter.emit('error', new Error('whoops!'));
-  // Throws and crashes Node.js
+// Throws and crashes Node.js
 ```
 
 To guard against crashing the Node.js process, a listener can be registered
@@ -152,7 +152,7 @@ process.on('uncaughtException', (err) => {
 });
 
 myEmitter.emit('error', new Error('whoops!'));
-  // Prints: whoops! there was an error
+// Prints: whoops! there was an error
 ```
 
 As a best practice, listeners should always be added for the `'error'` events.
@@ -163,7 +163,7 @@ myEmitter.on('error', (err) => {
   console.log('whoops! there was an error');
 });
 myEmitter.emit('error', new Error('whoops!'));
-  // Prints: whoops! there was an error
+// Prints: whoops! there was an error
 ```
 
 ## Class: EventEmitter
@@ -214,9 +214,9 @@ myEmitter.on('event', () => {
   console.log('A');
 });
 myEmitter.emit('event');
-  // Prints:
-  //   B
-  //   A
+// Prints:
+//   B
+//   A
 ```
 
 ### Event: 'removeListener'
@@ -245,7 +245,7 @@ const myEmitter = new MyEmitter();
 myEmitter.on('event', () => {});
 myEmitter.on('event', () => {});
 console.log(EventEmitter.listenerCount(myEmitter, 'event'));
-  // Prints: 2
+// Prints: 2
 ```
 
 ### EventEmitter.defaultMaxListeners
@@ -278,6 +278,15 @@ emitter.once('event', () => {
 });
 ```
 
+The [`--trace-warnings`][] command line flag can be used to display the
+stack trace for such warnings.
+
+The emitted warning can be inspected with [`process.on('warning')`][] and will
+have the additional `emitter`, `type` and `count` properties, referring to
+the event emitter instance, the event’s name and the number of attached
+listeners, respectively.
+Its `name` property is set to `'MaxListenersExceededWarning'`.
+
 ### emitter.addListener(eventName, listener)
 <!-- YAML
 added: v0.1.26
@@ -285,7 +294,7 @@ added: v0.1.26
 
 Alias for `emitter.on(eventName, listener)`.
 
-### emitter.emit(eventName[, arg1][, arg2][, ...])
+### emitter.emit(eventName[, ...args])
 <!-- YAML
 added: v0.1.26
 -->
@@ -314,7 +323,7 @@ const sym = Symbol('symbol');
 myEE.on(sym, () => {});
 
 console.log(myEE.eventNames());
-  // Prints [ 'foo', 'bar', Symbol(symbol) ]
+// Prints: [ 'foo', 'bar', Symbol(symbol) ]
 ```
 
 ### emitter.getMaxListeners()
@@ -347,7 +356,7 @@ server.on('connection', (stream) => {
   console.log('someone connected!');
 });
 console.log(util.inspect(server.listeners('connection')));
-  // Prints: [ [Function] ]
+// Prints: [ [Function] ]
 ```
 
 ### emitter.on(eventName, listener)
@@ -381,9 +390,9 @@ const myEE = new EventEmitter();
 myEE.on('foo', () => console.log('a'));
 myEE.prependListener('foo', () => console.log('b'));
 myEE.emit('foo');
-  // Prints:
-  //   b
-  //   a
+// Prints:
+//   b
+//   a
 ```
 
 ### emitter.once(eventName, listener)
@@ -414,9 +423,9 @@ const myEE = new EventEmitter();
 myEE.once('foo', () => console.log('a'));
 myEE.prependOnceListener('foo', () => console.log('b'));
 myEE.emit('foo');
-  // Prints:
-  //   b
-  //   a
+// Prints:
+//   b
+//   a
 ```
 
 ### emitter.prependListener(eventName, listener)
@@ -521,15 +530,15 @@ myEmitter.on('event', callbackB);
 // callbackA removes listener callbackB but it will still be called.
 // Internal listener array at time of emit [callbackA, callbackB]
 myEmitter.emit('event');
-  // Prints:
-  //   A
-  //   B
+// Prints:
+//   A
+//   B
 
 // callbackB is now removed.
 // Internal listener array [callbackA]
 myEmitter.emit('event');
-  // Prints:
-  //   A
+// Prints:
+//   A
 
 ```
 
@@ -562,4 +571,6 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`domain`]: domain.html
 [`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception
+[`process.on('warning')`]: process.html#process_event_warning
 [stream]: stream.html
+[`--trace-warnings`]: cli.html#cli_trace_warnings

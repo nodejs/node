@@ -541,6 +541,13 @@ function prepare(target) {
       [s2]: 0, "-1": 0, "88": 0, "aaa": 0 };
   assertEquals(["0", "42", "88", "bla", "-1", "aaa", s1, s2],
       Reflect.ownKeys(obj));
+  // Force dict-mode elements.
+  delete obj[0];
+  assertEquals(["42", "88", "bla", "-1", "aaa", s1, s2],
+      Reflect.ownKeys(obj));
+  // Force dict-mode properties.
+  delete obj["bla"];
+  assertEquals(["42", "88", "-1", "aaa", s1, s2], Reflect.ownKeys(obj));
 })();
 
 

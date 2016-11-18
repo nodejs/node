@@ -50,7 +50,7 @@ elif [ $keycount -ne 1 ]; then
   done
 fi
 
-gpgfing=$(gpg --fingerprint $gpgkey | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
+gpgfing=$(gpg --keyid-format 0xLONG --fingerprint $gpgkey | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
 
 if ! test "$(grep $gpgfing README.md)"; then
   echo 'Error: this GPG key fingerprint is not listed in ./README.md'
@@ -69,15 +69,16 @@ function sign {
 
   local version=$1
 
-  gpgtagkey=$(git tag -v $version 2>&1 | grep 'key ID' | awk '{print $NF}')
-
-  if [ "X${gpgtagkey}" == "X" ]; then
-    echo "Could not find signed tag for \"${version}\""
+  if ! git tag -v $version 2>&1 | grep "${gpgkey}" | grep key > /dev/null; then
+    echo "Could not find signed tag for \"${version}\" or GPG key is not yours"
     exit 1
   fi
 
-  if [ "${gpgtagkey}" != "${gpgkey}" ]; then
-    echo "GPG key for \"${version}\" tag is not yours, cannot sign"
+  ghtaggedversion=$(curl -sL https://raw.githubusercontent.com/nodejs/node/${version}/src/node_version.h \
+      | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 } END{ v = "v" substr(v, 2); print v }')
+  if [ "${version}" != "${ghtaggedversion}" ]; then
+    echo "Could not find tagged version on github.com/nodejs/node, did you push your tag?"
+    exit 1
   fi
 
   shapath=$(ssh ${webuser}@${webhost} $signcmd nodejs $version)
@@ -97,7 +98,8 @@ function sign {
 
   scp ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
 
-  gpg --default-key $gpgkey --clearsign ${tmpdir}/${shafile}
+  gpg --default-key $gpgkey --clearsign --digest-algo SHA256 ${tmpdir}/${shafile}
+  gpg --default-key $gpgkey --detach-sign --digest-algo SHA256 ${tmpdir}/${shafile}
 
   echo "Wrote to ${tmpdir}/"
 
@@ -117,7 +119,7 @@ function sign {
     fi
 
     if [ "X${yorn}" == "Xy" ]; then
-      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${webuser}@${webhost}:${shadir}/
+      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.sig ${webuser}@${webhost}:${shadir}/
       break
     fi
   done

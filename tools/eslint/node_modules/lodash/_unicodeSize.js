@@ -34,7 +34,7 @@ var reUnicode = RegExp(rsFitz + '(?=' + rsFitz + ')|' + rsSymbol + rsSeq, 'g');
 function unicodeSize(string) {
   var result = reUnicode.lastIndex = 0;
   while (reUnicode.test(string)) {
-    result++;
+    ++result;
   }
   return result;
 }

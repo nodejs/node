@@ -28,6 +28,8 @@
 // Currency parsing is not yet supported. We need ICU49 or higher to get
 // it working.
 
+// Flags: --intl-extra
+
 var nf = new Intl.NumberFormat(['en'], {style: 'currency', currency: 'USD'});
 
 assertEquals(undefined, nf.v8Parse('USD 123.43'));

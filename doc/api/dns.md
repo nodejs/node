@@ -6,9 +6,9 @@ The `dns` module contains functions belonging to two different categories:
 
 1) Functions that use the underlying operating system facilities to perform
 name resolution, and that do not necessarily perform any network communication.
-This category contains only one function: [`dns.lookup()`][]. __Developers
+This category contains only one function: [`dns.lookup()`][]. **Developers
 looking to perform name resolution in the same way that other applications on
-the same operating system behave should use [`dns.lookup()`][].__
+the same operating system behave should use [`dns.lookup()`][].**
 
 For example, looking up `nodejs.org`.
 
@@ -148,7 +148,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is the error code.
 const dns = require('dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
-    // Prints: localhost ssh
+  // Prints: localhost ssh
 });
 ```
 
@@ -260,7 +260,7 @@ added: v0.1.90
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 contain an array of name server records available for `hostname`
-(e.g., `['ns1.example.com', 'ns2.example.com']`).
+(e.g. `['ns1.example.com', 'ns2.example.com']`).
 
 ## dns.resolveSoa(hostname, callback)
 <!-- YAML
@@ -330,7 +330,7 @@ added: v0.1.27
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function is
-is a two-dimentional array of the text records available for `hostname` (e.g.,
+is a two-dimensional array of the text records available for `hostname` (e.g.,
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, these could be either joined together or
 treated separately.

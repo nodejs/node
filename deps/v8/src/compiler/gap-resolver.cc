@@ -34,7 +34,6 @@ void GapResolver::Resolve(ParallelMove* moves) const {
   }
 }
 
-
 void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
   // Each call to this function performs a move and deletes it from the move
   // graph.  We first recursively perform any move blocking this one.  We mark a
@@ -75,7 +74,7 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
   // This move's source may have changed due to swaps to resolve cycles and so
   // it may now be the last move in the cycle.  If so remove it.
   InstructionOperand source = move->source();
-  if (source.EqualsCanonicalized(destination)) {
+  if (source.InterferesWith(destination)) {
     move->Eliminate();
     return;
   }
@@ -94,7 +93,7 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
 
   DCHECK((*blocker)->IsPending());
   // Ensure source is a register or both are stack slots, to limit swap cases.
-  if (source.IsStackSlot() || source.IsDoubleStackSlot()) {
+  if (source.IsStackSlot() || source.IsFPStackSlot()) {
     std::swap(source, destination);
   }
   assembler_->AssembleSwap(&source, &destination);

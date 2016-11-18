@@ -22,7 +22,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
         const callbacks = context.options[0] || ["callback", "cb", "next"],
             sourceCode = context.getSourceCode();
@@ -110,7 +110,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
 
                 // if we're not a callback we can return
                 if (!isCallback(node)) {

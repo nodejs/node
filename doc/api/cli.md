@@ -234,6 +234,16 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`)
 
 
+### `--openssl-config=file`
+<!-- YAML
+added: v6.9.0
+-->
+
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+`./configure --openssl-fips`.
+
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
@@ -277,6 +287,13 @@ added: v0.11.15
 Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small-icu support.
 
+### `NODE_PRESERVE_SYMLINKS=1`
+<!-- YAML
+added: v7.1.0
+-->
+
+When set to `1`, instructs the module loader to preserve symbolic links when
+resolving and caching modules.
 
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML

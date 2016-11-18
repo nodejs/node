@@ -29,7 +29,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const props = context.options[0] && Boolean(context.options[0].props);
 
         /**

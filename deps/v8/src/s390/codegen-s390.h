@@ -8,7 +8,6 @@
 #ifndef V8_S390_CODEGEN_S390_H_
 #define V8_S390_CODEGEN_S390_H_
 
-#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -25,19 +24,6 @@ class StringCharLoadGenerator : public AllStatic {
  private:
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
 };
-
-class MathExpGenerator : public AllStatic {
- public:
-  // Register input isn't modified. All other registers are clobbered.
-  static void EmitMathExp(MacroAssembler* masm, DoubleRegister input,
-                          DoubleRegister result, DoubleRegister double_scratch1,
-                          DoubleRegister double_scratch2, Register temp1,
-                          Register temp2, Register temp3);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
 }  // namespace internal
 }  // namespace v8
 

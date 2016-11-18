@@ -1,15 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Buffer = require('buffer').Buffer;
+const Buffer = require('buffer').Buffer;
 
-var b = Buffer.from('abcdef');
-var buf_a = Buffer.from('a');
-var buf_bc = Buffer.from('bc');
-var buf_f = Buffer.from('f');
-var buf_z = Buffer.from('z');
-var buf_empty = Buffer.from('');
+const b = Buffer.from('abcdef');
+const buf_a = Buffer.from('a');
+const buf_bc = Buffer.from('bc');
+const buf_f = Buffer.from('f');
+const buf_z = Buffer.from('z');
+const buf_empty = Buffer.from('');
 
 assert.equal(b.indexOf('a'), 0);
 assert.equal(b.indexOf('a', 1), -1);
@@ -77,6 +77,12 @@ assert.equal(b.indexOf(Buffer.from('f'), -1), 5);
 assert.equal(b.indexOf(Buffer.from('f'), 6), -1);
 
 assert.equal(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), -1);
+
+// test invalid and uppercase encoding
+assert.strictEqual(b.indexOf('b', 'utf8'), 1);
+assert.strictEqual(b.indexOf('b', 'UTF8'), 1);
+assert.strictEqual(b.indexOf('62', 'HEX'), 1);
+assert.throws(() => b.indexOf('bad', 'enc'), /Unknown encoding: enc/);
 
 // test hex encoding
 assert.strictEqual(

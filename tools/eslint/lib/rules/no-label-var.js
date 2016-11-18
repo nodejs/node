@@ -26,7 +26,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -49,7 +49,7 @@ module.exports = {
 
         return {
 
-            LabeledStatement: function(node) {
+            LabeledStatement(node) {
 
                 // Fetch the innermost scope.
                 const scope = context.getScope();

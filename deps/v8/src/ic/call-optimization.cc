@@ -89,11 +89,12 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
 
 void CallOptimization::Initialize(
     Handle<FunctionTemplateInfo> function_template_info) {
-  if (function_template_info->call_code()->IsUndefined()) return;
+  Isolate* isolate = function_template_info->GetIsolate();
+  if (function_template_info->call_code()->IsUndefined(isolate)) return;
   api_call_info_ =
       handle(CallHandlerInfo::cast(function_template_info->call_code()));
 
-  if (!function_template_info->signature()->IsUndefined()) {
+  if (!function_template_info->signature()->IsUndefined(isolate)) {
     expected_receiver_type_ =
         handle(FunctionTemplateInfo::cast(function_template_info->signature()));
   }
@@ -110,15 +111,17 @@ void CallOptimization::Initialize(Handle<JSFunction> function) {
 
 void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
   if (!function->shared()->IsApiFunction()) return;
-  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data());
+  Isolate* isolate = function->GetIsolate();
+  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data(),
+                                    isolate);
 
   // Require a C++ callback.
-  if (info->call_code()->IsUndefined()) return;
-  api_call_info_ = handle(CallHandlerInfo::cast(info->call_code()));
+  if (info->call_code()->IsUndefined(isolate)) return;
+  api_call_info_ = handle(CallHandlerInfo::cast(info->call_code()), isolate);
 
-  if (!info->signature()->IsUndefined()) {
+  if (!info->signature()->IsUndefined(isolate)) {
     expected_receiver_type_ =
-        handle(FunctionTemplateInfo::cast(info->signature()));
+        handle(FunctionTemplateInfo::cast(info->signature()), isolate);
   }
 
   is_simple_api_call_ = true;

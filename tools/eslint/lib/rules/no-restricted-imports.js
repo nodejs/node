@@ -25,7 +25,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
         const restrictedImports = context.options;
 
         // if no imports are restricted we don"t need to check
@@ -34,7 +34,7 @@ module.exports = {
         }
 
         return {
-            ImportDeclaration: function(node) {
+            ImportDeclaration(node) {
                 if (node && node.source && node.source.value) {
 
                     const value = node.source.value.trim();

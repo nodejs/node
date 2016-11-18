@@ -114,7 +114,7 @@ class InterpreterTester {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
     if (!feedback_vector_.is_null()) {
-      function->shared()->set_feedback_vector(
+      function->literals()->set_feedback_vector(
           *feedback_vector_.ToHandleChecked());
     }
     return function;

@@ -11,7 +11,10 @@ function f(a) {
 
 var rec = new Receiver();
 
-var proto = rec.__proto__.__proto__;
+// Formerly, this mutated rec.__proto__.__proto__, but
+// the global object prototype chain is now immutable;
+// not sure if this test now hits the original hazard case.
+var proto = rec.__proto__;
 
 // Initialize prototype chain dependent IC (nonexistent load).
 assertEquals(undefined, f(rec));

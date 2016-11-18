@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` redeclaration",
+            description: "disallow variable redeclaration",
             category: "Best Practices",
             recommended: true
         },
@@ -28,7 +28,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals)
         };

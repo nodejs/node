@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
   }
 
   i::CpuFeatures::Probe(true);
-  V8::InitializeICU();
+  V8::InitializeICUDefaultLocation(argv[0]);
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();

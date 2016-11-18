@@ -20,10 +20,10 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 const globalScope = context.getScope();
                 const variable = globalScope.set.get("Symbol");
 

@@ -43,7 +43,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Constants

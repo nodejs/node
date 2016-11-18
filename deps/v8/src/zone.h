@@ -8,9 +8,9 @@
 #include <limits>
 
 #include "src/base/accounting-allocator.h"
+#include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #include "src/splay-tree.h"
 
@@ -244,8 +244,7 @@ class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
-
-typedef TemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
+typedef base::TemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
 
 }  // namespace internal
 }  // namespace v8

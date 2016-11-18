@@ -1,5 +1,5 @@
 // Modified embenchen to direct to asm-wasm.
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 var EXPECTED_OUTPUT =
   'GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA\n' +
@@ -5828,7 +5828,8 @@ function asmPrintFloat(x, y) {
   Module.print('float ' + x + ',' + y);// + ' ' + new Error().stack);
 }
 // EMSCRIPTEN_START_ASM
-var asm = Wasm.instantiateModuleFromAsm((function Module(global, env, buffer) {
+var ModuleFunc;
+var asm = (ModuleFunc = function(global, env, buffer) {
   'use asm';
   var HEAP8 = new global.Int8Array(buffer);
   var HEAP16 = new global.Int16Array(buffer);
@@ -8392,9 +8393,10 @@ function b2() {
   var FUNCTION_TABLE_v = [b2];
 
   return { _strlen: _strlen, _free: _free, _main: _main, _memset: _memset, _malloc: _malloc, _memcpy: _memcpy, runPostSets: runPostSets, stackAlloc: stackAlloc, stackSave: stackSave, stackRestore: stackRestore, setThrew: setThrew, setTempRet0: setTempRet0, setTempRet1: setTempRet1, setTempRet2: setTempRet2, setTempRet3: setTempRet3, setTempRet4: setTempRet4, setTempRet5: setTempRet5, setTempRet6: setTempRet6, setTempRet7: setTempRet7, setTempRet8: setTempRet8, setTempRet9: setTempRet9, dynCall_ii: dynCall_ii, dynCall_vi: dynCall_vi, dynCall_v: dynCall_v };
-}).toString(),
+})
 // EMSCRIPTEN_END_ASM
-{ "Math": Math, "Int8Array": Int8Array, "Int16Array": Int16Array, "Int32Array": Int32Array, "Uint8Array": Uint8Array, "Uint16Array": Uint16Array, "Uint32Array": Uint32Array, "Float32Array": Float32Array, "Float64Array": Float64Array, "abort": abort, "assert": assert, "asmPrintInt": asmPrintInt, "asmPrintFloat": asmPrintFloat, "min": Math_min, "invoke_ii": invoke_ii, "invoke_vi": invoke_vi, "invoke_v": invoke_v, "_send": _send, "___setErrNo": ___setErrNo, "___cxa_is_number_type": ___cxa_is_number_type, "___cxa_allocate_exception": ___cxa_allocate_exception, "___cxa_find_matching_catch": ___cxa_find_matching_catch, "_fflush": _fflush, "_time": _time, "_pwrite": _pwrite, "__reallyNegative": __reallyNegative, "_sbrk": _sbrk, "_emscripten_memcpy_big": _emscripten_memcpy_big, "_fileno": _fileno, "___resumeException": ___resumeException, "__ZSt18uncaught_exceptionv": __ZSt18uncaught_exceptionv, "_sysconf": _sysconf, "_puts": _puts, "_mkport": _mkport, "_write": _write, "___errno_location": ___errno_location, "__ZNSt9exceptionD2Ev": __ZNSt9exceptionD2Ev, "_fputc": _fputc, "___cxa_throw": ___cxa_throw, "_abort": _abort, "_fwrite": _fwrite, "___cxa_does_inherit": ___cxa_does_inherit, "_fprintf": _fprintf, "__formatString": __formatString, "_fputs": _fputs, "_printf": _printf, "STACKTOP": STACKTOP, "STACK_MAX": STACK_MAX, "tempDoublePtr": tempDoublePtr, "ABORT": ABORT, "NaN": NaN, "Infinity": Infinity, "__ZTISt9exception": __ZTISt9exception, "__ZTVN10__cxxabiv120__si_class_type_infoE": __ZTVN10__cxxabiv120__si_class_type_infoE }, buffer);
+({ "Math": Math, "Int8Array": Int8Array, "Int16Array": Int16Array, "Int32Array": Int32Array, "Uint8Array": Uint8Array, "Uint16Array": Uint16Array, "Uint32Array": Uint32Array, "Float32Array": Float32Array, "Float64Array": Float64Array }, { "abort": abort, "assert": assert, "asmPrintInt": asmPrintInt, "asmPrintFloat": asmPrintFloat, "min": Math_min, "invoke_ii": invoke_ii, "invoke_vi": invoke_vi, "invoke_v": invoke_v, "_send": _send, "___setErrNo": ___setErrNo, "___cxa_is_number_type": ___cxa_is_number_type, "___cxa_allocate_exception": ___cxa_allocate_exception, "___cxa_find_matching_catch": ___cxa_find_matching_catch, "_fflush": _fflush, "_time": _time, "_pwrite": _pwrite, "__reallyNegative": __reallyNegative, "_sbrk": _sbrk, "_emscripten_memcpy_big": _emscripten_memcpy_big, "_fileno": _fileno, "___resumeException": ___resumeException, "__ZSt18uncaught_exceptionv": __ZSt18uncaught_exceptionv, "_sysconf": _sysconf, "_puts": _puts, "_mkport": _mkport, "_write": _write, "___errno_location": ___errno_location, "__ZNSt9exceptionD2Ev": __ZNSt9exceptionD2Ev, "_fputc": _fputc, "___cxa_throw": ___cxa_throw, "_abort": _abort, "_fwrite": _fwrite, "___cxa_does_inherit": ___cxa_does_inherit, "_fprintf": _fprintf, "__formatString": __formatString, "_fputs": _fputs, "_printf": _printf, "STACKTOP": STACKTOP, "STACK_MAX": STACK_MAX, "tempDoublePtr": tempDoublePtr, "ABORT": ABORT, "NaN": NaN, "Infinity": Infinity, "__ZTISt9exception": __ZTISt9exception, "__ZTVN10__cxxabiv120__si_class_type_infoE": __ZTVN10__cxxabiv120__si_class_type_infoE }, buffer);
+assertTrue(%IsAsmWasmCode(ModuleFunc));
 var _strlen = Module["_strlen"] = asm["_strlen"];
 var _free = Module["_free"] = asm["_free"];
 var _main = Module["_main"] = asm["_main"];

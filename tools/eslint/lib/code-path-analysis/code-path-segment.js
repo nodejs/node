@@ -138,7 +138,7 @@ CodePathSegment.prototype = {
      * @param {CodePathSegment} segment - A previous segment to check.
      * @returns {boolean} `true` if the segment is coming from the end of a loop.
      */
-    isLoopedPrevSegment: function(segment) {
+    isLoopedPrevSegment(segment) {
         return this.internal.loopedPrevSegments.indexOf(segment) !== -1;
     }
 };

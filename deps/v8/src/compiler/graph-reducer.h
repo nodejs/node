@@ -74,8 +74,7 @@ class AdvancedReducer : public Reducer {
     virtual void Revisit(Node* node) = 0;
     // Replace value uses of {node} with {value} and effect uses of {node} with
     // {effect}. If {effect == nullptr}, then use the effect input to {node}.
-    // All
-    // control uses will be relaxed assuming {node} cannot throw.
+    // All control uses will be relaxed assuming {node} cannot throw.
     virtual void ReplaceWithValue(Node* node, Node* value, Node* effect,
                                   Node* control) = 0;
   };

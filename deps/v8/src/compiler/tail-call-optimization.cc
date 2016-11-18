@@ -20,7 +20,7 @@ Reduction TailCallOptimization::Reduce(Node* node) {
   // other effect between the Call and the Return nodes.
   Node* const call = NodeProperties::GetValueInput(node, 0);
   if (call->opcode() == IrOpcode::kCall &&
-      OpParameter<CallDescriptor const*>(call)->SupportsTailCalls() &&
+      CallDescriptorOf(call->op())->SupportsTailCalls() &&
       NodeProperties::GetEffectInput(node) == call &&
       !NodeProperties::IsExceptionalCall(call)) {
     Node* const control = NodeProperties::GetControlInput(node);
@@ -71,7 +71,7 @@ Reduction TailCallOptimization::Reduce(Node* node) {
                           NodeProperties::GetValueInput(call, index));
       }
       NodeProperties::ChangeOp(
-          node, common()->TailCall(OpParameter<CallDescriptor const*>(call)));
+          node, common()->TailCall(CallDescriptorOf(call->op())));
       return Changed(node);
     }
   }

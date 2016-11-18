@@ -89,3 +89,39 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('a'));
   EXPECT_EQ('a', ToLower('A'));
 }
+
+namespace node {
+  void LowMemoryNotification() {}
+}
+
+TEST(UtilTest, Malloc) {
+  using node::Malloc;
+  EXPECT_NE(nullptr, Malloc<char>(0));
+  EXPECT_NE(nullptr, Malloc<char>(1));
+  EXPECT_NE(nullptr, Malloc(0));
+  EXPECT_NE(nullptr, Malloc(1));
+}
+
+TEST(UtilTest, Calloc) {
+  using node::Calloc;
+  EXPECT_NE(nullptr, Calloc<char>(0));
+  EXPECT_NE(nullptr, Calloc<char>(1));
+  EXPECT_NE(nullptr, Calloc(0));
+  EXPECT_NE(nullptr, Calloc(1));
+}
+
+TEST(UtilTest, UncheckedMalloc) {
+  using node::UncheckedMalloc;
+  EXPECT_NE(nullptr, UncheckedMalloc<char>(0));
+  EXPECT_NE(nullptr, UncheckedMalloc<char>(1));
+  EXPECT_NE(nullptr, UncheckedMalloc(0));
+  EXPECT_NE(nullptr, UncheckedMalloc(1));
+}
+
+TEST(UtilTest, UncheckedCalloc) {
+  using node::UncheckedCalloc;
+  EXPECT_NE(nullptr, UncheckedCalloc<char>(0));
+  EXPECT_NE(nullptr, UncheckedCalloc<char>(1));
+  EXPECT_NE(nullptr, UncheckedCalloc(0));
+  EXPECT_NE(nullptr, UncheckedCalloc(1));
+}

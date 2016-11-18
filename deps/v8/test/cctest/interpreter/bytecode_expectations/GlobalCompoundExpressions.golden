@@ -16,15 +16,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(LdaGlobal), U8(0), U8(1),
-  B(Star), R(0),
-  B(LdaSmi), U8(1),
-  B(BitwiseAnd), R(0),
-  B(StaGlobalSloppy), U8(0), U8(3),
-  B(Return),
+  /*   26 E> */ B(StackCheck),
+  /*   31 S> */ B(LdrGlobal), U8(1), R(0),
+                B(BitwiseAndSmi), U8(1), R(0), U8(3),
+  /*   45 E> */ B(StaGlobalSloppy), U8(0), U8(4),
+  /*   51 S> */ B(Return),
 ]
 constant pool: [
   "global",
@@ -40,15 +38,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 12
 bytecodes: [
-  B(StackCheck),
-  B(LdaGlobal), U8(0), U8(1),
-  B(Star), R(0),
-  B(LdaSmi), U8(1),
-  B(Add), R(0),
-  B(StaGlobalSloppy), U8(0), U8(3),
-  B(Return),
+  /*   27 E> */ B(StackCheck),
+  /*   32 S> */ B(LdrGlobal), U8(1), R(0),
+                B(AddSmi), U8(1), R(0), U8(3),
+  /*   51 E> */ B(StaGlobalSloppy), U8(0), U8(4),
+  /*   57 S> */ B(Return),
 ]
 constant pool: [
   "unallocated",

@@ -10,7 +10,7 @@
 from argparse import ArgumentParser
 from copy import deepcopy
 from gc_nvp_common import split_nvp
-from math import log
+from math import ceil,log
 from sys import stdin
 
 
@@ -74,11 +74,12 @@ class Histogram:
 
 
 class Category:
-  def __init__(self, key, histogram, csv):
+  def __init__(self, key, histogram, csv, percentiles):
     self.key = key
     self.values = []
     self.histogram = histogram
     self.csv = csv
+    self.percentiles = percentiles
 
   def process_entry(self, entry):
     if self.key in entry:
@@ -100,6 +101,16 @@ class Category:
   def empty(self):
     return len(self.values) == 0
 
+  def _compute_percentiles(self):
+    ret = []
+    if len(self.values) == 0:
+      return ret
+    sorted_values = sorted(self.values)
+    for percentile in self.percentiles:
+      index = int(ceil((len(self.values) - 1) * percentile / 100))
+      ret.append("  {0}%: {1}".format(percentile, sorted_values[index]))
+    return ret
+
   def __str__(self):
     if self.csv:
       ret = [self.key]
@@ -118,6 +129,8 @@ class Category:
         ret.append("  avg: {0}".format(self.avg()))
         if self.histogram:
           ret.append(str(self.histogram))
+        if self.percentiles:
+          ret.append("\n".join(self._compute_percentiles()))
       return "\n".join(ret)
 
   def __repr__(self):
@@ -160,6 +173,9 @@ def main():
                       help="rank keys by metric (default: no)")
   parser.add_argument('--csv', dest='csv',
                       action='store_true', help='provide output as csv')
+  parser.add_argument('--percentiles', dest='percentiles',
+                      type=str, default="",
+                      help='comma separated list of percentiles')
   args = parser.parse_args()
 
   histogram = None
@@ -171,7 +187,14 @@ def main():
       bucket_trait = LinearBucket(args.linear_histogram_granularity)
     histogram = Histogram(bucket_trait, not args.histogram_omit_empty)
 
-  categories = [ Category(key, deepcopy(histogram), args.csv)
+  percentiles = []
+  for percentile in args.percentiles.split(','):
+    try:
+      percentiles.append(float(percentile))
+    except ValueError:
+      pass
+
+  categories = [ Category(key, deepcopy(histogram), args.csv, percentiles)
                  for key in args.keys ]
 
   while True:

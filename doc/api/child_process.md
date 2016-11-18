@@ -132,7 +132,7 @@ added: v0.1.90
   * `encoding` {String} (Default: `'utf8'`)
   * `shell` {String} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
-     understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
+     understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {Number} (Default: `0`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
@@ -144,7 +144,7 @@ added: v0.1.90
   * `error` {Error}
   * `stdout` {String|Buffer}
   * `stderr` {String|Buffer}
-* Return: {ChildProcess}
+* Returns: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
 generated output.
@@ -217,7 +217,7 @@ added: v0.1.91
   * `error` {Error}
   * `stdout` {String|Buffer}
   * `stderr` {String|Buffer}
-* Return: {ChildProcess}
+* Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
 except that it does not spawn a shell. Rather, the specified executable `file`
@@ -263,9 +263,11 @@ added: v0.5.0
     [`stdio`][] for more details (Default: `false`)
   * `stdio` {Array} Supports the array version of [`child_process.spawn()`][]'s
     [`stdio`][] option. When this option is provided, it overrides `silent`.
+    The array must contain exactly one item with value `'ipc'` or an error will
+    be thrown. For instance `[0, 1, 2, 'ipc']`.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-* Return: {ChildProcess}
+* Returns: {ChildProcess}
 
 The `child_process.fork()` method is a special case of
 [`child_process.spawn()`][] used specifically to spawn new Node.js processes.
@@ -315,7 +317,7 @@ added: v0.1.90
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
-    or `/s /c` on Windows. Defaults to `false` (no shell).
+    or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * return: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -617,7 +619,7 @@ added: v0.11.12
   * `env` {Object} Environment key-value pairs
   * `shell` {String} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
-     understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
+     understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -670,7 +672,7 @@ added: v0.11.12
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
-    or `/s /c` on Windows. Defaults to `false` (no shell).
+    or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * return: {Object}
   * `pid` {Number} Pid of the child process
   * `output` {Array} Array of results from stdio output
@@ -773,6 +775,16 @@ added: v0.5.9
 
 The `'message'` event is triggered when a child process uses [`process.send()`][]
 to send messages.
+
+### child.channel
+<!-- YAML
+added: v7.1.0
+-->
+
+* {Object} A pipe representing the IPC channel to the child process.
+
+The `child.channel` property is a reference to the child's IPC channel. If no
+IPC channel currently exists, this property is `undefined`.
 
 ### child.connected
 <!-- YAML
@@ -889,7 +901,7 @@ added: v0.5.9
 * `sendHandle` {Handle}
 * `options` {Object}
 * `callback` {Function}
-* Return: {Boolean}
+* Returns: {Boolean}
 
 When an IPC channel has been established between the parent and child (
 i.e. when using [`child_process.fork()`][]), the `child.send()` method can be
@@ -1044,7 +1056,7 @@ this occurs.
 added: v0.1.90
 -->
 
-* {Stream}
+* {stream.Readable}
 
 A `Readable Stream` that represents the child process's `stderr`.
 
@@ -1059,7 +1071,7 @@ the same value.
 added: v0.1.90
 -->
 
-* {Stream}
+* {stream.Writable}
 
 A `Writable Stream` that represents the child process's `stdin`.
 
@@ -1117,7 +1129,7 @@ assert.equal(child.stdio[2], child.stderr);
 added: v0.1.90
 -->
 
-* {Stream}
+* {stream.Readable}
 
 A `Readable Stream` that represents the child process's `stdout`.
 
@@ -1143,6 +1155,7 @@ console.log('中文测试');
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: #child_process_event_message
+[`child.channel`]: #child_process_child_channel
 [`child.connected`]: #child_process_child_connected
 [`child.disconnect()`]: #child_process_child_disconnect
 [`child.kill()`]: #child_process_child_kill_signal

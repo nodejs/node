@@ -25,7 +25,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
         const restrictedGlobals = context.options;
 
         // if no globals are restricted we don't need to check
@@ -56,7 +56,7 @@ module.exports = {
         }
 
         return {
-            Program: function() {
+            Program() {
                 const scope = context.getScope();
 
                 // Report variables declared elsewhere (ex: variables defined as "global" by eslint)

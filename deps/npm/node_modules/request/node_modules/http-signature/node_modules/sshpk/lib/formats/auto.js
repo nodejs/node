@@ -14,24 +14,24 @@ var pem = require('./pem');
 var ssh = require('./ssh');
 var rfc4253 = require('./rfc4253');
 
-function read(buf) {
+function read(buf, options) {
 	if (typeof (buf) === 'string') {
 		if (buf.trim().match(/^[-]+[ ]*BEGIN/))
-			return (pem.read(buf));
+			return (pem.read(buf, options));
 		if (buf.match(/^\s*ssh-[a-z]/))
-			return (ssh.read(buf));
+			return (ssh.read(buf, options));
 		if (buf.match(/^\s*ecdsa-/))
-			return (ssh.read(buf));
+			return (ssh.read(buf, options));
 		buf = new Buffer(buf, 'binary');
 	} else {
 		assert.buffer(buf);
 		if (findPEMHeader(buf))
-			return (pem.read(buf));
+			return (pem.read(buf, options));
 		if (findSSHHeader(buf))
-			return (ssh.read(buf));
+			return (ssh.read(buf, options));
 	}
 	if (buf.readUInt32BE(0) < buf.length)
-		return (rfc4253.read(buf));
+		return (rfc4253.read(buf, options));
 	throw (new Error('Failed to auto-detect format of key'));
 }
 
@@ -68,6 +68,6 @@ function findPEMHeader(buf) {
 	return (true);
 }
 
-function write(key) {
+function write(key, options) {
 	throw (new Error('"auto" format cannot be used for writing'));
 }

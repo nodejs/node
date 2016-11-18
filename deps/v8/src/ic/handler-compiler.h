@@ -19,7 +19,7 @@ enum ReturnHolder { RETURN_HOLDER, DONT_RETURN_ANYTHING };
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
  public:
   static Handle<Code> Find(Handle<Name> name, Handle<Map> map, Code::Kind kind,
-                           CacheHolderFlag cache_holder, Code::StubType type);
+                           CacheHolderFlag cache_holder);
 
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
@@ -98,7 +98,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            Handle<Name> name, Label* miss,
                            PrototypeCheckType check, ReturnHolder return_what);
 
-  Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
+  Handle<Code> GetCode(Code::Kind kind, Handle<Name> name);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
   Handle<Map> map() const { return map_; }
   void set_map(Handle<Map> map) { map_ = map; }
@@ -123,11 +123,12 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   Handle<AccessorInfo> callback);
+                                   Handle<AccessorInfo> callback,
+                                   Handle<Code> slow_stub);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization,
-                                   int accessor_index);
+                                   int accessor_index, Handle<Code> slow_stub);
 
   Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
 
@@ -205,8 +206,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                                         Register prototype,
                                                         Label* miss);
 
-
-  Register scratch4() { return registers_[5]; }
+  Register scratch3() { return registers_[4]; }
 };
 
 
@@ -227,7 +227,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                     LanguageMode language_mode);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization,
-                                    int accessor_index);
+                                    int accessor_index, Handle<Code> slow_stub);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      int accessor_index,
                                      int expected_arguments);
@@ -241,8 +241,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
     GenerateStoreViaSetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
                            no_reg);
   }
-
-  static void GenerateSlow(MacroAssembler* masm);
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
@@ -268,18 +266,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateFieldTypeChecks(FieldType* field_type, Register value_reg,
                                Label* miss_label);
 
-  static Builtins::Name SlowBuiltin(Code::Kind kind) {
-    switch (kind) {
-      case Code::STORE_IC:
-        return Builtins::kStoreIC_Slow;
-      case Code::KEYED_STORE_IC:
-        return Builtins::kKeyedStoreIC_Slow;
-      default:
-        UNREACHABLE();
-    }
-    return Builtins::kStoreIC_Slow;
-  }
-
   static Register value();
 };
 
@@ -293,8 +279,10 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~ElementHandlerCompiler() {}
 
+  static Handle<Object> GetKeyedLoadHandler(Handle<Map> receiver_map,
+                                            Isolate* isolate);
   void CompileElementHandlers(MapHandleList* receiver_maps,
-                              CodeHandleList* handlers);
+                              List<Handle<Object>>* handlers);
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };

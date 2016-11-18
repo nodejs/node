@@ -12,6 +12,16 @@
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \
   V(Array_string, "Array")                                         \
+  V(arguments_to_string, "[object Arguments]")                     \
+  V(array_to_string, "[object Array]")                             \
+  V(boolean_to_string, "[object Boolean]")                         \
+  V(date_to_string, "[object Date]")                               \
+  V(error_to_string, "[object Error]")                             \
+  V(function_to_string, "[object Function]")                       \
+  V(number_to_string, "[object Number]")                           \
+  V(object_to_string, "[object Object]")                           \
+  V(regexp_to_string, "[object RegExp]")                           \
+  V(string_to_string, "[object String]")                           \
   V(bind_string, "bind")                                           \
   V(bool16x8_string, "bool16x8")                                   \
   V(Bool16x8_string, "Bool16x8")                                   \
@@ -22,6 +32,7 @@
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
   V(bound__string, "bound ")                                       \
+  V(buffer_string, "buffer")                                       \
   V(byte_length_string, "byteLength")                              \
   V(byte_offset_string, "byteOffset")                              \
   V(call_string, "call")                                           \
@@ -30,6 +41,7 @@
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(column_string, "column")                                       \
   V(compare_ic_string, "==")                                       \
   V(configurable_string, "configurable")                           \
   V(constructor_string, "constructor")                             \
@@ -47,6 +59,7 @@
   V(enumerable_string, "enumerable")                               \
   V(Error_string, "Error")                                         \
   V(eval_string, "eval")                                           \
+  V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
@@ -78,19 +91,24 @@
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
   V(last_index_string, "lastIndex")                                \
   V(length_string, "length")                                       \
+  V(line_string, "line")                                           \
   V(Map_string, "Map")                                             \
+  V(message_string, "message")                                     \
   V(minus_infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
   V(name_string, "name")                                           \
   V(nan_string, "NaN")                                             \
   V(next_string, "next")                                           \
+  V(not_equal, "not-equal")                                        \
   V(null_string, "null")                                           \
   V(null_to_string, "[object Null]")                               \
   V(number_string, "number")                                       \
   V(Number_string, "Number")                                       \
   V(object_string, "object")                                       \
   V(Object_string, "Object")                                       \
+  V(ok, "ok")                                                      \
   V(ownKeys_string, "ownKeys")                                     \
+  V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
   V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
@@ -98,12 +116,16 @@
   V(prototype_string, "prototype")                                 \
   V(Proxy_string, "Proxy")                                         \
   V(query_colon_string, "(?:)")                                    \
+  V(RangeError_string, "RangeError")                               \
+  V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
+  V(script_string, "script")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
   V(set_string, "set")                                             \
   V(Set_string, "Set")                                             \
   V(source_mapping_url_string, "source_mapping_url")               \
   V(source_string, "source")                                       \
+  V(sourceText_string, "sourceText")                               \
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(strict_compare_ic_string, "===")                               \
@@ -111,11 +133,14 @@
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
+  V(SyntaxError_string, "SyntaxError")                             \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
+  V(timed_out, "timed-out")                                        \
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \
+  V(TypeError_string, "TypeError")                                 \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \
   V(uint32x4_string, "uint32x4")                                   \
@@ -124,6 +149,7 @@
   V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
+  V(URIError_string, "URIError")                                   \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \
   V(value_string, "value")                                         \
@@ -135,10 +161,13 @@
   V(array_iteration_kind_symbol)            \
   V(array_iterator_next_symbol)             \
   V(array_iterator_object_symbol)           \
+  V(call_site_constructor_symbol)           \
   V(call_site_function_symbol)              \
   V(call_site_position_symbol)              \
   V(call_site_receiver_symbol)              \
   V(call_site_strict_symbol)                \
+  V(call_site_wasm_obj_symbol)              \
+  V(call_site_wasm_func_index_symbol)       \
   V(class_end_position_symbol)              \
   V(class_start_position_symbol)            \
   V(detailed_stack_trace_symbol)            \
@@ -146,12 +175,9 @@
   V(error_end_pos_symbol)                   \
   V(error_script_symbol)                    \
   V(error_start_pos_symbol)                 \
-  V(formatted_stack_trace_symbol)           \
   V(frozen_symbol)                          \
   V(hash_code_symbol)                       \
-  V(hidden_properties_symbol)               \
   V(home_object_symbol)                     \
-  V(internal_error_symbol)                  \
   V(intl_impl_object_symbol)                \
   V(intl_initialized_marker_symbol)         \
   V(intl_pattern_symbol)                    \
@@ -162,16 +188,16 @@
   V(nonextensible_symbol)                   \
   V(normal_ic_symbol)                       \
   V(not_mapped_symbol)                      \
-  V(observed_symbol)                        \
   V(premonomorphic_symbol)                  \
   V(promise_combined_deferred_symbol)       \
   V(promise_debug_marker_symbol)            \
+  V(promise_deferred_reactions_symbol)      \
+  V(promise_fulfill_reactions_symbol)       \
   V(promise_has_handler_symbol)             \
-  V(promise_on_resolve_symbol)              \
-  V(promise_on_reject_symbol)               \
   V(promise_raw_symbol)                     \
-  V(promise_status_symbol)                  \
-  V(promise_value_symbol)                   \
+  V(promise_reject_reactions_symbol)        \
+  V(promise_result_symbol)                  \
+  V(promise_state_symbol)                   \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
   V(strict_function_transition_symbol)      \

@@ -10,7 +10,7 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var hosterr = /Hostname\/IP doesn\'t match certificate\'s altnames/g;
+var hosterr = /Hostname\/IP doesn't match certificate's altnames/g;
 var testCases =
     [{ ca: ['ca1-cert'],
        key: 'agent2-key',

@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         const MATCHER = /^__(?:dir|file)name$/;
 
@@ -29,7 +29,7 @@ module.exports = {
 
         return {
 
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
 
                 const left = node.left,
                     right = node.right;

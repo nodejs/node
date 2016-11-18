@@ -27,7 +27,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
 
         //--------------------------------------------------------------------------
@@ -74,7 +74,7 @@ module.exports = {
 
         return {
 
-            Identifier: function(node) {
+            Identifier(node) {
                 const name = node.name,
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 

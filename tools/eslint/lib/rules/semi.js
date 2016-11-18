@@ -51,9 +51,9 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
-        const OPT_OUT_PATTERN = /[\[\(\/\+\-]/; // One of [(/+-
+        const OPT_OUT_PATTERN = /^[-[(\/+]$/; // One of [(/+-, but not ++ or --
         const options = context.options[1];
         const never = context.options[0] === "never",
             exceptOneLine = options && options.omitLastInOneLineBlock === true,
@@ -90,10 +90,10 @@ module.exports = {
             }
 
             context.report({
-                node: node,
-                loc: loc,
-                message: message,
-                fix: fix
+                node,
+                loc,
+                message,
+                fix
             });
 
         }
@@ -208,12 +208,12 @@ module.exports = {
             ContinueStatement: checkForSemicolon,
             ImportDeclaration: checkForSemicolon,
             ExportAllDeclaration: checkForSemicolon,
-            ExportNamedDeclaration: function(node) {
+            ExportNamedDeclaration(node) {
                 if (!node.declaration) {
                     checkForSemicolon(node);
                 }
             },
-            ExportDefaultDeclaration: function(node) {
+            ExportDefaultDeclaration(node) {
                 if (!/(?:Class|Function)Declaration/.test(node.declaration.type)) {
                     checkForSemicolon(node);
                 }

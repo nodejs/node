@@ -1,3 +1,4 @@
+// Flags: --expose_internals
 'use strict';
 require('../common');
 var assert = require('assert');
@@ -12,39 +13,41 @@ var O_RDWR = fs.constants.O_RDWR || 0;
 var O_TRUNC = fs.constants.O_TRUNC || 0;
 var O_WRONLY = fs.constants.O_WRONLY || 0;
 
-assert.equal(fs._stringToFlags('r'), O_RDONLY);
-assert.equal(fs._stringToFlags('r+'), O_RDWR);
-assert.equal(fs._stringToFlags('w'), O_TRUNC | O_CREAT | O_WRONLY);
-assert.equal(fs._stringToFlags('w+'), O_TRUNC | O_CREAT | O_RDWR);
-assert.equal(fs._stringToFlags('a'), O_APPEND | O_CREAT | O_WRONLY);
-assert.equal(fs._stringToFlags('a+'), O_APPEND | O_CREAT | O_RDWR);
+const { stringToFlags } = require('internal/fs');
 
-assert.equal(fs._stringToFlags('wx'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('xw'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('wx+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('xw+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('ax'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('xa'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+assert.equal(stringToFlags('r'), O_RDONLY);
+assert.equal(stringToFlags('r+'), O_RDWR);
+assert.equal(stringToFlags('w'), O_TRUNC | O_CREAT | O_WRONLY);
+assert.equal(stringToFlags('w+'), O_TRUNC | O_CREAT | O_RDWR);
+assert.equal(stringToFlags('a'), O_APPEND | O_CREAT | O_WRONLY);
+assert.equal(stringToFlags('a+'), O_APPEND | O_CREAT | O_RDWR);
+
+assert.equal(stringToFlags('wx'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
+assert.equal(stringToFlags('xw'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
+assert.equal(stringToFlags('wx+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
+assert.equal(stringToFlags('xw+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
+assert.equal(stringToFlags('ax'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
+assert.equal(stringToFlags('xa'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
+assert.equal(stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+assert.equal(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')
   .forEach(function(flags) {
-    assert.throws(function() { fs._stringToFlags(flags); });
+    assert.throws(function() { stringToFlags(flags); });
   });
 
 assert.throws(
-  () => fs._stringToFlags({}),
+  () => stringToFlags({}),
   /Unknown file open flag: \[object Object\]/
 );
 
 assert.throws(
-  () => fs._stringToFlags(true),
+  () => stringToFlags(true),
   /Unknown file open flag: true/
 );
 
 assert.throws(
-  () => fs._stringToFlags(null),
+  () => stringToFlags(null),
   /Unknown file open flag: null/
 );

@@ -26,7 +26,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const always = (context.options[0] !== "never"),
             message = always ? "Requires a space" : "Unexpected space(s)",
             sourceCode = context.getSourceCode();
@@ -95,10 +95,13 @@ module.exports = {
             // Check.
             if (!isValid(openBrace, firstToken)) {
                 context.report({
-                    node: node,
+                    node,
                     loc: openBrace.loc.start,
-                    message: message + " after '{'.",
-                    fix: function(fixer) {
+                    message: "{{message}} after '{'.",
+                    data: {
+                        message
+                    },
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(firstToken, " ");
                         }
@@ -109,10 +112,13 @@ module.exports = {
             }
             if (!isValid(lastToken, closeBrace)) {
                 context.report({
-                    node: node,
+                    node,
                     loc: closeBrace.loc.start,
-                    message: message + " before '}'.",
-                    fix: function(fixer) {
+                    message: "{{message}} before '}'.",
+                    data: {
+                        message
+                    },
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(lastToken, " ");
                         }

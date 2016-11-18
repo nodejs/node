@@ -1,5 +1,10 @@
 
 # file-entry-cache - Changelog
+## v2.0.0
+- **Features**
+  - do not persist and prune removed files from cache. Relates to [#2](https://github.com/royriojas/file-entry-cache/issues/2) - [408374d]( https://github.com/royriojas/file-entry-cache/commit/408374d ), [Roy Riojas](https://github.com/Roy Riojas), 16/08/2016 15:47:58
+
+    
 ## v1.3.1
 - **Build Scripts Changes**
   - remove older node version - [0a26ac4]( https://github.com/royriojas/file-entry-cache/commit/0a26ac4 ), [Roy Riojas](https://github.com/Roy Riojas), 01/08/2016 06:09:17

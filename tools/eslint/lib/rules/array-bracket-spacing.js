@@ -39,7 +39,7 @@ module.exports = {
             }
         ]
     },
-    create: function(context) {
+    create(context) {
         const spaced = context.options[0] === "always",
             sourceCode = context.getSourceCode();
 
@@ -55,7 +55,7 @@ module.exports = {
         }
 
         const options = {
-            spaced: spaced,
+            spaced,
             singleElementException: isOptionSet("singleValue"),
             objectsInArraysException: isOptionSet("objectsInArrays"),
             arraysInArraysException: isOptionSet("arraysInArrays")
@@ -73,10 +73,13 @@ module.exports = {
         */
         function reportNoBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "There should be no space after '" + token.value + "'.",
-                fix: function(fixer) {
+                message: "There should be no space after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     const nextToken = sourceCode.getTokenAfter(token);
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
@@ -92,10 +95,13 @@ module.exports = {
         */
         function reportNoEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "There should be no space before '" + token.value + "'.",
-                fix: function(fixer) {
+                message: "There should be no space before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     const previousToken = sourceCode.getTokenBefore(token);
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
@@ -111,10 +117,13 @@ module.exports = {
         */
         function reportRequiredBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "A space is required after '" + token.value + "'.",
-                fix: function(fixer) {
+                message: "A space is required after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
             });
@@ -128,10 +137,13 @@ module.exports = {
         */
         function reportRequiredEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "A space is required before '" + token.value + "'.",
-                fix: function(fixer) {
+                message: "A space is required before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }
             });

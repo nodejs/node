@@ -25,7 +25,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         // trim restricted module names
         const restrictedModules = context.options;
@@ -75,7 +75,7 @@ module.exports = {
         }
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (isRequireCall(node)) {
                     const restrictedModuleName = getRestrictedModuleName(node);
 

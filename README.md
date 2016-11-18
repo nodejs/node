@@ -4,12 +4,12 @@
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
-efficient. The Node.js package ecosystem, npm, is the largest ecosystem of open
-source libraries in the world.
+efficient. The Node.js package ecosystem, [npm][], is the largest ecosystem of
+open source libraries in the world.
 
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies and releases are managed under an
+policies, and releases are managed under an
 [open governance model](./GOVERNANCE.md). We are also bound by a
 [Code of Conduct](./CODE_OF_CONDUCT.md).
 
@@ -21,6 +21,7 @@ If you need help using or installing Node.js, please use the
 ### Official Resources
 
 * [Website][]
+* [Node.js Help][]
 * [Contributing to the project][]
 * IRC (node core development): [#node-dev on chat.freenode.net][]
 
@@ -43,7 +44,7 @@ The Node.js project maintains multiple types of releases:
   versioned by [SemVer](http://semver.org/) and signed by a member of the
   [Release Team](#release-team).
   Code for Current releases is organized in this repository by major version
-  number, For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
+  number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
   The major version number of Current releases will increment every 6 months
   allowing for breaking changes to be introduced. This happens in April and
   October every year. Current release lines beginning in October each year have
@@ -185,6 +186,8 @@ more information about the governance of the Node.js project, see
 **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
 * [TheAlphaNerd](https://github.com/TheAlphaNerd) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt;
+* [thefourtheye](https://github.com/thefourtheye) -
+**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
@@ -192,6 +195,8 @@ more information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [ak239](https://github.com/ak239) -
+**Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
 * [andrasq](https://github.com/andrasq) -
 **Andras** &lt;andras@kinvey.com&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) -
@@ -210,26 +215,34 @@ more information about the governance of the Node.js project, see
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
+* [danbev](https://github.com/danbev) -
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [domenic](https://github.com/domenic) -
 **Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
 **Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) -
 **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
+* [eugeneo](https://github.com/eugeneo) -
+**Eugene Ostroukhov** &lt;eostroukhov@google.com&gt;
 * [fhinkel](https://github.com/fhinkel) -
 **Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt;
 * [firedfox](https://github.com/firedfox) -
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt;
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
+* [imyller](https://github.com/imyller) -
+**Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [iWuzHere](https://github.com/iWuzHere) -
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
-**Jackson Tian** &lt;shvyo1987@gmail.com&gt;
+**Jackson Tian** &lt;shyvo1987@gmail.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) -
 **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [jhamhader](https://github.com/jhamhader) -
@@ -244,6 +257,8 @@ more information about the governance of the Node.js project, see
 **Minwoo Jung** &lt;jmwsoft@gmail.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
+* [lpinca](https://github.com/lpinca) -
+**Luigi Pinca** &lt;luigipinca@gmail.com&gt;
 * [lxe](https://github.com/lxe) -
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
@@ -256,6 +271,8 @@ more information about the governance of the Node.js project, see
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
 **Christopher Monsanto** &lt;chris@monsan.to&gt;
+* [not-an-aardvark](https://github.com/not-an-aardvark) -
+**Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [Olegas](https://github.com/Olegas) -
 **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [orangemocha](https://github.com/orangemocha) -
@@ -301,11 +318,9 @@ more information about the governance of the Node.js project, see
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) -
-**Michaël Zasso** &lt;mic.besace@gmail.com&gt;
+**Michaël Zasso** &lt;targos@protonmail.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
-* [thefourtheye](https://github.com/thefourtheye) -
-**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [thekemkid](https://github.com/thekemkid) -
 **Glen Keane** &lt;glenkeane.94@gmail.com&gt;
 * [thlorenz](https://github.com/thlorenz) -
@@ -374,8 +389,10 @@ keys:
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
 
+[npm]: https://www.npmjs.com
 [Website]: https://nodejs.org/en/
 [Contributing to the project]: CONTRIBUTING.md
+[Node.js Help]: https://github.com/nodejs/help
 [Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md
 [#node.js on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
 [#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4

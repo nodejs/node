@@ -111,52 +111,12 @@ TEST(IsSmi) {
 }
 
 
-TEST(OneByteSeqStringGetChar) {
-  FunctionTester T("(function(a,b) { return %_OneByteSeqStringGetChar(a,b); })",
-                   flags);
-
-  Handle<SeqOneByteString> string =
-      T.main_isolate()->factory()->NewRawOneByteString(3).ToHandleChecked();
-  string->SeqOneByteStringSet(0, 'b');
-  string->SeqOneByteStringSet(1, 'a');
-  string->SeqOneByteStringSet(2, 'r');
-  T.CheckCall(T.Val('b'), string, T.Val(0.0));
-  T.CheckCall(T.Val('a'), string, T.Val(1));
-  T.CheckCall(T.Val('r'), string, T.Val(2));
-}
-
-
-TEST(OneByteSeqStringSetChar) {
-  FunctionTester T("(function(a,b) { %_OneByteSeqStringSetChar(a,88,b); })",
-                   flags);
-
-  Handle<SeqOneByteString> string =
-      T.main_isolate()->factory()->NewRawOneByteString(3).ToHandleChecked();
-  string->SeqOneByteStringSet(0, 'b');
-  string->SeqOneByteStringSet(1, 'a');
-  string->SeqOneByteStringSet(2, 'r');
-  T.Call(T.Val(1), string);
-  CHECK_EQ('b', string->SeqOneByteStringGet(0));
-  CHECK_EQ('X', string->SeqOneByteStringGet(1));
-  CHECK_EQ('r', string->SeqOneByteStringGet(2));
-}
-
-
 TEST(StringAdd) {
   FunctionTester T("(function(a,b) { return %_StringAdd(a,b); })", flags);
 
   T.CheckCall(T.Val("aaabbb"), T.Val("aaa"), T.Val("bbb"));
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(""));
   T.CheckCall(T.Val("bbb"), T.Val(""), T.Val("bbb"));
-}
-
-
-TEST(StringCharAt) {
-  FunctionTester T("(function(a,b) { return %_StringCharAt(a,b); })", flags);
-
-  T.CheckCall(T.Val("e"), T.Val("huge fan!"), T.Val(3));
-  T.CheckCall(T.Val("f"), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
-  T.CheckCall(T.Val(""), T.Val("not a fan!"), T.Val(23));
 }
 
 
@@ -194,47 +154,6 @@ TEST(SubString) {
   T.CheckCall(T.Val("aaa"), T.Val("aaabbb"), T.Val(0.0));
   T.CheckCall(T.Val("abb"), T.Val("aaabbb"), T.Val(2));
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(0.0));
-}
-
-
-TEST(TwoByteSeqStringGetChar) {
-  FunctionTester T("(function(a,b) { return %_TwoByteSeqStringGetChar(a,b); })",
-                   flags);
-
-  Handle<SeqTwoByteString> string =
-      T.main_isolate()->factory()->NewRawTwoByteString(3).ToHandleChecked();
-  string->SeqTwoByteStringSet(0, 'b');
-  string->SeqTwoByteStringSet(1, 'a');
-  string->SeqTwoByteStringSet(2, 'r');
-  T.CheckCall(T.Val('b'), string, T.Val(0.0));
-  T.CheckCall(T.Val('a'), string, T.Val(1));
-  T.CheckCall(T.Val('r'), string, T.Val(2));
-}
-
-
-TEST(TwoByteSeqStringSetChar) {
-  FunctionTester T("(function(a,b) { %_TwoByteSeqStringSetChar(a,88,b); })",
-                   flags);
-
-  Handle<SeqTwoByteString> string =
-      T.main_isolate()->factory()->NewRawTwoByteString(3).ToHandleChecked();
-  string->SeqTwoByteStringSet(0, 'b');
-  string->SeqTwoByteStringSet(1, 'a');
-  string->SeqTwoByteStringSet(2, 'r');
-  T.Call(T.Val(1), string);
-  CHECK_EQ('b', string->SeqTwoByteStringGet(0));
-  CHECK_EQ('X', string->SeqTwoByteStringGet(1));
-  CHECK_EQ('r', string->SeqTwoByteStringGet(2));
-}
-
-
-TEST(ValueOf) {
-  FunctionTester T("(function(a) { return %_ValueOf(a); })", flags);
-
-  T.CheckCall(T.Val("a"), T.Val("a"));
-  T.CheckCall(T.Val("b"), T.NewObject("(new String('b'))"));
-  T.CheckCall(T.Val(123), T.Val(123));
-  T.CheckCall(T.Val(456), T.NewObject("(new Number(456))"));
 }
 
 }  // namespace compiler

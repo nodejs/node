@@ -19,6 +19,7 @@ node_g
 /.project
 /.cproject
 icu_config.gypi
+.eslintcache
 
 /out
 
@@ -87,7 +88,7 @@ deps/npm/node_modules/.bin/
 # test artifacts
 tools/faketime
 icu_config.gypi
-test.tap
+*.tap
 
 # Xcode workspaces and project folders
 *.xcodeproj

@@ -6,8 +6,10 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_ITERATOR_H_
 
 #include "src/handles.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +36,8 @@ class BytecodeArrayIterator {
   uint32_t GetRegisterCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
   int GetRegisterOperandRange(int operand_index) const;
-  uint32_t GetRuntimeIdOperand(int operand_index) const;
+  Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
+  Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;
 
   // Returns the absolute offset of the branch target at the current

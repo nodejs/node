@@ -44,7 +44,6 @@
     },
     'interpreter': {
       'filepath': 'src/interpreter/' \
-                  '|src/compiler/interpreter' \
                   '|src/compiler/bytecode' \
                   '|test/cctest/interpreter/' \
                   '|test/unittests/interpreter/',
@@ -60,6 +59,9 @@
     },
     'ia32': {
       'filepath': '/ia32/',
+    },
+    'merges': {
+      'filepath': '.',
     }
   },
 
@@ -90,6 +92,10 @@
     ],
     'ia32': [
       'v8-x87-ports@googlegroups.com',
+    ],
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      'v8-merges@googlegroups.com',
     ],
   },
 }

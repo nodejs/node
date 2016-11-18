@@ -23,7 +23,7 @@ const resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "htm
  * @returns {string} The original word with an s on the end if count is not one.
  */
 function pluralize(word, count) {
-    return (count === 1 ? word : word + "s");
+    return (count === 1 ? word : `${word}s`);
 }
 
 /**
@@ -34,10 +34,10 @@ function pluralize(word, count) {
  */
 function renderSummary(totalErrors, totalWarnings) {
     const totalProblems = totalErrors + totalWarnings;
-    let renderedText = totalProblems + " " + pluralize("problem", totalProblems);
+    let renderedText = `${totalProblems} ${pluralize("problem", totalProblems)}`;
 
     if (totalProblems !== 0) {
-        renderedText += " (" + totalErrors + " " + pluralize("error", totalErrors) + ", " + totalWarnings + " " + pluralize("warning", totalWarnings) + ")";
+        renderedText += ` (${totalErrors} ${pluralize("error", totalErrors)}, ${totalWarnings} ${pluralize("warning", totalWarnings)})`;
     }
     return renderedText;
 }
@@ -75,9 +75,9 @@ function renderMessages(messages, parentIndex) {
         const columnNumber = message.column || 0;
 
         return messageTemplate({
-            parentIndex: parentIndex,
-            lineNumber: lineNumber,
-            columnNumber: columnNumber,
+            parentIndex,
+            lineNumber,
+            columnNumber,
             severityNumber: message.severity,
             severityName: message.severity === 1 ? "Warning" : "Error",
             message: message.message,
@@ -93,7 +93,7 @@ function renderMessages(messages, parentIndex) {
 function renderResults(results) {
     return lodash.map(results, function(result, index) {
         return resultTemplate({
-            index: index,
+            index,
             color: renderColor(result.errorCount, result.warningCount),
             filePath: result.filePath,
             summary: renderSummary(result.errorCount, result.warningCount)

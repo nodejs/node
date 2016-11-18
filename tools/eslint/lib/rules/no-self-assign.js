@@ -180,7 +180,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
         const options = context.options[0];
         const props = Boolean(options && options.props);
@@ -193,7 +193,7 @@ module.exports = {
          */
         function report(node) {
             context.report({
-                node: node,
+                node,
                 message: "'{{name}}' is assigned to itself.",
                 data: {
                     name: sourceCode.getText(node).replace(SPACES, "")
@@ -202,7 +202,7 @@ module.exports = {
         }
 
         return {
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (node.operator === "=") {
                     eachSelfAssignment(node.left, node.right, props, report);
                 }

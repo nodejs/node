@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `function` or `var` declarations in nested blocks",
+            description: "disallow variable or `function` declarations in nested blocks",
             category: "Possible Errors",
             recommended: true
         },
@@ -24,7 +24,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Find the nearest Program or Function ancestor node.
@@ -77,7 +77,7 @@ module.exports = {
         return {
 
             FunctionDeclaration: check,
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (context.options[0] === "both" && node.kind === "var") {
                     check(node);
                 }

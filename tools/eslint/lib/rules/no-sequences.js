@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         /**
@@ -80,7 +80,7 @@ module.exports = {
         }
 
         return {
-            SequenceExpression: function(node) {
+            SequenceExpression(node) {
 
                 // Always allow sequences in for statement update
                 if (node.parent.type === "ForStatement" &&

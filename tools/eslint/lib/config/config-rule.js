@@ -202,7 +202,7 @@ RuleConfigSet.prototype = {
     * @param {number} [severity=2] The level of severity for the rule (0, 1, 2)
     * @returns {void}
     */
-    addErrorSeverity: function(severity) {
+    addErrorSeverity(severity) {
         severity = severity || 2;
 
         this.ruleConfigs = this.ruleConfigs.map(function(config) {
@@ -219,7 +219,7 @@ RuleConfigSet.prototype = {
     * @param  {string[]} enums Array of valid rule options (e.g. ["always", "never"])
     * @returns {void}
     */
-    addEnums: function(enums) {
+    addEnums(enums) {
         this.ruleConfigs = this.ruleConfigs.concat(combineArrays(this.ruleConfigs, enums));
     },
 
@@ -228,10 +228,10 @@ RuleConfigSet.prototype = {
     * @param  {Object} obj Schema item with type === "object"
     * @returns {void}
     */
-    addObject: function(obj) {
+    addObject(obj) {
         const objectConfigSet = {
             objectConfigs: [],
-            add: function(property, values) {
+            add(property, values) {
                 for (let idx = 0; idx < values.length; idx++) {
                     const optionObj = {};
 
@@ -240,7 +240,7 @@ RuleConfigSet.prototype = {
                 }
             },
 
-            combine: function() {
+            combine() {
                 this.objectConfigs = groupByProperty(this.objectConfigs).reduce(function(accumulator, objArr) {
                     return combinePropertyObjects(accumulator, objArr);
                 }, []);
@@ -317,6 +317,6 @@ function createCoreRuleConfigs() {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    generateConfigsFromSchema: generateConfigsFromSchema,
-    createCoreRuleConfigs: createCoreRuleConfigs
+    generateConfigsFromSchema,
+    createCoreRuleConfigs
 };

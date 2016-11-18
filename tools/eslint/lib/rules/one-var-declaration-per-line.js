@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow newlines around `var` declarations",
+            description: "require or disallow newlines around variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -20,10 +20,12 @@ module.exports = {
             {
                 enum: ["always", "initializations"]
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
-    create: function(context) {
+    create(context) {
 
         const ERROR_MESSAGE = "Expected variable declaration to be on a new line.";
         const always = context.options[0] === "always";
@@ -61,9 +63,10 @@ module.exports = {
                 if (prev && prev.loc.end.line === current.loc.start.line) {
                     if (always || prev.init || current.init) {
                         context.report({
-                            node: node,
+                            node,
                             message: ERROR_MESSAGE,
-                            loc: current.loc.start
+                            loc: current.loc.start,
+                            fix: fixer => fixer.insertTextBefore(current, "\n")
                         });
                     }
                 }

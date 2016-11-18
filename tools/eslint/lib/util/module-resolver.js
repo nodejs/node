@@ -52,7 +52,7 @@ ModuleResolver.prototype = {
      * @returns {string} The resolved file path for the module.
      * @throws {Error} If the module cannot be resolved.
      */
-    resolve: function(name, extraLookupPath) {
+    resolve(name, extraLookupPath) {
 
         /*
          * First, clone the lookup paths so we're not messing things up for
@@ -71,7 +71,7 @@ ModuleResolver.prototype = {
         const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
 
         if (!result) {
-            throw new Error("Cannot find module '" + name + "'");
+            throw new Error(`Cannot find module '${name}'`);
         }
 
         return result;

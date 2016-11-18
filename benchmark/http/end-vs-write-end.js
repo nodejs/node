@@ -43,14 +43,15 @@ function main(conf) {
   }
 
   var method = conf.method === 'write' ? write : end;
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
   var server = http.createServer(function(req, res) {
     method(res);
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', args, function() {
+    bench.http({
+      connections: conf.c
+    }, function() {
       server.close();
     });
   });

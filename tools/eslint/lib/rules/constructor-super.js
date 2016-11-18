@@ -101,7 +101,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /*
          * {{hasExtends: boolean, scope: Scope, codePath: CodePath}[]}
@@ -160,7 +160,7 @@ module.exports = {
              * @param {ASTNode} node - The current node.
              * @returns {void}
              */
-            onCodePathStart: function(codePath, node) {
+            onCodePathStart(codePath, node) {
                 if (isConstructorFunction(node)) {
 
                     // Class > ClassBody > MethodDefinition > FunctionExpression
@@ -172,7 +172,7 @@ module.exports = {
                         isConstructor: true,
                         hasExtends: Boolean(superClass),
                         superIsConstructor: isPossibleConstructor(superClass),
-                        codePath: codePath
+                        codePath
                     };
                 } else {
                     funcInfo = {
@@ -180,7 +180,7 @@ module.exports = {
                         isConstructor: false,
                         hasExtends: false,
                         superIsConstructor: false,
-                        codePath: codePath
+                        codePath
                     };
                 }
             },
@@ -192,7 +192,7 @@ module.exports = {
              * @param {ASTNode} node - The current node.
              * @returns {void}
              */
-            onCodePathEnd: function(codePath, node) {
+            onCodePathEnd(codePath, node) {
                 const hasExtends = funcInfo.hasExtends;
 
                 // Pop.
@@ -222,7 +222,7 @@ module.exports = {
              * @param {CodePathSegment} segment - A code path segment to initialize.
              * @returns {void}
              */
-            onCodePathSegmentStart: function(segment) {
+            onCodePathSegmentStart(segment) {
                 if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
@@ -252,7 +252,7 @@ module.exports = {
              *      of a loop.
              * @returns {void}
              */
-            onCodePathSegmentLoop: function(fromSegment, toSegment) {
+            onCodePathSegmentLoop(fromSegment, toSegment) {
                 if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
@@ -281,7 +281,7 @@ module.exports = {
 
                                 context.report({
                                     message: "Unexpected duplicate 'super()'.",
-                                    node: node
+                                    node
                                 });
                             }
                         }
@@ -294,7 +294,7 @@ module.exports = {
              * @param {ASTNode} node - A CallExpression node to check.
              * @returns {void}
              */
-            "CallExpression:exit": function(node) {
+            "CallExpression:exit"(node) {
                 if (!(funcInfo && funcInfo.isConstructor)) {
                     return;
                 }
@@ -325,12 +325,12 @@ module.exports = {
                         if (duplicate) {
                             context.report({
                                 message: "Unexpected duplicate 'super()'.",
-                                node: node
+                                node
                             });
                         } else if (!funcInfo.superIsConstructor) {
                             context.report({
                                 message: "Unexpected 'super()' because 'super' is not a constructor.",
-                                node: node
+                                node
                             });
                         } else {
                             info.validNodes.push(node);
@@ -339,7 +339,7 @@ module.exports = {
                 } else if (funcInfo.codePath.currentSegments.some(isReachable)) {
                     context.report({
                         message: "Unexpected 'super()'.",
-                        node: node
+                        node
                     });
                 }
             },
@@ -349,7 +349,7 @@ module.exports = {
              * @param {ASTNode} node - A ReturnStatement node to check.
              * @returns {void}
              */
-            ReturnStatement: function(node) {
+            ReturnStatement(node) {
                 if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
@@ -377,7 +377,7 @@ module.exports = {
              * Resets state.
              * @returns {void}
              */
-            "Program:exit": function() {
+            "Program:exit"() {
                 segInfoMap = Object.create(null);
             }
         };

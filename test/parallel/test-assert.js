@@ -1,4 +1,3 @@
-/* eslint no-deepEqual: 0 */
 'use strict';
 require('../common');
 var assert = require('assert');
@@ -29,7 +28,7 @@ assert.doesNotThrow(makeBlock(a.ok, true),
 assert.doesNotThrow(makeBlock(a.ok, 'test'), 'ok(\'test\')');
 
 assert.throws(makeBlock(a.equal, true, false),
-                a.AssertionError, 'equal(true, false)');
+              a.AssertionError, 'equal(true, false)');
 
 assert.doesNotThrow(makeBlock(a.equal, null, null),
                     'equal(null, null)');
@@ -72,10 +71,8 @@ assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
               'deepEqual(new Date(), new Date(2000, 3, 14))');
 
-assert.throws(makeBlock(
-  a.notDeepEqual,
-  new Date(2000, 3, 14),
-  new Date(2000, 3, 14)),
+assert.throws(
+  makeBlock(a.notDeepEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
   a.AssertionError,
   'notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
 );
@@ -466,7 +463,7 @@ function testAssertionMessage(actual, expected) {
     assert.equal(actual, '');
   } catch (e) {
     assert.equal(e.toString(),
-        ['AssertionError:', expected, '==', '\'\''].join(' '));
+                 ['AssertionError:', expected, '==', '\'\''].join(' '));
     assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
 }

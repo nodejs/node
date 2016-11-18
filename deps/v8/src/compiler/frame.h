@@ -78,14 +78,10 @@ class CallDescriptor;
 //
 class Frame : public ZoneObject {
  public:
-  explicit Frame(int fixed_frame_size_in_slots,
-                 const CallDescriptor* descriptor);
+  explicit Frame(int fixed_frame_size_in_slots);
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
 
-  inline int GetSavedCalleeRegisterSlotCount() const {
-    return callee_saved_slot_count_;
-  }
   inline int GetSpillSlotCount() const { return spill_slot_count_; }
 
   void SetAllocatedRegisters(BitVector* regs) {
@@ -102,23 +98,20 @@ class Frame : public ZoneObject {
     return !allocated_double_registers_->IsEmpty();
   }
 
-  int AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
-    DCHECK_EQ(0, callee_saved_slot_count_);
+  void AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
     int alignment_slots = alignment / kPointerSize;
     int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
     if (delta != alignment_slots) {
       frame_slot_count_ += delta;
     }
-    return delta;
+    spill_slot_count_ += delta;
   }
 
   void AllocateSavedCalleeRegisterSlots(int count) {
     frame_slot_count_ += count;
-    callee_saved_slot_count_ += count;
   }
 
   int AllocateSpillSlot(int width) {
-    DCHECK_EQ(0, callee_saved_slot_count_);
     int frame_slot_count_before = frame_slot_count_;
     int slot = AllocateAlignedFrameSlot(width);
     spill_slot_count_ += (frame_slot_count_ - frame_slot_count_before);
@@ -128,7 +121,6 @@ class Frame : public ZoneObject {
   int AlignFrame(int alignment = kDoubleSize);
 
   int ReserveSpillSlots(size_t slot_count) {
-    DCHECK_EQ(0, callee_saved_slot_count_);
     DCHECK_EQ(0, spill_slot_count_);
     spill_slot_count_ += static_cast<int>(slot_count);
     frame_slot_count_ += static_cast<int>(slot_count);
@@ -140,19 +132,26 @@ class Frame : public ZoneObject {
 
  private:
   int AllocateAlignedFrameSlot(int width) {
-    DCHECK(width == 4 || width == 8);
-    // Skip one slot if necessary.
-    if (width > kPointerSize) {
-      DCHECK(width == kPointerSize * 2);
-      frame_slot_count_++;
-      frame_slot_count_ |= 1;
+    DCHECK(width == 4 || width == 8 || width == 16);
+    if (kPointerSize == 4) {
+      // Skip one slot if necessary.
+      if (width > kPointerSize) {
+        frame_slot_count_++;
+        frame_slot_count_ |= 1;
+        // 2 extra slots if width == 16.
+        frame_slot_count_ += (width & 16) / 8;
+      }
+    } else {
+      // No alignment when slots are 8 bytes.
+      DCHECK_EQ(8, kPointerSize);
+      // 1 extra slot if width == 16.
+      frame_slot_count_ += (width & 16) / 16;
     }
     return frame_slot_count_++;
   }
 
  private:
   int frame_slot_count_;
-  int callee_saved_slot_count_;
   int spill_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;
@@ -191,13 +190,13 @@ class FrameOffset {
 // current function's frame.
 class FrameAccessState : public ZoneObject {
  public:
-  explicit FrameAccessState(Frame* const frame)
+  explicit FrameAccessState(const Frame* const frame)
       : frame_(frame),
         access_frame_with_fp_(false),
         sp_delta_(0),
         has_frame_(false) {}
 
-  Frame* frame() const { return frame_; }
+  const Frame* frame() const { return frame_; }
   void MarkHasFrame(bool state);
 
   int sp_delta() const { return sp_delta_; }
@@ -229,7 +228,7 @@ class FrameAccessState : public ZoneObject {
   FrameOffset GetFrameOffset(int spill_slot) const;
 
  private:
-  Frame* const frame_;
+  const Frame* const frame_;
   bool access_frame_with_fp_;
   int sp_delta_;
   bool has_frame_;

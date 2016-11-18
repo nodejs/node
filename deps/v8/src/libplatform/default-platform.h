@@ -10,6 +10,7 @@
 #include <queue>
 #include <vector>
 
+#include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -21,6 +22,10 @@ namespace platform {
 class TaskQueue;
 class Thread;
 class WorkerThread;
+
+namespace tracing {
+class TracingController;
+}
 
 class DefaultPlatform : public Platform {
  public:
@@ -47,14 +52,14 @@ class DefaultPlatform : public Platform {
   const char* GetCategoryGroupName(
       const uint8_t* category_enabled_flag) override;
   uint64_t AddTraceEvent(char phase, const uint8_t* category_enabled_flag,
-                         const char* name, uint64_t id,
+                         const char* name, const char* scope, uint64_t id,
                          uint64_t bind_id, int32_t num_args,
                          const char** arg_names, const uint8_t* arg_types,
                          const uint64_t* arg_values,
                          unsigned int flags) override;
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle) override;
-
+  void SetTracingController(tracing::TracingController* tracing_controller);
 
  private:
   static const int kMaxThreadPoolSize;
@@ -74,6 +79,7 @@ class DefaultPlatform : public Platform {
            std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
                                std::greater<DelayedEntry> > >
       main_thread_delayed_queue_;
+  tracing::TracingController* tracing_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };

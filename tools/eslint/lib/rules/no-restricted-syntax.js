@@ -32,7 +32,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Generates a warning from the provided node, saying that node type is not allowed.

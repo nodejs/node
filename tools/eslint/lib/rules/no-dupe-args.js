@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -52,7 +52,7 @@ module.exports = {
 
                 if (defs.length >= 2) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Duplicate param '{{name}}'.",
                         data: {name: variable.name}
                     });

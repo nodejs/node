@@ -48,8 +48,8 @@ function normalizeOptions(options) {
     const allowSamePrecedence = (options && options.allowSamePrecedence) !== false;
 
     return {
-        groups: groups,
-        allowSamePrecedence: allowSamePrecedence
+        groups,
+        allowSamePrecedence
     };
 }
 
@@ -101,7 +101,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
         const options = normalizeOptions(context.options[0]);
 
@@ -173,18 +173,23 @@ module.exports = {
             const left = (parent.left === node) ? node : parent;
             const right = (parent.left !== node) ? node : parent;
             const message =
-                "Unexpected mix of '" + left.operator + "' and '" +
-                right.operator + "'.";
+                "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'.";
+            const data = {
+                leftOperator: left.operator,
+                rightOperator: right.operator
+            };
 
             context.report({
                 node: left,
                 loc: getOperatorToken(left).loc.start,
-                message: message
+                message,
+                data
             });
             context.report({
                 node: right,
                 loc: getOperatorToken(right).loc.start,
-                message: message
+                message,
+                data
             });
         }
 

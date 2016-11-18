@@ -18,7 +18,7 @@ const astUtils = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` declarations from shadowing variables in the outer scope",
+            description: "disallow variable declarations from shadowing variables declared in the outer scope",
             category: "Variables",
             recommended: false
         },
@@ -41,7 +41,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals),
@@ -171,7 +171,7 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 const globalScope = context.getScope();
                 const stack = globalScope.childScopes.slice();
 

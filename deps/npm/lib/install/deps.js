@@ -1,7 +1,6 @@
 'use strict'
 var assert = require('assert')
 var path = require('path')
-var url = require('url')
 var semver = require('semver')
 var asyncMap = require('slide').asyncMap
 var chain = require('slide').chain
@@ -10,6 +9,7 @@ var iferr = require('iferr')
 var npa = require('npm-package-arg')
 var validate = require('aproba')
 var realizePackageSpecifier = require('realize-package-specifier')
+var realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier')
 var asap = require('asap')
 var dezalgo = require('dezalgo')
 var fetchPackageMetadata = require('../fetch-package-metadata.js')
@@ -21,13 +21,16 @@ var inflateShrinkwrap = require('./inflate-shrinkwrap.js')
 var inflateBundled = require('./inflate-bundled.js')
 var andFinishTracker = require('./and-finish-tracker.js')
 var npm = require('../npm.js')
-var flatName = require('./flatten-tree.js').flatName
+var flatNameFromTree = require('./flatten-tree.js').flatNameFromTree
 var createChild = require('./node.js').create
 var resetMetadata = require('./node.js').reset
 var andIgnoreErrors = require('./and-ignore-errors.js')
 var isInstallable = require('./validate-args.js').isInstallable
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
+var isDevDep = require('./is-dev-dep.js')
+var isProdDep = require('./is-prod-dep.js')
+var reportOptionalFailure = require('./report-optional-failure.js')
 
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
@@ -50,16 +53,6 @@ function isDep (tree, child, cb) {
   })
 }
 
-function isDevDep (tree, name, cb) {
-  var devDeps = tree.package.devDependencies || {}
-  return devDeps[name]
-}
-
-function isProdDep (tree, name, cb) {
-  var deps = tree.package.dependencies || {}
-  return deps[name]
-}
-
 var registryTypes = { range: true, version: true }
 
 function doesChildVersionMatch (child, requested, requestor) {
@@ -71,11 +64,26 @@ function doesChildVersionMatch (child, requested, requestor) {
   if (requested.spec === '*') return true
 
   var childReq = child.package._requested
+  if (!childReq) childReq = npa(moduleName(child) + '@' + child.package._from)
   if (childReq) {
     if (childReq.rawSpec === requested.rawSpec) return true
     if (childReq.type === requested.type && childReq.spec === requested.spec) return true
   }
-  if (!registryTypes[requested.type]) return requested.rawSpec === child.package._from
+  // If _requested didn't exist OR if it didn't match then we'll try using
+  // _from. We pass it through npa to normalize the specifier.
+  // This can happen when installing from an `npm-shrinkwrap.json` where `_requested` will
+  // be the tarball URL from `resolved` and thus can't match what's in the `package.json`.
+  // In those cases _from, will be preserved and we can compare that to ensure that they
+  // really came from the same sources.
+  // You'll see this scenario happen with at least tags and git dependencies.
+  if (!registryTypes[requested.type]) {
+    if (child.package._from) {
+      var fromReq = npa(child.package._from)
+      if (fromReq.rawSpec === requested.rawSpec) return true
+      if (fromReq.type === requested.type && fromReq.spec === requested.spec) return true
+    }
+    return false
+  }
   return semver.satisfies(child.package.version, requested.spec)
 }
 
@@ -212,26 +220,29 @@ function getShrinkwrap (tree, name) {
   return tree.package._shrinkwrap && tree.package._shrinkwrap.dependencies && tree.package._shrinkwrap.dependencies[name]
 }
 
-exports.getAllMetadata = function (args, tree, next) {
-  asyncMap(args, function (spec, done) {
-    if (tree && spec.lastIndexOf('@') <= 0) {
-      var sw = getShrinkwrap(tree, spec)
-      if (sw) {
-        // FIXME: This is duplicated in inflate-shrinkwrap and should be factoed
-        // into a shared function
-        spec = sw.resolved
-             ? spec + '@' + sw.resolved
-             : (sw.from && url.parse(sw.from).protocol)
-             ? spec + '@' + sw.from
-             : spec + '@' + sw.version
-      } else {
-        var version = matchingDep(tree, spec)
-        if (version != null) {
-          spec += '@' + version
-        }
-      }
+exports.getAllMetadata = function (args, tree, where, next) {
+  asyncMap(args, function (arg, done) {
+    function fetchMetadataWithVersion () {
+      var version = matchingDep(tree, arg)
+      var spec = version == null ? arg : arg + '@' + version
+      return fetchPackageMetadata(spec, where, done)
     }
-    fetchPackageMetadata(spec, packageRelativePath(tree), done)
+    if (tree && arg.lastIndexOf('@') <= 0) {
+      var sw = getShrinkwrap(tree, arg)
+      if (sw) {
+        return realizeShrinkwrapSpecifier(arg, sw, where, function (err, spec) {
+          if (err) {
+            return fetchMetadataWithVersion()
+          } else {
+            return fetchPackageMetadata(spec, where, done)
+          }
+        })
+      } else {
+        return fetchMetadataWithVersion()
+      }
+    } else {
+      return fetchPackageMetadata(arg, where, done)
+    }
   }, next)
 }
 
@@ -354,18 +365,6 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   return false
 }
 
-function top (tree) {
-  if (tree.parent) return top(tree.parent)
-  return tree
-}
-
-function treeWarn (tree, what, error) {
-  var topTree = top(tree)
-  if (!topTree.warnings) topTree.warnings = []
-  error.optional = flatNameFromTree(tree) + '/' + what
-  topTree.warnings.push(error)
-}
-
 function andHandleOptionalErrors (log, tree, name, done) {
   validate('OOSF', arguments)
   return function (er, child, childLog) {
@@ -374,7 +373,7 @@ function andHandleOptionalErrors (log, tree, name, done) {
     var isFatal = failedDependency(tree, name)
     if (er && !isFatal) {
       tree.children = tree.children.filter(noModuleNameMatches(name))
-      treeWarn(tree, name, er)
+      reportOptionalFailure(tree, name, er)
       return done()
     } else {
       return done(er, child, childLog)
@@ -449,7 +448,9 @@ function addDependency (name, versionSpec, tree, log, done) {
         }
       }))
     } else {
-      resolveWithNewModule(req, tree, log, next)
+      fetchPackageMetadata(req, packageRelativePath(tree), log.newItem('fetchMetadata'), iferr(next, function (pkg) {
+        resolveWithNewModule(pkg, tree, log, next)
+      }))
     }
   }))
 }
@@ -469,14 +470,6 @@ var updatePhantomChildren = exports.updatePhantomChildren = function (current, c
     current.phantomChildren[moduleName(child)] = child
     current = current.parent
   }
-}
-
-function flatNameFromTree (tree) {
-  validate('O', arguments)
-  if (tree.isTop) return '/'
-  var path = flatNameFromTree(tree.parent)
-  if (path !== '/') path += '/'
-  return flatName(path, tree)
 }
 
 exports._replaceModuleByPath = replaceModuleByPath
@@ -511,56 +504,47 @@ function replaceModule (obj, key, child, matchBy) {
 
 function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
-  if (pkg.type) {
-    return fetchPackageMetadata(pkg, packageRelativePath(tree), log.newItem('fetchMetadata'), iferr(next, function (pkg) {
-      resolveWithNewModule(pkg, tree, log, next)
-    }))
-  }
 
-  if (!pkg._installable) {
-    log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-    return isInstallable(pkg, iferr(next, function () {
-      pkg._installable = true
-      resolveWithNewModule(pkg, tree, log, next)
-    }))
-  }
+  log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
+  return isInstallable(pkg, iferr(next, function () {
+    if (!pkg._from) {
+      pkg._from = pkg._requested.name + '@' + pkg._requested.spec
+    }
+    addShrinkwrap(pkg, iferr(next, function () {
+      addBundled(pkg, iferr(next, function () {
+        var parent = earliestInstallable(tree, tree, pkg) || tree
+        var child = createChild({
+          package: pkg,
+          parent: parent,
+          path: path.join(parent.path, 'node_modules', pkg.name),
+          realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
+          children: pkg._bundled || [],
+          isLink: tree.isLink,
+          knownInstallable: true
+        })
+        delete pkg._bundled
+        var hasBundled = child.children.length
 
-  if (!pkg._from) {
-    pkg._from = pkg._requested.name + '@' + pkg._requested.spec
-  }
-  addShrinkwrap(pkg, iferr(next, function () {
-    addBundled(pkg, iferr(next, function () {
-      var parent = earliestInstallable(tree, tree, pkg) || tree
-      var child = createChild({
-        package: pkg,
-        parent: parent,
-        path: path.join(parent.path, 'node_modules', pkg.name),
-        realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
-        children: pkg._bundled || [],
-        isLink: tree.isLink
-      })
-      delete pkg._bundled
-      var hasBundled = child.children.length
+        var replaced = replaceModuleByName(parent, 'children', child)
+        if (replaced) removeObsoleteDep(replaced)
+        addRequiredDep(tree, child, function () {
+          child.location = flatNameFromTree(child)
 
-      var replaced = replaceModuleByName(parent, 'children', child)
-      if (replaced) removeObsoleteDep(replaced)
-      addRequiredDep(tree, child, function () {
-        child.location = flatNameFromTree(child)
+          if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
 
-        if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
+          if (hasBundled) {
+            inflateBundled(child, child.children)
+          }
 
-        if (hasBundled) {
-          inflateBundled(child, child.children)
-        }
+          if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
+            return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
+              next(er, child, log)
+            })
+          }
 
-        if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
-          return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
-            next(er, child, log)
-          })
-        }
-
-        next(null, child, log)
-      })
+          next(null, child, log)
+        })
+      }))
     }))
   }))
 }
@@ -628,13 +612,13 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
-  var binaryMatches = typeof pkg.bin === 'object' && tree.children.some(function (child) {
-    if (child.removed) return false
-    if (typeof child.package.bin !== 'object') return false
+  var binaryMatches = pkg.bin && tree.children.some(function (child) {
+    if (child.removed || !child.package.bin) return false
     return Object.keys(child.package.bin).some(function (bin) {
       return pkg.bin[bin]
     })
   })
+
   if (binaryMatches) return null
 
   // if this tree location requested the same module then we KNOW it

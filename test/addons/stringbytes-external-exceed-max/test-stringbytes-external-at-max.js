@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../../common');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 
 // v8 fails silently if string length > v8::String::kMaxLength

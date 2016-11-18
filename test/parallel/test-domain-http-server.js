@@ -30,7 +30,7 @@ var server = http.createServer(function(req, res) {
     var data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
 
     // this line will throw if you pick an unknown key
-    assert(data !== undefined, 'Data should not be undefined');
+    assert.notStrictEqual(data, undefined, 'Data should not be undefined');
 
     res.writeHead(200);
     res.end(data);

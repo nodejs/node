@@ -151,7 +151,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Checks whether a node is a redundant constructor
@@ -169,7 +169,7 @@ module.exports = {
 
             if (superClass ? isRedundantSuperCall(body, ctorParams) : (body.length === 0)) {
                 context.report({
-                    node: node,
+                    node,
                     message: "Useless constructor."
                 });
             }

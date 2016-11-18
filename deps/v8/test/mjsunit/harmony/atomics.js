@@ -16,26 +16,19 @@ function toRangeWrapped(value) {
   return value;
 }
 
-function toRangeClamped(value) {
-  if (value < this.min) return this.min;
-  if (value > this.max) return this.max;
-  return value;
-}
-
 function makeConstructorObject(constr, min, max, toRange) {
   var o = {constr: constr, min: min, max: max};
-  o.toRange = toRange.bind(o);
+  o.toRange = toRangeWrapped.bind(o);
   return o;
 }
 
 var IntegerTypedArrayConstructors = [
-  makeConstructorObject(Int8Array, -128, 127, toRangeWrapped),
-  makeConstructorObject(Int16Array, -32768, 32767, toRangeWrapped),
-  makeConstructorObject(Int32Array, -0x80000000, 0x7fffffff, toRangeWrapped),
-  makeConstructorObject(Uint8Array, 0, 255, toRangeWrapped),
-  makeConstructorObject(Uint8ClampedArray, 0, 255, toRangeClamped),
-  makeConstructorObject(Uint16Array, 0, 65535, toRangeWrapped),
-  makeConstructorObject(Uint32Array, 0, 0xffffffff, toRangeWrapped),
+  makeConstructorObject(Int8Array, -128, 127),
+  makeConstructorObject(Int16Array, -32768, 32767),
+  makeConstructorObject(Int32Array, -0x80000000, 0x7fffffff),
+  makeConstructorObject(Uint8Array, 0, 255),
+  makeConstructorObject(Uint16Array, 0, 65535),
+  makeConstructorObject(Uint32Array, 0, 0xffffffff),
 ];
 
 (function TestBadArray() {
@@ -44,9 +37,13 @@ var IntegerTypedArrayConstructors = [
   var sab = new SharedArrayBuffer(128);
   var sf32a = new Float32Array(sab);
   var sf64a = new Float64Array(sab);
+  var u8ca = new Uint8ClampedArray(sab);
 
   // Atomic ops required integer shared typed arrays
-  [undefined, 1, 'hi', 3.4, ab, u32a, sab, sf32a, sf64a].forEach(function(o) {
+  var badArrayTypes = [
+    undefined, 1, 'hi', 3.4, ab, u32a, sab, sf32a, sf64a, u8ca
+  ];
+  badArrayTypes.forEach(function(o) {
     assertThrows(function() { Atomics.compareExchange(o, 0, 0, 0); },
                  TypeError);
     assertThrows(function() { Atomics.load(o, 0); }, TypeError);
@@ -129,15 +126,16 @@ var IntegerTypedArrayConstructors = [
 
   var testOp = function(op, ia, index, expectedIndex, name) {
     for (var i = 0; i < ia.length; ++i)
-      ia[i] = 22;
+      ia[i] = i * 2;
 
     ia[expectedIndex] = 0;
-    assertEquals(0, op(ia, index, 0, 0), name);
+    var result = op(ia, index, 0, 0);
+    assertEquals(0, result, name);
     assertEquals(0, ia[expectedIndex], name);
 
     for (var i = 0; i < ia.length; ++i) {
       if (i == expectedIndex) continue;
-      assertEquals(22, ia[i], name);
+      assertEquals(i * 2, ia[i], name);
     }
   };
 
@@ -221,6 +219,24 @@ function clearArray(sab) {
         assertEquals(50, Atomics.load(array, i), name);
       }
     })
+  });
+
+  // Test Smi range
+  (function () {
+    var sab = new SharedArrayBuffer(4);
+    var i32 = new Int32Array(sab);
+    var u32 = new Uint32Array(sab);
+
+    function testLoad(signedValue, unsignedValue) {
+      u32[0] = unsignedValue;
+      assertEquals(unsignedValue, Atomics.load(u32, 0));
+      assertEquals(signedValue, Atomics.load(i32, 0));
+    }
+
+    testLoad(0x3fffffff,  0x3fffffff); // 2**30-1 (always smi)
+    testLoad(0x40000000,  0x40000000); // 2**30 (smi if signed and 32-bits)
+    testLoad(0x80000000, -0x80000000); // 2**31 (smi if signed and 32-bits)
+    testLoad(0xffffffff, -1);          // 2**31 (smi if signed)
   });
 })();
 
@@ -405,7 +421,7 @@ function clearArray(sab) {
       assertEquals(50, Atomics.compareExchange(sta, 0, v, v), name);
 
       // Store
-      assertEquals(+v, Atomics.store(sta, 0, v), name);
+      assertEquals(v|0, Atomics.store(sta, 0, v), name);
       assertEquals(v|0, sta[0], name);
 
       // Add

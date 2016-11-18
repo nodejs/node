@@ -25,22 +25,73 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# The snapshot needs to be compiled for the host, but compiled with
-# a toolchain that matches the bit-width of the target.
+import("//build/config/v8_target_cpu.gni")
 
-# TODO(GYP): For now we only support 32-bit little-endian target builds from an
-# x64 Linux host. Eventually we need to support all of the host/target
-# configurations v8 runs on.
-if (host_cpu == "x64" && host_os == "linux") {
-  if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
-    snapshot_toolchain = "//build/toolchain/linux:clang_x86"
-  } else if (target_cpu == "x64" || target_cpu == "arm64" || target_cpu == "mips64el") {
-    snapshot_toolchain = "//build/toolchain/linux:clang_x64"
-  } else {
-    assert(false, "Need environment for this arch: $target_cpu")
-  }
-} else {
-  snapshot_toolchain = default_toolchain
+declare_args() {
+  # The v8 snapshot needs to be built by code that is compiled with a
+  # toolchain that matches the bit-width of the target CPU, but runs on
+  # the host.
+  v8_snapshot_toolchain = ""
 }
 
+# Try to infer the appropriate snapshot toolchain for the v8_current_cpu
+# where possible.
+#
+# Assume that v8_target_cpu (and hence v8_current_cpu) has been validated
+# as supported on the current host CPU and OS in v8_target_cpu.gni. The
+# logic below is complicated enough without also needing to do input
+# validation.
+#
+# There are test cases for this code posted as an attachment to
+# https://crbug.com/625353.
+#
+# TODO(GYP): Currently only regular (non-cross) compiles, and cross-compiles
+# from x64 hosts to Intel, ARM, or MIPS targets, are implemented. Add support
+# for the other supported configurations.
 
+if (v8_snapshot_toolchain == "") {
+  if (current_os == host_os && current_cpu == host_cpu) {
+    # This is not a cross-compile, so build the snapshot with the current
+    # toolchain.
+    v8_snapshot_toolchain = current_toolchain
+  } else if (current_os == host_os && current_cpu == "x86" &&
+             host_cpu == "x64") {
+    # This is an x64 -> x86 cross-compile, but x64 hosts can usually run x86
+    # binaries built for the same OS, so build the snapshot with the current
+    # toolchain here, too.
+    v8_snapshot_toolchain = current_toolchain
+  } else if (current_os == "win" && host_os == "mac" && is_clang) {
+    # This is a mac -> win cross-compile, which is only supported w/ clang.
+    v8_snapshot_toolchain = "//build/toolchain/mac:clang_${v8_current_cpu}"
+  } else if (host_cpu == "x64") {
+    # This is a cross-compile from an x64 host to either a non-Intel target
+    # cpu or a different target OS. Clang will always be used by default on the
+    # host, unless this is a ChromeOS build, in which case the same toolchain
+    # (Clang or GCC) will be used for target and host by default.
+    if (is_chromeos && !is_clang) {
+      _clang = ""
+    } else {
+      _clang = "clang_"
+    }
+
+    if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
+      _cpus = v8_current_cpu
+    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el") {
+      _cpus = "x64_v8_${v8_current_cpu}"
+    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
+      _cpus = "x86_v8_${v8_current_cpu}"
+    } else {
+      # This branch should not be reached; leave _cpus blank so the assert
+      # below will fail.
+      _cpus = ""
+    }
+
+    if (_cpus != "") {
+      v8_snapshot_toolchain = "//build/toolchain/${host_os}:${_clang}${_cpus}"
+    }
+  }
+}
+
+assert(v8_snapshot_toolchain != "",
+       "Do not know how to build a snapshot for $current_toolchain " +
+           "on $host_os $host_cpu")

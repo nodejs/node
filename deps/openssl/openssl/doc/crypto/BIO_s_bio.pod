@@ -120,6 +120,9 @@ the application then waits for data to be available on the underlying transport
 before flushing the write buffer it will never succeed because the request was
 never sent!
 
+BIO_eof() is true if no data is in the peer BIO and the peer BIO has been
+shutdown.
+
 =head1 RETURN VALUES
 
 BIO_new_bio_pair() returns 1 on success, with the new BIOs available in

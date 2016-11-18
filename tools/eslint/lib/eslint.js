@@ -59,7 +59,7 @@ function parseBooleanConfig(string, comment) {
 
         items[name] = {
             value: (value === "true"),
-            comment: comment
+            comment
         };
 
     });
@@ -97,7 +97,7 @@ function parseJsonConfig(string, location, messages) {
     items = {};
     string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
     try {
-        items = JSON.parse("{" + string + "}");
+        items = JSON.parse(`{${string}}`);
     } catch (ex) {
 
         messages.push({
@@ -105,7 +105,7 @@ function parseJsonConfig(string, location, messages) {
             fatal: true,
             severity: 2,
             source: null,
-            message: "Failed to parse JSON from '" + string + "': " + ex.message,
+            message: `Failed to parse JSON from '${string}': ${ex.message}`,
             line: location.start.line,
             column: location.start.column + 1
         });
@@ -240,14 +240,14 @@ function disableReporting(reportingConfig, start, rulesToDisable) {
     if (rulesToDisable.length) {
         rulesToDisable.forEach(function(rule) {
             reportingConfig.push({
-                start: start,
+                start,
                 end: null,
-                rule: rule
+                rule
             });
         });
     } else {
         reportingConfig.push({
-            start: start,
+            start,
             end: null,
             rule: null
         });
@@ -350,7 +350,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
                         Object.keys(items).forEach(function(name) {
                             const ruleValue = items[name];
 
-                            validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
+                            validator.validateRuleOptions(name, ruleValue, `${filename} line ${comment.loc.start.line}`);
                             commentRules[name] = ruleValue;
                         });
                         break;
@@ -407,6 +407,28 @@ function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
 }
 
 /**
+ * Normalize ECMAScript version from the initial config
+ * @param  {number} ecmaVersion ECMAScript version from the initial config
+ * @param  {boolean} isModule Whether the source type is module or not
+ * @returns {number} normalized ECMAScript version
+ */
+function normalizeEcmaVersion(ecmaVersion, isModule) {
+
+    // Need at least ES6 for modules
+    if (isModule && (!ecmaVersion || ecmaVersion < 6)) {
+        ecmaVersion = 6;
+    }
+
+    // Calculate ECMAScript edition number from official year version starting with
+    // ES2015, which corresponds with ES6 (or a difference of 2009).
+    if (ecmaVersion >= 2015) {
+        ecmaVersion -= 2009;
+    }
+
+    return ecmaVersion;
+}
+
+/**
  * Process initial config to make it safe to extend by file comment config
  * @param  {Object} config Initial config
  * @returns {Object}        Processed config
@@ -424,7 +446,7 @@ function prepareConfig(config) {
             const rule = config.rules[k];
 
             if (rule === null) {
-                throw new Error("Invalid config for rule '" + k + "'\.");
+                throw new Error(`Invalid config for rule '${k}'\.`);
             }
             if (Array.isArray(rule)) {
                 copiedRules[k] = rule.slice();
@@ -453,20 +475,18 @@ function prepareConfig(config) {
         settings: ConfigOps.merge({}, config.settings || {}),
         parserOptions: ConfigOps.merge(parserOptions, config.parserOptions || {})
     };
+    const isModule = preparedConfig.parserOptions.sourceType === "module";
 
-    if (preparedConfig.parserOptions.sourceType === "module") {
+    if (isModule) {
         if (!preparedConfig.parserOptions.ecmaFeatures) {
             preparedConfig.parserOptions.ecmaFeatures = {};
         }
 
         // can't have global return inside of modules
         preparedConfig.parserOptions.ecmaFeatures.globalReturn = false;
-
-        // also need at least ES6 for modules
-        if (!preparedConfig.parserOptions.ecmaVersion || preparedConfig.parserOptions.ecmaVersion < 6) {
-            preparedConfig.parserOptions.ecmaVersion = 6;
-        }
     }
+
+    preparedConfig.parserOptions.ecmaVersion = normalizeEcmaVersion(preparedConfig.parserOptions.ecmaVersion, isModule);
 
     return preparedConfig;
 }
@@ -485,7 +505,7 @@ function createStubRule(message) {
      */
     function createRuleModule(context) {
         return {
-            Program: function(node) {
+            Program(node) {
                 context.report(node, message);
             }
         };
@@ -507,7 +527,7 @@ function getRuleReplacementMessage(ruleId) {
     if (ruleId in replacements.rules) {
         const newRules = replacements.rules[ruleId];
 
-        return "Rule \'" + ruleId + "\' was removed and replaced by: " + newRules.join(", ");
+        return `Rule '${ruleId}' was removed and replaced by: ${newRules.join(", ")}`;
     }
 
     return null;
@@ -565,7 +585,6 @@ module.exports = (function() {
     let messages = [],
         currentConfig = null,
         currentScopes = null,
-        scopeMap = null,
         scopeManager = null,
         currentFilename = null,
         traverser = null,
@@ -578,10 +597,11 @@ module.exports = (function() {
      * as possible
      * @param {string} text The text to parse.
      * @param {Object} config The ESLint configuration object.
+     * @param {string} filePath The path to the file being parsed.
      * @returns {ASTNode} The AST if successful or null if not.
      * @private
      */
-    function parse(text, config) {
+    function parse(text, config, filePath) {
 
         let parser,
             parserOptions = {
@@ -590,7 +610,8 @@ module.exports = (function() {
                 raw: true,
                 tokens: true,
                 comment: true,
-                attachComment: true
+                attachComment: true,
+                filePath
             };
 
         try {
@@ -632,8 +653,8 @@ module.exports = (function() {
                 ruleId: null,
                 fatal: true,
                 severity: 2,
-                source: source,
-                message: "Parsing error: " + message,
+                source,
+                message: `Parsing error: ${message}`,
 
                 line: ex.lineNumber,
                 column: ex.column
@@ -684,7 +705,6 @@ module.exports = (function() {
         messages = [];
         currentConfig = null;
         currentScopes = null;
-        scopeMap = null;
         scopeManager = null;
         traverser = null;
         reportingConfig = [];
@@ -761,9 +781,10 @@ module.exports = (function() {
             ast = parse(
                 stripUnicodeBOM(text).replace(/^#!([^\r\n]+)/, function(match, captured) {
                     shebang = captured;
-                    return "//" + captured;
+                    return `//${captured}`;
                 }),
-                config
+                config,
+                currentFilename
             );
 
             if (ast) {
@@ -800,7 +821,7 @@ module.exports = (function() {
                     if (replacementMsg) {
                         ruleCreator = createStubRule(replacementMsg);
                     } else {
-                        ruleCreator = createStubRule("Definition for rule '" + key + "' was not found");
+                        ruleCreator = createStubRule(`Definition for rule '${key}' was not found`);
                     }
                     rules.define(key, ruleCreator);
                 }
@@ -824,7 +845,7 @@ module.exports = (function() {
                         );
                     });
                 } catch (ex) {
-                    ex.message = "Error while loading rule '" + key + "': " + ex.message;
+                    ex.message = `Error while loading rule '${key}': ${ex.message}`;
                     throw ex;
                 }
             });
@@ -841,30 +862,12 @@ module.exports = (function() {
                 ignoreEval: true,
                 nodejsScope: ecmaFeatures.globalReturn,
                 impliedStrict: ecmaFeatures.impliedStrict,
-                ecmaVersion: ecmaVersion,
+                ecmaVersion,
                 sourceType: currentConfig.parserOptions.sourceType || "script",
                 fallback: Traverser.getKeys
             });
 
             currentScopes = scopeManager.scopes;
-
-            /*
-             * Index the scopes by the start range of their block for efficient
-             * lookup in getScope.
-             */
-            scopeMap = [];
-
-            currentScopes.forEach(function(scope, index) {
-                const range = scope.block.range[0];
-
-                /*
-                 * Sometimes two scopes are returned for a given node. This is
-                 * handled later in a known way, so just don't overwrite here.
-                 */
-                if (!scopeMap[range]) {
-                    scopeMap[range] = index;
-                }
-            });
 
             // augment global scope with declared global variables
             addDeclaredGlobals(ast, currentScopes[0], currentConfig);
@@ -890,11 +893,11 @@ module.exports = (function() {
              * and react accordingly.
              */
             traverser.traverse(ast, {
-                enter: function(node, parent) {
+                enter(node, parent) {
                     node.parent = parent;
                     eventGenerator.enterNode(node);
                 },
-                leave: function(node) {
+                leave(node) {
                     eventGenerator.leaveNode(node);
                 }
             });
@@ -954,7 +957,7 @@ module.exports = (function() {
         }
 
         if (opts) {
-            message = message.replace(/\{\{\s*(.+?)\s*\}\}/g, function(fullMatch, term) {
+            message = message.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, function(fullMatch, term) {
                 if (term in opts) {
                     return opts[term];
                 }
@@ -965,9 +968,9 @@ module.exports = (function() {
         }
 
         const problem = {
-            ruleId: ruleId,
-            severity: severity,
-            message: message,
+            ruleId,
+            severity,
+            message,
             line: location.line,
             column: location.column + 1,   // switch to 1-base instead of 0-base
             nodeType: node && node.type,

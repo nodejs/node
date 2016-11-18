@@ -6,11 +6,13 @@ import {SourceLocation} from "./locutil"
 
 export const defaultOptions = {
   // `ecmaVersion` indicates the ECMAScript version to parse. Must
-  // be either 3, or 5, or 6. This influences support for strict
-  // mode, the set of reserved words, support for getters and
-  // setters and other features. The default is 6.
-  ecmaVersion: 6,
-  // Source type ("script" or "module") for different semantics
+  // be either 3, 5, 6 (2015), 7 (2016), or 8 (2017). This influences support
+  // for strict mode, the set of reserved words, and support for
+  // new syntax features. The default is 7.
+  ecmaVersion: 7,
+  // `sourceType` indicates the mode the code should be parsed in.
+  // Can be either `"script"` or `"module"`. This influences global
+  // strict mode and parsing of `import` and `export` declarations.
   sourceType: "script",
   // `onInsertedSemicolon` can be a callback that will be called
   // when a semicolon is automatically inserted. It will be passed
@@ -88,8 +90,13 @@ export const defaultOptions = {
 
 export function getOptions(opts) {
   let options = {}
+
   for (let opt in defaultOptions)
     options[opt] = opts && has(opts, opt) ? opts[opt] : defaultOptions[opt]
+
+  if (options.ecmaVersion >= 2015)
+    options.ecmaVersion -= 2009
+
   if (options.allowReserved == null)
     options.allowReserved = options.ecmaVersion < 5
 

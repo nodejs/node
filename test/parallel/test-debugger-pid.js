@@ -29,8 +29,8 @@ interfacer.on('line', function(line) {
     switch (++lineCount) {
       case 1:
         line = line.replace(/^(debug> *)+/, '');
-        var msg = 'There was an internal error in Node\'s debugger. ' +
-                  'Please report this bug.';
+        const msg = 'There was an internal error in Node\'s debugger. ' +
+                    'Please report this bug.';
         expected = `(node:${pid}) ${msg}`;
         break;
 
@@ -43,12 +43,12 @@ interfacer.on('line', function(line) {
     }
   } else {
     line = line.replace(/^(debug> *)+/, '');
-    expected = `(node:${pid}) Target process: 655555 doesn\'t exist.`;
+    expected = `(node:${pid}) Target process: 655555 doesn't exist.`;
   }
 
   assert.strictEqual(expected, line);
 });
 
 interfacer.on('exit', function(code, signal) {
-  assert.ok(code == 1, 'Got unexpected code: ' + code);
+  assert.strictEqual(code, 1, `Got unexpected code: ${code}`);
 });

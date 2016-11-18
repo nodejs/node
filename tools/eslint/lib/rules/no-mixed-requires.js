@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `require` calls to be mixed with regular `var` declarations",
+            description: "disallow `require` calls to be mixed with regular variable declarations",
             category: "Node.js and CommonJS",
             recommended: false
         },
@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const options = context.options[0];
         let grouping = false,
@@ -202,7 +202,7 @@ module.exports = {
 
         return {
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
 
                 if (isMixed(node.declarations)) {
                     context.report(

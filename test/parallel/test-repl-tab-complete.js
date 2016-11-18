@@ -277,7 +277,7 @@ const testNonGlobal = repl.start({
 const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
                                  'Int8Array'], 'I'];
 
-if (typeof Intl === 'object') {
+if (common.hasIntl) {
   builtins[0].push('Intl');
 }
 testNonGlobal.complete('I', common.mustCall((error, data) => {
@@ -291,7 +291,7 @@ const testCustomCompleterSyncMode = repl.start({
   prompt: '',
   input: putIn,
   output: putIn,
-  completer: function completerSyncMode(line) {
+  completer: function completer(line) {
     const hits = customCompletions.filter((c) => {
       return c.indexOf(line) === 0;
     });
@@ -323,7 +323,7 @@ const testCustomCompleterAsyncMode = repl.start({
   prompt: '',
   input: putIn,
   output: putIn,
-  completer: function completerAsyncMode(line, callback) {
+  completer: function completer(line, callback) {
     const hits = customCompletions.filter((c) => {
       return c.indexOf(line) === 0;
     });

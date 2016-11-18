@@ -113,7 +113,7 @@ http.createServer((request, response) => {
 }).listen(1337);
 ```
 
-By default, the `zlib` methods with throw an error when decompressing
+By default, the `zlib` methods will throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
@@ -156,7 +156,7 @@ That is: 128K for windowBits=15  +  128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
 For example, to reduce the default memory requirements from 256K to 128K, the
-options shoud be set to:
+options should be set to:
 
 ```js
 { windowBits: 14, memLevel: 7 }
@@ -384,12 +384,12 @@ Only applicable to deflate algorithm.
 added: v0.7.0
 -->
 
+Reset the compressor/decompressor to factory defaults. Only applicable to
+the inflate and deflate algorithms.
+
 ## zlib.constants
 
 Provides an object enumerating Zlib-related constants.
-
-Reset the compressor/decompressor to factory defaults. Only applicable to
-the inflate and deflate algorithms.
 
 ## zlib.createDeflate([options])
 <!-- YAML

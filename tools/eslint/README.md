@@ -111,6 +111,7 @@ These folks keep the project moving and are resources for help.
 * Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps))
 * Toru Nagashima ([@mysticatea](https://github.com/mysticatea))
 * Alberto Rodríguez ([@alberto](https://github.com/alberto))
+* Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
 
 ### Development Team
 
@@ -118,7 +119,6 @@ These folks keep the project moving and are resources for help.
 * Jamund Ferguson ([@xjamundx](https://github.com/xjamundx))
 * Ian VanSchooten ([@ianvs](https://github.com/ianvs))
 * Burak Yiğit Kaya ([@byk](https://github.com/byk))
-* Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
 * Michael Ficarra ([@michaelficarra](https://github.com/michaelficarra))
 * Mark Pedrotti ([@pedrottimark](https://github.com/pedrottimark))
 * Oleg Gaidarenko ([@markelog](https://github.com/markelog))
@@ -128,6 +128,8 @@ These folks keep the project moving and are resources for help.
 * Alexej Yaroshevich ([@zxqfox](https://github.com/zxqfox))
 * Kevin Partington ([@platinumazure](https://github.com/platinumazure))
 * Vitor Balocco ([@vitorbal](https://github.com/vitorbal))
+* James Henry ([@JamesHenry](https://github.com/JamesHenry))
+* Teddy Katz ([@not-an-aardvark](https://github.com/not-an-aardvark))
 
 ## Releases
 
@@ -155,13 +157,14 @@ ESLint follows [semantic versioning](http://semver.org). However, due to the nat
 * Minor release (might break your lint build)
     * A bug fix in a rule that results in ESLint reporting more errors.
     * A new rule is created.
-    * A new option to an existing rule is created.
+    * A new option to an existing rule that does not result in ESLint reporting more errors by default.
     * An existing rule is deprecated.
     * A new CLI capability is created.
     * New capabilities to the public API are added (new classes, new methods, new arguments to existing methods, etc.).
     * A new formatter is created.
 * Major release (likely to break your lint build)
     * `eslint:recommended` is updated.
+    * A new option to an existing rule that results in ESLint reporting more errors by default.
     * An existing rule is removed.
     * An existing formatter is removed.
     * Part of the public API is removed or changed in an incompatible way.

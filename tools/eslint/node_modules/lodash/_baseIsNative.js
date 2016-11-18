@@ -1,5 +1,4 @@
 var isFunction = require('./isFunction'),
-    isHostObject = require('./_isHostObject'),
     isMasked = require('./_isMasked'),
     isObject = require('./isObject'),
     toSource = require('./_toSource');
@@ -41,7 +40,7 @@ function baseIsNative(value) {
   if (!isObject(value) || isMasked(value)) {
     return false;
   }
-  var pattern = (isFunction(value) || isHostObject(value)) ? reIsNative : reIsHostCtor;
+  var pattern = isFunction(value) ? reIsNative : reIsHostCtor;
   return pattern.test(toSource(value));
 }
 

@@ -176,12 +176,12 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let exportsNode;
         let ruleIsFixable = false;
 
         return {
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (node.left &&
                     node.right &&
                     node.left.type === "MemberExpression" &&
@@ -192,7 +192,7 @@ module.exports = {
                 }
             },
 
-            CallExpression: function(node) {
+            CallExpression(node) {
 
                 // If the rule has a call for `context.report` and a property `fix`
                 // is being passed in, then we consider that the rule is fixable.
@@ -214,7 +214,7 @@ module.exports = {
                 }
             },
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 if (!isCorrectExportsFormat(exportsNode)) {
                     context.report(exportsNode, "Rule does not export an Object. Make sure the rule follows the new rule format.");
                     return;

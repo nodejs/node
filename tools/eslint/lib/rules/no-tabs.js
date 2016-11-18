@@ -17,7 +17,7 @@ const regex = /\t/;
 module.exports = {
     meta: {
         docs: {
-            description: "Disallow tabs in file",
+            description: "disallow tabs in file",
             category: "Stylistic Issues",
             recommended: false
         },

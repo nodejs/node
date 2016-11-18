@@ -35,11 +35,11 @@ class IC {
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
 
-  bool IsNameCompatibleWithPrototypeFailure(Handle<Object> name);
-  void MarkPrototypeFailure(Handle<Object> name) {
-    DCHECK(IsNameCompatibleWithPrototypeFailure(name));
+  bool RecomputeHandlerForName(Handle<Object> name);
+  void MarkRecomputeHandler(Handle<Object> name) {
+    DCHECK(RecomputeHandlerForName(name));
     old_state_ = state_;
-    state_ = PROTOTYPE_FAILURE;
+    state_ = RECOMPUTE_HANDLER;
   }
 
   // Clear the inline cache to initial state.
@@ -47,14 +47,13 @@ class IC {
 
 #ifdef DEBUG
   bool IsLoadStub() const {
-    return target()->is_load_stub() || target()->is_keyed_load_stub();
+    return kind_ == Code::LOAD_IC || kind_ == Code::LOAD_GLOBAL_IC ||
+           kind_ == Code::KEYED_LOAD_IC;
   }
-
   bool IsStoreStub() const {
-    return target()->is_store_stub() || target()->is_keyed_store_stub();
+    return kind_ == Code::STORE_IC || kind_ == Code::KEYED_STORE_IC;
   }
-
-  bool IsCallStub() const { return target()->is_call_stub(); }
+  bool IsCallStub() const { return kind_ == Code::CALL_IC; }
 #endif
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
@@ -65,26 +64,20 @@ class IC {
                                              Isolate* isolate,
                                              CacheHolderFlag* flag);
 
-  static bool IsCleared(Code* code) {
-    InlineCacheState state = code->ic_state();
-    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
-  }
-
   static bool IsCleared(FeedbackNexus* nexus) {
     InlineCacheState state = nexus->StateFromFeedback();
     return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
   static bool ICUseVector(Code::Kind kind) {
-    return kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-           kind == Code::CALL_IC || kind == Code::STORE_IC ||
-           kind == Code::KEYED_STORE_IC;
+    return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
+           kind == Code::KEYED_LOAD_IC || kind == Code::CALL_IC ||
+           kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
   }
 
- protected:
-  // Get the call-site target; used for determining the state.
-  Handle<Code> target() const { return target_; }
+  static InlineCacheState StateFromCode(Code* code);
 
+ protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
@@ -101,13 +94,12 @@ class IC {
 
   // Set the call-site target.
   inline void set_target(Code* code);
-  bool is_target_set() { return target_set_; }
   bool is_vector_set() { return vector_set_; }
 
   bool UseVector() const {
     bool use = ICUseVector(kind());
     // If we are supposed to use the nexus, verify the nexus is non-null.
-    DCHECK(!use || nexus_ != NULL);
+    DCHECK(!use || nexus_ != nullptr);
     return use;
   }
 
@@ -115,10 +107,10 @@ class IC {
   void ConfigureVectorState(IC::State new_state, Handle<Object> key);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
-                            Handle<Code> handler);
+                            Handle<Object> handler);
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
   // Configure the vector for POLYMORPHIC with transitions (only for element
   // keyed stores).
   void ConfigureVectorState(MapHandleList* maps,
@@ -139,16 +131,17 @@ class IC {
                                          Address constant_pool);
   static inline void SetTargetAtAddress(Address address, Code* target,
                                         Address constant_pool);
-  static void OnTypeFeedbackChanged(Isolate* isolate, Address address,
-                                    State old_state, State new_state,
-                                    bool target_remains_ic_stub);
   // As a vector-based IC, type feedback must be updated differently.
   static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Code> ComputeHandler(LookupIterator* lookup,
-                              Handle<Object> value = Handle<Code>::null());
+  Handle<Object> ComputeHandler(LookupIterator* lookup,
+                                Handle<Object> value = Handle<Code>::null());
+  virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> value,
                                       CacheHolderFlag cache_holder) {
@@ -156,30 +149,28 @@ class IC {
     return Handle<Code>::null();
   }
 
-  void UpdateMonomorphicIC(Handle<Code> handler, Handle<Name> name);
-  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code);
-  void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
+  void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
+  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
+  void UpdateMegamorphicCache(Map* map, Name* name, Object* code);
+
+  StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
-  void PatchCache(Handle<Name> name, Handle<Code> code);
+  void PatchCache(Handle<Name> name, Handle<Object> code);
   Code::Kind kind() const { return kind_; }
+  bool is_keyed() const {
+    return kind_ == Code::KEYED_LOAD_IC || kind_ == Code::KEYED_STORE_IC;
+  }
   Code::Kind handler_kind() const {
     if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
     DCHECK(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
            kind_ == Code::KEYED_STORE_IC);
     return kind_;
   }
-  virtual Handle<Code> megamorphic_stub() {
-    UNREACHABLE();
-    return Handle<Code>::null();
-  }
-
-  bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
-                                              Handle<String> name);
+  bool ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
-  void set_extra_ic_state(ExtraICState state) { extra_ic_state_ = state; }
 
   Handle<Map> receiver_map() { return receiver_map_; }
   void update_receiver_map(Handle<Object> receiver) {
@@ -202,12 +193,10 @@ class IC {
     return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
   }
 
-  inline void UpdateTarget();
-
   Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
   FeedbackVectorSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
-    return state() == PROTOTYPE_FAILURE ? old_state_ : state();
+    return state() == RECOMPUTE_HANDLER ? old_state_ : state();
   }
 
   template <class NexusClass>
@@ -217,25 +206,17 @@ class IC {
   FeedbackNexus* nexus() const { return nexus_; }
 
   inline Code* get_host();
+  inline Code* target() const;
 
  private:
-  inline Code* raw_target() const;
   inline Address constant_pool() const;
   inline Address raw_constant_pool() const;
 
   void FindTargetMaps() {
     if (target_maps_set_) return;
     target_maps_set_ = true;
-    if (UseVector()) {
-      nexus()->ExtractMaps(&target_maps_);
-    } else {
-      if (state_ == MONOMORPHIC) {
-        Map* map = target_->FindFirstMap();
-        if (map != NULL) target_maps_.Add(handle(map));
-      } else if (state_ != UNINITIALIZED && state_ != PREMONOMORPHIC) {
-        target_->FindAllMaps(&target_maps_);
-      }
-    }
+    DCHECK(UseVector());
+    nexus()->ExtractMaps(&target_maps_);
   }
 
   // Frame pointer for the frame that uses (calls) the IC.
@@ -253,15 +234,12 @@ class IC {
 
   Isolate* isolate_;
 
-  // The original code target that missed.
-  Handle<Code> target_;
-  bool target_set_;
   bool vector_set_;
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
   Code::Kind kind_;
   Handle<Map> receiver_map_;
-  MaybeHandle<Code> maybe_handler_;
+  MaybeHandle<Object> maybe_handler_;
 
   ExtraICState extra_ic_state_;
   MapHandleList target_maps_;
@@ -282,45 +260,29 @@ class CallIC : public IC {
 
   void HandleMiss(Handle<Object> function);
 
-  // Code generator routines.
-  static Handle<Code> initialize_stub(Isolate* isolate, int argc,
-                                      ConvertReceiverMode mode,
-                                      TailCallMode tail_call_mode);
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, int argc, ConvertReceiverMode mode,
-      TailCallMode tail_call_mode);
-
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
 
 
 class LoadIC : public IC {
  public:
-  TypeofMode typeof_mode() const {
-    return LoadICState::GetTypeofMode(extra_ic_state());
-  }
-
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
     DCHECK(nexus != NULL);
     DCHECK(IsLoadStub());
   }
 
-  bool ShouldThrowReferenceError(Handle<Object> receiver) {
-    return receiver->IsJSGlobalObject() && typeof_mode() == NOT_INSIDE_TYPEOF;
+  bool ShouldThrowReferenceError() const {
+    return kind() == Code::LOAD_GLOBAL_IC &&
+           LoadGlobalICState::GetTypeofMode(extra_ic_state()) ==
+               NOT_INSIDE_TYPEOF;
   }
 
   // Code generator routines.
 
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      ExtraICState extra_state);
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state, State initialization_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -328,35 +290,39 @@ class LoadIC : public IC {
   static void Clear(Isolate* isolate, Code* host, LoadICNexus* nexus);
 
  protected:
-  inline void set_target(Code* code);
-
-  Handle<Code> slow_stub() const {
-    if (kind() == Code::LOAD_IC) {
-      return isolate()->builtins()->LoadIC_Slow();
-    } else {
-      DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-      return isolate()->builtins()->KeyedLoadIC_Slow();
-    }
+  virtual Handle<Code> slow_stub() const {
+    return isolate()->builtins()->LoadIC_Slow();
   }
-
-  Handle<Code> megamorphic_stub() override;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup);
 
+  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
+
   Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
                               CacheHolderFlag cache_holder) override;
 
  private:
-  Handle<Code> SimpleFieldLoad(FieldIndex index);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
+  Handle<Object> SimpleFieldLoad(FieldIndex index);
 
   friend class IC;
 };
 
+class LoadGlobalIC : public LoadIC {
+ public:
+  LoadGlobalIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
+      : LoadIC(depth, isolate, nexus) {}
+
+  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
+
+  static void Clear(Isolate* isolate, Code* host, LoadGlobalICNexus* nexus);
+
+ protected:
+  Handle<Code> slow_stub() const override {
+    return isolate()->builtins()->LoadGlobalIC_Slow();
+  }
+};
 
 class KeyedLoadIC : public LoadIC {
  public:
@@ -364,7 +330,6 @@ class KeyedLoadIC : public LoadIC {
               KeyedLoadICNexus* nexus = NULL)
       : LoadIC(depth, isolate, nexus) {
     DCHECK(nexus != NULL);
-    DCHECK(target()->is_keyed_load_stub());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
@@ -373,20 +338,8 @@ class KeyedLoadIC : public LoadIC {
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMegamorphic(MacroAssembler* masm);
 
-  // Bit mask to be tested against bit field for the cases when
-  // generic stub should go into slow case.
-  // Access check is necessary explicitly since generic stub does not perform
-  // map checks.
-  static const int kSlowCaseBitFieldMask =
-      (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
-
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      ExtraICState extra_state);
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, State initialization_state, ExtraICState extra_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 
@@ -394,22 +347,15 @@ class KeyedLoadIC : public LoadIC {
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
-  Handle<Code> LoadElementStub(Handle<HeapObject> receiver);
+  void UpdateLoadElement(Handle<HeapObject> receiver);
 
  private:
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
   friend class IC;
 };
 
 
 class StoreIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(LanguageMode flag) {
-    return StoreICState(flag).GetExtraICState();
-  }
-
   StoreIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
     DCHECK(IsStoreStub());
@@ -421,21 +367,8 @@ class StoreIC : public IC {
 
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm);
-  }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         LanguageMode language_mode);
-
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode,
-                                      State initialization_state);
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, LanguageMode language_mode, State initialization_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -449,29 +382,27 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  Handle<Code> megamorphic_stub() override;
-  Handle<Code> slow_stub() const;
-
-  virtual Handle<Code> pre_monomorphic_stub() const {
-    return pre_monomorphic_stub(isolate(), language_mode());
+  Handle<Code> slow_stub() const {
+    switch (language_mode()) {
+      case SLOPPY:
+        return isolate()->builtins()->StoreIC_SlowSloppy();
+      case STRICT:
+        return isolate()->builtins()->StoreIC_SlowStrict();
+      default:
+        UNREACHABLE();
+        return Handle<Code>();
+    }
   }
-
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           LanguageMode language_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
+  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
   Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> value,
                               CacheHolderFlag cache_holder) override;
 
  private:
-  inline void set_target(Code* code);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
   friend class IC;
 };
 
@@ -484,79 +415,34 @@ enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
 
 class KeyedStoreIC : public StoreIC {
  public:
-  // ExtraICState bits (building on IC)
-  // ExtraICState bits
-  // When more language modes are added, these BitFields need to move too.
-  STATIC_ASSERT(i::LANGUAGE_END == 3);
-  class ExtraICStateKeyedAccessStoreMode
-      : public BitField<KeyedAccessStoreMode, 3, 3> {};  // NOLINT
-
-  class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
-
-  static ExtraICState ComputeExtraICState(LanguageMode flag,
-                                          KeyedAccessStoreMode mode) {
-    return StoreICState(flag).GetExtraICState() |
-           ExtraICStateKeyedAccessStoreMode::encode(mode) |
-           IcCheckTypeField::encode(ELEMENT);
-  }
-
   KeyedAccessStoreMode GetKeyedAccessStoreMode() {
     return casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
   }
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate,
                KeyedStoreICNexus* nexus = NULL)
-      : StoreIC(depth, isolate, nexus) {
-    DCHECK(target()->is_keyed_store_stub());
-  }
+      : StoreIC(depth, isolate, nexus) {}
 
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                             Handle<Object> name,
                                             Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm);
-  }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode,
-                                      State initialization_state);
-
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, LanguageMode language_mode, State initialization_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:
-  virtual Handle<Code> pre_monomorphic_stub() const {
-    return pre_monomorphic_stub(isolate(), language_mode());
-  }
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           LanguageMode language_mode) {
-    if (is_strict(language_mode)) {
-      return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
-    } else {
-      return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
-    }
-  }
-
-  Handle<Code> StoreElementStub(Handle<Map> receiver_map,
-                                KeyedAccessStoreMode store_mode);
+  void UpdateStoreElement(Handle<Map> receiver_map,
+                          KeyedAccessStoreMode store_mode);
 
  private:
-  inline void set_target(Code* code);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 
@@ -585,9 +471,6 @@ class CompareIC : public IC {
 
   // Helper function for computing the condition for a compare operation.
   static Condition ComputeCondition(Token::Value op);
-
-  // Factory method for getting an uninitialized compare stub.
-  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
  private:
   static bool HasInlinedSmiCode(Address address);

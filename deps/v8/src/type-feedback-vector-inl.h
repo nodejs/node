@@ -14,13 +14,11 @@ namespace internal {
 template <typename Derived>
 FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
     FeedbackVectorSlotKind kind) {
-  Derived* derived = static_cast<Derived*>(this);
-
-  int slot = derived->slots();
+  int slot = This()->slots();
   int entries_per_slot = TypeFeedbackMetadata::GetSlotSize(kind);
-  derived->append(kind);
+  This()->append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
-    derived->append(FeedbackVectorSlotKind::INVALID);
+    This()->append(FeedbackVectorSlotKind::INVALID);
   }
   return FeedbackVectorSlot(slot);
 }
@@ -32,6 +30,10 @@ TypeFeedbackMetadata* TypeFeedbackMetadata::cast(Object* obj) {
   return reinterpret_cast<TypeFeedbackMetadata*>(obj);
 }
 
+bool TypeFeedbackMetadata::is_empty() const {
+  if (length() == 0) return true;
+  return false;
+}
 
 int TypeFeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
@@ -53,6 +55,26 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   return kind == FeedbackVectorSlotKind::GENERAL ? 1 : 2;
 }
 
+bool TypeFeedbackMetadata::SlotRequiresName(FeedbackVectorSlotKind kind) {
+  switch (kind) {
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+      return true;
+
+    case FeedbackVectorSlotKind::CALL_IC:
+    case FeedbackVectorSlotKind::LOAD_IC:
+    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+    case FeedbackVectorSlotKind::STORE_IC:
+    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+    case FeedbackVectorSlotKind::GENERAL:
+    case FeedbackVectorSlotKind::INVALID:
+      return false;
+
+    case FeedbackVectorSlotKind::KINDS_NUMBER:
+      break;
+  }
+  UNREACHABLE();
+  return false;
+}
 
 bool TypeFeedbackVector::is_empty() const {
   if (length() == 0) return true;
@@ -73,24 +95,10 @@ TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
                     : TypeFeedbackMetadata::cast(get(kMetadataIndex));
 }
 
-
-FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
-    FeedbackVectorSlot slot) const {
-  DCHECK(!is_empty());
-  return metadata()->GetKind(slot);
-}
-
-
-int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) const {
-  DCHECK(slot.ToInt() < slot_count());
-  return kReservedIndexCount + slot.ToInt();
-}
-
-
-// Conversion from an integer index to either a slot or an ic slot. The caller
-// should know what kind she expects.
-FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) const {
-  DCHECK(index >= kReservedIndexCount && index < length());
+// Conversion from an integer index to either a slot or an ic slot.
+// static
+FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) {
+  DCHECK(index >= kReservedIndexCount);
   return FeedbackVectorSlot(index - kReservedIndexCount);
 }
 
@@ -149,6 +157,21 @@ Symbol* TypeFeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return isolate->heap()->uninitialized_symbol();
 }
 
+bool TypeFeedbackMetadataIterator::HasNext() const {
+  return next_slot_.ToInt() < metadata()->slot_count();
+}
+
+FeedbackVectorSlot TypeFeedbackMetadataIterator::Next() {
+  DCHECK(HasNext());
+  cur_slot_ = next_slot_;
+  slot_kind_ = metadata()->GetKind(cur_slot_);
+  next_slot_ = FeedbackVectorSlot(next_slot_.ToInt() + entry_size());
+  return cur_slot_;
+}
+
+int TypeFeedbackMetadataIterator::entry_size() const {
+  return TypeFeedbackMetadata::GetSlotSize(kind());
+}
 
 Object* FeedbackNexus::GetFeedback() const { return vector()->Get(slot()); }
 

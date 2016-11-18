@@ -38,7 +38,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         const mode = (function(option) {
@@ -68,12 +68,16 @@ module.exports = {
                 const spaceRequired = mode[side];
                 const node = after ? leftToken : rightToken;
                 const type = spaceRequired ? "Missing" : "Unexpected";
-                const message = type + " space " + side + " *.";
+                const message = "{{type}} space {{side}} *.";
 
                 context.report({
-                    node: node,
-                    message: message,
-                    fix: function(fixer) {
+                    node,
+                    message,
+                    data: {
+                        type,
+                        side
+                    },
+                    fix(fixer) {
                         if (spaceRequired) {
                             if (after) {
                                 return fixer.insertTextAfter(node, " ");

@@ -12,14 +12,10 @@
 // Imports
 
 var GlobalObject = global.Object;
-var MakeRangeError;
-var MakeTypeError;
 var MaxSimple;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-  MakeRangeError = from.MakeRangeError;
   MaxSimple = from.MaxSimple;
 });
 
@@ -28,14 +24,14 @@ utils.Import(function(from) {
 
 function CheckSharedIntegerTypedArray(ia) {
   if (!%IsSharedIntegerTypedArray(ia)) {
-    throw MakeTypeError(kNotIntegerSharedTypedArray, ia);
+    throw %make_type_error(kNotIntegerSharedTypedArray, ia);
   }
 }
 
 function CheckSharedInteger32TypedArray(ia) {
   CheckSharedIntegerTypedArray(ia);
   if (!%IsSharedInteger32TypedArray(ia)) {
-    throw MakeTypeError(kNotInt32SharedTypedArray, ia);
+    throw %make_type_error(kNotInt32SharedTypedArray, ia);
   }
 }
 
@@ -44,10 +40,10 @@ function ValidateIndex(index, length) {
   var numberIndex = TO_NUMBER(index);
   var accessIndex = TO_INTEGER(numberIndex);
   if (numberIndex !== accessIndex) {
-    throw MakeRangeError(kInvalidAtomicAccessIndex);
+    throw %make_range_error(kInvalidAtomicAccessIndex);
   }
   if (accessIndex < 0 || accessIndex >= length) {
-    throw MakeRangeError(kInvalidAtomicAccessIndex);
+    throw %make_range_error(kInvalidAtomicAccessIndex);
   }
   return accessIndex;
 }
@@ -60,19 +56,6 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
   oldValue = TO_NUMBER(oldValue);
   newValue = TO_NUMBER(newValue);
   return %_AtomicsCompareExchange(sta, index, oldValue, newValue);
-}
-
-function AtomicsLoadJS(sta, index) {
-  CheckSharedIntegerTypedArray(sta);
-  index = ValidateIndex(index, %_TypedArrayGetLength(sta));
-  return %_AtomicsLoad(sta, index);
-}
-
-function AtomicsStoreJS(sta, index, value) {
-  CheckSharedIntegerTypedArray(sta);
-  index = ValidateIndex(index, %_TypedArrayGetLength(sta));
-  value = TO_NUMBER(value);
-  return %_AtomicsStore(sta, index, value);
 }
 
 function AtomicsAddJS(ia, index, value) {
@@ -121,9 +104,7 @@ function AtomicsIsLockFreeJS(size) {
   return %_AtomicsIsLockFree(size);
 }
 
-// Futexes
-
-function AtomicsFutexWaitJS(ia, index, value, timeout) {
+function AtomicsWaitJS(ia, index, value, timeout) {
   CheckSharedInteger32TypedArray(ia);
   index = ValidateIndex(index, %_TypedArrayGetLength(ia));
   if (IS_UNDEFINED(timeout)) {
@@ -136,52 +117,28 @@ function AtomicsFutexWaitJS(ia, index, value, timeout) {
       timeout = MaxSimple(0, timeout);
     }
   }
-  return %AtomicsFutexWait(ia, index, value, timeout);
+  return %AtomicsWait(ia, index, value, timeout);
 }
 
-function AtomicsFutexWakeJS(ia, index, count) {
+function AtomicsWakeJS(ia, index, count) {
   CheckSharedInteger32TypedArray(ia);
   index = ValidateIndex(index, %_TypedArrayGetLength(ia));
   count = MaxSimple(0, TO_INTEGER(count));
-  return %AtomicsFutexWake(ia, index, count);
-}
-
-function AtomicsFutexWakeOrRequeueJS(ia, index1, count, value, index2) {
-  CheckSharedInteger32TypedArray(ia);
-  index1 = ValidateIndex(index1, %_TypedArrayGetLength(ia));
-  count = MaxSimple(0, TO_INTEGER(count));
-  value = TO_INT32(value);
-  index2 = ValidateIndex(index2, %_TypedArrayGetLength(ia));
-  if (index1 < 0 || index1 >= %_TypedArrayGetLength(ia) ||
-      index2 < 0 || index2 >= %_TypedArrayGetLength(ia)) {
-    return UNDEFINED;
-  }
-  return %AtomicsFutexWakeOrRequeue(ia, index1, count, value, index2);
+  return %AtomicsWake(ia, index, count);
 }
 
 // -------------------------------------------------------------------
 
-function AtomicsConstructor() {}
+var Atomics = global.Atomics;
 
-var Atomics = new AtomicsConstructor();
-
-%InternalSetPrototype(Atomics, GlobalObject.prototype);
-%AddNamedProperty(global, "Atomics", Atomics, DONT_ENUM);
-%FunctionSetInstanceClassName(AtomicsConstructor, 'Atomics');
+// The Atomics global is defined by the bootstrapper.
 
 %AddNamedProperty(Atomics, toStringTagSymbol, "Atomics", READ_ONLY | DONT_ENUM);
 
-// These must match the values in src/futex-emulation.h
-utils.InstallConstants(Atomics, [
-  "OK", 0,
-  "NOTEQUAL", -1,
-  "TIMEDOUT", -2,
-]);
-
 utils.InstallFunctions(Atomics, DONT_ENUM, [
+  // TODO(binji): remove the rest of the (non futex) Atomics functions as they
+  // become builtins.
   "compareExchange", AtomicsCompareExchangeJS,
-  "load", AtomicsLoadJS,
-  "store", AtomicsStoreJS,
   "add", AtomicsAddJS,
   "sub", AtomicsSubJS,
   "and", AtomicsAndJS,
@@ -189,9 +146,8 @@ utils.InstallFunctions(Atomics, DONT_ENUM, [
   "xor", AtomicsXorJS,
   "exchange", AtomicsExchangeJS,
   "isLockFree", AtomicsIsLockFreeJS,
-  "futexWait", AtomicsFutexWaitJS,
-  "futexWake", AtomicsFutexWakeJS,
-  "futexWakeOrRequeue", AtomicsFutexWakeOrRequeueJS,
+  "wait", AtomicsWaitJS,
+  "wake", AtomicsWakeJS,
 ]);
 
 })

@@ -31,7 +31,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0];
         let allowInForAfterthought = false;
@@ -42,11 +42,17 @@ module.exports = {
 
         return {
 
-            UpdateExpression: function(node) {
+            UpdateExpression(node) {
                 if (allowInForAfterthought && node.parent.type === "ForStatement") {
                     return;
                 }
-                context.report(node, "Unary operator '" + node.operator + "' used.");
+                context.report({
+                    node,
+                    message: "Unary operator '{{operator}}' used.",
+                    data: {
+                        operator: node.operator
+                    }
+                });
             }
 
         };

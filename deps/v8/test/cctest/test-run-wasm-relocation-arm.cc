@@ -23,8 +23,7 @@ using namespace v8::internal::compiler;
 
 static int32_t DummyStaticFunction(Object* result) { return 1; }
 
-TEST(WasmRelocationArm) {
-  CcTest::InitializeVM();
+TEST(WasmRelocationArmMemoryReference) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
@@ -77,4 +76,59 @@ TEST(WasmRelocationArm) {
 #endif
 }
 
+TEST(WasmRelocationArmMemorySizeReference) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[4096];
+  DummyStaticFunction(NULL);
+  int32_t size = 512;
+  Label fail;
+
+  Assembler assm(isolate, buffer, sizeof buffer);
+
+  __ mov(r0, Operand(size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  __ cmp(r0, Operand(size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  __ b(ne, &fail);
+  __ mov(pc, Operand(lr));
+  __ bind(&fail);
+  __ mov(r0, Operand(0xdeadbeef));
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  CSignature0<int32_t> csig;
+  CodeRunner<int32_t> runnable(isolate, code, &csig);
+  int32_t ret_value = runnable.Call();
+  CHECK_NE(ret_value, 0xdeadbeef);
+
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+  ::printf("f() = %d\n\n", ret_value);
+#endif
+  size_t diff = 512;
+
+  int mode_mask = (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (RelocInfo::IsWasmMemorySizeReference(mode)) {
+      it.rinfo()->update_wasm_memory_reference(
+          reinterpret_cast<Address>(1234), reinterpret_cast<Address>(1234),
+          it.rinfo()->wasm_memory_size_reference(),
+          it.rinfo()->wasm_memory_size_reference() + diff, SKIP_ICACHE_FLUSH);
+    }
+  }
+
+  ret_value = runnable.Call();
+  CHECK_NE(ret_value, 0xdeadbeef);
+
+#ifdef DEBUG
+  code->Print(os);
+  ::printf("f() = %d\n\n", ret_value);
+#endif
+}
 #undef __

@@ -11,9 +11,9 @@ if (common.isWindows) {
 }
 
 if (cluster.isMaster) {
-  cluster.fork().on('exit', function(code) {
-    assert.equal(code, 0);
-  });
+  cluster.fork().on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 0);
+  }));
   return;
 }
 
@@ -24,7 +24,7 @@ function next() {
     return;
 
   // Work around health check issue
-  process.nextTick(function() {
+  process.nextTick(() => {
     for (var i = 0; i < sockets.length; i++)
       sockets[i].close(close);
   });

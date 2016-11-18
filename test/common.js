@@ -1,10 +1,10 @@
 /* eslint-disable required-modules */
 'use strict';
-var path = require('path');
-var fs = require('fs');
-var assert = require('assert');
-var os = require('os');
-var child_process = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
+const os = require('os');
+const child_process = require('child_process');
 const stream = require('stream');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
@@ -14,8 +14,8 @@ const testRoot = process.env.NODE_TEST_DIR ?
 
 exports.testDir = __dirname;
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
-exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
+// PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 exports.isWOW64 = exports.isWindows &&
@@ -30,7 +30,12 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
+
+const cpus = os.cpus();
+exports.enoughTestCpu = cpus.length > 1 || cpus[0].speed > 999;
+
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
+exports.buildType = process.config.target_defaults.default_configuration;
 
 function rimrafSync(p) {
   try {
@@ -241,7 +246,7 @@ exports.spawnPwd = function(options) {
   var spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
-    return spawn('cmd.exe', ['/c', 'cd'], options);
+    return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
   }
@@ -252,7 +257,7 @@ exports.spawnSyncPwd = function(options) {
   const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
-    return spawnSync('cmd.exe', ['/c', 'cd'], options);
+    return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawnSync('pwd', [], options);
   }
@@ -498,3 +503,31 @@ exports.busyLoop = function busyLoop(time) {
   var stopTime = startTime + time;
   while (Timer.now() < stopTime) {}
 };
+
+exports.isAlive = function isAlive(pid) {
+  try {
+    process.kill(pid, 'SIGCONT');
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+exports.expectWarning = function(name, expected) {
+  if (typeof expected === 'string')
+    expected = [expected];
+  process.on('warning', exports.mustCall((warning) => {
+    assert.strictEqual(warning.name, name);
+    assert.ok(expected.includes(warning.message),
+              `unexpected error message: "${warning.message}"`);
+    // Remove a warning message after it is seen so that we guarantee that we
+    // get each message only once.
+    expected.splice(expected.indexOf(warning.message), 1);
+  }, expected.length));
+};
+
+Object.defineProperty(exports, 'hasIntl', {
+  get: function() {
+    return process.binding('config').hasIntl;
+  }
+});

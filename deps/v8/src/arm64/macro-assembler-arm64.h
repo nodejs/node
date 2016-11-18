@@ -21,12 +21,15 @@
   #define ASM_UNIMPLEMENTED_BREAK(message)                                   \
   __ Debug(message, __LINE__,                                                \
            FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
-  #define ASM_LOCATION(message)                                              \
-  __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
+#if DEBUG
+#define ASM_LOCATION(message) __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
 #else
-  #define ASM_UNIMPLEMENTED(message)
-  #define ASM_UNIMPLEMENTED_BREAK(message)
-  #define ASM_LOCATION(message)
+#define ASM_LOCATION(message)
+#endif
+#else
+#define ASM_UNIMPLEMENTED(message)
+#define ASM_UNIMPLEMENTED_BREAK(message)
+#define ASM_LOCATION(message)
 #endif
 
 
@@ -39,8 +42,8 @@ namespace internal {
 #define kReturnRegister2 x2
 #define kJSFunctionRegister x1
 #define kContextRegister cp
+#define kAllocateSizeRegister x1
 #define kInterpreterAccumulatorRegister x0
-#define kInterpreterRegisterFileRegister x18
 #define kInterpreterBytecodeOffsetRegister x19
 #define kInterpreterBytecodeArrayRegister x20
 #define kInterpreterDispatchTableRegister x21
@@ -65,6 +68,21 @@ namespace internal {
   V(Stp, CPURegister&, rt, rt2, StorePairOpFor(rt, rt2)) \
   V(Ldpsw, CPURegister&, rt, rt2, LDPSW_x)
 
+#define LDA_STL_MACRO_LIST(V) \
+  V(Ldarb, ldarb)             \
+  V(Ldarh, ldarh)             \
+  V(Ldar, ldar)               \
+  V(Ldaxrb, ldaxrb)           \
+  V(Ldaxrh, ldaxrh)           \
+  V(Ldaxr, ldaxr)             \
+  V(Stlrb, stlrb)             \
+  V(Stlrh, stlrh)             \
+  V(Stlr, stlr)
+
+#define STLX_MACRO_LIST(V) \
+  V(Stlxrb, stlxrb)        \
+  V(Stlxrh, stlxrh)        \
+  V(Stlxr, stlxr)
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -291,6 +309,17 @@ class MacroAssembler : public Assembler {
 
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
+
+// Load-acquire/store-release macros.
+#define DECLARE_FUNCTION(FN, OP) \
+  inline void FN(const Register& rt, const Register& rn);
+  LDA_STL_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+#define DECLARE_FUNCTION(FN, OP) \
+  inline void FN(const Register& rs, const Register& rt, const Register& rn);
+  STLX_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
 
   // V8-specific load/store helpers.
   void Load(const Register& rt, const MemOperand& addr, Representation r);
@@ -865,7 +894,6 @@ class MacroAssembler : public Assembler {
   inline void InitializeRootRegister();
 
   void AssertFPCRState(Register fpcr = NoReg);
-  void ConfigureFPCR();
   void CanonicalizeNaN(const FPRegister& dst, const FPRegister& src);
   void CanonicalizeNaN(const FPRegister& reg) {
     CanonicalizeNaN(reg, reg);
@@ -969,6 +997,10 @@ class MacroAssembler : public Assembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
@@ -1142,7 +1174,8 @@ class MacroAssembler : public Assembler {
                      int num_double_arguments);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& builtin);
+  void JumpToExternalReference(const ExternalReference& builtin,
+                               bool builtin_exit_frame = false);
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,
@@ -1306,7 +1339,6 @@ class MacroAssembler : public Assembler {
   //
   // If the new space is exhausted control continues at the gc_required label.
   // In this case, the result and scratch registers may still be clobbered.
-  // If flags includes TAG_OBJECT, the result is tagged as as a heap object.
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
@@ -1316,6 +1348,15 @@ class MacroAssembler : public Assembler {
                 Register scratch2,
                 Label* gc_required,
                 AllocationFlags flags);
+
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    Register scratch, AllocationFlags flags);
+
+  void FastAllocate(int object_size, Register result, Register scratch1,
+                    Register scratch2, AllocationFlags flags);
 
   void AllocateTwoByteString(Register result,
                              Register length,
@@ -1601,6 +1642,9 @@ class MacroAssembler : public Assembler {
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
   // Returns map with validated enum cache in object register.
   void CheckEnumCache(Register object, Register scratch0, Register scratch1,
                       Register scratch2, Register scratch3, Register scratch4,
@@ -1662,9 +1706,9 @@ class MacroAssembler : public Assembler {
   //
   // This function also stores the new frame information in the top frame, so
   // that the new frame becomes the current frame.
-  void EnterExitFrame(bool save_doubles,
-                      const Register& scratch,
-                      int extra_space = 0);
+  void EnterExitFrame(bool save_doubles, const Register& scratch,
+                      int extra_space = 0,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame, after a C function has returned to generated
   // (JavaScript) code.
@@ -2268,14 +2312,6 @@ class InlineSmiCheckInfo {
 }  // namespace internal
 }  // namespace v8
 
-#ifdef GENERATED_CODE_COVERAGE
-#error "Unsupported option"
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm) masm->stop(__FILE_LINE__); masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
 
 #endif  // V8_ARM64_MACRO_ASSEMBLER_ARM64_H_

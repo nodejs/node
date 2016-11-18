@@ -8,6 +8,7 @@ PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
 TEST_CI_ARGS ?=
 STAGINGSERVER ?= node-www
+LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 
 ifdef JOBS
@@ -39,6 +40,7 @@ EXEEXT := $(shell $(PYTHON) -c \
 NODE_EXE = node$(EXEEXT)
 NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
+NPM ?= ./deps/npm/bin/npm-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -70,15 +72,14 @@ $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	ln -fs out/Debug/$(NODE_EXE) $@
 
-out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/toolchain.gypi deps/v8/build/features.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
+out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
+              deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
+              deps/v8/gypfiles/features.gypi deps/v8/src/v8.gyp node.gyp \
+              config.gypi
 	$(PYTHON) tools/gyp_node.py -f make
 
 config.gypi: configure
-	if [ -f $@ ]; then
-		$(error Stale $@, please re-run ./configure)
-	else
-		$(error No $@, please run ./configure first)
-	fi
+	$(error Missing or stale $@, please run ./$<)
 
 install: all
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
@@ -87,7 +88,8 @@ uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 clean:
-	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
+	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
+                out/$(BUILDTYPE)/node.exp
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
 	-rm -rf node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
@@ -103,7 +105,6 @@ distclean:
 	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
 	-rm -f $(BINARYTAR).* $(TARBALL).*
 	-rm -rf deps/v8/testing/gmock
-	-rm -rf deps/v8/testing/gtest
 
 check: test
 
@@ -111,14 +112,14 @@ cctest: all
 	@out/$(BUILDTYPE)/$@
 
 v8:
-	tools/make-v8.sh v8
+	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 test: all
 	$(MAKE) build-addons
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		addons doctool known_issues message pseudo-tty parallel sequential
+		addons doctool inspector known_issues message pseudo-tty parallel sequential
 	$(MAKE) lint
 
 test-parallel: all
@@ -134,7 +135,13 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.docbuildstamp: tools/doc/addon-verify.js doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
+
+ifeq ($(OSTYPE),aix)
+DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
+endif
+
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS)
 	$(RM) -r test/addons/??_*/
 	$(NODE) $<
 	touch $@
@@ -154,12 +161,14 @@ test/addons/.buildstamp: config.gypi \
 	deps/npm/node_modules/node-gyp/package.json \
 	$(ADDONS_BINDING_GYPS) $(ADDONS_BINDING_SOURCES) \
 	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h \
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	test/addons/.docbuildstamp
-	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
-	# embedded addons have been generated from the documentation.
-	for dirname in test/addons/*/; do \
-		$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+#	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
+#	embedded addons have been generated from the documentation.
+	@for dirname in test/addons/*/; do \
+		echo "\nBuilding addon $$PWD/$$dirname" ; \
+		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+		        --loglevel=$(LOGLEVEL) rebuild \
 			--python="$(PYTHON)" \
 			--directory="$$PWD/$$dirname" \
 			--nodedir="$$PWD" || exit 1 ; \
@@ -186,9 +195,10 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons
-CI_JS_SUITES := doctool known_issues message parallel pseudo-tty sequential
+CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential
 
 # Build and test addons without building anything else
+test-ci-native: LOGLEVEL := info
 test-ci-native: | test/addons/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
@@ -200,7 +210,9 @@ test-ci-js:
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 
+test-ci: LOGLEVEL := info
 test-ci: | build-addons
+	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)
@@ -226,6 +238,12 @@ test-internet: all
 test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
+test-inspector: all
+	$(PYTHON) tools/test.py inspector
+
+test-tick-processor: all
+	$(PYTHON) tools/test.py tick-processor
+
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
@@ -248,7 +266,7 @@ test-timers-clean:
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 test-v8: v8
-	# note: performs full test unless QUICKCHECK is specified
+#	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
         --no-presubmit \
@@ -256,7 +274,7 @@ test-v8: v8
 	 $(TAP_V8)
 
 test-v8-intl: v8
-	# note: performs full test unless QUICKCHECK is specified
+#	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
         --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
@@ -269,7 +287,7 @@ test-v8-benchmarks: v8
 	 $(TAP_V8_BENCHMARKS)
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
-	# runs all v8 tests
+# runs all v8 tests
 else
 test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 	@echo "Testing v8 is not available through the source tarball."
@@ -278,15 +296,14 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 endif
 
 apidoc_sources = $(wildcard doc/api/*.md)
-apidocs = $(addprefix out/,$(apidoc_sources:.md=.html)) \
-		$(addprefix out/,$(apidoc_sources:.md=.json))
+apidocs_html = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.html))
+apidocs_json = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc-only: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/
-
+doc-only: $(apidocs_html) $(apidocs_json)
 doc: $(NODE_EXE) doc-only
 
 $(apidoc_dirs):
@@ -301,15 +318,29 @@ out/doc/%: doc/%
 # check if ./node is actually set, else use user pre-installed binary
 gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
+		if [ -x $(NODE) ]; then \
+			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
+		else \
+			cd tools/doc && node ../../$(NPM) install; \
+		fi
 	[ -x $(NODE) ] && $(NODE) $(gen-json) || node $(gen-json)
 
 # check if ./node is actually set, else use user pre-installed binary
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 out/doc/api/%.html: doc/api/%.md
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
+		if [ -x $(NODE) ]; then \
+			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
+		else \
+			cd tools/doc && node ../../$(NPM) install; \
+		fi
 	[ -x $(NODE) ] && $(NODE) $(gen-html) || node $(gen-html)
 
-docopen: out/doc/api/all.html
-	-google-chrome out/doc/api/all.html
+docopen: $(apidocs_html)
+	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
 
 docclean:
 	-rm -rf out/doc
@@ -460,7 +491,8 @@ PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacO
 PKGDIR=out/dist-osx
 
 release-only:
-	@if `grep -q REPLACEME doc/api/*.md`; then \
+	@if [ "$(DISTTYPE)" != "nightly" ] && [ "$(DISTTYPE)" != "next-nightly" ] && \
+		`grep -q REPLACEME doc/api/*.md`; then \
 		echo 'Please update Added: tags in the documentation first.' ; \
 		exit 1 ; \
 	fi
@@ -620,13 +652,6 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
-haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
-wrk:
-ifneq ($(haswrk), 0)
-	@echo "please install wrk before proceeding. More information can be found in benchmark/README.md." >&2
-	@exit 1
-endif
-
 bench-net: all
 	@$(NODE) benchmark/run.js net
 
@@ -636,7 +661,7 @@ bench-crypto: all
 bench-tls: all
 	@$(NODE) benchmark/run.js tls
 
-bench-http: wrk all
+bench-http: all
 	@$(NODE) benchmark/run.js http
 
 bench-fs: all
@@ -671,7 +696,8 @@ bench: bench-net bench-http bench-fs bench-tls
 bench-ci: bench
 
 jslint:
-	$(NODE) tools/jslint.js -J benchmark lib test tools
+	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules \
+	  benchmark lib test tools
 
 jslint-ci:
 	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \

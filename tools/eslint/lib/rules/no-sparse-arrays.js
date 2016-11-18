@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
 
         //--------------------------------------------------------------------------
@@ -28,7 +28,7 @@ module.exports = {
 
         return {
 
-            ArrayExpression: function(node) {
+            ArrayExpression(node) {
 
                 const emptySpot = node.elements.indexOf(null) > -1;
 

@@ -27,7 +27,7 @@ class TestWithIsolate : public virtual ::testing::Test {
   static void TearDownTestCase();
 
  private:
-  static ArrayBufferAllocator* array_buffer_allocator_;
+  static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
   static Isolate* isolate_;
   Isolate::Scope isolate_scope_;
   HandleScope handle_scope_;
@@ -42,6 +42,10 @@ class TestWithContext : public virtual TestWithIsolate {
   virtual ~TestWithContext();
 
   const Local<Context>& context() const { return context_; }
+
+  v8::internal::Isolate* i_isolate() const {
+    return reinterpret_cast<v8::internal::Isolate*>(isolate());
+  }
 
  private:
   Local<Context> context_;

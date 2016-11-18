@@ -18,7 +18,7 @@ const chalk = require("chalk"),
  * @returns {string} The original word with an s on the end if count is not one.
  */
 function pluralize(word, count) {
-    return (count === 1 ? word : word + "s");
+    return (count === 1 ? word : `${word}s`);
 }
 
 //------------------------------------------------------------------------------
@@ -41,9 +41,9 @@ module.exports = function(results) {
         }
 
         total += messages.length;
-        output += chalk.underline(result.filePath) + "\n";
+        output += `${chalk.underline(result.filePath)}\n`;
 
-        output += table(
+        output += `${table(
             messages.map(function(message) {
                 let messageType;
 
@@ -67,15 +67,15 @@ module.exports = function(results) {
             }),
             {
                 align: ["", "r", "l"],
-                stringLength: function(str) {
+                stringLength(str) {
                     return chalk.stripColor(str).length;
                 }
             }
         ).split("\n").map(function(el) {
             return el.replace(/(\d+)\s+(\d+)/, function(m, p1, p2) {
-                return chalk.dim(p1 + ":" + p2);
+                return chalk.dim(`${p1}:${p2}`);
             });
-        }).join("\n") + "\n\n";
+        }).join("\n")}\n\n`;
     });
 
     if (total > 0) {

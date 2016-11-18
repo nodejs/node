@@ -7,4 +7,7 @@ assert.throws(function() {
   require('internal/freelist');
 });
 
-assert(require(path.join(common.fixturesDir, 'internal-modules')) === 42);
+assert.strictEqual(
+  require(path.join(common.fixturesDir, 'internal-modules')),
+  42
+);

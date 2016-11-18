@@ -12,7 +12,7 @@
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
-// https://github.com/lars-t-hansen/ecmascript_sharedmem
+// https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
 namespace internal {
@@ -30,18 +30,6 @@ inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
   (void)__atomic_compare_exchange_n(p, &oldval, newval, 0, __ATOMIC_SEQ_CST,
                                     __ATOMIC_SEQ_CST);
   return oldval;
-}
-
-template <typename T>
-inline T LoadSeqCst(T* p) {
-  T result;
-  __atomic_load(p, &result, __ATOMIC_SEQ_CST);
-  return result;
-}
-
-template <typename T>
-inline void StoreSeqCst(T* p, T value) {
-  __atomic_store_n(p, value, __ATOMIC_SEQ_CST);
 }
 
 template <typename T>
@@ -116,11 +104,6 @@ inline T ExchangeSeqCst(T* p, T value) {
     return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
                                               bit_cast<vctype>(newval),     \
                                               bit_cast<vctype>(oldval));    \
-  }                                                                         \
-  inline type LoadSeqCst(type* p) { return *p; }                            \
-  inline void StoreSeqCst(type* p, type value) {                            \
-    InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),               \
-                                bit_cast<vctype>(value));                   \
   }
 
 ATOMIC_OPS(int8_t, 8, char)
@@ -216,22 +199,6 @@ inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
 
 
 template <typename T>
-inline Object* DoLoad(Isolate* isolate, void* buffer, size_t index) {
-  T result = LoadSeqCst(static_cast<T*>(buffer) + index);
-  return ToObject(isolate, result);
-}
-
-
-template <typename T>
-inline Object* DoStore(Isolate* isolate, void* buffer, size_t index,
-                       Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  StoreSeqCst(static_cast<T*>(buffer) + index, value);
-  return *obj;
-}
-
-
-template <typename T>
 inline Object* DoAdd(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
   T value = FromObject<T>(obj);
@@ -307,15 +274,6 @@ inline Object* DoCompareExchangeUint8Clamped(Isolate* isolate, void* buffer,
 }
 
 
-inline Object* DoStoreUint8Clamped(Isolate* isolate, void* buffer, size_t index,
-                                   Handle<Object> obj) {
-  typedef int32_t convert_type;
-  uint8_t value = ClampToUint8(FromObject<convert_type>(obj));
-  StoreSeqCst(static_cast<uint8_t*>(buffer) + index, value);
-  return *obj;
-}
-
-
 #define DO_UINT8_CLAMPED_OP(name, op)                                        \
   inline Object* Do##name##Uint8Clamped(Isolate* isolate, void* buffer,      \
                                         size_t index, Handle<Object> obj) {  \
@@ -365,6 +323,29 @@ inline Object* DoExchangeUint8Clamped(Isolate* isolate, void* buffer,
   V(Uint32, uint32, UINT32, uint32_t, 4) \
   V(Int32, int32, INT32, int32_t, 4)
 
+RUNTIME_FUNCTION(Runtime_ThrowNotIntegerSharedTypedArrayError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError(MessageTemplate::kNotIntegerSharedTypedArray, value));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNotInt32SharedTypedArrayError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotInt32SharedTypedArray, value));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowInvalidAtomicAccessIndexError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidAtomicAccessIndex));
+}
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   HandleScope scope(isolate);
@@ -373,11 +354,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(oldobj, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(newobj, 3);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
@@ -400,80 +381,17 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_AtomicsLoad) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoLoad<ctype>(isolate, source, index);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoLoad<uint8_t>(isolate, source, index);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_AtomicsStore) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoStore<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoStoreUint8Clamped(isolate, source, index, value);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
@@ -501,11 +419,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
@@ -533,11 +451,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
@@ -565,11 +483,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
@@ -597,11 +515,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
@@ -629,11 +547,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
+                    NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \

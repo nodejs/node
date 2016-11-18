@@ -1,15 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const assert = require('assert');
+const zlib = require('zlib');
 
-var gzip = zlib.createGzip();
-var gunz = zlib.createUnzip();
+const gzip = zlib.createGzip();
+const gunz = zlib.createUnzip();
 
 gzip.pipe(gunz);
 
 var output = '';
-var input = 'A line of data\n';
+const input = 'A line of data\n';
 gunz.setEncoding('utf8');
 gunz.on('data', function(c) {
   output += c;

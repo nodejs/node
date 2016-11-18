@@ -59,6 +59,11 @@ parser.add_option('--prefix',
     default='/usr/local',
     help='select the install prefix [default: %default]')
 
+parser.add_option('--coverage',
+    action='store_true',
+    dest='coverage',
+    help='Build node with code coverage enabled')
+
 parser.add_option('--debug',
     action='store_true',
     dest='debug',
@@ -760,6 +765,8 @@ def configure_node(o):
   want_snapshots = not options.without_snapshot
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
+  o['variables']['want_separate_host_toolset_mkpeephole'] = int(
+      cross_compiling)
 
   if target_arch == 'arm':
     configure_arm(o)
@@ -850,11 +857,15 @@ def configure_node(o):
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
-  o['variables']['v8_inspector'] = b(not options.without_inspector)
   o['variables']['debug_devtools'] = 'node'
 
   if options.use_xcode and options.use_ninja:
     raise Exception('--xcode and --ninja cannot be used together.')
+
+  if options.coverage:
+    o['variables']['coverage'] = 'true'
+  else:
+    o['variables']['coverage'] = 'false'
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
@@ -863,26 +874,26 @@ def configure_library(lib, output):
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
 
-    if pkg_cflags:
+    if options.__dict__[shared_lib + '_includes']:
+      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
+    elif pkg_cflags:
       output['include_dirs'] += (
           filter(None, map(str.strip, pkg_cflags.split('-I'))))
-    elif options.__dict__[shared_lib + '_includes']:
-      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
 
     # libpath needs to be provided ahead libraries
-    if pkg_libpath:
-      output['libraries'] += [pkg_libpath]
-    elif options.__dict__[shared_lib + '_libpath']:
+    if options.__dict__[shared_lib + '_libpath']:
       output['libraries'] += [
           '-L%s' % options.__dict__[shared_lib + '_libpath']]
+    elif pkg_libpath:
+      output['libraries'] += [pkg_libpath]
 
     default_libs = getattr(options, shared_lib + '_libname')
     default_libs = map('-l{0}'.format, default_libs.split(','))
 
-    if pkg_libs:
-      output['libraries'] += pkg_libs.split()
-    elif default_libs:
+    if default_libs:
       output['libraries'] += default_libs
+    elif pkg_libs:
+      output['libraries'] += pkg_libs.split()
 
 
 def configure_v8(o):
@@ -966,8 +977,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/57.1/icu4c-57_1-src.zip',
-      'md5': 'f797503ecaebf1d38920013dc7893066',
+      'url': 'https://ssl.icu-project.org/files/icu4c/58.1/icu4c-58_1-src.zip',
+      'md5': 'd6476b355f66a11fbe12db1d61d90d69',
     },
   ]
   def icu_download(path):
@@ -1218,6 +1229,12 @@ def configure_intl(o):
         pprint.pformat(icu_config, indent=2) + '\n')
   return  # end of configure_intl
 
+def configure_inspector(o):
+  disable_inspector = (options.without_inspector or
+                       options.with_intl in (None, 'none') or
+                       options.without_ssl)
+  o['variables']['v8_inspector'] = b(not disable_inspector)
+
 output = {
   'variables': {},
   'include_dirs': [],
@@ -1248,6 +1265,7 @@ configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
 configure_static(output)
+configure_inspector(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults

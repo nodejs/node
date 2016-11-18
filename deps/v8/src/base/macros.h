@@ -5,13 +5,8 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include <cstring>
-
-#include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/format-macros.h"
 #include "src/base/logging.h"
 
 
@@ -21,55 +16,6 @@
 #define OFFSET_OF(type, field) \
   (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(16)->field)) - 16)
 
-
-#if V8_OS_NACL
-
-// ARRAYSIZE_UNSAFE performs essentially the same calculation as arraysize,
-// but can be used on anonymous types or types defined inside
-// functions.  It's less safe than arraysize as it accepts some
-// (although not all) pointers.  Therefore, you should use arraysize
-// whenever possible.
-//
-// The expression ARRAYSIZE_UNSAFE(a) is a compile-time constant of type
-// size_t.
-//
-// ARRAYSIZE_UNSAFE catches a few type errors.  If you see a compiler error
-//
-//   "warning: division by zero in ..."
-//
-// when using ARRAYSIZE_UNSAFE, you are (wrongfully) giving it a pointer.
-// You should only use ARRAYSIZE_UNSAFE on statically allocated arrays.
-//
-// The following comments are on the implementation details, and can
-// be ignored by the users.
-//
-// ARRAYSIZE_UNSAFE(arr) works by inspecting sizeof(arr) (the # of bytes in
-// the array) and sizeof(*(arr)) (the # of bytes in one array
-// element).  If the former is divisible by the latter, perhaps arr is
-// indeed an array, in which case the division result is the # of
-// elements in the array.  Otherwise, arr cannot possibly be an array,
-// and we generate a compiler error to prevent the code from
-// compiling.
-//
-// Since the size of bool is implementation-defined, we need to cast
-// !(sizeof(a) & sizeof(*(a))) to size_t in order to ensure the final
-// result has type size_t.
-//
-// This macro is not perfect as it wrongfully accepts certain
-// pointers, namely where the pointer size is divisible by the pointee
-// size.  Since all our code has to go through a 32-bit compiler,
-// where a pointer is 4 bytes, this means all pointers to a type whose
-// size is 3 or greater than 4 will be (righteously) rejected.
-#define ARRAYSIZE_UNSAFE(a)     \
-  ((sizeof(a) / sizeof(*(a))) / \
-   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))  // NOLINT
-
-// TODO(bmeurer): For some reason, the NaCl toolchain cannot handle the correct
-// definition of arraysize() below, so we have to use the unsafe version for
-// now.
-#define arraysize ARRAYSIZE_UNSAFE
-
-#else  // V8_OS_NACL
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -98,8 +44,6 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
-
-#endif  // V8_OS_NACL
 
 
 // bit_cast<Dest,Source> is a template function that implements the
@@ -210,6 +154,17 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_ASAN
 #endif
 
+// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
+#if !defined(DISABLE_CFI_PERF)
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define DISABLE_CFI_PERF __attribute__((no_sanitize("cfi")))
+#endif
+#endif
+#endif
+#if !defined(DISABLE_CFI_PERF)
+#define DISABLE_CFI_PERF
+#endif
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()
@@ -274,21 +229,25 @@ inline void USE(T) { }
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 #define V8PRIuPTR V8_PTR_PREFIX "u"
 
+// ptrdiff_t is 't' according to the standard, but MSVC uses 'I'.
+#if V8_CC_MSVC
+#define V8PRIxPTRDIFF "Ix"
+#define V8PRIdPTRDIFF "Id"
+#define V8PRIuPTRDIFF "Iu"
+#else
+#define V8PRIxPTRDIFF "tx"
+#define V8PRIdPTRDIFF "td"
+#define V8PRIuPTRDIFF "tu"
+#endif
+
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
 #if V8_OS_MACOSX
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
+#undef V8PRIdPTR
+#define V8PRIdPTR "ld"
 #undef V8PRIuPTR
 #define V8PRIuPTR "lxu"
-#endif
-
-// GCC on S390 31-bit expands 'size_t' to 'long unsigned int'
-// instead of 'int', resulting in compilation errors with %d.
-// The printf format specifier needs to be %zd instead.
-#if V8_HOST_ARCH_S390 && !V8_HOST_ARCH_64_BIT
-#define V8_SIZET_PREFIX "z"
-#else
-#define V8_SIZET_PREFIX ""
 #endif
 
 // The following macro works on both 32 and 64-bit platforms.

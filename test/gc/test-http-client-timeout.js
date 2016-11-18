@@ -73,8 +73,7 @@ function status() {
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {
     console.log('All should be collected now.');
-    assert(count === countGC);
+    assert.strictEqual(count, countGC);
     process.exit(0);
   }
 }
-

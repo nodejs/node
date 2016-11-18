@@ -16,9 +16,9 @@ function doCheck(arg, check) {
     '-pe',
     'require("crypto").constants.defaultCipherList'
   ]);
-  spawn(process.execPath, arg, {}).
-    on('error', common.fail).
-    stdout.on('data', function(chunk) {
+  spawn(process.execPath, arg, {})
+    .on('error', common.fail)
+    .stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
       assert.equal(out.trim(), check);

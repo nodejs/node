@@ -40,7 +40,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0] || {};
         const exceptions = config.exceptions || [];
@@ -57,7 +57,7 @@ module.exports = {
         return {
 
             // handle the Array.prototype.extra style case
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 const lhs = node.left;
 
                 if (lhs.type !== "MemberExpression" || lhs.object.type !== "MemberExpression") {
@@ -74,13 +74,19 @@ module.exports = {
 
                 modifiedBuiltins.forEach(function(builtin) {
                     if (lhs.object.object.name === builtin) {
-                        context.report(node, builtin + " prototype is read only, properties should not be added.");
+                        context.report({
+                            node,
+                            message: "{{builtin}} prototype is read only, properties should not be added.",
+                            data: {
+                                builtin
+                            }
+                        });
                     }
                 });
             },
 
             // handle the Object.definePropert[y|ies](Array.prototype) case
-            CallExpression: function(node) {
+            CallExpression(node) {
 
                 const callee = node.callee;
 
@@ -98,7 +104,13 @@ module.exports = {
                         (modifiedBuiltins.indexOf(object.name) > -1) &&
                         subject.property.name === "prototype") {
 
-                        context.report(node, object.name + " prototype is read only, properties should not be added.");
+                        context.report({
+                            node,
+                            message: "{{objectName}} prototype is read only, properties should not be added.",
+                            data: {
+                                objectName: object.name
+                            }
+                        });
                     }
                 }
 

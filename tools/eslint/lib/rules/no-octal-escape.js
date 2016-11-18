@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            Literal: function(node) {
+            Literal(node) {
                 if (typeof node.value !== "string") {
                     return;
                 }
@@ -37,7 +37,7 @@ module.exports = {
                     // \0 is actually not considered an octal
                     if (match[2] !== "0" || typeof match[3] !== "undefined") {
                         context.report(node, "Don't use octal: '\\{{octalDigit}}'. Use '\\u....' instead.",
-                                { octalDigit: octalDigit });
+                                { octalDigit });
                     }
                 }
             }

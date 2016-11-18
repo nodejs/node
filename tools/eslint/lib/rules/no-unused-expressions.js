@@ -32,7 +32,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const config = context.options[0] || {},
             allowShortCircuit = config.allowShortCircuit || false,
             allowTernary = config.allowTernary || false;
@@ -101,12 +101,12 @@ module.exports = {
                 }
             }
 
-            return /^(?:Assignment|Call|New|Update|Yield)Expression$/.test(node.type) ||
+            return /^(?:Assignment|Call|New|Update|Yield|Await)Expression$/.test(node.type) ||
                 (node.type === "UnaryExpression" && ["delete", "void"].indexOf(node.operator) >= 0);
         }
 
         return {
-            ExpressionStatement: function(node) {
+            ExpressionStatement(node) {
                 if (!isValidExpression(node.expression) && !isDirective(node, context.getAncestors())) {
                     context.report(node, "Expected an assignment or function call and instead saw an expression.");
                 }

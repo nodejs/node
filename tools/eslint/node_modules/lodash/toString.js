@@ -8,8 +8,8 @@ var baseToString = require('./_baseToString');
  * @memberOf _
  * @since 4.0.0
  * @category Lang
- * @param {*} value The value to process.
- * @returns {string} Returns the string.
+ * @param {*} value The value to convert.
+ * @returns {string} Returns the converted string.
  * @example
  *
  * _.toString(null);

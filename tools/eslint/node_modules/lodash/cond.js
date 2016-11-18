@@ -3,7 +3,7 @@ var apply = require('./_apply'),
     baseIteratee = require('./_baseIteratee'),
     baseRest = require('./_baseRest');
 
-/** Used as the `TypeError` message for "Functions" methods. */
+/** Error message constants. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
 /**

@@ -38,28 +38,29 @@ class CodeAddressMap : public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(HashMap::PointersMatch) {}
+    NameMap() : impl_(base::HashMap::PointersMatch) {}
 
     ~NameMap() {
-      for (HashMap::Entry* p = impl_.Start(); p != NULL; p = impl_.Next(p)) {
+      for (base::HashMap::Entry* p = impl_.Start(); p != NULL;
+           p = impl_.Next(p)) {
         DeleteArray(static_cast<const char*>(p->value));
       }
     }
 
     void Insert(Address code_address, const char* name, int name_size) {
-      HashMap::Entry* entry = FindOrCreateEntry(code_address);
+      base::HashMap::Entry* entry = FindOrCreateEntry(code_address);
       if (entry->value == NULL) {
         entry->value = CopyName(name, name_size);
       }
     }
 
     const char* Lookup(Address code_address) {
-      HashMap::Entry* entry = FindEntry(code_address);
+      base::HashMap::Entry* entry = FindEntry(code_address);
       return (entry != NULL) ? static_cast<const char*>(entry->value) : NULL;
     }
 
     void Remove(Address code_address) {
-      HashMap::Entry* entry = FindEntry(code_address);
+      base::HashMap::Entry* entry = FindEntry(code_address);
       if (entry != NULL) {
         DeleteArray(static_cast<char*>(entry->value));
         RemoveEntry(entry);
@@ -68,11 +69,11 @@ class CodeAddressMap : public CodeEventLogger {
 
     void Move(Address from, Address to) {
       if (from == to) return;
-      HashMap::Entry* from_entry = FindEntry(from);
+      base::HashMap::Entry* from_entry = FindEntry(from);
       DCHECK(from_entry != NULL);
       void* value = from_entry->value;
       RemoveEntry(from_entry);
-      HashMap::Entry* to_entry = FindOrCreateEntry(to);
+      base::HashMap::Entry* to_entry = FindOrCreateEntry(to);
       DCHECK(to_entry->value == NULL);
       to_entry->value = value;
     }
@@ -89,20 +90,20 @@ class CodeAddressMap : public CodeEventLogger {
       return result;
     }
 
-    HashMap::Entry* FindOrCreateEntry(Address code_address) {
+    base::HashMap::Entry* FindOrCreateEntry(Address code_address) {
       return impl_.LookupOrInsert(code_address,
                                   ComputePointerHash(code_address));
     }
 
-    HashMap::Entry* FindEntry(Address code_address) {
+    base::HashMap::Entry* FindEntry(Address code_address) {
       return impl_.Lookup(code_address, ComputePointerHash(code_address));
     }
 
-    void RemoveEntry(HashMap::Entry* entry) {
+    void RemoveEntry(base::HashMap::Entry* entry) {
       impl_.Remove(entry->key, entry->hash);
     }
 
-    HashMap impl_;
+    base::HashMap impl_;
 
     DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
@@ -119,7 +120,7 @@ class CodeAddressMap : public CodeEventLogger {
 // There can be only one serializer per V8 process.
 class Serializer : public SerializerDeserializer {
  public:
-  Serializer(Isolate* isolate, SnapshotByteSink* sink);
+  explicit Serializer(Isolate* isolate);
   ~Serializer() override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
@@ -128,7 +129,7 @@ class Serializer : public SerializerDeserializer {
 
   Isolate* isolate() const { return isolate_; }
 
-  BackReferenceMap* back_reference_map() { return &back_reference_map_; }
+  SerializerReferenceMap* reference_map() { return &reference_map_; }
   RootIndexMap* root_index_map() { return &root_index_map_; }
 
 #ifdef OBJECT_PRINT
@@ -162,27 +163,35 @@ class Serializer : public SerializerDeserializer {
 
   void PutSmi(Smi* smi);
 
-  void PutBackReference(HeapObject* object, BackReference reference);
+  void PutBackReference(HeapObject* object, SerializerReference reference);
+
+  void PutAttachedReference(SerializerReference reference,
+                            HowToCode how_to_code, WhereToPoint where_to_point);
 
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject* object);
 
-  // Returns true if the object was successfully serialized.
-  bool SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
-                            WhereToPoint where_to_point, int skip);
+  // Returns true if the object was successfully serialized as hot object.
+  bool SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
+                          WhereToPoint where_to_point, int skip);
+
+  // Returns true if the object was successfully serialized as back reference.
+  bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
+                              WhereToPoint where_to_point, int skip);
 
   inline void FlushSkip(int skip) {
     if (skip != 0) {
-      sink_->Put(kSkip, "SkipFromSerializeObject");
-      sink_->PutInt(skip, "SkipDistanceFromSerializeObject");
+      sink_.Put(kSkip, "SkipFromSerializeObject");
+      sink_.PutInt(skip, "SkipDistanceFromSerializeObject");
     }
   }
 
-  bool BackReferenceIsAlreadyAllocated(BackReference back_reference);
+  bool BackReferenceIsAlreadyAllocated(SerializerReference back_reference);
 
   // This will return the space for an object.
-  BackReference AllocateLargeObject(int size);
-  BackReference Allocate(AllocationSpace space, int size);
+  SerializerReference AllocateLargeObject(int size);
+  SerializerReference AllocateMap();
+  SerializerReference Allocate(AllocationSpace space, int size);
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
@@ -204,10 +213,10 @@ class Serializer : public SerializerDeserializer {
     return max_chunk_size_[space];
   }
 
-  SnapshotByteSink* sink() const { return sink_; }
+  const SnapshotByteSink* sink() const { return &sink_; }
 
   void QueueDeferredObject(HeapObject* obj) {
-    DCHECK(back_reference_map_.Lookup(obj).is_valid());
+    DCHECK(reference_map_.Lookup(obj).is_back_reference());
     deferred_objects_.Add(obj);
   }
 
@@ -215,10 +224,10 @@ class Serializer : public SerializerDeserializer {
 
   Isolate* isolate_;
 
-  SnapshotByteSink* sink_;
+  SnapshotByteSink sink_;
   ExternalReferenceEncoder external_reference_encoder_;
 
-  BackReferenceMap back_reference_map_;
+  SerializerReferenceMap reference_map_;
   RootIndexMap root_index_map_;
 
   int recursion_depth_;
@@ -237,6 +246,8 @@ class Serializer : public SerializerDeserializer {
   uint32_t pending_chunk_[kNumberOfPreallocatedSpaces];
   List<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
   uint32_t max_chunk_size_[kNumberOfPreallocatedSpaces];
+  // Number of maps that we need to allocate.
+  uint32_t num_maps_;
 
   // We map serialized large objects to indexes for back-referencing.
   uint32_t large_objects_total_size_;

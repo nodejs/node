@@ -76,6 +76,10 @@ FastAccessorBuilder::ValueId FastAccessorBuilder::LoadInternalField(
   return FromApi(this)->LoadInternalField(value, field_no);
 }
 
+FastAccessorBuilder::ValueId FastAccessorBuilder::LoadInternalFieldUnchecked(
+    ValueId value, int field_no) {
+  return FromApi(this)->LoadInternalFieldUnchecked(value, field_no);
+}
 
 FastAccessorBuilder::ValueId FastAccessorBuilder::LoadValue(ValueId value_id,
                                                             int offset) {
@@ -88,6 +92,9 @@ FastAccessorBuilder::ValueId FastAccessorBuilder::LoadObject(ValueId value_id,
   return FromApi(this)->LoadObject(value_id, offset);
 }
 
+FastAccessorBuilder::ValueId FastAccessorBuilder::ToSmi(ValueId value_id) {
+  return FromApi(this)->ToSmi(value_id);
+}
 
 void FastAccessorBuilder::ReturnValue(ValueId value) {
   FromApi(this)->ReturnValue(value);
@@ -113,6 +120,9 @@ void FastAccessorBuilder::SetLabel(LabelId label_id) {
   FromApi(this)->SetLabel(label_id);
 }
 
+void FastAccessorBuilder::Goto(LabelId label_id) {
+  FromApi(this)->Goto(label_id);
+}
 
 void FastAccessorBuilder::CheckNotZeroOrJump(ValueId value_id,
                                              LabelId label_id) {

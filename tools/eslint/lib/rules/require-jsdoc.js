@@ -37,7 +37,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const source = context.getSourceCode();
         const DEFAULT_OPTIONS = {
             FunctionDeclaration: true,
@@ -84,17 +84,17 @@ module.exports = {
         }
 
         return {
-            FunctionDeclaration: function(node) {
+            FunctionDeclaration(node) {
                 if (options.FunctionDeclaration) {
                     checkJsDoc(node);
                 }
             },
-            FunctionExpression: function(node) {
+            FunctionExpression(node) {
                 if (options.MethodDefinition) {
                     checkClassMethodJsDoc(node);
                 }
             },
-            ClassDeclaration: function(node) {
+            ClassDeclaration(node) {
                 if (options.ClassDeclaration) {
                     checkJsDoc(node);
                 }

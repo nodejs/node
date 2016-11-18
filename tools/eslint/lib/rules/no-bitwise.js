@@ -46,7 +46,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const allowed = options.allow || [];
         const int32Hint = options.int32Hint === true;

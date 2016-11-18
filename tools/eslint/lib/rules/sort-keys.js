@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to requires object keys to be sorted
+ * @fileoverview Rule to require object keys to be sorted
  * @author Toru Nagashima
  */
 
@@ -74,7 +74,7 @@ const isValidOrders = {
 module.exports = {
     meta: {
         docs: {
-            description: "requires object keys to be sorted",
+            description: "require object keys to be sorted",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -97,7 +97,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // Parse options.
         const order = context.options[0] || "asc";
@@ -124,6 +124,10 @@ module.exports = {
             },
 
             Property(node) {
+                if (node.parent.type === "ObjectPattern") {
+                    return;
+                }
+
                 const prevName = stack.prevName;
                 const thisName = getPropertyName(node);
 
@@ -135,7 +139,7 @@ module.exports = {
 
                 if (!isValidOrder(prevName, thisName)) {
                     context.report({
-                        node: node,
+                        node,
                         loc: node.key.loc,
                         message: "Expected object keys to be in {{natual}}{{insensitive}}{{order}}ending order. '{{thisName}}' should be before '{{prevName}}'.",
                         data: {

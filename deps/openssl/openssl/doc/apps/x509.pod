@@ -642,8 +642,8 @@ hex dump unsupported extensions.
 
 =item B<ca_default>
 
-the value used by the B<ca> utility, equivalent to B<no_issuer>, B<no_pubkey>, B<no_header>,
-B<no_version>, B<no_sigdump> and B<no_signame>.
+the value used by the B<ca> utility, equivalent to B<no_issuer>, B<no_pubkey>,
+B<no_header>, and B<no_version>.
 
 =back
 

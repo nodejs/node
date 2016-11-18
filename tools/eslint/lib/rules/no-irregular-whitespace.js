@@ -49,7 +49,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // Module store of errors that we have found
         let errors = [];

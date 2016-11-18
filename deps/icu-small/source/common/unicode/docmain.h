@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
  * Copyright (c) 1997-2012, International Business Machines Corporation and
@@ -147,7 +149,7 @@
  *   </tr>
  *   <tr>
  *     <td>Bidirectional Algorithm</td>
- *     <td>ubidi.h</td>
+ *     <td>ubidi.h, ubiditransform.h</td>
  *     <td>C API</td>
  *   </tr>
  *   <tr>

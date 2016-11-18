@@ -131,7 +131,7 @@ ec_ameth.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
 ec_ameth.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
 ec_ameth.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
 ec_ameth.o: ../../include/openssl/x509_vfy.h ../asn1/asn1_locl.h ../cryptlib.h
-ec_ameth.o: ec_ameth.c
+ec_ameth.o: ec_ameth.c ec_lcl.h
 ec_asn1.o: ../../include/openssl/asn1.h ../../include/openssl/asn1t.h
 ec_asn1.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
 ec_asn1.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h

@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const errorMessage = "All 'var' declarations must be at the top of the function scope.";
 
         //--------------------------------------------------------------------------
@@ -124,7 +124,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 const ancestors = context.getAncestors();
                 let parent = ancestors.pop();
                 let grandParent = ancestors.pop();

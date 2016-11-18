@@ -10,7 +10,7 @@
 
 const fs = require("fs"),
     path = require("path"),
-    glob = require("glob"),
+    GlobSync = require("./glob"),
     shell = require("shelljs"),
 
     pathUtil = require("./path-util"),
@@ -50,9 +50,9 @@ function processPath(options) {
     let suffix = "/**";
 
     if (extensions.length === 1) {
-        suffix += "/*." + extensions[0];
+        suffix += `/*.${extensions[0]}`;
     } else {
-        suffix += "/*.{" + extensions.join(",") + "}";
+        suffix += `/*.{${extensions.join(",")}}`;
     }
 
     /**
@@ -104,18 +104,11 @@ function resolveFileGlobPatterns(patterns, options) {
  * @returns {string[]} Resolved absolute filenames.
  */
 function listFilesToProcess(globPatterns, options) {
+    options = options || { ignore: true };
     const files = [],
         added = {};
 
     const cwd = (options && options.cwd) || process.cwd();
-
-    options = options || { ignore: true, dotfiles: true };
-    const ignoredPaths = new IgnoredPaths(options);
-    const globOptions = {
-        nodir: true,
-        cwd: cwd,
-        ignore: ignoredPaths.getIgnoredFoldersGlobPatterns()
-    };
 
     /**
      * Executes the linter on a file defined by the `filename`. Skips
@@ -123,9 +116,10 @@ function listFilesToProcess(globPatterns, options) {
      * @param {string} filename The file to be processed
      * @param {boolean} shouldWarnIgnored Whether or not a report should be made if
      *                                    the file is ignored
+     * @param {IgnoredPaths} ignoredPaths An instance of IgnoredPaths
      * @returns {void}
      */
-    function addFile(filename, shouldWarnIgnored) {
+    function addFile(filename, shouldWarnIgnored, ignoredPaths) {
         let ignored = false;
         let isSilentlyIgnored;
 
@@ -151,7 +145,7 @@ function listFilesToProcess(globPatterns, options) {
         if (added[filename]) {
             return;
         }
-        files.push({filename: filename, ignored: ignored});
+        files.push({filename, ignored});
         added[filename] = true;
     }
 
@@ -160,10 +154,24 @@ function listFilesToProcess(globPatterns, options) {
         const file = path.resolve(cwd, pattern);
 
         if (shell.test("-f", file)) {
-            addFile(fs.realpathSync(file), !shell.test("-d", file));
+            const ignoredPaths = new IgnoredPaths(options);
+
+            addFile(fs.realpathSync(file), !shell.test("-d", file), ignoredPaths);
         } else {
-            glob.sync(pattern, globOptions).forEach(function(globMatch) {
-                addFile(path.resolve(cwd, globMatch), false);
+
+            // regex to find .hidden or /.hidden patterns, but not ./relative or ../relative
+            const globIncludesDotfiles = /(?:(?:^\.)|(?:[\/\\]\.))[^\/\\\.].*/.test(pattern);
+
+            const ignoredPaths = new IgnoredPaths(Object.assign({}, options, {dotfiles: options.dotfiles || globIncludesDotfiles}));
+            const shouldIgnore = ignoredPaths.getIgnoredFoldersGlobChecker();
+            const globOptions = {
+                nodir: true,
+                dot: true,
+                cwd,
+            };
+
+            new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(function(globMatch) {
+                addFile(path.resolve(cwd, globMatch), false, ignoredPaths);
             });
         }
     });
@@ -172,6 +180,6 @@ function listFilesToProcess(globPatterns, options) {
 }
 
 module.exports = {
-    resolveFileGlobPatterns: resolveFileGlobPatterns,
-    listFilesToProcess: listFilesToProcess
+    resolveFileGlobPatterns,
+    listFilesToProcess
 };

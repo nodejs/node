@@ -74,7 +74,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         let currentCodePath = null;
         const sourceCode = context.getSourceCode();
@@ -93,14 +93,14 @@ module.exports = {
         }
 
         return {
-            onCodePathStart: function(codePath) {
+            onCodePathStart(codePath) {
                 currentCodePath = codePath;
             },
-            onCodePathEnd: function() {
+            onCodePathEnd() {
                 currentCodePath = currentCodePath.upper;
             },
 
-            SwitchCase: function(node) {
+            SwitchCase(node) {
 
                 /*
                  * Checks whether or not there is a fallthrough comment.
@@ -110,13 +110,13 @@ module.exports = {
                     context.report({
                         message: "Expected a 'break' statement before '{{type}}'.",
                         data: {type: node.test ? "case" : "default"},
-                        node: node
+                        node
                     });
                 }
                 fallthroughCase = null;
             },
 
-            "SwitchCase:exit": function(node) {
+            "SwitchCase:exit"(node) {
                 const nextToken = sourceCode.getTokenAfter(node);
 
                 /*

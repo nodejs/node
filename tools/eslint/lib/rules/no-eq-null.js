@@ -21,11 +21,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
                 const badOperator = node.operator === "==" || node.operator === "!=";
 
                 if (node.right.type === "Literal" && node.right.raw === "null" && badOperator ||

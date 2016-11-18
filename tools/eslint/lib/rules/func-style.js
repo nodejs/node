@@ -32,7 +32,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const style = context.options[0],
             allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions === true,
@@ -40,29 +40,29 @@ module.exports = {
             stack = [];
 
         const nodesToCheck = {
-            FunctionDeclaration: function(node) {
+            FunctionDeclaration(node) {
                 stack.push(false);
 
                 if (!enforceDeclarations && node.parent.type !== "ExportDefaultDeclaration") {
                     context.report(node, "Expected a function expression.");
                 }
             },
-            "FunctionDeclaration:exit": function() {
+            "FunctionDeclaration:exit"() {
                 stack.pop();
             },
 
-            FunctionExpression: function(node) {
+            FunctionExpression(node) {
                 stack.push(false);
 
                 if (enforceDeclarations && node.parent.type === "VariableDeclarator") {
                     context.report(node.parent, "Expected a function declaration.");
                 }
             },
-            "FunctionExpression:exit": function() {
+            "FunctionExpression:exit"() {
                 stack.pop();
             },
 
-            ThisExpression: function() {
+            ThisExpression() {
                 if (stack.length > 0) {
                     stack[stack.length - 1] = true;
                 }

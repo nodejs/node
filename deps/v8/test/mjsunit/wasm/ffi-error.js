@@ -10,13 +10,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function testCallFFI(ffi) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = [kAstI32, kAstF64, kAstF64];
+  var sig_index = kSig_i_dd;
   builder.addImport("fun", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,   // --
-      kExprGetLocal, 0,     // --
-      kExprGetLocal, 1])    // --
+      kExprGetLocal, 0,              // --
+      kExprGetLocal, 1,              // --
+      kExprCallFunction, kArity2, 0, // --
+    ])    // --
     .exportFunc();
 
   var module = builder.instantiate(ffi);
@@ -58,3 +59,22 @@ assertThrows(function() {
   ffi.fun = 0;
   testCallFFI(ffi);
 });
+
+
+(function I64InSignatureThrows() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1, true);
+  builder.addFunction("function_with_invalid_signature", kSig_l_ll)
+    .addBody([           // --
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI64Sub])      // --
+    .exportFunc()
+
+  var module = builder.instantiate();
+
+  assertThrows(function() {
+      module.exports.function_with_invalid_signature(33, 88);
+    }, TypeError);
+})();

@@ -22,7 +22,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Reports a reference if is non initializer and writable.

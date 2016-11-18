@@ -26,7 +26,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
         let aliases = [];
 
         if (context.options.length === 0) {
@@ -45,7 +45,7 @@ module.exports = {
         function reportBadAssignment(node, alias) {
             context.report(node,
                 "Designated alias '{{alias}}' is not assigned to 'this'.",
-                { alias: alias });
+                { alias });
         }
 
         /**
@@ -65,7 +65,7 @@ module.exports = {
                 }
             } else if (isThis) {
                 context.report(node,
-                    "Unexpected alias '{{name}}' for 'this'.", { name: name });
+                    "Unexpected alias '{{name}}' for 'this'.", { name });
             }
         }
 
@@ -127,7 +127,7 @@ module.exports = {
             "FunctionExpression:exit": ensureWasAssigned,
             "FunctionDeclaration:exit": ensureWasAssigned,
 
-            VariableDeclarator: function(node) {
+            VariableDeclarator(node) {
                 const id = node.id;
                 const isDestructuring =
                     id.type === "ArrayPattern" || id.type === "ObjectPattern";
@@ -137,7 +137,7 @@ module.exports = {
                 }
             },
 
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (node.left.type === "Identifier") {
                     checkAssignment(node, node.left.name, node.right);
                 }

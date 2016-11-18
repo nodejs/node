@@ -67,8 +67,19 @@
 (function TestFillerToString() {
   assertEquals(".         ", ".".padEnd(10));
   assertEquals(".         ", ".".padEnd(10, undefined));
-  assertEquals(".         ", ".".padEnd(10, { toString() { return ""; } }));
   assertEquals(".nullnulln", ".".padEnd(10, null));
+  assertEquals(".XXXXXXXXX", ".".padEnd(10, { toString() { return "X"; } }));
+  assertEquals(
+      ".111111111",
+      ".".padEnd(10, { toString: undefined, valueOf() { return 1; } }));
+})();
+
+
+(function TestFillerEmptyString() {
+  assertEquals(".", ".".padEnd(10, ""));
+  assertEquals(".", ".".padEnd(10, { toString() { return ""; } }));
+  assertEquals(
+      ".", ".".padEnd(10, { toString: undefined, valueOf() { return ""; } }));
 })();
 
 

@@ -229,12 +229,35 @@ function TestTypedArray(constr, elementSize, typicalElement) {
                  RangeError);
   }
 
+  var aFromUndef = new constr();
+  assertSame(elementSize, aFromUndef.BYTES_PER_ELEMENT);
+  assertSame(0, aFromUndef.length);
+  assertSame(0*elementSize, aFromUndef.byteLength);
+  assertSame(0, aFromUndef.byteOffset);
+  assertSame(0*elementSize, aFromUndef.buffer.byteLength);
+
+  var aFromNull = new constr(null);
+  assertSame(elementSize, aFromNull.BYTES_PER_ELEMENT);
+  assertSame(0, aFromNull.length);
+  assertSame(0*elementSize, aFromNull.byteLength);
+  assertSame(0, aFromNull.byteOffset);
+  assertSame(0*elementSize, aFromNull.buffer.byteLength);
+
+  var aFromBool = new constr(true);
+  assertSame(elementSize, aFromBool.BYTES_PER_ELEMENT);
+  assertSame(1, aFromBool.length);
+  assertSame(1*elementSize, aFromBool.byteLength);
+  assertSame(0, aFromBool.byteOffset);
+  assertSame(1*elementSize, aFromBool.buffer.byteLength);
+
   var aFromString = new constr("30");
   assertSame(elementSize, aFromString.BYTES_PER_ELEMENT);
   assertSame(30, aFromString.length);
   assertSame(30*elementSize, aFromString.byteLength);
   assertSame(0, aFromString.byteOffset);
   assertSame(30*elementSize, aFromString.buffer.byteLength);
+
+  assertThrows(function() { new constr(Symbol()); }, TypeError);
 
   var jsArray = [];
   for (i = 0; i < 30; i++) {

@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require spacing around operators",
+            description: "require spacing around infix operators",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -31,7 +31,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
 
         const OPERATORS = [
@@ -79,7 +79,7 @@ module.exports = {
                 node: mainNode,
                 loc: culpritToken.loc.start,
                 message: "Infix operators must be spaced.",
-                fix: function(fixer) {
+                fix(fixer) {
                     const previousToken = sourceCode.getTokenBefore(culpritToken);
                     const afterToken = sourceCode.getTokenAfter(culpritToken);
                     let fixString = "";

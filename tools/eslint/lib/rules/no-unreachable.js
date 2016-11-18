@@ -110,7 +110,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         let currentCodePath = null;
 
         const range = new ConsecutiveRange(context.getSourceCode());
@@ -162,11 +162,11 @@ module.exports = {
         return {
 
             // Manages the current code path.
-            onCodePathStart: function(codePath) {
+            onCodePathStart(codePath) {
                 currentCodePath = codePath;
             },
 
-            onCodePathEnd: function() {
+            onCodePathEnd() {
                 currentCodePath = currentCodePath.upper;
             },
 
@@ -190,7 +190,7 @@ module.exports = {
             ThrowStatement: reportIfUnreachable,
             TryStatement: reportIfUnreachable,
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (node.kind !== "var" || node.declarations.some(isInitialized)) {
                     reportIfUnreachable(node);
                 }
@@ -202,7 +202,7 @@ module.exports = {
             ExportDefaultDeclaration: reportIfUnreachable,
             ExportAllDeclaration: reportIfUnreachable,
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 reportIfUnreachable();
             }
         };

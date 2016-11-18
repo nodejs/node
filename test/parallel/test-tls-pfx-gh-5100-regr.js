@@ -21,7 +21,11 @@ const server = tls.createServer({
   requestCert: true,
   rejectUnauthorized: false
 }, common.mustCall(function(c) {
-  assert(c.authorizationError === null, 'authorizationError must be null');
+  assert.strictEqual(
+    c.authorizationError,
+    null,
+    'authorizationError must be null'
+  );
   c.end();
 })).listen(0, function() {
   var client = tls.connect({

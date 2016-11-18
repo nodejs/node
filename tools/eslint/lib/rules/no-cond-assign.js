@@ -4,6 +4,8 @@
  */
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 const NODE_DESCRIPTIONS = {
     DoWhileStatement: "a 'do...while' statement",
     ForStatement: "a 'for' statement",
@@ -30,7 +32,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const prohibitAssign = (context.options[0] || "except-parens");
 
@@ -59,7 +61,7 @@ module.exports = {
                 if (isConditionalTestExpression(currentAncestor)) {
                     return currentAncestor.parent;
                 }
-            } while ((currentAncestor = currentAncestor.parent));
+            } while ((currentAncestor = currentAncestor.parent) && !astUtils.isFunction(currentAncestor));
 
             return null;
         }
@@ -107,7 +109,7 @@ module.exports = {
 
                 // must match JSHint's error message
                 context.report({
-                    node: node,
+                    node,
                     loc: node.test.loc.start,
                     message: "Expected a conditional expression and instead saw an assignment."
                 });

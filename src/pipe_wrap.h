@@ -34,8 +34,6 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
-
-  static void AfterConnect(uv_connect_t* req, int status);
 };
 
 

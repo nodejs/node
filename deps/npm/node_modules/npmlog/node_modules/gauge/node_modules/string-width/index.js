@@ -16,6 +16,11 @@ module.exports = function (str) {
 	for (var i = 0; i < str.length; i++) {
 		var code = codePointAt(str, i);
 
+		// ignore control characters
+		if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) {
+			continue;
+		}
+
 		// surrogates
 		if (code >= 0x10000) {
 			i++;

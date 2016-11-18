@@ -412,10 +412,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ LoadSmiLiteral(slot, Smi::FromInt(slot_index));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
-                                               receiver, key, r6, r7, r8, r9);
+  masm->isolate()->load_stub_cache()->GenerateProbe(masm, receiver, key, r6, r7,
+                                                    r8, r9);
   // Cache miss.
   GenerateMiss(masm);
 
@@ -441,8 +439,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 static void StoreIC_PushArgs(MacroAssembler* masm) {
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
           StoreDescriptor::ValueRegister(),
-          VectorStoreICDescriptor::SlotRegister(),
-          VectorStoreICDescriptor::VectorRegister());
+          StoreWithVectorDescriptor::SlotRegister(),
+          StoreWithVectorDescriptor::VectorRegister());
 }
 
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
@@ -625,11 +623,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
   __ LoadP(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks and is not observed.
-  // The generic stub does not perform map checks or handle observed objects.
+  // Check that the receiver does not require access checks.
+  // The generic stub does not perform map checks.
   __ LoadlB(ip, FieldMemOperand(receiver_map, Map::kBitFieldOffset));
-  __ AndP(r0, ip,
-          Operand(1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved));
+  __ AndP(r0, ip, Operand(1 << Map::kIsAccessCheckNeeded));
   __ bne(&slow, Label::kNear);
   // Check if the object is a JS array or not.
   __ LoadlB(r6, FieldMemOperand(receiver_map, Map::kInstanceTypeOffset));
@@ -661,8 +658,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Register vector = VectorStoreICDescriptor::VectorRegister();
-  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
   DCHECK(!AreAliased(vector, slot, r7, r8, r9, ip));
   Handle<TypeFeedbackVector> dummy_vector =
       TypeFeedbackVector::DummyVector(masm->isolate());
@@ -671,10 +668,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ LoadSmiLiteral(slot, Smi::FromInt(slot_index));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, r7, r8, r9, ip);
+  masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, r7,
+                                                     r8, r9, ip);
   // Cache miss.
   __ b(&miss);
 
@@ -720,24 +715,6 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   GenerateMiss(masm);
 }
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  DCHECK(receiver.is(r3));
-  DCHECK(name.is(r4));
-  DCHECK(StoreDescriptor::ValueRegister().is(r2));
-
-  // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, name, r5, r6, r7, r8);
-
-  // Cache miss: Jump to runtime.
-  GenerateMiss(masm);
-}
-
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
@@ -754,8 +731,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   DCHECK(receiver.is(r3));
   DCHECK(name.is(r4));
   DCHECK(value.is(r2));
-  DCHECK(VectorStoreICDescriptor::VectorRegister().is(r5));
-  DCHECK(VectorStoreICDescriptor::SlotRegister().is(r6));
+  DCHECK(StoreWithVectorDescriptor::VectorRegister().is(r5));
+  DCHECK(StoreWithVectorDescriptor::SlotRegister().is(r6));
 
   __ LoadP(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
@@ -829,8 +806,9 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   }
 
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n", address,
-           cmp_instruction_address, delta);
+    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n",
+           static_cast<void*>(address),
+           static_cast<void*>(cmp_instruction_address), delta);
   }
 
   // Expected sequence to enable by changing the following

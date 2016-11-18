@@ -26,6 +26,34 @@ function isWarned(emitter) {
   return false;
 }
 
+{
+  // Default crlfDelay is 100ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({ input: fi, output: fi });
+  assert.strictEqual(rli.crlfDelay, 100);
+  rli.close();
+}
+
+{
+  // Minimum crlfDelay is 100ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
+  assert.strictEqual(rli.crlfDelay, 100);
+  rli.close();
+}
+
+{
+  // Maximum crlfDelay is 2000ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    crlfDelay: 1 << 30
+  });
+  assert.strictEqual(rli.crlfDelay, 2000);
+  rli.close();
+}
+
 [ true, false ].forEach(function(terminal) {
   var fi;
   var rli;
@@ -198,6 +226,29 @@ function isWarned(emitter) {
   fi.emit('data', '\rfoo\r');
   assert.equal(callCount, expectedLines.length);
   rli.close();
+
+  // Emit two line events when the delay
+  //   between \r and \n exceeds crlfDelay
+  {
+    const fi = new FakeInput();
+    const delay = 200;
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      terminal: terminal,
+      crlfDelay: delay
+    });
+    let callCount = 0;
+    rli.on('line', function(line) {
+      callCount++;
+    });
+    fi.emit('data', '\r');
+    setTimeout(common.mustCall(() => {
+      fi.emit('data', '\n');
+      assert.equal(callCount, 2);
+      rli.close();
+    }), delay * 2);
+  }
 
   // \t when there is no completer function should behave like an ordinary
   //   character

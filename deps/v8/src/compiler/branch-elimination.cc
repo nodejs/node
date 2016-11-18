@@ -83,6 +83,7 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
          node->opcode() == IrOpcode::kDeoptimizeUnless);
   bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
+  DeoptimizeReason reason = DeoptimizeReasonOf(node->op());
   Node* condition = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -92,24 +93,24 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   // yet because we will have to recompute anyway once we compute the
   // predecessor.
   if (conditions == nullptr) {
-    DCHECK_NULL(node_conditions_.Get(node));
-    return NoChange();
+    return UpdateConditions(node, conditions);
   }
   Maybe<bool> condition_value = conditions->LookupCondition(condition);
   if (condition_value.IsJust()) {
     // If we know the condition we can discard the branch.
     if (condition_is_true == condition_value.FromJust()) {
-      // We don't to update the conditions here, because we're replacing with
-      // the {control} node that already contains the right information.
-      return Replace(control);
+      // We don't update the conditions here, because we're replacing {node}
+      // with the {control} node that already contains the right information.
+      ReplaceWithValue(node, dead(), effect, control);
     } else {
-      control = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect, control);
+      control =
+          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager, reason),
+                           frame_state, effect, control);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), control);
       Revisit(graph()->end());
-      return Replace(dead());
     }
+    return Replace(dead());
   }
   return UpdateConditions(
       node, conditions->AddCondition(zone_, condition, condition_is_true));
@@ -123,8 +124,7 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
   // yet because we will have to recompute anyway once we compute the
   // predecessor.
   if (from_branch == nullptr) {
-    DCHECK(node_conditions_.Get(node) == nullptr);
-    return NoChange();
+    return UpdateConditions(node, nullptr);
   }
   Node* condition = branch->InputAt(0);
   return UpdateConditions(
@@ -145,8 +145,7 @@ Reduction BranchElimination::ReduceMerge(Node* node) {
   // input.
   for (int i = 0; i < node->InputCount(); i++) {
     if (node_conditions_.Get(node->InputAt(i)) == nullptr) {
-      DCHECK(node_conditions_.Get(node) == nullptr);
-      return NoChange();
+      return UpdateConditions(node, nullptr);
     }
   }
 
@@ -209,7 +208,8 @@ Reduction BranchElimination::UpdateConditions(
   // Only signal that the node has Changed if the condition information has
   // changed.
   if (conditions != original) {
-    if (original == nullptr || *conditions != *original) {
+    if (conditions == nullptr || original == nullptr ||
+        *conditions != *original) {
       node_conditions_.Set(node, conditions);
       return Changed(node);
     }

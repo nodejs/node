@@ -117,7 +117,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const allowed = options.allow || [];
 
@@ -144,9 +144,12 @@ module.exports = {
                 sourceCode.getComments(node.body).trailing.length === 0
             ) {
                 context.report({
-                    node: node,
+                    node,
                     loc: node.body.loc.start,
-                    message: "Unexpected empty " + SHOW_KIND[kind] + "."
+                    message: "Unexpected empty {{kind}}.",
+                    data: {
+                        kind: SHOW_KIND[kind]
+                    }
                 });
             }
         }

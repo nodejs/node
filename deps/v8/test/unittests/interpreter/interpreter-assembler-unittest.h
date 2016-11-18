@@ -52,8 +52,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
     Matcher<compiler::Node*> IsUnsignedOperand(int offset,
                                                OperandSize operand_size);
 
-    using InterpreterAssembler::graph;
-
    private:
     DISALLOW_COPY_AND_ASSIGN(InterpreterAssemblerForTest);
   };

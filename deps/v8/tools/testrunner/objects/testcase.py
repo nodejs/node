@@ -29,14 +29,14 @@
 from . import output
 
 class TestCase(object):
-  def __init__(self, suite, path, variant='default', flags=None,
+  def __init__(self, suite, path, variant=None, flags=None,
                override_shell=None):
     self.suite = suite        # TestSuite object
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.flags = flags or []  # list of strings, flags specific to this test
     self.variant = variant    # name of the used testing variant
     self.override_shell = override_shell
-    self.outcomes = set([])
+    self.outcomes = frozenset([])
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
@@ -63,7 +63,7 @@ class TestCase(object):
     """Creates a new TestCase object based on packed task data."""
     # For the order of the fields, refer to PackTask() above.
     test = TestCase(str(task[0]), task[1], task[2], task[3], task[4])
-    test.outcomes = set(task[5])
+    test.outcomes = frozenset(task[5])
     test.id = task[6]
     test.run = 1
     return test
@@ -108,3 +108,6 @@ class TestCase(object):
         (self.suite.name, self.path, self.flags),
         (other.suite.name, other.path, other.flags),
     )
+
+  def __str__(self):
+    return "[%s/%s  %s]" % (self.suite.name, self.path, self.flags)

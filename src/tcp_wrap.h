@@ -42,8 +42,6 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
   static void SetSimultaneousAccepts(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
-
-  static void AfterConnect(uv_connect_t* req, int status);
 };
 
 

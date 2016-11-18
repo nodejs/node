@@ -30,7 +30,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const defaultAssignment = options.defaultAssignment !== false;
 
@@ -58,7 +58,7 @@ module.exports = {
 
         return {
 
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 if (isBooleanLiteral(node.alternate) && isBooleanLiteral(node.consequent)) {
                     context.report(node, node.consequent.loc.start, "Unnecessary use of boolean literals in conditional expression.");
                 } else if (!defaultAssignment && matchesDefaultAssignment(node)) {

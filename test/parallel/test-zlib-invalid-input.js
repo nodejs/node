@@ -5,7 +5,7 @@ require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-var nonStringInputs = [1, true, {a: 1}, ['a']];
+const nonStringInputs = [1, true, {a: 1}, ['a']];
 
 console.error('Doing the non-strings');
 nonStringInputs.forEach(function(input) {
@@ -20,7 +20,7 @@ nonStringInputs.forEach(function(input) {
 
 console.error('Doing the unzips');
 // zlib.Unzip classes need to get valid data, or else they'll throw.
-var unzips = [ zlib.Unzip(),
+const unzips = [ zlib.Unzip(),
                zlib.Gunzip(),
                zlib.Inflate(),
                zlib.InflateRaw() ];

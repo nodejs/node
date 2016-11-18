@@ -16,7 +16,6 @@
   "_from": "write@>=0.2.1 <0.3.0",
   "_id": "write@0.2.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/write",
   "_nodeVersion": "0.12.4",
   "_npmUser": {

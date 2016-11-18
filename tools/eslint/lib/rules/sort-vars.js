@@ -30,13 +30,13 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false;
 
         return {
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 node.declarations.reduce(function(memo, decl) {
                     if (decl.id.type === "ObjectPattern" || decl.id.type === "ArrayPattern") {
                         return memo;

@@ -115,8 +115,8 @@ class Benchmark:
     self.name_ = name
     self.tests_ = {}
     for test in data:
-      # strip off "<name>/" prefix
-      test_name = test.split("/")[1]
+      # strip off "<name>/" prefix, allowing for subsequent "/"s
+      test_name = test.split("/", 1)[1]
       self.appendResult(test_name, data[test])
 
   # tests is a dictionary of Results

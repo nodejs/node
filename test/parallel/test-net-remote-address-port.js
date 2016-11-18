@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
 var conns_closed = 0;
 
@@ -18,7 +18,7 @@ var server = net.createServer(common.mustCall(function(socket) {
   assert.ok(socket.remotePort);
   assert.notEqual(socket.remotePort, this.address().port);
   socket.on('end', function() {
-    if (++conns_closed == 2) server.close();
+    if (++conns_closed === 2) server.close();
   });
   socket.on('close', function() {
     assert.notEqual(-1, remoteAddrCandidates.indexOf(socket.remoteAddress));
@@ -33,7 +33,7 @@ server.listen(0, 'localhost', function() {
   client.on('connect', function() {
     assert.notEqual(-1, remoteAddrCandidates.indexOf(client.remoteAddress));
     assert.notEqual(-1, remoteFamilyCandidates.indexOf(client.remoteFamily));
-    assert.equal(client.remotePort, server.address().port);
+    assert.strictEqual(client.remotePort, server.address().port);
     client.end();
   });
   client.on('close', function() {
@@ -43,7 +43,7 @@ server.listen(0, 'localhost', function() {
   client2.on('connect', function() {
     assert.notEqual(-1, remoteAddrCandidates.indexOf(client2.remoteAddress));
     assert.notEqual(-1, remoteFamilyCandidates.indexOf(client2.remoteFamily));
-    assert.equal(client2.remotePort, server.address().port);
+    assert.strictEqual(client2.remotePort, server.address().port);
     client2.end();
   });
   client2.on('close', function() {

@@ -34,6 +34,7 @@
 
 using namespace v8;
 
+namespace {
 
 enum Expectations {
   EXPECT_RESULT,
@@ -223,6 +224,7 @@ v8::Local<Integer> DeclarationContext::Query(Local<Name> key) {
   return v8::Local<Integer>();
 }
 
+}  // namespace
 
 // Test global declaration of a property the interceptor doesn't know
 // about and doesn't handle.

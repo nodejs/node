@@ -59,7 +59,14 @@ int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
   if (err)
     return err;
 
+  /* If ioctl(FIONBIO) reports ENOTTY, try fcntl(F_GETFL) + fcntl(F_SETFL).
+   * Workaround for e.g. kqueue fds not supporting ioctls.
+   */
   err = uv__nonblock(fd, 1);
+  if (err == -ENOTTY)
+    if (uv__nonblock == uv__nonblock_ioctl)
+      err = uv__nonblock_fcntl(fd, 1);
+
   if (err)
     return err;
 
@@ -85,7 +92,7 @@ static void uv__poll_stop(uv_poll_t* handle) {
 
 
 int uv_poll_stop(uv_poll_t* handle) {
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
   uv__poll_stop(handle);
   return 0;
 }
@@ -95,7 +102,7 @@ int uv_poll_start(uv_poll_t* handle, int pevents, uv_poll_cb poll_cb) {
   int events;
 
   assert((pevents & ~(UV_READABLE | UV_WRITABLE | UV_DISCONNECT)) == 0);
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
 
   uv__poll_stop(handle);
 

@@ -22,7 +22,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
@@ -56,12 +56,18 @@ module.exports = {
             const replacementText = node.computed ? "" : ".";
 
             context.report({
-                node: node,
+                node,
                 message: "Unexpected whitespace before property {{propName}}.",
                 data: {
                     propName: sourceCode.getText(node.property)
                 },
-                fix: function(fixer) {
+                fix(fixer) {
+                    if (!node.computed && astUtils.isDecimalInteger(node.object)) {
+
+                        // If the object is a number literal, fixing it to something like 5.toString() would cause a SyntaxError.
+                        // Don't fix this case.
+                        return null;
+                    }
                     return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], replacementText);
                 }
             });
@@ -72,7 +78,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            MemberExpression: function(node) {
+            MemberExpression(node) {
                 let rightToken;
                 let leftToken;
 

@@ -50,7 +50,7 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
         const config = context.options[0] || "always";
         const options = context.options[1] || {};
         const sourceCode = context.getSourceCode();
@@ -124,15 +124,15 @@ module.exports = {
          */
         function report(node, message) {
             context.report({
-                node: node,
+                node,
                 loc: getOperatorLocation(node),
-                message: message,
+                message,
                 data: { op: node.operator.charAt(0) }
             });
         }
 
         return {
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
                 const isNull = isNullCheck(node);
 
                 if (node.operator !== "==" && node.operator !== "!=") {

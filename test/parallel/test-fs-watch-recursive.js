@@ -30,11 +30,20 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
+  if (common.isOSX) {
+    clearInterval(interval);
+  }
   watcher.close();
   watcherClosed = true;
 });
 
-fs.writeFileSync(filepathOne, 'world');
+if (common.isOSX) {
+  var interval = setInterval(function() {
+    fs.writeFileSync(filepathOne, 'world');
+  }, 10);
+} else {
+  fs.writeFileSync(filepathOne, 'world');
+}
 
 process.on('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');

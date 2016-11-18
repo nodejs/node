@@ -34,7 +34,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // merge rules with default
         const rule = { before: true, after: true },
@@ -51,16 +51,18 @@ module.exports = {
          * @returns {Object} Tokens of arrow and before/after arrow.
          */
         function getTokens(node) {
-            let t = sourceCode.getFirstToken(node);
-            let before;
+            let arrow = sourceCode.getTokenBefore(node.body);
 
-            while (t.type !== "Punctuator" || t.value !== "=>") {
-                before = t;
-                t = sourceCode.getTokenAfter(t);
+            // skip '(' tokens.
+            while (arrow.value !== "=>") {
+                arrow = sourceCode.getTokenBefore(arrow);
             }
-            const after = sourceCode.getTokenAfter(t);
 
-            return { before: before, arrow: t, after: after };
+            return {
+                before: sourceCode.getTokenBefore(arrow),
+                arrow,
+                after: sourceCode.getTokenAfter(arrow)
+            };
         }
 
         /**
@@ -72,7 +74,7 @@ module.exports = {
             const before = tokens.arrow.range[0] - tokens.before.range[1];
             const after = tokens.after.range[0] - tokens.arrow.range[1];
 
-            return { before: before, after: after };
+            return { before, after };
         }
 
         /**
@@ -93,7 +95,7 @@ module.exports = {
                     context.report({
                         node: tokens.before,
                         message: "Missing space before =>.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextBefore(tokens.arrow, " ");
                         }
                     });
@@ -105,7 +107,7 @@ module.exports = {
                     context.report({
                         node: tokens.before,
                         message: "Unexpected space before =>.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.removeRange([tokens.before.range[1], tokens.arrow.range[0]]);
                         }
                     });
@@ -119,7 +121,7 @@ module.exports = {
                     context.report({
                         node: tokens.after,
                         message: "Missing space after =>.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.insertTextAfter(tokens.arrow, " ");
                         }
                     });
@@ -131,7 +133,7 @@ module.exports = {
                     context.report({
                         node: tokens.after,
                         message: "Unexpected space after =>.",
-                        fix: function(fixer) {
+                        fix(fixer) {
                             return fixer.removeRange([tokens.arrow.range[1], tokens.after.range[0]]);
                         }
                     });

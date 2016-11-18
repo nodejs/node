@@ -14,8 +14,8 @@ namespace internal {
 namespace compiler {
 
 namespace {
-LinkageLocation regloc(Register reg) {
-  return LinkageLocation::ForRegister(reg.code());
+LinkageLocation regloc(Register reg, MachineType type) {
+  return LinkageLocation::ForRegister(reg.code(), type);
 }
 
 
@@ -182,21 +182,20 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   CHECK(locations.return_count_ <= 2);
 
   if (locations.return_count_ > 0) {
-    locations.AddReturn(regloc(kReturnRegister0));
+    locations.AddReturn(regloc(kReturnRegister0, msig->GetReturn(0)));
   }
   if (locations.return_count_ > 1) {
-    locations.AddReturn(regloc(kReturnRegister1));
+    locations.AddReturn(regloc(kReturnRegister1, msig->GetReturn(1)));
   }
 
   const int parameter_count = static_cast<int>(msig->parameter_count());
 
 #ifdef PARAM_REGISTERS
-  static const Register kParamRegisters[] = {PARAM_REGISTERS};
-  static const int kParamRegisterCount =
-      static_cast<int>(arraysize(kParamRegisters));
+  const Register kParamRegisters[] = {PARAM_REGISTERS};
+  const int kParamRegisterCount = static_cast<int>(arraysize(kParamRegisters));
 #else
-  static const Register* kParamRegisters = nullptr;
-  static const int kParamRegisterCount = 0;
+  const Register* kParamRegisters = nullptr;
+  const int kParamRegisterCount = 0;
 #endif
 
 #ifdef STACK_SHADOW_WORDS
@@ -207,10 +206,10 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // Add register and/or stack parameter(s).
   for (int i = 0; i < parameter_count; i++) {
     if (i < kParamRegisterCount) {
-      locations.AddParam(regloc(kParamRegisters[i]));
+      locations.AddParam(regloc(kParamRegisters[i], msig->GetParam(i)));
     } else {
-      locations.AddParam(
-          LinkageLocation::ForCallerFrameSlot(-1 - stack_offset));
+      locations.AddParam(LinkageLocation::ForCallerFrameSlot(
+          -1 - stack_offset, msig->GetParam(i)));
       stack_offset++;
     }
   }
@@ -229,7 +228,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
 
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
-  LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
   if (set_initialize_root_flag) {
     flags |= CallDescriptor::kInitializeRootRegister;
@@ -239,7 +238,6 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
       target_loc,                    // target location
-      msig,                          // machine_sig
       locations.Build(),             // location_sig
       0,                             // stack_parameter_count
       Operator::kNoProperties,       // properties

@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow an empty line after `var` declarations",
+            description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -24,7 +24,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
             NEVER_MESSAGE = "Unexpected blank line after variable declarations.";

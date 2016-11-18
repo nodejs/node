@@ -16,7 +16,7 @@ RUNTIME_FUNCTION(Runtime_CreateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  CHECK(name->IsString() || name->IsUndefined(isolate));
   Handle<Symbol> symbol = isolate->factory()->NewSymbol();
   if (name->IsString()) symbol->set_name(*name);
   return *symbol;
@@ -27,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  CHECK(name->IsString() || name->IsUndefined(isolate));
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
   if (name->IsString()) symbol->set_name(*name);
   return *symbol;
@@ -52,9 +52,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
     builder.AppendString(handle(String::cast(symbol->name()), isolate));
   }
   builder.AppendCharacter(')');
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.Finish());
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
 

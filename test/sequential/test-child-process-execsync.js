@@ -48,7 +48,7 @@ var msgBuf = Buffer.from(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
 
-cmd = `"${process.execPath}" -e "console.log(\'${msg}\');"`;
+cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
 
 ret = execSync(cmd);
 
@@ -86,4 +86,20 @@ assert.strictEqual(ret, msg + '\n',
   assert.throws(function() {
     execSync('exit -1', {stdio: 'ignore'});
   }, /Command failed: exit -1/);
+}
+
+// Verify the execFileSync() behavior when the child exits with a non-zero code.
+{
+  const args = ['-e', 'process.exit(1)'];
+
+  assert.throws(() => {
+    execFileSync(process.execPath, args);
+  }, (err) => {
+    const msg = `Command failed: ${process.execPath} ${args.join(' ')}`;
+
+    assert(err instanceof Error);
+    assert.strictEqual(err.message, msg);
+    assert.strictEqual(err.status, 1);
+    return true;
+  });
 }

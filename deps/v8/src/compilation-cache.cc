@@ -4,9 +4,9 @@
 
 #include "src/compilation-cache.h"
 
-#include "src/assembler.h"
 #include "src/counters.h"
 #include "src/factory.h"
+#include "src/globals.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -41,7 +41,7 @@ CompilationCache::~CompilationCache() {}
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   DCHECK(generation < generations_);
   Handle<CompilationCacheTable> result;
-  if (tables_[generation]->IsUndefined()) {
+  if (tables_[generation]->IsUndefined(isolate())) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
@@ -56,7 +56,7 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
 void CompilationSubCache::Age() {
   // Don't directly age single-generation caches.
   if (generations_ == 1) {
-    if (tables_[0] != isolate()->heap()->undefined_value()) {
+    if (!tables_[0]->IsUndefined(isolate())) {
       CompilationCacheTable::cast(tables_[0])->Age();
     }
     return;
@@ -121,7 +121,7 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
   if (name.is_null()) {
-    return script->name()->IsUndefined();
+    return script->name()->IsUndefined(isolate());
   }
   // Do the fast bailout checks first.
   if (line_offset != script->line_offset()) return false;
@@ -308,7 +308,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
     result =
         eval_global_.Lookup(source, outer_info, language_mode, scope_position);
   } else {
-    DCHECK(scope_position != RelocInfo::kNoPosition);
+    DCHECK(scope_position != kNoSourcePosition);
     result = eval_contextual_.Lookup(source, outer_info, language_mode,
                                      scope_position);
   }
@@ -345,7 +345,7 @@ void CompilationCache::PutEval(Handle<String> source,
   if (context->IsNativeContext()) {
     eval_global_.Put(source, outer_info, function_info, scope_position);
   } else {
-    DCHECK(scope_position != RelocInfo::kNoPosition);
+    DCHECK(scope_position != kNoSourcePosition);
     eval_contextual_.Put(source, outer_info, function_info, scope_position);
   }
 }

@@ -59,11 +59,14 @@
 
   # TODO(turbofan): Causes timeouts since top-level code is optimized.
   'ecma_3/Statements/regress-324650': [PASS, NO_VARIANTS],
+  'ecma_3/Statements/regress-444979': [PASS, NO_VARIANTS],
   'ecma_3/Statements/regress-74474-002': [PASS, NO_VARIANTS],
   'ecma_3/Statements/regress-74474-003': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-111557': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081-2': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-159334': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-321971': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-451322': [PASS, NO_VARIANTS],
 
   # TODO(turbofan): Large switch statements crash.
@@ -187,7 +190,7 @@
   'ecma_3/RegExp/regress-209067': [PASS, ['mode == debug', FAIL]],
   'js1_5/GC/regress-278725': [PASS, ['mode == debug', FAIL]],
   # http://b/issue?id=1206983
-  'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL]],
+  'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL], NO_VARIANTS],
   'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   # These tests create two Date objects just after each other and
@@ -239,7 +242,7 @@
   'js1_5/Array/regress-99120-01': [PASS, FAIL, NO_VARIANTS],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
-  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT], NO_VARIANTS],
 
 
   # The following two tests assume that daylight savings time starts first

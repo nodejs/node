@@ -26,7 +26,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         const stack = [],
             sourceCode = context.getSourceCode();
 
@@ -66,7 +66,7 @@ module.exports = {
             // `this` can be invalid only under strict mode.
             stack.push({
                 init: !context.getScope().isStrict,
-                node: node,
+                node,
                 valid: true
             });
         }
@@ -85,13 +85,13 @@ module.exports = {
              * `this` is invalid only under strict mode.
              * Modules is always strict mode.
              */
-            Program: function(node) {
+            Program(node) {
                 const scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {};
 
                 stack.push({
                     init: true,
-                    node: node,
+                    node,
                     valid: !(
                         scope.isStrict ||
                         node.sourceType === "module" ||
@@ -100,7 +100,7 @@ module.exports = {
                 });
             },
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 stack.pop();
             },
 
@@ -110,7 +110,7 @@ module.exports = {
             "FunctionExpression:exit": exitFunction,
 
             // Reports if `this` of the current context is invalid.
-            ThisExpression: function(node) {
+            ThisExpression(node) {
                 const current = stack.getCurrent();
 
                 if (current && !current.valid) {

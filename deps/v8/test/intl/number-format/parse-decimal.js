@@ -24,16 +24,29 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Flags: --intl-extra
 
 var nf = new Intl.NumberFormat(['en'], {style: 'decimal'});
 
 assertEquals(123.43, nf.v8Parse('123.43'));
 assertEquals(123, nf.v8Parse('123'));
 assertEquals(NaN, nf.v8Parse(NaN));
-assertEquals(12323, nf.v8Parse('123,23'));
-assertEquals(12323.456, nf.v8Parse('123,23.456'));
-assertEquals(12323.456, nf.v8Parse('0000000123,23.456'));
-assertEquals(-12323.456, nf.v8Parse('-123,23.456'));
+assertEquals(12323, nf.v8Parse('12,323'));
+assertEquals(12323, nf.v8Parse('12323'));
+assertEquals(12323.456, nf.v8Parse('12,323.456'));
+assertEquals(12323.456, nf.v8Parse('000000012323.456'));
+assertEquals(12323.456, nf.v8Parse('000,000,012,323.456'));
+assertEquals(-12323.456, nf.v8Parse('-12,323.456'));
 
-// Scientific notation gets ignored.
-assertEquals(123.456, nf.v8Parse('123.456e-3'));
+assertEquals(12323, nf.v8Parse('000000012323'));
+assertEquals(12323, nf.v8Parse('000,000,012,323'));
+assertEquals(undefined, nf.v8Parse('000000012,323.456'));
+
+// not tolerant of a misplaced thousand separator
+assertEquals(undefined, nf.v8Parse('123,23.456'));
+assertEquals(undefined, nf.v8Parse('0000000123,23.456'));
+assertEquals(undefined, nf.v8Parse('-123,23.456'));
+
+// Scientific notation is supported.
+assertEquals(0.123456, nf.v8Parse('123.456e-3'));

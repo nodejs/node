@@ -19,11 +19,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            Identifier: function(node) {
+            Identifier(node) {
                 if (node.name === "undefined") {
                     const parent = context.getAncestors().pop();
 

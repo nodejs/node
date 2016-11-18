@@ -14,19 +14,19 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
-static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Kind ic_kind, Code::Flags flags,
+static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        StubCache::Table table, Register name, Register receiver,
-                       // Number of the cache entry pointer-size scaled.
+                       // The offset is scaled by 4, based on
+                       // kCacheIndexShift, which is two bits
                        Register offset, Register extra) {
-  ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
-  ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
-  ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
+  ExternalReference key_offset(stub_cache->key_reference(table));
+  ExternalReference value_offset(stub_cache->value_reference(table));
+  ExternalReference map_offset(stub_cache->map_reference(table));
   ExternalReference virtual_register =
       ExternalReference::virtual_handler_register(masm->isolate());
 
   Label miss;
+  Code::Kind ic_kind = stub_cache->ic_kind();
   bool is_vector_store =
       IC::ICUseVector(ic_kind) &&
       (ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
@@ -47,12 +47,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     __ cmp(offset, FieldOperand(receiver, HeapObject::kMapOffset));
     __ j(not_equal, &miss);
 
-    // Check that the flags match what we're looking for.
-    __ mov(offset, FieldOperand(extra, Code::kFlagsOffset));
-    __ and_(offset, ~Code::kFlagsNotUsedInLookup);
-    __ cmp(offset, flags);
-    __ j(not_equal, &miss);
-
 #ifdef DEBUG
     if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
       __ jmp(&miss);
@@ -65,8 +59,8 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     // probe, and need to be dropped before calling the handler.
     if (is_vector_store) {
       // The overlap here is rather embarrassing. One does what one must.
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      DCHECK(extra.is(VectorStoreICDescriptor::SlotRegister()));
+      Register vector = StoreWithVectorDescriptor::VectorRegister();
+      DCHECK(extra.is(StoreWithVectorDescriptor::SlotRegister()));
       __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ pop(vector);
       __ mov(Operand::StaticVariable(virtual_register), extra);
@@ -102,12 +96,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     // Get the code entry from the cache.
     __ mov(offset, Operand::StaticArray(offset, times_1, value_offset));
 
-    // Check that the flags match what we're looking for.
-    __ mov(offset, FieldOperand(offset, Code::kFlagsOffset));
-    __ and_(offset, ~Code::kFlagsNotUsedInLookup);
-    __ cmp(offset, flags);
-    __ j(not_equal, &miss);
-
 #ifdef DEBUG
     if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
       __ jmp(&miss);
@@ -124,8 +112,8 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     if (is_vector_store) {
       // The vector and slot were pushed onto the stack before starting the
       // probe, and need to be dropped before calling the handler.
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      DCHECK(offset.is(VectorStoreICDescriptor::SlotRegister()));
+      Register vector = StoreWithVectorDescriptor::VectorRegister();
+      DCHECK(offset.is(StoreWithVectorDescriptor::SlotRegister()));
       __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ mov(Operand::StaticVariable(virtual_register), offset);
       __ pop(vector);
@@ -142,9 +130,7 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   }
 }
 
-
-void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                              Code::Flags flags, Register receiver,
+void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
   Label miss;
@@ -152,9 +138,6 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // Assert that code is valid.  The multiplying code relies on the entry size
   // being 12.
   DCHECK(sizeof(Entry) == 12);
-
-  // Assert the flags do not name a specific type.
-  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
 
   // Assert that there are no register conflicts.
   DCHECK(!scratch.is(receiver));
@@ -180,7 +163,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // Get the map of the receiver and compute the hash.
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
   __ add(offset, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(offset, flags);
+  __ xor_(offset, kPrimaryMagic);
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
   __ and_(offset, (kPrimaryTableSize - 1) << kCacheIndexShift);
@@ -189,21 +172,19 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   DCHECK(kCacheIndexShift == kPointerSizeLog2);
 
   // Probe the primary table.
-  ProbeTable(isolate(), masm, ic_kind, flags, kPrimary, name, receiver, offset,
-             extra);
+  ProbeTable(this, masm, kPrimary, name, receiver, offset, extra);
 
   // Primary miss: Compute hash for secondary probe.
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
   __ add(offset, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(offset, flags);
+  __ xor_(offset, kPrimaryMagic);
   __ and_(offset, (kPrimaryTableSize - 1) << kCacheIndexShift);
   __ sub(offset, name);
-  __ add(offset, Immediate(flags));
+  __ add(offset, Immediate(kSecondaryMagic));
   __ and_(offset, (kSecondaryTableSize - 1) << kCacheIndexShift);
 
   // Probe the secondary table.
-  ProbeTable(isolate(), masm, ic_kind, flags, kSecondary, name, receiver,
-             offset, extra);
+  ProbeTable(this, masm, kSecondary, name, receiver, offset, extra);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

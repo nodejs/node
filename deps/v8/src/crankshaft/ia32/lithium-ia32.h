@@ -57,7 +57,6 @@ class LCodeGen;
   V(ConstantI)                               \
   V(ConstantS)                               \
   V(ConstantT)                               \
-  V(ConstructDouble)                         \
   V(Context)                                 \
   V(DebugBreak)                              \
   V(DeclareGlobals)                          \
@@ -65,12 +64,12 @@ class LCodeGen;
   V(DivByConstI)                             \
   V(DivByPowerOf2I)                          \
   V(DivI)                                    \
-  V(DoubleBits)                              \
   V(DoubleToI)                               \
   V(DoubleToSmi)                             \
   V(Drop)                                    \
   V(Dummy)                                   \
   V(DummyUse)                                \
+  V(FastAllocate)                            \
   V(FlooringDivByConstI)                     \
   V(FlooringDivByPowerOf2I)                  \
   V(FlooringDivI)                            \
@@ -82,7 +81,6 @@ class LCodeGen;
   V(HasInPrototypeChainAndBranch)            \
   V(HasInstanceTypeAndBranch)                \
   V(InnerAllocatedObject)                    \
-  V(InstanceOf)                              \
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
@@ -102,6 +100,7 @@ class LCodeGen;
   V(LoadRoot)                                \
   V(MathAbs)                                 \
   V(MathClz32)                               \
+  V(MathCos)                                 \
   V(MathExp)                                 \
   V(MathFloorD)                              \
   V(MathFloorI)                              \
@@ -111,6 +110,7 @@ class LCodeGen;
   V(MathPowHalf)                             \
   V(MathRoundD)                              \
   V(MathRoundI)                              \
+  V(MathSin)                                 \
   V(MathSqrt)                                \
   V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
@@ -912,21 +912,29 @@ class LMathClz32 final : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(MathClz32, "math-clz32")
 };
 
-
-class LMathExp final : public LTemplateInstruction<1, 1, 2> {
+class LMathCos final : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathExp(LOperand* value,
-           LOperand* temp1,
-           LOperand* temp2) {
-    inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-    ExternalReference::InitializeMathExpData();
-  }
+  explicit LMathCos(LOperand* value) { inputs_[0] = value; }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
+};
+
+class LMathSin final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathSin(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
+};
+
+class LMathExp final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathExp(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
 };
@@ -1136,22 +1144,6 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
 
   LOperand* context() { return inputs_[0]; }
   Token::Value op() const { return hydrogen()->token(); }
-};
-
-
-class LInstanceOf final : public LTemplateInstruction<1, 3, 0> {
- public:
-  LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
-    inputs_[0] = context;
-    inputs_[1] = left;
-    inputs_[2] = right;
-  }
-
-  LOperand* context() const { return inputs_[0]; }
-  LOperand* left() const { return inputs_[1]; }
-  LOperand* right() const { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
 };
 
 
@@ -1605,18 +1597,14 @@ class LLoadKeyedGeneric final : public LTemplateInstruction<1, 3, 1> {
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyedGeneric)
 };
 
-
-class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
+class LLoadGlobalGeneric final : public LTemplateInstruction<1, 1, 1> {
  public:
-  LLoadGlobalGeneric(LOperand* context, LOperand* global_object,
-                     LOperand* vector) {
+  LLoadGlobalGeneric(LOperand* context, LOperand* vector) {
     inputs_[0] = context;
-    inputs_[1] = global_object;
     temps_[0] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
-  LOperand* global_object() { return inputs_[1]; }
   LOperand* temp_vector() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
@@ -2183,6 +2171,8 @@ class LMaybeGrowElements final : public LTemplateInstruction<1, 5, 0> {
   LOperand* key() { return inputs_[3]; }
   LOperand* current_capacity() { return inputs_[4]; }
 
+  bool ClobbersDoubleRegisters(Isolate* isolate) const override { return true; }
+
   DECLARE_HYDROGEN_ACCESSOR(MaybeGrowElements)
   DECLARE_CONCRETE_INSTRUCTION(MaybeGrowElements, "maybe-grow-elements")
 };
@@ -2358,33 +2348,6 @@ class LCheckNonSmi final : public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LDoubleBits final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LDoubleBits(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DoubleBits, "double-bits")
-  DECLARE_HYDROGEN_ACCESSOR(DoubleBits)
-};
-
-
-class LConstructDouble final : public LTemplateInstruction<1, 2, 0> {
- public:
-  LConstructDouble(LOperand* hi, LOperand* lo) {
-    inputs_[0] = hi;
-    inputs_[1] = lo;
-  }
-
-  LOperand* hi() { return inputs_[0]; }
-  LOperand* lo() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble, "construct-double")
-};
-
-
 class LAllocate final : public LTemplateInstruction<1, 2, 1> {
  public:
   LAllocate(LOperand* context, LOperand* size, LOperand* temp) {
@@ -2401,6 +2364,19 @@ class LAllocate final : public LTemplateInstruction<1, 2, 1> {
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
 };
 
+class LFastAllocate final : public LTemplateInstruction<1, 1, 1> {
+ public:
+  LFastAllocate(LOperand* size, LOperand* temp) {
+    inputs_[0] = size;
+    temps_[0] = temp;
+  }
+
+  LOperand* size() const { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FastAllocate, "fast-allocate")
+  DECLARE_HYDROGEN_ACCESSOR(Allocate)
+};
 
 class LTypeof final : public LTemplateInstruction<1, 2, 0> {
  public:
@@ -2555,6 +2531,8 @@ class LChunkBuilder final : public LChunkBuilderBase {
   LInstruction* DoMathFround(HUnaryMathOperation* instr);
   LInstruction* DoMathAbs(HUnaryMathOperation* instr);
   LInstruction* DoMathLog(HUnaryMathOperation* instr);
+  LInstruction* DoMathCos(HUnaryMathOperation* instr);
+  LInstruction* DoMathSin(HUnaryMathOperation* instr);
   LInstruction* DoMathExp(HUnaryMathOperation* instr);
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);

@@ -29,7 +29,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
         const options = context.options[0] || {};
         const commentPattern = options.commentPattern ?
             new RegExp(options.commentPattern) :
@@ -56,7 +56,7 @@ module.exports = {
 
         return {
 
-            SwitchStatement: function(node) {
+            SwitchStatement(node) {
 
                 if (!node.cases.length) {
 

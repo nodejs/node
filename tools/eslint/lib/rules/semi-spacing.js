@@ -37,7 +37,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const config = context.options[0],
             sourceCode = context.getSourceCode();
@@ -134,10 +134,10 @@ module.exports = {
                 if (hasLeadingSpace(token)) {
                     if (!requireSpaceBefore) {
                         context.report({
-                            node: node,
+                            node,
                             loc: location,
                             message: "Unexpected whitespace before semicolon.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 const tokenBefore = sourceCode.getTokenBefore(token);
 
                                 return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
@@ -147,10 +147,10 @@ module.exports = {
                 } else {
                     if (requireSpaceBefore) {
                         context.report({
-                            node: node,
+                            node,
                             loc: location,
                             message: "Missing whitespace before semicolon.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
                             }
                         });
@@ -161,10 +161,10 @@ module.exports = {
                     if (hasTrailingSpace(token)) {
                         if (!requireSpaceAfter) {
                             context.report({
-                                node: node,
+                                node,
                                 loc: location,
                                 message: "Unexpected whitespace after semicolon.",
-                                fix: function(fixer) {
+                                fix(fixer) {
                                     const tokenAfter = sourceCode.getTokenAfter(token);
 
                                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
@@ -174,10 +174,10 @@ module.exports = {
                     } else {
                         if (requireSpaceAfter) {
                             context.report({
-                                node: node,
+                                node,
                                 loc: location,
                                 message: "Missing whitespace after semicolon.",
-                                fix: function(fixer) {
+                                fix(fixer) {
                                     return fixer.insertTextAfter(token, " ");
                                 }
                             });
@@ -206,7 +206,7 @@ module.exports = {
             DebuggerStatement: checkNode,
             ReturnStatement: checkNode,
             ThrowStatement: checkNode,
-            ForStatement: function(node) {
+            ForStatement(node) {
                 if (node.init) {
                     checkSemicolonSpacing(sourceCode.getTokenAfter(node.init), node);
                 }

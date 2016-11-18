@@ -356,39 +356,23 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
-// this would have been a template function were it not for the fact that g++
-// sometimes fails to resolve it...
-#define THROW_ERROR(fun)                                                      \
-  do {                                                                        \
-    v8::HandleScope scope(isolate);                                           \
-    isolate->ThrowException(fun(OneByteString(isolate, errmsg)));             \
-  }                                                                           \
-  while (0)
-
-inline void Environment::ThrowError(v8::Isolate* isolate, const char* errmsg) {
-  THROW_ERROR(v8::Exception::Error);
-}
-
-inline void Environment::ThrowTypeError(v8::Isolate* isolate,
-                                        const char* errmsg) {
-  THROW_ERROR(v8::Exception::TypeError);
-}
-
-inline void Environment::ThrowRangeError(v8::Isolate* isolate,
-                                         const char* errmsg) {
-  THROW_ERROR(v8::Exception::RangeError);
-}
-
 inline void Environment::ThrowError(const char* errmsg) {
-  ThrowError(isolate(), errmsg);
+  ThrowError(v8::Exception::Error, errmsg);
 }
 
 inline void Environment::ThrowTypeError(const char* errmsg) {
-  ThrowTypeError(isolate(), errmsg);
+  ThrowError(v8::Exception::TypeError, errmsg);
 }
 
 inline void Environment::ThrowRangeError(const char* errmsg) {
-  ThrowRangeError(isolate(), errmsg);
+  ThrowError(v8::Exception::RangeError, errmsg);
+}
+
+inline void Environment::ThrowError(
+    v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
+    const char* errmsg) {
+  v8::HandleScope handle_scope(isolate());
+  isolate()->ThrowException(fun(OneByteString(isolate(), errmsg)));
 }
 
 inline void Environment::ThrowErrnoException(int errorno,
@@ -459,9 +443,9 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
   return m_obj.ToLocalChecked();
 }
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
-#define V(TypeName, PropertyName, StringValue)                                \
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define V(TypeName, PropertyName)                                             \
   inline                                                                      \
   v8::Local<TypeName> IsolateData::PropertyName(v8::Isolate* isolate) const { \
     /* Strings are immutable so casting away const-ness here is okay. */      \
@@ -473,9 +457,9 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef VS
 #undef VP
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
-#define V(TypeName, PropertyName, StringValue)                                \
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define V(TypeName, PropertyName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return isolate_data()->PropertyName(isolate());                           \
   }

@@ -36,7 +36,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         const sourceCode = context.getSourceCode();
         const tokensAndComments = sourceCode.tokensAndComments;
@@ -73,8 +73,8 @@ module.exports = {
          */
         function report(node, dir, otherNode) {
             context.report({
-                node: node,
-                fix: function(fixer) {
+                node,
+                fix(fixer) {
                     if (options[dir]) {
                         if (dir === "before") {
                             return fixer.insertTextBefore(node, " ");
@@ -97,8 +97,11 @@ module.exports = {
                     }
                 },
                 message: options[dir] ?
-                  "A space is required " + dir + " ','." :
-                  "There should be no space " + dir + " ','."
+                  "A space is required {{dir}} ','." :
+                  "There should be no space {{dir}} ','.",
+                data: {
+                    dir
+                }
             });
         }
 
@@ -160,7 +163,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
                 tokensAndComments.forEach(function(token, i) {
 
                     if (!isComma(token)) {

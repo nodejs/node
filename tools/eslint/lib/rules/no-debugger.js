@@ -20,10 +20,10 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            DebuggerStatement: function(node) {
+            DebuggerStatement(node) {
                 context.report(node, "Unexpected 'debugger' statement.");
             }
         };
