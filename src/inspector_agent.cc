@@ -131,7 +131,8 @@ class AgentImpl {
   explicit AgentImpl(node::Environment* env);
 
   // Start the inspector agent thread
-  bool Start(v8::Platform* platform, const char* path, int port, bool wait);
+  bool Start(v8::Platform* platform, const char* path,
+             const DebugOptions& options);
   // Stop the inspector agent
   void Stop();
 
@@ -168,6 +169,7 @@ class AgentImpl {
   void NotifyMessageReceived();
   State ToState(State state);
 
+  DebugOptions options_;
   uv_sem_t start_sem_;
   ConditionVariable incoming_message_cond_;
   Mutex state_lock_;
@@ -175,8 +177,6 @@ class AgentImpl {
   uv_loop_t child_loop_;
 
   InspectorAgentDelegate* delegate_;
-
-  int port_;
   bool wait_;
   bool shutting_down_;
   State state_;
@@ -192,6 +192,8 @@ class AgentImpl {
   InspectorSocketServer* server_;
 
   std::string script_name_;
+  std::string script_path_;
+  const std::string id_;
 
   friend class ChannelImpl;
   friend class DispatchOnInspectorBackendTask;
@@ -316,7 +318,6 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
 };
 
 AgentImpl::AgentImpl(Environment* env) : delegate_(nullptr),
-                                         port_(0),
                                          wait_(false),
                                          shutting_down_(false),
                                          state_(State::kNew),
@@ -396,7 +397,10 @@ void InspectorWrapConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 bool AgentImpl::Start(v8::Platform* platform, const char* path,
-                      int port, bool wait) {
+                      const DebugOptions& options) {
+  options_ = options;
+  wait_ = options.wait_for_connect();
+
   auto env = parent_env_;
   inspector_ = new V8NodeInspector(this, env, platform);
   platform_ = platform;
@@ -408,9 +412,6 @@ bool AgentImpl::Start(v8::Platform* platform, const char* path,
   int err = uv_loop_init(&child_loop_);
   CHECK_EQ(err, 0);
 
-  port_ = port;
-  wait_ = wait;
-
   err = uv_thread_create(&thread_, AgentImpl::ThreadCbIO, this);
   CHECK_EQ(err, 0);
   uv_sem_wait(&start_sem_);
@@ -420,7 +421,7 @@ bool AgentImpl::Start(v8::Platform* platform, const char* path,
     return false;
   }
   state_ = State::kAccepting;
-  if (wait) {
+  if (options_.wait_for_connect()) {
     DispatchMessages();
   }
   return true;
@@ -548,7 +549,7 @@ void AgentImpl::WorkerRunIO() {
   }
   InspectorAgentDelegate delegate(this, script_path, script_name_, wait_);
   delegate_ = &delegate;
-  InspectorSocketServer server(&delegate, port_);
+  InspectorSocketServer server(&delegate, options_.port());
   if (!server.Start(&child_loop_)) {
     fprintf(stderr, "Unable to open devtools socket: %s\n", uv_strerror(err));
     state_ = State::kError;  // Safe, main thread is waiting on semaphore
@@ -666,8 +667,8 @@ Agent::~Agent() {
 }
 
 bool Agent::Start(v8::Platform* platform, const char* path,
-                  int port, bool wait) {
-  return impl->Start(platform, path, port, wait);
+                  const DebugOptions& options) {
+  return impl->Start(platform, path, options);
 }
 
 void Agent::Stop() {
