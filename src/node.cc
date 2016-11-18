@@ -7,6 +7,7 @@
 #include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
+#include "node_debug_options.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -140,17 +141,6 @@ static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
-#if HAVE_INSPECTOR
-static bool use_inspector = false;
-#else
-static const bool use_inspector = false;
-#endif
-static bool use_debug_agent = false;
-static bool debug_wait_connect = false;
-static std::string* debug_host;  // coverity[leaked_storage]
-static const int default_debugger_port = 5858;
-static const int default_inspector_port = 9229;
-static int debug_port = -1;
 static const int v8_default_thread_pool_size = 4;
 static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
@@ -197,6 +187,8 @@ static uv_async_t dispatch_debug_messages_async;
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
+static node::DebugOptions debug_options;
+
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
@@ -213,14 +205,12 @@ static struct {
     platform_ = nullptr;
   }
 
-  bool StartInspector(Environment *env, const char* script_path,
-                      int port, bool wait) {
 #if HAVE_INSPECTOR
-    return env->inspector_agent()->Start(platform_, script_path, port, wait);
-#else
-    return true;
-#endif  // HAVE_INSPECTOR
+  bool StartInspector(Environment *env, const char* script_path,
+                      const node::DebugOptions& options) {
+    return env->inspector_agent()->Start(platform_, script_path, options);
   }
+#endif  // HAVE_INSPECTOR
 
   v8::Platform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
@@ -2520,7 +2510,7 @@ void FatalException(Isolate* isolate,
 
   if (exit_code) {
 #if HAVE_INSPECTOR
-    if (use_inspector) {
+    if (debug_options.inspector_enabled()) {
       env->inspector_agent()->FatalException(error, message);
     }
 #endif
@@ -2924,17 +2914,14 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
-  int port = debug_port;
-  if (port < 0)
-    port = use_inspector ? default_inspector_port : default_debugger_port;
-  info.GetReturnValue().Set(port);
+  info.GetReturnValue().Set(debug_options.port());
 }
 
 
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
-  debug_port = value->Int32Value();
+  debug_options.set_port(value->Int32Value());
 }
 
 
@@ -3277,7 +3264,7 @@ void SetupProcessObject(Environment* env,
   }
 
   // --debug-brk
-  if (debug_wait_connect) {
+  if (debug_options.wait_for_connect()) {
     READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
   }
 
@@ -3469,90 +3456,6 @@ void LoadEnvironment(Environment* env) {
   f->Call(Null(env->isolate()), 1, &arg);
 }
 
-
-static void PrintHelp();
-
-static bool ParseDebugOpt(const char* arg) {
-  const char* port = nullptr;
-
-  if (!strcmp(arg, "--debug")) {
-    use_debug_agent = true;
-  } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-    use_debug_agent = true;
-    port = arg + sizeof("--debug=") - 1;
-  } else if (!strcmp(arg, "--debug-brk")) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
-  } else if (!strncmp(arg, "--debug-brk=", sizeof("--debug-brk=") - 1)) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
-    port = arg + sizeof("--debug-brk=") - 1;
-  } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
-    // XXX(bnoordhuis) Misnomer, configures port and listen address.
-    port = arg + sizeof("--debug-port=") - 1;
-#if HAVE_INSPECTOR
-  // Specifying both --inspect and --debug means debugging is on, using Chromium
-  // inspector.
-  } else if (!strcmp(arg, "--inspect")) {
-    use_debug_agent = true;
-    use_inspector = true;
-  } else if (!strncmp(arg, "--inspect=", sizeof("--inspect=") - 1)) {
-    use_debug_agent = true;
-    use_inspector = true;
-    port = arg + sizeof("--inspect=") - 1;
-#else
-  } else if (!strncmp(arg, "--inspect", sizeof("--inspect") - 1)) {
-    fprintf(stderr,
-            "Inspector support is not available with this Node.js build\n");
-    return false;
-#endif
-  } else {
-    return false;
-  }
-
-  if (port == nullptr) {
-    return true;
-  }
-
-  // FIXME(bnoordhuis) Move IPv6 address parsing logic to lib/net.js.
-  // It seems reasonable to support [address]:port notation
-  // in net.Server#listen() and net.Socket#connect().
-  const size_t port_len = strlen(port);
-  if (port[0] == '[' && port[port_len - 1] == ']') {
-    debug_host = new std::string(port + 1, port_len - 2);
-    return true;
-  }
-
-  const char* const colon = strrchr(port, ':');
-  if (colon == nullptr) {
-    // Either a port number or a host name.  Assume that
-    // if it's not all decimal digits, it's a host name.
-    for (size_t n = 0; port[n] != '\0'; n += 1) {
-      if (port[n] < '0' || port[n] > '9') {
-        debug_host = new std::string(port);
-        return true;
-      }
-    }
-  } else {
-    const bool skip = (colon > port && port[0] == '[' && colon[-1] == ']');
-    debug_host = new std::string(port + skip, colon - skip);
-  }
-
-  char* endptr;
-  errno = 0;
-  const char* const digits = colon != nullptr ? colon + 1 : port;
-  const long result = strtol(digits, &endptr, 10);  // NOLINT(runtime/int)
-  if (errno != 0 || *endptr != '\0' || result < 1024 || result > 65535) {
-    fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
-    PrintHelp();
-    exit(12);
-  }
-
-  debug_port = static_cast<int>(result);
-
-  return true;
-}
-
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
@@ -3666,8 +3569,8 @@ static void ParseArgs(int* argc,
     const char* const arg = argv[index];
     unsigned int args_consumed = 1;
 
-    if (ParseDebugOpt(arg)) {
-      // Done, consumed by ParseDebugOpt().
+    if (debug_options.ParseOption(arg)) {
+      // Done, consumed by DebugOptions::ParseOption().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
@@ -3809,22 +3712,21 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 }
 
 
-static void StartDebug(Environment* env, const char* path, bool wait) {
+static void StartDebug(Environment* env, const char* path,
+                       DebugOptions debug_options) {
   CHECK(!debugger_running);
-  if (use_inspector) {
-    debugger_running = v8_platform.StartInspector(env, path,
-        debug_port >= 0 ? debug_port : default_inspector_port, wait);
-  } else {
+#if HAVE_INSPECTOR
+  if (debug_options.inspector_enabled())
+    debugger_running = v8_platform.StartInspector(env, path, debug_options);
+#endif  // HAVE_INSPECTOR
+  if (debug_options.debugger_enabled()) {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
-    const char* host = debug_host ? debug_host->c_str() : "127.0.0.1";
-    int port = debug_port >= 0 ? debug_port : default_debugger_port;
-    debugger_running =
-        env->debugger_agent()->Start(host, port, wait);
+    debugger_running = env->debugger_agent()->Start(debug_options);
     if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger on %s:%d failed\n", host, port);
+      fprintf(stderr, "Starting debugger on %s:%d failed\n",
+              debug_options.host_name().c_str(), debug_options.port());
       fflush(stderr);
-      return;
     }
   }
 }
@@ -3834,7 +3736,7 @@ static void StartDebug(Environment* env, const char* path, bool wait) {
 static void EnableDebug(Environment* env) {
   CHECK(debugger_running);
 
-  if (use_inspector) {
+  if (!debug_options.debugger_enabled()) {
     return;
   }
 
@@ -3875,8 +3777,8 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
       HandleScope scope(isolate);
       Environment* env = Environment::GetCurrent(isolate);
       Context::Scope context_scope(env->context());
-
-      StartDebug(env, nullptr, false);
+      debug_options.EnableDebugAgent(DebugAgentType::kDebugger);
+      StartDebug(env, nullptr, debug_options);
       EnableDebug(env);
     }
 
@@ -4130,7 +4032,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   if (debugger_running) {
     Environment* env = Environment::GetCurrent(args);
 #if HAVE_INSPECTOR
-    if (use_inspector) {
+    if (debug_options.inspector_enabled()) {
       env->inspector_agent()->Stop();
     } else {
 #endif
@@ -4302,7 +4204,7 @@ void Init(int* argc,
   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
 
-  if (!use_debug_agent) {
+  if (!debug_options.debugger_enabled() && !debug_options.inspector_enabled()) {
     RegisterDebugSignalHandler();
   }
 
@@ -4419,11 +4321,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Environment env(isolate_data, context);
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
+  bool debug_enabled =
+      debug_options.debugger_enabled() || debug_options.inspector_enabled();
+
   // Start debug agent when argv has --debug
-  if (use_debug_agent) {
+  if (debug_enabled) {
     const char* path = argc > 1 ? argv[1] : nullptr;
-    StartDebug(&env, path, debug_wait_connect);
-    if (use_inspector && !debugger_running)
+    StartDebug(&env, path, debug_options);
+    if (debug_options.debugger_enabled() && !debugger_running)
       return 12;  // Signal internal error.
   }
 
@@ -4435,7 +4340,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   env.set_trace_sync_io(trace_sync_io);
 
   // Enable debugger
-  if (use_debug_agent)
+  if (debug_enabled)
     EnableDebug(&env);
 
   {
