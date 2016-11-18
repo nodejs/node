@@ -1,5 +1,8 @@
 #include "tracing/agent.h"
 
+#include <sstream>
+#include <string>
+
 #include "env-inl.h"
 #include "libplatform/libplatform.h"
 
@@ -25,14 +28,11 @@ void Agent::Start(v8::Platform* platform, const char* enabled_categories) {
 
   TraceConfig* trace_config = new TraceConfig();
   if (enabled_categories) {
-    int num_chars = strlen(enabled_categories);
-    char category_list[num_chars + 1];
-    strncpy(category_list, enabled_categories, num_chars);
-    category_list[num_chars] = '\0';
-    char* category = strtok(category_list, ",");
-    while (category != NULL) {
-      trace_config->AddIncludedCategory(category);
-      category = strtok(NULL, ",");
+    std::stringstream category_list(enabled_categories);
+    while (category_list.good()) {
+      std::string category;
+      getline(category_list, category, ',');
+      trace_config->AddIncludedCategory(category.c_str());
     }
   } else {
     trace_config->AddIncludedCategory("v8");

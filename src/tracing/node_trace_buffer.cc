@@ -129,6 +129,7 @@ TraceObject* NodeTraceBuffer::GetEventByHandle(uint64_t handle) {
 bool NodeTraceBuffer::Flush() {
   buffer1_.Flush(true);
   buffer2_.Flush(true);
+  return true;
 }
 
 // Attempts to set current_buf_ such that it references a buffer that can

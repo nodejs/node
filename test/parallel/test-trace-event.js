@@ -16,7 +16,7 @@ const proc = cp.spawn(process.execPath,
 proc.once('exit', common.mustCall(() => {
   assert(common.fileExists(FILE_NAME));
   fs.readFile(FILE_NAME, (err, data) => {
-    const traces = JSON.parse(data).traceEvents;
+    const traces = JSON.parse(data.toString()).traceEvents;
     assert(traces.length > 0);
     // Values that should be present on all runs to approximate correctness.
     assert(traces.some((trace) => { return trace.pid === proc.pid; }));
