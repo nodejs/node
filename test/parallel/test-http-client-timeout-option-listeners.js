@@ -15,7 +15,7 @@ const options = {
   port: undefined,
   host: common.localhostIPv4,
   path: '/',
-  timeout: 100
+  timeout: common.platformTimeout(20)
 };
 
 process.on('unhandledRejection', function(reason) {
