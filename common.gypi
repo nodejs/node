@@ -11,6 +11,12 @@
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'python%': 'python',
 
+    'node_shared%': 'false',
+    'force_dynamic_crt%': 0,
+    'node_use_v8_platform%': 'true',
+    'node_use_bundled_v8%': 'true',
+    'node_module_version%': '',
+
     'node_tag%': '',
     'uv_library%': 'static_library',
 
@@ -73,6 +79,20 @@
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
+          }],
+          ['node_shared=="true"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 3 # MultiThreadedDebugDLL (/MDd)
+              }
+            }
+          }],
+          ['node_shared=="false"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 1 # MultiThreadedDebug (/MTd)
+              }
+            }
           }]
         ],
         'msvs_settings': {
@@ -110,11 +130,24 @@
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
+          }],
+          ['node_shared=="true"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 2 # MultiThreadedDLL (/MD)
+              }
+            }
+          }],
+          ['node_shared=="false"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 0 # MultiThreaded (/MT)
+              }
+            }
           }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'RuntimeLibrary': 0, # static release
             'Optimization': 3, # /Ox, full optimization
             'FavorSizeOrSpeed': 1, # /Ot, favour speed over size
             'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
@@ -291,6 +324,9 @@
             ],
             'ldflags!': [ '-rdynamic' ],
           }],
+          [ 'node_shared=="true"', {
+            'cflags': [ '-fPIC' ],
+          }]
         ],
       }],
       ['OS=="android"', {
