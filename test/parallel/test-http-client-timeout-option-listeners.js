@@ -15,11 +15,11 @@ const options = {
   port: undefined,
   host: common.localhostIPv4,
   path: '/',
-  timeout: 10
+  timeout: 100
 };
 
-process.on('unhandledRejection', function() {
-  common.fail('A promise rejection was unhandled');
+process.on('unhandledRejection', function(reason) {
+  common.fail('A promise rejection was unhandled: ' + reason);
 });
 
 server.listen(0, options.host, (e) => {
@@ -27,8 +27,7 @@ server.listen(0, options.host, (e) => {
 
   doRequest().then(doRequest)
     .then((numListeners) => {
-      assert.strictEqual(numListeners, 1,
-                         'Should be a single timeout listener on the socket');
+      assert.strictEqual(numListeners, 1);
       server.close();
       agent.destroy();
     });
