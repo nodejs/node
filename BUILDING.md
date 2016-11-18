@@ -20,7 +20,7 @@ Prerequisites:
 
 On OS X, you will also need:
 * [Xcode](https://developer.apple.com/xcode/download/)
-  * You also need to install the `Command Line Tools` via Xcode. You can find 
+  * You also need to install the `Command Line Tools` via Xcode. You can find
     this under the menu `Xcode -> Preferences -> Downloads`
   * This step will install `gcc` and the related toolchain containing `make`
 
