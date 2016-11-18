@@ -120,6 +120,9 @@ void NodeTraceWriter::Flush() {
 
 void NodeTraceWriter::Flush(bool blocking) {
   Mutex::ScopedLock scoped_lock(request_mutex_);
+  if (!json_trace_writer_) {
+    return;
+  }
   int request_id = ++num_write_requests_;
   int err = uv_async_send(&flush_signal_);
   CHECK_EQ(err, 0);
