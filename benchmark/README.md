@@ -326,7 +326,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const http = require('http');
   const len = conf.kb * 1024;
-  const chunk = Buffer.alloc(len, 'x'); 
+  const chunk = Buffer.alloc(len, 'x');
   const server = http.createServer(function(req, res) {
     res.end(chunk);
   });
