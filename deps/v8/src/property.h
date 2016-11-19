@@ -36,6 +36,7 @@ class Descriptor BASE_EMBEDDED {
 
   void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
     DCHECK(key->IsUniqueName());
+    DCHECK_IMPLIES(key->IsPrivate(), !details.IsEnumerable());
     key_ = key;
     value_ = value;
     details_ = details;
@@ -44,6 +45,7 @@ class Descriptor BASE_EMBEDDED {
   Descriptor(Handle<Name> key, Handle<Object> value, PropertyDetails details)
       : key_(key), value_(value), details_(details) {
     DCHECK(key->IsUniqueName());
+    DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
   }
 
   Descriptor(Handle<Name> key, Handle<Object> value,
@@ -53,6 +55,7 @@ class Descriptor BASE_EMBEDDED {
         value_(value),
         details_(attributes, type, representation, field_index) {
     DCHECK(key->IsUniqueName());
+    DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
   }
 
   friend class DescriptorArray;
