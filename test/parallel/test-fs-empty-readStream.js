@@ -7,6 +7,7 @@ const fs = require('fs');
 const emptyFile = path.join(common.fixturesDir, 'empty.txt');
 
 fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
+
   assert.ifError(error);
 
   const read = fs.createReadStream(emptyFile, { 'fd': fd });
@@ -19,6 +20,7 @@ fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
 }));
 
 fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
+
   assert.ifError(error);
 
   const read = fs.createReadStream(emptyFile, { 'fd': fd });
