@@ -447,12 +447,13 @@ Passes [`options`][] to the `Unzip` constructor and returns a new [`Unzip`][] ob
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional
-second argument to supply options to the `zlib` classes and will call the
-supplied callback with `callback(error, result)`.
+All of these take a [Buffer][] or string as the first argument and an optional 
+second argument to supply options to the `zlib` classes.
 
-Every method has a `*Sync` counterpart, which accept the same arguments, but
-without a callback.
+All the methods have asynchronous and synchronous forms. The asynchronous 
+form always takes a completion callback as its last argument in
+the form `callback(error, result)`.
+
 
 ### zlib.deflate(buf[, options], callback)
 <!-- YAML
