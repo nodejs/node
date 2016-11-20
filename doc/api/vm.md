@@ -108,7 +108,7 @@ for (var i = 0; i < 10; ++i) {
   script.runInContext(context);
 }
 
-console.log(util.inspect(sandbox));
+console.log(sandbox);
 
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
@@ -153,7 +153,7 @@ sandboxes.forEach((sandbox) => {
   script.runInNewContext(sandbox);
 });
 
-console.log(util.inspect(sandboxes));
+console.log(sandboxes);
 
 // [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 ```

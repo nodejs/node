@@ -355,7 +355,7 @@ Returns a copy of the array of listeners for the event named `eventName`.
 server.on('connection', (stream) => {
   console.log('someone connected!');
 });
-console.log(util.inspect(server.listeners('connection')));
+console.log(server.listeners('connection'));
 // Prints: [ [Function] ]
 ```
 
