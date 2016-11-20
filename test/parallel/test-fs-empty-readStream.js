@@ -25,7 +25,7 @@ fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
   assert.ifError(error);
 
   const read = fs.createReadStream(emptyFile, { fd });
-
+  
   read.pause();
 
   read.once('data', () => {
