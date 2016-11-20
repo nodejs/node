@@ -11,7 +11,7 @@ function test(size, offset, length) {
     uint8Array[i] = 1;
   }
 
-  const buffer = new Buffer(arrayBuffer, offset, length);
+  const buffer = Buffer.from(arrayBuffer, offset, length);
   for (let i = 0; i < length; i += 1) {
     assert.strictEqual(buffer[i], 1);
   }
