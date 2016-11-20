@@ -396,49 +396,49 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-Returns a new [Deflate][] object with an [options][].
+Passes [`options`][] to the `Deflate` constructor and returns a new [`Deflate`][] object.
 
 ## zlib.createDeflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [DeflateRaw][] object with an [options][].
+Passes [`options`][] to the `DeflateRaw` constructor and returns a new [`DeflateRaw`][] object.
 
 ## zlib.createGunzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Gunzip][] object with an [options][].
+Passes [`options`][] to the `Gunzip` constructor and returns a new [`Gunzip`][] object.
 
 ## zlib.createGzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Gzip][] object with an [options][].
+Passes [`options`][] to the `Gzip` constructor and returns a new [`Gzip`][] object.
 
 ## zlib.createInflate([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Inflate][] object with an [options][].
+Passes [`options`][] to the `Inflate` constructor and returns a new [`Inflate`][] object.
 
 ## zlib.createInflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [InflateRaw][] object with an [options][].
+Passes [`options`][] to the `InflateRaw` constructor and returns a new [`InflateRaw`][] object.
 
 ## zlib.createUnzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Unzip][] object with an [options][].
+Passes [`options`][] to the `Unzip` constructor and returns a new [`Unzip`][] object.
 
 ## Convenience Methods
 
@@ -532,13 +532,13 @@ Decompress a Buffer or string with Unzip.
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: http://zlib.net/manual.html#Constants
-[options]: #zlib_class_options
-[Deflate]: #zlib_class_zlib_deflate
-[DeflateRaw]: #zlib_class_zlib_deflateraw
-[Gunzip]: #zlib_class_zlib_gunzip
-[Gzip]: #zlib_class_zlib_gzip
-[Inflate]: #zlib_class_zlib_inflate
-[InflateRaw]: #zlib_class_zlib_inflateraw
-[Unzip]: #zlib_class_zlib_unzip
+[`options`]: #zlib_class_options
+[`Deflate`]: #zlib_class_zlib_deflate
+[`DeflateRaw`]: #zlib_class_zlib_deflateraw
+[`Gunzip`]: #zlib_class_zlib_gunzip
+[`Gzip`]: #zlib_class_zlib_gzip
+[`Inflate`]: #zlib_class_zlib_inflate
+[`InflateRaw`]: #zlib_class_zlib_inflateraw
+[`Unzip`]: #zlib_class_zlib_unzip
 [`.flush()`]: #zlib_zlib_flush_kind_callback
 [Buffer]: buffer.html
