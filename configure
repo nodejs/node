@@ -492,8 +492,7 @@ def pkg_config(pkg):
           shlex.split(pkg_config) + ['--silence-errors', flag, pkg],
           stdout=subprocess.PIPE)
       val = proc.communicate()[0].strip()
-    except OSError:
-      _, e, _ = sys.exc_info()
+    except OSError as e:
       if e.errno != errno.ENOENT: raise e  # Unexpected error.
       return (None, None, None)  # No pkg-config/pkgconf installed.
     retval += (val,)
