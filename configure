@@ -960,7 +960,7 @@ def configure_static(o):
 
 def write(filename, data):
   filename = os.path.join(root_dir, filename)
-  print('creating ', filename)
+  print('creating %s' % filename)
   f = open(filename, 'w+')
   f.write(data)
 
@@ -1119,12 +1119,12 @@ def configure_intl(o):
   # --with-icu-source processing
   # now, check that they didn't pass --with-icu-source=deps/icu
   elif with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
-    print('Ignoring redundant --with-icu-source=%s' % (with_icu_source))
+    print('Ignoring redundant --with-icu-source=%s' % with_icu_source)
     with_icu_source = None
   # if with_icu_source is still set, try to use it.
   if with_icu_source:
     if os.path.isdir(icu_full_path):
-      print('Deleting old ICU source: %s' % (icu_full_path))
+      print('Deleting old ICU source: %s' % icu_full_path)
       shutil.rmtree(icu_full_path)
     # now, what path was given?
     if os.path.isdir(with_icu_source):
@@ -1163,17 +1163,17 @@ def configure_intl(o):
   # ICU source dir relative to tools/icu (for .gyp file)
   o['variables']['icu_path'] = icu_full_path
   if not os.path.isdir(icu_full_path):
-    print('* ECMA-402 (Intl) support didn\'t find ICU in %s..' % (icu_full_path))
+    print('* ECMA-402 (Intl) support didn\'t find ICU in %s..' % icu_full_path)
     # can we download (or find) a zipfile?
     localzip = icu_download(icu_full_path)
     if localzip:
       nodedownload.unpack(localzip, icu_parent_path)
   if not os.path.isdir(icu_full_path):
-    print(' Cannot build Intl without ICU in %s.' % (icu_full_path))
+    print(' Cannot build Intl without ICU in %s.' % icu_full_path)
     print(' (Fix, or disable with "--with-intl=none" )')
     sys.exit(1)
   else:
-    print('* Using ICU in %s' % (icu_full_path))
+    print('* Using ICU in %s' % icu_full_path)
   # Now, what version of ICU is it? We just need the "major", such as 54.
   # uvernum.h contains it as a #define.
   uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
