@@ -31,11 +31,11 @@ const server = tls.createServer(options, function(c) {
     client.write(bonkers);
   });
 
-  client.once('error', function(err) {
+  client.once('error', common.mustCall(function(err) {
     clearImmediate(writeAgain);
     client.destroy();
     server.close();
-  });
+  }));
 
   client.on('close', common.mustCall(function(hadError) {
     assert.strictEqual(hadError, true, 'Client never errored');
