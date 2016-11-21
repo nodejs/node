@@ -286,7 +286,7 @@ TestSession.prototype.disconnect = function(childDone) {
     this.expectClose_ = true;
     this.harness_.childInstanceDone =
         this.harness_.childInstanceDone || childDone;
-    this.socket_.end();
+    this.socket_.destroy();
     console.log('[test]', 'Connection terminated');
     callback();
   });
