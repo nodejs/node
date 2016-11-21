@@ -83,9 +83,9 @@ function checkPath (withDirOfCurrentNode, t) {
 
     // get the ones we tacked on, then the system-specific requirements
     var expectedPaths = ['{{ROOT}}/bin/node-gyp-bin',
-                         '{{ROOT}}/test/tap/lifecycle-path/node_modules/.bin']
+                         '{{ROOT}}/test/broken-under-nyc-and-travis/lifecycle-path/node_modules/.bin']
     if (withDirOfCurrentNode) {
-      expectedPaths.push('{{ROOT}}/test/tap/lifecycle-path/node-bin')
+      expectedPaths.push('{{ROOT}}/test/broken-under-nyc-and-travis/lifecycle-path/node-bin')
     }
     var expect = expectedPaths.concat(newPATH.split(pathSplit)).map(function (p) {
       return p.replace(/\\/g, '/')
