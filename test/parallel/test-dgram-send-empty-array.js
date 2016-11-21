@@ -1,13 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const dgram = require('dgram');
 
 if (common.isOSX) {
   common.skip('because of 17894467 Apple bug');
   return;
 }
+
+const assert = require('assert');
+const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');
 
@@ -17,8 +18,8 @@ client.on('message', common.mustCall(function onMessage(buf, info) {
   client.close();
 }));
 
-client.on('listening', function() {
+client.on('listening', common.mustCall(function() {
   client.send([], this.address().port, common.localhostIPv4);
-});
+}));
 
 client.bind(0);
