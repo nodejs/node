@@ -948,7 +948,7 @@ publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
-## tls.createServer(options[, secureConnectionListener])
+## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
 added: v0.3.2
 -->
