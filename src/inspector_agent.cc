@@ -16,6 +16,7 @@
 
 #include <map>
 #include <sstream>
+#include <tuple>
 #include <unicode/unistr.h>
 
 #include <string.h>
@@ -29,9 +30,6 @@ namespace {
 
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
-
-const char TAG_CONNECT[] = "#connect";
-const char TAG_DISCONNECT[] = "#disconnect";
 
 static const uint8_t PROTOCOL_JSON[] = {
 #include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
@@ -105,6 +103,14 @@ std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
 
 class V8NodeInspector;
 
+enum class InspectorAction {
+  kStartSession, kEndSession, kSendMessage
+};
+
+enum class TransportAction {
+  kSendMessage, kStop
+};
+
 class InspectorAgentDelegate: public node::inspector::SocketServerDelegate {
  public:
   InspectorAgentDelegate(AgentImpl* agent, const std::string& script_path,
@@ -144,14 +150,16 @@ class AgentImpl {
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
 
-  void PostIncomingMessage(int session_id, const std::string& message);
+  void PostIncomingMessage(InspectorAction action, int session_id,
+                           const std::string& message);
   void ResumeStartup() {
     uv_sem_post(&start_sem_);
   }
 
  private:
+  template <typename Action>
   using MessageQueue =
-      std::vector<std::pair<int, std::unique_ptr<StringBuffer>>>;
+      std::vector<std::tuple<Action, int, std::unique_ptr<StringBuffer>>>;
   enum class State { kNew, kAccepting, kConnected, kDone, kError };
 
   static void ThreadCbIO(void* agent);
@@ -162,10 +170,13 @@ class AgentImpl {
   void WorkerRunIO();
   void SetConnected(bool connected);
   void DispatchMessages();
-  void Write(int session_id, const StringView& message);
-  bool AppendMessage(MessageQueue* vector, int session_id,
-                     std::unique_ptr<StringBuffer> buffer);
-  void SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2);
+  void Write(TransportAction action, int session_id, const StringView& message);
+  template <typename ActionType>
+  bool AppendMessage(MessageQueue<ActionType>* vector, ActionType action,
+                     int session_id, std::unique_ptr<StringBuffer> buffer);
+  template <typename ActionType>
+  void SwapBehindLock(MessageQueue<ActionType>* vector1,
+                      MessageQueue<ActionType>* vector2);
   void WaitForFrontendMessage();
   void NotifyMessageReceived();
   State ToState(State state);
@@ -187,8 +198,8 @@ class AgentImpl {
   uv_async_t io_thread_req_;
   V8NodeInspector* inspector_;
   v8::Platform* platform_;
-  MessageQueue incoming_message_queue_;
-  MessageQueue outgoing_message_queue_;
+  MessageQueue<InspectorAction> incoming_message_queue_;
+  MessageQueue<TransportAction> outgoing_message_queue_;
   bool dispatching_messages_;
   int session_id_;
   InspectorSocketServer* server_;
@@ -238,7 +249,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   void flushProtocolNotifications() override { }
 
   void sendMessageToFrontend(const StringView& message) {
-    agent_->Write(agent_->session_id_, message);
+    agent_->Write(TransportAction::kSendMessage, agent_->session_id_, message);
   }
 
   AgentImpl* const agent_;
@@ -457,9 +468,7 @@ bool AgentImpl::IsStarted() {
 void AgentImpl::WaitForDisconnect() {
   if (state_ == State::kConnected) {
     shutting_down_ = true;
-    // Gives a signal to stop accepting new connections
-    // TODO(eugeneo): Introduce an API with explicit request names.
-    Write(0, StringView());
+    Write(TransportAction::kStop, 0, StringView());
     fprintf(stderr, "Waiting for the debugger to disconnect...\n");
     fflush(stderr);
     inspector_->runMessageLoopOnPause(0);
@@ -534,15 +543,17 @@ void AgentImpl::ThreadCbIO(void* agent) {
 // static
 void AgentImpl::WriteCbIO(uv_async_t* async) {
   AgentImpl* agent = static_cast<AgentImpl*>(async->data);
-  MessageQueue outgoing_messages;
+  MessageQueue<TransportAction> outgoing_messages;
   agent->SwapBehindLock(&agent->outgoing_message_queue_, &outgoing_messages);
-  for (const MessageQueue::value_type& outgoing : outgoing_messages) {
-    StringView view = outgoing.second->string();
-    if (view.length() == 0) {
+  for (const auto& outgoing : outgoing_messages) {
+    switch (std::get<0>(outgoing)) {
+    case TransportAction::kStop:
       agent->server_->Stop(nullptr);
-    } else {
-      agent->server_->Send(outgoing.first,
-                           StringViewToUtf8(outgoing.second->string()));
+      break;
+    case TransportAction::kSendMessage:
+      std::string message = StringViewToUtf8(std::get<2>(outgoing)->string());
+      agent->server_->Send(std::get<1>(outgoing), message);
+      break;
     }
   }
 }
@@ -586,22 +597,26 @@ void AgentImpl::WorkerRunIO() {
   server_ = nullptr;
 }
 
-bool AgentImpl::AppendMessage(MessageQueue* queue, int session_id,
+template <typename ActionType>
+bool AgentImpl::AppendMessage(MessageQueue<ActionType>* queue,
+                              ActionType action, int session_id,
                               std::unique_ptr<StringBuffer> buffer) {
   Mutex::ScopedLock scoped_lock(state_lock_);
   bool trigger_pumping = queue->empty();
-  queue->push_back(std::make_pair(session_id, std::move(buffer)));
+  queue->push_back(std::make_tuple(action, session_id, std::move(buffer)));
   return trigger_pumping;
 }
 
-void AgentImpl::SwapBehindLock(MessageQueue* vector1, MessageQueue* vector2) {
+template <typename ActionType>
+void AgentImpl::SwapBehindLock(MessageQueue<ActionType>* vector1,
+                               MessageQueue<ActionType>* vector2) {
   Mutex::ScopedLock scoped_lock(state_lock_);
   vector1->swap(*vector2);
 }
 
-void AgentImpl::PostIncomingMessage(int session_id,
+void AgentImpl::PostIncomingMessage(InspectorAction action, int session_id,
                                     const std::string& message) {
-  if (AppendMessage(&incoming_message_queue_, session_id,
+  if (AppendMessage(&incoming_message_queue_, action, session_id,
                     Utf8ToStringView(message))) {
     v8::Isolate* isolate = parent_env_->isolate();
     platform_->CallOnForegroundThread(isolate,
@@ -631,25 +646,21 @@ void AgentImpl::DispatchMessages() {
   if (dispatching_messages_)
     return;
   dispatching_messages_ = true;
-  MessageQueue tasks;
+  MessageQueue<InspectorAction> tasks;
   do {
     tasks.clear();
     SwapBehindLock(&incoming_message_queue_, &tasks);
-    for (const MessageQueue::value_type& pair : tasks) {
-      StringView message = pair.second->string();
-      std::string tag;
-      if (message.length() == sizeof(TAG_CONNECT) - 1 ||
-          message.length() == sizeof(TAG_DISCONNECT) - 1) {
-        tag = StringViewToUtf8(message);
-      }
-
-      if (tag == TAG_CONNECT) {
+    for (const auto& task : tasks) {
+      StringView message = std::get<2>(task)->string();
+      switch (std::get<0>(task)) {
+      case InspectorAction::kStartSession:
         CHECK_EQ(State::kAccepting, state_);
-        session_id_ = pair.first;
+        session_id_ = std::get<1>(task);
         state_ = State::kConnected;
         fprintf(stderr, "Debugger attached.\n");
         inspector_->connectFrontend();
-      } else if (tag == TAG_DISCONNECT) {
+        break;
+      case InspectorAction::kEndSession:
         CHECK_EQ(State::kConnected, state_);
         if (shutting_down_) {
           state_ = State::kDone;
@@ -658,8 +669,10 @@ void AgentImpl::DispatchMessages() {
         }
         inspector_->quitMessageLoopOnPause();
         inspector_->disconnectFrontend();
-      } else {
+        break;
+      case InspectorAction::kSendMessage:
         inspector_->dispatchMessageFromFrontend(message);
+        break;
       }
     }
   } while (!tasks.empty());
@@ -667,8 +680,9 @@ void AgentImpl::DispatchMessages() {
   dispatching_messages_ = false;
 }
 
-void AgentImpl::Write(int session_id, const StringView& inspector_message) {
-  AppendMessage(&outgoing_message_queue_, session_id,
+void AgentImpl::Write(TransportAction action, int session_id,
+                      const StringView& inspector_message) {
+  AppendMessage(&outgoing_message_queue_, action, session_id,
                 StringBuffer::create(inspector_message));
   int err = uv_async_send(&io_thread_req_);
   CHECK_EQ(0, err);
@@ -725,7 +739,8 @@ bool InspectorAgentDelegate::StartSession(int session_id,
   if (connected_)
     return false;
   connected_ = true;
-  agent_->PostIncomingMessage(session_id, TAG_CONNECT);
+  session_id_++;
+  agent_->PostIncomingMessage(InspectorAction::kStartSession, session_id, "");
   return true;
 }
 
@@ -742,12 +757,13 @@ void InspectorAgentDelegate::MessageReceived(int session_id,
       agent_->ResumeStartup();
     }
   }
-  agent_->PostIncomingMessage(session_id, message);
+  agent_->PostIncomingMessage(InspectorAction::kSendMessage, session_id,
+                              message);
 }
 
 void InspectorAgentDelegate::EndSession(int session_id) {
   connected_ = false;
-  agent_->PostIncomingMessage(session_id, TAG_DISCONNECT);
+  agent_->PostIncomingMessage(InspectorAction::kEndSession, session_id, "");
 }
 
 std::vector<std::string> InspectorAgentDelegate::GetTargetIds() {
