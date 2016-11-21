@@ -762,6 +762,7 @@ The first argument can be either a `url` or an `options` object. The only requir
 
 - `followRedirect` - follow HTTP 3xx responses as redirects (default: `true`). This property can also be implemented as function which gets `response` object as a single argument and should return `true` if redirects should continue or `false` otherwise.
 - `followAllRedirects` - follow non-GET HTTP 3xx responses as redirects (default: `false`)
+- `followOriginalHttpMethod` - by default we redirect to HTTP method GET. you can enable this property to redirect to the original HTTP method (default: `false`)
 - `maxRedirects` - the maximum number of redirects to follow (default: `10`)
 - `removeRefererHeader` - removes the referer header when a redirect happens (default: `false`). **Note:** if true, referer header set in the initial request is preserved during redirect chain.
 

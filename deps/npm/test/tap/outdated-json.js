@@ -79,8 +79,8 @@ test('it should log json data', function (t) {
     ],
     EXEC_OPTS,
     function (err, code, stdout) {
-      t.ifError(err, 'npm outdated ran without issue')
-      t.notOk(code, 'npm outdated ran without raising error code')
+      t.ifError(err, 'npm outdated ran without error')
+      t.is(code, 1, 'npm outdated exited with code 1')
       var out
       t.doesNotThrow(function () {
         out = JSON.parse(stdout)

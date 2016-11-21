@@ -5,7 +5,6 @@ node_js:
   - node
   - 6
   - 4
-  - 0.12
 
 after_script:
   - npm run test-cov

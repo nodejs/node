@@ -71,8 +71,8 @@ test('outdated depth deep (9999)', function (t) {
 
   function thenValidateOutput (err, code, stdout, stderr) {
     if (err) throw err
-    t.is(code, 0, 'outdated completed successfully')
-    t.is('', stderr, 'no error output')
+    t.ifError(err)
+    t.is(code, 1, 'npm outdated exited with code 1')
     t.match(
       stdout,
       /underscore.*1\.3\.1.*1\.3\.1.*1\.5\.1.*whatever\n/g,

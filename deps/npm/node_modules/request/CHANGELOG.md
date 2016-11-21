@@ -1,5 +1,25 @@
 ## Change Log
 
+### v2.78.0 (2016/11/03)
+- [#2447](https://github.com/request/request/pull/2447) Always set request timeout on keep-alive connections (@mscdex)
+
+### v2.77.0 (2016/11/03)
+- [#2439](https://github.com/request/request/pull/2439) Fix socket 'connect' listener handling (@mscdex)
+- [#2442](https://github.com/request/request/pull/2442) 👻😱 Node.js 0.10 is unmaintained 😱👻 (@greenkeeperio-bot)
+- [#2435](https://github.com/request/request/pull/2435) Add followOriginalHttpMethod to redirect to original HTTP method (@kirrg001)
+- [#2414](https://github.com/request/request/pull/2414) Improve test-timeout reliability (@mscdex)
+
+### v2.76.0 (2016/10/25)
+- [#2424](https://github.com/request/request/pull/2424) Handle buffers directly instead of using "bl" (@zertosh)
+- [#2415](https://github.com/request/request/pull/2415) Re-enable timeout tests on Travis + other fixes (@mscdex)
+- [#2431](https://github.com/request/request/pull/2431) Improve timeouts accuracy and node v6.8.0+ compatibility (@mscdex, @greenkeeperio-bot)
+- [#2428](https://github.com/request/request/pull/2428) Update qs to version 6.3.0 🚀 (@greenkeeperio-bot)
+- [#2420](https://github.com/request/request/pull/2420) change .on to .once, remove possible memory leaks (@duereg)
+- [#2426](https://github.com/request/request/pull/2426) Remove "isFunction" helper in favor of "typeof" check (@zertosh)
+- [#2425](https://github.com/request/request/pull/2425) Simplify "defer" helper creation (@zertosh)
+- [#2402](https://github.com/request/request/pull/2402) form-data@2.1.1 breaks build 🚨 (@greenkeeperio-bot)
+- [#2393](https://github.com/request/request/pull/2393) Update form-data to version 2.1.0 🚀 (@greenkeeperio-bot)
+
 ### v2.75.0 (2016/09/17)
 - [#2381](https://github.com/request/request/pull/2381) Drop support for Node 0.10 (@simov)
 - [#2377](https://github.com/request/request/pull/2377) Update form-data to version 2.0.0 🚀 (@greenkeeperio-bot)
@@ -493,15 +513,9 @@
 - [#662](https://github.com/request/request/pull/662) option.tunnel to explicitly disable tunneling (@seanmonstar)
 - [#659](https://github.com/request/request/pull/659) fix failure when running with NODE_DEBUG=request, and a test for that (@jrgm)
 - [#630](https://github.com/request/request/pull/630) Send random cnonce for HTTP Digest requests (@wprl)
-
-### v2.27.0 (2013/08/15)
 - [#619](https://github.com/request/request/pull/619) decouple things a bit (@joaojeronimo)
-
-### v2.26.0 (2013/08/07)
 - [#613](https://github.com/request/request/pull/613) Fixes #583, moved initialization of self.uri.pathname (@lexander)
 - [#605](https://github.com/request/request/pull/605) Only include ":" + pass in Basic Auth if it's defined (fixes #602) (@bendrucker)
-
-### v2.25.0 (2013/07/23)
 - [#596](https://github.com/request/request/pull/596) Global agent is being used when pool is specified (@Cauldrath)
 - [#594](https://github.com/request/request/pull/594) Emit complete event when there is no callback (@RomainLK)
 - [#601](https://github.com/request/request/pull/601) Fixed a small typo (@michalstanko)
@@ -574,7 +588,7 @@
 - [#290](https://github.com/request/request/pull/290) A test for #289 (@isaacs)
 - [#280](https://github.com/request/request/pull/280) Like in node.js print options if NODE_DEBUG contains the word request (@Filirom1)
 - [#207](https://github.com/request/request/pull/207) Fix #206 Change HTTP/HTTPS agent when redirecting between protocols (@isaacs)
-- [#214](https://github.com/request/request/pull/214) documenting additional behavior of json option (@jphaas)
+- [#214](https://github.com/request/request/pull/214) documenting additional behavior of json option (@jphaas, @vpulim)
 - [#272](https://github.com/request/request/pull/272) Boundary begins with CRLF? (@elspoono, @timshadel, @naholyr, @nanodocumet, @TehShrike)
 - [#284](https://github.com/request/request/pull/284) Remove stray `console.log()` call in multipart generator. (@bcherry)
 - [#241](https://github.com/request/request/pull/241) Composability updates suggested by issue #239 (@polotek)
@@ -592,10 +606,10 @@
 - [#246](https://github.com/request/request/pull/246) Fixing the set-cookie header (@jeromegn)
 - [#243](https://github.com/request/request/pull/243) Dynamic boundary (@zephrax)
 - [#240](https://github.com/request/request/pull/240) don't error when null is passed for options (@polotek)
-- [#211](https://github.com/request/request/pull/211) Replace all occurrences of special chars in RFC3986 (@chriso)
+- [#211](https://github.com/request/request/pull/211) Replace all occurrences of special chars in RFC3986 (@chriso, @vpulim)
 - [#224](https://github.com/request/request/pull/224) Multipart content-type change (@janjongboom)
 - [#217](https://github.com/request/request/pull/217) need to use Authorization (titlecase) header with Tumblr OAuth (@visnup)
-- [#203](https://github.com/request/request/pull/203) Fix cookie and redirect bugs and add auth support for HTTPS tunnel (@milewise)
+- [#203](https://github.com/request/request/pull/203) Fix cookie and redirect bugs and add auth support for HTTPS tunnel (@vpulim)
 - [#199](https://github.com/request/request/pull/199) Tunnel (@isaacs)
 - [#198](https://github.com/request/request/pull/198) Bugfix on forever usage of util.inherits (@isaacs)
 - [#197](https://github.com/request/request/pull/197) Make ForeverAgent work with HTTPS (@isaacs)

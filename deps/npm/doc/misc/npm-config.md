@@ -280,9 +280,6 @@ Show the description in `npm search`
 
 Install `dev-dependencies` along with packages.
 
-Note that `dev-dependencies` are also installed if the `npat` flag is
-set.
-
 ### dry-run
 
 * Default: false
@@ -499,9 +496,9 @@ version number, if not already set in package.json.
 
 Whether or not to output JSON data, rather than the normal output.
 
-This feature is currently experimental, and the output data structures
-for many commands is either not implemented in JSON yet, or subject to
-change.  Only the output from `npm ls --json` is currently valid.
+This feature is currently experimental, and the output data structures for many
+commands is either not implemented in JSON yet, or subject to change.  Only the
+output from `npm ls --json` and `npm search --json` are currently valid.
 
 ### key
 
@@ -607,13 +604,6 @@ Any "%s" in the message will be replaced with the version number.
 
 The node version to use when checking a package's `engines` map.
 
-### npat
-
-* Default: false
-* Type: Boolean
-
-Run tests on installation.
-
 ### onload-script
 
 * Default: false
@@ -655,7 +645,7 @@ process is not aborted.
 * Type: Boolean
 
 Output parseable results from commands that write to
-standard output.
+standard output. For `npm search`, this will be tab-separated table format.
 
 ### prefix
 
@@ -801,7 +791,7 @@ patch upgrades.
 
 ### scope
 
-* Default: ""
+* Default: the scope of the current project, if any, or ""
 * Type: String
 
 Associate an operation with a scope for a scoped registry. Useful when logging
@@ -810,12 +800,25 @@ in to a private registry for the first time:
 will cause `@organization` to be mapped to the registry for future installation
 of packages specified according to the pattern `@organization/package`.
 
-### searchopts
+### scripts-prepend-node-path
 
-* Default: ""
-* Type: String
+* Default: "warn-only"
+* Type: Boolean, `"auto"` or `"warn-only"`
 
-Space-separated options that are always passed to search.
+If set to `true`, add the directory in which the current `node` executable
+resides to the `PATH` environment variable when running scripts,
+even if that means that `npm` will invoke a different `node` executable than
+the one which it is running.
+
+If set to `false`, never modify `PATH` with that.
+
+If set to `"warn-only"`, never modify `PATH` but print a warning if `npm` thinks
+that you may want to run it with `true`, e.g. because the `node` executable
+in the `PATH` is not the one `npm` was invoked with.
+
+If set to `auto`, only add that directory to the `PATH` environment variable
+if the `node` executable with which `npm` was invoked and the one that is found
+first on the `PATH` are different.
 
 ### searchexclude
 
@@ -824,15 +827,19 @@ Space-separated options that are always passed to search.
 
 Space-separated options that limit the results from search.
 
-### searchsort
+### searchopts
 
-* Default: "name"
+* Default: ""
 * Type: String
-* Values: "name", "-name", "date", "-date", "description",
-  "-description", "keywords", "-keywords"
 
-Indication of which field to sort search results by.  Prefix with a `-`
-character to indicate reverse sort.
+Space-separated options that are always passed to search.
+
+### searchstaleness
+
+* Default: 900 (15 minutes)
+* Type: Number
+
+The age of the cache, in seconds, before another registry request is made.
 
 ### shell
 

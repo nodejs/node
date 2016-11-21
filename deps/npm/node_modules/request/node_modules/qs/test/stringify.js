@@ -30,7 +30,21 @@ test('stringify()', function (t) {
     });
 
     t.test('stringifies an array value', function (st) {
-        st.equal(qs.stringify({ a: ['b', 'c', 'd'] }), 'a%5B0%5D=b&a%5B1%5D=c&a%5B2%5D=d');
+        st.equal(
+            qs.stringify({ a: ['b', 'c', 'd'] }, { arrayFormat: 'indices' }),
+            'a%5B0%5D=b&a%5B1%5D=c&a%5B2%5D=d',
+            'indices => indices'
+        );
+        st.equal(
+            qs.stringify({ a: ['b', 'c', 'd'] }, { arrayFormat: 'brackets' }),
+            'a%5B%5D=b&a%5B%5D=c&a%5B%5D=d',
+            'brackets => brackets'
+        );
+        st.equal(
+            qs.stringify({ a: ['b', 'c', 'd'] }),
+            'a%5B0%5D=b&a%5B1%5D=c&a%5B2%5D=d',
+            'default => indices'
+        );
         st.end();
     });
 
@@ -38,7 +52,6 @@ test('stringify()', function (t) {
         st.equal(qs.stringify({ a: 'b', c: null }, { skipNulls: true }), 'a=b');
         st.end();
     });
-
 
     t.test('omits nested nulls when asked', function (st) {
         st.equal(qs.stringify({ a: { b: 'c', d: null } }, { skipNulls: true }), 'a%5Bb%5D=c');
@@ -51,29 +64,149 @@ test('stringify()', function (t) {
     });
 
     t.test('stringifies a nested array value', function (st) {
+        st.equal(qs.stringify({ a: { b: ['c', 'd'] } }, { arrayFormat: 'indices' }), 'a%5Bb%5D%5B0%5D=c&a%5Bb%5D%5B1%5D=d');
+        st.equal(qs.stringify({ a: { b: ['c', 'd'] } }, { arrayFormat: 'brackets' }), 'a%5Bb%5D%5B%5D=c&a%5Bb%5D%5B%5D=d');
         st.equal(qs.stringify({ a: { b: ['c', 'd'] } }), 'a%5Bb%5D%5B0%5D=c&a%5Bb%5D%5B1%5D=d');
         st.end();
     });
 
     t.test('stringifies a nested array value with dots notation', function (st) {
-        st.equal(qs.stringify({ a: { b: ['c', 'd'] } }, { allowDots: true, encode: false }), 'a.b[0]=c&a.b[1]=d');
+        st.equal(
+            qs.stringify(
+                { a: { b: ['c', 'd'] } },
+                { allowDots: true, encode: false, arrayFormat: 'indices' }
+            ),
+            'a.b[0]=c&a.b[1]=d',
+            'indices: stringifies with dots + indices'
+        );
+        st.equal(
+            qs.stringify(
+                { a: { b: ['c', 'd'] } },
+                { allowDots: true, encode: false, arrayFormat: 'brackets' }
+            ),
+            'a.b[]=c&a.b[]=d',
+            'brackets: stringifies with dots + brackets'
+        );
+        st.equal(
+            qs.stringify(
+                { a: { b: ['c', 'd'] } },
+                { allowDots: true, encode: false }
+            ),
+            'a.b[0]=c&a.b[1]=d',
+            'default: stringifies with dots + indices'
+        );
         st.end();
     });
 
     t.test('stringifies an object inside an array', function (st) {
-        st.equal(qs.stringify({ a: [{ b: 'c' }] }), 'a%5B0%5D%5Bb%5D=c');
-        st.equal(qs.stringify({ a: [{ b: { c: [1] } }] }), 'a%5B0%5D%5Bb%5D%5Bc%5D%5B0%5D=1');
+        st.equal(
+            qs.stringify({ a: [{ b: 'c' }] }, { arrayFormat: 'indices' }),
+            'a%5B0%5D%5Bb%5D=c',
+            'indices => brackets'
+        );
+        st.equal(
+            qs.stringify({ a: [{ b: 'c' }] }, { arrayFormat: 'brackets' }),
+            'a%5B%5D%5Bb%5D=c',
+            'brackets => brackets'
+        );
+        st.equal(
+            qs.stringify({ a: [{ b: 'c' }] }),
+            'a%5B0%5D%5Bb%5D=c',
+            'default => indices'
+        );
+
+        st.equal(
+            qs.stringify({ a: [{ b: { c: [1] } }] }, { arrayFormat: 'indices' }),
+            'a%5B0%5D%5Bb%5D%5Bc%5D%5B0%5D=1',
+            'indices => indices'
+        );
+
+        st.equal(
+            qs.stringify({ a: [{ b: { c: [1] } }] }, { arrayFormat: 'brackets' }),
+            'a%5B%5D%5Bb%5D%5Bc%5D%5B%5D=1',
+            'brackets => brackets'
+        );
+
+        st.equal(
+            qs.stringify({ a: [{ b: { c: [1] } }] }),
+            'a%5B0%5D%5Bb%5D%5Bc%5D%5B0%5D=1',
+            'default => indices'
+        );
+
         st.end();
     });
 
     t.test('stringifies an array with mixed objects and primitives', function (st) {
-        st.equal(qs.stringify({ a: [{ b: 1 }, 2, 3] }, { encode: false }), 'a[0][b]=1&a[1]=2&a[2]=3');
+        st.equal(
+            qs.stringify({ a: [{ b: 1 }, 2, 3] }, { encode: false, arrayFormat: 'indices' }),
+            'a[0][b]=1&a[1]=2&a[2]=3',
+            'indices => indices'
+        );
+        st.equal(
+            qs.stringify({ a: [{ b: 1 }, 2, 3] }, { encode: false, arrayFormat: 'brackets' }),
+            'a[][b]=1&a[]=2&a[]=3',
+            'brackets => brackets'
+        );
+        st.equal(
+            qs.stringify({ a: [{ b: 1 }, 2, 3] }, { encode: false }),
+            'a[0][b]=1&a[1]=2&a[2]=3',
+            'default => indices'
+        );
+
         st.end();
     });
 
     t.test('stringifies an object inside an array with dots notation', function (st) {
-        st.equal(qs.stringify({ a: [{ b: 'c' }] }, { allowDots: true, encode: false }), 'a[0].b=c');
-        st.equal(qs.stringify({ a: [{ b: { c: [1] } }] }, { allowDots: true, encode: false }), 'a[0].b.c[0]=1');
+        st.equal(
+            qs.stringify(
+                { a: [{ b: 'c' }] },
+                { allowDots: true, encode: false, arrayFormat: 'indices' }
+            ),
+            'a[0].b=c',
+            'indices => indices'
+        );
+        st.equal(
+            qs.stringify(
+                { a: [{ b: 'c' }] },
+                { allowDots: true, encode: false, arrayFormat: 'brackets' }
+            ),
+            'a[].b=c',
+            'brackets => brackets'
+        );
+        st.equal(
+            qs.stringify(
+                { a: [{ b: 'c' }] },
+                { allowDots: true, encode: false }
+            ),
+            'a[0].b=c',
+            'default => indices'
+        );
+
+        st.equal(
+            qs.stringify(
+                { a: [{ b: { c: [1] } }] },
+                { allowDots: true, encode: false, arrayFormat: 'indices' }
+            ),
+            'a[0].b.c[0]=1',
+            'indices => indices'
+        );
+        st.equal(
+            qs.stringify(
+                { a: [{ b: { c: [1] } }] },
+                { allowDots: true, encode: false, arrayFormat: 'brackets' }
+            ),
+            'a[].b.c[]=1',
+            'brackets => brackets'
+        );
+        st.equal(
+            qs.stringify(
+                { a: [{ b: { c: [1] } }] },
+                { allowDots: true, encode: false }
+            ),
+            'a[0].b.c[0]=1',
+            'default => indices'
+        );
+
         st.end();
     });
 
@@ -126,7 +259,7 @@ test('stringify()', function (t) {
         st.end();
     });
 
-    t.test('stringifies an empty object', function (st) {
+    t.test('stringifies a null object', { skip: !Object.create }, function (st) {
         var obj = Object.create(null);
         obj.a = 'b';
         st.equal(qs.stringify(obj), 'a=b');
@@ -141,10 +274,8 @@ test('stringify()', function (t) {
         st.end();
     });
 
-    t.test('stringifies an object with an empty object as a child', function (st) {
-        var obj = {
-            a: Object.create(null)
-        };
+    t.test('stringifies an object with a null object as a child', { skip: !Object.create }, function (st) {
+        var obj = { a: Object.create(null) };
 
         obj.a.b = 'c';
         st.equal(qs.stringify(obj), 'a%5Bb%5D=c');
@@ -216,7 +347,32 @@ test('stringify()', function (t) {
     t.test('selects properties when filter=array', function (st) {
         st.equal(qs.stringify({ a: 'b' }, { filter: ['a'] }), 'a=b');
         st.equal(qs.stringify({ a: 1 }, { filter: [] }), '');
-        st.equal(qs.stringify({ a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' }, { filter: ['a', 'b', 0, 2] }), 'a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3');
+
+        st.equal(
+            qs.stringify(
+                { a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' },
+                { filter: ['a', 'b', 0, 2], arrayFormat: 'indices' }
+            ),
+            'a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3',
+            'indices => indices'
+        );
+        st.equal(
+            qs.stringify(
+                { a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' },
+                { filter: ['a', 'b', 0, 2], arrayFormat: 'brackets' }
+            ),
+            'a%5Bb%5D%5B%5D=1&a%5Bb%5D%5B%5D=3',
+            'brackets => brackets'
+        );
+        st.equal(
+            qs.stringify(
+                { a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' },
+                { filter: ['a', 'b', 0, 2] }
+            ),
+            'a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3',
+            'default => indices'
+        );
+
         st.end();
     });
 
@@ -224,7 +380,7 @@ test('stringify()', function (t) {
         var calls = 0;
         var obj = { a: 'b', c: 'd', e: { f: new Date(1257894000000) } };
         var filterFunc = function (prefix, value) {
-            calls++;
+            calls += 1;
             if (calls === 1) {
                 st.equal(prefix, '', 'prefix is empty');
                 st.equal(value, obj);
@@ -250,28 +406,44 @@ test('stringify()', function (t) {
     });
 
     t.test('can sort the keys', function (st) {
-        var sort = function (a, b) { return a.localeCompare(b); };
+        var sort = function (a, b) {
+            return a.localeCompare(b);
+        };
         st.equal(qs.stringify({ a: 'c', z: 'y', b: 'f' }, { sort: sort }), 'a=c&b=f&z=y');
         st.equal(qs.stringify({ a: 'c', z: { j: 'a', i: 'b' }, b: 'f' }, { sort: sort }), 'a=c&b=f&z%5Bi%5D=b&z%5Bj%5D=a');
         st.end();
     });
 
     t.test('can sort the keys at depth 3 or more too', function (st) {
-        var sort = function (a, b) { return a.localeCompare(b); };
-        st.equal(qs.stringify({ a: 'a', z: { zj: {zjb: 'zjb', zja: 'zja'}, zi: {zib: 'zib', zia: 'zia'} }, b: 'b' }, { sort: sort, encode: false }), 'a=a&b=b&z[zi][zia]=zia&z[zi][zib]=zib&z[zj][zja]=zja&z[zj][zjb]=zjb');
-        st.equal(qs.stringify({ a: 'a', z: { zj: {zjb: 'zjb', zja: 'zja'}, zi: {zib: 'zib', zia: 'zia'} }, b: 'b' }, { sort: null, encode: false }), 'a=a&z[zj][zjb]=zjb&z[zj][zja]=zja&z[zi][zib]=zib&z[zi][zia]=zia&b=b');
+        var sort = function (a, b) {
+            return a.localeCompare(b);
+        };
+        st.equal(
+            qs.stringify(
+                { a: 'a', z: { zj: { zjb: 'zjb', zja: 'zja' }, zi: { zib: 'zib', zia: 'zia' } }, b: 'b' },
+                { sort: sort, encode: false }
+            ),
+            'a=a&b=b&z[zi][zia]=zia&z[zi][zib]=zib&z[zj][zja]=zja&z[zj][zjb]=zjb'
+        );
+        st.equal(
+            qs.stringify(
+                { a: 'a', z: { zj: { zjb: 'zjb', zja: 'zja' }, zi: { zib: 'zib', zia: 'zia' } }, b: 'b' },
+                { sort: null, encode: false }
+            ),
+            'a=a&z[zj][zjb]=zjb&z[zj][zja]=zja&z[zi][zib]=zib&z[zi][zia]=zia&b=b'
+        );
         st.end();
     });
 
     t.test('can stringify with custom encoding', function (st) {
-        st.equal(qs.stringify({ 県: '大阪府', '': ''}, {
+        st.equal(qs.stringify({ 県: '大阪府', '': '' }, {
             encoder: function (str) {
                 if (str.length === 0) {
                     return '';
                 }
                 var buf = iconv.encode(str, 'shiftjis');
                 var result = [];
-                for (var i=0; i < buf.length; ++i) {
+                for (var i = 0; i < buf.length; ++i) {
                     result.push(buf.readUInt8(i).toString(16));
                 }
                 return '%' + result.join('%');
@@ -282,16 +454,12 @@ test('stringify()', function (t) {
 
     t.test('throws error with wrong encoder', function (st) {
         st.throws(function () {
-            qs.stringify({}, {
-                encoder: 'string'
-            });
+            qs.stringify({}, { encoder: 'string' });
         }, new TypeError('Encoder has to be a function.'));
         st.end();
     });
 
-    t.test('can use custom encoder for a buffer object', {
-        skip: typeof Buffer === 'undefined'
-    }, function (st) {
+    t.test('can use custom encoder for a buffer object', { skip: typeof Buffer === 'undefined' }, function (st) {
         st.equal(qs.stringify({ a: new Buffer([1]) }, {
             encoder: function (buffer) {
                 if (typeof buffer === 'string') {
@@ -300,6 +468,71 @@ test('stringify()', function (t) {
                 return String.fromCharCode(buffer.readUInt8(0) + 97);
             }
         }), 'a=b');
+        st.end();
+    });
+
+    t.test('serializeDate option', function (st) {
+        var date = new Date();
+        st.equal(
+            qs.stringify({ a: date }),
+            'a=' + date.toISOString().replace(/:/g, '%3A'),
+            'default is toISOString'
+        );
+
+        var mutatedDate = new Date();
+        mutatedDate.toISOString = function () {
+            throw new SyntaxError();
+        };
+        st.throws(function () {
+            mutatedDate.toISOString();
+        }, SyntaxError);
+        st.equal(
+            qs.stringify({ a: mutatedDate }),
+            'a=' + Date.prototype.toISOString.call(mutatedDate).replace(/:/g, '%3A'),
+            'toISOString works even when method is not locally present'
+        );
+
+        var specificDate = new Date(6);
+        st.equal(
+            qs.stringify(
+                { a: specificDate },
+                { serializeDate: function (d) { return d.getTime() * 7; } }
+            ),
+            'a=42',
+            'custom serializeDate function called'
+        );
+
+        st.end();
+    });
+
+    t.test('RFC 1738 spaces serialization', function (st) {
+        st.equal(qs.stringify({ a: 'b c' }, { format: qs.formats.RFC1738 }), 'a=b+c');
+        st.equal(qs.stringify({ 'a b': 'c d' }, { format: qs.formats.RFC1738 }), 'a+b=c+d');
+        st.end();
+    });
+
+    t.test('RFC 3986 spaces serialization', function (st) {
+        st.equal(qs.stringify({ a: 'b c' }, { format: qs.formats.RFC3986 }), 'a=b%20c');
+        st.equal(qs.stringify({ 'a b': 'c d' }, { format: qs.formats.RFC3986 }), 'a%20b=c%20d');
+        st.end();
+    });
+
+    t.test('Backward compatibility to RFC 3986', function (st) {
+        st.equal(qs.stringify({ a: 'b c' }), 'a=b%20c');
+        st.end();
+    });
+
+    t.test('Edge cases and unknown formats', function (st) {
+        ['UFO1234', false, 1234, null, {}, []].forEach(
+            function (format) {
+                st.throws(
+                    function () {
+                        qs.stringify({ a: 'b c' }, { format: format });
+                    },
+                    new TypeError('Unknown format option provided.')
+                );
+            }
+        );
         st.end();
     });
 });
