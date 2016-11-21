@@ -45,14 +45,16 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
         return inflateShrinkwrap(topPath, child, dependencies || {}, next)
       } else {
         var from = sw.from || requested.raw
-        return fetchPackageMetadata(requested, topPath, iferr(next, andAddShrinkwrap(from, dependencies, next)))
+        var optional = sw.optional
+        return fetchPackageMetadata(requested, topPath, iferr(next, andAddShrinkwrap(from, optional, dependencies, next)))
       }
     }
   }
 
-  function andAddShrinkwrap (from, dependencies, next) {
+  function andAddShrinkwrap (from, optional, dependencies, next) {
     return function (pkg) {
       pkg._from = from
+      pkg._optional = optional
       addShrinkwrap(pkg, iferr(next, andAddBundled(pkg, dependencies, next)))
     }
   }
