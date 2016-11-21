@@ -267,7 +267,7 @@ pre, tt, code {
 pre {
   padding: 1em;
   vertical-align: top;
-  background: #f2f2f2;
+  background: rgba(128, 128, 128, .1);
   margin: 1em;
   overflow-x: auto;
 }
@@ -357,7 +357,7 @@ hr {
 tt, code {
   font-size: .9em;
   color: #040404;
-  background-color: #f2f2f2;
+  background-color: rgba(128, 128, 128, .1);
   border-radius: 2px;
   padding: .1em .3em;
 }
