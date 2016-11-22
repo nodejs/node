@@ -17,7 +17,8 @@ const installDir = path.join(common.tmpDir, 'install-dir');
 fs.mkdirSync(installDir);
 
 const npmPath = path.join(
-  common.testDir,
+  __dirname,
+  '..',
   '..',
   'deps',
   'npm',
