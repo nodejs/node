@@ -588,9 +588,9 @@ assert.doesNotThrow(function() {
                      '{ a: 123, inspect: [Function: inspect] }');
 
   const subject = { a: 123, [util.inspect.custom]() { return this; } };
-  const UTC = 'util.inspect.custom';
+  const UIC = 'util.inspect.custom';
   assert.strictEqual(util.inspect(subject),
-                     `{ a: 123,\n  [Symbol(${UTC})]: [Function: [${UTC}]] }`);
+                     `{ a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]] }`);
 }
 
 // util.inspect with "colors" option should produce as many lines as without it
