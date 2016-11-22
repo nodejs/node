@@ -168,3 +168,15 @@ class AddonTestConfiguration(SimpleTestConfiguration):
         result.append(
             SimpleTestCase(test, file_path, arch, mode, self.context, self, self.additional_flags))
     return result
+
+class AsyncHooksTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(AsyncHooksTestConfiguration, self).__init__(context, root, section,
+                                                    additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(AsyncHooksTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for test in result:
+      test.parallel = True
+    return result
