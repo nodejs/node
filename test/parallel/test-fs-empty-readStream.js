@@ -10,7 +10,7 @@ fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
 
   assert.ifError(error);
 
-  const read = fs.createReadStream(emptyFile, { 'fd': fd });
+  const read = fs.createReadStream(emptyFile, { fd });
 
   read.once('data', () => {
     common.fail('data event should not emit');
@@ -24,6 +24,7 @@ fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
   assert.ifError(error);
 
   const read = fs.createReadStream(emptyFile, { fd });
+
   read.pause();
 
   read.once('data', () => {
