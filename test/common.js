@@ -12,8 +12,7 @@ const Timer = process.binding('timer_wrap').Timer;
 const testRoot = process.env.NODE_TEST_DIR ?
                    path.resolve(process.env.NODE_TEST_DIR) : __dirname;
 
-exports.testDir = __dirname;
-exports.fixturesDir = path.join(exports.testDir, 'fixtures');
+exports.fixturesDir = path.join(__dirname, 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
@@ -195,13 +194,6 @@ if (exports.isWindows) {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
 
-if (exports.isWindows) {
-  exports.faketimeCli = false;
-} else {
-  exports.faketimeCli = path.join(__dirname, '..', 'tools', 'faketime', 'src',
-                                  'faketime');
-}
-
 var ifaces = os.networkInterfaces();
 exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   return /lo/.test(name) && ifaces[name].some(function(info) {
@@ -285,17 +277,19 @@ exports.platformTimeout = function(ms) {
   return ms; // ARMv8+
 };
 
-var knownGlobals = [setTimeout,
-                    setInterval,
-                    setImmediate,
-                    clearTimeout,
-                    clearInterval,
-                    clearImmediate,
-                    console,
-                    constructor, // Enumerable in V8 3.21.
-                    Buffer,
-                    process,
-                    global];
+var knownGlobals = [
+  Buffer,
+  clearImmediate,
+  clearInterval,
+  clearTimeout,
+  console,
+  constructor, // Enumerable in V8 3.21.
+  global,
+  process,
+  setImmediate,
+  setInterval,
+  setTimeout
+];
 
 if (global.gc) {
   knownGlobals.push(global.gc);
@@ -360,7 +354,7 @@ function leakedGlobals() {
   var leaked = [];
 
   for (var val in global)
-    if (-1 === knownGlobals.indexOf(global[val]))
+    if (!knownGlobals.includes(global[val]))
       leaked.push(val);
 
   return leaked;
@@ -375,7 +369,7 @@ process.on('exit', function() {
   var leaked = leakedGlobals();
   if (leaked.length > 0) {
     console.error('Unknown globals: %s', leaked);
-    assert.ok(false, 'Unknown global found');
+    fail('Unknown global found');
   }
 });
 
@@ -440,9 +434,10 @@ exports.fileExists = function(pathname) {
   }
 };
 
-exports.fail = function(msg) {
+function fail(msg) {
   assert.fail(null, null, msg);
-};
+}
+exports.fail = fail;
 
 exports.skip = function(msg) {
   console.log(`1..0 # Skipped: ${msg}`);
@@ -493,9 +488,9 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // one of them (exit code or signal) needs to be set to one of
   // the expected exit codes or signals.
   if (signal !== null) {
-    return expectedSignals.indexOf(signal) > -1;
+    return expectedSignals.includes(signal);
   } else {
-    return expectedExitCodes.indexOf(exitCode) > -1;
+    return expectedExitCodes.includes(exitCode);
   }
 };
 
