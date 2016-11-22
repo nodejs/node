@@ -11,8 +11,8 @@ var fs = require('fs');
 
 var options = {
   key: [
+    fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
     fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-    fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem')
   ],
   cert: [
     fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
