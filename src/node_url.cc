@@ -472,10 +472,8 @@ namespace url {
           uint16_t* piece = &host->value.ipv6[n];
           if (compress_pointer == piece) {
             *dest += n == 0 ? "::" : ":";
-            while (*piece == 0 && n < 8) {
-              n++;
+            while (*piece == 0 && ++n < 8)
               piece = &host->value.ipv6[n];
-            }
             if (n == 8)
               break;
           }
