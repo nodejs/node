@@ -46,7 +46,6 @@ NodeTraceWriter::~NodeTraceWriter() {
     err = uv_fs_close(tracing_loop_, &req, fd_, nullptr);
     CHECK_EQ(err, 0);
     uv_fs_req_cleanup(&req);
-    uv_close(reinterpret_cast<uv_handle_t*>(&trace_file_pipe_), nullptr);
   }
   uv_async_send(&exit_signal_);
   Mutex::ScopedLock scoped_lock(request_mutex_);
@@ -63,8 +62,6 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
       O_CREAT | O_WRONLY | O_TRUNC, 0644, NULL);
   CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
-  uv_pipe_init(tracing_loop_, &trace_file_pipe_, 0);
-  uv_pipe_open(&trace_file_pipe_, fd_);
 }
 
 void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
@@ -104,7 +101,7 @@ void NodeTraceWriter::FlushPrivate() {
     Mutex::ScopedLock request_scoped_lock(request_mutex_);
     highest_request_id = num_write_requests_;
   }
-  WriteToFile(str, highest_request_id);
+  WriteToFile(std::move(str), highest_request_id);
 }
 
 void NodeTraceWriter::FlushSignalCb(uv_async_t* signal) {
@@ -136,12 +133,13 @@ void NodeTraceWriter::Flush(bool blocking) {
   }
 }
 
-void NodeTraceWriter::WriteToFile(std::string str, int highest_request_id) {
-  const char* c_str = str.c_str();
-  uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(c_str), strlen(c_str));
+void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
   WriteRequest* write_req = new WriteRequest();
+  write_req->str = std::move(str);
   write_req->writer = this;
   write_req->highest_request_id = highest_request_id;
+  uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(write_req->str.c_str()),
+      write_req->str.length());
   request_mutex_.Lock();
   // Manage a queue of WriteRequest objects because the behavior of uv_write is
   // is undefined if the same WriteRequest object is used more than once
@@ -149,16 +147,15 @@ void NodeTraceWriter::WriteToFile(std::string str, int highest_request_id) {
   // of the latest write request that actually been completed.
   write_req_queue_.push(write_req);
   request_mutex_.Unlock();
-  // TODO: Is the return value of back() guaranteed to always have the
-  // same address?
-  int err = uv_write(reinterpret_cast<uv_write_t*>(write_req),
-           reinterpret_cast<uv_stream_t*>(&trace_file_pipe_),
-           &uv_buf, 1, WriteCb);
+  int err = uv_fs_write(tracing_loop_, reinterpret_cast<uv_fs_t*>(write_req),
+      fd_, &uv_buf, 1, -1, WriteCb);
   CHECK_EQ(err, 0);
 }
 
-void NodeTraceWriter::WriteCb(uv_write_t* req, int status) {
+void NodeTraceWriter::WriteCb(uv_fs_t* req) {
   WriteRequest* write_req = reinterpret_cast<WriteRequest*>(req);
+  CHECK_GE(write_req->req.result, 0);
+
   NodeTraceWriter* writer = write_req->writer;
   int highest_request_id = write_req->highest_request_id;
   {

@@ -28,14 +28,15 @@ class NodeTraceWriter : public TraceWriter {
 
  private:
   struct WriteRequest {
-    uv_write_t req;
+    uv_fs_t req;
     NodeTraceWriter* writer;
+    std::string str;
     int highest_request_id;
   };
 
-  static void WriteCb(uv_write_t* req, int status);
+  static void WriteCb(uv_fs_t* req);
   void OpenNewFileForStreaming();
-  void WriteToFile(std::string str, int highest_request_id);
+  void WriteToFile(std::string&& str, int highest_request_id);
   void WriteSuffix();
   static void FlushSignalCb(uv_async_t* signal);
   void FlushPrivate();
@@ -64,7 +65,6 @@ class NodeTraceWriter : public TraceWriter {
   int file_num_ = 0;
   std::ostringstream stream_;
   TraceWriter* json_trace_writer_ = nullptr;
-  uv_pipe_t trace_file_pipe_;
   bool exited_ = false;
 };
 
