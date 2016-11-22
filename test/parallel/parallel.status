@@ -35,3 +35,8 @@ test-regress-GH-1899                 : FAIL, PASS
 # localIPv6Hosts list from test/common.js.
 test-https-connect-address-family : PASS,FLAKY
 test-tls-connect-address-family : PASS,FLAKY
+
+# fixed in later releases but not being fixed in 4.x for AIX
+test-async-wrap-post-did-throw           : PASS, FLAKY
+test-async-wrap-throw-from-callback      : PASS, FLAKY
+test-crypto-random                       : PASS, FLAKY
