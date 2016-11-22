@@ -205,11 +205,6 @@ Checks if there are multiple localhosts available.
 
 Throws an `AssertionError` with `msg`
 
-### faketimeCli
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-
-Return the path to the fake.
-
 ### fileExists(pathname)
 * pathname [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
@@ -364,12 +359,6 @@ Synchronous version of `spawnCat`.
 * return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 
 Synchronous version of `spawnPwd`.
-
-### testDir
-
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-
-Path to the 'test' directory.
 
 ### tmpDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
