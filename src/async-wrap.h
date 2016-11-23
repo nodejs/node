@@ -49,12 +49,12 @@ class AsyncWrap : public BaseObject {
 #undef V
   };
 
-  inline AsyncWrap(Environment* env,
-                   v8::Local<v8::Object> object,
-                   ProviderType provider,
-                   AsyncWrap* parent = nullptr);
+  AsyncWrap(Environment* env,
+            v8::Local<v8::Object> object,
+            ProviderType provider,
+            AsyncWrap* parent = nullptr);
 
-  inline virtual ~AsyncWrap();
+  virtual ~AsyncWrap();
 
   inline ProviderType provider_type() const;
 
