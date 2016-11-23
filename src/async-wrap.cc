@@ -15,6 +15,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::HeapProfiler;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -156,9 +157,9 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
+void AsyncWrap::Initialize(Local<Object> target,
+                           Local<Value> unused,
+                           Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -196,7 +197,7 @@ AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
                      ProviderType provider,
                      AsyncWrap* parent)
-    : BaseObject(env,object), bits_(static_cast<uint32_t>(provider) << 1),
+    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1),
       uid_(env->get_async_wrap_uid()) {
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
@@ -362,4 +363,4 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::AsyncWrap::Initialize)
