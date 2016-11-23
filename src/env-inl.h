@@ -227,6 +227,8 @@ inline Environment::Environment(v8::Local<v8::Context> context,
 
   RB_INIT(&cares_task_list_);
   handle_cleanup_waiting_ = 0;
+
+  destroy_ids_list_.reserve(512);
 }
 
 inline Environment::~Environment() {
@@ -284,6 +286,15 @@ inline uv_check_t* Environment::immediate_check_handle() {
 
 inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
+}
+
+inline Environment* Environment::from_destroy_ids_idle_handle(
+    uv_idle_t* handle) {
+  return ContainerOf(&Environment::destroy_ids_idle_handle_, handle);
+}
+
+inline uv_idle_t* Environment::destroy_ids_idle_handle() {
+  return &destroy_ids_idle_handle_;
 }
 
 inline Environment* Environment::from_idle_prepare_handle(
@@ -360,6 +371,10 @@ inline void Environment::set_trace_sync_io(bool value) {
 
 inline int64_t Environment::get_async_wrap_uid() {
   return ++async_wrap_uid_;
+}
+
+inline std::vector<int64_t>* Environment::destroy_ids_list() {
+  return &destroy_ids_list_;
 }
 
 inline uint32_t* Environment::heap_statistics_buffer() const {

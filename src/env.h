@@ -11,6 +11,7 @@
 #include "v8.h"
 
 #include <stdint.h>
+#include <vector>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -413,8 +414,10 @@ class Environment {
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
+  static inline Environment* from_destroy_ids_idle_handle(uv_idle_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
+  inline uv_idle_t* destroy_ids_idle_handle();
 
   static inline Environment* from_idle_prepare_handle(uv_prepare_t* handle);
   inline uv_prepare_t* idle_prepare_handle();
@@ -450,6 +453,9 @@ class Environment {
   inline void set_trace_sync_io(bool value);
 
   inline int64_t get_async_wrap_uid();
+
+  // List of id's that have been destroyed and need the destroy() cb called.
+  inline std::vector<int64_t>* destroy_ids_list();
 
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
@@ -531,6 +537,7 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
+  uv_idle_t destroy_ids_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   AsyncHooks async_hooks_;
@@ -546,6 +553,7 @@ class Environment {
   bool trace_sync_io_;
   size_t makecallback_cntr_;
   int64_t async_wrap_uid_;
+  std::vector<int64_t> destroy_ids_list_;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
