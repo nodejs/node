@@ -1,4 +1,4 @@
-#include "node.h"
+#include "node_internals.h"
 
 #if defined(__linux__)
 #include <features.h>

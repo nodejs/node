@@ -1,5 +1,5 @@
-#include "node.h"
 #include "node_i18n.h"
+#include "node_internals.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"

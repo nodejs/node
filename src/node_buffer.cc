@@ -1,4 +1,3 @@
-#include "node.h"
 #include "node_buffer.h"
 
 #include "env.h"
@@ -7,6 +6,9 @@
 #include "string_search.h"
 #include "util.h"
 #include "util-inl.h"
+
+#include "node_internals.h"
+
 #include "v8-profiler.h"
 #include "v8.h"
 

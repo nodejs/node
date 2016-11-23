@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "util.h"
+#include "node_internals.h"
 
 #include <string.h>
 #include <stdlib.h>
