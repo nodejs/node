@@ -6,7 +6,7 @@ const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
 
 const storage = new Map();
-async_wrap.setupHooks({ init, pre, post, destroy });
+async_wrap.setupHooks({ init, pre, post });
 async_wrap.enable();
 
 function init(uid) {
@@ -14,7 +14,6 @@ function init(uid) {
     init: true,
     pre: false,
     post: false,
-    destroy: false
   });
 }
 
@@ -24,10 +23,6 @@ function pre(uid) {
 
 function post(uid) {
   storage.get(uid).post = true;
-}
-
-function destroy(uid) {
-  storage.get(uid).destroy = true;
 }
 
 fs.access(__filename, function(err) {
@@ -51,7 +46,6 @@ process.once('exit', function() {
       init: true,
       pre: true,
       post: true,
-      destroy: true
     });
   }
 });

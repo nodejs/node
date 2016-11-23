@@ -4202,6 +4202,9 @@ Environment* CreateEnvironment(Isolate* isolate,
   uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_check_handle()));
 
+  uv_idle_init(env->event_loop(), env->destroy_ids_idle_handle());
+  uv_unref(reinterpret_cast<uv_handle_t*>(env->destroy_ids_idle_handle()));
+
   // Register handle cleanups
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()),
