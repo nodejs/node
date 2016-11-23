@@ -444,12 +444,14 @@ added: v0.11.4
 
 * `socket` {net.Socket} An instance of [`net.Socket`][]
 * `options` {Object}
-  * `secureContext`: An optional TLS context object from
-     [`tls.createSecureContext()`][]
-  * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
-    Defaults to `false`.
+  * `isServer`: The SSL/TLS protocol is asymetrical, TLSSockets must know if
+    they are to behave as a server or a client. If `true` the TLS socket will be
+    instantiated as a server.  Defaults to `false`.
   * `server` {net.Server} An optional [`net.Server`][] instance.
-  * `requestCert`: Optional, see [`tls.createServer()`][]
+  * `requestCert`: Whether to authenticate the remote peer by requesting a
+     certificate. Clients always request a server certificate. Servers
+     (`isServer` is true) may optionally set `requestCert` to true to request a
+     client certificate.
   * `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
   * `NPNProtocols`: Optional, see [`tls.createServer()`][]
   * `ALPNProtocols`: Optional, see [`tls.createServer()`][]
@@ -458,7 +460,14 @@ added: v0.11.4
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
     will be emitted on the socket before establishing a secure communication
-
+  * `secureContext`: Optional TLS context object created with
+    [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
+    will be created by passing the entire `options` object to
+    `tls.createSecureContext()`. *Note*: In effect, all
+    [`tls.createSecureContext()`][] options can be provided, but they will be
+    _completely ignored_ unless the `secureContext` option is missing.
+  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
+    the `secureContext` option for more information.
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
 ### Event: 'OCSPResponse'
