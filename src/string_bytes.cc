@@ -35,6 +35,28 @@
 // use external string resources.
 #define EXTERN_APEX 0xFBEE9
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
+    defined(__DragonFly__)
+# include <sys/endian.h>
+#elif defined(__APPLE__) || defined(_WIN32)
+# define __BIG_ENDIAN 0x1000
+# define __LITTLE_ENDIAN 0x0001
+# define __BYTE_ORDER __LITTLE_ENDIAN
+#elif defined(sun) || defined(__sun) || defined(_AIX)
+# ifdef defined(sun) || defined(__sun)
+#  include <sys/isa_defs.h>
+# endif
+# define __BIG_ENDIAN 0x1000
+# define __LITTLE_ENDIAN 0x0001
+# ifdef _BIG_ENDIAN
+#  define __BYTE_ORDER __BIG_ENDIAN
+# else
+#  define __BYTE_ORDER __LITTLE_ENDIAN
+# endif
+#else
+# include <endian.h>
+#endif
+
 // TODO(addaleax): These should all have better error messages. In particular,
 // they should mention what the actual limits are.
 #define SB_MALLOC_FAILED_ERROR \
@@ -655,6 +677,22 @@ static void force_ascii(const char* src, char* dst, size_t len) {
   }
 }
 
+constexpr uint32_t pack(uint8_t byte) {
+  return byte * 0x01010101u;
+}
+
+
+uint32_t nibbles_to_hex(uint32_t nibbles) {
+  const uint32_t ascii09 = nibbles + pack('0');
+  const uint32_t correction = pack('a' - '0' - 10);
+
+  const uint32_t tmp = nibbles + pack(128 - 10);
+  const uint32_t msb = tmp & pack(0x80);
+  const uint32_t mask = msb - (msb >> 7);
+
+  return ascii09 + (mask & correction);
+}
+
 
 static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
@@ -662,11 +700,39 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
       "not enough space provided for hex encode");
 
   dlen = slen * 2;
-  for (uint32_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
-    static const char hex[] = "0123456789abcdef";
-    uint8_t val = static_cast<uint8_t>(src[i]);
-    dst[k + 0] = hex[val >> 4];
-    dst[k + 1] = hex[val & 15];
+
+  const uint16_t* src16 = reinterpret_cast<const uint16_t*>(src);
+  size_t i = 0;
+  size_t nb = 0;
+
+  while (slen - nb >= 2) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    uint32_t val = nibbles_to_hex(((src16[i] & 0xf000) << 4) |   // 0x000f0000
+                                  ((src16[i] & 0x0f00) << 16) |  // 0x0f000000
+                                  ((src16[i] & 0x00f0) >> 4) |   // 0x0000000f
+                                  ((src16[i] & 0x000f) << 8));   // 0x00000f00
+#else
+    uint32_t val = nibbles_to_hex(((src16[i] & 0xf000) << 12) |  // 0x0f000000
+                                  ((src16[i] & 0x0f00) << 8) |   // 0x000f0000
+                                  ((src16[i] & 0x00f0) << 4) |   // 0x00000f00
+                                  ((src16[i] & 0x000f)));        // 0x0000000f
+#endif
+    memcpy(dst, &val, 4);
+    ++i;
+    nb += 2;
+    dst += 4;
+  }
+
+  // Process possible leftover byte
+  if (nb < slen) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) >> 4) |   // 0x0000000f
+                                  ((src[nb] & 0x0f) << 8));   // 0x00000f00
+#else
+    uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) << 20) |  // 0x0f000000
+                                  ((src[nb] & 0x0f) << 16));  // 0x000f0000
+#endif
+    memcpy(dst, &val, 2);
   }
 
   return dlen;
