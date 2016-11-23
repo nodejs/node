@@ -5,6 +5,7 @@
 #include "util.h"
 #include "util-inl.h"
 
+#include "uv.h"
 #include "v8.h"
 #include "v8-profiler.h"
 
@@ -182,6 +183,38 @@ void AsyncWrap::Initialize(Local<Object> target,
 }
 
 
+void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
+  uv_idle_stop(handle);
+
+  Environment* env = Environment::from_destroy_ids_idle_handle(handle);
+  // None of the V8 calls done outside the HandleScope leak a handle. If this
+  // changes in the future then the SealHandleScope wrapping the uv_run()
+  // will catch this can cause the process to abort.
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+  Local<Function> fn = env->async_hooks_destroy_function();
+
+  if (fn.IsEmpty())
+    return env->destroy_ids_list()->clear();
+
+  TryCatch try_catch(env->isolate());
+
+  for (auto current_id : *env->destroy_ids_list()) {
+    // Want each callback to be cleaned up after itself, instead of cleaning
+    // them all up after the while() loop completes.
+    HandleScope scope(env->isolate());
+    Local<Value> argv = Number::New(env->isolate(), current_id);
+    MaybeLocal<Value> ret = fn->Call(
+        env->context(), Undefined(env->isolate()), 1, &argv);
+
+    if (ret.IsEmpty()) {
+      ClearFatalExceptionHandlers(env);
+      FatalException(env->isolate(), try_catch);
+    }
+  }
+}
+
+
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -248,18 +281,10 @@ AsyncWrap::~AsyncWrap() {
   if (!ran_init_callback())
     return;
 
-  Local<Function> fn = env()->async_hooks_destroy_function();
-  if (!fn.IsEmpty()) {
-    HandleScope scope(env()->isolate());
-    Local<Value> uid = Number::New(env()->isolate(), get_uid());
-    TryCatch try_catch(env()->isolate());
-    MaybeLocal<Value> ret =
-        fn->Call(env()->context(), Null(env()->isolate()), 1, &uid);
-    if (ret.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-    }
-  }
+  if (env()->destroy_ids_list()->empty())
+    uv_idle_start(env()->destroy_ids_idle_handle(), DestroyIdsCb);
+
+  env()->destroy_ids_list()->push_back(get_uid());
 }
 
 
