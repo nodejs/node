@@ -24,7 +24,7 @@
 #if V8_PATCH_LEVEL > 0
 #define VERSION_STRING                                                      \
   S(V8_MAJOR_VERSION) "." S(V8_MINOR_VERSION) "." S(V8_BUILD_NUMBER) "." S( \
-      V8_PATCH_LEVEL) CANDIDATE_STRING
+      V8_PATCH_LEVEL) V8_EMBEDDER_STRING CANDIDATE_STRING
 #else
 #define VERSION_STRING                                               \
   S(V8_MAJOR_VERSION) "." S(V8_MINOR_VERSION) "." S(V8_BUILD_NUMBER) \
@@ -38,6 +38,7 @@ int Version::major_ = V8_MAJOR_VERSION;
 int Version::minor_ = V8_MINOR_VERSION;
 int Version::build_ = V8_BUILD_NUMBER;
 int Version::patch_ = V8_PATCH_LEVEL;
+const char* Version::embedder_ = V8_EMBEDDER_STRING;
 bool Version::candidate_ = (V8_IS_CANDIDATE_VERSION != 0);
 const char* Version::soname_ = SONAME;
 const char* Version::version_string_ = VERSION_STRING;
@@ -51,9 +52,9 @@ void Version::GetString(Vector<char> str) {
   const char* is_simulator = "";
 #endif  // USE_SIMULATOR
   if (GetPatch() > 0) {
-    SNPrintF(str, "%d.%d.%d.%d%s%s",
-             GetMajor(), GetMinor(), GetBuild(), GetPatch(), candidate,
-             is_simulator);
+    SNPrintF(str, "%d.%d.%d.%d%s%s%s",
+             GetMajor(), GetMinor(), GetBuild(), GetPatch(), GetEmbedder(),
+             candidate, is_simulator);
   } else {
     SNPrintF(str, "%d.%d.%d%s%s",
              GetMajor(), GetMinor(), GetBuild(), candidate,
@@ -68,8 +69,9 @@ void Version::GetSONAME(Vector<char> str) {
     // Generate generic SONAME if no specific SONAME is defined.
     const char* candidate = IsCandidate() ? "-candidate" : "";
     if (GetPatch() > 0) {
-      SNPrintF(str, "libv8-%d.%d.%d.%d%s.so",
-               GetMajor(), GetMinor(), GetBuild(), GetPatch(), candidate);
+      SNPrintF(str, "libv8-%d.%d.%d.%d%s%s.so",
+               GetMajor(), GetMinor(), GetBuild(), GetPatch(), GetEmbedder(),
+               candidate);
     } else {
       SNPrintF(str, "libv8-%d.%d.%d%s.so",
                GetMajor(), GetMinor(), GetBuild(), candidate);
