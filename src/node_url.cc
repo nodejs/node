@@ -1294,7 +1294,7 @@ namespace url {
         argv[ARG_PATH] = Copy(isolate, url.path);
     }
 
-    cb->Call(context, recv, 9, argv);
+    (void)cb->Call(context, recv, 9, argv);
   }
 
   static void Parse(const FunctionCallbackInfo<Value>& args) {
