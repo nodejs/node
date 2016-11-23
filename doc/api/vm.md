@@ -113,7 +113,7 @@ console.log(sandbox);
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
 
-### script.runInNewContext([sandbox][, options])
+### script.runInNewContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
 -->
