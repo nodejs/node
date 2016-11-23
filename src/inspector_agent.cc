@@ -89,23 +89,30 @@ void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
   buf->len = len;
 }
 
-void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
+void SendHttpResponse(InspectorSocket* socket, const char* response,
+                      size_t size) {
   const char HEADERS[] = "HTTP/1.0 200 OK\r\n"
                          "Content-Type: application/json; charset=UTF-8\r\n"
                          "Cache-Control: no-cache\r\n"
                          "Content-Length: %zu\r\n"
                          "\r\n";
   char header[sizeof(HEADERS) + 20];
-  int header_len = snprintf(header, sizeof(header), HEADERS, response.size());
+  int header_len = snprintf(header, sizeof(header), HEADERS, size);
   inspector_write(socket, header, header_len);
-  inspector_write(socket, response.data(), response.size());
+  inspector_write(socket, response, size);
+}
+
+void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
+  SendHttpResponse(socket, response.data(), response.size());
 }
 
 void SendVersionResponse(InspectorSocket* socket) {
-  std::map<std::string, std::string> response;
-  response["Browser"] = "node.js/" NODE_VERSION;
-  response["Protocol-Version"] = "1.1";
-  SendHttpResponse(socket, MapToString(response));
+  static const char response[] =
+      "{\n"
+      "  \"Browser\": \"node.js/" NODE_VERSION "\",\n"
+      "  \"Protocol-Version\": \"1.1\"\n"
+      "}\n";
+  SendHttpResponse(socket, response, sizeof(response) - 1);
 }
 
 std::string GetProcessTitle() {
