@@ -12,14 +12,19 @@ const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');
 
+var interval;
+
 client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.alloc(0);
   assert.ok(buf.equals(expected), 'message was received correctly');
+  clearInterval(interval);
   client.close();
 }));
 
 client.on('listening', common.mustCall(function() {
-  client.send([], this.address().port, common.localhostIPv4);
+  interval = setInterval(function() {
+    client.send([], client.address().port, common.localhostIPv4);
+  }, 10);
 }));
 
 client.bind(0);
