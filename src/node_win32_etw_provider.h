@@ -4,6 +4,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_dtrace.h"
+#include "node_internals.h"
+
 #include <evntprov.h>
 
 namespace node {

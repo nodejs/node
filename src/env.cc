@@ -1,6 +1,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "async-wrap.h"
+#include "node_internals.h"
 
 #include "v8.h"
 

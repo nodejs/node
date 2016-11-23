@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_internals.h"
 #if defined(_MSC_VER)
 # define INLINE __forceinline
 #else

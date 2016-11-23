@@ -1,6 +1,12 @@
 #ifndef SRC_NODE_H_
 #define SRC_NODE_H_
 
+#include "node_version.h"
+
+#include "v8.h"
+
+#include <assert.h>
+
 #ifdef _WIN32
 # ifndef BUILDING_NODE_EXTENSION
 #   define NODE_EXTERN __declspec(dllexport)
@@ -38,9 +44,6 @@
 #ifdef _WIN32
 # define SIGKILL         9
 #endif
-
-#include "v8.h"  // NOLINT(build/include_order)
-#include "node_version.h"  // NODE_MODULE_VERSION
 
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
@@ -150,22 +153,10 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
     int argc,
     v8::Local<v8::Value>* argv);
 
-}  // namespace node
-
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#include "node_internals.h"
-#endif
-
-#include <assert.h>
-#include <stdint.h>
-
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
-
-
-namespace node {
 
 NODE_EXTERN extern bool no_deprecation;
 #if HAVE_OPENSSL && NODE_FIPS_MODE

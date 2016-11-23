@@ -6,6 +6,8 @@
 #include "node.h"
 #include "node_buffer.h"
 
+#include "uv.h"
+
 namespace node {
 
 using v8::Array;
