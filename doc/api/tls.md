@@ -760,7 +760,11 @@ added: v0.11.3
     specified, `host` and `port` are ignored.
   * `socket` {net.Socket} Establish secure connection on a given socket rather
     than creating a new socket. If this option is specified, `path`, `host` and
-    `port` are ignored.
+    `port` are ignored.  Usually, a socket is already connected when passed to
+    `tls.connect()`, but it can be connected later. Note that
+    connection/disconnection/destruction of `socket` is the user's
+    responsibility, calling `tls.connect()` will not cause `net.connect()` to be
+    called.
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
     certificate, and CA certs of the client in PFX or PKCS12 format.
   * `key` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of
