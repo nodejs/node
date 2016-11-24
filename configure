@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import sys
-if sys.version_info >= (3, 0):
-  sys.stdout.write("Python 3 is not supported, please use Python 2.6 or 2.7\n")
+if sys.version_info[0] != 2 or sys.version_info[1] not in (6, 7):
+  sys.stdout.write("Please use either Python 2.6 or 2.7\n")
   sys.exit(1)
 
 import errno
