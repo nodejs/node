@@ -20,11 +20,13 @@ function main(conf) {
   dur = +conf.dur;
   concurrency = +conf.concurrency;
 
-  var cert_dir = path.resolve(__dirname, '../../test/fixtures'),
-    options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
-                cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-                ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
-                ciphers: 'AES256-GCM-SHA384' };
+  var cert_dir = path.resolve(__dirname, '../../test/fixtures');
+  var options = {
+    key: fs.readFileSync(cert_dir + '/test_key.pem'),
+    cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
+    ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+    ciphers: 'AES256-GCM-SHA384'
+  };
 
   server = tls.createServer(options, onConnection);
   server.listen(common.PORT, onListening);
@@ -42,8 +44,11 @@ function onConnection(conn) {
 }
 
 function makeConnection() {
-  var conn = tls.connect({ port: common.PORT,
-                           rejectUnauthorized: false }, function() {
+  var options = {
+    port: common.PORT,
+    rejectUnauthorized: false
+  };
+  var conn = tls.connect(options, function() {
     clientConn++;
     conn.on('error', function(er) {
       console.error('client error', er);

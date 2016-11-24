@@ -15,7 +15,7 @@ function runObject(n) {
   for (; i < n; i++) {
     m['i' + i] = i;
     m['s' + i] = String(i);
-    assert.equal(m['i' + i], m['s' + i]);
+    assert.strictEqual(String(m['i' + i]), m['s' + i]);
     m['i' + i] = undefined;
     m['s' + i] = undefined;
   }
@@ -29,7 +29,7 @@ function runNullProtoObject(n) {
   for (; i < n; i++) {
     m['i' + i] = i;
     m['s' + i] = String(i);
-    assert.equal(m['i' + i], m['s' + i]);
+    assert.strictEqual(String(m['i' + i]), m['s' + i]);
     m['i' + i] = undefined;
     m['s' + i] = undefined;
   }
@@ -53,7 +53,7 @@ function runFakeMap(n) {
   for (; i < n; i++) {
     m.set('i' + i, i);
     m.set('s' + i, String(i));
-    assert.equal(m.get('i' + i), m.get('s' + i));
+    assert.strictEqual(String(m.get('i' + i)), m.get('s' + i));
     m.set('i' + i, undefined);
     m.set('s' + i, undefined);
   }
@@ -67,7 +67,7 @@ function runMap(n) {
   for (; i < n; i++) {
     m.set('i' + i, i);
     m.set('s' + i, String(i));
-    assert.equal(m.get('i' + i), m.get('s' + i));
+    assert.strictEqual(String(m.get('i' + i)), m.get('s' + i));
     m.set('i' + i, undefined);
     m.set('s' + i, undefined);
   }

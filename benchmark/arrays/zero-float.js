@@ -1,9 +1,21 @@
 'use strict';
 var common = require('../common.js');
+
+var types = [
+  'Array',
+  'Buffer',
+  'Int8Array',
+  'Uint8Array',
+  'Int16Array',
+  'Uint16Array',
+  'Int32Array',
+  'Uint32Array',
+  'Float32Array',
+  'Float64Array'
+];
+
 var bench = common.createBenchmark(main, {
-  type: ['Array', 'Buffer', 'Int8Array', 'Uint8Array', 'Int16Array',
-         'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array',
-         'Float64Array'],
+  type: types,
   n: [25]
 });
 
