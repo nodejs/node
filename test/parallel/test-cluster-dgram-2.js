@@ -57,6 +57,13 @@ function worker() {
   // send(), explicitly bind them to an ephemeral port.
   socket.bind(0);
 
-  for (var i = 0; i < PACKETS_PER_WORKER; i++)
+  // There is no guarantee that a sent dgram packet will be received so keep
+  // sending until disconnect.
+  const interval = setInterval(() => {
     socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1');
+  }, 1);
+
+  cluster.worker.on('disconnect', () => {
+    clearInterval(interval);
+  });
 }
