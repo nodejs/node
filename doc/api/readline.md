@@ -76,8 +76,8 @@ received input.
 For example:
 
 ```js
-rl.on('line', (input) => {
-  console.log(`Received: ${input}`);
+rl.on('line', (input, lineNumber) => {
+  console.log(`Received: ${input}, line #: ${lineNumber}`);
 });
 ```
 
