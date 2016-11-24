@@ -896,11 +896,19 @@ added: v0.11.13
     not encrypted.
   * `passphrase` {string} Optional shared passphrase used for a single private
     key and/or a PFX.
-  * `cert` {string} A string containing the PEM encoded certificate
-  * `ca`{string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of strings,
-    or array of `Buffer`s of trusted certificates in PEM format. If omitted,
-    several well known "root" CAs (like VeriSign) will be used. These are used
-    to authorize connections.
+  * `cert` {string|string[]|Buffer|Buffer[]} Optional cert chains in PEM format.
+    One cert chain should be provided per private key. Each cert chain should
+    consist of the PEM formatted certificate for a provided private `key`,
+    followed by the PEM formatted intermediate certificates (if any), in order,
+    and not including the root CA (the root CA must be pre-known to the peer,
+    see `ca`).  When providing multiple cert chains, they do not have to be in
+    the same order as their private keys in `key`. If the intermediate
+    certificates are not provided, the peer will not be able to validate the
+    certificate, and the handshake will fail.
+  * `ca`{string|string[]|Buffer|Buffer[]} Optional CA certificates to trust.
+    Default is the well-known CAs from Mozilla. When connecting to peers that
+    use certificates issued privately, or self-signed, the private root CA or
+    self-signed certificate must be provided to verify the peer.
   * `crl` {string|string[]} Either a string or array of strings of PEM encoded
     CRLs (Certificate Revocation List).
   * `ciphers` {string} A string describing the ciphers to use or exclude.
