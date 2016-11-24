@@ -13,14 +13,14 @@ let inputFile = null;
 let nodeVersion = null;
 
 args.forEach(function(arg) {
-  if (!arg.match(/^\-\-/)) {
+  if (!arg.match(/^--/)) {
     inputFile = arg;
-  } else if (arg.match(/^\-\-format=/)) {
-    format = arg.replace(/^\-\-format=/, '');
-  } else if (arg.match(/^\-\-template=/)) {
-    template = arg.replace(/^\-\-template=/, '');
-  } else if (arg.match(/^\-\-node\-version=/)) {
-    nodeVersion = arg.replace(/^\-\-node\-version=/, '');
+  } else if (arg.match(/^--format=/)) {
+    format = arg.replace(/^--format=/, '');
+  } else if (arg.match(/^--template=/)) {
+    template = arg.replace(/^--template=/, '');
+  } else if (arg.match(/^--node-version=/)) {
+    nodeVersion = arg.replace(/^--node-version=/, '');
   }
 });
 
