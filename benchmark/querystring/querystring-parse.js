@@ -3,14 +3,18 @@ var common = require('../common.js');
 var querystring = require('querystring');
 var v8 = require('v8');
 
+var types = [
+  'noencode',
+  'multicharsep',
+  'encodemany',
+  'encodelast',
+  'multivalue',
+  'multivaluemany',
+  'manypairs'
+];
+
 var bench = common.createBenchmark(main, {
-  type: ['noencode',
-         'multicharsep',
-         'encodemany',
-         'encodelast',
-         'multivalue',
-         'multivaluemany',
-         'manypairs'],
+  type: types,
   n: [1e6],
 });
 
