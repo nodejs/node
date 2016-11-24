@@ -5,7 +5,6 @@ const childPath = path.join(__dirname, 'child-process-persistent.js');
 
 var child = execFile(process.execPath, [ childPath ], {
   detached: true,
-  timeout: 100,
   stdio: 'ignore'
 });
 

@@ -7,16 +7,17 @@ const childPath = path.join(common.fixturesDir, 'parent-process-exec-nonpersiste
 
 let persistentPid = -1;
 
-const execParent = cp.fork(childPath);
+const child = cp.fork(childPath);
 
-execParent.on('message', common.mustCall((msg) => {
+child.on('message', common.mustCall((msg) => {
   persistentPid = msg;
-}));
-
-execParent.on('close', common.mustCall((code, sig) => {
-  assert.equal(sig, null);
 }));
 
 process.on('exit', () => {
   assert.notStrictEqual(persistentPid, -1);
 });
+
+setTimeout(function() {
+  // *nix: test that the child process it has the gid === pid
+  process.kill(persistentPid);
+}, 150);
