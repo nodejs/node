@@ -909,8 +909,8 @@ added: v0.11.13
     Default is the well-known CAs from Mozilla. When connecting to peers that
     use certificates issued privately, or self-signed, the private root CA or
     self-signed certificate must be provided to verify the peer.
-  * `crl` {string|string[]} Either a string or array of strings of PEM encoded
-    CRLs (Certificate Revocation List).
+  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
+    CRLs (Certificate Revocation Lists).
   * `ciphers` {string} A string describing the ciphers to use or exclude.
     Consult
     <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT>
