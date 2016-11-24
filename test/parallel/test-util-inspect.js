@@ -666,6 +666,16 @@ if (typeof Symbol !== 'undefined') {
     '{ [Symbol(symbol)]: 42 }'
   );
 
+  Object.defineProperty(
+    subject,
+    Symbol(),
+    {enumerable: false, value: 'non-enum'});
+  assert.strictEqual(util.inspect(subject), '{ [Symbol(symbol)]: 42 }');
+  assert.strictEqual(
+    util.inspect(subject, options),
+    '{ [Symbol(symbol)]: 42, [Symbol()]: \'non-enum\' }'
+  );
+
   subject = [1, 2, 3];
   subject[Symbol('symbol')] = 42;
 
