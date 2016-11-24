@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 
 if (common.isOSX) {
   common.skip('because of 17894467 Apple bug');
@@ -13,7 +14,8 @@ const client = dgram.createSocket('udp4');
 client.bind(0, common.mustCall(function() {
   const port = this.address().port;
 
-  client.on('message', common.mustCall(function onMessage(buffer, bytes) {
+  client.on('message', common.mustCall(function onMessage(buffer) {
+    assert.strictEqual(buffer.length, 0);
     clearInterval(interval);
     client.close();
   }));
