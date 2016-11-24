@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 
 if (common.isOSX) {
   common.skip('because of 17894467 Apple bug');
@@ -23,8 +24,9 @@ client.bind(0, common.mustCall(function() {
 
   function callback(firstArg) {
     // If client.send() callback, firstArg should be null.
-    // If client.on('message') listener, firstArg should be the buffer.
+    // If client.on('message') listener, firstArg should be a 0-length buffer.
     if (firstArg instanceof Buffer) {
+      assert.strictEqual(firstArg.length, 0);
       clearInterval(interval);
       client.close();
     }
