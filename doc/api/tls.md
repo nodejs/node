@@ -883,15 +883,19 @@ added: v0.11.13
 -->
 
 * `options` {Object}
-  * `pfx` {string|Buffer} A string or `Buffer` holding the PFX or PKCS12 encoded
-    private key, certificate, and CA certificates.
-  * `key` {string|string[]|Buffer|Object[]} The private key of the server in
-    PEM format. To support multiple keys using different algorithms, an array
-    can be provided either as an array of key strings or as an array of objects
-    in the format `{pem: key, passphrase: passphrase}`. This option is
-    *required* for ciphers that make use of private keys.
-  * `passphrase` {string} A string containing the passphrase for the private key
-    or pfx.
+  * `pfx` {string|Buffer} Optional PFX or PKCS12 encoded private key and
+    certificate chain. `pfx` is an alternative to providing `key` and `cert`
+    individually. PFX is usually encrypted, if it is, `passphrase` will be used
+    to decrypt it.
+  * `key` {string|string[]|Buffer|Buffer[]|Object[]} Optional private keys in
+    PEM format. Single keys will be decrypted with `passphrase` if necessary.
+    Multiple keys, probably using different algorithms, can be provided either
+    as an array of unencrypted key strings or buffers, or an array of objects in
+    the form `{pem: <string|buffer>, passphrase: <string>}`. The object form can
+    only occur in an array, and it _must_ include a passphrase, even if key is
+    not encrypted.
+  * `passphrase` {string} Optional shared passphrase used for a single private
+    key and/or a PFX.
   * `cert` {string} A string containing the PEM encoded certificate
   * `ca`{string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of strings,
     or array of `Buffer`s of trusted certificates in PEM format. If omitted,
@@ -907,6 +911,9 @@ added: v0.11.13
     the server's preferences will be used instead of the client preferences.
 
 The `tls.createSecureContext()` method creates a credentials object.
+
+A key is *required* for ciphers that make use of certificates. Either `key` or
+`pfx` can be used to provide it.
 
 If the 'ca' option is not given, then Node.js will use the default
 publicly trusted list of CAs as given in
