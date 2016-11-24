@@ -179,11 +179,18 @@ line switch. For instance, the following makes
 node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
 ```
 
+The default can also be replaced on a per client or server basis using the
+`ciphers` option from [`tls.createSecureContext()`][], which is also available
+in [`tls.createServer()`], [`tls.connect()`], and when creating new
+[`tls.TLSSocket`]s.
+
+Consult [OpenSSL cipher list format documentation][] for details on the format.
+
 *Note*: The default cipher suite included within Node.js has been carefully
 selected to reflect current security best practices and risk mitigation.
 Changing the default cipher suite can have a significant impact on the security
-of an application. The `--tls-cipher-list` switch should by used only if
-absolutely necessary.
+of an application. The `--tls-cipher-list` switch and `ciphers` option should by
+used only if absolutely necessary.
 
 ## Class: tls.Server
 <!-- YAML
@@ -911,10 +918,8 @@ added: v0.11.13
     self-signed certificate must be provided to verify the peer.
   * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
     CRLs (Certificate Revocation Lists).
-  * `ciphers` {string} A string describing the ciphers to use or exclude.
-    Consult
-    <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT>
-    for details on the format.
+  * `ciphers` {string} Optional cipher suite specification, replacing the
+    default.  For more information, see [modifying the default cipher suite][].
   * `honorCipherOrder` {boolean} If `true`, when a cipher is being selected,
     the server's preferences will be used instead of the client preferences.
 
@@ -1234,6 +1239,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
+[modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
