@@ -1347,7 +1347,8 @@ added: v0.0.2
 
 Write `buffer` to the file specified by `fd`.
 
-`offset` and `length` determine the part of the buffer to be written.
+`offset` determines the part of the buffer to be written, and `length` is
+an integer specifying the number of bytes to write.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'`, the data will be written
