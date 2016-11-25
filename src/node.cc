@@ -1455,20 +1455,20 @@ Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
 }
 
 // Returns -1 if the handle was not valid for decoding
-ssize_t DecodeBytes(Isolate* isolate,
-                    Local<Value> val,
-                    enum encoding encoding) {
+ptrdiff_t DecodeBytes(Isolate* isolate,
+                      Local<Value> val,
+                      enum encoding encoding) {
   HandleScope scope(isolate);
 
   return StringBytes::Size(isolate, val, encoding);
 }
 
 // Returns number of bytes written.
-ssize_t DecodeWrite(Isolate* isolate,
-                    char* buf,
-                    size_t buflen,
-                    Local<Value> val,
-                    enum encoding encoding) {
+ptrdiff_t DecodeWrite(Isolate* isolate,
+                      char* buf,
+                      size_t buflen,
+                      Local<Value> val,
+                      enum encoding encoding) {
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 

@@ -164,17 +164,6 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
 
-#ifdef _WIN32
-// TODO(tjfontaine) consider changing the usage of ssize_t to ptrdiff_t
-#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
-typedef intptr_t ssize_t;
-# define _SSIZE_T_
-# define _SSIZE_T_DEFINED
-#endif
-#else  // !_WIN32
-# include <sys/types.h>  // size_t, ssize_t
-#endif  // _WIN32
-
 
 namespace node {
 
@@ -327,27 +316,27 @@ NODE_DEPRECATED("Use Encode(isolate, ...)",
 })
 
 // Returns -1 if the handle was not valid for decoding
-NODE_EXTERN ssize_t DecodeBytes(v8::Isolate* isolate,
-                                v8::Local<v8::Value>,
-                                enum encoding encoding = LATIN1);
+NODE_EXTERN ptrdiff_t DecodeBytes(v8::Isolate* isolate,
+                                  v8::Local<v8::Value>,
+                                  enum encoding encoding = LATIN1);
 NODE_DEPRECATED("Use DecodeBytes(isolate, ...)",
-                inline ssize_t DecodeBytes(
+                inline ptrdiff_t DecodeBytes(
     v8::Local<v8::Value> val,
     enum encoding encoding = LATIN1) {
   return DecodeBytes(v8::Isolate::GetCurrent(), val, encoding);
 })
 
 // returns bytes written.
-NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
-                                char* buf,
-                                size_t buflen,
-                                v8::Local<v8::Value>,
-                                enum encoding encoding = LATIN1);
+NODE_EXTERN ptrdiff_t DecodeWrite(v8::Isolate* isolate,
+                                  char* buf,
+                                  size_t buflen,
+                                  v8::Local<v8::Value>,
+                                  enum encoding encoding = LATIN1);
 NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
-                inline ssize_t DecodeWrite(char* buf,
-                                           size_t buflen,
-                                           v8::Local<v8::Value> val,
-                                           enum encoding encoding = LATIN1) {
+                inline ptrdiff_t DecodeWrite(char* buf,
+                                             size_t buflen,
+                                             v8::Local<v8::Value> val,
+                                             enum encoding encoding = LATIN1) {
   return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
 })
 
