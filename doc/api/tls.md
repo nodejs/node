@@ -942,6 +942,10 @@ added: v0.11.13
     `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
     the function names as strings. For example, `"SSLv3_method"` to force SSL
     version 3.
+  * `secureOptions` {number} Optionally affect the OpenSSL protocol behaviour,
+    which is not usually necessary. This should be used carefully if at all!
+    Value is a numeric bitmask of the `SSL_OP_*` options from
+    [OpenSSL Options][].
 
 The `tls.createSecureContext()` method creates a credentials object.
 
