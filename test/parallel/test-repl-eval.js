@@ -19,8 +19,10 @@ const repl = require('repl');
 
   try {
     r.write('foo\n');
+    r.forceExecute();
   } finally {
     r.write('.exit\n');
+    r.forceExecute();
   }
 
   process.on('exit', () => {

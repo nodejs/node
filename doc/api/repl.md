@@ -27,11 +27,7 @@ customizable evaluation functions.
 
 The following special commands are supported by all REPL instances:
 
-* `.break` - When in the process of inputting a multi-line expression, entering
-  the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
-  further input or processing of that expression.
-* `.clear` - Resets the REPL `context` to an empty object and clears any
-  multi-line expression currently being input.
+* `.clear` - Resets the local REPL `context` to an empty object.
 * `.exit` - Close the I/O stream, causing the REPL to exit.
 * `.help` - Show this list of special commands.
 * `.save` - Save the current REPL session to a file:
@@ -56,7 +52,7 @@ welcome('Node.js User');
 
 The following key combinations in the REPL have these special effects:
 
-* `<ctrl>-C` - When pressed once, has the same effect as the `.break` command.
+* `<ctrl>-C` - When pressed once, it will break the current command.
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
 * `<ctrl>-D` - Has the same effect as the `.exit` command.
@@ -174,34 +170,6 @@ function myEval(cmd, context, filename, callback) {
 repl.start({prompt: '> ', eval: myEval});
 ```
 
-#### Recoverable Errors
-
-As a user is typing input into the REPL prompt, pressing the `<enter>` key will
-send the current line of input to the `eval` function. In order to support
-multi-line input, the eval function can return an instance of `repl.Recoverable`
-to the provided callback function:
-
-```js
-function eval(cmd, context, filename, callback) {
-  var result;
-  try {
-    result = vm.runInThisContext(cmd);
-  } catch (e) {
-    if (isRecoverableError(e)) {
-      return callback(new repl.Recoverable(e));
-    }
-  }
-  callback(null, result);
-}
-
-function isRecoverableError(error) {
-  if (error.name === 'SyntaxError') {
-    return /^(Unexpected end of input|Unexpected token)/.test(error.message);
-  }
-  return false;
-}
-```
-
 ### Customizing REPL Output
 
 By default, `repl.REPLServer` instances format output using the
@@ -286,15 +254,15 @@ reset to its initial value using the `.clear` command:
 
 ```js
 $ ./node example.js
->m
+> m
 'test'
->m = 1
+> m = 1
 1
->m
+> m
 1
->.clear
+> .clear
 Clearing context...
->m
+> m
 'test'
 >
 ```
@@ -400,16 +368,26 @@ added: v0.1.91
   * `completer` {Function} An optional function used for custom Tab auto
      completion. See [`readline.InterfaceCompleter`][] for an example.
   * `replMode` - A flag that specifies whether the default evaluator executes
-    all JavaScript commands in strict mode, default mode, or a hybrid mode
-    ("magic" mode.) Acceptable values are:
+    all JavaScript commands in strict mode or sloppy mode.
+    Acceptable values are:
     * `repl.REPL_MODE_SLOPPY` - evaluates expressions in sloppy mode.
     * `repl.REPL_MODE_STRICT` - evaluates expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
-    * `repl.REPL_MODE_MAGIC` - attempt to evaluates expressions in default
-      mode.  If expressions fail to parse, re-try in strict mode.
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. Defaults to `false`.
+  * `executeOnTimeout` {number} If `terminal` is false,`executeOnTimeout`
+     delay is used to determine the end of expression. Defaults to 50ms.
+     `executeOnTimeout` will be coerced to `[100, 2000]` range.
+  * `displayWelcomeMessage` {boolean} If `true`, welcome message will be
+    displayed. Defaults to `false`.
+```js
+> node
+Welcome to Node.js <<version>> (<<vm name>> VM, <<vm version>>)
+Type ^M or enter to execute, ^J to continue, ^C to exit
+Or try .help for help, more at https://nodejs.org/dist/<<version>>/docs/api/repl.html
+>
+```
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
@@ -421,11 +399,15 @@ without passing any arguments (or by passing the `-i` argument):
 
 ```js
 $ node
-> a = [1, 2, 3];
+Welcome to Node.js v6.5.0 (v8 VM, 5.1.281.81)
+Type ^M or enter to execute, ^J to continue, ^C to exit
+Or try .help for help, more at https://nodejs.org/dist/v6.5.0/docs/api/repl.html
+
+> a = [1, 2, 3]; // ^M or ⏎
 [ 1, 2, 3 ]
-> a.forEach((v) => {
-...   console.log(v);
-...   });
+> a.forEach((v) => { // ^J to continue
+   console.log(v);
+  });
 1
 2
 3
@@ -442,9 +424,8 @@ environment variables:
    REPL history. Whitespace will be trimmed from the value.
  - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
    history will be persisted if history is available. Must be a positive number.
- - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
-   to `magic`, which will automatically run "strict mode only" statements in
-   strict mode.
+ - `NODE_REPL_MODE` - `sloppy` or `strict` mode. Defaults
+   to `sloppy`.
 
 ### Persistent History
 

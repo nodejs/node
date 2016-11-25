@@ -25,6 +25,8 @@ assert.equal(r1.useGlobal, false);
 assert.equal(r1.ignoreUndefined, false);
 assert.equal(r1.replMode, repl.REPL_MODE_SLOPPY);
 assert.equal(r1.historySize, 30);
+assert.strictEqual(r1.displayWelcomeMessage, false);
+assert.strictEqual(r1.executeOnTimeout, 50);
 
 // test r1 for backwards compact
 assert.equal(r1.rli.input, stream);
@@ -46,7 +48,10 @@ var r2 = repl.start({
   ignoreUndefined: true,
   eval: evaler,
   writer: writer,
-  replMode: repl.REPL_MODE_STRICT
+  replMode: repl.REPL_MODE_STRICT,
+  historySize: 50,
+  displayWelcomeMessage: true,
+  executeOnTimeout: 500
 });
 assert.equal(r2.input, stream);
 assert.equal(r2.output, stream);
@@ -58,6 +63,8 @@ assert.equal(r2.useGlobal, true);
 assert.equal(r2.ignoreUndefined, true);
 assert.equal(r2.writer, writer);
 assert.equal(r2.replMode, repl.REPL_MODE_STRICT);
+assert.strictEqual(r2.displayWelcomeMessage, false);
+assert.strictEqual(r2.executeOnTimeout, 500);
 
 // test r2 for backwards compact
 assert.equal(r2.rli.input, stream);
@@ -65,18 +72,7 @@ assert.equal(r2.rli.output, stream);
 assert.equal(r2.rli.input, r2.inputStream);
 assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
-
-// testing out "magic" replMode
-var r3 = repl.start({
-  input: stream,
-  output: stream,
-  writer: writer,
-  replMode: repl.REPL_MODE_MAGIC,
-  historySize: 50
-});
-
-assert.equal(r3.replMode, repl.REPL_MODE_MAGIC);
-assert.equal(r3.historySize, 50);
+assert.equal(r2.historySize, 50);
 
 // Verify that defaults are used when no arguments are provided
 const r4 = repl.start();
@@ -90,4 +86,6 @@ assert.strictEqual(r4.useGlobal, false);
 assert.strictEqual(r4.ignoreUndefined, false);
 assert.strictEqual(r4.replMode, repl.REPL_MODE_SLOPPY);
 assert.strictEqual(r4.historySize, 30);
+assert.strictEqual(r4.displayWelcomeMessage, false);
+assert.strictEqual(r4.executeOnTimeout, 50);
 r4.close();
