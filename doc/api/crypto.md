@@ -1653,8 +1653,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
   <tr>
     <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
-    <td>Uses the server's preferences instead of the clients when selecting a
-    cipher. See
+    <td>Attempts to use the server's preferences instead of the client's when
+    selecting a cipher. Behaviour depends on protocol version. See
     https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
@@ -1682,7 +1682,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
   <tr>
     <td><code>SSL_OP_LEGACY_SERVER_CONNECT</code></td>
-    <td>Allow initial connection to servers that do not support RI.</td>
+    <td>Allows initial connection to servers that do not support RI.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER</code></td>
