@@ -935,8 +935,8 @@ of two ways:
 - Using the [`verify.update()`][] and [`verify.verify()`][] methods to verify
   the signature.
 
-  The [`crypto.createSign()`][] method is used to create `Sign` instances.
-  `Sign` objects are not to be created directly using the `new` keyword.
+The [`crypto.createVerify()`][] method is used to create `Verify` instances.
+`Verify` objects are not to be created directly using the `new` keyword.
 
 Example: Using `Verify` objects as streams:
 
