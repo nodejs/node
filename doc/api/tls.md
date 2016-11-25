@@ -938,6 +938,10 @@ added: v0.11.13
     error will be thrown. It is strongly recommended to use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
     discarded and DHE ciphers will not be available.
+  * `secureProtocol` {string} Optional SSL method to use, default is
+    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
+    the function names as strings. For example, `"SSLv3_method"` to force SSL
+    version 3.
 
 The `tls.createSecureContext()` method creates a credentials object.
 
@@ -1024,10 +1028,10 @@ added: v0.3.2
     session resumption. If `requestCert` is `true`, the default is a 128 bit
     truncated SHA1 hash value generated from the command-line. Otherwise, a
     default is not provided.
-  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
-    force SSL version 3. The possible values depend on the version of OpenSSL
-    installed in the environment and are defined in the constant
-    [SSL_METHODS][].
+  * `secureProtocol` {string} Optional SSL method to use, default is
+    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
+    the function names as strings. For example, `"SSLv3_method"` to force SSL
+    version 3.
 * `secureConnectionListener` {Function}
 
 Creates a new [tls.Server][].  The `secureConnectionListener`, if provided, is
