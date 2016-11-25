@@ -89,8 +89,9 @@ Ephemeral methods may have some performance drawbacks, because key generation
 is expensive.
 
 To use Perfect Forward Secrecy using `DHE` with the `tls` module, it is required
-to generate Diffie-Hellman parameters. The following illustrates the use of the
-OpenSSL command-line interface to generate such parameters:
+to generate Diffie-Hellman parameters and specify them with the `dhparam`
+option to [`tls.createSecureContext()`][]. The following illustrates the use of
+the OpenSSL command-line interface to generate such parameters:
 
 ```sh
 openssl dhparam -outform PEM -out dhparam.pem 2048
@@ -926,6 +927,17 @@ added: v0.11.13
     [OpenSSL Options][] for more information.
     *Note*: [`tls.createServer()`][] sets the default value to `true`, other
     APIs that create secure contexts leave it unset.
+  * `ecdhCurve` {string} A string describing a named curve to use for ECDH key
+    agreement or `false` to disable ECDH. Defaults to `prime256v1` (NIST P-256).
+    Use [`crypto.getCurves()`][] to obtain a list of available curve names. On
+    recent releases, `openssl ecparam -list_curves` will also display the name
+    and description of each available elliptic curve.
+  * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
+    [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
+    The key length must be greater than or equal to 1024 bits, otherwise an
+    error will be thrown. It is strongly recommended to use 2048 bits or larger
+    for stronger security. If omitted or invalid, the parameters are silently
+    discarded and DHE ciphers will not be available.
 
 The `tls.createSecureContext()` method creates a credentials object.
 
