@@ -1,4 +1,4 @@
-# Buffer
+﻿# Buffer
 
 > Stability: 2 - Stable
 
@@ -282,7 +282,7 @@ const buf = Buffer.from([1, 2, 3]);
 //   1
 //   2
 //   3
-for (var b of buf) {
+for (const b of buf) {
   console.log(b);
 }
 ```
@@ -997,7 +997,7 @@ overlapping region within the same `Buffer`
 ```js
 const buf = Buffer.allocUnsafe(26);
 
-for (var i = 0 ; i < 26 ; i++) {
+for (let i = 0 ; i < 26 ; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf[i] = i + 97;
 }
@@ -1030,7 +1030,7 @@ const buf = Buffer.from('buffer');
 //   [3, 102]
 //   [4, 101]
 //   [5, 114]
-for (var pair of buf.entries()) {
+for (const pair of buf.entries()) {
   console.log(pair);
 }
 ```
@@ -1214,7 +1214,7 @@ const buf = Buffer.from('buffer');
 //   3
 //   4
 //   5
-for (var key of buf.keys()) {
+for (const key of buf.keys()) {
   console.log(key);
 }
 ```
@@ -1304,7 +1304,7 @@ use [`buf.slice()`] to create a new `Buffer`.
 Examples:
 
 ```js
-var buf = Buffer.allocUnsafe(10);
+let buf = Buffer.allocUnsafe(10);
 
 buf.write('abcdefghj', 0, 'ascii');
 
@@ -1675,7 +1675,7 @@ one byte from the original `Buffer`
 ```js
 const buf1 = Buffer.allocUnsafe(26);
 
-for (var i = 0 ; i < 26 ; i++) {
+for (let i = 0 ; i < 26 ; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf1[i] = i + 97;
 }
@@ -1824,7 +1824,7 @@ Examples:
 ```js
 const buf1 = Buffer.allocUnsafe(26);
 
-for (var i = 0 ; i < 26 ; i++) {
+for (let i = 0 ; i < 26 ; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf1[i] = i + 97;
 }
@@ -1899,7 +1899,7 @@ const buf = Buffer.from('buffer');
 //   102
 //   101
 //   114
-for (var value of buf.values()) {
+for (const value of buf.values()) {
   console.log(value);
 }
 
@@ -1910,7 +1910,7 @@ for (var value of buf.values()) {
 //   102
 //   101
 //   114
-for (var value of buf) {
+for (const value of buf) {
   console.log(value);
 }
 ```
