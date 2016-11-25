@@ -946,6 +946,11 @@ added: v0.11.13
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
+  * `sessionIdContext` {string} Optional opaque identifier used by servers to
+    ensure session state is not shared between applications. Unused by clients.
+    *Note*: [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
+    generated from `process.argv`, other APIs that create secure contexts
+    have no default value.
 
 The `tls.createSecureContext()` method creates a credentials object.
 
@@ -1029,9 +1034,8 @@ added: v0.3.2
     session tickets on multiple instances of the TLS server. *Note* that this is
     automatically shared between `cluster` module workers.
   * `sessionIdContext` {string} A string containing an opaque identifier for
-    session resumption. If `requestCert` is `true`, the default is a 128 bit
-    truncated SHA1 hash value generated from the command-line. Otherwise, a
-    default is not provided.
+    session resumption. The default is a 128 bit truncated SHA1 hash value
+    generated from `process.argv`.
   * `secureProtocol` {string} Optional SSL method to use, default is
     `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
     the function names as strings. For example, `"SSLv3_method"` to force SSL
