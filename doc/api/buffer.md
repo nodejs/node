@@ -1266,7 +1266,7 @@ console.log(buf.lastIndexOf('buffer', 4));
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 // Prints: 6
-console.log(utf16Buffer.lastIndexOf('\u03a3', null, 'ucs2'));
+console.log(utf16Buffer.lastIndexOf('\u03a3', undefined, 'ucs2'));
 
 // Prints: 4
 console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'ucs2'));
@@ -1448,7 +1448,7 @@ const buf = Buffer.from([0, 5]);
 console.log(buf.readInt16BE());
 
 // Prints: 1280
-console.log(buf.readInt16LE(1));
+console.log(buf.readInt16LE());
 
 // Throws an exception: RangeError: Index out of range
 console.log(buf.readInt16LE(1));
