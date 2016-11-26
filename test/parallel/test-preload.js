@@ -29,7 +29,7 @@ child_process.exec(nodeBinary + ' '
   + fixtureB,
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nB\n');
+    assert.strictEqual(stdout, 'A\nB\n');
   });
 
 // test preloading multiple modules works
@@ -38,7 +38,7 @@ child_process.exec(nodeBinary + ' '
   + fixtureC,
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nB\nC\n');
+    assert.strictEqual(stdout, 'A\nB\nC\n');
   });
 
 // test that preloading a throwing module aborts
@@ -47,7 +47,7 @@ child_process.exec(nodeBinary + ' '
   + fixtureB,
   function(err, stdout, stderr) {
     if (err) {
-      assert.equal(stdout, 'A\n');
+      assert.strictEqual(stdout, 'A\n');
     } else {
       throw new Error('Preload should have failed');
     }
@@ -59,7 +59,7 @@ child_process.exec(nodeBinary + ' '
   + '-e "console.log(\'hello\');"',
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nhello\n');
+    assert.strictEqual(stdout, 'A\nhello\n');
   });
 
 // test that preload placement at other points in the cmdline
@@ -70,7 +70,7 @@ child_process.exec(nodeBinary + ' '
   + preloadOption([fixtureA, fixtureB]),
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nB\nhello\n');
+    assert.strictEqual(stdout, 'A\nB\nhello\n');
   });
 
 child_process.exec(nodeBinary + ' '
