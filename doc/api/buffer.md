@@ -2328,6 +2328,8 @@ The transcoding process will use substitution characters if a given byte
 sequence cannot be adequately represented in the target encoding. For instance:
 
 ```js
+const buffer = require('buffer');
+
 const newBuf = buffer.transcode(Buffer.from('€'), 'utf8', 'ascii');
 console.log(newBuf.toString('ascii'));
 // Prints: '?'
