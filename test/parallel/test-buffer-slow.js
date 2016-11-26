@@ -51,10 +51,10 @@ assert.strictEqual(SlowBuffer('string').length, 0);
 // should throw with invalid length
 assert.throws(function() {
   SlowBuffer(Infinity);
-}, 'invalid Buffer length');
+}, /^RangeError: Invalid array buffer length$/);
 assert.throws(function() {
   SlowBuffer(-1);
-}, 'invalid Buffer length');
+}, /^RangeError: Invalid array buffer length$/);
 assert.throws(function() {
   SlowBuffer(buffer.kMaxLength + 1);
-}, 'invalid Buffer length');
+}, /^RangeError: (Invalid typed array length|Array buffer allocation failed)$/);
