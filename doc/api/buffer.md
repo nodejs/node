@@ -1511,10 +1511,10 @@ Examples:
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x90, 0xab]);
 
-// Prints: 1234567890ab
+// Prints: -546f87a9cbee
 console.log(buf.readIntLE(0, 6).toString(16));
 
-// Prints: -546f87a9cbee
+// Prints: 1234567890ab
 console.log(buf.readIntBE(0, 6).toString(16));
 
 // Throws an exception: RangeError: Index out of range
@@ -1739,7 +1739,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 // Throws an exception: RangeError: Buffer size must be a multiple of 16-bits
-buf2.swap32();
+buf2.swap16();
 ```
 
 ### buf.swap32()
