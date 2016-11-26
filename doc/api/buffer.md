@@ -1,4 +1,4 @@
-﻿# Buffer
+# Buffer
 
 > Stability: 2 - Stable
 
@@ -404,14 +404,14 @@ are unknown and *could contain sensitive data*. Use
 Example:
 
 ```js
-const buf = new Buffer(5);
+const buf = new Buffer(10);
 
-// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
+// Prints: (contents may vary): <Buffer 48 21 4b 00 00 00 00 00 30 dd>
 console.log(buf);
 
 buf.fill(0);
 
-// Prints: <Buffer 00 00 00 00 00>
+// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 console.log(buf);
 ```
 
@@ -523,14 +523,14 @@ initialized*. The contents of the newly created `Buffer` are unknown and
 Example:
 
 ```js
-const buf = Buffer.allocUnsafe(5);
+const buf = Buffer.allocUnsafe(10);
 
-// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
+// Prints: (contents may vary): <Buffer a0 8b 28 3f 01 00 00 00 50 32>
 console.log(buf);
 
 buf.fill(0);
 
-// Prints: <Buffer 00 00 00 00 00>
+// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 console.log(buf);
 ```
 
