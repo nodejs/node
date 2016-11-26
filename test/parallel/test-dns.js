@@ -5,7 +5,7 @@ const assert = require('assert');
 const dns = require('dns');
 
 var existing = dns.getServers();
-assert(existing.length);
+assert(existing.length > 0);
 
 function noop() {}
 
@@ -15,7 +15,8 @@ var goog = [
 ];
 assert.doesNotThrow(function() { dns.setServers(goog); });
 assert.deepEqual(dns.getServers(), goog);
-assert.throws(function() { dns.setServers(['foobar']); });
+assert.throws(function() { dns.setServers(['foobar']); },
+              /^Error: IP address is not properly formatted: foobar$/);
 assert.deepEqual(dns.getServers(), goog);
 
 var goog6 = [
@@ -50,25 +51,28 @@ assert.throws(function() {
 }, 'Unexpected error');
 
 // dns.lookup should accept falsey and string values
+const errorReg =
+  /^TypeError: invalid arguments: hostname must be a string or falsey$/;
+
 assert.throws(function() {
   dns.lookup({}, noop);
-}, 'invalid arguments: hostname must be a string or falsey');
+}, errorReg);
 
 assert.throws(function() {
   dns.lookup([], noop);
-}, 'invalid arguments: hostname must be a string or falsey');
+}, errorReg);
 
 assert.throws(function() {
   dns.lookup(true, noop);
-}, 'invalid arguments: hostname must be a string or falsey');
+}, errorReg);
 
 assert.throws(function() {
   dns.lookup(1, noop);
-}, 'invalid arguments: hostname must be a string or falsey');
+}, errorReg);
 
 assert.throws(function() {
   dns.lookup(noop, noop);
-}, 'invalid arguments: hostname must be a string or falsey');
+}, errorReg);
 
 assert.doesNotThrow(function() {
   dns.lookup('', noop);
@@ -102,15 +106,15 @@ assert.doesNotThrow(function() {
 assert.throws(function() {
   dns.lookup('www.google.com', { hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1 },
     noop);
-});
+}, /^TypeError: invalid argument: hints must use valid flags$/);
 
 assert.throws(function() {
   dns.lookup('www.google.com');
-}, 'invalid arguments: callback must be passed');
+}, /^TypeError: invalid arguments: callback must be passed$/);
 
 assert.throws(function() {
   dns.lookup('www.google.com', 4);
-}, 'invalid arguments: callback must be passed');
+}, /^TypeError: invalid arguments: callback must be passed$/);
 
 assert.doesNotThrow(function() {
   dns.lookup('www.google.com', 6, noop);
@@ -148,15 +152,15 @@ assert.doesNotThrow(function() {
 
 assert.throws(function() {
   dns.lookupService('0.0.0.0');
-}, /invalid arguments/);
+}, /^Error: invalid arguments$/);
 
 assert.throws(function() {
   dns.lookupService('fasdfdsaf', 0, noop);
-}, /host needs to be a valid IP address/);
+}, /^TypeError: host needs to be a valid IP address$/);
 
 assert.throws(function() {
   dns.lookupService('0.0.0.0', '0', noop);
-}, /port argument must be a number, got "0"/);
+}, /^TypeError: port argument must be a number, got "0"$/);
 
 assert.doesNotThrow(function() {
   dns.lookupService('0.0.0.0', 0, noop);
