@@ -1122,7 +1122,7 @@ Examples:
 const buf = Buffer.from('this is a buffer');
 
 // Prints: 0
-console.log(buf.indexOf('this')));
+console.log(buf.indexOf('this'));
 
 // Prints: 2
 console.log(buf.indexOf('is'));
