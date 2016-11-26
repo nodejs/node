@@ -27,7 +27,7 @@ assert.strictEqual(Buffer.byteLength(ascii), 3);
 
 // ArrayBuffer
 var buffer = new ArrayBuffer(8);
-assert.equal(Buffer.byteLength(buffer), 8);
+assert.strictEqual(Buffer.byteLength(buffer), 8);
 
 // TypedArray
 var int8 = new Int8Array(8);
