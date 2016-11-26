@@ -1225,7 +1225,7 @@ added: v6.0.0
 -->
 
 * `value` {String | Buffer | Integer} What to search for
-* `byteOffset` {Integer} Where to begin searching in `buf` (not inclusive).
+* `byteOffset` {Integer} Where to begin searching in `buf`.
   **Default:** [`buf.length`]
 * `encoding` {String} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
