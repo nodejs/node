@@ -8,13 +8,13 @@ const vm = require('vm');
 
 // coerce values to string
 assert.throws(() => { Buffer.byteLength(32, 'latin1'); },
-              '"string" must be a string, Buffer, or ArrayBuffer');
+              /"string" must be a string, Buffer, or ArrayBuffer/);
 assert.throws(() => { Buffer.byteLength(NaN, 'utf8'); },
-              '"string" must be a string, Buffer, or ArrayBuffer');
+              /"string" must be a string, Buffer, or ArrayBuffer/);
 assert.throws(() => { Buffer.byteLength({}, 'latin1'); },
-              '"string" must be a string, Buffer, or ArrayBuffer');
+              /"string" must be a string, Buffer, or ArrayBuffer/);
 assert.throws(() => { Buffer.byteLength(); },
-              '"string" must be a string, Buffer, or ArrayBuffer');
+              /"string" must be a string, Buffer, or ArrayBuffer/);
 
 assert(ArrayBuffer.isView(new Buffer(10)));
 assert(ArrayBuffer.isView(new SlowBuffer(10)));
@@ -31,7 +31,7 @@ assert.strictEqual(Buffer.byteLength(ascii), 3);
 
 // ArrayBuffer
 var buffer = new ArrayBuffer(8);
-assert.equal(Buffer.byteLength(buffer), 8);
+assert.strictEqual(Buffer.byteLength(buffer), 8);
 
 // TypedArray
 var int8 = new Int8Array(8);
