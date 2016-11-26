@@ -5,7 +5,7 @@ const assert = require('assert');
 const dns = require('dns');
 
 const existing = dns.getServers();
-assert(existing.length);
+assert(existing.length > 0);
 
 // Verify that setServers() handles arrays with holes and other oddities
 assert.doesNotThrow(() => {
@@ -42,7 +42,8 @@ const goog = [
 ];
 assert.doesNotThrow(() => dns.setServers(goog));
 assert.deepStrictEqual(dns.getServers(), goog);
-assert.throws(() => dns.setServers(['foobar']));
+assert.throws(() => dns.setServers(['foobar']),
+              /^Error: IP address is not properly formatted: foobar$/);
 assert.deepStrictEqual(dns.getServers(), goog);
 
 const goog6 = [
@@ -77,20 +78,18 @@ assert.throws(() => {
 }, 'Unexpected error');
 
 // dns.lookup should accept falsey and string values
-assert.throws(() => dns.lookup({}, noop),
-              'invalid arguments: hostname must be a string or falsey');
+const errorReg =
+  /^TypeError: Invalid arguments: hostname must be a string or falsey$/;
 
-assert.throws(() => dns.lookup([], noop),
-              'invalid arguments: hostname must be a string or falsey');
+assert.throws(() => dns.lookup({}, noop), errorReg);
 
-assert.throws(() => dns.lookup(true, noop),
-              'invalid arguments: hostname must be a string or falsey');
+assert.throws(() => dns.lookup([], noop), errorReg);
 
-assert.throws(() => dns.lookup(1, noop),
-              'invalid arguments: hostname must be a string or falsey');
+assert.throws(() => dns.lookup(true, noop), errorReg);
 
-assert.throws(() => dns.lookup(noop, noop),
-              'invalid arguments: hostname must be a string or falsey');
+assert.throws(() => dns.lookup(1, noop), errorReg);
+
+assert.throws(() => dns.lookup(noop, noop), errorReg);
 
 assert.doesNotThrow(() => dns.lookup('', noop));
 
@@ -114,13 +113,13 @@ assert.doesNotThrow(() => dns.lookup(NaN, noop));
 assert.throws(() => {
   dns.lookup('www.google.com', { hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1 },
     noop);
-});
+}, /^TypeError: Invalid argument: hints must use valid flags$/);
 
 assert.throws(() => dns.lookup('www.google.com'),
-              'invalid arguments: callback must be passed');
+              /^TypeError: Invalid arguments: callback must be passed$/);
 
 assert.throws(() => dns.lookup('www.google.com', 4),
-              'invalid arguments: callback must be passed');
+              /^TypeError: Invalid arguments: callback must be passed$/);
 
 assert.doesNotThrow(() => dns.lookup('www.google.com', 6, noop));
 
@@ -143,26 +142,29 @@ assert.doesNotThrow(() => {
   }, noop);
 });
 
-assert.throws(() => dns.lookupService('0.0.0.0'), /Invalid arguments/);
+assert.throws(() => dns.lookupService('0.0.0.0'),
+              /^Error: Invalid arguments$/);
 
 assert.throws(() => dns.lookupService('fasdfdsaf', 0, noop),
-              /"host" argument needs to be a valid IP address/);
+              /^TypeError: "host" argument needs to be a valid IP address$/);
 
 assert.doesNotThrow(() => dns.lookupService('0.0.0.0', '0', noop));
 
 assert.doesNotThrow(() => dns.lookupService('0.0.0.0', 0, noop));
 
 assert.throws(() => dns.lookupService('0.0.0.0', null, noop),
-              /"port" should be >= 0 and < 65536, got "null"/);
+              /^TypeError: "port" should be >= 0 and < 65536, got "null"$/);
 
-assert.throws(() => dns.lookupService('0.0.0.0', undefined, noop),
-              /"port" should be >= 0 and < 65536, got "undefined"/);
+assert.throws(
+  () => dns.lookupService('0.0.0.0', undefined, noop),
+  /^TypeError: "port" should be >= 0 and < 65536, got "undefined"$/
+);
 
 assert.throws(() => dns.lookupService('0.0.0.0', 65538, noop),
-              /"port" should be >= 0 and < 65536, got "65538"/);
+              /^TypeError: "port" should be >= 0 and < 65536, got "65538"$/);
 
 assert.throws(() => dns.lookupService('0.0.0.0', 'test', noop),
-              /"port" should be >= 0 and < 65536, got "test"/);
+              /^TypeError: "port" should be >= 0 and < 65536, got "test"$/);
 
 assert.throws(() => dns.lookupService('0.0.0.0', 80, null),
               /^TypeError: "callback" argument must be a function$/);
