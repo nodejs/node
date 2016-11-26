@@ -186,6 +186,7 @@ bool trace_warnings = false;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
+bool config_adjacent_node_modules = false;
 
 bool v8_initialized = false;
 
@@ -4242,6 +4243,15 @@ void Init(int* argc,
   if (auto preserve_symlinks = secure_getenv("NODE_PRESERVE_SYMLINKS")) {
     config_preserve_symlinks = (*preserve_symlinks == '1');
   }
+
+  if (auto adjacent_nm = secure_getenv("NODE_ADJACENT_NODE_MODULES")) {
+    config_adjacent_node_modules = (*adjacent_nm == '1');
+  }
+  if (auto support_symlinks = secure_getenv("NODE_SUPPORT_SYMLINKS")) {
+    config_preserve_symlinks = (*support_symlinks == '1');
+    config_adjacent_node_modules = (*support_symlinks == '1');
+  }
+
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;
