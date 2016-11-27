@@ -2293,7 +2293,7 @@ Returns the maximum number of bytes that will be returned when
 `buf.inspect()` is called. This can be overridden by user modules. See
 [`util.inspect()`] for more details on `buf.inspect()` behavior.
 
-Note that this is a property on the `buffer` module as returned by
+Note that this is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ## buffer.kMaxLength
@@ -2306,7 +2306,7 @@ added: v3.0.0
 On 32-bit architectures, this value is `(2^30)-1` (~1GB).
 On 64-bit architectures, this value is `(2^31)-1` (~2GB).
 
-Note that this is a property on the `buffer` module as returned by
+Note that this is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ## buffer.transcode(source, fromEnc, toEnc)
@@ -2338,7 +2338,7 @@ console.log(newBuf.toString('ascii'));
 Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
 with `?` in the transcoded `Buffer`.
 
-Note that this is a property on the `buffer` module as returned by
+Note that this is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ## Class: SlowBuffer
