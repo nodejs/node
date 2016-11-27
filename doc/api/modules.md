@@ -6,16 +6,18 @@
 
 Node.js has a simple module loading system.  In Node.js, files and modules
 are in one-to-one correspondence (each file is treated as a separate module).
-As an example, `foo.js` loads the module `circle.js` in the same directory.
 
-The contents of `foo.js`:
+As an example, consider a file named `foo.js`:
 
 ```js
 const circle = require('./circle.js');
 console.log(`The area of a circle of radius 4 is ${circle.area(4)}`);
 ```
 
-The contents of `circle.js`:
+On the first line, `foo.js` loads the module `circle.js` that is in the same
+directory as `foo.js`.
+
+Here are the contents of `circle.js`:
 
 ```js
 const PI = Math.PI;
@@ -23,7 +25,6 @@ const PI = Math.PI;
 exports.area = (r) => PI * r * r;
 
 exports.circumference = (r) => 2 * PI * r;
-
 ```
 
 The module `circle.js` has exported the functions `area()` and
