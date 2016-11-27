@@ -18,9 +18,10 @@ const options = {
   timeout: common.platformTimeout(100)
 };
 
-server.listen(0, options.host, (e) => {
+server.listen(0, options.host, () => {
   options.port = server.address().port;
-  doRequest(() => {
+  doRequest((numListeners) => {
+    assert.strictEqual(numListeners, 1);
     doRequest((numListeners) => {
       assert.strictEqual(numListeners, 1);
       server.close();
@@ -30,20 +31,14 @@ server.listen(0, options.host, (e) => {
 });
 
 function doRequest(cb) {
-  http.request(options, (response) => {
+  http.request(options, common.mustCall((response) => {
     const sockets = agent.sockets[`${options.host}:${options.port}:`];
-    assert.strictEqual(sockets.length, 1)
+    assert.strictEqual(sockets.length, 1);
     const socket = sockets[0];
-    const timeoutEvent = socket._events.timeout;
-    let numListeners = 0;
-    if (Array.isArray(timeoutEvent)) {
-      numListeners = timeoutEvent.length;
-    } else if (timeoutEvent) {
-      numListeners = 1;
-    }
+    const numListeners = socket.listeners('timeout').length;
     response.resume();
     response.once('end', () => {
       process.nextTick(cb, numListeners);
     });
-  }).end();
+  })).end();
 }
