@@ -15,6 +15,11 @@ function test(arrayBuffer, offset, length) {
   }
 }
 
+const acceptableOOMErrors = [
+  'Array buffer allocation failed',
+  'Invalid array buffer length'
+];
+
 const testCases = [
   [200, 50, 100],
   [4294967296 /* 1 << 32 */, 2147483648 /* 1 << 31 */, 1000],
@@ -27,7 +32,7 @@ for (let index = 0, arrayBuffer; index < testCases.length; index += 1) {
   try {
     arrayBuffer = new ArrayBuffer(size);
   } catch (e) {
-    if (e instanceof RangeError && e.message === 'Invalid array buffer length')
+    if (e instanceof RangeError && acceptableOOMErrors.includes(e.message))
       return common.skip(`Unable to allocate ${size} bytes for ArrayBuffer`);
     throw e;
   }
