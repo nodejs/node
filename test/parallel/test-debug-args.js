@@ -2,6 +2,6 @@
 // Flags: --debug-code
 
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-assert.notEqual(process.execArgv.indexOf('--debug-code'), -1);
+assert(process.execArgv.includes('--debug-code'));
