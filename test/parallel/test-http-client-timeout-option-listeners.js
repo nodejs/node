@@ -18,17 +18,17 @@ const options = {
   timeout: common.platformTimeout(100)
 };
 
-server.listen(0, options.host, () => {
+server.listen(0, options.host, common.mustCall(() => {
   options.port = server.address().port;
-  doRequest((numListeners) => {
+  doRequest(common.mustCall((numListeners) => {
     assert.strictEqual(numListeners, 1);
-    doRequest((numListeners) => {
+    doRequest(common.mustCall((numListeners) => {
       assert.strictEqual(numListeners, 1);
       server.close();
       agent.destroy();
-    });
-  });
-});
+    }));
+  }));
+}));
 
 function doRequest(cb) {
   http.request(options, common.mustCall((response) => {
@@ -37,8 +37,8 @@ function doRequest(cb) {
     const socket = sockets[0];
     const numListeners = socket.listeners('timeout').length;
     response.resume();
-    response.once('end', () => {
+    response.once('end', common.mustCall(() => {
       process.nextTick(cb, numListeners);
-    });
+    }));
   })).end();
 }
