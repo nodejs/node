@@ -945,6 +945,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
 int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                          char** target) {
   Isolate* isolate = env()->isolate();
+  Local<Array> input_array;
   Local<Array> js_array;
   uint32_t length;
   size_t list_size, data_size, data_offset;
@@ -954,14 +955,15 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   if (!js_value->IsArray())
     return UV_EINVAL;
 
-  js_array = js_value.As<Array>()->Clone().As<Array>();
-  length = js_array->Length();
+  input_array = js_value.As<Array>();
+  length = input_array->Length();
+  js_array = Array::New(env()->isolate(), length);
 
   // Convert all array elements to string. Modify the js object itself if
   // needed - it's okay since we cloned the original object.
   for (uint32_t i = 0; i < length; i++) {
-    if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
+    auto item = input_array->Get(i)->ToString(env()->isolate());
+    js_array->Set(i, item);
   }
 
   // Index has a pointer to every string element, plus one more for a final
