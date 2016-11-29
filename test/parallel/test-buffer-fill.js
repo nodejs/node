@@ -395,7 +395,6 @@ assert.throws(() => {
   buf.fill('');
 }, /^RangeError: out of range index$/);
 
-
 assert.deepStrictEqual(
     Buffer.allocUnsafeSlow(16).fill('ab', 'utf16le'),
     Buffer.from('61006200610062006100620061006200', 'hex'));
@@ -403,3 +402,30 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(
     Buffer.allocUnsafeSlow(15).fill('ab', 'utf16le'),
     Buffer.from('610062006100620061006200610062', 'hex'));
+
+assert.deepStrictEqual(
+    Buffer.allocUnsafeSlow(16).fill('ab', 'utf16le'),
+    Buffer.from('61006200610062006100620061006200', 'hex'));
+assert.deepStrictEqual(
+    Buffer.allocUnsafeSlow(16).fill('a', 'utf16le'),
+    Buffer.from('61006100610061006100610061006100', 'hex'));
+
+assert.strictEqual(
+    Buffer.allocUnsafeSlow(16).fill('a', 'utf16le').toString('utf16le'),
+    'a'.repeat(8));
+assert.strictEqual(
+    Buffer.allocUnsafeSlow(16).fill('a', 'latin1').toString('latin1'),
+    'a'.repeat(16));
+assert.strictEqual(
+    Buffer.allocUnsafeSlow(16).fill('a', 'utf8').toString('utf8'),
+    'a'.repeat(16));
+
+assert.strictEqual(
+    Buffer.allocUnsafeSlow(16).fill('Љ', 'utf16le').toString('utf16le'),
+    'Љ'.repeat(8));
+assert.strictEqual(
+    Buffer.allocUnsafeSlow(16).fill('Љ', 'latin1').toString('latin1'),
+    '\t'.repeat(16));
+assert.strictEqual(
+    Buffer.allocUnsafeSlow(16).fill('Љ', 'utf8').toString('utf8'),
+    'Љ'.repeat(8));
