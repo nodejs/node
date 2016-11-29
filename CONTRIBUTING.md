@@ -43,8 +43,10 @@ $ git remote add upstream git://github.com/nodejs/node.git
 
 #### Which branch?
 
-For developing new features and bug fixes, the `master` branch should be pulled
-and built upon.
+For developing new features and bug fixes, the `master` branch should be
+pulled and built upon.  See the section on
+[LTS contributions](#lts-contributions) if you would like the fix to be
+backported.
 
 #### Respect the stability index
 
@@ -354,3 +356,59 @@ By making a contribution to this project, I certify that:
   personal information I submit with it, including my sign-off) is
   maintained indefinitely and may be redistributed consistent with
   this project or the open source license(s) involved.
+
+#### LTS contributions
+
+Before backporting or contributing to the LTS releases make sure you are
+familiar with the LTS information and schedules at
+https://github.com/nodejs/LTS#lts-schedule
+
+Items may be selected as candidates for inclusion into the "active LTS"
+branch(es), especially if they are bug fixes.  This will be at the
+discretion of the person releasing that new version by default, but anyone
+can request a backport by adding the label "lts-watch-vX.x" (e.g
+lts-watch-v6.x) and adding a suitable comment.  If the changes can just be
+cherry picked across without merge conflicts this will often be done by a
+member of the release team, but if not then they may request a manual merge,
+for which a pull request will be required.  Also related to the lts-watch-
+labels, if you want to ensure something is not backported, label it with
+dont-land-on-vX.x (e.g.  dont-land-on-v6.x)
+
+Generally any changes should have landed in the current release for at least
+two weeks before considering backporting to the other releases.
+
+### Current release
+
+The "Current" release - as opposed to LTS - changes every six months and is
+the shown on the front of the nodejs.org download page along with the LTS
+one.  It will typically have more frequent releases than LTS and is for
+those for whom having the latest features is more important than stability. 
+Even numbered versions will become LTS releases and the odd numbered ones
+will be supported only for nine months from when they are released - the
+details of each are on the LTS schedule page.  Once Pull Requests have
+landed in master they will often automatically become candidates for the
+next version of the "current" release, in which case the process mentioned
+above regarding cherry picking and potentially pull requests will apply.
+
+### Merge conflicts on LTS branches
+
+If a fix is selected for inclusion in a current or LTS releases but cannot
+be merged directly, a member of the release team may request that someone
+performs a manual backport.  This will involve someone (potentially the
+person who submitted the original pull request) doing the backport by
+submitting another pull request into the appropriate staging branch (e.g. 
+v6.x-staging).
+
+If you need to submit a new pull request to a branch other than master to do
+a manual backport then you should include the same set of commits that went
+into master along with the associated metadata. The easiest way to do this
+is to use git cherry-pick to pull across the commit hash from master:
+
+```
+   $ git cherry-pick HASH
+   // fix all conflicts that are reported
+   $ git cherry-pick --continue
+```
+
+Any other relevant links to pull requests can be included as "Ref:" links in
+the PR message
