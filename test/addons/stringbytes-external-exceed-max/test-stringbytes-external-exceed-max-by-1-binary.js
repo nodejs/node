@@ -34,9 +34,9 @@ assert.throws(function() {
 }, /"toString\(\)" failed/);
 
 var maxString = buf.toString('latin1', 1);
-assert.equal(maxString.length, kStringMaxLength);
+assert.strictEqual(maxString.length, kStringMaxLength);
 // Free the memory early instead of at the end of the next assignment
 maxString = undefined;
 
 maxString = buf.toString('latin1', 0, kStringMaxLength);
-assert.equal(maxString.length, kStringMaxLength);
+assert.strictEqual(maxString.length, kStringMaxLength);
