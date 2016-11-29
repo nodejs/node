@@ -2,5 +2,5 @@
 const common = require('../../common');
 var assert = require('assert');
 const binding = require(`./build/${common.buildType}/binding`);
-assert.equal('world', binding());
+assert.strictEqual(binding(), 'world');
 console.log('binding.hello() =', binding());
