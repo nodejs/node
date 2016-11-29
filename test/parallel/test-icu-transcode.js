@@ -46,3 +46,13 @@ assert.throws(
   () => buffer.transcode(Buffer.from('a'), 'uf8', 'b'),
   /Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]/
 );
+
+assert.deepStrictEqual(
+    buffer.transcode(Buffer.from('hi', 'ascii'), 'ascii', 'utf16le'),
+    Buffer.from('hi', 'utf16le'));
+assert.deepStrictEqual(
+    buffer.transcode(Buffer.from('hi', 'latin1'), 'latin1', 'utf16le'),
+    Buffer.from('hi', 'utf16le'));
+assert.deepStrictEqual(
+    buffer.transcode(Buffer.from('hä', 'latin1'), 'latin1', 'utf16le'),
+    Buffer.from('hä', 'utf16le'));
