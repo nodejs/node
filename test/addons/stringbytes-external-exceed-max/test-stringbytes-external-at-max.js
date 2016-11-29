@@ -30,4 +30,4 @@ if (!binding.ensureAllocation(2 * kStringMaxLength)) {
 }
 
 const maxString = buf.toString('latin1');
-assert.equal(maxString.length, kStringMaxLength);
+assert.strictEqual(maxString.length, kStringMaxLength);
