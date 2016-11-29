@@ -481,81 +481,126 @@ added: v0.1.16
 
 * {Object}
 
-The `module.exports` object is created by the Module system. Sometimes this is
-not acceptable; many want their module to be an instance of some class. To do
-this, assign the desired export object to `module.exports`. Note that assigning
-the desired object to `exports` will simply rebind the local `exports` variable,
-which is probably not what you want to do.
-
-For example suppose we were making a module called `a.js`
-
-```js
-const EventEmitter = require('events');
-
-module.exports = new EventEmitter();
-
-// Do some work, and after some time emit
-// the 'ready' event from the module itself.
-setTimeout(() => {
-  module.exports.emit('ready');
-}, 1000);
-```
-
-Then in another file we could do
-
-```js
-const a = require('./a');
-a.on('ready', () => {
-  console.log('module a is ready');
-});
-```
-
-
-Note that assignment to `module.exports` must be done immediately. It cannot be
-done in any callbacks.  This does not work:
-
-x.js:
-
-```js
-setTimeout(() => {
-  module.exports = { a: 'hello' };
-}, 0);
-```
-
-y.js:
-
-```js
-const x = require('./x');
-console.log(x.a);
-```
+The `module.exports` object is used to export values in a js file. It is
+initialized as `{}` by Module system, and passed to
+[module wrapper](#modules_the_module_wrapper) as argument. (This makes
+`module.exports` and `exports` available in a js file, the details will be
+described below.) `require` returns the processed `module.exports` as the
+exports of a module.
 
 #### exports alias
 <!-- YAML
 added: v0.1.16
 -->
 
-The `exports` variable that is available within a module starts as a reference
-to `module.exports`. As with any variable, if you assign a new value to it, it
-is no longer bound to the previous value.
+There is no magic behind `exports`. It is the `module.exports` passed to
+[module wrapper](#modules_the_module_wrapper) as the first argument.
 
-To illustrate the behavior, imagine this hypothetical implementation of
-`require()`:
+Here is a minimized code logic of `require` to illustrate the export
+principle, and how `module.exports` and `exports` works:<br/>
 
+As described in [module wrapper](#modules_the_module_wrapper), your js file
+will be wrapped like this:
 ```js
-function require(...) {
-  // ...
-  ((module, exports) => {
-    // Your module code here
-    exports = some_func;        // re-assigns exports, exports is no longer
-                                // a shortcut, and nothing is exported.
-    module.exports = some_func; // makes your module export 0
-  })(module, module.exports);
-  return module;
+(function (exports, require, module, __filename, __dirname) { // fileWrapper
+// Your module code actually lives in here
+// So both of the exports and module.exports are valid in your file
+});
+```
+And this is a minimized logic of `require` for `module.exports`:
+```js
+function _require(fileWrapper) {
+  // module.exports is initialized as {}
+  const module = { exports:{} };
+  // The wrapped file will be called with this = module.exports
+  // module.exports is passed as exports. ( exports = module.exports )
+  // module is passed as module.
+  fileWrapper.apply(module.exports,
+    [module.exports, require, module, __filename, __dirname]);
+  // the return value of require, its the export results of a required module.
+  return module.exports;
 }
 ```
+When you `require` a file, Node.js will wrap it with a function wrapper as
+above, and call it like the code logic described in `_require`. By the code
+logic, behaviors of `module.exports` and `exports` are dependent on these
+points:
+  - `require` is a synchronize process.
+  - `require` return the `module.exports` as the exports of a module.
+  - Javascript always passes by value.
 
-As a guideline, if the relationship between `exports` and `module.exports`
-seems like magic to you, ignore `exports` and only use `module.exports`.
+As a result, the export results of a module is a returned value of
+`module.exports` at the tickcount which `require` is returned.
+
+Let's illustrate the behaviors and principles with codes. (You can use either
+`_require` or directly a js file to check these behaviors.)
+
+Synchronize behaviors (Demonstrate with the minimized `_require` above) :
+```js
+function synchronize(exports, _, module) { // the module wrapper
+  // Your module codes actually lives below:
+  exports.a = 'Add a props a to module.exports';
+  module.exports.b = 'Add a props b';
+  module.exports = {
+    c: 'Assign module.exports to a new Object, so a and b are invalid.'
+  };
+  exports.d = 'exports is invalid here, its referred to old module.exports';
+  exports = module.exports; // reassigning exports to new module.exports
+  exports.e = 'After reassigned to new module.exports, exports works again.';
+  //
+  exports = {
+    f: 'Assign exports to a local Object, so its not referred to module.exports'
+  };
+  exports.g = 'This just add a prop to the local Object above.';
+}
+
+const exported = _require(synchronize); // Only c and e will be exported.
+console.log(exported);
+/* The exported result will be:
+{
+  c: 'Assign a new Object to module.exports, so a and b are invalid.'
+  e: 'After reassigned to new module.exports, exports works again.'
+}
+*/
+```
+
+Asynchronous behaviors (directly checking in file) :<br/>
+Assume you have a `x.js`:
+```js
+// Let's name the exported value, to make things clearly.
+const the_returned_exports = {
+  a: 'sync export prop a'
+};
+module.exports = the_returned_exports;
+setTimeout( () => {
+  module.exports.b = 'okay, module.exports is referred to the_returned_exports'+
+  ' which returned in previously tickcount.';
+  module.exports = {
+    c: 'does nothing, it assign a new Object, but the module.exports was' +
+    ' returned at previously tickcount.( the return is the_returned_exports ).'
+  }
+},1000);
+```
+Then in `y.js`:
+```js
+const x = require('./x');
+console.log(x); // { a } here
+setTimeout( () => {
+  console.log(x); // { a, b } here
+},1000);
+// c is not exported
+```
+
+There is one more thing to notice: `this`. Because `module.exports` was passed
+as `this` argument for `The module wrapper`, you may used `this` as an alias of
+`exports` to export values previously, But since `this` is an undocumented
+value, the behavior of `this` is not guaranteed. Ex: when you use `babel`,
+`transform-es2015-modules-commonjs` will break `this`, so you should not use
+`this` as a shortcut for export.
+
+**As a guideline**, never use 'this' to export, and if the `exports` and
+`module.exports` makes you confused, ignore `exports` and only use
+`module.exports`.
 
 ### module.filename
 <!-- YAML
