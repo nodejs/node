@@ -396,8 +396,10 @@ function runCallChecks(exitCode) {
 }
 
 
-exports.mustCall = function(fn, expected) {
-  if (typeof expected !== 'number') expected = 1;
+exports.mustCall = function(fn, expected = 1) {
+  if (typeof expected !== 'number' || expected < 0) {
+    throw new RangeError(`Invalid expected value: ${expected}`);
+  }
 
   var context = {
     expected: expected,
