@@ -29,9 +29,9 @@ var syntaxArgs = [
     var c = spawnSync(node, _args, {encoding: 'utf8'});
 
     // no output should be produced
-    assert.equal(c.stdout, '', 'stdout produced');
-    assert.equal(c.stderr, '', 'stderr produced');
-    assert.equal(c.status, 0, 'code == ' + c.status);
+    assert.strictEqual(c.stdout, '', 'stdout produced');
+    assert.strictEqual(c.stderr, '', 'stderr produced');
+    assert.strictEqual(c.status, 0, 'code == ' + c.status);
   });
 });
 
@@ -50,13 +50,13 @@ var syntaxArgs = [
     var c = spawnSync(node, _args, {encoding: 'utf8'});
 
     // no stdout should be produced
-    assert.equal(c.stdout, '', 'stdout produced');
+    assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a syntax error message
     var match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
     assert(match, 'stderr incorrect');
 
-    assert.equal(c.status, 1, 'code == ' + c.status);
+    assert.strictEqual(c.status, 1, 'code == ' + c.status);
   });
 });
 
@@ -73,12 +73,12 @@ var syntaxArgs = [
     var c = spawnSync(node, _args, {encoding: 'utf8'});
 
     // no stdout should be produced
-    assert.equal(c.stdout, '', 'stdout produced');
+    assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a module not found error message
     var match = c.stderr.match(/^Error: Cannot find module/m);
     assert(match, 'stderr incorrect');
 
-    assert.equal(c.status, 1, 'code == ' + c.status);
+    assert.strictEqual(c.status, 1, 'code == ' + c.status);
   });
 });
