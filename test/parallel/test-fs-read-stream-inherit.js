@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
-var fs = require('fs');
-var fn = path.join(common.fixturesDir, 'elipses.txt');
-var rangeFile = path.join(common.fixturesDir, 'x.txt');
+const path = require('path');
+const fs = require('fs');
+const fn = path.join(common.fixturesDir, 'elipses.txt');
+const rangeFile = path.join(common.fixturesDir, 'x.txt');
 
-var callbacks = { open: 0, end: 0, close: 0 };
+const callbacks = { open: 0, end: 0, close: 0 };
 
-var paused = false;
+let paused = false;
 
-var file = fs.ReadStream(fn);
+const file = fs.ReadStream(fn);
 
 file.on('open', function(fd) {
   file.length = 0;
@@ -52,13 +52,13 @@ file.on('close', function() {
   //assert.equal(fs.readFileSync(fn), fileContent);
 });
 
-var file3 = fs.createReadStream(fn, Object.create({encoding: 'utf8'}));
+const file3 = fs.createReadStream(fn, Object.create({encoding: 'utf8'}));
 file3.length = 0;
 file3.on('data', function(data) {
   assert.equal('string', typeof data);
   file3.length += data.length;
 
-  for (var i = 0; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     // http://www.fileformat.info/info/unicode/char/2026/index.htm
     assert.equal('\u2026', data[i]);
   }
@@ -77,11 +77,11 @@ process.on('exit', function() {
   console.error('ok');
 });
 
-var file4 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
+const file4 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
                                 start: 1, end: 2}));
 assert.equal(file4.start, 1);
 assert.equal(file4.end, 2);
-var contentRead = '';
+let contentRead = '';
 file4.on('data', function(data) {
   contentRead += data.toString('utf-8');
 });
@@ -89,7 +89,7 @@ file4.on('end', function(data) {
   assert.equal(contentRead, 'yz');
 });
 
-var file5 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
+const file5 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
                                 start: 1}));
 assert.equal(file5.start, 1);
 file5.data = '';
@@ -101,7 +101,7 @@ file5.on('end', function() {
 });
 
 // https://github.com/joyent/node/issues/2320
-var file6 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1.23,
+const file6 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1.23,
                                 start: 1}));
 assert.equal(file6.start, 1);
 file6.data = '';
@@ -116,7 +116,7 @@ assert.throws(function() {
   fs.createReadStream(rangeFile, Object.create({start: 10, end: 2}));
 }, /"start" option must be <= "end" option/);
 
-var stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
+const stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
                                  end: 0 }));
 assert.equal(stream.start, 0);
 assert.equal(stream.end, 0);
@@ -131,11 +131,11 @@ stream.on('end', function() {
 });
 
 // pause and then resume immediately.
-var pauseRes = fs.createReadStream(rangeFile);
+const pauseRes = fs.createReadStream(rangeFile);
 pauseRes.pause();
 pauseRes.resume();
 
-var file7 = fs.createReadStream(rangeFile, Object.create({autoClose: false }));
+let file7 = fs.createReadStream(rangeFile, Object.create({autoClose: false }));
 assert.equal(file7.autoClose, false);
 file7.on('data', function() {});
 file7.on('end', function() {
@@ -159,13 +159,13 @@ function file7Next() {
 }
 
 // Just to make sure autoClose won't close the stream because of error.
-var file8 = fs.createReadStream(null, Object.create({fd: 13337,
+const file8 = fs.createReadStream(null, Object.create({fd: 13337,
                                 autoClose: false }));
 file8.on('data', function() {});
 file8.on('error', common.mustCall(function() {}));
 
 // Make sure stream is destroyed when file does not exist.
-var file9 = fs.createReadStream('/path/to/file/that/does/not/exist');
+const file9 = fs.createReadStream('/path/to/file/that/does/not/exist');
 file9.on('data', function() {});
 file9.on('error', common.mustCall(function() {}));
 
