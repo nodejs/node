@@ -53,7 +53,7 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
       assert.notEqual(-1, response.indexOf(expectedOutput));
     } else {
       // Normal path where we expect either FIPS enabled or disabled.
-      assert.equal(expectedOutput, response);
+      assert.strictEqual(expectedOutput, Number(response));
     }
     childOk(child);
   }
