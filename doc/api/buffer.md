@@ -398,8 +398,8 @@ A zero-length `Buffer` will be created if `size <= 0`.
 
 Unlike [`ArrayBuffers`][`ArrayBuffer`], the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created `Buffer`
-are unknown and *could contain sensitive data*. Use [`buf.fill(0)`][`buf.fill()`]
-to initialize a `Buffer` to zeroes.
+are unknown and *could contain sensitive data*. Use
+[`Buffer.alloc(size)`][`Buffer.alloc()`] instead to initialize a `Buffer` to zeroes.
 
 Example:
 
@@ -517,7 +517,7 @@ be less than or equal to the value of [`buffer.kMaxLength`]. Otherwise, a
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
-*may contain sensitive data*. Use [`buf.fill(0)`][`buf.fill()`] to initialize such
+*may contain sensitive data*. Use [`Buffer.alloc()`] instead to initialize
 `Buffer` instances to zeroes.
 
 Example:
