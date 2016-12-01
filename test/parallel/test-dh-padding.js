@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-let	crypto;
+let crypto;
 
 try {
   crypto = require('crypto');
