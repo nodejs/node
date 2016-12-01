@@ -13,10 +13,10 @@ var crypto = require('crypto');
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
   var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha256');
-  assert.equal(actual.toString('latin1'), expected);
+  assert.strictEqual(actual.toString('latin1'), expected);
 
   crypto.pbkdf2(password, salt, iterations, keylen, 'sha256', (err, actual) => {
-    assert.equal(actual.toString('latin1'), expected);
+    assert.strictEqual(actual.toString('latin1'), expected);
   });
 }
 
@@ -47,18 +47,18 @@ testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
 var expected =
     '64c486c55d30d4c5a079b8823b7d7cb37ff0556f537da8410233bcec330ed956';
 var key = crypto.pbkdf2Sync('password', 'salt', 32, 32, 'sha256');
-assert.equal(key.toString('hex'), expected);
+assert.strictEqual(key.toString('hex'), expected);
 
 crypto.pbkdf2('password', 'salt', 32, 32, 'sha256', common.mustCall(ondone));
 function ondone(err, key) {
   if (err) throw err;
-  assert.equal(key.toString('hex'), expected);
+  assert.strictEqual(key.toString('hex'), expected);
 }
 
 // Error path should not leak memory (check with valgrind).
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 20, null);
-});
+}, /No callback/);
 
 // Should not work with Infinity key length
 assert.throws(function() {
