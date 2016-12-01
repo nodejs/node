@@ -23,6 +23,6 @@ proc.stdin.write('require("path");\n');
 proc.stdin.write('process.exit(42);\n');
 
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
-  assert.equal(exitCode, 42);
-  assert.equal(signalCode, null);
+  assert.strictEqual(exitCode, 42);
+  assert.strictEqual(signalCode, null);
 }));
