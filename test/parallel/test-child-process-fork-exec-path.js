@@ -9,7 +9,7 @@ var copyPath = path.join(common.tmpDir, 'node-copy.exe');
 
 if (process.env.FORK) {
   assert(process.send);
-  assert.equal(process.argv[0], copyPath);
+  assert.strictEqual(process.argv[0], copyPath);
   process.send(msg);
   process.exit();
 } else {
@@ -34,6 +34,6 @@ if (process.env.FORK) {
   }));
   child.on('exit', common.mustCall(function(code) {
     fs.unlinkSync(copyPath);
-    assert.equal(code, 0);
+    assert.strictEqual(code, 0);
   }));
 }
