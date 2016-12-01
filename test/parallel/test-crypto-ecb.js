@@ -21,7 +21,7 @@ crypto.DEFAULT_ENCODING = 'buffer';
   var encrypt = crypto.createCipheriv('BF-ECB', 'SomeRandomBlahz0c5GZVnR', '');
   var hex = encrypt.update('Hello World!', 'ascii', 'hex');
   hex += encrypt.final('hex');
-  assert.equal(hex.toUpperCase(), '6D385F424AAB0CFBF0BB86E07FFB7D71');
+  assert.strictEqual(hex.toUpperCase(), '6D385F424AAB0CFBF0BB86E07FFB7D71');
 }());
 
 (function() {
@@ -29,5 +29,5 @@ crypto.DEFAULT_ENCODING = 'buffer';
       '');
   var msg = decrypt.update('6D385F424AAB0CFBF0BB86E07FFB7D71', 'hex', 'ascii');
   msg += decrypt.final('ascii');
-  assert.equal(msg, 'Hello World!');
+  assert.strictEqual(msg, 'Hello World!');
 }());
