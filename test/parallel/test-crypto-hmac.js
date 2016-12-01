@@ -68,8 +68,9 @@ for (let i = 0, l = wikipedia.length; i < l; i++) {
                          .update(wikipedia[i]['data'])
                          .digest('hex');
     assert.strictEqual(wikipedia[i]['hmac'][hash],
-                 result,
-                 'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' wikipedia');
+                       result,
+                       'Test HMAC-' + hash + ': Test case ' + (i + 1)
+                       + ' wikipedia');
   }
 }
 
@@ -234,8 +235,9 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
       strRes = strRes.substr(0, 32);
     }
     assert.strictEqual(rfc4231[i]['hmac'][hash],
-                 result,
-                 'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' rfc 4231');
+                       result,
+                       'Test HMAC-' + hash + ': Test case ' + (i + 1)
+                       + ' rfc 4231');
     assert.strictEqual(strRes, result, 'Should get same result from stream');
   }
 }
