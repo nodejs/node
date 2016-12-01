@@ -6,8 +6,8 @@ require('../common');
 const assert = require('assert');
 const freelist = require('internal/freelist');
 
-assert.equal(typeof freelist, 'object');
-assert.equal(typeof freelist.FreeList, 'function');
+assert.strictEqual(typeof freelist, 'object');
+assert.strictEqual(typeof freelist.FreeList, 'function');
 
 const flist1 = new freelist.FreeList('flist1', 3, String);
 
