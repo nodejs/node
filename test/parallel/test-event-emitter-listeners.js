@@ -49,3 +49,9 @@ function listener2() {}
   ee.once('foo', listener2);
   assert.deepStrictEqual(ee.listeners('foo'), [listener, listener2]);
 }
+
+{
+  const ee = new events.EventEmitter();
+  ee._events = undefined;
+  assert.deepStrictEqual(ee.listeners('foo'), []);
+}
