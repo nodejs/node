@@ -24,7 +24,7 @@ fs.appendFileSync(filename, data);
 
 var fileData = fs.readFileSync(filename);
 
-assert.equal(Buffer.byteLength(data), fileData.length);
+assert.strictEqual(Buffer.byteLength(data), fileData.length);
 
 // test that appends data to a non empty file
 var filename2 = join(common.tmpDir, 'append-sync2.txt');
@@ -34,8 +34,8 @@ fs.appendFileSync(filename2, data);
 
 var fileData2 = fs.readFileSync(filename2);
 
-assert.equal(Buffer.byteLength(data) + currentFileData.length,
-             fileData2.length);
+assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
+                   fileData2.length);
 
 // test that appendFileSync accepts buffers
 var filename3 = join(common.tmpDir, 'append-sync3.txt');
@@ -46,7 +46,7 @@ fs.appendFileSync(filename3, buf);
 
 var fileData3 = fs.readFileSync(filename3);
 
-assert.equal(buf.length + currentFileData.length, fileData3.length);
+assert.strictEqual(buf.length + currentFileData.length, fileData3.length);
 
 // test that appendFile accepts numbers.
 var filename4 = join(common.tmpDir, 'append-sync4.txt');
@@ -58,13 +58,13 @@ fs.appendFileSync(filename4, num, { mode: m });
 // windows permissions aren't unix
 if (!common.isWindows) {
   var st = fs.statSync(filename4);
-  assert.equal(st.mode & 0o700, m);
+  assert.strictEqual(st.mode & 0o700, m);
 }
 
 var fileData4 = fs.readFileSync(filename4);
 
-assert.equal(Buffer.byteLength('' + num) + currentFileData.length,
-             fileData4.length);
+assert.strictEqual(Buffer.byteLength('' + num) + currentFileData.length,
+                   fileData4.length);
 
 // test that appendFile accepts file descriptors
 var filename5 = join(common.tmpDir, 'append-sync5.txt');
@@ -76,8 +76,8 @@ fs.closeSync(filename5fd);
 
 var fileData5 = fs.readFileSync(filename5);
 
-assert.equal(Buffer.byteLength(data) + currentFileData.length,
-             fileData5.length);
+assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
+                   fileData5.length);
 
 //exit logic for cleanup
 
