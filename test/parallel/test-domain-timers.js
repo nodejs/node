@@ -8,21 +8,22 @@ var timeout;
 var timeoutd = domain.create();
 
 timeoutd.on('error', common.mustCall(function(e) {
-  assert.equal(e.message, 'Timeout UNREFd', 'Domain should catch timer error');
+  assert.strictEqual(e.message, 'Timeout UNREFd',
+                     'Domain should catch timer error');
   clearTimeout(timeout);
 }));
 
 timeoutd.run(function() {
   setTimeout(function() {
     throw new Error('Timeout UNREFd');
-  }).unref();
+  }, 0).unref();
 });
 
 var immediated = domain.create();
 
 immediated.on('error', common.mustCall(function(e) {
-  assert.equal(e.message, 'Immediate Error',
-               'Domain should catch immediate error');
+  assert.strictEqual(e.message, 'Immediate Error',
+                     'Domain should catch immediate error');
 }));
 
 immediated.run(function() {
