@@ -69,6 +69,13 @@ assert.strictEqual(threeFolder, threeIndex);
 assert.notStrictEqual(threeFolder, three);
 
 console.error('test package.json require() loading');
+assert.throws(
+  function() {
+    require('../fixtures/packages/invalid');
+  },
+  /^SyntaxError: Error parsing \S+: Unexpected token , in JSON at position 1$/
+);
+
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok',
                    'Failed loading package');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok',
