@@ -352,7 +352,7 @@ for (const i in TEST_CASES) {
     let msg = decrypt.update(test.ct, 'hex', outputEncoding);
     if (!test.tampered) {
       msg += decrypt.final(outputEncoding);
-      assert.equal(msg, test.plain);
+      assert.strictEqual(msg, test.plain);
     } else {
       // assert that final throws if input data could not be verified!
       assert.throws(function() { decrypt.final('ascii'); }, / auth/);
