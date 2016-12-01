@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
+var common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
-var disposalFailed = false;
 
 // no matter what happens, we should increment a 10 times.
 var a = 0;
@@ -22,11 +22,7 @@ function err() {
   function err2() {
     // this timeout should never be called, since the domain gets
     // disposed when the error happens.
-    setTimeout(function() {
-      console.error('This should not happen.');
-      disposalFailed = true;
-      process.exit(1);
-    });
+    setTimeout(common.mustCall(() => {}, 0), 1);
 
     // this function doesn't exist, and throws an error as a result.
     err3(); // eslint-disable-line no-undef
@@ -41,7 +37,6 @@ function err() {
 }
 
 process.on('exit', function() {
-  assert.equal(a, 10);
-  assert.equal(disposalFailed, false);
+  assert.strictEqual(a, 10);
   console.log('ok');
 });
