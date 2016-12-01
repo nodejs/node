@@ -8,6 +8,7 @@
  */
 
 const common = require('../common');
+const assert = require('assert');
 const cluster = require('cluster');
 let worker1, worker2;
 
@@ -26,7 +27,8 @@ if (cluster.isMaster) {
       cluster.worker.destroy();
     });
 
-    cluster.worker.disconnect();
+    const w = cluster.worker.disconnect();
+    assert.strictEqual(w, cluster.worker, 'did not return a reference');
   } else {
     // Call destroy when worker is not disconnected yet
     cluster.worker.destroy();
