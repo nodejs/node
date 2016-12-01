@@ -48,8 +48,8 @@ if (process.argv[2] === 'child') {
       var expectedExitCode = 7;
       var expectedSignal = null;
 
-      assert.equal(exitCode, expectedExitCode);
-      assert.equal(signal, expectedSignal);
+      assert.strictEqual(exitCode, expectedExitCode);
+      assert.strictEqual(signal, expectedSignal);
     });
   }
 }
