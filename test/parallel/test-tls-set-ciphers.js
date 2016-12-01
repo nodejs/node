@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -11,25 +11,25 @@ if (!common.hasCrypto) {
   return;
 }
 
-var assert = require('assert');
-var exec = require('child_process').exec;
-var tls = require('tls');
-var fs = require('fs');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const tls = require('tls');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
   ciphers: 'DES-CBC3-SHA'
 };
 
-var reply = 'I AM THE WALRUS'; // something recognizable
-var response = '';
+const reply = 'I AM THE WALRUS'; // something recognizable
+let response = '';
 
 process.on('exit', function() {
   assert.notEqual(response.indexOf(reply), -1);
 });
 
-var server = tls.createServer(options, common.mustCall(function(conn) {
+const server = tls.createServer(options, common.mustCall(function(conn) {
   conn.end(reply);
 }));
 
