@@ -125,15 +125,15 @@ if (process.argv[2] === 'child') {
           } else {
             // By default, uncaught exceptions make node exit with an exit
             // code of 7.
-            assert.equal(exitCode, 7);
-            assert.equal(signal, null);
+            assert.strictEqual(exitCode, 7);
+            assert.strictEqual(signal, null);
           }
         } else {
           // If the top-level domain's error handler does not throw,
           // the process must exit gracefully, whether or not
           // --abort_on_uncaught_exception was passed on the command line
-          assert.equal(exitCode, 0);
-          assert.equal(signal, null);
+          assert.strictEqual(exitCode, 0);
+          assert.strictEqual(signal, null);
         }
       });
     }
