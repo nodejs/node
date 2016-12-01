@@ -88,7 +88,7 @@ function next() {
 }
 
 process.on('exit', function() {
-  assert.equal(serverCaught, 2);
-  assert.equal(clientCaught, 2);
+  assert.strictEqual(serverCaught, 2);
+  assert.strictEqual(clientCaught, 2);
   console.log('ok');
 });
