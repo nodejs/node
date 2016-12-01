@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 // skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
 if (common.inFreeBSDJail) {
@@ -13,7 +13,7 @@ dgram.createSocket('udp4').bind(0, common.mustCall(function() {
   assert.strictEqual(typeof this.address().port, 'number');
   assert.ok(isFinite(this.address().port));
   assert.ok(this.address().port > 0);
-  assert.equal(this.address().address, '0.0.0.0');
+  assert.strictEqual(this.address().address, '0.0.0.0');
   this.close();
 }));
 
@@ -26,9 +26,9 @@ dgram.createSocket('udp6').bind(0, common.mustCall(function() {
   assert.strictEqual(typeof this.address().port, 'number');
   assert.ok(isFinite(this.address().port));
   assert.ok(this.address().port > 0);
-  var address = this.address().address;
+  let address = this.address().address;
   if (address === '::ffff:0.0.0.0')
     address = '::';
-  assert.equal(address, '::');
+  assert.strictEqual(address, '::');
   this.close();
 }));
