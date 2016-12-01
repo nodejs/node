@@ -1,18 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 //
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
-  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha256');
+  const actual =
+    crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha256');
   assert.strictEqual(actual.toString('latin1'), expected);
 
   crypto.pbkdf2(password, salt, iterations, keylen, 'sha256', (err, actual) => {
@@ -44,9 +45,9 @@ testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
            '\x89\xb6\x9d\x05\x16\xf8\x29\x89\x3c\x69\x62\x26\x65' +
            '\x0a\x86\x87');
 
-var expected =
+const expected =
     '64c486c55d30d4c5a079b8823b7d7cb37ff0556f537da8410233bcec330ed956';
-var key = crypto.pbkdf2Sync('password', 'salt', 32, 32, 'sha256');
+const key = crypto.pbkdf2Sync('password', 'salt', 32, 32, 'sha256');
 assert.strictEqual(key.toString('hex'), expected);
 
 crypto.pbkdf2('password', 'salt', 32, 32, 'sha256', common.mustCall(ondone));
