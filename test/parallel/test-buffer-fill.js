@@ -49,7 +49,7 @@ testBufs('\u0222aa', 8, 1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 4, -1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'utf8');
-assert.equal(Buffer.allocUnsafe(1).fill(0).fill('\u0222')[0], 0xc8);
+assert.strictEqual(Buffer.allocUnsafe(1).fill(0).fill('\u0222')[0], 0xc8);
 
 
 // BINARY
