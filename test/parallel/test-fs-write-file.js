@@ -18,10 +18,10 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
           '它的建立保证了秦末乱世岭南地区社会秩序的稳定，有效的改善了岭南地区落后的政治、##济现状。\n';
 
 fs.writeFile(filename, s, common.mustCall(function(e) {
-  if (e) throw e;
+  assert.ifError(e);
 
   fs.readFile(filename, common.mustCall(function(e, buffer) {
-    if (e) throw e;
+    assert.ifError(e);
     assert.strictEqual(Buffer.byteLength(s), buffer.length);
   }));
 }));
@@ -31,10 +31,10 @@ const filename2 = join(common.tmpDir, 'test2.txt');
 const buf = Buffer.from(s, 'utf8');
 
 fs.writeFile(filename2, buf, common.mustCall(function(e) {
-  if (e) throw e;
+  assert.ifError(e);
 
   fs.readFile(filename2, common.mustCall(function(e, buffer) {
-    if (e) throw e;
+    assert.ifError(e);
 
     assert.strictEqual(buf.length, buffer.length);
   }));
@@ -45,7 +45,7 @@ const filename3 = join(common.tmpDir, 'test3.txt');
 
 const m = 0o600;
 fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
-  if (e) throw e;
+  assert.ifError(e);
 
   // windows permissions aren't unix
   if (!common.isWindows) {
@@ -54,7 +54,7 @@ fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
   }
 
   fs.readFile(filename3, common.mustCall(function(e, buffer) {
-    if (e) throw e;
+    assert.ifError(e);
 
     assert.strictEqual(Buffer.byteLength('' + n), buffer.length);
   }));
@@ -64,16 +64,16 @@ fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
 const filename4 = join(common.tmpDir, 'test4.txt');
 
 fs.open(filename4, 'w+', common.mustCall(function(e, fd) {
-  if (e) throw e;
+  assert.ifError(e);
 
   fs.writeFile(fd, s, common.mustCall(function(e) {
-    if (e) throw e;
+    assert.ifError(e);
 
     fs.close(fd, common.mustCall(function(e) {
-      if (e) throw e;
+      assert.ifError(e);
 
       fs.readFile(filename4, common.mustCall(function(e, buffer) {
-        if (e) throw e;
+        assert.ifError(e);
 
         assert.strictEqual(Buffer.byteLength(s), buffer.length);
       }));
