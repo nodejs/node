@@ -1,29 +1,29 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var net = require('net');
-var crypto = require('crypto');
+const fs = require('fs');
+const net = require('net');
+const crypto = require('crypto');
 
-var keys = crypto.randomBytes(48);
-var serverLog = [];
-var ticketLog = [];
+const keys = crypto.randomBytes(48);
+const serverLog = [];
+const ticketLog = [];
 
-var serverCount = 0;
+let serverCount = 0;
 function createServer() {
-  var id = serverCount++;
+  const id = serverCount++;
 
-  var counter = 0;
-  var previousKey = null;
+  let counter = 0;
+  let previousKey = null;
 
-  var server = tls.createServer({
+  const server = tls.createServer({
     key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
     cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
     ticketKeys: keys
@@ -49,13 +49,13 @@ function createServer() {
   return server;
 }
 
-var naturalServers = [ createServer(), createServer(), createServer() ];
+const naturalServers = [ createServer(), createServer(), createServer() ];
 
 // 3x servers
-var servers = naturalServers.concat(naturalServers).concat(naturalServers);
+const servers = naturalServers.concat(naturalServers).concat(naturalServers);
 
 // Create one TCP server and balance sockets to multiple TLS server instances
-var shared = net.createServer(function(c) {
+const shared = net.createServer(function(c) {
   servers.shift().emit('connection', c);
 }).listen(0, function() {
   start(function() {
@@ -64,11 +64,11 @@ var shared = net.createServer(function(c) {
 });
 
 function start(callback) {
-  var sess = null;
-  var left = servers.length;
+  let sess = null;
+  let left = servers.length;
 
   function connect() {
-    var s = tls.connect(shared.address().port, {
+    const s = tls.connect(shared.address().port, {
       session: sess,
       rejectUnauthorized: false
     }, function() {
@@ -87,15 +87,15 @@ function start(callback) {
 }
 
 process.on('exit', function() {
-  assert.equal(ticketLog.length, serverLog.length);
-  for (var i = 0; i < naturalServers.length - 1; i++) {
-    assert.notEqual(serverLog[i], serverLog[i + 1]);
-    assert.equal(ticketLog[i], ticketLog[i + 1]);
+  assert.strictEqual(ticketLog.length, serverLog.length);
+  for (let i = 0; i < naturalServers.length - 1; i++) {
+    assert.notStrictEqual(serverLog[i], serverLog[i + 1]);
+    assert.strictEqual(ticketLog[i], ticketLog[i + 1]);
 
     // 2nd connection should have different ticket
-    assert.notEqual(ticketLog[i], ticketLog[i + naturalServers.length]);
+    assert.notStrictEqual(ticketLog[i], ticketLog[i + naturalServers.length]);
 
     // 3rd connection should have the same ticket
-    assert.equal(ticketLog[i], ticketLog[i + naturalServers.length * 2]);
+    assert.strictEqual(ticketLog[i], ticketLog[i + naturalServers.length * 2]);
   }
 });
