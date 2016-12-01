@@ -293,17 +293,25 @@ added: v0.5.0
 * Returns: {String}
 
 The `os.platform()` method returns a string identifying the operating system
-platform as set during compile time of Node.js.
-
-Currently possible values are:
-
-* `'aix'`
-* `'darwin'`
-* `'freebsd'`
-* `'linux'`
-* `'openbsd'`
-* `'sunos'`
-* `'win32'`
+platform as set during compile time of Node.js. Some of the possible values are
+ `"linux"`, `"darwin"`, `"win32"`, `"sunos"` ...
+ 
+ Its value is based on [`OS` constant of `gyp`](https://chromium.googlesource.com/external/gyp/+/md-pages/docs/InputFormatReference.md#Predefined-Variables)
+ , but with exceptions in case of Mac OS X, Windows and Solaris.
+ 
+ On Windows it's value is always `"win32"`, on Mac OS X it's `"darwin"` and on
+ Solaris it is `"sunos"`.
+ 
+ Here is a list of possible values for some platforms:
+ 
+ * Android: `"android"`
+ * Windows/Cygwin: `"win32"`
+ * Mac OS X: `"darwin"`
+ * FreeBSD: `"freebsd"`
+ * OpenBSD: `"openbsd"`
+ * IBM AIX: `"aix"`
+ * Solaris: `"sunos"`
+ * Linux & Others: `"linux"`
 
 Equivalent to [`process.platform`][].
 
