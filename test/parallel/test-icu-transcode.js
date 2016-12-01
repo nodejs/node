@@ -39,12 +39,18 @@ for (const test in tests) {
 }
 
 assert.throws(
-  () => buffer.transcode(Buffer.from('a'), 'b', 'utf8'),
-  /Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]/
+  () => buffer.transcode(null, 'utf8', 'ascii'),
+  /^TypeError: "source" argument must be a Buffer$/
 );
+
+assert.throws(
+  () => buffer.transcode(Buffer.from('a'), 'b', 'utf8'),
+  /^Error: Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]/
+);
+
 assert.throws(
   () => buffer.transcode(Buffer.from('a'), 'uf8', 'b'),
-  /Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]/
+  /^Error: Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]$/
 );
 
 assert.deepStrictEqual(
