@@ -2,7 +2,7 @@
 // Make sure the domain stack is a stack
 
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 var domain = require('domain');
 
 function names(array) {
