@@ -227,7 +227,7 @@ if (process.argv[2] === 'child') {
   tests[testIndex]();
 
   process.on('exit', function onExit() {
-    assert.equal(errorHandlerCalled, true);
+    assert.strictEqual(errorHandlerCalled, true);
   });
 } else {
 
@@ -248,7 +248,7 @@ if (process.argv[2] === 'child') {
     var child = child_process.exec(testCmd);
 
     child.on('exit', function onExit(code, signal) {
-      assert.equal(code, 0, 'Test at index ' + testIndex +
+      assert.strictEqual(code, 0, 'Test at index ' + testIndex +
         ' should have exited with exit code 0 but instead exited with code ' +
         code + ' and signal ' + signal);
     });
