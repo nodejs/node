@@ -26,7 +26,7 @@ function err() {
       console.error('This should not happen.');
       disposalFailed = true;
       process.exit(1);
-    });
+    }, 0);
 
     // this function doesn't exist, and throws an error as a result.
     err3(); // eslint-disable-line no-undef
@@ -41,7 +41,7 @@ function err() {
 }
 
 process.on('exit', function() {
-  assert.equal(a, 10);
-  assert.equal(disposalFailed, false);
+  assert.strictEqual(a, 10);
+  assert.strictEqual(disposalFailed, false);
   console.log('ok');
 });
