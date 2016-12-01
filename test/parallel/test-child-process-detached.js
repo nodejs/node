@@ -18,7 +18,7 @@ process.on('exit', function() {
   assert.notStrictEqual(persistentPid, -1);
   assert.throws(function() {
     process.kill(child.pid);
-  });
+  }, /^Error: kill ESRCH$/);
   assert.doesNotThrow(function() {
     process.kill(persistentPid);
   });
