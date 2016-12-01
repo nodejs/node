@@ -1,6 +1,6 @@
 /* eslint-disable max-len, strict */
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 common.globalCheck = false;
 common.refreshTmpDir();
@@ -19,7 +19,7 @@ var server_tcp, server_unix, client_tcp, client_unix, replServer;
 
 
 // absolute path to test/fixtures/a.js
-var moduleFilename = require('path').join(common.fixturesDir, 'a');
+const moduleFilename = require('path').join(common.fixturesDir, 'a');
 
 console.error('repl test');
 
@@ -30,7 +30,7 @@ global.invoke_me = function(arg) {
 
 function send_expect(list) {
   if (list.length > 0) {
-    var cur = list.shift();
+    const cur = list.shift();
 
     console.error('sending ' + JSON.stringify(cur.send));
 
@@ -330,8 +330,8 @@ function tcp_test() {
     client_tcp = net.createConnection(this.address().port);
 
     client_tcp.on('connect', function() {
-      assert.equal(true, client_tcp.readable);
-      assert.equal(true, client_tcp.writable);
+      assert.strictEqual(true, client_tcp.readable);
+      assert.strictEqual(true, client_tcp.writable);
 
       send_expect([
         { client: client_tcp, send: '',
@@ -399,8 +399,8 @@ function unix_test() {
     client_unix = net.createConnection(common.PIPE);
 
     client_unix.on('connect', function() {
-      assert.equal(true, client_unix.readable);
-      assert.equal(true, client_unix.writable);
+      assert.strictEqual(true, client_unix.readable);
+      assert.strictEqual(true, client_unix.writable);
 
       send_expect([
         { client: client_unix, send: '',
