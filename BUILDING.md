@@ -31,7 +31,7 @@ To build Node.js:
 
 ```console
 $ ./configure
-$ make
+$ make -j4
 ```
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7 and not a newer version.
