@@ -70,8 +70,8 @@ var server = http.createServer(function(req, res) {
 });
 
 process.on('exit', function() {
-  assert.equal(caughtA, false);
-  assert.equal(caughtB, true);
-  assert.equal(caughtC, true);
+  assert.strictEqual(caughtA, false);
+  assert.strictEqual(caughtB, true);
+  assert.strictEqual(caughtC, true);
   console.log('ok - Errors went where they were supposed to go');
 });
