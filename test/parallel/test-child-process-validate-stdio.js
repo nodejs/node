@@ -19,10 +19,10 @@ assert.throws(function() {
 {
   const stdio1 = [];
   const result = _validateStdio(stdio1, false);
-  assert.equal(stdio1.length, 3);
-  assert.equal(result.hasOwnProperty('stdio'), true);
-  assert.equal(result.hasOwnProperty('ipc'), true);
-  assert.equal(result.hasOwnProperty('ipcFd'), true);
+  assert.strictEqual(stdio1.length, 3);
+  assert.strictEqual(result.hasOwnProperty('stdio'), true);
+  assert.strictEqual(result.hasOwnProperty('ipc'), true);
+  assert.strictEqual(result.hasOwnProperty('ipcFd'), true);
 }
 
 // should throw if stdio has ipc and sync is true
