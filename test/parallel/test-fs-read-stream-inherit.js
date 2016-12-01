@@ -16,7 +16,7 @@ const file = fs.ReadStream(fn);
 file.on('open', function(fd) {
   file.length = 0;
   callbacks.open++;
-  assert.equal('number', typeof fd);
+  assert.strictEqual('number', typeof fd);
   assert.ok(file.readable);
 
   // GH-535
@@ -49,18 +49,18 @@ file.on('end', function(chunk) {
 file.on('close', function() {
   callbacks.close++;
 
-  //assert.equal(fs.readFileSync(fn), fileContent);
+  //assert.strictEqual(fs.readFileSync(fn), fileContent);
 });
 
 const file3 = fs.createReadStream(fn, Object.create({encoding: 'utf8'}));
 file3.length = 0;
 file3.on('data', function(data) {
-  assert.equal('string', typeof data);
+  assert.strictEqual('string', typeof data);
   file3.length += data.length;
 
   for (let i = 0; i < data.length; i++) {
     // http://www.fileformat.info/info/unicode/char/2026/index.htm
-    assert.equal('\u2026', data[i]);
+    assert.strictEqual('\u2026', data[i]);
   }
 });
 
@@ -69,47 +69,47 @@ file3.on('close', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(1, callbacks.open);
-  assert.equal(1, callbacks.end);
-  assert.equal(2, callbacks.close);
-  assert.equal(30000, file.length);
-  assert.equal(10000, file3.length);
+  assert.strictEqual(1, callbacks.open);
+  assert.strictEqual(1, callbacks.end);
+  assert.strictEqual(2, callbacks.close);
+  assert.strictEqual(30000, file.length);
+  assert.strictEqual(10000, file3.length);
   console.error('ok');
 });
 
 const file4 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
                                 start: 1, end: 2}));
-assert.equal(file4.start, 1);
-assert.equal(file4.end, 2);
+assert.strictEqual(file4.start, 1);
+assert.strictEqual(file4.end, 2);
 let contentRead = '';
 file4.on('data', function(data) {
   contentRead += data.toString('utf-8');
 });
 file4.on('end', function(data) {
-  assert.equal(contentRead, 'yz');
+  assert.strictEqual(contentRead, 'yz');
 });
 
 const file5 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
                                 start: 1}));
-assert.equal(file5.start, 1);
+assert.strictEqual(file5.start, 1);
 file5.data = '';
 file5.on('data', function(data) {
   file5.data += data.toString('utf-8');
 });
 file5.on('end', function() {
-  assert.equal(file5.data, 'yz\n');
+  assert.strictEqual(file5.data, 'yz\n');
 });
 
 // https://github.com/joyent/node/issues/2320
 const file6 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1.23,
                                 start: 1}));
-assert.equal(file6.start, 1);
+assert.strictEqual(file6.start, 1);
 file6.data = '';
 file6.on('data', function(data) {
   file6.data += data.toString('utf-8');
 });
 file6.on('end', function() {
-  assert.equal(file6.data, 'yz\n');
+  assert.strictEqual(file6.data, 'yz\n');
 });
 
 assert.throws(function() {
@@ -118,8 +118,8 @@ assert.throws(function() {
 
 const stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
                                  end: 0 }));
-assert.equal(stream.start, 0);
-assert.equal(stream.end, 0);
+assert.strictEqual(stream.start, 0);
+assert.strictEqual(stream.end, 0);
 stream.data = '';
 
 stream.on('data', function(chunk) {
@@ -127,7 +127,7 @@ stream.on('data', function(chunk) {
 });
 
 stream.on('end', function() {
-  assert.equal('x', stream.data);
+  assert.strictEqual('x', stream.data);
 });
 
 // pause and then resume immediately.
@@ -136,7 +136,7 @@ pauseRes.pause();
 pauseRes.resume();
 
 let file7 = fs.createReadStream(rangeFile, Object.create({autoClose: false }));
-assert.equal(file7.autoClose, false);
+assert.strictEqual(file7.autoClose, false);
 file7.on('data', function() {});
 file7.on('end', function() {
   process.nextTick(function() {
@@ -154,7 +154,7 @@ function file7Next() {
     file7.data += data;
   });
   file7.on('end', function(err) {
-    assert.equal(file7.data, 'xyz\n');
+    assert.strictEqual(file7.data, 'xyz\n');
   });
 }
 
