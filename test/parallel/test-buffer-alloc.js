@@ -138,7 +138,7 @@ assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
   const sliceA = b.slice(offset, offset + asciiString.length);
   const sliceB = b.slice(offset, offset + asciiString.length);
   for (let i = 0; i < asciiString.length; i++) {
-    assert.equal(sliceA[i], sliceB[i]);
+    assert.strictEqual(sliceA[i], sliceB[i]);
   }
 }
 
@@ -149,7 +149,7 @@ assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
 
   b.write(utf8String, 0, Buffer.byteLength(utf8String), 'utf8');
   let utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
-  assert.equal(utf8String, utf8Slice);
+  assert.strictEqual(utf8String, utf8Slice);
 
   assert.strictEqual(Buffer.byteLength(utf8String),
                      b.write(utf8String, offset, 'utf8'));
@@ -1027,7 +1027,8 @@ assert(Buffer.allocUnsafe(1).parent instanceof ArrayBuffer);
 Buffer.poolSize = ps;
 
 // Test Buffer.copy() segfault
-assert.throws(() => Buffer.allocUnsafe(10).copy());
+assert.throws(() => Buffer.allocUnsafe(10).copy(),
+              /TypeError: argument should be a Buffer/);
 
 const regErrorMsg = new RegExp('First argument must be a string, Buffer, ' +
                                'ArrayBuffer, Array, or array-like object.');
@@ -1036,10 +1037,10 @@ assert.throws(() => Buffer.from(), regErrorMsg);
 assert.throws(() => Buffer.from(null), regErrorMsg);
 
 // Test prototype getters don't throw
-assert.equal(Buffer.prototype.parent, undefined);
-assert.equal(Buffer.prototype.offset, undefined);
-assert.equal(SlowBuffer.prototype.parent, undefined);
-assert.equal(SlowBuffer.prototype.offset, undefined);
+assert.strictEqual(Buffer.prototype.parent, undefined);
+assert.strictEqual(Buffer.prototype.offset, undefined);
+assert.strictEqual(SlowBuffer.prototype.parent, undefined);
+assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 
 
 {
@@ -1065,7 +1066,7 @@ assert.throws(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}), /out of range index/;
+}, /out of range index/);
 
 // Unpooled buffer (replaces SlowBuffer)
 {
