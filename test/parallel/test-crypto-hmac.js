@@ -13,7 +13,7 @@ var h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac')
                .digest('hex');
-assert.equal(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
+assert.strictEqual(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC (Wikipedia Test Cases)
 var wikipedia = [
@@ -67,7 +67,7 @@ for (let i = 0, l = wikipedia.length; i < l; i++) {
     const result = crypto.createHmac(hash, wikipedia[i]['key'])
                          .update(wikipedia[i]['data'])
                          .digest('hex');
-    assert.equal(wikipedia[i]['hmac'][hash],
+    assert.strictEqual(wikipedia[i]['hmac'][hash],
                  result,
                  'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' wikipedia');
   }
@@ -233,10 +233,10 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
       strRes = strRes.substr(0, 32);
     }
-    assert.equal(rfc4231[i]['hmac'][hash],
+    assert.strictEqual(rfc4231[i]['hmac'][hash],
                  result,
                  'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' rfc 4231');
-    assert.equal(strRes, result, 'Should get same result from stream');
+    assert.strictEqual(strRes, result, 'Should get same result from stream');
   }
 }
 
