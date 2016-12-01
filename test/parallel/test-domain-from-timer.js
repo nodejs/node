@@ -12,7 +12,7 @@ setTimeout(function() {
   d.run(function() {
     process.nextTick(function() {
       console.trace('in nexttick', process.domain === d);
-      assert.equal(process.domain, d);
+      assert.strictEqual(process.domain, d);
     });
   });
-});
+}, 0);
