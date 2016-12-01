@@ -25,19 +25,19 @@ assert.strictEqual(dh2.verifyError, 0);
 
 assert.throws(function() {
   crypto.createDiffieHellman([0x1, 0x2]);
-}, /First argument should be number, string or Buffer/);
+}, /^First argument should be number, string or Buffer$/);
 
 assert.throws(function() {
   crypto.createDiffieHellman(function() { });
-}, /First argument should be number, string or Buffer/);
+}, /^First argument should be number, string or Buffer$/);
 
 assert.throws(function() {
   crypto.createDiffieHellman(/abc/);
-}, /First argument should be number, string or Buffer/);
+}, /^First argument should be number, string or Buffer$/);
 
 assert.throws(function() {
   crypto.createDiffieHellman({});
-}, /First argument should be number, string or Buffer/);
+}, /^First argument should be number, string or Buffer$/);
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
@@ -177,7 +177,7 @@ const key3 = ecdh3.generateKeys();
 
 assert.throws(function() {
   ecdh2.computeSecret(key3, 'latin1', 'buffer');
-}, /Failed to translate Buffer to a EC_POINT/);
+}, /^Failed to translate Buffer to a EC_POINT$/);
 
 // ECDH should allow .setPrivateKey()/.setPublicKey()
 const ecdh4 = crypto.createECDH('prime256v1');
