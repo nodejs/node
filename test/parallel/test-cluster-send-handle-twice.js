@@ -14,7 +14,7 @@ if (cluster.isMaster) {
   for (var i = 0; i < workers.toStart; ++i) {
     var worker = cluster.fork();
     worker.on('exit', function(code, signal) {
-      assert.equal(code, 0, 'Worker exited with an error code');
+      assert.strictEqual(code, 0, 'Worker exited with an error code');
       assert(!signal, 'Worker exited by a signal');
     });
   }
