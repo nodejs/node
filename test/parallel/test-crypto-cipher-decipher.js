@@ -27,7 +27,7 @@ function testCipher1(key) {
   var txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.equal(txt, plaintext, 'encryption and decryption');
+  assert.strictEqual(txt, plaintext, 'encryption and decryption');
 
   // streaming cipher interface
   // NB: In real life, it's not guaranteed that you can get all of it
@@ -41,7 +41,7 @@ function testCipher1(key) {
   dStream.end(ciph);
   txt = dStream.read().toString('utf8');
 
-  assert.equal(txt, plaintext, 'encryption and decryption with streams');
+  assert.strictEqual(txt, plaintext, 'encryption and decryption with streams');
 }
 
 
@@ -63,7 +63,7 @@ function testCipher2(key) {
   var txt = decipher.update(ciph, 'base64', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.equal(txt, plaintext, 'encryption and decryption with Base64');
+  assert.strictEqual(txt, plaintext, 'encryption and decryption with Base64');
 }
 
 testCipher1('MySecretKey123');
