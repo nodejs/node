@@ -20,7 +20,7 @@ var options = {
 
 var server = tls.createServer(options, common.fail);
 
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', common.mustCall(function() {
   var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
             ` -connect 127.0.0.1:${this.address().port}`;
 
@@ -28,10 +28,10 @@ server.listen(0, '127.0.0.1', function() {
   if (common.isWindows)
     cmd += ' -no_rand_screen';
 
-  exec(cmd, function(err, stdout, stderr) {
+  exec(cmd, common.mustCall(function(err, stdout, stderr) {
     // Old versions of openssl will still exit with 0 so we
     // can't just check if err is not null.
-    assert.notEqual(stderr.indexOf('handshake failure'), -1);
+    assert(stderr.includes('handshake failure'));
     server.close();
-  });
-});
+  }));
+}));
