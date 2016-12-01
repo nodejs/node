@@ -22,10 +22,10 @@ function grandparent() {
   child.stdin.end(input);
 
   child.on('close', function(code, signal) {
-    assert.equal(code, 0);
-    assert.equal(signal, null);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
     // cat on windows adds a \r\n at the end.
-    assert.equal(output.trim(), input.trim());
+    assert.strictEqual(output.trim(), input.trim());
   });
 }
 
