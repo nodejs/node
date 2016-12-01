@@ -150,7 +150,7 @@ $ git rebase upstream/master
 
 Bug fixes and features **should come with tests**. Add your tests in the
 `test/parallel/` directory. For guidance on how to write a test for the Node.js
-project, see this [guide](./doc/guides/writing_tests.md). Looking at other tests
+project, see this [guide](./doc/guides/writing-tests.md). Looking at other tests
 to see how they should be structured can also help.
 
 To run the tests on Unix / OS X:
