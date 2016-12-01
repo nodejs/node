@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var file = path.join(common.fixturesDir, 'x.txt');
-var data = '';
-var first = true;
+const file = path.join(common.fixturesDir, 'x.txt');
+let data = '';
+let first = true;
 
 var stream = fs.createReadStream(file);
 stream.setEncoding('utf8');
@@ -27,5 +27,5 @@ process.nextTick(function() {
 });
 
 process.on('exit', function() {
-  assert.equal(data, 'xyz\n');
+  assert.strictEqual(data, 'xyz\n');
 });
