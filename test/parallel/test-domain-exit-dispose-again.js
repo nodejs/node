@@ -51,7 +51,7 @@ setTimeout(function firstTimer() {
           'a domain that should be disposed.');
       disposalFailed = true;
       process.exit(1);
-    });
+    }, 1);
 
     // Make V8 throw an unreferenced error. As a result, the domain's error
     // handler is called, which disposes the domain "d" and should prevent the
@@ -69,8 +69,8 @@ setTimeout(function secondTimer() {
 }, TIMEOUT_DURATION);
 
 process.on('exit', function() {
-  assert.equal(a, 10);
-  assert.equal(disposalFailed, false);
+  assert.strictEqual(a, 10);
+  assert.strictEqual(disposalFailed, false);
   assert(secondTimerRan);
   console.log('ok');
 });
