@@ -37,6 +37,6 @@ function tryListen() {
 }
 
 process.on('exit', function() {
-  assert.equal(4, deaths);
-  assert.equal(3, revivals);
+  assert.strictEqual(4, deaths);
+  assert.strictEqual(3, revivals);
 });
