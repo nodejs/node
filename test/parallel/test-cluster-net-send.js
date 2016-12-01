@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fork = require('child_process').fork;
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
 
 if (process.argv[2] !== 'child') {
   console.error('[%d] master', process.pid);
 
-  var worker = fork(__filename, ['child']);
-  var called = false;
+  const worker = fork(__filename, ['child']);
+  let called = false;
 
-  worker.once('message', function(msg, handle) {
+  worker.once('message', common.mustCall(function(msg, handle) {
     assert.equal(msg, 'handle');
     assert.ok(handle);
     worker.send('got');
@@ -23,26 +23,27 @@ if (process.argv[2] !== 'child') {
     handle.on('end', function() {
       worker.kill();
     });
-  });
+  }));
 
   process.once('exit', function() {
+      console.log('runs');
     assert.ok(called);
   });
 } else {
   console.error('[%d] worker', process.pid);
 
-  var socket;
-  var cbcalls = 0;
+  let socket;
+  let cbcalls = 0;
   function socketConnected() {
     if (++cbcalls === 2)
       process.send('handle', socket);
   }
 
-  var server = net.createServer(function(c) {
-    process.once('message', function(msg) {
+  let server = net.createServer(function(c) {
+    process.once('message', common.mustCall(function(msg) {
       assert.equal(msg, 'got');
       c.end('hello');
-    });
+    }));
     socketConnected();
   });
   server.listen(common.PORT, function() {
