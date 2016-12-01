@@ -74,16 +74,18 @@ function dec(encd, pad) {
  * Test encryption
  */
 
-assert.equal(enc(ODD_LENGTH_PLAIN, true), ODD_LENGTH_ENCRYPTED);
-assert.equal(enc(EVEN_LENGTH_PLAIN, true), EVEN_LENGTH_ENCRYPTED);
+assert.strictEqual(enc(ODD_LENGTH_PLAIN, true), ODD_LENGTH_ENCRYPTED);
+assert.strictEqual(enc(EVEN_LENGTH_PLAIN, true), EVEN_LENGTH_ENCRYPTED);
 
 assert.throws(function() {
   // input must have block length %
   enc(ODD_LENGTH_PLAIN, false);
-});
+}, /data not multiple of block length/);
 
 assert.doesNotThrow(function() {
-  assert.equal(enc(EVEN_LENGTH_PLAIN, false), EVEN_LENGTH_ENCRYPTED_NOPAD);
+  assert.strictEqual(
+    enc(EVEN_LENGTH_PLAIN, false), EVEN_LENGTH_ENCRYPTED_NOPAD
+  );
 });
 
 
@@ -91,21 +93,25 @@ assert.doesNotThrow(function() {
  * Test decryption
  */
 
-assert.equal(dec(ODD_LENGTH_ENCRYPTED, true), ODD_LENGTH_PLAIN);
-assert.equal(dec(EVEN_LENGTH_ENCRYPTED, true), EVEN_LENGTH_PLAIN);
+assert.strictEqual(dec(ODD_LENGTH_ENCRYPTED, true), ODD_LENGTH_PLAIN);
+assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED, true), EVEN_LENGTH_PLAIN);
 
 assert.doesNotThrow(function() {
   // returns including original padding
-  assert.equal(dec(ODD_LENGTH_ENCRYPTED, false).length, 32);
-  assert.equal(dec(EVEN_LENGTH_ENCRYPTED, false).length, 48);
+  assert.strictEqual(dec(ODD_LENGTH_ENCRYPTED, false).length, 32);
+  assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED, false).length, 48);
 });
 
 assert.throws(function() {
   // must have at least 1 byte of padding (PKCS):
-  assert.equal(dec(EVEN_LENGTH_ENCRYPTED_NOPAD, true), EVEN_LENGTH_PLAIN);
-});
+  assert.strictEqual(
+    dec(EVEN_LENGTH_ENCRYPTED_NOPAD, true), EVEN_LENGTH_PLAIN
+  );
+}, /bad decrypt/);
 
 assert.doesNotThrow(function() {
   // no-pad encrypted string should return the same:
-  assert.equal(dec(EVEN_LENGTH_ENCRYPTED_NOPAD, false), EVEN_LENGTH_PLAIN);
+  assert.strictEqual(
+    dec(EVEN_LENGTH_ENCRYPTED_NOPAD, false), EVEN_LENGTH_PLAIN
+  );
 });
