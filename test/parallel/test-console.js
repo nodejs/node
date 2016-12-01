@@ -5,8 +5,8 @@ const assert = require('assert');
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
-assert.equal('number', typeof process.stdout.fd);
-assert.equal('number', typeof process.stderr.fd);
+assert.strictEqual('number', typeof process.stdout.fd);
+assert.strictEqual('number', typeof process.stderr.fd);
 
 assert.doesNotThrow(function() {
   process.once('warning', common.mustCall((warning) => {
@@ -102,29 +102,29 @@ const expectedStrings = [
 ];
 
 for (const expected of expectedStrings) {
-  assert.equal(expected + '\n', strings.shift());      // console.log   (stdout)
-  assert.equal(expected + '\n', errStrings.shift());   // console.error (stderr)
+  assert.strictEqual(expected + '\n', strings.shift());      // console.log   (stdout)
+  assert.strictEqual(expected + '\n', errStrings.shift());   // console.error (stderr)
 }
 
 for (const expected of expectedStrings) {
-  assert.equal(expected + '\n', strings.shift());      // console.info  (stdout)
-  assert.equal(expected + '\n', errStrings.shift());   // console.warn  (stderr)
+  assert.strictEqual(expected + '\n', strings.shift());      // console.info  (stdout)
+  assert.strictEqual(expected + '\n', errStrings.shift());   // console.warn  (stderr)
 }
 
-assert.equal("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
+assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
+assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
 assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
-assert.equal(-1, strings.shift().indexOf('baz'));
+assert.strictEqual(-1, strings.shift().indexOf('baz'));
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
-assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
+assert.strictEqual('Trace: This is a {"formatted":"trace"} 10 foo',
              errStrings.shift().split('\n').shift());
 
-assert.equal(strings.length, 0);
-assert.equal(errStrings.length, 0);
+assert.strictEqual(strings.length, 0);
+assert.strictEqual(errStrings.length, 0);
 
 assert.throws(() => {
   console.assert(false, 'should throw');
