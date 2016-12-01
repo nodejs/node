@@ -8,21 +8,21 @@ var cluster = require('cluster');
 var worker;
 
 worker = new cluster.Worker();
-assert.equal(worker.suicide, undefined);
-assert.equal(worker.state, 'none');
-assert.equal(worker.id, 0);
-assert.equal(worker.process, undefined);
+assert.strictEqual(worker.suicide, undefined);
+assert.strictEqual(worker.state, 'none');
+assert.strictEqual(worker.id, 0);
+assert.strictEqual(worker.process, undefined);
 
 worker = new cluster.Worker({
   id: 3,
   state: 'online',
   process: process
 });
-assert.equal(worker.suicide, undefined);
-assert.equal(worker.state, 'online');
-assert.equal(worker.id, 3);
-assert.equal(worker.process, process);
+assert.strictEqual(worker.suicide, undefined);
+assert.strictEqual(worker.state, 'online');
+assert.strictEqual(worker.id, 3);
+assert.strictEqual(worker.process, process);
 
 worker = cluster.Worker.call({}, {id: 5});
 assert(worker instanceof cluster.Worker);
-assert.equal(worker.id, 5);
+assert.strictEqual(worker.id, 5);
