@@ -1,16 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
 
+const assert = require('assert');
+const util = require('util');
 
-var tests = [
+const tls = require('tls');
+
+const tests = [
   // False-y values.
   {
     host: false,
@@ -253,9 +254,9 @@ var tests = [
 ];
 
 tests.forEach(function(test, i) {
-  var err = tls.checkServerIdentity(test.host, test.cert);
-  assert.equal(err && err.reason,
-               test.error,
-               'Test#' + i + ' failed: ' + util.inspect(test) + '\n' +
-               test.error + ' != ' + (err && err.reason));
+  const err = tls.checkServerIdentity(test.host, test.cert);
+  assert.strictEqual(err && err.reason,
+                     test.error,
+                     `Test# ${i} failed: ${util.inspect(test)} \n` +
+                     `${test.error} != ${(err && err.reason)}`);
 });
