@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   process.exit();
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const fs = require('fs');
+const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
 var ntests = 0;
 var nsuccess = 0;
@@ -45,12 +45,12 @@ function test(size, type, name, next) {
     conn.end();
   });
 
-  server.on('close', function(err) {
+  server.on('close', common.mustCall(function(err) {
     assert(!err);
     if (next) next();
-  });
+  }));
 
-  server.listen(0, '127.0.0.1', function() {
+  server.listen(0, '127.0.0.1', common.mustCall(function() {
     var client = tls.connect({
       port: this.address().port,
       rejectUnauthorized: false
@@ -62,7 +62,7 @@ function test(size, type, name, next) {
       nsuccess++;
       server.close();
     });
-  });
+  }));
 }
 
 function testNOT_PFS() {
