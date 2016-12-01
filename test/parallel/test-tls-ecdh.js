@@ -1,31 +1,31 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var exec = require('child_process').exec;
-var fs = require('fs');
+const exec = require('child_process').exec;
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
   ciphers: '-ALL:ECDHE-RSA-AES128-SHA256',
   ecdhCurve: 'prime256v1'
 };
 
-var reply = 'I AM THE WALRUS'; // something recognizable
+const reply = 'I AM THE WALRUS'; // something recognizable
 
-var server = tls.createServer(options, common.mustCall(function(conn) {
+const server = tls.createServer(options, common.mustCall(function(conn) {
   conn.end(reply);
 }));
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
-  var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
+  let cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
             ` -connect 127.0.0.1:${this.address().port}`;
 
   // for the performance and stability issue in s_client on Windows
