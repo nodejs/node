@@ -23,7 +23,7 @@ function parent() {
     n += c;
   });
   child.stdout.on('end', function() {
-    assert.equal(+n, sent);
+    assert.strictEqual(+n, sent);
     console.log('ok');
   });
 
