@@ -10,7 +10,7 @@ if (cluster.isMaster) {
   var worker = cluster.fork();
 
   worker.on('exit', function(code) {
-    assert.equal(code, OK);
+    assert.strictEqual(code, OK);
     process.exit(0);
   });
 
@@ -50,7 +50,7 @@ function check(m) {
   assert.deepStrictEqual(messages[0], messages[1]);
 
   cluster.worker.once('error', function(e) {
-    assert.equal(e, 'HI');
+    assert.strictEqual(e, 'HI');
     process.exit(OK);
   });
 
