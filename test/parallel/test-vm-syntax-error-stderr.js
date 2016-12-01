@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var child_process = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const child_process = require('child_process');
 
-var wrong_script = path.join(common.fixturesDir, 'cert.pem');
+const wrong_script = path.join(common.fixturesDir, 'cert.pem');
 
-var p = child_process.spawn(process.execPath, [
+const p = child_process.spawn(process.execPath, [
   '-e',
   'require(process.argv[1]);',
   wrong_script
 ]);
 
 p.stdout.on('data', function(data) {
-  assert(false, 'Unexpected stdout data: ' + data);
+  common.fail('Unexpected stdout data: ' + data);
 });
 
-var output = '';
+let output = '';
 
 p.stderr.on('data', function(data) {
   output += data;
