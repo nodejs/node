@@ -30,8 +30,10 @@ if (!common.hasFipsCrypto) {
   // Create an md5 hash of "Hallo world"
   var hasher1 = crypto.createHash('md5');
   hasher1.pipe(new Stream2buffer(common.mustCall(function end(err, hash) {
-    assert.equal(err, null);
-    assert.equal(hash.toString('hex'), '06460dadb35d3d503047ce750ceb2d07');
+    assert.strictEqual(err, null);
+    assert.strictEqual(
+      hash.toString('hex'), '06460dadb35d3d503047ce750ceb2d07'
+    );
   })));
   hasher1.end('Hallo world');
 
