@@ -18,9 +18,9 @@ function check(addressType, cb) {
       family: addressType,
       lookup: lookup
     }).on('lookup', common.mustCall(function(err, ip, type) {
-      assert.equal(err, null);
-      assert.equal(address, ip);
-      assert.equal(type, addressType);
+      assert.strictEqual(err, null);
+      assert.strictEqual(address, ip);
+      assert.strictEqual(type, addressType);
     }));
   }));
 
