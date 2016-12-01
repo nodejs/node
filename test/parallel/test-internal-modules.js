@@ -1,9 +1,10 @@
 'use strict';
-var common = require('../common');
-var path = require('path');
-var assert = require('assert');
+const common = require('../common');
+const path = require('path');
+const assert = require('assert');
 
-assert.throws(function() {
+assert.throws(function(err, cb) {
+  if (err) return cb(err);
   require('internal/freelist');
 });
 
