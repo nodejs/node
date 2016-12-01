@@ -40,8 +40,16 @@ To build Node.js:
 
 ```console
 $ ./configure
-$ make
+$ make -j4
 ```
+
+Running `make` with the `-j4` flag will cause it to run 4 compilation jobs
+concurrently which may significantly reduce build time. The number after `-j`
+can be changed to best suit the number of processor cores on your machine. If
+you run into problems running `make` with concurrency, try running it without
+the `-j4` flag. See the
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
+for more information.
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7 and not a newer version.
 
