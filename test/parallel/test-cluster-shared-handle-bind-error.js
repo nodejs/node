@@ -12,7 +12,7 @@ if (cluster.isMaster) {
     var server = this;
     var worker = cluster.fork();
     worker.on('exit', common.mustCall(function(exitCode) {
-      assert.equal(exitCode, 0);
+      assert.strictEqual(exitCode, 0);
       server.close();
     }));
   });
@@ -20,7 +20,7 @@ if (cluster.isMaster) {
   var s = net.createServer(common.fail);
   s.listen(common.PORT, common.fail.bind(null, 'listen should have failed'));
   s.on('error', common.mustCall(function(err) {
-    assert.equal(err.code, 'EADDRINUSE');
+    assert.strictEqual(err.code, 'EADDRINUSE');
     process.disconnect();
   }));
 }
