@@ -42,7 +42,7 @@ function assertOutputLines() {
     'Debugger listening on 127.0.0.1:' + debugPort,
   ];
 
-  assert.equal(outputLines.length, expectedLines.length);
+  assert.strictEqual(outputLines.length, expectedLines.length);
   for (var i = 0; i < expectedLines.length; i++)
     assert(expectedLines[i].includes(outputLines[i]));
 }
