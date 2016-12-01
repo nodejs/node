@@ -1225,6 +1225,17 @@ var formatTests = {
     path: '/node'
   },
 
+   // greater than or equal to 63 characters after `.` in hostname
+  [`http://www.${'z'.repeat(63)}example.com/node`]: {
+    href: `http://www.${'z'.repeat(63)}example.com/node`,
+    protocol: 'http:',
+    slashes: true,
+    host: `www.${'z'.repeat(63)}example.com`,
+    hostname: `www.${'z'.repeat(63)}example.com`,
+    pathname: '/node',
+    path: '/node'
+  },
+
   // https://github.com/nodejs/node/issues/3361
   'file:///home/user': {
     href: 'file:///home/user',
