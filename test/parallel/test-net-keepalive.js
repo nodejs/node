@@ -1,7 +1,7 @@
 'use strict';
-let common = require('../common');
-let assert = require('assert');
-let net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var serverConnection;
 var clientConnection;
@@ -14,7 +14,7 @@ var echoServer = net.createServer(function(connection) {
     serverConnection.end();
     clientConnection.end();
     echoServer.close();
-  },1), common.platformTimeout(100));
+  }, 1), common.platformTimeout(100));
   connection.setTimeout(0);
   assert.notEqual(connection.setKeepAlive, undefined);
   // send a keepalive packet after 50 ms
