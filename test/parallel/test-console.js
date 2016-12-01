@@ -35,28 +35,28 @@ global.process.stderr.write = function(string) {
   errStrings.push(string);
 };
 
-// test console.log()
+// test console.log() goes to stdout
 console.log('foo');
 console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
 console.log({slashes: '\\\\'});
 console.log(custom_inspect);
 
-// test console.info()
+// test console.info() goes to stdout
 console.info('foo');
 console.info('foo', 'bar');
 console.info('%s %s', 'foo', 'bar', 'hop');
 console.info({slashes: '\\\\'});
 console.info(custom_inspect);
 
-// test console.error()
+// test console.error() goes to stderr
 console.error('foo');
 console.error('foo', 'bar');
 console.error('%s %s', 'foo', 'bar', 'hop');
 console.error({slashes: '\\\\'});
 console.error(custom_inspect);
 
-// test console.warn()
+// test console.warn() goes to stderr
 console.warn('foo');
 console.warn('foo', 'bar');
 console.warn('%s %s', 'foo', 'bar', 'hop');
@@ -102,17 +102,19 @@ const expectedStrings = [
 ];
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(expected + '\n', strings.shift());      // console.log   (stdout)
-  assert.strictEqual(expected + '\n', errStrings.shift());   // console.error (stderr)
+  assert.strictEqual(expected + '\n', strings.shift());
+  assert.strictEqual(expected + '\n', errStrings.shift());
 }
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(expected + '\n', strings.shift());      // console.info  (stdout)
-  assert.strictEqual(expected + '\n', errStrings.shift());   // console.warn  (stderr)
+  assert.strictEqual(expected + '\n', strings.shift());
+  assert.strictEqual(expected + '\n', errStrings.shift());
 }
 
-assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
-assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
+assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
+                   strings.shift());
+assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
+                   strings.shift());
 assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.strictEqual(-1, strings.shift().indexOf('baz'));
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
@@ -121,7 +123,7 @@ assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
 assert.strictEqual('Trace: This is a {"formatted":"trace"} 10 foo',
-             errStrings.shift().split('\n').shift());
+                   errStrings.shift().split('\n').shift());
 
 assert.strictEqual(strings.length, 0);
 assert.strictEqual(errStrings.length, 0);
