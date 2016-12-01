@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 
 process.stdin.setRawMode(true);
-assert(process.stdin.isRaw);
+assert.strictEqual(process.stdin.isRaw, true);
 
 process.stdin.setRawMode(false);
-assert(!process.stdin.isRaw);
+assert.strictEqual(process.stdin.isRaw, false);
