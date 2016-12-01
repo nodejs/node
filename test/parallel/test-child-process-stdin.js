@@ -34,8 +34,8 @@ cat.on('exit', common.mustCall(function(status) {
 
 cat.on('close', common.mustCall(function() {
   if (common.isWindows) {
-    assert.equal('hello world\r\n', response);
+    assert.strictEqual('hello world\r\n', response);
   } else {
-    assert.equal('hello world', response);
+    assert.strictEqual('hello world', response);
   }
 }));
