@@ -42,7 +42,7 @@ function assertOutputLines() {
     'Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):' + debugPort,
   ];
 
-  assert.equal(outputLines.length, expectedLines.length);
+  assert.strictEqual(outputLines.length, expectedLines.length);
   for (var i = 0; i < expectedLines.length; i++)
     assert(RegExp(expectedLines[i]).test(outputLines[i]));
 }
