@@ -60,16 +60,21 @@ always welcome but API or behavioral changes to modules at stability level 3
 Node.js has several bundled dependencies in the *deps/* and the *tools/*
 directories that are not part of the project proper. Any changes to files
 in those directories or its subdirectories should be sent to their respective
-projects. Do not send your patch to us, we cannot accept it.
+projects. Do not send a patch to Node.js. We cannot accept such patches.
 
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
 Especially do so if you plan to work on something big. Nothing is more
 frustrating than seeing your hard work go to waste because your vision
-does not align with the project team. Node.js has two IRC channels,
-[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and questions, and
-[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of node core specifically.
+does not align with the project team. (Node.js has two IRC channels:
+[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
+questions, and
+[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
+Node.js core specifically.
+
+For instructions on updating the version of V8 included in the *deps/*
+directory, please refer to [the Maintaining V8 in Node.js guide](https://github.com/nodejs/node/blob/master/doc/guides/maintaining-V8.md).
 
 
 ### Step 2: Branch
