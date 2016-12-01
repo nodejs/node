@@ -26,7 +26,6 @@ if (process.argv[2] !== 'child') {
   }));
 
   process.once('exit', function() {
-      console.log('runs');
     assert.ok(called);
   });
 } else {
