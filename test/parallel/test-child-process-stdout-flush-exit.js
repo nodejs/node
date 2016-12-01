@@ -32,7 +32,7 @@ if (process.argv[2] === 'child') {
   });
 
   child.on('close', common.mustCall(function() {
-    assert.equal(stdout.slice(0, 6), 'hello\n');
-    assert.equal(stdout.slice(stdout.length - 8), 'goodbye\n');
+    assert.strictEqual(stdout.slice(0, 6), 'hello\n');
+    assert.strictEqual(stdout.slice(stdout.length - 8), 'goodbye\n');
   }));
 }
