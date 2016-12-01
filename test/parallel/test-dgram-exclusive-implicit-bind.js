@@ -45,7 +45,7 @@ if (cluster.isMaster) {
   var ports = {};
 
   process.on('exit', function() {
-    assert.equal(pass, true);
+    assert.strictEqual(pass, true);
   });
 
   var target = dgram.createSocket('udp4');
@@ -55,12 +55,12 @@ if (cluster.isMaster) {
     ports[rinfo.port] = true;
 
     if (common.isWindows && messages === 2) {
-      assert.equal(Object.keys(ports).length, 2);
+      assert.strictEqual(Object.keys(ports).length, 2);
       done();
     }
 
     if (!common.isWindows && messages === 4) {
-      assert.equal(Object.keys(ports).length, 3);
+      assert.strictEqual(Object.keys(ports).length, 3);
       done();
     }
 
