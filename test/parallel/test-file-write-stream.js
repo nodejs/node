@@ -46,7 +46,7 @@ file
     assert.throws(function() {
       console.error('write after end should not be allowed');
       file.write('should not work anymore');
-    });
+    }, /^Error: write after end$/);
 
     fs.unlinkSync(fn);
   });
