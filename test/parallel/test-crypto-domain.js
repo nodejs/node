@@ -13,7 +13,7 @@ function test(fn) {
   var ex = new Error('BAM');
   var d = domain.create();
   d.on('error', common.mustCall(function(err) {
-    assert.equal(err, ex);
+    assert.strictEqual(err, ex);
   }));
   var cb = common.mustCall(function() {
     throw ex;
