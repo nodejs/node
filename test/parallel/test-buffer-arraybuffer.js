@@ -15,9 +15,9 @@ const buf = new Buffer(ab);
 assert.ok(buf instanceof Buffer);
 // For backwards compatibility of old .parent property test that if buf is not
 // a slice then .parent should be undefined.
-assert.equal(buf.parent, undefined);
-assert.equal(buf.buffer, ab);
-assert.equal(buf.length, ab.byteLength);
+assert.strictEqual(buf.parent, undefined);
+assert.strictEqual(buf.buffer, ab);
+assert.strictEqual(buf.length, ab.byteLength);
 
 
 buf.fill(0xC);
@@ -46,7 +46,7 @@ assert.throws(function() {
 }, TypeError);
 
 // write{Double,Float}{LE,BE} with noAssert should not crash, cf. #3766
-var b = new Buffer(1);
+const b = Buffer.allocUnsafe(1);
 b.writeFloatLE(11.11, 0, true);
 b.writeFloatBE(11.11, 0, true);
 b.writeDoubleLE(11.11, 0, true);
