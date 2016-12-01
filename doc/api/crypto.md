@@ -330,7 +330,7 @@ added: v1.0.0
 -->
 
 When using an authenticated encryption mode (only `GCM` is currently
-supported), the `cipher.setAAD()` method sets the value used for the
+supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
 Returns `this` for method chaining.
@@ -935,8 +935,8 @@ of two ways:
 - Using the [`verify.update()`][] and [`verify.verify()`][] methods to verify
   the signature.
 
-  The [`crypto.createSign()`][] method is used to create `Sign` instances.
-  `Sign` objects are not to be created directly using the `new` keyword.
+The [`crypto.createVerify()`][] method is used to create `Verify` instances.
+`Verify` objects are not to be created directly using the `new` keyword.
 
 Example: Using `Verify` objects as streams:
 

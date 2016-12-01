@@ -180,7 +180,6 @@ stream.write('It works!'); // Received data: "It works!"
 ES6 example using `class` and `extends`
 
 ```js
-const util = require('util');
 const EventEmitter = require('events');
 
 class MyStream extends EventEmitter {

@@ -298,7 +298,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
       if output.HasCrashed():
         self.severity = 'crashed'
-        exit_code = output.output.exit_code 
+        exit_code = output.output.exit_code
         self.traceback = "oh no!\nexit code: " + PrintCrashed(exit_code)
 
       if output.HasTimedOut():
@@ -1461,6 +1461,13 @@ def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
+def NormalizePath(path):
+  # strip the extra path information of the specified test
+  if path.startswith('test/'):
+    path = path[5:]
+  if path.endswith('.js'):
+    path = path[:-3]
+  return path
 
 def GetSpecialCommandProcessor(value):
   if (not value) or (value.find('@') == -1):
@@ -1534,7 +1541,7 @@ def Main():
   else:
     paths = [ ]
     for arg in args:
-      path = SplitPath(arg)
+      path = SplitPath(NormalizePath(arg))
       paths.append(path)
 
   # Check for --valgrind option. If enabled, we overwrite the special

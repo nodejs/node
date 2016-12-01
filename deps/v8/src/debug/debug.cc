@@ -1701,6 +1701,11 @@ MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
 
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
+  // We cannot generate debug events when JS execution is disallowed.
+  // TODO(5530): Reenable debug events within DisallowJSScopes once relevant
+  // code (MakeExceptionEvent and ProcessDebugEvent) have been moved to C++.
+  if (!AllowJavascriptExecution::IsAllowed(isolate_)) return;
+
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
   // Don't notify listener of exceptions that are internal to a desugaring.

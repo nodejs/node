@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+import sys
+if sys.version_info[0] != 2 or sys.version_info[1] not in (6, 7):
+  sys.stdout.write("Please use either Python 2.6 or 2.7\n")
+  sys.exit(1)
+
 import errno
 import optparse
 import os
@@ -7,7 +12,6 @@ import pprint
 import re
 import shlex
 import subprocess
-import sys
 import shutil
 import string
 
@@ -488,7 +492,7 @@ def pkg_config(pkg):
           shlex.split(pkg_config) + ['--silence-errors', flag, pkg],
           stdout=subprocess.PIPE)
       val = proc.communicate()[0].strip()
-    except OSError, e:
+    except OSError as e:
       if e.errno != errno.ENOENT: raise e  # Unexpected error.
       return (None, None, None)  # No pkg-config/pkgconf installed.
     retval += (val,)
@@ -524,12 +528,12 @@ def get_version_helper(cc, regexp):
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
   except OSError:
-    print '''Node.js configure error: No acceptable C compiler found!
+    print('''Node.js configure error: No acceptable C compiler found!
 
         Please make sure you have a C compiler installed on your system and/or
         consider adjusting the CC environment variable if you installed
         it in a non-standard prefix.
-        '''
+        ''')
     sys.exit()
 
   match = re.search(regexp, proc.communicate()[1])
@@ -555,12 +559,12 @@ def get_gas_version(cc):
                             stdin=subprocess.PIPE, stderr=subprocess.PIPE,
                             stdout=subprocess.PIPE)
   except OSError:
-    print '''Node.js configure error: No acceptable C compiler found!
+    print('''Node.js configure error: No acceptable C compiler found!
 
         Please make sure you have a C compiler installed on your system and/or
         consider adjusting the CC environment variable if you installed
         it in a non-standard prefix.
-        '''
+        ''')
     sys.exit()
 
   match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)",
@@ -615,12 +619,12 @@ def cc_macros(cc=None):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
   except OSError:
-    print '''Node.js configure error: No acceptable C compiler found!
+    print('''Node.js configure error: No acceptable C compiler found!
 
         Please make sure you have a C compiler installed on your system and/or
         consider adjusting the CC environment variable if you installed
         it in a non-standard prefix.
-        '''
+        ''')
     sys.exit()
 
   p.stdin.write('\n')
@@ -677,7 +681,7 @@ def host_arch_cc():
     '__MIPSEL__'  : 'mipsel',
     '__mips__'    : 'mips',
     '__PPC64__'   : 'ppc64',
-    '__PPC__'     : 'ppc',
+    '__PPC__'     : 'ppc64',
     '__x86_64__'  : 'x64',
     '__s390__'    : 's390',
     '__s390x__'   : 's390x',
@@ -848,7 +852,14 @@ def configure_node(o):
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   o['variables']['node_shared'] = b(options.shared)
   node_module_version = getmoduleversion.get_version()
-  shlib_suffix = '%s.dylib' if sys.platform == 'darwin' else 'so.%s'
+
+  if sys.platform == 'darwin':
+    shlib_suffix = '%s.dylib'
+  elif sys.platform.startswith('aix'):
+    shlib_suffix = '%s.a'
+  else:
+    shlib_suffix = 'so.%s'
+
   shlib_suffix %= node_module_version
   o['variables']['node_module_version'] = int(node_module_version)
   o['variables']['shlib_suffix'] = shlib_suffix
@@ -949,7 +960,7 @@ def configure_static(o):
 
 def write(filename, data):
   filename = os.path.join(root_dir, filename)
-  print 'creating ', filename
+  print('creating %s' % filename)
   f = open(filename, 'w+')
   f.write(data)
 
@@ -969,7 +980,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
           patchfile = '%s/%s/%s' % (dir_base, patch_dir, file)
           if os.path.isfile(patchfile):
             srcfile = '%s/%s' % (patch_dir, file)
-            print 'Using version-specific floating patch %s' % patchfile
+            print('Using version-specific floating patch %s' % patchfile)
         list.append(srcfile)
     break
   return list
@@ -984,8 +995,8 @@ def configure_intl(o):
   def icu_download(path):
     # download ICU, if needed
     if not os.access(options.download_path, os.W_OK):
-      print 'Error: cannot write to desired download path. ' \
-            'Either create it or verify permissions.'
+      print('Error: cannot write to desired download path. ' \
+            'Either create it or verify permissions.')
       sys.exit(1)
     for icu in icus:
       url = icu['url']
@@ -996,16 +1007,16 @@ def configure_intl(o):
         if nodedownload.candownload(auto_downloads, "icu"):
           nodedownload.retrievefile(url, targetfile)
       else:
-        print ' Re-using existing %s' % targetfile
+        print(' Re-using existing %s' % targetfile)
       if os.path.isfile(targetfile):
         sys.stdout.write(' Checking file integrity with MD5:\r')
         gotmd5 = nodedownload.md5sum(targetfile)
-        print ' MD5:      %s  %s' % (gotmd5, targetfile)
+        print(' MD5:      %s  %s' % (gotmd5, targetfile))
         if (md5 == gotmd5):
           return targetfile
         else:
-          print ' Expected: %s      *MISMATCH*' % md5
-          print '\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile
+          print(' Expected: %s      *MISMATCH*' % md5)
+          print('\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile)
     return None
   icu_config = {
     'variables': {}
@@ -1025,7 +1036,7 @@ def configure_intl(o):
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
   if have_icu_path and with_intl != 'none':
-    print 'Error: Cannot specify both --with-icu-path and --with-intl'
+    print('Error: Cannot specify both --with-icu-path and --with-intl')
     sys.exit(1)
   elif have_icu_path:
     # Chromium .gyp mode: --with-icu-path
@@ -1054,8 +1065,8 @@ def configure_intl(o):
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config('icu-i18n')
     if pkgicu[0] is None:
-      print 'Error: could not load pkg-config data for "icu-i18n".'
-      print 'See above errors or the README.md.'
+      print('Error: could not load pkg-config data for "icu-i18n".')
+      print('See above errors or the README.md.')
       sys.exit(1)
     (libs, cflags, libpath) = pkgicu
     # libpath provides linker path which may contain spaces
@@ -1108,17 +1119,17 @@ def configure_intl(o):
   # --with-icu-source processing
   # now, check that they didn't pass --with-icu-source=deps/icu
   elif with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
-    print 'Ignoring redundant --with-icu-source=%s' % (with_icu_source)
+    print('Ignoring redundant --with-icu-source=%s' % with_icu_source)
     with_icu_source = None
   # if with_icu_source is still set, try to use it.
   if with_icu_source:
     if os.path.isdir(icu_full_path):
-      print 'Deleting old ICU source: %s' % (icu_full_path)
+      print('Deleting old ICU source: %s' % icu_full_path)
       shutil.rmtree(icu_full_path)
     # now, what path was given?
     if os.path.isdir(with_icu_source):
       # it's a path. Copy it.
-      print '%s -> %s' % (with_icu_source, icu_full_path)
+      print('%s -> %s' % (with_icu_source, icu_full_path))
       shutil.copytree(with_icu_source, icu_full_path)
     else:
       # could be file or URL.
@@ -1142,7 +1153,8 @@ def configure_intl(o):
         os.rename(tmp_icu, icu_full_path)
         shutil.rmtree(icu_tmp_path)
       else:
-        print ' Error: --with-icu-source=%s did not result in an "icu" dir.' % with_icu_source
+        print(' Error: --with-icu-source=%s did not result in an "icu" dir.' % \
+               with_icu_source)
         shutil.rmtree(icu_tmp_path)
         sys.exit(1)
 
@@ -1151,22 +1163,22 @@ def configure_intl(o):
   # ICU source dir relative to tools/icu (for .gyp file)
   o['variables']['icu_path'] = icu_full_path
   if not os.path.isdir(icu_full_path):
-    print '* ECMA-402 (Intl) support didn\'t find ICU in %s..' % (icu_full_path)
+    print('* ECMA-402 (Intl) support didn\'t find ICU in %s..' % icu_full_path)
     # can we download (or find) a zipfile?
     localzip = icu_download(icu_full_path)
     if localzip:
       nodedownload.unpack(localzip, icu_parent_path)
   if not os.path.isdir(icu_full_path):
-    print ' Cannot build Intl without ICU in %s.' % (icu_full_path)
-    print ' (Fix, or disable with "--with-intl=none" )'
+    print(' Cannot build Intl without ICU in %s.' % icu_full_path)
+    print(' (Fix, or disable with "--with-intl=none" )')
     sys.exit(1)
   else:
-    print '* Using ICU in %s' % (icu_full_path)
+    print('* Using ICU in %s' % icu_full_path)
   # Now, what version of ICU is it? We just need the "major", such as 54.
   # uvernum.h contains it as a #define.
   uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
   if not os.path.isfile(uvernum_h):
-    print ' Error: could not load %s - is ICU installed?' % uvernum_h
+    print(' Error: could not load %s - is ICU installed?' % uvernum_h)
     sys.exit(1)
   icu_ver_major = None
   matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
@@ -1176,7 +1188,7 @@ def configure_intl(o):
     if m:
       icu_ver_major = m.group(1)
   if not icu_ver_major:
-    print ' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h
+    print(' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
     sys.exit(1)
   icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
@@ -1203,8 +1215,8 @@ def configure_intl(o):
   # this is the icudt*.dat file which node will be using (platform endianness)
   o['variables']['icu_data_file'] = icu_data_file
   if not os.path.isfile(icu_data_path):
-    print ' Error: ICU prebuilt data file %s does not exist.' % icu_data_path
-    print ' See the README.md.'
+    print(' Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
+    print(' See the README.md.')
     # .. and we're not about to build it from .gyp!
     sys.exit(1)
   # map from variable name to subdirs

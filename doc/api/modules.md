@@ -6,16 +6,18 @@
 
 Node.js has a simple module loading system.  In Node.js, files and modules
 are in one-to-one correspondence (each file is treated as a separate module).
-As an example, `foo.js` loads the module `circle.js` in the same directory.
 
-The contents of `foo.js`:
+As an example, consider a file named `foo.js`:
 
 ```js
 const circle = require('./circle.js');
 console.log(`The area of a circle of radius 4 is ${circle.area(4)}`);
 ```
 
-The contents of `circle.js`:
+On the first line, `foo.js` loads the module `circle.js` that is in the same
+directory as `foo.js`.
+
+Here are the contents of `circle.js`:
 
 ```js
 const PI = Math.PI;
@@ -23,7 +25,6 @@ const PI = Math.PI;
 exports.area = (r) => PI * r * r;
 
 exports.circumference = (r) => 2 * PI * r;
-
 ```
 
 The module `circle.js` has exported the functions `area()` and
@@ -529,33 +530,50 @@ const x = require('./x');
 console.log(x.a);
 ```
 
-#### exports alias
+#### exports shortcut
 <!-- YAML
 added: v0.1.16
 -->
 
-The `exports` variable that is available within a module starts as a reference
-to `module.exports`. As with any variable, if you assign a new value to it, it
-is no longer bound to the previous value.
+The `exports` variable is available within a module's file-level scope, and is
+assigned the value of `module.exports` before the module is evaluated.
+
+It allows a shortcut, so that `module.exports.f = ...` can be written more
+succinctly as `exports.f = ...`. However, be aware that like any variable, if a
+new value is assigned to `exports`, it is no longer bound to `module.exports`:
+
+```js
+module.exports.hello = true; // Exported from require of module
+exports = { hello: false };  // Not exported, only available in the module
+```
+
+When the `module.exports` property is being completely replaced by a new
+object, it is common to also reassign `exports`, for example:
+
+```js
+module.exports = exports = function Constructor() {
+    // ... etc.
+```
 
 To illustrate the behavior, imagine this hypothetical implementation of
-`require()`:
+`require()`, which is quite similar to what is actually done by `require()`:
 
 ```js
 function require(...) {
-  // ...
+  var module = { exports: {} };
   ((module, exports) => {
-    // Your module code here
-    exports = some_func;        // re-assigns exports, exports is no longer
-                                // a shortcut, and nothing is exported.
-    module.exports = some_func; // makes your module export 0
+    // Your module code here. In this example, define a function.
+    function some_func() {};
+    exports = some_func;
+    // At this point, exports is no longer a shortcut to module.exports, and
+    // this module will still export an empty default object.
+    module.exports = some_func;
+    // At this point, the module will now export some_func, instead of the
+    // default object.
   })(module, module.exports);
-  return module;
+  return module.exports;
 }
 ```
-
-As a guideline, if the relationship between `exports` and `module.exports`
-seems like magic to you, ignore `exports` and only use `module.exports`.
 
 ### module.filename
 <!-- YAML

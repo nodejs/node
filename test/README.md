@@ -146,7 +146,7 @@ and `setInterval`).
 ## Common module API
 
 The common.js module is used by tests for consistency across repeated
-tasks. It has a number of helpful functions and properties to help with 
+tasks. It has a number of helpful functions and properties to help with
 writing tests.
 
 ### allowGlobals(...whitelist)
@@ -177,7 +177,7 @@ Check if there is more than 1gb of total memory.
 * `name` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 * `expected` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) | [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
 
-Tests whether `name` and `expected` are part of a raised warning. 
+Tests whether `name` and `expected` are part of a raised warning.
 
 ### hasCrypto
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
@@ -204,11 +204,6 @@ Checks if there are multiple localhosts available.
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
 Throws an `AssertionError` with `msg`
-
-### faketimeCli
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-
-Return the path to the fake.
 
 ### fileExists(pathname)
 * pathname [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
@@ -364,12 +359,6 @@ Synchronous version of `spawnCat`.
 * return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 
 Synchronous version of `spawnPwd`.
-
-### testDir
-
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-
-Path to the 'test' directory.
 
 ### tmpDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)

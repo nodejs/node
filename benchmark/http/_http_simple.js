@@ -75,8 +75,11 @@ var server = module.exports = http.createServer(function(req, res) {
     body = fixed;
 
   } else if (command === 'echo') {
-    res.writeHead(200, { 'Content-Type': 'text/plain',
-                         'Transfer-Encoding': 'chunked' });
+    const headers = {
+      'Content-Type': 'text/plain',
+      'Transfer-Encoding': 'chunked'
+    };
+    res.writeHead(200, headers);
     req.pipe(res);
     return;
 
@@ -88,8 +91,11 @@ var server = module.exports = http.createServer(function(req, res) {
   // example: http://localhost:port/bytes/512/4
   // sends a 512 byte body in 4 chunks of 128 bytes
   if (n_chunks > 0) {
-    res.writeHead(status, { 'Content-Type': 'text/plain',
-                            'Transfer-Encoding': 'chunked' });
+    const headers = {
+      'Content-Type': 'text/plain',
+      'Transfer-Encoding': 'chunked'
+    };
+    res.writeHead(status, headers);
     // send body in chunks
     var len = body.length;
     var step = Math.floor(len / n_chunks) || 1;
@@ -99,10 +105,12 @@ var server = module.exports = http.createServer(function(req, res) {
     }
     res.end(body.slice((n_chunks - 1) * step));
   } else {
-    var content_length = body.length.toString();
+    const headers = {
+      'Content-Type': 'text/plain',
+      'Content-Length': body.length.toString()
+    };
 
-    res.writeHead(status, { 'Content-Type': 'text/plain',
-                            'Content-Length': content_length });
+    res.writeHead(status, headers);
     res.end(body);
   }
 });

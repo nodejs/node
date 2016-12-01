@@ -154,10 +154,11 @@ The formatting process operates as follows:
   [`Error`][] is thrown.
 * For all string values of `urlObject.protocol` that *do not end* with an ASCII
   colon (`:`) character, the literal string `:` will be appended to `result`.
-* If either the `urlObject.slashes` property is true, `urlObject.protocol`
-  begins with one of `http`, `https`, `ftp`, `gopher`, or `file`, or
-  `urlObject.protocol` is `undefined`, the literal string `//` will be appended
-  to `result`.
+* If either of the following conditions is true, then the literal string `//`
+  will be appended to `result`:
+    * `urlObject.slashes` property is true;
+    * `urlObject.protocol` begins with `http`, `https`, `ftp`, `gopher`, or
+      `file`;
 * If the value of the `urlObject.auth` property is truthy, and either
   `urlObject.host` or `urlObject.hostname` are not `undefined`, the value of
   `urlObject.auth` will be coerced into a string and appended to `result`

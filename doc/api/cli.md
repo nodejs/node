@@ -315,7 +315,18 @@ asynchronous when outputting to a TTY on platforms which support async stdio.
 Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. **Use of this mode is not recommended.**
 
+### `NODE_EXTRA_CA_CERTS=file`
 
+When set, the well known "root" CAs (like VeriSign) will be extended with the
+extra certificates in `file`. The file should consist of one or more trusted
+certificates in PEM format. A message will be emitted (once) with
+[`process.emitWarning()`][emit_warning] if the file is missing or
+misformatted, but any errors are otherwise ignored.
+
+Note that neither the well known nor extra certificates are used when the `ca`
+options property is explicitly specified for a TLS or HTTPS client or server.
+
+[emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
 [debugger]: debugger.html
 [REPL]: repl.html
