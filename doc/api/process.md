@@ -869,7 +869,7 @@ pending* that have not yet completed fully, *including* I/O operations to
 `process.stdout` and `process.stderr`.
 
 In most situations, it is not actually necessary to call `process.exit()`
-explicitly. The Node.js process will exit on it's own *if there is no additional
+explicitly. The Node.js process will exit on its own *if there is no additional
 work pending* in the event loop. The `process.exitCode` property can be set to
 tell the process which exit code to use when the process exits gracefully.
 
@@ -1120,7 +1120,7 @@ added: v0.1.17
 The `process.mainModule` property provides an alternative way of retrieving
 [`require.main`][]. The difference is that if the main module changes at
 runtime, [`require.main`][] may still refer to the original main module in
-modules that were required before the change occurred. Generally it's
+modules that were required before the change occurred. Generally, it's
 safe to assume that the two refer to the same module.
 
 As with [`require.main`][], `process.mainModule` will be `undefined` if there
@@ -1173,7 +1173,7 @@ The `process.nextTick()` method adds the `callback` to the "next tick queue".
 Once the current turn of the event loop turn runs to completion, all callbacks
 currently in the next tick queue will be called.
 
-This is *not* a simple alias to [`setTimeout(fn, 0)`][], it's much more
+This is *not* a simple alias to [`setTimeout(fn, 0)`][]. It is much more
 efficient.  It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
