@@ -834,6 +834,20 @@ var parseTests = {
     query: '@c'
   },
 
+  'http://a.b/\tbc\ndr\ref g"hq\'j<kl>?mn\\op^q=r`99{st|uv}wz': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'a.b',
+    port: null,
+    hostname: 'a.b',
+    hash: null,
+    pathname: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E',
+    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    search: '?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    query: 'mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz'
+  },
+
   'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
