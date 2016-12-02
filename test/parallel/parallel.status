@@ -19,14 +19,7 @@ test-debug-signal-cluster         : PASS,FLAKY
 
 [$system==freebsd]
 
-# fs-watch currently needs special configuration on AIX and we
-# want to improve under https://github.com/nodejs/node/issues/5085.
-# Tests are disabled so CI can be green and we can spot other
-# regressions until this work is complete
 [$system==aix]
-test-fs-watch-enoent                 : FAIL, PASS
-test-fs-watch-encoding               : FAIL, PASS
-
 #covered by  https://github.com/nodejs/node/issues/3796
 # but more frequent on AIX ?
 test-debug-signal-cluster                : PASS, FLAKY
