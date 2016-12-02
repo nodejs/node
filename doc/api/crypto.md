@@ -232,7 +232,7 @@ added: v0.1.94
 -->
 
 Updates the cipher with `data`. If the `input_encoding` argument is given,
-it's value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
+its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `input_encoding` is ignored.
@@ -371,7 +371,7 @@ added: v0.1.94
 -->
 
 Updates the decipher with `data`. If the `input_encoding` argument is given,
-it's value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
+its value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `input_encoding` is ignored.
