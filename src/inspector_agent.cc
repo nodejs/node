@@ -515,10 +515,12 @@ bool AgentImpl::IsStarted() {
 }
 
 void AgentImpl::WaitForDisconnect() {
-  shutting_down_ = true;
-  fprintf(stderr, "Waiting for the debugger to disconnect...\n");
-  fflush(stderr);
-  inspector_->runMessageLoopOnPause(0);
+  if (state_ == State::kConnected) {
+    shutting_down_ = true;
+    fprintf(stderr, "Waiting for the debugger to disconnect...\n");
+    fflush(stderr);
+    inspector_->runMessageLoopOnPause(0);
+  }
 }
 
 #define READONLY_PROPERTY(obj, str, var)                                      \
