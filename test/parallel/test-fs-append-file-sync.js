@@ -35,7 +35,7 @@ fs.appendFileSync(filename2, data);
 var fileData2 = fs.readFileSync(filename2);
 
 assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
-             fileData2.length);
+                   fileData2.length);
 
 // test that appendFileSync accepts buffers
 var filename3 = join(common.tmpDir, 'append-sync3.txt');
@@ -64,7 +64,7 @@ if (!common.isWindows) {
 var fileData4 = fs.readFileSync(filename4);
 
 assert.strictEqual(Buffer.byteLength('' + num) + currentFileData.length,
-             fileData4.length);
+                   fileData4.length);
 
 // test that appendFile accepts file descriptors
 var filename5 = join(common.tmpDir, 'append-sync5.txt');
@@ -77,7 +77,7 @@ fs.closeSync(filename5fd);
 var fileData5 = fs.readFileSync(filename5);
 
 assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
-             fileData5.length);
+                   fileData5.length);
 
 //exit logic for cleanup
 
