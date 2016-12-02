@@ -8,7 +8,6 @@
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
 #endif
-#include "tracing/agent.h"
 #include "handle_wrap.h"
 #include "req-wrap.h"
 #include "tree.h"
