@@ -423,8 +423,8 @@ To test it in JavaScript:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj1 = addon('hello');
-var obj2 = addon('world');
+const obj1 = addon('hello');
+const obj2 = addon('world');
 console.log(obj1.msg, obj2.msg);
 // Prints: 'hello world'
 ```
@@ -482,7 +482,7 @@ To test:
 // test.js
 const addon = require('./build/Release/addon');
 
-var fn = addon();
+const fn = addon();
 console.log(fn());
 // Prints: 'hello world'
 ```
@@ -645,7 +645,7 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj = new addon.MyObject(10);
+const obj = new addon.MyObject(10);
 console.log(obj.plusOne());
 // Prints: 11
 console.log(obj.plusOne());
@@ -660,9 +660,9 @@ Alternatively, it is possible to use a factory pattern to avoid explicitly
 creating object instances using the JavaScript `new` operator:
 
 ```js
-var obj = addon.createObject();
+const obj = addon.createObject();
 // instead of:
-// var obj = new addon.Object();
+// const obj = new addon.Object();
 ```
 
 First, the `createObject()` method is implemented in `addon.cc`:
@@ -840,7 +840,7 @@ Test it with:
 // test.js
 const createObject = require('./build/Release/addon');
 
-var obj = createObject(10);
+const obj = createObject(10);
 console.log(obj.plusOne());
 // Prints: 11
 console.log(obj.plusOne());
@@ -848,7 +848,7 @@ console.log(obj.plusOne());
 console.log(obj.plusOne());
 // Prints: 13
 
-var obj2 = createObject(20);
+const obj2 = createObject(20);
 console.log(obj2.plusOne());
 // Prints: 21
 console.log(obj2.plusOne());
@@ -1022,9 +1022,9 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj1 = addon.createObject(10);
-var obj2 = addon.createObject(20);
-var result = addon.add(obj1, obj2);
+const obj1 = addon.createObject(10);
+const obj2 = addon.createObject(20);
+const result = addon.add(obj1, obj2);
 
 console.log(result);
 // Prints: 30
