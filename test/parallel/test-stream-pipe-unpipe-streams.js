@@ -25,6 +25,9 @@ source.unpipe(dest2);
 assert.strictEqual(source._readableState.pipes, dest1);
 assert.notStrictEqual(source._readableState.pipes, dest2);
 
+dest2.on('unpipe', common.fail);
+source.unpipe(dest2);
+
 source.unpipe(dest1);
 
 assert.strictEqual(source._readableState.pipes, null);
