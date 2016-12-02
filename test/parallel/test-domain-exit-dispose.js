@@ -26,7 +26,7 @@ function err() {
       console.error('This should not happen.');
       disposalFailed = true;
       process.exit(1);
-    }, 0);
+    }, 1);
 
     // this function doesn't exist, and throws an error as a result.
     err3(); // eslint-disable-line no-undef
