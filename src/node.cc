@@ -188,6 +188,7 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
+static tracing::Agent* tracing_agent;
 
 static node::DebugOptions debug_options;
 
@@ -2207,7 +2208,6 @@ static void WaitForInspectorDisconnect(Environment* env) {
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
   WaitForInspectorDisconnect(Environment::GetCurrent(args));
-  Environment::GetCurrent(args)->tracing_agent()->Stop();
   exit(args[0]->Int32Value());
 }
 
@@ -3372,6 +3372,9 @@ void SetupProcessObject(Environment* env,
 
 void SignalExit(int signo) {
   uv_tty_reset_mode();
+  if (trace_enabled) {
+    tracing_agent->Stop();
+  }
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
   struct sigaction sa;
@@ -3473,7 +3476,8 @@ static void PrintHelp() {
          "  -c, --check              syntax check script without executing\n"
          "  -i, --interactive        always enter the REPL even if stdin\n"
          "                           does not appear to be a terminal\n"
-         "  -r, --require            module to preload (option can be repeated)\n"
+         "  -r, --require            module to preload (option can be "
+         "repeated)\n"
          "  --no-deprecation         silence deprecation warnings\n"
          "  --trace-deprecation      show stack traces on deprecations\n"
          "  --throw-deprecation      throw an exception anytime a deprecated "
@@ -3489,12 +3493,14 @@ static void PrintHelp() {
          "snapshots\n"
          "  --prof-process           process v8 profiler output generated\n"
          "                           using --prof\n"
-         "  --zero-fill-buffers      automatically zero-fill all newly allocated\n"
+         "  --zero-fill-buffers      automatically zero-fill all newly "
+         "allocated\n"
          "                           Buffer and SlowBuffer instances\n"
          "  --v8-options             print v8 command line options\n"
          "  --v8-pool-size=num       set v8's thread pool size\n"
 #if HAVE_OPENSSL
-         "  --tls-cipher-list=val    use an alternative default TLS cipher list\n"
+         "  --tls-cipher-list=val    use an alternative default TLS cipher "
+         "list\n"
 #if NODE_FIPS_MODE
          "  --enable-fips            enable FIPS crypto at startup\n"
          "  --force-fips             force FIPS crypto (cannot be disabled)\n"
@@ -4349,11 +4355,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       return 12;  // Signal internal error.
   }
 
-  // Enable tracing when argv has --trace-events-enabled.
-  if (trace_enabled) {
-    env.tracing_agent()->Start(v8_platform.platform_, trace_enabled_categories);
-  }
-
   {
     Environment::AsyncCallbackScope callback_scope(&env);
     LoadEnvironment(&env);
@@ -4391,7 +4392,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   RunAtExit(&env);
 
   WaitForInspectorDisconnect(&env);
-  env.tracing_agent()->Stop();
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif
@@ -4477,10 +4477,18 @@ int Start(int argc, char** argv) {
 #endif
 
   v8_platform.Initialize(v8_thread_pool_size);
+  // Enable tracing when argv has --trace-events-enabled.
+  if (trace_enabled) {
+    tracing_agent = new tracing::Agent();
+    tracing_agent->Start(v8_platform.platform_, trace_enabled_categories);
+  }
   V8::Initialize();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
+  if (trace_enabled) {
+    tracing_agent->Stop();
+  }
   v8_initialized = false;
   V8::Dispose();
 

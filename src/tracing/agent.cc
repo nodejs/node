@@ -11,10 +11,9 @@ namespace tracing {
 
 using v8::platform::tracing::TraceConfig;
 
-Agent::Agent(Environment* env) : parent_env_(env) {}
+Agent::Agent() {}
 
 void Agent::Start(v8::Platform* platform, const char* enabled_categories) {
-  auto env = parent_env_;
   platform_ = platform;
 
   int err = uv_loop_init(&tracing_loop_);

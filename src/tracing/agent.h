@@ -6,17 +6,12 @@
 #include "uv.h"
 #include "v8.h"
 
-// Forward declaration to break recursive dependency chain with src/env.h.
-namespace node {
-class Environment;
-}  // namespace node
-
 namespace node {
 namespace tracing {
 
 class Agent {
  public:
-  explicit Agent(Environment* env);
+  explicit Agent();
   void Start(v8::Platform* platform, const char* enabled_categories);
   void Stop();
 
@@ -27,7 +22,6 @@ class Agent {
   uv_thread_t thread_;
   uv_loop_t tracing_loop_;
   v8::Platform* platform_ = nullptr;
-  Environment* parent_env_;
   TracingController* tracing_controller_;
 };
 
