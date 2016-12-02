@@ -8,6 +8,7 @@ const util = require('util');
 function listener() {}
 function listener2() {}
 class TestStream { constructor() { } }
+util.inherits(TestStream, events.EventEmitter);
 
 {
   const ee = new events.EventEmitter();
@@ -59,7 +60,6 @@ class TestStream { constructor() { } }
 }
 
 {
-  util.inherits(TestStream, events.EventEmitter);
   const s = new TestStream();
   assert.deepStrictEqual(s.listeners('foo'), []);
 }
