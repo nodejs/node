@@ -14,6 +14,15 @@ const common = require('../common');
 const fs = require('fs');
 const path = require('path');
 
+// fs-watch on folders have limited capability in AIX.
+// The testcase makes use of folder watching, and causes
+// hang. This behavior is documented. Skip this for AIX.
+
+if (common.isAix) {
+  common.skip('folder watch capability is limited in AIX.');
+  return;
+}
+
 common.refreshTmpDir();
 
 const fn = '新建文夹件.txt';
