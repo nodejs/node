@@ -7,7 +7,7 @@ const URL = require('url').URL;
 
 assert.strictEqual(
     inspect(URL.originFor('http://test.com:8000')),
-    `TupleOrigin{
+    `TupleOrigin {
       scheme: http,
       host: test.com,
       port: 8000,
@@ -17,7 +17,7 @@ assert.strictEqual(
 
 assert.strictEqual(
     inspect(URL.originFor('http://test.com')),
-    `TupleOrigin{
+    `TupleOrigin {
       scheme: http,
       host: test.com,
       port: undefined,
@@ -28,7 +28,7 @@ assert.strictEqual(
 
 assert.strictEqual(
     inspect(URL.originFor('https://test.com')),
-    `TupleOrigin{
+    `TupleOrigin {
       scheme: https,
       host: test.com,
       port: undefined,
