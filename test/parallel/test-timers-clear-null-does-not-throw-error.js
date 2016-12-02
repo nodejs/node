@@ -13,6 +13,6 @@ assert.doesNotThrow(() => clearTimeout(null));
 
 assert.doesNotThrow(() => clearTimeout());
 
-assert.doesNotThrow(() => clearInterval(null));
+assert.doesNotThrow(() => clearImmediate(null));
 
-assert.doesNotThrow(() => clearInterval());
+assert.doesNotThrow(() => clearImmediate());
