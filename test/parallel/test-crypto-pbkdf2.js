@@ -58,32 +58,32 @@ function ondone(err, key) {
 // Error path should not leak memory (check with valgrind).
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 20, null);
-}, /No callback/);
+}, /^Error: No callback provided to pbkdf2$/);
 
 // Should not work with Infinity key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha256', common.fail);
-}, /Bad key length/);
+}, /^TypeError: Bad key length$/);
 
 // Should not work with negative Infinity key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha256', common.fail);
-}, /Bad key length/);
+}, /^TypeError: Bad key length$/);
 
 // Should not work with NaN key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, NaN, 'sha256', common.fail);
-}, /Bad key length/);
+}, /^TypeError: Bad key length$/);
 
 // Should not work with negative key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, -1, 'sha256', common.fail);
-}, /Bad key length/);
+}, /^TypeError: Bad key length$/);
 
 // Should not work with key length that does not fit into 32 signed bits
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256', common.fail);
-}, /Bad key length/);
+}, /^TypeError: Bad key length$/);
 
 // Should not get FATAL ERROR with empty password and salt
 // https://github.com/nodejs/node/issues/8571
