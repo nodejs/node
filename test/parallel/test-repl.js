@@ -352,6 +352,16 @@ function error_test() {
 
     { client: client_unix, send: 'function * foo() {}; foo().next()',
       expect: '{ value: undefined, done: true }' },
+
+    // https://github.com/nodejs/node/issues/9300
+    { client: client_unix, send: 'function foo() {\nvar bar = 1 / 1; // "/"\n}',
+      expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix },
+
+    { client: client_unix, send: '(function() {\nreturn /foo/ / /bar/;\n}())',
+      expect: prompt_multiline + prompt_multiline + 'NaN\n' + prompt_unix },
+
+    { client: client_unix, send: '(function() {\nif (false) {} /bar"/;\n}())',
+      expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix }
   ]);
 }
 
