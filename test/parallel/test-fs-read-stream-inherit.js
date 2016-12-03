@@ -48,8 +48,6 @@ file.on('end', function(chunk) {
 
 file.on('close', function() {
   callbacks.close++;
-
-  //assert.strictEqual(fs.readFileSync(fn), fileContent);
 });
 
 const file3 = fs.createReadStream(fn, Object.create({encoding: 'utf8'}));
