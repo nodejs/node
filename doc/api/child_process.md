@@ -91,11 +91,11 @@ const spawn = require('child_process').spawn;
 const bat = spawn('cmd.exe', ['/c', 'my.bat']);
 
 bat.stdout.on('data', (data) => {
-  console.log(data);
+  console.log(data.toString());
 });
 
 bat.stderr.on('data', (data) => {
-  console.log(data);
+  console.log(data.toString());
 });
 
 bat.on('exit', (code) => {
@@ -113,7 +113,7 @@ exec('my.bat', (err, stdout, stderr) => {
 });
 
 // Script with spaces in the filename:
-const bat = spawn('"my script.cmd"', ['a', 'b'], { shell:true });
+const bat = spawn('"my script.cmd"', ['a', 'b'], { shell: true });
 // or:
 exec('"my script.cmd" a b', (err, stdout, stderr) => {
   // ...
@@ -383,7 +383,7 @@ ps.on('close', (code) => {
 });
 
 grep.stdout.on('data', (data) => {
-  console.log(`${data}`);
+  console.log(data.toString());
 });
 
 grep.stderr.on('data', (data) => {
@@ -467,8 +467,8 @@ const out = fs.openSync('./out.log', 'a');
 const err = fs.openSync('./out.log', 'a');
 
 const child = spawn('prg', [], {
- detached: true,
- stdio: [ 'ignore', out, err ]
+  detached: true,
+  stdio: [ 'ignore', out, err ]
 });
 
 child.unref();
@@ -860,7 +860,7 @@ as in this example:
 'use strict';
 const spawn = require('child_process').spawn;
 
-let child = spawn('sh', ['-c',
+const child = spawn('sh', ['-c',
   `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
     }, 500);"`
@@ -1107,21 +1107,21 @@ const fs = require('fs');
 const child_process = require('child_process');
 
 const child = child_process.spawn('ls', {
-    stdio: [
-      0, // Use parents stdin for child
-      'pipe', // Pipe child's stdout to parent
-      fs.openSync('err.out', 'w') // Direct child's stderr to a file
-    ]
+  stdio: [
+    0, // Use parent's stdin for child
+    'pipe', // Pipe child's stdout to parent
+    fs.openSync('err.out', 'w') // Direct child's stderr to a file
+  ]
 });
 
-assert.equal(child.stdio[0], null);
-assert.equal(child.stdio[0], child.stdin);
+assert.strictEqual(child.stdio[0], null);
+assert.strictEqual(child.stdio[0], child.stdin);
 
 assert(child.stdout);
-assert.equal(child.stdio[1], child.stdout);
+assert.strictEqual(child.stdio[1], child.stdout);
 
-assert.equal(child.stdio[2], null);
-assert.equal(child.stdio[2], child.stderr);
+assert.strictEqual(child.stdio[2], null);
+assert.strictEqual(child.stdio[2], child.stderr);
 ```
 
 ### child.stdout
