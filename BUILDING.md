@@ -23,6 +23,7 @@ On OS X, you will also need:
   * You also need to install the `Command Line Tools` via Xcode. You can find
     this under the menu `Xcode -> Preferences -> Downloads`
   * This step will install `gcc` and the related toolchain containing `make`
+  * You may want to setup [firewall rules](tools/macosx-firewall.sh) to avoid popups asking to accept incoming network connections when running tests.
 
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
