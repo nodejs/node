@@ -19,7 +19,7 @@ const options = {
 };
 
 const server = tls.createServer(options,
-                              common.mustCall(function(cleartextStream) {}));
+                                common.mustCall(function(cleartextStream) {}));
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
   const client = tls.connect({
