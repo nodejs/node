@@ -16,7 +16,7 @@ const file = fs.ReadStream(fn);
 file.on('open', function(fd) {
   file.length = 0;
   callbacks.open++;
-  assert.strictEqual('number', typeof fd);
+  assert.strictEqual(typeof fd, 'number');
   assert.ok(file.readable);
 
   // GH-535
@@ -53,12 +53,12 @@ file.on('close', function() {
 const file3 = fs.createReadStream(fn, Object.create({encoding: 'utf8'}));
 file3.length = 0;
 file3.on('data', function(data) {
-  assert.strictEqual('string', typeof data);
+  assert.strictEqual(typeof data, 'string');
   file3.length += data.length;
 
   for (let i = 0; i < data.length; i++) {
     // http://www.fileformat.info/info/unicode/char/2026/index.htm
-    assert.strictEqual('\u2026', data[i]);
+    assert.strictEqual(data[i], '\u2026');
   }
 });
 
@@ -67,11 +67,11 @@ file3.on('close', function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(1, callbacks.open);
-  assert.strictEqual(1, callbacks.end);
-  assert.strictEqual(2, callbacks.close);
-  assert.strictEqual(30000, file.length);
-  assert.strictEqual(10000, file3.length);
+  assert.strictEqual(callbacks.open, 1);
+  assert.strictEqual(callbacks.end, 1);
+  assert.strictEqual(callbacks.close, 2);
+  assert.strictEqual(file.length, 30000);
+  assert.strictEqual(file3.length, 10000);
   console.error('ok');
 });
 
@@ -125,7 +125,7 @@ stream.on('data', function(chunk) {
 });
 
 stream.on('end', function() {
-  assert.strictEqual('x', stream.data);
+  assert.strictEqual(stream.data, 'x');
 });
 
 // pause and then resume immediately.
