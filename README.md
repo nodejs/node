@@ -217,8 +217,6 @@ more information about the governance of the Node.js project, see
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
-* [domenic](https://github.com/domenic) -
-**Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
 **Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) -
@@ -337,8 +335,6 @@ more information about the governance of the Node.js project, see
 **Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
 **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
-* [zkat](https://github.com/zkat) -
-**Kat Marchán** &lt;kzm@sykosomatic.org&gt;
 
 Collaborators (which includes CTC members) follow the
 [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in maintaining the Node.js

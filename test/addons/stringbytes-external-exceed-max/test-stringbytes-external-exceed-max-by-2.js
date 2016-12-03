@@ -30,4 +30,4 @@ if (!binding.ensureAllocation(2 * kStringMaxLength)) {
 }
 
 const maxString = buf.toString('utf16le');
-assert.equal(maxString.length, (kStringMaxLength + 2) / 2);
+assert.strictEqual(maxString.length, (kStringMaxLength + 2) / 2);

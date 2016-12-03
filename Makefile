@@ -715,6 +715,8 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	src/*.h \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
+	test/cctest/*.cc \
+	test/cctest/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
 	))
