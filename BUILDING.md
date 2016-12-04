@@ -123,7 +123,7 @@ Prerequisites:
 To run the tests:
 
 ```text
-> .\vcbuild test
+> .\vcbuild nosign test
 ```
 
 To test if Node.js was built correctly:
@@ -172,7 +172,7 @@ $ ./configure --with-intl=small-icu --download=all
 ##### Windows:
 
 ```text
-> .\vcbuild small-icu download-all
+> .\vcbuild nosign small-icu download-all
 ```
 
 The `small-icu` mode builds with English-only data. You can add full
@@ -195,7 +195,7 @@ $ ./configure --with-intl=full-icu --download=all
 ##### Windows:
 
 ```text
-> .\vcbuild full-icu download-all
+> .\vcbuild nosign full-icu download-all
 ```
 
 #### Building without Intl support
@@ -212,7 +212,7 @@ $ ./configure --with-intl=none
 ##### Windows:
 
 ```text
-> .\vcbuild intl-none
+> .\vcbuild nosign intl-none
 ```
 
 #### Use existing installed ICU (Unix / OS X only):
@@ -251,7 +251,7 @@ First unpack latest ICU to `deps/icu`
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```text
-> .\vcbuild full-icu
+> .\vcbuild nosign full-icu
 ```
 
 ## Building Node.js with FIPS-compliant OpenSSL
