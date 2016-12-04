@@ -188,6 +188,9 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+const char* config_warning_file;
+
 bool v8_initialized = false;
 
 // process-relative uptime base, initialized at start-up
@@ -3499,6 +3502,9 @@ static void PrintHelp() {
          "  --throw-deprecation        throw an exception on deprecations\n"
          "  --no-warnings              silence all process warnings\n"
          "  --trace-warnings           show stack traces on process warnings\n"
+         "  --redirect-warnings=path\n"
+         "                             write warnings to path instead of\n"
+         "                             stderr\n"
          "  --trace-sync-io            show stack trace when use of sync IO\n"
          "                             is detected after the first tick\n"
          "  --trace-events-enabled     track trace events\n"
@@ -3564,6 +3570,8 @@ static void PrintHelp() {
          "                             prefixed to the module search path\n"
          "NODE_REPL_HISTORY            path to the persistent REPL history\n"
          "                             file\n"
+         "NODE_REDIRECT_WARNINGS       write warnings to path instead of\n"
+         "                             stderr\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
 
@@ -3664,6 +3672,8 @@ static void ParseArgs(int* argc,
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
       trace_warnings = true;
+    } else if (strncmp(arg, "--redirect-warnings=", 20) == 0) {
+      config_warning_file = arg + 20;
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
@@ -4204,6 +4214,10 @@ void Init(int* argc,
   // Allow for environment set preserving symlinks.
   if (auto preserve_symlinks = secure_getenv("NODE_PRESERVE_SYMLINKS")) {
     config_preserve_symlinks = (*preserve_symlinks == '1');
+  }
+
+  if (auto redirect_warnings = secure_getenv("NODE_REDIRECT_WARNINGS")) {
+    config_warning_file = redirect_warnings;
   }
 
   // Parse a few arguments which are specific to Node.
