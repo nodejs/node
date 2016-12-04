@@ -16,10 +16,10 @@ const options = {
 };
 
 const server = tls.createServer(options, common.mustCall(function(cleartext) {
-  const s = cleartext.setTimeout(50, common.mustCall(function() {
+  const s = cleartext.setTimeout(50, function() {
     cleartext.destroy();
     server.close();
-  }));
+  });
   assert.ok(s instanceof tls.TLSSocket);
 }));
 
