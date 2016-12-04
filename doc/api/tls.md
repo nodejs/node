@@ -402,7 +402,7 @@ connections on the specified `port` and `hostname`.
 This function operates asynchronously. If the `callback` is given, it will be
 called when the server has started listening.
 
-See `net.Server` for more information.
+See [`net.Server`][] for more information.
 
 ### server.setTicketKeys(keys)
 <!-- YAML
