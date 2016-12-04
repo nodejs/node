@@ -121,6 +121,16 @@ added: v6.0.0
 
 Print stack traces for process warnings (including deprecations).
 
+### `--redirect-warnings=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+Write process warnings to the given file instead of printing to stderr. The
+file will be created if it does not exist, and will be appended to if it does.
+If an error occurs while attempting to write the warning to the file, the
+warning will be written to stderr instead.
+
 ### `--trace-sync-io`
 <!-- YAML
 added: v2.1.0
@@ -381,6 +391,17 @@ containing trusted certificates.
 Note: Be aware that unless the child environment is explicitly set, this
 evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
+
+### `NODE_REDIRECT_WARNINGS=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set, process warnings will be emitted to the given file instead of
+printing to stderr. The file will be created if it does not exist, and will be
+appended to if it does. If an error occurs while attempting to write the
+warning to the file, the warning will be written to stderr instead. This is
+equivalent to using the `--redirect-warnings=file` command-line flag.
 
 [emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
