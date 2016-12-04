@@ -1,8 +1,12 @@
 #include "env.h"
 #include "env-inl.h"
 #include "async-wrap.h"
+
 #include "v8.h"
+
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 #include "v8-profiler.h"
+#endif
 
 #if defined(_MSC_VER)
 #define getpid GetCurrentProcessId
@@ -77,9 +81,11 @@ void Environment::Start(int argc,
       close_and_finish,
       nullptr);
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   if (start_profiler_idle_notifier) {
     StartProfilerIdleNotifier();
   }
+#endif
 
   auto process_template = FunctionTemplate::New(isolate());
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
@@ -89,9 +95,12 @@ void Environment::Start(int argc,
   set_process_object(process_object);
 
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   LoadAsyncWrapperInfo(this);
+#endif
 }
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 void Environment::StartProfilerIdleNotifier() {
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
@@ -108,6 +117,7 @@ void Environment::StopProfilerIdleNotifier() {
   uv_prepare_stop(&idle_prepare_handle_);
   uv_check_stop(&idle_check_handle_);
 }
+#endif
 
 void Environment::PrintSyncTrace() const {
   if (!trace_sync_io_)

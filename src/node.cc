@@ -38,12 +38,18 @@
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "util.h"
+
 #include "uv.h"
+
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
+
 #include "v8-debug.h"
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 #include "v8-profiler.h"
+#endif
+
 #include "zlib.h"
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -2979,6 +2985,7 @@ static void NeedImmediateCallbackSetter(
 }
 
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StartProfilerIdleNotifier();
@@ -2989,6 +2996,7 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StopProfilerIdleNotifier();
 }
+#endif
 
 
 #define READONLY_PROPERTY(obj, str, var)                                      \
@@ -3314,12 +3322,16 @@ void SetupProcessObject(Environment* env,
                              env->as_external()).FromJust());
 
   // define various internal methods
+
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   env->SetMethod(process,
                  "_startProfilerIdleNotifier",
                  StartProfilerIdleNotifier);
   env->SetMethod(process,
                  "_stopProfilerIdleNotifier",
                  StopProfilerIdleNotifier);
+#endif
+
   env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "reallyExit", Exit);
@@ -4490,9 +4502,11 @@ inline int Start(uv_loop_t* event_loop,
   isolate->SetAutorunMicrotasks(false);
   isolate->SetFatalErrorHandler(OnFatalError);
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
+#endif
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
