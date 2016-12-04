@@ -365,7 +365,7 @@ port value of zero will assign a random port.
 This function is asynchronous. The last parameter `callback` will be called
 when the server has been bound.
 
-See `net.Server` for more information.
+See [`net.Server`][] for more information.
 
 ### server.maxConnections
 <!-- YAML
