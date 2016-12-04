@@ -113,6 +113,10 @@ Silence all process warnings (including deprecations).
 Print stack traces for process warnings (including deprecations).
 
 .TP
+.BR \-\-redirect\-warnings=\fIfile\fR
+Write process warnings to the given file instead of printing to stderr.
+
+.TP
 .BR \-\-trace\-sync\-io
 Print a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
@@ -254,6 +258,12 @@ containing trusted certificates.
 .BR SSL_CERT_FILE = \fIfile\fR
 If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's
 file containing trusted certificates.
+
+.TP
+.BR NODE_REDIRECT_WARNINGS=\fIfile\fR
+Write process warnings to the given file instead of printing to stderr.
+(equivalent to using the \-\-redirect\-warnings=\fIfile\fR command-line
+argument).
 
 .SH BUGS
 Bugs are tracked in GitHub Issues:
