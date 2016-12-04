@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -69,8 +68,3 @@ const server = tls.createServer({
     server.close();
   }));
 }));
-
-process.once('exit', function() {
-  assert.strictEqual(connected.client, 1);
-  assert.strictEqual(connected.server, 1);
-});
