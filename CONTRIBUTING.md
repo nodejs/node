@@ -164,7 +164,7 @@ $ ./configure && make -j8 test
 Windows:
 
 ```text
-> vcbuild test
+ .\vcbuild nosign test
 ```
 
 (See the [BUILDING.md](./BUILDING.md) for more details.)
@@ -172,11 +172,11 @@ Windows:
 Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
-Running `make test`/`vcbuild test` will run the linter as well unless one or
+Running `make test`/`.\vcbuild nosign test` will run the linter as well unless one or
 more tests fail.
 
 If you want to run the linter without running tests, use
-`make lint`/`vcbuild jslint`.
+`make lint`/`.\vcbuild nosign jslint`.
 
 If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:
