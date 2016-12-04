@@ -1226,7 +1226,7 @@ added: v6.0.0
 
 * `value` {String | Buffer | Integer} What to search for
 * `byteOffset` {Integer} Where to begin searching in `buf`.
-  **Default:** [`buf.length`]
+  **Default:** [`buf.length`]` - 1`
 * `encoding` {String} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {Integer} The index of the last occurrence of `value` in `buf` or `-1`
