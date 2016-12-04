@@ -51,7 +51,7 @@ server.listen(0, function() {
 
     // Confirming the buffer string is encoded in ASCII
     // and thus does NOT match the UTF8 string
-    assert.notEqual(buffer, messageUtf8);
+    assert.notStrictEqual(buffer, messageUtf8);
 
     // Confirming the buffer string is encoded in ASCII
     // and thus does equal the ASCII string representation
