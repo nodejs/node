@@ -257,7 +257,7 @@ It is not emitted in the worker.
 added: v0.7.7
 -->
 
-* Returns: {Worker} A reference to worker
+* Returns: {Worker} A reference to `worker`.
 
 In a worker, this function will close all servers, wait for the `'close'` event on
 those servers, and then disconnect the IPC channel.
