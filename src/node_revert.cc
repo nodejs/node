@@ -10,6 +10,11 @@ const char* RevertMessage(const unsigned int cve) {
 #define V(code, label, msg) case REVERT_ ## code: return label ": " msg;
   switch (cve) {
     REVERSIONS(V)
+#ifdef _WIN32
+  // Resolve warning on Windows build:
+  case 0xDEADBEEF:
+    return "deadbeef";
+#endif
     default:
       return "Unknown";
   }
