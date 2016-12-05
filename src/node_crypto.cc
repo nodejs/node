@@ -5544,7 +5544,9 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowRangeError("size is not a valid Smi");
 
   Local<Object> obj = env->NewInternalFieldObject();
-  RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
+  // TBD POSSIBLE DATA LOSS:
+  RandomBytesRequest* req =
+      new RandomBytesRequest(env, obj, static_cast<int32_t>(size));
 
   if (args[1]->IsFunction()) {
     obj->Set(FIXED_ONE_BYTE_STRING(args.GetIsolate(), "ondone"), args[1]);

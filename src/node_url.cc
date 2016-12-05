@@ -341,7 +341,8 @@ namespace url {
       val = numbers[parts - 1];
       for (int n = 0; n < parts - 1; n++) {
         double b = 3-n;
-        val += numbers[n] * pow(256, b);
+        // TBD POSSIBLE DATA LOSS:
+        val += static_cast<uint32_t>(numbers[n] * pow(256, b));
       }
     }
 
