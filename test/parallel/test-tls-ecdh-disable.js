@@ -20,7 +20,7 @@ var options = {
 
 var server = tls.createServer(options, common.fail);
 
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', common.mustCall(function() {
   var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
             ` -connect 127.0.0.1:${this.address().port}`;
 
@@ -34,4 +34,4 @@ server.listen(0, '127.0.0.1', function() {
     assert(stderr.includes('handshake failure'));
     server.close();
   }));
-});
+}));
