@@ -17,7 +17,7 @@ const domainWithASCII = [
     ['भारत.org', 'xn--h2brj9c.org']
 ];
 
-domainWithASCII.forEach(pair => {
+domainWithASCII.forEach((pair) => {
     const domain = pair[0];
     const ascii = pair[1];
     const domainConvertedToASCII = domainToASCII(domain);
