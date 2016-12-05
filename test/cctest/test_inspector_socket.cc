@@ -121,8 +121,9 @@ static void do_write(const char* data, int len) {
   uv_buf_t buf[1];
   buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
-  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket), buf, 1,
-           write_done);
+  GTEST_ASSERT_EQ(0,
+                  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket),
+                           buf, 1, write_done));
   SPIN_WHILE(req.data);
 }
 
@@ -360,7 +361,7 @@ class InspectorSocketTest : public ::testing::Test {
     connected = false;
     inspector_ready = false;
     last_event = kInspectorHandshakeHttpGet;
-    uv_loop_init(&loop);
+    GTEST_ASSERT_EQ(0, uv_loop_init(&loop));
     server = uv_tcp_t();
     client_socket = uv_tcp_t();
     server.data = &inspector;
