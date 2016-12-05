@@ -1,10 +1,8 @@
 #include "node.h"
+
 #include "node_buffer.h"
 #include "node_constants.h"
-#include "node_file.h"
-#include "node_http_parser.h"
 #include "node_javascript.h"
-#include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
 
@@ -28,18 +26,9 @@
 #include "node_lttng.h"
 #endif
 
-#include "ares.h"
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
-#include "env.h"
-#include "env-inl.h"
-#include "handle_wrap.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
 #include "string_bytes.h"
-#include "util.h"
-
-#include "uv.h"
 
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"

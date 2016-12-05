@@ -5,7 +5,6 @@
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
-#include "node.h"
 
 namespace node {
 
