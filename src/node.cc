@@ -2246,9 +2246,14 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
       Number::New(env->isolate(), v8_heap_stats.total_heap_size());
   Local<Number> heap_used =
       Number::New(env->isolate(), v8_heap_stats.used_heap_size());
+
+  const int64_t new_external_mem =
+      env->isolate()->AdjustAmountOfExternalAllocatedMemory(0);
+
+  // TBD POSSIBLE DATA LOSS:
   Local<Number> external_mem =
       Number::New(env->isolate(),
-                  env->isolate()->AdjustAmountOfExternalAllocatedMemory(0));
+                  static_cast<double>(new_external_mem));
 
   Local<Object> info = Object::New(env->isolate());
   info->Set(env->rss_string(), Number::New(env->isolate(), rss));
