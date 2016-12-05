@@ -47,6 +47,9 @@ extern bool v8_initialized;
 // Source file directory to load instead of the ones baked into the executable
 // for hacking.
 extern const char* internal_modules_source_dir;
+// Source file to load instead of the `bootstrap_node.js` one baked into the
+// executable.
+extern const char* js_entry_point;
 
 // Forward declaration
 class Environment;

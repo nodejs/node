@@ -40,6 +40,10 @@ static MaybeLocal<String> MaybeLoadSourceFromDisk(Environment* env,
 }
 
 Local<String> MainSource(Environment* env) {
+  if (js_entry_point != nullptr) {
+    return InternalModuleReadFile(env, js_entry_point).ToLocalChecked();
+  }
+
   auto maybe_disk_src =
       MaybeLoadSourceFromDisk(env,
                               internal_bootstrap_node_name,

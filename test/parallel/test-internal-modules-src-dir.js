@@ -22,3 +22,11 @@ assert.strictEqual(
     child_process.spawnSync(process.execPath,
                             [`--internal-modules-source-dir=${bootstrap_node}`,
                              '-p', '0']).status);
+
+const entry = path.join(bootstrap_node, 'internal/bootstrap_node.js');
+
+assert.strictEqual(
+    42,
+    child_process.spawnSync(process.execPath,
+                            [`--js-entry-point=${entry}`,
+                             '-p', '0']).status);
