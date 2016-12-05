@@ -1,16 +1,9 @@
 #ifndef SRC_TLS_WRAP_H_
 #define SRC_TLS_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "node.h"
 #include "node_crypto.h"  // SSLWrap
 
-#include "async-wrap.h"
-#include "env.h"
 #include "stream_wrap.h"
-#include "util.h"
-#include "v8.h"
 
 #include <openssl/ssl.h>
 
@@ -165,7 +158,5 @@ class TLSWrap : public AsyncWrap,
 };
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TLS_WRAP_H_
