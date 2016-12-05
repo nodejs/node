@@ -36,10 +36,10 @@ function shrinkwrap (args, silent, cb) {
   }
 
   var packagePath = path.join(npm.localPrefix, 'package.json')
-  var dev = !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
+  var prod = npm.config.get('production') || /^prod/.test(npm.config.get('only'))
 
   readPackageJson(packagePath, iferr(cb, function (pkg) {
-    createShrinkwrap(npm.localPrefix, pkg, dev, silent, cb)
+    createShrinkwrap(npm.localPrefix, pkg, !prod, silent, cb)
   }))
 }
 

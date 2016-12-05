@@ -6,6 +6,7 @@ var inflateShrinkwrap = require('./inflate-shrinkwrap.js')
 var parseJSON = require('../utils/parse-json.js')
 
 var readShrinkwrap = module.exports = function (child, next) {
+  if (child.package._shrinkwrap) return process.nextTick(next)
   fs.readFile(path.join(child.path, 'npm-shrinkwrap.json'), function (er, data) {
     if (er) {
       child.package._shrinkwrap = null

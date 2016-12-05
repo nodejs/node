@@ -76,7 +76,7 @@ test('setup', function (t) {
 })
 
 test('shrinkwrap cycle in dev deps', function (t) {
-  common.npm(['shrinkwrap'], {cwd: testdir}, function (err, code, stdout, stderr) {
+  common.npm(['shrinkwrap', '--only=prod'], {cwd: testdir}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 0, 'result code = ok')
     t.comment(stdout.trim())

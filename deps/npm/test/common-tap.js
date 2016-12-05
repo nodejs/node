@@ -2,6 +2,7 @@
 var fs = require('graceful-fs')
 var readCmdShim = require('read-cmd-shim')
 var isWindows = require('../lib/utils/is-windows.js')
+var extend = Object.assign || require('util')._extend
 
 // cheesy hackaround for test deps (read: nock) that rely on setImmediate
 if (!global.setImmediate || !require('timers').setImmediate) {
@@ -42,6 +43,7 @@ exports.npm = function (cmd, opts, cb) {
   opts = opts || {}
 
   opts.env = opts.env || process.env
+  if (opts.env._storage) opts.env = opts.env._storage
   if (!opts.env.npm_config_cache) {
     opts.env.npm_config_cache = npm_config_cache
   }
@@ -119,4 +121,40 @@ exports.pendIfWindows = function (why) {
   if (!why) why = 'this test is pending further changes on windows'
   console.log('not ok 1 # todo ' + why)
   process.exit(0)
+}
+
+exports.newEnv = function () {
+  return new Environment(process.env)
+}
+
+function Environment (env) {
+  this._storage = extend({}, env)
+}
+Environment.prototype = {}
+
+Environment.prototype.delete = function (key) {
+  var args = Array.isArray(key) ? key : arguments
+  var ii
+  for (ii = 0; ii < args.length; ++ii) {
+    delete this._storage[args[ii]]
+  }
+  return this
+}
+
+Environment.prototype.clone = function () {
+  return new Environment(this._storage)
+}
+
+Environment.prototype.extend = function (env) {
+  var self = this
+  var args = Array.isArray(env) ? env : arguments
+  var ii
+  for (ii = 0; ii < args.length; ++ii) {
+    var arg = args[ii]
+    if (!arg) continue
+    Object.keys(arg).forEach(function (name) {
+      self._storage[name] = arg[name]
+    })
+  }
+  return this
 }

@@ -111,6 +111,7 @@ function outdated (args, silent, cb) {
         }
         output(table(outTable, tableOpts))
       }
+      process.exitCode = 1
       cb(null, list.map(function (item) { return [item[0].parent.path].concat(item.slice(1, 7)) }))
     })
   }))

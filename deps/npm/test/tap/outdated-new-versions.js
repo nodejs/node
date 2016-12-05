@@ -36,11 +36,14 @@ test('setup', function (t) {
 
 test('dicovers new versions in outdated', function (t) {
   process.chdir(pkg)
-  t.plan(2)
+  t.plan(4)
 
   mr({ port: common.port }, function (er, s) {
     npm.load({ cache: cache, registry: common.registry }, function () {
       npm.outdated(function (er, d) {
+        t.ifError(er, 'npm outdated completed successfully')
+        t.is(process.exitCode, 1, 'exitCode set to 1')
+        process.exitCode = 0
         for (var i = 0; i < d.length; i++) {
           if (d[i][1] === 'underscore') t.equal('1.5.1', d[i][4])
           if (d[i][1] === 'request') t.equal('2.27.0', d[i][4])

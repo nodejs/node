@@ -39,11 +39,11 @@ assert.deepEqual(qs.parse('foo[bar]=baz'), {
 });
 ```
 
-When using the `plainObjects` option the parsed value is returned as a plain object, created via `Object.create(null)` and as such you should be aware that prototype methods will not exist on it and a user may set those names to whatever value they like:
+When using the `plainObjects` option the parsed value is returned as a null object, created via `Object.create(null)` and as such you should be aware that prototype methods will not exist on it and a user may set those names to whatever value they like:
 
 ```javascript
-var plainObject = qs.parse('a[hasOwnProperty]=b', { plainObjects: true });
-assert.deepEqual(plainObject, { a: { hasOwnProperty: 'b' } });
+var nullObject = qs.parse('a[hasOwnProperty]=b', { plainObjects: true });
+assert.deepEqual(nullObject, { a: { hasOwnProperty: 'b' } });
 ```
 
 By default parameters that would overwrite properties on the object prototype are ignored, if you wish to keep the data from those fields either use `plainObjects` as mentioned above, or set `allowPrototypes` to `true` which will allow user input to overwrite those properties. *WARNING* It is generally a bad idea to enable this option as it can cause problems when attempting to use the properties that have been overwritten. Always be careful with this option.
@@ -290,6 +290,17 @@ The delimiter may be overridden with stringify as well:
 assert.equal(qs.stringify({ a: 'b', c: 'd' }, { delimiter: ';' }), 'a=b;c=d');
 ```
 
+If you only want to override the serialization of `Date` objects, you can provide a `serializeDate` option:
+
+```javascript
+var date = new Date(7);
+assert.equal(qs.stringify({ a: date }), 'a=1970-01-01T00:00:00.007Z'.replace(/:/g, '%3A'));
+assert.equal(
+    qs.stringify({ a: date }, { serializeDate: function (d) { return d.getTime(); } }),
+    'a=7'
+);
+```
+
 Finally, you can use the `filter` option to restrict which keys will be included in the stringified output.
 If you pass a function, it will be called for each key to obtain the replacement value. Otherwise, if you
 pass an array, it will be used to select properties and array indices for stringification:
@@ -373,4 +384,15 @@ This also works for decoding of query strings:
 var decoder = require('qs-iconv/decoder')('shift_jis');
 var obj = qs.parse('a=%82%B1%82%F1%82%C9%82%BF%82%CD%81I', { decoder: decoder });
 assert.deepEqual(obj, { a: 'こんにちは！' });
+```
+
+### RFC 3986 and RFC 1738 space encoding
+
+RFC3986 used as default option and encodes ' ' to *%20* which is backward compatible.
+In the same time, output can be stringified as per RFC1738 with ' ' equal to '+'.
+
+```
+assert.equal(qs.stringify({ a: 'b c' }), 'a=b%20c');
+assert.equal(qs.stringify({ a: 'b c' }, { format : 'RFC3986' }), 'a=b%20c');
+assert.equal(qs.stringify({ a: 'b c' }, { format : 'RFC1738' }), 'a=b+c');
 ```

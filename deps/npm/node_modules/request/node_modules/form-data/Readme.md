@@ -6,11 +6,11 @@ The API of this library is inspired by the [XMLHttpRequest-2 FormData Interface]
 
 [xhr2-fd]: http://dev.w3.org/2006/webapi/XMLHttpRequest-2/Overview.html#the-formdata-interface
 
-[![Linux Build](https://img.shields.io/travis/form-data/form-data/v2.0.0.svg?label=linux:0.12-6.x)](https://travis-ci.org/form-data/form-data)
-[![MacOS Build](https://img.shields.io/travis/form-data/form-data/v2.0.0.svg?label=macos:0.12-6.x)](https://travis-ci.org/form-data/form-data)
-[![Windows Build](https://img.shields.io/appveyor/ci/alexindigo/form-data/v2.0.0.svg?label=windows:0.12-6.x)](https://ci.appveyor.com/project/alexindigo/form-data)
+[![Linux Build](https://img.shields.io/travis/form-data/form-data/v2.1.1.svg?label=linux:0.12-6.x)](https://travis-ci.org/form-data/form-data)
+[![MacOS Build](https://img.shields.io/travis/form-data/form-data/v2.1.1.svg?label=macos:0.12-6.x)](https://travis-ci.org/form-data/form-data)
+[![Windows Build](https://img.shields.io/appveyor/ci/alexindigo/form-data/v2.1.1.svg?label=windows:0.12-6.x)](https://ci.appveyor.com/project/alexindigo/form-data)
 
-[![Coverage Status](https://img.shields.io/coveralls/form-data/form-data/v2.0.0.svg?label=code+coverage)](https://coveralls.io/github/form-data/form-data?branch=master)
+[![Coverage Status](https://img.shields.io/coveralls/form-data/form-data/v2.1.1.svg?label=code+coverage)](https://coveralls.io/github/form-data/form-data?branch=master)
 [![Dependency Status](https://img.shields.io/david/form-data/form-data.svg)](https://david-dm.org/form-data/form-data)
 [![bitHound Overall Score](https://www.bithound.io/github/form-data/form-data/badges/score.svg)](https://www.bithound.io/github/form-data/form-data)
 

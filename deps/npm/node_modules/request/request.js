@@ -6,7 +6,6 @@ var http = require('http')
   , util = require('util')
   , stream = require('stream')
   , zlib = require('zlib')
-  , bl = require('bl')
   , hawk = require('hawk')
   , aws2 = require('aws-sign2')
   , aws4 = require('aws4')
@@ -736,6 +735,11 @@ Request.prototype.start = function () {
 
   debug('make request', self.uri.href)
 
+  // node v6.8.0 now supports a `timeout` value in `http.request()`, but we
+  // should delete it for now since we handle timeouts manually for better
+  // consistency with node versions before v6.8.0
+  delete reqOptions.timeout
+
   try {
     self.req = self.httpModule.request(reqOptions)
   } catch (err) {
@@ -747,38 +751,12 @@ Request.prototype.start = function () {
     self.startTime = new Date().getTime()
   }
 
+  var timeout
   if (self.timeout && !self.timeoutTimer) {
-    var timeout = self.timeout < 0 ? 0 : self.timeout
-    // Set a timeout in memory - this block will throw if the server takes more
-    // than `timeout` to write the HTTP status and headers (corresponding to
-    // the on('response') event on the client). NB: this measures wall-clock
-    // time, not the time between bytes sent by the server.
-    self.timeoutTimer = setTimeout(function () {
-      var connectTimeout = self.req.socket && self.req.socket.readable === false
-      self.abort()
-      var e = new Error('ETIMEDOUT')
-      e.code = 'ETIMEDOUT'
-      e.connect = connectTimeout
-      self.emit('error', e)
-    }, timeout)
-
-    if (self.req.setTimeout) { // only works on node 0.6+
-      // Set an additional timeout on the socket, via the `setsockopt` syscall.
-      // This timeout sets the amount of time to wait *between* bytes sent
-      // from the server, and may or may not correspond to the wall-clock time
-      // elapsed from the start of the request.
-      //
-      // In particular, it's useful for erroring if the server fails to send
-      // data halfway through streaming a response.
-      self.req.setTimeout(timeout, function () {
-        if (self.req) {
-          self.req.abort()
-          var e = new Error('ESOCKETTIMEDOUT')
-          e.code = 'ESOCKETTIMEDOUT'
-          e.connect = false
-          self.emit('error', e)
-        }
-      })
+    if (self.timeout < 0) {
+      timeout = 0
+    } else if (typeof self.timeout === 'number' && isFinite(self.timeout)) {
+      timeout = self.timeout
     }
   }
 
@@ -788,6 +766,60 @@ Request.prototype.start = function () {
     self.emit('drain')
   })
   self.req.on('socket', function(socket) {
+    var setReqTimeout = function() {
+      // This timeout sets the amount of time to wait *between* bytes sent
+      // from the server once connected.
+      //
+      // In particular, it's useful for erroring if the server fails to send
+      // data halfway through streaming a response.
+      self.req.setTimeout(timeout, function () {
+        if (self.req) {
+          self.abort()
+          var e = new Error('ESOCKETTIMEDOUT')
+          e.code = 'ESOCKETTIMEDOUT'
+          e.connect = false
+          self.emit('error', e)
+        }
+      })
+    }
+    // `._connecting` was the old property which was made public in node v6.1.0
+    var isConnecting = socket._connecting || socket.connecting
+    if (timeout !== undefined) {
+      // Only start the connection timer if we're actually connecting a new
+      // socket, otherwise if we're already connected (because this is a
+      // keep-alive connection) do not bother. This is important since we won't
+      // get a 'connect' event for an already connected socket.
+      if (isConnecting) {
+        var onReqSockConnect = function() {
+          socket.removeListener('connect', onReqSockConnect)
+          clearTimeout(self.timeoutTimer)
+          self.timeoutTimer = null
+          setReqTimeout()
+        }
+
+        socket.on('connect', onReqSockConnect)
+
+        self.req.on('error', function(err) {
+          socket.removeListener('connect', onReqSockConnect)
+        })
+
+        // Set a timeout in memory - this block will throw if the server takes more
+        // than `timeout` to write the HTTP status and headers (corresponding to
+        // the on('response') event on the client). NB: this measures wall-clock
+        // time, not the time between bytes sent by the server.
+        self.timeoutTimer = setTimeout(function () {
+          socket.removeListener('connect', onReqSockConnect)
+          self.abort()
+          var e = new Error('ETIMEDOUT')
+          e.code = 'ETIMEDOUT'
+          e.connect = true
+          self.emit('error', e)
+        }, timeout)
+      } else {
+        // We're already connected
+        setReqTimeout()
+      }
+    }
     self.emit('socket', socket)
   })
 
@@ -893,7 +925,7 @@ Request.prototype.onRequestResponse = function (response) {
       }
     })
 
-    response.on('end', function () {
+    response.once('end', function () {
       self._ended = true
     })
 
@@ -965,7 +997,7 @@ Request.prototype.onRequestResponse = function (response) {
       self._destdata = true
       self.emit('data', chunk)
     })
-    responseContent.on('end', function (chunk) {
+    responseContent.once('end', function (chunk) {
       self.emit('end', chunk)
     })
     responseContent.on('error', function (error) {
@@ -993,14 +1025,16 @@ Request.prototype.onRequestResponse = function (response) {
 Request.prototype.readResponseBody = function (response) {
   var self = this
   debug('reading response\'s body')
-  var buffer = bl()
+  var buffers = []
+    , bufferLength = 0
     , strings = []
 
   self.on('data', function (chunk) {
-    if (Buffer.isBuffer(chunk)) {
-      buffer.append(chunk)
-    } else {
+    if (!Buffer.isBuffer(chunk)) {
       strings.push(chunk)
+    } else if (chunk.length) {
+      bufferLength += chunk.length
+      buffers.push(chunk)
     }
   })
   self.on('end', function () {
@@ -1009,22 +1043,21 @@ Request.prototype.readResponseBody = function (response) {
       debug('aborted', self.uri.href)
       // `buffer` is defined in the parent scope and used in a closure it exists for the life of the request.
       // This can lead to leaky behavior if the user retains a reference to the request object.
-      buffer.destroy()
+      buffers = []
+      bufferLength = 0
       return
     }
 
-    if (buffer.length) {
-      debug('has body', self.uri.href, buffer.length)
-      if (self.encoding === null) {
-        // response.body = buffer
-        // can't move to this until https://github.com/rvagg/bl/issues/13
-        response.body = buffer.slice()
-      } else {
-        response.body = buffer.toString(self.encoding)
+    if (bufferLength) {
+      debug('has body', self.uri.href, bufferLength)
+      response.body = Buffer.concat(buffers, bufferLength)
+      if (self.encoding !== null) {
+        response.body = response.body.toString(self.encoding)
       }
       // `buffer` is defined in the parent scope and used in a closure it exists for the life of the Request.
       // This can lead to leaky behavior if the user retains a reference to the request object.
-      buffer.destroy()
+      buffers = []
+      bufferLength = 0
     } else if (strings.length) {
       // The UTF8 BOM [0xEF,0xBB,0xBF] is converted to [0xFE,0xFF] in the JS UTC16/UCS2 representation.
       // Strip this value out when the encoding is set to 'utf8', as upstream consumers won't expect it and it breaks JSON.parse().

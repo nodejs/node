@@ -434,6 +434,15 @@ request(aws4.sign({
 /*
 (HTTP 202, empty response)
 */
+
+// Generate CodeCommit Git access password
+var signer = new aws4.RequestSigner({
+  service: 'codecommit',
+  host: 'git-codecommit.us-east-1.amazonaws.com',
+  method: 'GIT',
+  path: '/v1/repos/MyAwesomeRepo',
+})
+var password = signer.getDateTime() + 'Z' + signer.signature()
 ```
 
 API

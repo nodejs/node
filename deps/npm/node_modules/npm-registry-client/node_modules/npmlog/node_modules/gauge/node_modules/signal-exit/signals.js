@@ -13,15 +13,16 @@
 // fatal signal like SIGWINCH or something, and then
 // exit, it'll end up firing `process.emit('exit')`, so
 // the handler will be fired anyway.
+//
+// SIGBUS, SIGFPE, SIGSEGV and SIGILL, when not raised
+// artificially, inherently leave the process in a
+// state from which it is not safe to try and enter JS
+// listeners.
 module.exports = [
   'SIGABRT',
   'SIGALRM',
-  'SIGBUS',
-  'SIGFPE',
   'SIGHUP',
-  'SIGILL',
   'SIGINT',
-  'SIGSEGV',
   'SIGTERM'
 ]
 

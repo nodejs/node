@@ -1,31 +1,53 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.Qs = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
-var Stringify = require('./stringify');
-var Parse = require('./parse');
+var replace = String.prototype.replace;
+var percentTwenties = /%20/g;
 
 module.exports = {
-    stringify: Stringify,
-    parse: Parse
+    'default': 'RFC3986',
+    formatters: {
+        RFC1738: function (value) {
+            return replace.call(value, percentTwenties, '+');
+        },
+        RFC3986: function (value) {
+            return value;
+        }
+    },
+    RFC1738: 'RFC1738',
+    RFC3986: 'RFC3986'
 };
 
-},{"./parse":2,"./stringify":3}],2:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 'use strict';
 
-var Utils = require('./utils');
+var stringify = require('./stringify');
+var parse = require('./parse');
+var formats = require('./formats');
+
+module.exports = {
+    formats: formats,
+    parse: parse,
+    stringify: stringify
+};
+
+},{"./formats":1,"./parse":3,"./stringify":4}],3:[function(require,module,exports){
+'use strict';
+
+var utils = require('./utils');
 
 var has = Object.prototype.hasOwnProperty;
 
 var defaults = {
+    allowDots: false,
+    allowPrototypes: false,
+    arrayLimit: 20,
+    decoder: utils.decode,
     delimiter: '&',
     depth: 5,
-    arrayLimit: 20,
     parameterLimit: 1000,
-    strictNullHandling: false,
     plainObjects: false,
-    allowPrototypes: false,
-    allowDots: false,
-    decoder: Utils.decode
+    strictNullHandling: false
 };
 
 var parseValues = function parseValues(str, options) {
@@ -147,7 +169,7 @@ module.exports = function (str, opts) {
         throw new TypeError('Decoder has to be a function.');
     }
 
-    options.delimiter = typeof options.delimiter === 'string' || Utils.isRegExp(options.delimiter) ? options.delimiter : defaults.delimiter;
+    options.delimiter = typeof options.delimiter === 'string' || utils.isRegExp(options.delimiter) ? options.delimiter : defaults.delimiter;
     options.depth = typeof options.depth === 'number' ? options.depth : defaults.depth;
     options.arrayLimit = typeof options.arrayLimit === 'number' ? options.arrayLimit : defaults.arrayLimit;
     options.parseArrays = options.parseArrays !== false;
@@ -171,16 +193,17 @@ module.exports = function (str, opts) {
     for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
         var newObj = parseKeys(key, tempObj[key], options);
-        obj = Utils.merge(obj, newObj, options);
+        obj = utils.merge(obj, newObj, options);
     }
 
-    return Utils.compact(obj);
+    return utils.compact(obj);
 };
 
-},{"./utils":4}],3:[function(require,module,exports){
+},{"./utils":5}],4:[function(require,module,exports){
 'use strict';
 
-var Utils = require('./utils');
+var utils = require('./utils');
+var formats = require('./formats');
 
 var arrayPrefixGenerators = {
     brackets: function brackets(prefix) {
@@ -194,20 +217,25 @@ var arrayPrefixGenerators = {
     }
 };
 
+var toISO = Date.prototype.toISOString;
+
 var defaults = {
     delimiter: '&',
-    strictNullHandling: false,
-    skipNulls: false,
     encode: true,
-    encoder: Utils.encode
+    encoder: utils.encode,
+    serializeDate: function serializeDate(date) {
+        return toISO.call(date);
+    },
+    skipNulls: false,
+    strictNullHandling: false
 };
 
-var stringify = function stringify(object, prefix, generateArrayPrefix, strictNullHandling, skipNulls, encoder, filter, sort, allowDots) {
+var stringify = function stringify(object, prefix, generateArrayPrefix, strictNullHandling, skipNulls, encoder, filter, sort, allowDots, serializeDate, formatter) {
     var obj = object;
     if (typeof filter === 'function') {
         obj = filter(prefix, obj);
     } else if (obj instanceof Date) {
-        obj = obj.toISOString();
+        obj = serializeDate(obj);
     } else if (obj === null) {
         if (strictNullHandling) {
             return encoder ? encoder(prefix) : prefix;
@@ -216,11 +244,11 @@ var stringify = function stringify(object, prefix, generateArrayPrefix, strictNu
         obj = '';
     }
 
-    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean' || Utils.isBuffer(obj)) {
+    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean' || utils.isBuffer(obj)) {
         if (encoder) {
-            return [encoder(prefix) + '=' + encoder(obj)];
+            return [formatter(encoder(prefix)) + '=' + formatter(encoder(obj))];
         }
-        return [prefix + '=' + String(obj)];
+        return [formatter(prefix) + '=' + formatter(String(obj))];
     }
 
     var values = [];
@@ -245,9 +273,33 @@ var stringify = function stringify(object, prefix, generateArrayPrefix, strictNu
         }
 
         if (Array.isArray(obj)) {
-            values = values.concat(stringify(obj[key], generateArrayPrefix(prefix, key), generateArrayPrefix, strictNullHandling, skipNulls, encoder, filter, sort, allowDots));
+            values = values.concat(stringify(
+                obj[key],
+                generateArrayPrefix(prefix, key),
+                generateArrayPrefix,
+                strictNullHandling,
+                skipNulls,
+                encoder,
+                filter,
+                sort,
+                allowDots,
+                serializeDate,
+                formatter
+            ));
         } else {
-            values = values.concat(stringify(obj[key], prefix + (allowDots ? '.' + key : '[' + key + ']'), generateArrayPrefix, strictNullHandling, skipNulls, encoder, filter, sort, allowDots));
+            values = values.concat(stringify(
+                obj[key],
+                prefix + (allowDots ? '.' + key : '[' + key + ']'),
+                generateArrayPrefix,
+                strictNullHandling,
+                skipNulls,
+                encoder,
+                filter,
+                sort,
+                allowDots,
+                serializeDate,
+                formatter
+            ));
         }
     }
 
@@ -264,6 +316,13 @@ module.exports = function (object, opts) {
     var encoder = encode ? (typeof options.encoder === 'function' ? options.encoder : defaults.encoder) : null;
     var sort = typeof options.sort === 'function' ? options.sort : null;
     var allowDots = typeof options.allowDots === 'undefined' ? false : options.allowDots;
+    var serializeDate = typeof options.serializeDate === 'function' ? options.serializeDate : defaults.serializeDate;
+    if (typeof options.format === 'undefined') {
+        options.format = formats.default;
+    } else if (!Object.prototype.hasOwnProperty.call(formats.formatters, options.format)) {
+        throw new TypeError('Unknown format option provided.');
+    }
+    var formatter = formats.formatters[options.format];
     var objKeys;
     var filter;
 
@@ -275,7 +334,8 @@ module.exports = function (object, opts) {
         filter = options.filter;
         obj = filter('', obj);
     } else if (Array.isArray(options.filter)) {
-        objKeys = filter = options.filter;
+        filter = options.filter;
+        objKeys = filter;
     }
 
     var keys = [];
@@ -310,26 +370,40 @@ module.exports = function (object, opts) {
             continue;
         }
 
-        keys = keys.concat(stringify(obj[key], key, generateArrayPrefix, strictNullHandling, skipNulls, encoder, filter, sort, allowDots));
+        keys = keys.concat(stringify(
+            obj[key],
+            key,
+            generateArrayPrefix,
+            strictNullHandling,
+            skipNulls,
+            encoder,
+            filter,
+            sort,
+            allowDots,
+            serializeDate,
+            formatter
+        ));
     }
 
     return keys.join(delimiter);
 };
 
-},{"./utils":4}],4:[function(require,module,exports){
+},{"./formats":1,"./utils":5}],5:[function(require,module,exports){
 'use strict';
 
+var has = Object.prototype.hasOwnProperty;
+
 var hexTable = (function () {
-    var array = new Array(256);
+    var array = [];
     for (var i = 0; i < 256; ++i) {
-        array[i] = '%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase();
+        array.push('%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase());
     }
 
     return array;
 }());
 
 exports.arrayToObject = function (source, options) {
-    var obj = options.plainObjects ? Object.create(null) : {};
+    var obj = options && options.plainObjects ? Object.create(null) : {};
     for (var i = 0; i < source.length; ++i) {
         if (typeof source[i] !== 'undefined') {
             obj[i] = source[i];
@@ -363,6 +437,21 @@ exports.merge = function (target, source, options) {
     var mergeTarget = target;
     if (Array.isArray(target) && !Array.isArray(source)) {
         mergeTarget = exports.arrayToObject(target, options);
+    }
+
+    if (Array.isArray(target) && Array.isArray(source)) {
+        source.forEach(function (item, i) {
+            if (has.call(target, i)) {
+                if (target[i] && typeof target[i] === 'object') {
+                    target[i] = exports.merge(target[i], item, options);
+                } else {
+                    target.push(item);
+                }
+            } else {
+                target[i] = item;
+            }
+        });
+        return target;
     }
 
     return Object.keys(source).reduce(function (acc, key) {
@@ -462,10 +551,9 @@ exports.compact = function (obj, references) {
     }
 
     var keys = Object.keys(obj);
-    for (var j = 0; j < keys.length; ++j) {
-        var key = keys[j];
+    keys.forEach(function (key) {
         obj[key] = exports.compact(obj[key], refs);
-    }
+    });
 
     return obj;
 };
@@ -482,5 +570,5 @@ exports.isBuffer = function (obj) {
     return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
 };
 
-},{}]},{},[1])(1)
+},{}]},{},[2])(2)
 });

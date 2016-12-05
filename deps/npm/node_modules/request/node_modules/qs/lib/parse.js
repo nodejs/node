@@ -1,19 +1,19 @@
 'use strict';
 
-var Utils = require('./utils');
+var utils = require('./utils');
 
 var has = Object.prototype.hasOwnProperty;
 
 var defaults = {
+    allowDots: false,
+    allowPrototypes: false,
+    arrayLimit: 20,
+    decoder: utils.decode,
     delimiter: '&',
     depth: 5,
-    arrayLimit: 20,
     parameterLimit: 1000,
-    strictNullHandling: false,
     plainObjects: false,
-    allowPrototypes: false,
-    allowDots: false,
-    decoder: Utils.decode
+    strictNullHandling: false
 };
 
 var parseValues = function parseValues(str, options) {
@@ -135,7 +135,7 @@ module.exports = function (str, opts) {
         throw new TypeError('Decoder has to be a function.');
     }
 
-    options.delimiter = typeof options.delimiter === 'string' || Utils.isRegExp(options.delimiter) ? options.delimiter : defaults.delimiter;
+    options.delimiter = typeof options.delimiter === 'string' || utils.isRegExp(options.delimiter) ? options.delimiter : defaults.delimiter;
     options.depth = typeof options.depth === 'number' ? options.depth : defaults.depth;
     options.arrayLimit = typeof options.arrayLimit === 'number' ? options.arrayLimit : defaults.arrayLimit;
     options.parseArrays = options.parseArrays !== false;
@@ -159,8 +159,8 @@ module.exports = function (str, opts) {
     for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
         var newObj = parseKeys(key, tempObj[key], options);
-        obj = Utils.merge(obj, newObj, options);
+        obj = utils.merge(obj, newObj, options);
     }
 
-    return Utils.compact(obj);
+    return utils.compact(obj);
 };
