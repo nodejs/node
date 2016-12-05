@@ -187,6 +187,12 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+// Set in node.cc by ParseArgs when --deprecated-in-docs is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by the emitDeprecatedInDocsWarning() method in
+// lib/internal/util.js
+bool config_deprecated_in_docs = false;
+
 bool v8_initialized = false;
 
 // process-relative uptime base, initialized at start-up
@@ -3571,6 +3577,8 @@ static void PrintHelp() {
          "  --trace-deprecation   show stack traces on deprecations\n"
          "  --throw-deprecation   throw an exception anytime a deprecated "
          "function is used\n"
+         "  --deprecated-in-docs  show warnings for APIs that are deprecated\n"
+         "                        in the docs\n"
          "  --no-warnings         silence all process warnings\n"
          "  --trace-warnings      show stack traces on process warnings\n"
          "  --trace-sync-io       show stack trace when use of sync IO\n"
@@ -3727,6 +3735,8 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strcmp(arg, "--deprecated-in-docs") == 0) {
+      config_deprecated_in_docs = true;
     } else if (strncmp(arg, "--security-revert=", 18) == 0) {
       const char* cve = arg + 18;
       Revert(cve);

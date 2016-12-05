@@ -107,6 +107,13 @@ added: v0.11.14
 
 Throw errors for deprecations.
 
+### `--deprecated-in-docs`
+<!-- YAML
+added: REPLACEME
+-->
+
+Show warnings for APIs that have been deprecated in the documentation.
+
 ### `--no-warnings`
 <!-- YAML
 added: v6.0.0
