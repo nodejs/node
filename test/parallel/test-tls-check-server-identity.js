@@ -1,14 +1,15 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const util = require('util');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-const tls = require('tls');
 
+const assert = require('assert');
+const util = require('util');
+
+const tls = require('tls');
 
 const tests = [
   // False-y values.
