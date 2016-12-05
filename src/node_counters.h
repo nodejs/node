@@ -1,9 +1,7 @@
 #ifndef SRC_NODE_COUNTERS_H_
 #define SRC_NODE_COUNTERS_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "node.h"
+#include "env.h"
 
 #ifdef HAVE_PERFCTR
 #include "node_win32_perfctr_provider.h"
@@ -23,16 +21,11 @@
 #define NODE_COUNT_SERVER_CONN_OPEN() do { } while (false)
 #endif
 
-#include "v8.h"
-#include "env.h"
-
 namespace node {
 
 void InitPerfCounters(Environment* env, v8::Local<v8::Object> target);
 void TermPerfCounters(v8::Local<v8::Object> target);
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_COUNTERS_H_

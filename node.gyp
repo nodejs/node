@@ -233,7 +233,6 @@
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
-        'NODE_WANT_INTERNALS=1',
         # Warn when using deprecated V8 APIs.
         'V8_DEPRECATION_WARNINGS=1',
       ],
@@ -887,7 +886,6 @@
         'GTEST_DONT_DEFINE_ASSERT_LE=1',
         'GTEST_DONT_DEFINE_ASSERT_LT=1',
         'GTEST_DONT_DEFINE_ASSERT_NE=1',
-        'NODE_WANT_INTERNALS=1',
       ],
       'sources': [
         'test/cctest/util.cc',

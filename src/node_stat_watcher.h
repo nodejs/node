@@ -1,13 +1,9 @@
 #ifndef SRC_NODE_STAT_WATCHER_H_
 #define SRC_NODE_STAT_WATCHER_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "node.h"
 #include "async-wrap.h"
-#include "env.h"
+
 #include "uv.h"
-#include "v8.h"
 
 namespace node {
 
@@ -37,7 +33,5 @@ class StatWatcher : public AsyncWrap {
 };
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_STAT_WATCHER_H_

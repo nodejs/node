@@ -1,8 +1,6 @@
 #ifndef SRC_UTIL_INL_H_
 #define SRC_UTIL_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "util.h"
 #include <cstring>
 
@@ -397,7 +395,5 @@ inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
 inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_INL_H_

@@ -22,12 +22,8 @@
 #ifndef SRC_DEBUG_AGENT_H_
 #define SRC_DEBUG_AGENT_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "node_mutex.h"
-#include "util.h"
-#include "util-inl.h"
-#include "uv.h"
+
 #include "v8.h"
 #include "v8-debug.h"
 
@@ -135,8 +131,7 @@ class Agent {
 };
 
 }  // namespace debugger
-}  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+}  // namespace node
 
 #endif  // SRC_DEBUG_AGENT_H_

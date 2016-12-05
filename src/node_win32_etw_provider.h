@@ -1,8 +1,6 @@
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_H_
 #define SRC_NODE_WIN32_ETW_PROVIDER_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "node_dtrace.h"
 #include "node_internals.h"
 
@@ -74,7 +72,5 @@ INLINE bool NODE_NET_STREAM_END_ENABLED();
 INLINE bool NODE_V8SYMBOL_ENABLED();
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WIN32_ETW_PROVIDER_H_

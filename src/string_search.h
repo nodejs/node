@@ -5,8 +5,6 @@
 #ifndef SRC_STRING_SEARCH_H_
 #define SRC_STRING_SEARCH_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "util.h"
 
 #include <string.h>
@@ -663,8 +661,7 @@ size_t SearchString(const Char* haystack,
   }
   return is_forward ? pos : (haystack_length - needle_length - pos);
 }
-}  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+}  // namespace node
 
 #endif  // SRC_STRING_SEARCH_H_

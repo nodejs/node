@@ -1,12 +1,10 @@
 #ifndef SRC_HANDLE_WRAP_H_
 #define SRC_HANDLE_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "async-wrap.h"
 #include "util.h"
+
 #include "uv.h"
-#include "v8.h"
 
 namespace node {
 
@@ -66,9 +64,6 @@ class HandleWrap : public AsyncWrap {
   uv_handle_t* const handle_;
 };
 
-
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_HANDLE_WRAP_H_

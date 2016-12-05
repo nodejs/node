@@ -1,11 +1,7 @@
 #ifndef SRC_PIPE_WRAP_H_
 #define SRC_PIPE_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "async-wrap.h"
 #include "connection_wrap.h"
-#include "env.h"
 
 namespace node {
 
@@ -38,7 +34,5 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
 
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_PIPE_WRAP_H_

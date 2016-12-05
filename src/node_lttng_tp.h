@@ -1,8 +1,6 @@
 #ifndef SRC_NODE_LTTNG_TP_H_
 #define SRC_NODE_LTTNG_TP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #undef TRACEPOINT_PROVIDER
 #define TRACEPOINT_PROVIDER node
 
@@ -110,7 +108,5 @@ TRACEPOINT_EVENT(
 #endif /* __NODE_LTTNG_TP_H */
 
 #include <lttng/tracepoint-event.h>
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_LTTNG_TP_H_
