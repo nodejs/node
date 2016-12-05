@@ -1,14 +1,10 @@
 #ifndef SRC_NODE_CRYPTO_BIO_H_
 #define SRC_NODE_CRYPTO_BIO_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "openssl/bio.h"
+
 #include "env.h"
 #include "env-inl.h"
-#include "util.h"
-#include "util-inl.h"
-#include "v8.h"
 
 namespace node {
 
@@ -136,7 +132,5 @@ class NodeBIO {
 };
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_BIO_H_
