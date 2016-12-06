@@ -71,7 +71,7 @@ Please use these when possible / appropriate
   * major vs. everything else: run last versions tests against this version, if they pass, **probably** minor or patch
   * A breaking change helper ([full source](https://gist.github.com/chrisdickinson/ba532fa0e4e243fb7b44)):
   ```sh
-  git checkout $(git show -s --pretty='%T' $(git show-ref -d $(git describe --abbrev=0) | tail -n1 | awk '{print $1}')) -- test; make -j8 test
+  git checkout $(git show -s --pretty='%T' $(git show-ref -d $(git describe --abbrev=0) | tail -n1 | awk '{print $1}')) -- test; make -j4 test
   ```
 
 
