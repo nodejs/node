@@ -11,17 +11,11 @@ const stream = require('stream');
 const fs = require('fs');
 const net = require('net');
 
-const connected = {
-  client: 0,
-  server: 0
-};
-
 const server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, common.mustCall(function(c) {
   console.log('new client');
-  connected.server++;
   c.end('ohai');
 })).listen(0, common.mustCall(function() {
   const raw = net.connect(this.address().port);
@@ -55,8 +49,6 @@ const server = tls.createServer({
     rejectUnauthorized: false
   }, common.mustCall(function() {
     console.log('client secure');
-
-    connected.client++;
 
     socket.end('hello');
     socket.resume();
