@@ -11,13 +11,13 @@ if (process.argv[2] !== 'child') {
   let called = false;
 
   worker.once('message', common.mustCall(function(msg, handle) {
-    assert.equal(msg, 'handle');
+    assert.strictEqual(msg, 'handle');
     assert.ok(handle);
     worker.send('got');
 
     handle.on('data', function(data) {
       called = true;
-      assert.equal(data.toString(), 'hello');
+      assert.strictEqual(data.toString(), 'hello');
     });
 
     handle.on('end', function() {
@@ -38,13 +38,14 @@ if (process.argv[2] !== 'child') {
       process.send('handle', socket);
   }
 
-  let server = net.createServer(function(c) {
+  const server = net.createServer(function(c) {
     process.once('message', common.mustCall(function(msg) {
-      assert.equal(msg, 'got');
+      assert.strictEqual(msg, 'got');
       c.end('hello');
     }));
     socketConnected();
   });
+
   server.listen(common.PORT, function() {
     socket = net.connect(common.PORT, '127.0.0.1', socketConnected);
   });
