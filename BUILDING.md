@@ -30,7 +30,8 @@ popups asking to accept incoming network connections when running tests:
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
-Running this script will add rules for the executable `node` in the out directory and the symbolic `node` link in the projects root directory.
+Running this script will add rules for the executable `node` in the out
+directory and the symbolic `node` link in the projects root directory.
 
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
