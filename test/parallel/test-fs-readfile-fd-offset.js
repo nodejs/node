@@ -5,19 +5,19 @@ const fs = require('fs');
 const path = require('path');
 
 const filename = path.join(common.tmpDir, 'readfile.txt');
-const dataExpected = new Array(100).join('a');
+const dataExpected = 'a'.repeat(100);
 fs.writeFileSync(filename, dataExpected);
 const fileLength = dataExpected.length;
 
-['r', 'a+'].forEach(mode => {
+['r', 'a+'].forEach((mode) => {
   const fd = fs.openSync(filename, mode);
-  assert.strictEqual(fileLength, fs.readFileSync(fd).length);
+  assert.strictEqual(fs.readFileSync(fd).length, fileLength);
 
   // Reading again should result in the same length.
-  assert.strictEqual(fileLength, fs.readFileSync(fd).length);
+  assert.strictEqual(fs.readFileSync(fd).length, fileLength);
 
   fs.readFile(fd, common.mustCall((err, buf) => {
     assert.ifError(err);
-    assert.strictEqual(fileLength, buf.length);
+    assert.strictEqual(buf.length, fileLength);
   }));
 });
