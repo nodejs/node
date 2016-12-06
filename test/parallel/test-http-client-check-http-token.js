@@ -3,21 +3,14 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const expectedSuccesses = {
-  undefined: 'GET',
-  null: 'GET',
-  'get': 'GET',
-  'post': 'POST'
-};
-
-const methods = Object.keys(expectedSuccesses);
+const expectedSuccesses = [undefined, null, 'GET', 'post'];
 let requestCount = 0;
 
 const server = http.createServer((req, res) => {
   requestCount++;
   res.end();
 
-  if (methods.length === requestCount) {
+  if (expectedSuccesses.length === requestCount) {
     server.close();
   }
 }).listen(0, test);
@@ -26,7 +19,7 @@ function test() {
   function fail(input) {
     assert.throws(() => {
       http.request({ method: input, path: '/' }, common.fail);
-    }, /Method must be a string/);
+    }, /^TypeError: Method must be a string$/);
   }
 
   fail(-1);
@@ -41,8 +34,7 @@ function test() {
     http.request({ method: method, port: server.address().port }).end();
   }
 
-  ok(undefined);
-  ok(null);
-  ok('get');
-  ok('post');
+  expectedSuccesses.forEach((method) => {
+    ok(method);
+  });
 }
