@@ -3,21 +3,15 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-const fdr = fs.openSync(__filename, 'r');
-const fda = fs.openSync(__filename, 'a+');
-const fileLengthR = fs.readFileSync(fdr).length;
-const fileLengthA = fs.readFileSync(fda).length;
+['r', 'a+'].forEach(mode => {
+  const fd = fs.openSync(__filename, mode);
+  const fileLength = fs.readFileSync(fd).length;
 
-// reading again should result in the same length
-assert.strictEqual(fileLengthR, fs.readFileSync(fdr).length);
-assert.strictEqual(fileLengthA, fs.readFileSync(fda).length);
+  // Reading again should result in the same length.
+  assert.strictEqual(fileLength, fs.readFileSync(fd).length);
 
-fs.readFile(fdr, common.mustCall((err, buf) => {
-  if (err) throw err;
-  assert.strictEqual(fileLengthR, buf.length);
-}));
-
-fs.readFile(fda, common.mustCall((err, buf) => {
-  if (err) throw err;
-  assert.strictEqual(fileLengthA, buf.length);
-}));
+  fs.readFile(fd, common.mustCall((err, buf) => {
+    assert.ifError(err);
+    assert.strictEqual(fileLength, buf.length);
+  }));
+});
