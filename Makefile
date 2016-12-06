@@ -75,7 +75,7 @@ $(NODE_EXE): config.gypi out/Makefile
 
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	if [ ! -r $(NODE_EXE) -o ! -L $(node_EXE) ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+	if [ ! -r $(NODE_EXE) -o ! -L $(NODE_EXE) ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
