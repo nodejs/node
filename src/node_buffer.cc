@@ -606,6 +606,9 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 
   } else if (enc == UCS2) {
     node::TwoByteValue str(env->isolate(), args[1]);
+    if (IsBigEndian())
+      SwapBytes16(reinterpret_cast<char*>(&str[0]), str_length);
+
     memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
   } else {
