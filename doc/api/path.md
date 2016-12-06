@@ -24,7 +24,7 @@ On POSIX:
 
 ```js
 path.basename('C:\\temp\\myfile.html');
-// Returns: 'C:\temp\myfile.html'
+// Returns: 'C:\\temp\\myfile.html'
 ```
 
 On Windows:
