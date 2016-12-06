@@ -392,9 +392,9 @@ deprecated: v6.0.0
 
 * `size` {Integer} The desired length of the new `Buffer`
 
-Allocates a new `Buffer` of `size` bytes.  The `size` must be less than or equal
-to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is thrown.
-A zero-length `Buffer` will be created if `size <= 0`.
+Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
+A zero-length `Buffer` will be created if `size` is 0.
 
 Unlike [`ArrayBuffers`][`ArrayBuffer`], the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created `Buffer`
@@ -470,9 +470,9 @@ const buf = Buffer.alloc(5);
 console.log(buf);
 ```
 
-The `size` must be less than or equal to the value of [`buffer.kMaxLength`].
-Otherwise, a [`RangeError`] is thrown. A zero-length `Buffer` will be created if
-`size <= 0`.
+Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
+A zero-length `Buffer` will be created if `size` is 0.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
 [`buf.fill(fill)`][`buf.fill()`].
@@ -511,9 +511,9 @@ added: v5.10.0
 
 * `size` {Integer} The desired length of the new `Buffer`
 
-Allocates a new *non-zero-filled* `Buffer` of `size` bytes. The `size` must
-be less than or equal to the value of [`buffer.kMaxLength`]. Otherwise, a
-[`RangeError`] is thrown. A zero-length `Buffer` will be created if `size <= 0`.
+Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
+A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -557,10 +557,9 @@ added: v5.10.0
 
 * `size` {Integer} The desired length of the new `Buffer`
 
-Allocates a new *non-zero-filled* and non-pooled `Buffer` of `size` bytes. The
-`size` must be less than or equal to the value of [`buffer.kMaxLength`].
-Otherwise, a [`RangeError`] is thrown. A zero-length `Buffer` will be created if
-`size <= 0`.
+Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
+A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -2390,9 +2389,9 @@ deprecated: v6.0.0
 
 * `size` {Integer} The desired length of the new `SlowBuffer`
 
-Allocates a new `SlowBuffer` of `size` bytes. The `size` must be less than
-or equal to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is
-thrown. A zero-length `Buffer` will be created if `size <= 0`.
+Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
+A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and could contain
