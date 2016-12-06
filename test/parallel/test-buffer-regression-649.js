@@ -6,7 +6,10 @@ const SlowBuffer = require('buffer').SlowBuffer;
 
 // Regression test for https://github.com/nodejs/node/issues/649.
 const len = 1422561062959;
-const lenLimitMsg = /^RangeError: Invalid typed array length$/;
+const lenLimitMsg = new RegExp('^RangeError: (Invalid typed array length' +
+                               '|Array buffer allocation failed' +
+                               '|Invalid array buffer length)$');
+
 assert.throws(() => Buffer(len).toString('utf8'), lenLimitMsg);
 assert.throws(() => SlowBuffer(len).toString('utf8'), lenLimitMsg);
 assert.throws(() => Buffer.alloc(len).toString('utf8'), lenLimitMsg);
