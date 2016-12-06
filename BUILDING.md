@@ -115,7 +115,7 @@ Prerequisites:
   and tools which can be included in the global `PATH`.
 
 ```console
-> .\vcbuild nosign
+> .\vcbuild
 ```
 
 To run the tests:
