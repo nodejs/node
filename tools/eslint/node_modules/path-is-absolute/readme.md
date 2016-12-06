@@ -1,8 +1,6 @@
 # path-is-absolute [![Build Status](https://travis-ci.org/sindresorhus/path-is-absolute.svg?branch=master)](https://travis-ci.org/sindresorhus/path-is-absolute)
 
-> Node.js 0.12 [`path.isAbsolute()`](http://nodejs.org/api/path.html#path_path_isabsolute_path) ponyfill
-
-> Ponyfill: A polyfill that doesn't overwrite the native method
+> Node.js 0.12 [`path.isAbsolute()`](http://nodejs.org/api/path.html#path_path_isabsolute_path) [ponyfill](https://ponyfill.com)
 
 
 ## Install
@@ -15,19 +13,29 @@ $ npm install --save path-is-absolute
 ## Usage
 
 ```js
-var pathIsAbsolute = require('path-is-absolute');
+const pathIsAbsolute = require('path-is-absolute');
 
-// Linux
+// Running on Linux
 pathIsAbsolute('/home/foo');
 //=> true
+pathIsAbsolute('C:/Users/foo');
+//=> false
 
-// Windows
-pathIsAbsolute('C:/Users/');
+// Running on Windows
+pathIsAbsolute('C:/Users/foo');
 //=> true
+pathIsAbsolute('/home/foo');
+//=> false
 
-// Any OS
+// Running on any OS
 pathIsAbsolute.posix('/home/foo');
 //=> true
+pathIsAbsolute.posix('C:/Users/foo');
+//=> false
+pathIsAbsolute.win32('C:/Users/foo');
+//=> true
+pathIsAbsolute.win32('/home/foo');
+//=> false
 ```
 
 
@@ -39,13 +47,13 @@ See the [`path.isAbsolute()` docs](http://nodejs.org/api/path.html#path_path_isa
 
 ### pathIsAbsolute.posix(path)
 
-The Posix specific version.
+POSIX specific version.
 
 ### pathIsAbsolute.win32(path)
 
-The Windows specific version.
+Windows specific version.
 
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

@@ -1,5 +1,6 @@
 var baseFindIndex = require('./_baseFindIndex'),
-    baseIsNaN = require('./_baseIsNaN');
+    baseIsNaN = require('./_baseIsNaN'),
+    strictIndexOf = require('./_strictIndexOf');
 
 /**
  * The base implementation of `_.indexOf` without `fromIndex` bounds checks.
@@ -11,18 +12,9 @@ var baseFindIndex = require('./_baseFindIndex'),
  * @returns {number} Returns the index of the matched value, else `-1`.
  */
 function baseIndexOf(array, value, fromIndex) {
-  if (value !== value) {
-    return baseFindIndex(array, baseIsNaN, fromIndex);
-  }
-  var index = fromIndex - 1,
-      length = array.length;
-
-  while (++index < length) {
-    if (array[index] === value) {
-      return index;
-    }
-  }
-  return -1;
+  return value === value
+    ? strictIndexOf(array, value, fromIndex)
+    : baseFindIndex(array, baseIsNaN, fromIndex);
 }
 
 module.exports = baseIndexOf;

@@ -6,8 +6,9 @@ var arrayFilter = require('./_arrayFilter'),
 
 /**
  * This method is like `_.xor` except that it accepts `comparator` which is
- * invoked to compare elements of `arrays`. The comparator is invoked with
- * two arguments: (arrVal, othVal).
+ * invoked to compare elements of `arrays`. The order of result values is
+ * determined by the order they occur in the arrays. The comparator is invoked
+ * with two arguments: (arrVal, othVal).
  *
  * @static
  * @memberOf _

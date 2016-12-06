@@ -17,8 +17,8 @@ void EnsureAllocation(const v8::FunctionCallbackInfo<v8::Value> &args) {
   args.GetReturnValue().Set(success);
 }
 
-void init(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "ensureAllocation", EnsureAllocation);
+void init(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "ensureAllocation", EnsureAllocation);
 }
 
 NODE_MODULE(binding, init);

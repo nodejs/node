@@ -23,7 +23,8 @@ function isVariadicApplyCalling(node) {
         node.callee.property.name === "apply" &&
         node.callee.computed === false &&
         node.arguments.length === 2 &&
-        node.arguments[1].type !== "ArrayExpression"
+        node.arguments[1].type !== "ArrayExpression" &&
+        node.arguments[1].type !== "SpreadElement"
     );
 }
 
@@ -78,7 +79,9 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -95,7 +98,21 @@ module.exports = {
                 const thisArg = node.arguments[0];
 
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
-                    context.report(node, "use the spread operator instead of the '.apply()'.");
+                    context.report({
+                        node,
+                        message: "Use the spread operator instead of '.apply()'.",
+                        fix(fixer) {
+                            if (expectedThis && expectedThis.type !== "Identifier") {
+
+                                // Don't fix cases where the `this` value could be a computed expression.
+                                return null;
+                            }
+
+                            const propertyDot = sourceCode.getTokensBetween(applied, node.callee.property).find(token => token.value === ".");
+
+                            return fixer.replaceTextRange([propertyDot.range[0], node.range[1]], `(...${sourceCode.getText(node.arguments[1])})`);
+                        }
+                    });
                 }
             }
         };

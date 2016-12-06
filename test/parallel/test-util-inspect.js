@@ -143,12 +143,12 @@ for (const showHidden of [true, false]) {
     assert.strictEqual(
       util.inspect(array, true),
       `${constructor.name} [\n` +
-      `  65,\n` +
-      `  97,\n` +
+      '  65,\n' +
+      '  97,\n' +
       `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
       `  [length]: ${length},\n` +
       `  [byteLength]: ${byteLength},\n` +
-      `  [byteOffset]: 0,\n` +
+      '  [byteOffset]: 0,\n' +
       `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
     assert.strictEqual(
       util.inspect(array, false),
@@ -168,23 +168,21 @@ for (const showHidden of [true, false]) {
   Uint8ClampedArray ].forEach((constructor) => {
     const length = 2;
     const byteLength = length * constructor.BYTES_PER_ELEMENT;
-    const array = vm.runInNewContext('new constructor(new ArrayBuffer(' +
-                                     'byteLength), 0, length)',
-                                     { constructor: constructor,
-                                       byteLength: byteLength,
-                                       length: length
-                                     });
+    const array = vm.runInNewContext(
+      'new constructor(new ArrayBuffer(byteLength), 0, length)',
+      { constructor, byteLength, length }
+    );
     array[0] = 65;
     array[1] = 97;
     assert.strictEqual(
       util.inspect(array, true),
       `${constructor.name} [\n` +
-      `  65,\n` +
-      `  97,\n` +
+      '  65,\n' +
+      '  97,\n' +
       `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
       `  [length]: ${length},\n` +
       `  [byteLength]: ${byteLength},\n` +
-      `  [byteOffset]: 0,\n` +
+      '  [byteOffset]: 0,\n' +
       `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
     assert.strictEqual(
       util.inspect(array, false),
@@ -208,8 +206,8 @@ for (const showHidden of [true, false]) {
 // Objects without prototype
 {
   const out = util.inspect(Object.create(null,
-      { name: {value: 'Tim', enumerable: true},
-        hidden: {value: 'secret'}}), true);
+    { name: {value: 'Tim', enumerable: true},
+      hidden: {value: 'secret'}}), true);
   if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
       out !== "{ name: 'Tim', [hidden]: 'secret' }") {
     common.fail(`unexpected value for out ${out}`);
@@ -696,7 +694,14 @@ assert.strictEqual(
 
 // test Promise
 assert.strictEqual(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
-assert.strictEqual(util.inspect(Promise.reject(3)), 'Promise { <rejected> 3 }');
+
+{
+  const rejected = Promise.reject(3);
+  assert.strictEqual(util.inspect(rejected), 'Promise { <rejected> 3 }');
+  // squelch UnhandledPromiseRejection
+  rejected.catch(() => {});
+}
+
 assert.strictEqual(
   util.inspect(new Promise(function() {})),
   'Promise { <pending> }'
@@ -831,7 +836,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
 {
   const x = Array(101);
-  assert(/^\[ ... 101 more items \]$/.test(
+  assert(/^\[ ... 101 more items ]$/.test(
       util.inspect(x, {maxArrayLength: 0})));
 }
 
@@ -847,7 +852,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
 {
   const x = new Uint8Array(101);
-  assert(/\[ ... 101 more items \]$/.test(
+  assert(/\[ ... 101 more items ]$/.test(
       util.inspect(x, {maxArrayLength: 0})));
 }
 
@@ -925,3 +930,5 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
     util.inspect.defaultOptions = 'bad';
   }, /"options" must be an object/);
 }
+
+assert.doesNotThrow(() => util.inspect(process));

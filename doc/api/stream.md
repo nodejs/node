@@ -19,14 +19,14 @@ The `stream` module can be accessed using:
 const stream = require('stream');
 ```
 
-While it is important for all Node.js users to understand how streams works,
+While it is important for all Node.js users to understand how streams work,
 the `stream` module itself is most useful for developers that are creating new
 types of stream instances. Developer's who are primarily *consuming* stream
 objects will rarely (if ever) have need to use the `stream` module directly.
 
-## Organization of this document
+## Organization of this Document
 
-This document is divided into two primary sections and third section for
+This document is divided into two primary sections with a third section for
 additional notes. The first section explains the elements of the stream API that
 are required to *use* streams within an application. The second section explains
 the elements of the API that are required to *implement* new types of streams.
@@ -48,7 +48,7 @@ There are four fundamental stream types within Node.js:
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
 objects. It is possible, however, for stream implementations to work with other
-types of JavaScript values (with the exception of `null` which serves a special
+types of JavaScript values (with the exception of `null`, which serves a special
 purpose within streams). Such streams are considered to operate in "object
 mode".
 
@@ -87,7 +87,7 @@ total size of the internal write buffer is below the threshold set by
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
-A key goal of the `stream` API, and in particular the [`stream.pipe()`] method,
+A key goal of the `stream` API, particularly the [`stream.pipe()`] method,
 is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
@@ -98,8 +98,8 @@ appropriate and efficient flow of data. For example, [`net.Socket`][] instances
 are [Duplex][] streams whose Readable side allows consumption of data received
 *from* the socket and whose Writable side allows writing data *to* the socket.
 Because data may be written to the socket at a faster or slower rate than data
-is received, it is important each side operate (and buffer) independently of
-the other.
+is received, it is important for each side to operate (and buffer) independently
+of the other.
 
 ## API for Stream Consumers
 
@@ -381,7 +381,7 @@ added: v0.11.15
 -->
 
 * `encoding` {String} The new default encoding
-* Return: `this`
+* Returns: `this`
 
 The `writable.setDefaultEncoding()` method sets the default `encoding` for a
 [Writable][] stream.
@@ -689,7 +689,7 @@ preferred over the use of the `'readable'` event.
 added: v0.11.14
 -->
 
-* Return: {Boolean}
+* Returns: {Boolean}
 
 The `readable.isPaused()` method returns the current operating state of the
 Readable. This is used primarily by the mechanism that underlies the
@@ -711,7 +711,7 @@ readable.isPaused() // === false
 added: v0.9.4
 -->
 
-* Return: `this`
+* Returns: `this`
 
 The `readable.pause()` method will cause a stream in flowing mode to stop
 emitting [`'data'`][] events, switching out of flowing mode. Any data that
@@ -843,7 +843,7 @@ event has been emitted will return `null`. No runtime error will be raised.
 added: v0.9.4
 -->
 
-* Return: `this`
+* Returns: `this`
 
 The `readable.resume()` method causes an explicitly paused Readable stream to
 resume emitting [`'data'`][] events, switching the stream into flowing mode.
@@ -866,7 +866,7 @@ added: v0.9.4
 -->
 
 * `encoding` {String} The encoding to use.
-* Return: `this`
+* Returns: `this`
 
 The `readable.setEncoding()` method sets the default character encoding for
 data read from the Readable stream.
@@ -1061,7 +1061,7 @@ Examples of Transform streams include:
 <!--type=misc-->
 
 The `stream` module API has been designed to make it possible to easily
-implement streams using JavaScript's prototypical inheritance model.
+implement streams using JavaScript's prototypal inheritance model.
 
 First, a stream developer would declare a new JavaScript class that extends one
 of the four basic stream classes (`stream.Writable`, `stream.Readable`,
@@ -1559,7 +1559,9 @@ Because JavaScript does not have support for multiple inheritance, the
 to extending the `stream.Readable` *and* `stream.Writable` classes).
 
 *Note*: The `stream.Duplex` class prototypically inherits from `stream.Readable`
-and parasitically from `stream.Writable`.
+and parasitically from `stream.Writable`, but `instanceof` will work properly
+for both base classes due to overriding [`Symbol.hasInstance`][]
+on `stream.Writable`.
 
 Custom Duplex streams *must* call the `new stream.Duplex([options])`
 constructor and implement *both* the `readable._read()` and
@@ -1694,11 +1696,11 @@ myTransform.setEncoding('ascii');
 myTransform.on('data', (chunk) => console.log(chunk));
 
 myTransform.write(1);
-  // Prints: 01
+// Prints: 01
 myTransform.write(10);
-  // Prints: 0a
+// Prints: 0a
 myTransform.write(100);
-  // Prints: 64
+// Prints: 64
 ```
 
 ### Implementing a Transform Stream
@@ -2009,3 +2011,4 @@ readable buffer so there is nothing for a user to consume.
 [Transform]: #stream_class_stream_transform
 [Writable]: #stream_class_stream_writable
 [zlib]: zlib.html
+[`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance

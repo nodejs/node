@@ -1,0 +1,359 @@
+// This file is generated
+
+// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "{{config.protocol.package}}/{{domain.domain}}.h"
+
+#include "{{config.protocol.package}}/Protocol.h"
+
+{% for namespace in config.protocol.namespace %}
+namespace {{namespace}} {
+{% endfor %}
+namespace {{domain.domain}} {
+
+// ------------- Enum values from types.
+
+const char Metainfo::domainName[] = "{{domain.domain}}";
+const char Metainfo::commandPrefix[] = "{{domain.domain}}.";
+const char Metainfo::version[] = "{{domain.version}}";
+  {% for type in domain.types %}
+    {% if "enum" in type %}
+
+namespace {{type.id}}Enum {
+      {% for literal in type.enum %}
+const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
+      {% endfor %}
+} // namespace {{type.id}}Enum
+      {% if type.exported %}
+
+namespace API {
+namespace {{type.id}}Enum {
+        {% for literal in type.enum %}
+const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
+        {% endfor %}
+} // namespace {{type.id}}Enum
+} // namespace API
+      {% endif %}
+    {% endif %}
+    {% for property in type.properties %}
+      {% if "enum" in property %}
+
+        {% for literal in property.enum %}
+const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{literal | dash_to_camelcase}} = "{{literal}}";
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+    {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
+
+std::unique_ptr<{{type.id}}> {{type.id}}::parse(protocol::Value* value, ErrorSupport* errors)
+{
+    if (!value || value->type() != protocol::Value::TypeObject) {
+        errors->addError("object expected");
+        return nullptr;
+    }
+
+    std::unique_ptr<{{type.id}}> result(new {{type.id}}());
+    protocol::DictionaryValue* object = DictionaryValue::cast(value);
+    errors->push();
+    {% for property in type.properties %}
+    protocol::Value* {{property.name}}Value = object->get("{{property.name}}");
+      {% if property.optional %}
+    if ({{property.name}}Value) {
+        errors->setName("{{property.name}}");
+        result->m_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+    }
+      {% else %}
+    errors->setName("{{property.name}}");
+    result->m_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+      {% endif %}
+    {% endfor %}
+    errors->pop();
+    if (errors->hasErrors())
+        return nullptr;
+    return result;
+}
+
+std::unique_ptr<protocol::DictionaryValue> {{type.id}}::serialize() const
+{
+    std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
+    {% for property in type.properties %}
+      {% if property.optional %}
+    if (m_{{property.name}}.isJust())
+        result->setValue("{{property.name}}", ValueConversions<{{resolve_type(property).raw_type}}>::serialize(m_{{property.name}}.fromJust()));
+      {% else %}
+    result->setValue("{{property.name}}", ValueConversions<{{resolve_type(property).raw_type}}>::serialize({{resolve_type(property).to_raw_type % ("m_" + property.name)}}));
+      {% endif %}
+    {% endfor %}
+    return result;
+}
+
+std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
+{
+    ErrorSupport errors;
+    return parse(serialize().get(), &errors);
+}
+    {% if type.exported %}
+
+{{config.exported.string_out}} {{type.id}}::toJSONString() const
+{
+    String json = serialize()->toJSONString();
+    return {{config.exported.to_string_out % "json"}};
+}
+
+// static
+std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const {{config.exported.string_in}}& json)
+{
+    ErrorSupport errors;
+    std::unique_ptr<Value> value = parseJSON(json);
+    if (!value)
+        return nullptr;
+    return protocol::{{domain.domain}}::{{type.id}}::parse(value.get(), &errors);
+}
+    {% endif %}
+  {% endfor %}
+
+// ------------- Enum values from params.
+
+  {% for command in join_arrays(domain, ["commands", "events"]) %}
+    {% for param in join_arrays(command, ["parameters", "returns"]) %}
+      {% if "enum" in param %}
+
+namespace {{command.name | to_title_case}} {
+namespace {{param.name | to_title_case}}Enum {
+        {% for literal in param.enum %}
+const char* {{ literal | to_title_case}} = "{{literal}}";
+        {% endfor %}
+} // namespace {{param.name | to_title_case}}Enum
+} // namespace {{command.name | to_title_case }}
+        {% if param.exported %}
+
+namespace API {
+namespace {{command.name | to_title_case}} {
+namespace {{param.name | to_title_case}}Enum {
+        {% for literal in param.enum %}
+const char* {{ literal | to_title_case}} = "{{literal}}";
+        {% endfor %}
+} // namespace {{param.name | to_title_case}}Enum
+} // namespace {{command.name | to_title_case }}
+} // namespace API
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+// ------------- Frontend notifications.
+  {% for event in domain.events %}
+    {% if "handlers" in event and not ("renderer" in event["handlers"]) %}{% continue %}{% endif %}
+
+void Frontend::{{event.name}}(
+    {%- for parameter in event.parameters %}
+      {% if "optional" in parameter -%}
+        const Maybe<{{resolve_type(parameter).raw_type}}>&
+      {%- else -%}
+        {{resolve_type(parameter).pass_type}}
+      {%- endif %} {{parameter.name}}{%- if not loop.last -%}, {% endif -%}
+    {% endfor -%})
+{
+    std::unique_ptr<protocol::DictionaryValue> jsonMessage = DictionaryValue::create();
+    jsonMessage->setString("method", "{{domain.domain}}.{{event.name}}");
+    std::unique_ptr<protocol::DictionaryValue> paramsObject = DictionaryValue::create();
+    {% for parameter in event.parameters %}
+      {% if "optional" in parameter %}
+    if ({{parameter.name}}.isJust())
+        paramsObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{parameter.name}}.fromJust()));
+      {% else %}
+    paramsObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
+      {% endif %}
+    {% endfor %}
+    jsonMessage->setObject("params", std::move(paramsObject));
+    if (m_frontendChannel)
+        m_frontendChannel->sendProtocolNotification(jsonMessage->toJSONString());
+}
+  {% endfor %}
+
+void Frontend::flush()
+{
+    m_frontendChannel->flushProtocolNotifications();
+}
+
+// --------------------- Dispatcher.
+
+class DispatcherImpl : public protocol::DispatcherBase {
+public:
+    DispatcherImpl(FrontendChannel* frontendChannel, Backend* backend)
+        : DispatcherBase(frontendChannel)
+        , m_backend(backend) {
+  {% for command in domain.commands %}
+    {% if "redirect" in command %}{% continue %}{% endif %}
+    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+        m_dispatchMap["{{domain.domain}}.{{command.name}}"] = &DispatcherImpl::{{command.name}};
+  {% endfor %}
+    }
+    ~DispatcherImpl() override { }
+    void dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
+
+protected:
+    using CallHandler = void (DispatcherImpl::*)(int callId, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
+    using DispatchMap = protocol::HashMap<String, CallHandler>;
+    DispatchMap m_dispatchMap;
+
+  {% for command in domain.commands %}
+    {% if "redirect" in command %}{% continue %}{% endif %}
+    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    void {{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
+  {% endfor %}
+
+    Backend* m_backend;
+};
+
+void DispatcherImpl::dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject)
+{
+    protocol::HashMap<String, CallHandler>::iterator it = m_dispatchMap.find(method);
+    if (it == m_dispatchMap.end()) {
+        reportProtocolError(callId, MethodNotFound, "'" + method + "' wasn't found", nullptr);
+        return;
+    }
+
+    protocol::ErrorSupport errors;
+    (this->*(it->second))(callId, std::move(messageObject), &errors);
+}
+
+  {% for command in domain.commands %}
+    {% if "redirect" in command %}{% continue %}{% endif %}
+    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if "async" in command %}
+
+class {{command.name | to_title_case}}CallbackImpl : public Backend::{{command.name | to_title_case}}Callback, public DispatcherBase::Callback {
+public:
+    {{command.name | to_title_case}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId)
+        : DispatcherBase::Callback(std::move(backendImpl), callId) { }
+
+    void sendSuccess(
+    {%- for parameter in command.returns -%}
+      {%- if "optional" in parameter -%}
+        const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}}
+      {%- else -%}
+        {{resolve_type(parameter).pass_type}} {{parameter.name}}
+      {%- endif -%}
+      {%- if not loop.last -%}, {% endif -%}
+    {%- endfor -%}) override
+    {
+        std::unique_ptr<protocol::DictionaryValue> resultObject = DictionaryValue::create();
+          {% for parameter in command.returns %}
+            {% if "optional" in parameter %}
+        if ({{parameter.name}}.isJust())
+            resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{parameter.name}}.fromJust()));
+           {% else %}
+        resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
+            {% endif %}
+          {% endfor %}
+        sendIfActive(std::move(resultObject), ErrorString());
+    }
+
+    void sendFailure(const ErrorString& error) override
+    {
+        DCHECK(error.length());
+        sendIfActive(nullptr, error);
+    }
+
+};
+    {% endif %}
+
+void DispatcherImpl::{{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
+{
+    {% if "parameters" in command %}
+    // Prepare input parameters.
+    protocol::DictionaryValue* object = DictionaryValue::cast(requestMessageObject->get("params"));
+    errors->push();
+      {% for property in command.parameters %}
+    protocol::Value* {{property.name}}Value = object ? object->get("{{property.name}}") : nullptr;
+        {% if property.optional %}
+    Maybe<{{resolve_type(property).raw_type}}> in_{{property.name}};
+    if ({{property.name}}Value) {
+        errors->setName("{{property.name}}");
+        in_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+    }
+        {% else %}
+    errors->setName("{{property.name}}");
+    {{resolve_type(property).type}} in_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+        {% endif %}
+      {% endfor %}
+    errors->pop();
+    if (errors->hasErrors()) {
+        reportProtocolError(callId, InvalidParams, kInvalidRequest, errors);
+        return;
+    }
+    {% endif %}
+    {% if "async" in command %}
+    std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId));
+    {% elif "returns" in command %}
+    // Declare output parameters.
+    std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
+      {% for property in command.returns %}
+        {% if "optional" in property %}
+    Maybe<{{resolve_type(property).raw_type}}> out_{{property.name}};
+        {% else %}
+    {{resolve_type(property).type}} out_{{property.name}};
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
+    {% if not("async" in command) %}
+    ErrorString error;
+    m_backend->{{command.name}}(&error
+      {%- for property in command.parameters -%}
+        {%- if "optional" in property -%}
+        , in_{{property.name}}
+        {%- else -%}
+        , {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
+        {%- endif -%}
+      {%- endfor %}
+      {%- if "returns" in command %}
+        {%- for property in command.returns -%}
+          , &out_{{property.name}}
+        {%- endfor %}
+      {% endif %});
+      {% if "returns" in command and not("async" in command) %}
+    if (!error.length()) {
+        {% for parameter in command.returns %}
+          {% if "optional" in parameter %}
+        if (out_{{parameter.name}}.isJust())
+            result->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize(out_{{parameter.name}}.fromJust()));
+          {% else %}
+        result->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % ("out_" + parameter.name)}}));
+          {% endif %}
+        {% endfor %}
+    }
+    if (weak->get())
+        weak->get()->sendResponse(callId, error, std::move(result));
+      {% else %}
+    if (weak->get())
+        weak->get()->sendResponse(callId, error);
+      {% endif %}
+    {%- else %}
+    m_backend->{{command.name}}(
+      {%- for property in command.parameters -%}
+        {%- if "optional" in property -%}
+        in_{{property.name}},
+        {%- else -%}
+        {{resolve_type(property).to_pass_type % ("in_" + property.name)}},
+        {%- endif -%}
+      {%- endfor -%}
+        std::move(callback));
+    {% endif %}
+}
+  {% endfor %}
+
+// static
+void Dispatcher::wire(UberDispatcher* dispatcher, Backend* backend)
+{
+    dispatcher->registerBackend("{{domain.domain}}", wrapUnique(new DispatcherImpl(dispatcher->channel(), backend)));
+}
+
+} // {{domain.domain}}
+{% for namespace in config.protocol.namespace %}
+} // namespace {{namespace}}
+{% endfor %}

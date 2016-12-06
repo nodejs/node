@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -48,6 +50,29 @@
  * stddef.h defines wchar_t
  */
 #include <stddef.h>
+
+#ifndef U_HIDE_INTERNAL_API
+/*
+ *  U_USE_CHAR16_T
+ *     When defined, force use of char16_t for UChar.
+ *     Note: char16_t is expected to become the default and required in the future,
+ *           and this option will be removed.
+ *     @internal
+ */
+#ifdef U_USE_CHAR16_T
+#ifdef UCHAR_TYPE
+#undef UCHAR_TYPE
+#endif
+#define UCHAR_TYPE char16_t
+
+/*
+ * In plain C, <uchar.h> is needed for the definition of char16_t
+ */
+#ifndef __cplusplus
+#include <uchar.h>
+#endif
+#endif
+#endif  /* U_HIDE_INTERNAL_API */
 
 /*==========================================================================*/
 /* For C wrappers, we use the symbol U_STABLE.                                */

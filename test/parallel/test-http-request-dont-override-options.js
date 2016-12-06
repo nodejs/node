@@ -43,4 +43,3 @@ http.createServer(function(req, res) {
     assert.strictEqual(options.method, undefined);
   });
 }).unref();
-

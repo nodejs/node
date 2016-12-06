@@ -148,14 +148,8 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 
 void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  buf->base = static_cast<char*>(node::Malloc(size));
+  buf->base = node::Malloc(size);
   buf->len = size;
-
-  if (buf->base == nullptr && size > 0) {
-    FatalError(
-        "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
-        "Out Of Memory");
-  }
 }
 
 
@@ -204,8 +198,8 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     return;
   }
 
-  char* base = static_cast<char*>(node::Realloc(buf->base, nread));
   CHECK_LE(static_cast<size_t>(nread), buf->len);
+  char* base = node::Realloc(buf->base, nread);
 
   if (pending == UV_TCP) {
     pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, wrap);

@@ -17,15 +17,15 @@ Example using the global `console`:
 
 ```js
 console.log('hello world');
-  // Prints: hello world, to stdout
+// Prints: hello world, to stdout
 console.log('hello %s', 'world');
-  // Prints: hello world, to stdout
+// Prints: hello world, to stdout
 console.error(new Error('Whoops, something bad happened'));
-  // Prints: [Error: Whoops, something bad happened], to stderr
+// Prints: [Error: Whoops, something bad happened], to stderr
 
 const name = 'Will Robinson';
 console.warn(`Danger ${name}! Danger!`);
-  // Prints: Danger Will Robinson! Danger!, to stderr
+// Prints: Danger Will Robinson! Danger!, to stderr
 ```
 
 Example using the `Console` class:
@@ -36,15 +36,15 @@ const err = getStreamSomehow();
 const myConsole = new console.Console(out, err);
 
 myConsole.log('hello world');
-  // Prints: hello world, to out
+// Prints: hello world, to out
 myConsole.log('hello %s', 'world');
-  // Prints: hello world, to out
+// Prints: hello world, to out
 myConsole.error(new Error('Whoops, something bad happened'));
-  // Prints: [Error: Whoops, something bad happened], to err
+// Prints: [Error: Whoops, something bad happened], to err
 
 const name = 'Will Robinson';
 myConsole.warn(`Danger ${name}! Danger!`);
-  // Prints: Danger Will Robinson! Danger!, to err
+// Prints: Danger Will Robinson! Danger!, to err
 ```
 
 While the API for the `Console` class is designed fundamentally around the
@@ -111,9 +111,9 @@ using [`util.format()`][] and used as the error message.
 
 ```js
 console.assert(true, 'does nothing');
-  // OK
+// OK
 console.assert(false, 'Whoops %s', 'didn\'t work');
-  // AssertionError: Whoops didn't work
+// AssertionError: Whoops didn't work
 ```
 
 *Note: the `console.assert()` method is implemented differently in Node.js
@@ -184,15 +184,15 @@ added: v0.1.100
 
 Prints to `stderr` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
-values similar to `printf(3)` (the arguments are all passed to
+values similar to printf(3) (the arguments are all passed to
 [`util.format()`][]).
 
 ```js
 const code = 5;
 console.error('error #%d', code);
-  // Prints: error #5, to stderr
+// Prints: error #5, to stderr
 console.error('error', code);
-  // Prints: error 5, to stderr
+// Prints: error 5, to stderr
 ```
 
 If formatting elements (e.g. `%d`) are not found in the first string then
@@ -213,15 +213,15 @@ added: v0.1.100
 
 Prints to `stdout` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
-values similar to `printf(3)` (the arguments are all passed to
+values similar to printf(3) (the arguments are all passed to
 [`util.format()`][]).
 
 ```js
 var count = 5;
 console.log('count: %d', count);
-  // Prints: count: 5, to stdout
+// Prints: count: 5, to stdout
 console.log('count:', count);
-  // Prints: count: 5, to stdout
+// Prints: count: 5, to stdout
 ```
 
 If formatting elements (e.g. `%d`) are not found in the first string then
@@ -270,18 +270,18 @@ formatted message and stack trace to the current position in the code.
 
 ```js
 console.trace('Show me');
-  // Prints: (stack trace will vary based on where trace is called)
-  //  Trace: Show me
-  //    at repl:2:9
-  //    at REPLServer.defaultEval (repl.js:248:27)
-  //    at bound (domain.js:287:14)
-  //    at REPLServer.runBound [as eval] (domain.js:300:12)
-  //    at REPLServer.<anonymous> (repl.js:412:12)
-  //    at emitOne (events.js:82:20)
-  //    at REPLServer.emit (events.js:169:7)
-  //    at REPLServer.Interface._onLine (readline.js:210:10)
-  //    at REPLServer.Interface._line (readline.js:549:8)
-  //    at REPLServer.Interface._ttyWrite (readline.js:826:14)
+// Prints: (stack trace will vary based on where trace is called)
+//  Trace: Show me
+//    at repl:2:9
+//    at REPLServer.defaultEval (repl.js:248:27)
+//    at bound (domain.js:287:14)
+//    at REPLServer.runBound [as eval] (domain.js:300:12)
+//    at REPLServer.<anonymous> (repl.js:412:12)
+//    at emitOne (events.js:82:20)
+//    at REPLServer.emit (events.js:169:7)
+//    at REPLServer.Interface._onLine (readline.js:210:10)
+//    at REPLServer.Interface._line (readline.js:549:8)
+//    at REPLServer.Interface._ttyWrite (readline.js:826:14)
 ```
 
 ### console.warn([data][, ...args])

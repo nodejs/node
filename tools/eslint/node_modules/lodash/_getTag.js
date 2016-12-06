@@ -41,8 +41,7 @@ var dataViewCtorString = toSource(DataView),
  */
 var getTag = baseGetTag;
 
-// Fallback for data views, maps, sets, and weak maps in IE 11,
-// for data views in Edge < 14, and promises in Node.js.
+// Fallback for data views, maps, sets, and weak maps in IE 11 and promises in Node.js < 6.
 if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
     (Map && getTag(new Map) != mapTag) ||
     (Promise && getTag(Promise.resolve()) != promiseTag) ||

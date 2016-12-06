@@ -61,7 +61,9 @@ module.exports = {
                 return !parent.computed && (
 
                     // regular property assignment
-                    (parent.parent.left === parent || // or the last identifier in an ObjectPattern destructuring
+                    (parent.parent.left === parent && parent.parent.type === "AssignmentExpression" ||
+
+                    // or the last identifier in an ObjectPattern destructuring
                     parent.parent.type === "Property" && parent.parent.value === parent &&
                     parent.parent.parent.type === "ObjectPattern" && parent.parent.parent.parent.left === parent.parent.parent)
                 );

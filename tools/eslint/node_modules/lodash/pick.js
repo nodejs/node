@@ -1,7 +1,6 @@
 var arrayMap = require('./_arrayMap'),
-    baseFlatten = require('./_baseFlatten'),
     basePick = require('./_basePick'),
-    baseRest = require('./_baseRest'),
+    flatRest = require('./_flatRest'),
     toKey = require('./_toKey');
 
 /**
@@ -21,8 +20,8 @@ var arrayMap = require('./_arrayMap'),
  * _.pick(object, ['a', 'c']);
  * // => { 'a': 1, 'c': 3 }
  */
-var pick = baseRest(function(object, props) {
-  return object == null ? {} : basePick(object, arrayMap(baseFlatten(props, 1), toKey));
+var pick = flatRest(function(object, props) {
+  return object == null ? {} : basePick(object, arrayMap(props, toKey));
 });
 
 module.exports = pick;

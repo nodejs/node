@@ -145,11 +145,16 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
   if (!receiver_map->prototype()->IsJSArray()) return false;
   Handle<JSArray> receiver_prototype(JSArray::cast(receiver_map->prototype()),
                                      isolate);
+  // Ensure that all prototypes of the {receiver} are stable.
+  for (PrototypeIterator it(isolate, receiver_prototype, kStartAtReceiver);
+       !it.IsAtEnd(); it.Advance()) {
+    Handle<JSReceiver> current = PrototypeIterator::GetCurrent<JSReceiver>(it);
+    if (!current->map()->is_stable()) return false;
+  }
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
          (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
-         receiver_prototype->map()->is_stable() &&
          isolate->IsFastArrayConstructorPrototypeChainIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype) &&
          !IsReadOnlyLengthDescriptor(receiver_map);
@@ -307,6 +312,10 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
         simplified()->StoreElement(
             AccessBuilder::ForFixedArrayElement(receiver_map->elements_kind())),
         elements, length, value, effect, control);
+
+    // Return the new length of the {receiver}.
+    value = graph()->NewNode(simplified()->NumberAdd(), length,
+                             jsgraph()->OneConstant());
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);

@@ -107,7 +107,7 @@ module.exports = {
 
                 extraCharacterCount += spaceCount - 1;  // -1 for the replaced tab
             });
-            return line.length + extraCharacterCount;
+            return Array.from(line).length + extraCharacterCount;
         }
 
         // The options object must be the last option specified…
@@ -235,8 +235,9 @@ module.exports = {
          * @private
          */
         function groupByLineNumber(acc, node) {
-            ensureArrayAndPush(acc, node.loc.start.line, node);
-            ensureArrayAndPush(acc, node.loc.end.line, node);
+            for (let i = node.loc.start.line; i <= node.loc.end.line; ++i) {
+                ensureArrayAndPush(acc, i, node);
+            }
             return acc;
         }
 

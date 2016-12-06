@@ -36,7 +36,7 @@ function getSourceCodeOfFile(filename, options) {
     if (results && results.results[0] && results.results[0].messages[0] && results.results[0].messages[0].fatal) {
         const msg = results.results[0].messages[0];
 
-        throw new Error("(" + filename + ":" + msg.line + ":" + msg.column + ") " + msg.message);
+        throw new Error(`(${filename}:${msg.line}:${msg.column}) ${msg.message}`);
     }
     const sourceCode = eslint.getSourceCode();
 
@@ -89,7 +89,7 @@ function getSourceCodeOfFiles(patterns, options, cb) {
     }, []);
 
     if (filenames.length === 0) {
-        debug("Did not find any files matching pattern(s): " + patterns);
+        debug(`Did not find any files matching pattern(s): ${patterns}`);
     }
     filenames.forEach(function(filename) {
         const sourceCode = getSourceCodeOfFile(filename, opts);

@@ -12,7 +12,7 @@ if (common.isWindows) {
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
   exec('whoami /priv', function(err, o) {
-    if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') == -1) {
+    if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
       common.skip('insufficient privileges');
       return;
     }
@@ -25,24 +25,24 @@ common.refreshTmpDir();
 const linkData = path.join(common.fixturesDir, '/cycles/root.js');
 const linkPath = path.join(common.tmpDir, 'symlink1.js');
 
-fs.symlink(linkData, linkPath, function(err) {
-  if (err) throw err;
+fs.symlink(linkData, linkPath, common.mustCall(function(err) {
+  assert.ifError(err);
 
   fs.lstat(linkPath, common.mustCall(function(err, stats) {
-    if (err) throw err;
+    assert.ifError(err);
     linkTime = stats.mtime.getTime();
   }));
 
   fs.stat(linkPath, common.mustCall(function(err, stats) {
-    if (err) throw err;
+    assert.ifError(err);
     fileTime = stats.mtime.getTime();
   }));
 
   fs.readlink(linkPath, common.mustCall(function(err, destination) {
-    if (err) throw err;
-    assert.equal(destination, linkData);
+    assert.ifError(err);
+    assert.strictEqual(destination, linkData);
   }));
-});
+}));
 
 
 process.on('exit', function() {

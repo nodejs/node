@@ -614,7 +614,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                               fallthrough_control);
               this_controls.push_back(
                   graph()->NewNode(common()->IfTrue(), branch));
-              this_effects.push_back(effect);
+              this_effects.push_back(this_effect);
               fallthrough_control =
                   graph()->NewNode(common()->IfFalse(), branch);
             }

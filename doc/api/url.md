@@ -31,7 +31,7 @@ illustrate each.
 "  http:   // user:pass @ host.com : 8080   /p/a/t/h  ?  query=string   #hash "
 │          ││           │          │      │          │ │              │       │
 └──────────┴┴───────────┴──────────┴──────┴──────────┴─┴──────────────┴───────┘
-(all spaces in the "" line should be ignored -- they're purely for formatting)
+(all spaces in the "" line should be ignored -- they are purely for formatting)
 ```
 
 ### urlObject.href
@@ -114,9 +114,10 @@ No decoding of the `path` is performed.
 
 ### urlObject.query
 
-The `query` property is either the "params" portion of the query string (
-everything *except* the leading ASCII question mark (`?`), or an object
-returned by the [`querystring`][] module's `parse()` method:
+The `query` property is either the query string without the leading ASCII
+question mark (`?`), or an object returned by the [`querystring`][] module's
+`parse()` method. Whether the `query` property is a string or object is
+determined by the `parseQueryString` argument passed to `url.parse()`.
 
 For example: `'query=string'` or `{'query': 'string'}`
 
@@ -153,10 +154,11 @@ The formatting process operates as follows:
   [`Error`][] is thrown.
 * For all string values of `urlObject.protocol` that *do not end* with an ASCII
   colon (`:`) character, the literal string `:` will be appended to `result`.
-* If either the `urlObject.slashes` property is true, `urlObject.protocol`
-  begins with one of `http`, `https`, `ftp`, `gopher`, or `file`, or
-  `urlObject.protocol` is `undefined`, the literal string `//` will be appended
-  to `result`.
+* If either of the following conditions is true, then the literal string `//`
+  will be appended to `result`:
+    * `urlObject.slashes` property is true;
+    * `urlObject.protocol` begins with `http`, `https`, `ftp`, `gopher`, or
+      `file`;
 * If the value of the `urlObject.auth` property is truthy, and either
   `urlObject.host` or `urlObject.hostname` are not `undefined`, the value of
   `urlObject.auth` will be coerced into a string and appended to `result`

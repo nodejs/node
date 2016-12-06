@@ -4,7 +4,7 @@ var apply = require('./_apply'),
     castSlice = require('./_castSlice'),
     toInteger = require('./toInteger');
 
-/** Used as the `TypeError` message for "Functions" methods. */
+/** Error message constants. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
 /* Built-in method references for those with the same name as other `lodash` methods. */

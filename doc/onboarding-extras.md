@@ -24,11 +24,13 @@
 | `src/node_crypto.*` | @nodejs/crypto |
 | `test/*` | @nodejs/testing |
 | `tools/eslint`, `.eslintrc` | @silverwind, @trott |
+| async_hooks | @nodejs/diagnostics |
 | upgrading V8 | @nodejs/v8, @nodejs/post-mortem |
 | upgrading npm | @fishrock123, @thealphanerd |
 | upgrading c-ares | @jbergstroem |
 | upgrading http-parser | @jbergstroem, @nodejs/http |
 | upgrading libuv | @saghul |
+| platform specific | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows} |
 
 
 When things need extra attention, are controversial, or `semver-major`: @nodejs/ctc
@@ -76,10 +78,10 @@ Please use these when possible / appropriate
 ### Other Labels
 
 * Operating system labels
-  * `os x`, `windows`, `solaris`
+  * `macos`, `windows`, `smartos`, `aix`
   * No linux, linux is the implied default
 * Architecture labels
-  * `arm`, `mips`
+  * `arm`, `mips`, `s390`, `ppc`
   * No x86{_64}, since that is the implied default
 * `lts-agenda`, `lts-watch-v*`
   * tag things that should be discussed to go into LTS or should go into a specific LTS branch

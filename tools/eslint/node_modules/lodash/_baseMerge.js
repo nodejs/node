@@ -1,11 +1,9 @@
 var Stack = require('./_Stack'),
-    arrayEach = require('./_arrayEach'),
     assignMergeValue = require('./_assignMergeValue'),
-    baseKeysIn = require('./_baseKeysIn'),
+    baseFor = require('./_baseFor'),
     baseMergeDeep = require('./_baseMergeDeep'),
-    isArray = require('./isArray'),
     isObject = require('./isObject'),
-    isTypedArray = require('./isTypedArray');
+    keysIn = require('./keysIn');
 
 /**
  * The base implementation of `_.merge` without support for multiple sources.
@@ -22,14 +20,7 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
   if (object === source) {
     return;
   }
-  if (!(isArray(source) || isTypedArray(source))) {
-    var props = baseKeysIn(source);
-  }
-  arrayEach(props || source, function(srcValue, key) {
-    if (props) {
-      key = srcValue;
-      srcValue = source[key];
-    }
+  baseFor(source, function(srcValue, key) {
     if (isObject(srcValue)) {
       stack || (stack = new Stack);
       baseMergeDeep(object, source, key, srcIndex, baseMerge, customizer, stack);
@@ -44,7 +35,7 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
       }
       assignMergeValue(object, key, newValue);
     }
-  });
+  }, keysIn);
 }
 
 module.exports = baseMerge;

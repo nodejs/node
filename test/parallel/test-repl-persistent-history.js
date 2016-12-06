@@ -166,7 +166,7 @@ const tests = [
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
   { // Make sure this is always the last test, since we change os.homedir()
-    before: function mockHomedirFailure() {
+    before: function before() {
       // Mock os.homedir() failure
       os.homedir = function() {
         throw new Error('os.homedir() failure');

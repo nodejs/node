@@ -22,7 +22,9 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -39,7 +41,14 @@ module.exports = {
             context.report({
                 node: node.parent.parent,
                 message: "The function binding is unnecessary.",
-                loc: node.parent.property.loc.start
+                loc: node.parent.property.loc.start,
+                fix(fixer) {
+                    const firstTokenToRemove = context.getSourceCode()
+                        .getTokensBetween(node.parent.object, node.parent.property)
+                        .find(token => token.value !== ")");
+
+                    return fixer.removeRange([firstTokenToRemove.range[0], node.parent.parent.range[1]]);
+                }
             });
         }
 

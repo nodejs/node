@@ -57,7 +57,7 @@ assert.throws(function() {
 // Argument types for combinatorics
 const a = [];
 const o = {};
-const c = function callback() {};
+const c = function c() {};
 const s = 'string';
 const u = undefined;
 const n = null;

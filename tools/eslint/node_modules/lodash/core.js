@@ -13,9 +13,9 @@
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.15.0';
+  var VERSION = '4.16.4';
 
-  /** Used as the `TypeError` message for "Functions" methods. */
+  /** Error message constants. */
   var FUNC_ERROR_TEXT = 'Expected a function';
 
   /** Used to compose bitmasks for function metadata. */
@@ -40,11 +40,12 @@
       genTag = '[object GeneratorFunction]',
       numberTag = '[object Number]',
       objectTag = '[object Object]',
+      proxyTag = '[object Proxy]',
       regexpTag = '[object RegExp]',
       stringTag = '[object String]';
 
   /** Used to match HTML entities and HTML characters. */
-  var reUnescapedHtml = /[&<>"'`]/g,
+  var reUnescapedHtml = /[&<>"']/g,
       reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
 
   /** Used to map characters to HTML entities. */
@@ -53,8 +54,7 @@
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
-    "'": '&#39;',
-    '`': '&#96;'
+    "'": '&#39;'
   };
 
   /** Detect free variable `global` from Node.js. */
@@ -182,17 +182,6 @@
    * @returns {string} Returns the escaped character.
    */
   var escapeHtmlChar = basePropertyOf(htmlEscapes);
-
-  /**
-   * Checks if `value` is a host object in IE < 9.
-   *
-   * @private
-   * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is a host object, else `false`.
-   */
-  function isHostObject() {
-    return false;
-  }
 
   /**
    * Creates a unary function that invokes `func` with its argument transformed.
@@ -365,6 +354,30 @@
   }
 
   /**
+   * The base implementation of `_.create` without support for assigning
+   * properties to the created object.
+   *
+   * @private
+   * @param {Object} proto The object to inherit from.
+   * @returns {Object} Returns the new object.
+   */
+  var baseCreate = (function() {
+    function object() {}
+    return function(proto) {
+      if (!isObject(proto)) {
+        return {};
+      }
+      if (objectCreate) {
+        return objectCreate(proto);
+      }
+      object.prototype = proto;
+      var result = new object;
+      object.prototype = undefined;
+      return result;
+    };
+  }());
+
+  /**
    * The base constructor for creating `lodash` wrapper objects.
    *
    * @private
@@ -414,20 +427,21 @@
     var objValue = object[key];
     if (!(hasOwnProperty.call(object, key) && eq(objValue, value)) ||
         (value === undefined && !(key in object))) {
-      object[key] = value;
+      baseAssignValue(object, key, value);
     }
   }
 
   /**
-   * The base implementation of `_.create` without support for assigning
-   * properties to the created object.
+   * The base implementation of `assignValue` and `assignMergeValue` without
+   * value checks.
    *
    * @private
-   * @param {Object} prototype The object to inherit from.
-   * @returns {Object} Returns the new object.
+   * @param {Object} object The object to modify.
+   * @param {string} key The key of the property to assign.
+   * @param {*} value The value to assign.
    */
-  function baseCreate(proto) {
-    return isObject(proto) ? objectCreate(proto) : {};
+  function baseAssignValue(object, key, value) {
+    object[key] = value;
   }
 
   /**
@@ -610,6 +624,15 @@
   }
 
   /**
+   * The base implementation of `_.isArguments`.
+   *
+   * @private
+   * @param {*} value The value to check.
+   * @returns {boolean} Returns `true` if `value` is an `arguments` object,
+   */
+  var baseIsArguments = noop;
+
+  /**
    * The base implementation of `_.isDate` without Node.js optimizations.
    *
    * @private
@@ -674,8 +697,8 @@
       othTag = objectToString.call(other);
       othTag = othTag == argsTag ? objectTag : othTag;
     }
-    var objIsObj = objTag == objectTag && !isHostObject(object),
-        othIsObj = othTag == objectTag && !isHostObject(other),
+    var objIsObj = objTag == objectTag,
+        othIsObj = othTag == objectTag,
         isSameTag = objTag == othTag;
 
     stack || (stack = []);
@@ -832,24 +855,7 @@
    * @returns {Function} Returns the new function.
    */
   function baseRest(func, start) {
-    start = nativeMax(start === undefined ? (func.length - 1) : start, 0);
-    return function() {
-      var args = arguments,
-          index = -1,
-          length = nativeMax(args.length - start, 0),
-          array = Array(length);
-
-      while (++index < length) {
-        array[index] = args[start + index];
-      }
-      index = -1;
-      var otherArgs = Array(start + 1);
-      while (++index < start) {
-        otherArgs[index] = args[index];
-      }
-      otherArgs[start] = array;
-      return func.apply(this, otherArgs);
-    };
+    return setToString(overRest(func, start, identity), func + '');
   }
 
   /**
@@ -979,6 +985,7 @@
    * @returns {Object} Returns `object`.
    */
   function copyObject(source, props, object, customizer) {
+    var isNew = !object;
     object || (object = {});
 
     var index = -1,
@@ -991,7 +998,14 @@
         ? customizer(object[key], source[key], key, object, source)
         : undefined;
 
-      assignValue(object, key, newValue === undefined ? source[key] : newValue);
+      if (newValue === undefined) {
+        newValue = source[key];
+      }
+      if (isNew) {
+        baseAssignValue(object, key, newValue);
+      } else {
+        assignValue(object, key, newValue);
+      }
     }
     return object;
   }
@@ -1327,6 +1341,17 @@
   }
 
   /**
+   * A specialized version of `baseRest` which flattens the rest array.
+   *
+   * @private
+   * @param {Function} func The function to apply a rest parameter to.
+   * @returns {Function} Returns the new function.
+   */
+  function flatRest(func) {
+    return setToString(overRest(func, undefined, flatten), func + '');
+  }
+
+  /**
    * Checks if `value` is a flattenable `arguments` object or array.
    *
    * @private
@@ -1355,6 +1380,46 @@
     }
     return result;
   }
+
+  /**
+   * A specialized version of `baseRest` which transforms the rest array.
+   *
+   * @private
+   * @param {Function} func The function to apply a rest parameter to.
+   * @param {number} [start=func.length-1] The start position of the rest parameter.
+   * @param {Function} transform The rest array transform.
+   * @returns {Function} Returns the new function.
+   */
+  function overRest(func, start, transform) {
+    start = nativeMax(start === undefined ? (func.length - 1) : start, 0);
+    return function() {
+      var args = arguments,
+          index = -1,
+          length = nativeMax(args.length - start, 0),
+          array = Array(length);
+
+      while (++index < length) {
+        array[index] = args[start + index];
+      }
+      index = -1;
+      var otherArgs = Array(start + 1);
+      while (++index < start) {
+        otherArgs[index] = args[index];
+      }
+      otherArgs[start] = transform(array);
+      return func.apply(this, otherArgs);
+    };
+  }
+
+  /**
+   * Sets the `toString` method of `func` to return `string`.
+   *
+   * @private
+   * @param {Function} func The function to modify.
+   * @param {Function} string The `toString` result.
+   * @returns {Function} Returns `func`.
+   */
+  var setToString = identity;
 
   /**
    * Converts `value` to a string key if it's not a string or symbol.
@@ -1409,17 +1474,18 @@
    * // => [1]
    */
   function concat() {
-    var length = arguments.length,
-        args = Array(length ? length - 1 : 0),
+    var length = arguments.length;
+    if (!length) {
+      return [];
+    }
+    var args = Array(length - 1),
         array = arguments[0],
         index = length;
 
     while (index--) {
       args[index - 1] = arguments[index];
     }
-    return length
-      ? arrayPush(isArray(array) ? copyArray(array) : [array], baseFlatten(args, 1))
-      : [];
+    return arrayPush(isArray(array) ? copyArray(array) : [array], baseFlatten(args, 1));
   }
 
   /**
@@ -1905,7 +1971,7 @@
    * @see _.forEachRight
    * @example
    *
-   * _([1, 2]).forEach(function(value) {
+   * _.forEach([1, 2], function(value) {
    *   console.log(value);
    * });
    * // => Logs `1` then `2`.
@@ -2099,16 +2165,11 @@
    *   { 'user': 'barney', 'age': 34 }
    * ];
    *
-   * _.sortBy(users, function(o) { return o.user; });
+   * _.sortBy(users, [function(o) { return o.user; }]);
    * // => objects for [['barney', 36], ['barney', 34], ['fred', 48], ['fred', 40]]
    *
    * _.sortBy(users, ['user', 'age']);
    * // => objects for [['barney', 34], ['barney', 36], ['fred', 40], ['fred', 48]]
-   *
-   * _.sortBy(users, 'user', function(o) {
-   *   return Math.floor(o.age / 10);
-   * });
-   * // => objects for [['barney', 36], ['barney', 34], ['fred', 48], ['fred', 40]]
    */
   function sortBy(collection, iteratee) {
     var index = 0;
@@ -2212,7 +2273,7 @@
    * _.defer(function(text) {
    *   console.log(text);
    * }, 'deferred');
-   * // => Logs 'deferred' after one or more milliseconds.
+   * // => Logs 'deferred' after one millisecond.
    */
   var defer = baseRest(function(func, args) {
     return baseDelay(func, 1, args);
@@ -2382,11 +2443,10 @@
    * _.isArguments([1, 2, 3]);
    * // => false
    */
-  function isArguments(value) {
-    // Safari 8.1 makes `arguments.callee` enumerable in strict mode.
-    return isArrayLikeObject(value) && hasOwnProperty.call(value, 'callee') &&
-      (!propertyIsEnumerable.call(value, 'callee') || objectToString.call(value) == argsTag);
-  }
+  var isArguments = baseIsArguments(function() { return arguments; }()) ? baseIsArguments : function(value) {
+    return isObjectLike(value) && hasOwnProperty.call(value, 'callee') &&
+      !propertyIsEnumerable.call(value, 'callee');
+  };
 
   /**
    * Checks if `value` is classified as an `Array` object.
@@ -2440,35 +2500,6 @@
    */
   function isArrayLike(value) {
     return value != null && isLength(value.length) && !isFunction(value);
-  }
-
-  /**
-   * This method is like `_.isArrayLike` except that it also checks if `value`
-   * is an object.
-   *
-   * @static
-   * @memberOf _
-   * @since 4.0.0
-   * @category Lang
-   * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is an array-like object,
-   *  else `false`.
-   * @example
-   *
-   * _.isArrayLikeObject([1, 2, 3]);
-   * // => true
-   *
-   * _.isArrayLikeObject(document.body.children);
-   * // => true
-   *
-   * _.isArrayLikeObject('abc');
-   * // => false
-   *
-   * _.isArrayLikeObject(_.noop);
-   * // => false
-   */
-  function isArrayLikeObject(value) {
-    return isObjectLike(value) && isArrayLike(value);
   }
 
   /**
@@ -2635,9 +2666,9 @@
    */
   function isFunction(value) {
     // The use of `Object#toString` avoids issues with the `typeof` operator
-    // in Safari 8-9 which returns 'object' for typed array and other constructors.
+    // in Safari 9 which returns 'object' for typed array and other constructors.
     var tag = isObject(value) ? objectToString.call(value) : '';
-    return tag == funcTag || tag == genTag;
+    return tag == funcTag || tag == genTag || tag == proxyTag;
   }
 
   /**
@@ -2698,7 +2729,7 @@
    */
   function isObject(value) {
     var type = typeof value;
-    return !!value && (type == 'object' || type == 'function');
+    return value != null && (type == 'object' || type == 'function');
   }
 
   /**
@@ -2726,7 +2757,7 @@
    * // => false
    */
   function isObjectLike(value) {
-    return !!value && typeof value == 'object';
+    return value != null && typeof value == 'object';
   }
 
   /**
@@ -2969,8 +3000,8 @@
    * @memberOf _
    * @since 4.0.0
    * @category Lang
-   * @param {*} value The value to process.
-   * @returns {string} Returns the string.
+   * @param {*} value The value to convert.
+   * @returns {string} Returns the converted string.
    * @example
    *
    * _.toString(null);
@@ -3263,8 +3294,8 @@
    * _.pick(object, ['a', 'c']);
    * // => { 'a': 1, 'c': 3 }
    */
-  var pick = baseRest(function(object, props) {
-    return object == null ? {} : basePick(object, baseMap(baseFlatten(props, 1), toKey));
+  var pick = flatRest(function(object, props) {
+    return object == null ? {} : basePick(object, baseMap(props, toKey));
   });
 
   /**
@@ -3337,8 +3368,8 @@
   /*------------------------------------------------------------------------*/
 
   /**
-   * Converts the characters "&", "<", ">", '"', "'", and "\`" in `string` to
-   * their corresponding HTML entities.
+   * Converts the characters "&", "<", ">", '"', and "'" in `string` to their
+   * corresponding HTML entities.
    *
    * **Note:** No other characters are escaped. To escape additional
    * characters use a third-party library like [_he_](https://mths.be/he).
@@ -3348,12 +3379,6 @@
    * unless they're part of a tag or unquoted attribute value. See
    * [Mathias Bynens's article](https://mathiasbynens.be/notes/ambiguous-ampersands)
    * (under "semi-related fun fact") for more details.
-   *
-   * Backticks are escaped because in IE < 9, they can break out of
-   * attribute values or HTML comments. See [#59](https://html5sec.org/#59),
-   * [#102](https://html5sec.org/#102), [#108](https://html5sec.org/#108), and
-   * [#133](https://html5sec.org/#133) of the
-   * [HTML5 Security Cheatsheet](https://html5sec.org/) for more details.
    *
    * When working with HTML you should always
    * [quote attribute values](http://wonko.com/post/html-escaping) to reduce

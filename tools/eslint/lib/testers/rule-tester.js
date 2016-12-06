@@ -182,13 +182,53 @@ RuleTester.resetDefaultConfig = function() {
 };
 
 // default separators for testing
-RuleTester.describe = (typeof describe === "function") ? describe : /* istanbul ignore next */ function(text, method) {
-    return method.apply(this);
-};
+const DESCRIBE = Symbol("describe");
+const IT = Symbol("it");
 
-RuleTester.it = (typeof it === "function") ? it : /* istanbul ignore next */ function(text, method) {
+RuleTester[DESCRIBE] = RuleTester[IT] = null;
+
+/**
+ * This is `it` or `describe` if those don't exist.
+ * @this {Mocha}
+ * @param {string} text - The description of the test case.
+ * @param {Function} method - The logic of the test case.
+ * @returns {any} Returned value of `method`.
+ */
+function defaultHandler(text, method) {
     return method.apply(this);
-};
+}
+
+// If people use `mocha test.js --watch` command, `describe` and `it` function
+// instances are different for each execution. So this should get fresh instance
+// always.
+Object.defineProperties(RuleTester, {
+    describe: {
+        get() {
+            return (
+                RuleTester[DESCRIBE] ||
+                (typeof describe === "function" ? describe : defaultHandler)
+            );
+        },
+        set(value) {
+            RuleTester[DESCRIBE] = value;
+        },
+        configurable: true,
+        enumerable: true,
+    },
+    it: {
+        get() {
+            return (
+                RuleTester[IT] ||
+                (typeof it === "function" ? it : defaultHandler)
+            );
+        },
+        set(value) {
+            RuleTester[IT] = value;
+        },
+        configurable: true,
+        enumerable: true,
+    },
+});
 
 RuleTester.prototype = {
 
@@ -266,9 +306,9 @@ RuleTester.prototype = {
 
                 if (validateSchema.errors) {
                     throw new Error([
-                        "Schema for rule " + ruleName + " is invalid:"
+                        `Schema for rule ${ruleName} is invalid:`
                     ].concat(validateSchema.errors.map(function(error) {
-                        return "\t" + error.field + ": " + error.message;
+                        return `\t${error.field}: ${error.message}`;
                     })).join("\n"));
                 }
             }
@@ -373,7 +413,7 @@ RuleTester.prototype = {
          */
         function testInvalidTemplate(ruleName, item) {
             assert.ok(item.errors || item.errors === 0,
-                "Did not specify errors for an invalid test of " + ruleName);
+                `Did not specify errors for an invalid test of ${ruleName}`);
 
             const result = runRuleForItem(ruleName, item);
             const messages = result.messages;
@@ -389,7 +429,7 @@ RuleTester.prototype = {
                     item.errors.length, item.errors.length === 1 ? "" : "s", messages.length, util.inspect(messages)));
 
                 for (let i = 0, l = item.errors.length; i < l; i++) {
-                    assert.ok(!("fatal" in messages[i]), "A fatal parsing error occurred: " + messages[i].message);
+                    assert.ok(!("fatal" in messages[i]), `A fatal parsing error occurred: ${messages[i].message}`);
                     assert.equal(messages[i].ruleId, ruleName, "Error rule name should be the same as the name of the rule being tested");
 
                     if (typeof item.errors[i] === "string") {
@@ -408,23 +448,23 @@ RuleTester.prototype = {
                         }
 
                         if (item.errors[i].type) {
-                            assert.equal(messages[i].nodeType, item.errors[i].type, "Error type should be " + item.errors[i].type);
+                            assert.equal(messages[i].nodeType, item.errors[i].type, `Error type should be ${item.errors[i].type}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("line")) {
-                            assert.equal(messages[i].line, item.errors[i].line, "Error line should be " + item.errors[i].line);
+                            assert.equal(messages[i].line, item.errors[i].line, `Error line should be ${item.errors[i].line}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("column")) {
-                            assert.equal(messages[i].column, item.errors[i].column, "Error column should be " + item.errors[i].column);
+                            assert.equal(messages[i].column, item.errors[i].column, `Error column should be ${item.errors[i].column}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("endLine")) {
-                            assert.equal(messages[i].endLine, item.errors[i].endLine, "Error endLine should be " + item.errors[i].endLine);
+                            assert.equal(messages[i].endLine, item.errors[i].endLine, `Error endLine should be ${item.errors[i].endLine}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("endColumn")) {
-                            assert.equal(messages[i].endColumn, item.errors[i].endColumn, "Error endColumn should be " + item.errors[i].endColumn);
+                            assert.equal(messages[i].endColumn, item.errors[i].endColumn, `Error endColumn should be ${item.errors[i].endColumn}`);
                         }
                     } else {
 

@@ -1,7 +1,6 @@
-var apply = require('./_apply');
-
-/* Built-in method references for those with the same name as other `lodash` methods. */
-var nativeMax = Math.max;
+var identity = require('./identity'),
+    overRest = require('./_overRest'),
+    setToString = require('./_setToString');
 
 /**
  * The base implementation of `_.rest` which doesn't validate or coerce arguments.
@@ -12,24 +11,7 @@ var nativeMax = Math.max;
  * @returns {Function} Returns the new function.
  */
 function baseRest(func, start) {
-  start = nativeMax(start === undefined ? (func.length - 1) : start, 0);
-  return function() {
-    var args = arguments,
-        index = -1,
-        length = nativeMax(args.length - start, 0),
-        array = Array(length);
-
-    while (++index < length) {
-      array[index] = args[start + index];
-    }
-    index = -1;
-    var otherArgs = Array(start + 1);
-    while (++index < start) {
-      otherArgs[index] = args[index];
-    }
-    otherArgs[start] = array;
-    return apply(func, this, otherArgs);
-  };
+  return setToString(overRest(func, start, identity), func + '');
 }
 
 module.exports = baseRest;

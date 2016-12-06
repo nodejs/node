@@ -16,7 +16,6 @@
   "_from": "is-path-inside@>=1.0.0 <2.0.0",
   "_id": "is-path-inside@1.0.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/is-path-inside",
   "_npmUser": {
     "name": "sindresorhus",

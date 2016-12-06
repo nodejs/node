@@ -29,8 +29,8 @@ void ParseEncoding(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(encoding_string);
 }
 
-void Initialize(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "parseEncoding", ParseEncoding);
+void Initialize(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "parseEncoding", ParseEncoding);
 }
 
 }  // anonymous namespace

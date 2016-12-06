@@ -31,7 +31,12 @@ const typeMap = {
   'net.Socket': 'net.html#net_class_net_socket',
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
   'EventEmitter': 'events.html#events_class_eventemitter',
-  'Timer': 'timers.html#timers_timers'
+  'Timer': 'timers.html#timers_timers',
+  'http.Agent': 'http.html#http_class_http_agent',
+  'http.ClientRequest': 'http.html#http_class_http_clientrequest',
+  'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
+  'http.Server': 'http.html#http_class_http_server',
+  'http.ServerResponse': 'http.html#http_class_http_serverresponse',
 };
 
 module.exports = {

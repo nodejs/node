@@ -16,7 +16,6 @@
   "_from": "resolve-from@>=1.0.0 <2.0.0",
   "_id": "resolve-from@1.0.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/resolve-from",
   "_nodeVersion": "4.1.1",
   "_npmUser": {

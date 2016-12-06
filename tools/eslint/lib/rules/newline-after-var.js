@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow an empty line after `var` declarations",
+            description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },

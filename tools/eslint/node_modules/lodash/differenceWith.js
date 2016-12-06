@@ -6,9 +6,9 @@ var baseDifference = require('./_baseDifference'),
 
 /**
  * This method is like `_.difference` except that it accepts `comparator`
- * which is invoked to compare elements of `array` to `values`. Result values
- * are chosen from the first array. The comparator is invoked with two arguments:
- * (arrVal, othVal).
+ * which is invoked to compare elements of `array` to `values`. The order and
+ * references of result values are determined by the first array. The comparator
+ * is invoked with two arguments: (arrVal, othVal).
  *
  * **Note:** Unlike `_.pullAllWith`, this method returns a new array.
  *

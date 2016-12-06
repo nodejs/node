@@ -1,4 +1,4 @@
-import {tokenizer, SourceLocation, tokTypes as tt, Node, lineBreak, isNewLine} from "acorn"
+import {tokenizer, SourceLocation, tokTypes as tt, Node, lineBreak, isNewLine} from "../index"
 
 // Registered plugins
 export const pluginsLoose = {}
@@ -18,6 +18,7 @@ export class LooseParser {
     this.curIndent = 0
     this.curLineStart = 0
     this.nextLineStart = this.lineEnd(this.curLineStart) + 1
+    this.inAsync = false
     // Load plugins
     this.options.pluginsLoose = options.pluginsLoose || {}
     this.loadPlugins(this.options.pluginsLoose)

@@ -17,7 +17,9 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -25,6 +27,12 @@ module.exports = {
             2: "binary",
             8: "octal",
             16: "hexadecimal"
+        };
+
+        const prefixMap = {
+            2: "0b",
+            8: "0o",
+            16: "0x"
         };
 
         //--------------------------------------------------------------------------
@@ -53,6 +61,17 @@ module.exports = {
                         message: "Use {{radixName}} literals instead of parseInt().",
                         data: {
                             radixName
+                        },
+                        fix(fixer) {
+                            const newPrefix = prefixMap[node.arguments[1].value];
+
+                            if (+(newPrefix + node.arguments[0].value) !== parseInt(node.arguments[0].value, node.arguments[1].value)) {
+
+                                // If the newly-produced literal would be invalid, (e.g. 0b1234),
+                                // or it would yield an incorrect parseInt result for some other reason, don't make a fix.
+                                return null;
+                            }
+                            return fixer.replaceText(node, prefixMap[node.arguments[1].value] + node.arguments[0].value);
                         }
                     });
                 }

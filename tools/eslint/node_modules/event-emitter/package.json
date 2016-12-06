@@ -16,7 +16,6 @@
   "_from": "event-emitter@>=0.3.4 <0.4.0",
   "_id": "event-emitter@0.3.4",
   "_inCache": true,
-  "_installable": true,
   "_location": "/event-emitter",
   "_nodeVersion": "4.1.1",
   "_npmUser": {

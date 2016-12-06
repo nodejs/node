@@ -173,6 +173,9 @@
   "application/cfw": {
     "source": "iana"
   },
+  "application/clue_info+xml": {
+    "source": "iana"
+  },
   "application/cms": {
     "source": "iana"
   },
@@ -357,6 +360,10 @@
   "application/framework-attributes+xml": {
     "source": "iana"
   },
+  "application/geo+json": {
+    "source": "iana",
+    "compressible": true
+  },
   "application/gml+xml": {
     "source": "apache",
     "extensions": ["gml"]
@@ -510,6 +517,9 @@
     "source": "iana",
     "compressible": true,
     "extensions": ["jsonld"]
+  },
+  "application/lgr+xml": {
+    "source": "iana"
   },
   "application/link-format": {
     "source": "iana"
@@ -1316,6 +1326,9 @@
     "source": "apache",
     "extensions": ["azw"]
   },
+  "application/vnd.amazon.mobi8-ebook": {
+    "source": "iana"
+  },
   "application/vnd.americandynamics.acc": {
     "source": "iana",
     "extensions": ["acc"]
@@ -1446,6 +1459,9 @@
     "source": "iana",
     "extensions": ["cdxml"]
   },
+  "application/vnd.chess-pgn": {
+    "source": "iana"
+  },
   "application/vnd.chipnuts.karaoke-mmd": {
     "source": "iana",
     "extensions": ["mmd"]
@@ -1494,6 +1510,9 @@
   "application/vnd.collection.next+json": {
     "source": "iana",
     "compressible": true
+  },
+  "application/vnd.comicbook+zip": {
+    "source": "iana"
   },
   "application/vnd.commerce-battelle": {
     "source": "iana"
@@ -1576,6 +1595,9 @@
     "source": "iana"
   },
   "application/vnd.cybank": {
+    "source": "iana"
+  },
+  "application/vnd.d2l.coursepackage1p0+zip": {
     "source": "iana"
   },
   "application/vnd.dart": {
@@ -1796,6 +1818,9 @@
     "extensions": ["ssf"]
   },
   "application/vnd.ericsson.quickcall": {
+    "source": "iana"
+  },
+  "application/vnd.espass-espass+zip": {
     "source": "iana"
   },
   "application/vnd.eszigno3+xml": {
@@ -2809,6 +2834,10 @@
   "application/vnd.ncd.reference": {
     "source": "iana"
   },
+  "application/vnd.nearst.inv+json": {
+    "source": "iana",
+    "compressible": true
+  },
   "application/vnd.nervana": {
     "source": "iana"
   },
@@ -3113,6 +3142,13 @@
     "source": "iana"
   },
   "application/vnd.oma.group-usage-list+xml": {
+    "source": "iana"
+  },
+  "application/vnd.oma.lwm2m+json": {
+    "source": "iana",
+    "compressible": true
+  },
+  "application/vnd.oma.lwm2m+tlv": {
     "source": "iana"
   },
   "application/vnd.oma.pal+xml": {
@@ -3540,6 +3576,9 @@
   "application/vnd.qualcomm.brew-app-res": {
     "source": "iana"
   },
+  "application/vnd.quarantainenet": {
+    "source": "iana"
+  },
   "application/vnd.quark.quarkxpress": {
     "source": "iana",
     "extensions": ["qxd","qxt","qwd","qwt","qxl","qxb"]
@@ -3596,6 +3635,9 @@
     "source": "iana"
   },
   "application/vnd.rapid": {
+    "source": "iana"
+  },
+  "application/vnd.rar": {
     "source": "iana"
   },
   "application/vnd.realvnc.bed": {
@@ -5062,6 +5104,10 @@
   "audio/mobile-xmf": {
     "source": "iana"
   },
+  "audio/mp3": {
+    "compressible": false,
+    "extensions": ["mp3"]
+  },
   "audio/mp4": {
     "source": "iana",
     "compressible": false,
@@ -5425,13 +5471,19 @@
     "extensions": ["otf"]
   },
   "image/bmp": {
-    "source": "apache",
+    "source": "iana",
     "compressible": true,
     "extensions": ["bmp"]
   },
   "image/cgm": {
     "source": "iana",
     "extensions": ["cgm"]
+  },
+  "image/dicom-rle": {
+    "source": "iana"
+  },
+  "image/emf": {
+    "source": "iana"
   },
   "image/fits": {
     "source": "iana"
@@ -5448,6 +5500,9 @@
   "image/ief": {
     "source": "iana",
     "extensions": ["ief"]
+  },
+  "image/jls": {
+    "source": "iana"
   },
   "image/jp2": {
     "source": "iana"
@@ -5619,6 +5674,9 @@
     "source": "apache",
     "extensions": ["webp"]
   },
+  "image/wmf": {
+    "source": "iana"
+  },
   "image/x-3ds": {
     "source": "apache",
     "extensions": ["3ds"]
@@ -5764,6 +5822,10 @@
   },
   "message/vnd.wfa.wsc": {
     "source": "iana"
+  },
+  "model/gltf+json": {
+    "source": "iana",
+    "compressible": true
   },
   "model/iges": {
     "source": "iana",
@@ -6090,6 +6152,9 @@
     "source": "iana"
   },
   "text/vnd.abc": {
+    "source": "iana"
+  },
+  "text/vnd.ascii-art": {
     "source": "iana"
   },
   "text/vnd.curl": {

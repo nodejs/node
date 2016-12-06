@@ -84,7 +84,7 @@ continuous integration tests on the
 ### Involving the CTC
 
 Collaborators may opt to elevate pull requests or issues to the CTC for
-discussion by assigning the ***ctc-agenda*** tag. This should be done
+discussion by assigning the `ctc-review` label. This should be done
 where a pull request:
 
 - has a significant impact on the codebase,
@@ -101,6 +101,8 @@ information regarding the change process:
 
 - A `Reviewed-By: Name <email>` line for yourself and any
   other Collaborators who have reviewed the change.
+  - Useful for @mentions / contact list if something goes wrong in the PR.
+  - Protects against the assumption that GitHub will be around forever.
 - A `PR-URL:` line that references the *full* GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
   conversation that led up to that change.

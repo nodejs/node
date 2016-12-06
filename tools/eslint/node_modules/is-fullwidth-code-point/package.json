@@ -16,7 +16,6 @@
   "_from": "is-fullwidth-code-point@>=1.0.0 <2.0.0",
   "_id": "is-fullwidth-code-point@1.0.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/is-fullwidth-code-point",
   "_nodeVersion": "0.12.5",
   "_npmUser": {

@@ -54,7 +54,7 @@ function load(rulesDir, cwd) {
 function importPlugin(plugin, pluginName) {
     if (plugin.rules) {
         Object.keys(plugin.rules).forEach(function(ruleId) {
-            const qualifiedRuleId = pluginName + "/" + ruleId,
+            const qualifiedRuleId = `${pluginName}/${ruleId}`,
                 rule = plugin.rules[ruleId];
 
             define(qualifiedRuleId, rule);

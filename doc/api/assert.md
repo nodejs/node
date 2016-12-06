@@ -22,14 +22,16 @@ An alias of [`assert.ok()`][] .
 ```js
 const assert = require('assert');
 
-assert(true);  // OK
-assert(1);     // OK
+assert(true);
+// OK
+assert(1);
+// OK
 assert(false);
-  // throws "AssertionError: false == true"
+// throws "AssertionError: false == true"
 assert(0);
-  // throws "AssertionError: 0 == true"
+// throws "AssertionError: 0 == true"
 assert(false, 'it\'s false');
-  // throws "AssertionError: it's false"
+// throws "AssertionError: it's false"
 ```
 
 ## assert.deepEqual(actual, expected[, message])
@@ -75,18 +77,18 @@ const obj3 = {
 const obj4 = Object.create(obj1);
 
 assert.deepEqual(obj1, obj1);
-  // OK, object is equal to itself
+// OK, object is equal to itself
 
 assert.deepEqual(obj1, obj2);
-  // AssertionError: { a: { b: 1 } } deepEqual { a: { b: 2 } }
-  // values of b are different
+// AssertionError: { a: { b: 1 } } deepEqual { a: { b: 2 } }
+// values of b are different
 
 assert.deepEqual(obj1, obj3);
-  // OK, objects are equal
+// OK, objects are equal
 
 assert.deepEqual(obj1, obj4);
-  // AssertionError: { a: { b: 1 } } deepEqual {}
-  // Prototypes are ignored
+// AssertionError: { a: { b: 1 } } deepEqual {}
+// Prototypes are ignored
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -106,11 +108,11 @@ Second, object comparisons include a strict equality check of their prototypes.
 const assert = require('assert');
 
 assert.deepEqual({a:1}, {a:'1'});
-  // OK, because 1 == '1'
+// OK, because 1 == '1'
 
 assert.deepStrictEqual({a:1}, {a:'1'});
-  // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
-  // because 1 !== '1' using strict equality
+// AssertionError: { a: 1 } deepStrictEqual { a: '1' }
+// because 1 !== '1' using strict equality
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -184,14 +186,14 @@ using the equal comparison operator ( `==` ).
 const assert = require('assert');
 
 assert.equal(1, 1);
-  // OK, 1 == 1
+// OK, 1 == 1
 assert.equal(1, '1');
-  // OK, 1 == '1'
+// OK, 1 == '1'
 
 assert.equal(1, 2);
-  // AssertionError: 1 == 2
+// AssertionError: 1 == 2
 assert.equal({a: {b: 1}}, {a: {b: 1}});
-  //AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
+//AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -211,10 +213,10 @@ Otherwise, the error message is the value of `message`.
 const assert = require('assert');
 
 assert.fail(1, 2, undefined, '>');
-  // AssertionError: 1 > 2
+// AssertionError: 1 > 2
 
 assert.fail(1, 2, 'whoops', '>');
-  // AssertionError: whoops
+// AssertionError: whoops
 ```
 
 ## assert.ifError(value)
@@ -228,10 +230,14 @@ argument in callbacks.
 ```js
 const assert = require('assert');
 
-assert.ifError(0); // OK
-assert.ifError(1); // Throws 1
-assert.ifError('error'); // Throws 'error'
-assert.ifError(new Error()); // Throws Error
+assert.ifError(0);
+// OK
+assert.ifError(1);
+// Throws 1
+assert.ifError('error');
+// Throws 'error'
+assert.ifError(new Error());
+// Throws Error
 ```
 
 ## assert.notDeepEqual(actual, expected[, message])
@@ -262,16 +268,16 @@ const obj3 = {
 const obj4 = Object.create(obj1);
 
 assert.notDeepEqual(obj1, obj1);
-  // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
+// AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
 assert.notDeepEqual(obj1, obj2);
-  // OK, obj1 and obj2 are not deeply equal
+// OK, obj1 and obj2 are not deeply equal
 
 assert.notDeepEqual(obj1, obj3);
-  // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
+// AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
 assert.notDeepEqual(obj1, obj4);
-  // OK, obj1 and obj2 are not deeply equal
+// OK, obj1 and obj2 are not deeply equal
 ```
 
 If the values are deeply equal, an `AssertionError` is thrown with a `message`
@@ -289,10 +295,10 @@ Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 const assert = require('assert');
 
 assert.notDeepEqual({a:1}, {a:'1'});
-  // AssertionError: { a: 1 } notDeepEqual { a: '1' }
+// AssertionError: { a: 1 } notDeepEqual { a: '1' }
 
 assert.notDeepStrictEqual({a:1}, {a:'1'});
-  // OK
+// OK
 ```
 
 If the values are deeply and strictly equal, an `AssertionError` is thrown
@@ -311,13 +317,13 @@ Tests shallow, coercive inequality with the not equal comparison operator
 const assert = require('assert');
 
 assert.notEqual(1, 2);
-  // OK
+// OK
 
 assert.notEqual(1, 1);
-  // AssertionError: 1 != 1
+// AssertionError: 1 != 1
 
 assert.notEqual(1, '1');
-  // AssertionError: 1 != '1'
+// AssertionError: 1 != '1'
 ```
 
 If the values are equal, an `AssertionError` is thrown with a `message`
@@ -336,13 +342,13 @@ Tests strict inequality as determined by the strict not equal operator
 const assert = require('assert');
 
 assert.notStrictEqual(1, 2);
-  // OK
+// OK
 
 assert.notStrictEqual(1, 1);
-  // AssertionError: 1 != 1
+// AssertionError: 1 !== 1
 
 assert.notStrictEqual(1, '1');
-  // OK
+// OK
 ```
 
 If the values are strictly equal, an `AssertionError` is thrown with a
@@ -364,14 +370,16 @@ parameter is `undefined`, a default error message is assigned.
 ```js
 const assert = require('assert');
 
-assert.ok(true);  // OK
-assert.ok(1);     // OK
+assert.ok(true);
+// OK
+assert.ok(1);
+// OK
 assert.ok(false);
-  // throws "AssertionError: false == true"
+// throws "AssertionError: false == true"
 assert.ok(0);
-  // throws "AssertionError: 0 == true"
+// throws "AssertionError: 0 == true"
 assert.ok(false, 'it\'s false');
-  // throws "AssertionError: it's false"
+// throws "AssertionError: it's false"
 ```
 
 ## assert.strictEqual(actual, expected[, message])
@@ -385,13 +393,13 @@ Tests strict equality as determined by the strict equality operator ( `===` ).
 const assert = require('assert');
 
 assert.strictEqual(1, 2);
-  // AssertionError: 1 === 2
+// AssertionError: 1 === 2
 
 assert.strictEqual(1, 1);
-  // OK
+// OK
 
 assert.strictEqual(1, '1');
-  // AssertionError: 1 === '1'
+// AssertionError: 1 === '1'
 ```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a

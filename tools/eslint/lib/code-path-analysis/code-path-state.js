@@ -967,7 +967,7 @@ CodePathState.prototype = {
 
             /* istanbul ignore next */
             default:
-                throw new Error("unknown type: \"" + type + "\"");
+                throw new Error(`unknown type: "${type}"`);
         }
     },
 

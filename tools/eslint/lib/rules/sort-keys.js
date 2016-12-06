@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to requires object keys to be sorted
+ * @fileoverview Rule to require object keys to be sorted
  * @author Toru Nagashima
  */
 
@@ -74,7 +74,7 @@ const isValidOrders = {
 module.exports = {
     meta: {
         docs: {
-            description: "requires object keys to be sorted",
+            description: "require object keys to be sorted",
             category: "Stylistic Issues",
             recommended: false
         },

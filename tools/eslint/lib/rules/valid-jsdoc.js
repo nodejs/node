@@ -165,7 +165,7 @@ module.exports = {
         }
 
         /**
-         * Check if return tag type is void or undefined
+         * Validate type for a given JSDoc node
          * @param {Object} jsdocNode JSDoc node
          * @param {Object} type JSDoc tag
          * @returns {void}
@@ -192,7 +192,9 @@ module.exports = {
                     elements = type.elements;
                     break;
                 case "FieldType":  // Array.<{count: number, votes: number}>
-                    typesToCheck.push(getCurrentExpectedTypes(type.value));
+                    if (type.value) {
+                        typesToCheck.push(getCurrentExpectedTypes(type.value));
+                    }
                     break;
                 default:
                     typesToCheck.push(getCurrentExpectedTypes(type));

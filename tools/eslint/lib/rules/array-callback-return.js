@@ -185,7 +185,9 @@ module.exports = {
                     shouldCheck:
                         TARGET_NODE_TYPE.test(node.type) &&
                         node.body.type === "BlockStatement" &&
-                        isCallbackOfArrayMethod(node)
+                        isCallbackOfArrayMethod(node) &&
+                        !node.async &&
+                        !node.generator
                 };
             },
 

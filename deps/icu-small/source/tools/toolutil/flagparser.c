@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /******************************************************************************
  *   Copyright (C) 2009-2015, International Business Machines
  *   Corporation and others.  All Rights Reserved.
@@ -61,7 +63,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
                 continue;
             }
 
-            if (uprv_strlen(buffer) == (currentBufferSize - 1) && buffer[currentBufferSize-2] != '\n') {
+            if ((int32_t)uprv_strlen(buffer) == (currentBufferSize - 1) && buffer[currentBufferSize-2] != '\n') {
                 /* Allocate more space for buffer if it didnot read the entrire line */
                 allocateMoreSpace = TRUE;
                 T_FileStream_rewind(f);

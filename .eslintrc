@@ -2,6 +2,9 @@ env:
   node: true
   es6: true
 
+parserOptions:
+  ecmaVersion: 2016
+
 rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors
@@ -63,6 +66,12 @@ rules:
     object: assert,
     property: deepEqual,
     message: Please use assert.deepStrictEqual().
+  }, {
+    property: __defineGetter__,
+    message: __defineGetter__ is deprecated.
+  }, {
+    property: __defineSetter__,
+    message: __defineSetter__ is deprecated.
   }]
 
   # Stylistic Issues
@@ -73,6 +82,7 @@ rules:
   computed-property-spacing: 2
   eol-last: 2
   func-call-spacing: 2
+  func-name-matching: 2
   indent: [2, 2, {SwitchCase: 1, MemberExpression: 1}]
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
@@ -80,7 +90,7 @@ rules:
   max-len: [2, 80, 2]
   new-parens: 2
   no-mixed-spaces-and-tabs: 2
-  no-multiple-empty-lines: [2, {max: 2}]
+  no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]
   no-tabs: 2
   no-trailing-spaces: 2
   quotes: [2, single, avoid-escape]
@@ -103,7 +113,7 @@ rules:
   no-dupe-class-members: 2
   no-new-symbol: 2
   no-this-before-super: 2
-  prefer-const: 2
+  prefer-const: [2, {ignoreReadBeforeAssign: true}]
   rest-spread-spacing: 2
   template-curly-spacing: 2
 
@@ -111,8 +121,9 @@ rules:
   align-function-arguments: 2
   align-multiline-assignment: 2
   assert-fail-single-argument: 2
+  assert-throws-arguments: [2, { requireTwo: false }]
   new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
-  no-definegetter-definesetter: 2
+  no-useless-regex-char-class-escape: [2, { override: ['[', ']'] }]
 
 # Global scoped method and vars
 globals:

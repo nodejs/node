@@ -4,6 +4,30 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "util.h"
+#include <cstring>
+
+#if defined(_MSC_VER)
+#include <intrin.h>
+#define BSWAP_2(x) _byteswap_ushort(x)
+#define BSWAP_4(x) _byteswap_ulong(x)
+#define BSWAP_8(x) _byteswap_uint64(x)
+#else
+#define BSWAP_2(x) ((x) << 8) | ((x) >> 8)
+#define BSWAP_4(x)                                                            \
+  (((x) & 0xFF) << 24) |                                                      \
+  (((x) & 0xFF00) << 8) |                                                     \
+  (((x) >> 8) & 0xFF00) |                                                     \
+  (((x) >> 24) & 0xFF)
+#define BSWAP_8(x)                                                            \
+  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
+  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
+  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
+  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
+  (((x) & 0x00000000FF000000ull) << 8) |                                      \
+  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
+  (((x) & 0x000000000000FF00ull) << 40) |                                     \
+  (((x) & 0x00000000000000FFull) << 56)
+#endif
 
 namespace node {
 
@@ -200,9 +224,76 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   return static_cast<TypeName*>(pointer);
 }
 
-void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
-  for (size_t i = 0; i < buflen; i += 1)
-    dst[i] = (src[i] << 8) | (src[i] >> 8);
+void SwapBytes16(char* data, size_t nbytes) {
+  CHECK_EQ(nbytes % 2, 0);
+
+#if defined(_MSC_VER)
+  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint16_t);
+  if (align == 0) {
+    // MSVC has no strict aliasing, and is able to highly optimize this case.
+    uint16_t* data16 = reinterpret_cast<uint16_t*>(data);
+    size_t len16 = nbytes / sizeof(*data16);
+    for (size_t i = 0; i < len16; i++) {
+      data16[i] = BSWAP_2(data16[i]);
+    }
+    return;
+  }
+#endif
+
+  uint16_t temp;
+  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+    memcpy(&temp, &data[i], sizeof(temp));
+    temp = BSWAP_2(temp);
+    memcpy(&data[i], &temp, sizeof(temp));
+  }
+}
+
+void SwapBytes32(char* data, size_t nbytes) {
+  CHECK_EQ(nbytes % 4, 0);
+
+#if defined(_MSC_VER)
+  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint32_t);
+  // MSVC has no strict aliasing, and is able to highly optimize this case.
+  if (align == 0) {
+    uint32_t* data32 = reinterpret_cast<uint32_t*>(data);
+    size_t len32 = nbytes / sizeof(*data32);
+    for (size_t i = 0; i < len32; i++) {
+      data32[i] = BSWAP_4(data32[i]);
+    }
+    return;
+  }
+#endif
+
+  uint32_t temp;
+  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+    memcpy(&temp, &data[i], sizeof(temp));
+    temp = BSWAP_4(temp);
+    memcpy(&data[i], &temp, sizeof(temp));
+  }
+}
+
+void SwapBytes64(char* data, size_t nbytes) {
+  CHECK_EQ(nbytes % 8, 0);
+
+#if defined(_MSC_VER)
+  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint64_t);
+  if (align == 0) {
+    // MSVC has no strict aliasing, and is able to highly optimize this case.
+    uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
+    size_t len64 = nbytes / sizeof(*data64);
+    for (size_t i = 0; i < len64; i++) {
+      data64[i] = BSWAP_8(data64[i]);
+    }
+    return;
+  }
+#endif
+
+  uint64_t temp;
+  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+    memcpy(&temp, &data[i], sizeof(temp));
+    temp = BSWAP_8(temp);
+    memcpy(&data[i], &temp, sizeof(temp));
+  }
 }
 
 char ToLower(char c) {
@@ -229,6 +320,14 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
+inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
+  size_t ret = a * b;
+  if (a != 0)
+    CHECK_EQ(b, ret / a);
+
+  return ret;
+}
+
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
 // compiler version specific functionality.
@@ -236,26 +335,66 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-void* Realloc(void* pointer, size_t size) {
-  if (size == 0) {
+template <typename T>
+T* UncheckedRealloc(T* pointer, size_t n) {
+  size_t full_size = MultiplyWithOverflowCheck(sizeof(T), n);
+
+  if (full_size == 0) {
     free(pointer);
     return nullptr;
   }
-  return realloc(pointer, size);
+
+  void* allocated = realloc(pointer, full_size);
+
+  if (UNLIKELY(allocated == nullptr)) {
+    // Tell V8 that memory is low and retry.
+    LowMemoryNotification();
+    allocated = realloc(pointer, full_size);
+  }
+
+  return static_cast<T*>(allocated);
 }
 
 // As per spec realloc behaves like malloc if passed nullptr.
-void* Malloc(size_t size) {
-  if (size == 0) size = 1;
-  return Realloc(nullptr, size);
+template <typename T>
+inline T* UncheckedMalloc(size_t n) {
+  if (n == 0) n = 1;
+  return UncheckedRealloc<T>(nullptr, n);
 }
 
-void* Calloc(size_t n, size_t size) {
+template <typename T>
+inline T* UncheckedCalloc(size_t n) {
   if (n == 0) n = 1;
-  if (size == 0) size = 1;
-  CHECK_GE(n * size, n);  // Overflow guard.
-  return calloc(n, size);
+  MultiplyWithOverflowCheck(sizeof(T), n);
+  return static_cast<T*>(calloc(n, sizeof(T)));
 }
+
+template <typename T>
+inline T* Realloc(T* pointer, size_t n) {
+  T* ret = UncheckedRealloc(pointer, n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
+}
+
+template <typename T>
+inline T* Malloc(size_t n) {
+  T* ret = UncheckedMalloc<T>(n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
+}
+
+template <typename T>
+inline T* Calloc(size_t n) {
+  T* ret = UncheckedCalloc<T>(n);
+  if (n > 0) CHECK_NE(ret, nullptr);
+  return ret;
+}
+
+// Shortcuts for char*.
+inline char* Malloc(size_t n) { return Malloc<char>(n); }
+inline char* Calloc(size_t n) { return Calloc<char>(n); }
+inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
+inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 
 }  // namespace node
 

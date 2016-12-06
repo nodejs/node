@@ -144,7 +144,7 @@ added: v0.11.2
 -->
 
 * `code` {Number} the exit code, if it exited normally.
-* `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
+* `signal` {String} the name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
@@ -414,7 +414,7 @@ added: v0.7.0
 * `message` {Object}
 * `sendHandle` {Handle}
 * `callback` {Function}
-* Return: Boolean
+* Returns: Boolean
 
 Send a message to a worker or master, optionally with a handle.
 
@@ -496,7 +496,7 @@ added: v0.7.9
 
 * `worker` {cluster.Worker}
 * `code` {Number} the exit code, if it exited normally.
-* `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
+* `signal` {String} the name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 When any of the workers die the cluster module will emit the `'exit'` event.

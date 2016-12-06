@@ -42,6 +42,7 @@ import threading
 import utils
 import multiprocessing
 import errno
+import copy
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -255,11 +256,15 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 
 class TapProgressIndicator(SimpleProgressIndicator):
 
-  def _printDiagnostic(self, messages):
-    for l in messages.splitlines():
-      logger.info('# ' + l)
+  def _printDiagnostic(self, traceback, severity):
+    logger.info('  severity: %s', severity)
+    logger.info('  stack: |-')
+
+    for l in traceback.splitlines():
+      logger.info('    ' + l)
 
   def Starting(self):
+    logger.info('TAP version 13')
     logger.info('1..%i' % len(self.cases))
     self._done = 0
 
@@ -268,6 +273,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
   def HasRun(self, output):
     self._done += 1
+    self.traceback = ''
+    self.severity = 'ok'
 
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
@@ -280,19 +287,23 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
+      self.severity = 'fail'
+      self.traceback = output.output.stdout + output.output.stderr
+
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
         status_line = status_line + ' # TODO : Fix flaky test'
+        self.severity = 'flaky'
+
       logger.info(status_line)
-      self._printDiagnostic("\n".join(output.diagnostic))
 
       if output.HasCrashed():
-        self._printDiagnostic(PrintCrashed(output.output.exit_code))
+        self.severity = 'crashed'
+        exit_code = output.output.exit_code
+        self.traceback = "oh no!\nexit code: " + PrintCrashed(exit_code)
 
       if output.HasTimedOut():
-        self._printDiagnostic('TIMEOUT')
+        self.severity = 'fail'
 
-      self._printDiagnostic(output.output.stderr)
-      self._printDiagnostic(output.output.stdout)
     else:
       skip = skip_regex.search(output.output.stdout)
       if skip:
@@ -303,7 +314,11 @@ class TapProgressIndicator(SimpleProgressIndicator):
         if FLAKY in output.test.outcomes:
           status_line = status_line + ' # TODO : Fix flaky test'
         logger.info(status_line)
-      self._printDiagnostic("\n".join(output.diagnostic))
+
+      if output.diagnostic:
+        self.severity = 'ok'
+        self.traceback = output.diagnostic
+
 
     duration = output.test.duration
 
@@ -314,7 +329,12 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # duration_ms is measured in seconds and is read as such by TAP parsers.
     # It should read as "duration including ms" rather than "duration in ms"
     logger.info('  ---')
-    logger.info('  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000))
+    logger.info('  duration_ms: %d.%d' %
+      (total_seconds, duration.microseconds / 1000))
+    if self.severity is not 'ok' or self.traceback is not '':
+      if output.HasTimedOut():
+        self.traceback = 'timeout'
+      self._printDiagnostic(self.traceback, self.severity)
     logger.info('  ...')
 
   def Done(self):
@@ -773,7 +793,9 @@ class TestRepository(TestSuite):
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      result += tests * context.repeat
+      result += tests
+      for i in range(1, context.repeat):
+        result += copy.deepcopy(tests)
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -1439,6 +1461,13 @@ def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
+def NormalizePath(path):
+  # strip the extra path information of the specified test
+  if path.startswith('test/'):
+    path = path[5:]
+  if path.endswith('.js'):
+    path = path[:-3]
+  return path
 
 def GetSpecialCommandProcessor(value):
   if (not value) or (value.find('@') == -1):
@@ -1512,7 +1541,7 @@ def Main():
   else:
     paths = [ ]
     for arg in args:
-      path = SplitPath(arg)
+      path = SplitPath(NormalizePath(arg))
       paths.append(path)
 
   # Check for --valgrind option. If enabled, we overwrite the special

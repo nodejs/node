@@ -46,7 +46,7 @@
     <Property Id="ApplicationFolderName" Value="nodejs"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
-    <Property Id="INSTALLDIR">
+    <Property Id="INSTALLDIR" Secure="yes">
       <RegistrySearch Id="InstallPathRegistry"
                       Type="raw"
                       Root="HKLM"

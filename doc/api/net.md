@@ -513,7 +513,7 @@ added: v0.1.90
 -->
 
 As [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`],
-with options either as either `{port: port, host: host}` or `{path: path}`.
+with options as either `{port: port, host: host}` or `{path: path}`.
 
 ### socket.connecting
 <!-- YAML
@@ -765,7 +765,7 @@ A factory function, which returns a new [`net.Socket`][] and automatically
 connects with the supplied `options`.
 
 The options are passed to both the [`net.Socket`][] constructor and the
-[`socket.connect`][] method. 
+[`socket.connect`][] method.
 
 Passing `timeout` as an option will call [`socket.setTimeout()`][] after the socket is created, but before it is connecting.
 

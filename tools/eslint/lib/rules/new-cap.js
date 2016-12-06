@@ -75,7 +75,7 @@ function calculateCapIsNewExceptions(config) {
 module.exports = {
     meta: {
         docs: {
-            description: "require constructor `function` names to begin with a capital letter",
+            description: "require constructor names to begin with a capital letter",
             category: "Stylistic Issues",
             recommended: false
         },

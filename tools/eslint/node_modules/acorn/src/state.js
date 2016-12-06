@@ -15,8 +15,12 @@ export class Parser {
     this.options = options = getOptions(options)
     this.sourceFile = options.sourceFile
     this.keywords = keywordRegexp(keywords[options.ecmaVersion >= 6 ? 6 : 5])
-    let reserved = options.allowReserved ? "" :
-        reservedWords[options.ecmaVersion] + (options.sourceType == "module" ? " await" : "")
+    let reserved = ""
+    if (!options.allowReserved) {
+      for (let v = options.ecmaVersion;; v--)
+        if (reserved = reservedWords[v]) break
+      if (options.sourceType == "module") reserved += " await"
+    }
     this.reservedWords = keywordRegexp(reserved)
     let reservedStrict = (reserved ? reserved + " " : "") + reservedWords.strict
     this.reservedWordsStrict = keywordRegexp(reservedStrict)
@@ -36,7 +40,7 @@ export class Parser {
     // The current position of the tokenizer in the input.
     if (startPos) {
       this.pos = startPos
-      this.lineStart = Math.max(0, this.input.lastIndexOf("\n", startPos))
+      this.lineStart = this.input.lastIndexOf("\n", startPos - 1) + 1
       this.curLine = this.input.slice(0, this.lineStart).split(lineBreak).length
     } else {
       this.pos = this.lineStart = 0
@@ -70,8 +74,10 @@ export class Parser {
     // Used to signify the start of a potential arrow function
     this.potentialArrowAt = -1
 
-    // Flags to track whether we are in a function, a generator.
-    this.inFunction = this.inGenerator = false
+    // Flags to track whether we are in a function, a generator, an async function.
+    this.inFunction = this.inGenerator = this.inAsync = false
+    // Positions to delayed-check that yield/await does not exist in default parameters.
+    this.yieldPos = this.awaitPos = 0
     // Labels in scope.
     this.labels = []
 

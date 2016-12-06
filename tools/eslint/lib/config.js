@@ -126,7 +126,7 @@ function getLocalConfig(thisConfig, directory) {
             continue;
         }
 
-        debug("Loading " + localConfigFile);
+        debug(`Loading ${localConfigFile}`);
         const localConfig = loadConfig(localConfigFile);
 
         // Don't consider a local config file found if the config is null
@@ -140,7 +140,7 @@ function getLocalConfig(thisConfig, directory) {
         }
 
         found = true;
-        debug("Using " + localConfigFile);
+        debug(`Using ${localConfigFile}`);
         config = ConfigOps.merge(localConfig, config);
     }
 
@@ -221,8 +221,8 @@ function Config(options) {
     this.options = options;
 
     if (useConfig) {
-        debug("Using command line config " + useConfig);
-        if (isResolvable(useConfig) || isResolvable("eslint-config-" + useConfig) || useConfig.charAt(0) === "@") {
+        debug(`Using command line config ${useConfig}`);
+        if (isResolvable(useConfig) || isResolvable(`eslint-config-${useConfig}`) || useConfig.charAt(0) === "@") {
             this.useSpecificConfig = loadConfig(useConfig);
         } else {
             this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, useConfig));
@@ -241,7 +241,7 @@ Config.prototype.getConfig = function(filePath) {
     let config,
         userConfig;
 
-    debug("Constructing config for " + (filePath ? filePath : "text"));
+    debug(`Constructing config for ${filePath ? filePath : "text"}`);
 
     config = this.cache[directory];
 

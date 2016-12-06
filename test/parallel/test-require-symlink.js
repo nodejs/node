@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const exec = require('child_process').exec;
 const spawn = require('child_process').spawn;
+const util = require('util');
 
 common.refreshTmpDir();
 
@@ -53,7 +54,16 @@ function test() {
   const node = process.execPath;
   const child = spawn(node, ['--preserve-symlinks', linkScript]);
   child.on('close', function(code, signal) {
-    assert(!code);
+    assert.strictEqual(code, 0);
+    assert(!signal);
+  });
+
+  // Also verify that symlinks works for setting preserve via env variables
+  const childEnv = spawn(node, [linkScript], {
+    env: util._extend(process.env, {NODE_PRESERVE_SYMLINKS: '1'})
+  });
+  childEnv.on('close', function(code, signal) {
+    assert.strictEqual(code, 0);
     assert(!signal);
   });
 }

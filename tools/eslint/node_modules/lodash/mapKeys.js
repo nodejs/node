@@ -1,4 +1,5 @@
-var baseForOwn = require('./_baseForOwn'),
+var baseAssignValue = require('./_baseAssignValue'),
+    baseForOwn = require('./_baseForOwn'),
     baseIteratee = require('./_baseIteratee');
 
 /**
@@ -27,7 +28,7 @@ function mapKeys(object, iteratee) {
   iteratee = baseIteratee(iteratee, 3);
 
   baseForOwn(object, function(value, key, object) {
-    result[iteratee(value, key, object)] = value;
+    baseAssignValue(result, iteratee(value, key, object), value);
   });
   return result;
 }

@@ -23,14 +23,11 @@ The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
 maintained by the CTC and additional Collaborators who are added by the
 CTC on an ongoing basis.
 
-Individuals making significant and valuable contributions are made
-Collaborators and given commit-access to the project. These
-individuals are identified by the CTC and their addition as
-Collaborators is discussed during the weekly CTC meeting.
+Individuals identified by the CTC as making significant and valuable
+contributions are made Collaborators and given commit access to the project.
 
 _Note:_ If you make a significant contribution and are not considered
-for commit-access, log an issue or contact a CTC member directly and it
-will be brought up in the next CTC meeting.
+for commit access, log an issue or contact a CTC member directly.
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
@@ -39,16 +36,21 @@ Collaborators. All pull requests must be reviewed and accepted by a
 Collaborator with sufficient expertise who is able to take full
 responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
-for sign-off. Consensus should be sought if additional Collaborators
-participate and there is disagreement around a particular
-modification. See [Consensus Seeking Process](#consensus-seeking-process) below
-for further detail on the consensus model used for governance.
+for sign-off.
 
-Collaborators may opt to elevate significant or controversial
-modifications, or modifications that have not found consensus to the
-CTC for discussion by assigning the ***ctc-agenda*** tag to a pull
-request or issue. The CTC should serve as the final arbiter where
-required.
+If one or more Collaborators oppose a proposed change, then the change can not
+be accepted unless:
+
+* Discussions and/or additional changes result in no Collaborators objecting to
+  the change. Previously-objecting Collaborators do not necessarily have to
+  sign-off on the change, but they should not be opposed to it.
+* The change is escalated to the CTC and the CTC votes to approve the change.
+  This should be used only after other options (especially discussion among
+  the disagreeing Collaborators) have been exhausted.
+
+Collaborators may opt to elevate significant or controversial modifications to
+the CTC by assigning the `ctc-review` label to a pull request or issue. The
+CTC should serve as the final arbiter where required.
 
 For the current list of Collaborators, see the project
 [README.md](./README.md#current-project-team-members).
@@ -103,7 +105,7 @@ members affiliated with the over-represented employer(s).
 Typical activities of a CTC member include:
 
 * attending the weekly meeting
-* commenting on the weekly CTC meeting issue and issues labeled `ctc-agenda`
+* commenting on the weekly CTC meeting issue and issues labeled `ctc-review`
 * participating in CTC email threads
 * volunteering for tasks that arise from CTC meetings and related discussions
 * other activities (beyond those typical of Collaborators) that facilitate the
@@ -115,7 +117,8 @@ Collaborator activities as well.
 ### CTC Meetings
 
 The CTC meets weekly in a voice conference call. The meeting is run by a
-designated moderator approved by the CTC. Each meeting is streamed on YouTube.
+designated meeting chair approved by the CTC. Each meeting is streamed on
+YouTube.
 
 Items are added to the CTC agenda which are considered contentious or
 are modifications of governance, contribution policy, CTC membership,
@@ -125,21 +128,37 @@ The intention of the agenda is not to approve or review all patches.
 That should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
-Any community member or contributor can ask that something be added to
-the next meeting's agenda by logging a GitHub issue. Any Collaborator,
-CTC member or the moderator can add the item to the agenda by adding
-the ***ctc-agenda*** tag to the issue.
+Any community member or contributor can ask that something be reviewed
+by the CTC by logging a GitHub issue. Any Collaborator, CTC member, or the
+meeting chair can bring the issue to the CTC's attention by applying the
+`ctc-review` label. If consensus-seeking among CTC members fails for a
+particular issue, it may be added to the CTC meeting agenda by adding the
+`ctc-agenda` label.
 
-Prior to each CTC meeting, the moderator will share the agenda with
+Prior to each CTC meeting, the meeting chair will share the agenda with
 members of the CTC. CTC members can also add items to the agenda at the
-beginning of each meeting. The moderator and the CTC cannot veto or remove
+beginning of each meeting. The meeting chair and the CTC cannot veto or remove
 items.
 
 The CTC may invite persons or representatives from certain projects to
 participate in a non-voting capacity.
 
-The moderator is responsible for summarizing the discussion of each agenda item
-and sending it as a pull request after the meeting.
+The meeting chair is responsible for ensuring that minutes are taken and that a
+pull request with the minutes is submitted after the meeting.
+
+Due to the challenges of scheduling a global meeting with participants in
+several timezones, the CTC will seek to resolve as many agenda items as possible
+outside of meetings using
+[the CTC issue tracker](https://github.com/nodejs/CTC/issues). The process in
+the issue tracker is:
+
+* A CTC member opens an issue explaining the proposal/issue and @-mentions
+  @nodejs/ctc.
+* After 72 hours, if there are two or more `LGTM`s from other CTC members and no
+  explicit opposition from other CTC members, then the proposal is approved.
+* If there are any CTC members objecting, then a conversation ensues until
+  either the proposal is dropped or the objecting members are persuaded. If
+  there is an extended impasse, a motion for a vote may be made.
 
 ## Consensus Seeking Process
 
@@ -147,8 +166,8 @@ The CTC follows a
 [Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
 decision making model.
 
-When an agenda item has appeared to reach a consensus, the moderator will ask
-"Does anyone object?" as a final call for dissent from the consensus.
+When an agenda item has appeared to reach a consensus, the meeting chair will
+ask "Does anyone object?" as a final call for dissent from the consensus.
 
 If an agenda item cannot reach a consensus, a CTC member can call for either a
 closing vote or a vote to table the issue to the next meeting. All votes

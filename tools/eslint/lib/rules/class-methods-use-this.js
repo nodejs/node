@@ -16,9 +16,23 @@ module.exports = {
             category: "Best Practices",
             recommended: false
         },
-        schema: []
+        schema: [{
+            type: "object",
+            properties: {
+                exceptMethods: {
+                    type: "array",
+                    items: {
+                        type: "string"
+                    }
+                }
+            },
+            additionalProperties: false
+        }]
     },
     create(context) {
+        const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
+        const exceptMethods = new Set(config.exceptMethods || []);
+
         const stack = [];
 
         /**
@@ -42,6 +56,16 @@ module.exports = {
         }
 
         /**
+         * Check if the node is an instance method not excluded by config
+         * @param {ASTNode} node - node to check
+         * @returns {boolean} True if it is an instance method, and not excluded by config
+         * @private
+         */
+        function isIncludedInstanceMethod(node) {
+            return isInstanceMethod(node) && !exceptMethods.has(node.key.name);
+        }
+
+        /**
          * Checks if we are leaving a function that is a method, and reports if 'this' has not been used.
          * Static methods and the constructor are exempt.
          * Then pops the context off the stack.
@@ -52,7 +76,7 @@ module.exports = {
         function exitFunction(node) {
             const methodUsesThis = stack.pop();
 
-            if (isInstanceMethod(node.parent) && !methodUsesThis) {
+            if (isIncludedInstanceMethod(node.parent) && !methodUsesThis) {
                 context.report({
                     node,
                     message: "Expected 'this' to be used by class method '{{classMethod}}'.",

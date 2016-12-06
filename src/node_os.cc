@@ -17,7 +17,7 @@
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
 # include <sys/utsname.h>
-#endif  // __MINGW32__
+#endif  // __POSIX__
 
 // Add Windows fallback.
 #ifndef MAXHOSTNAMELEN

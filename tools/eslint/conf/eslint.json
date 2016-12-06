@@ -158,6 +158,7 @@
         "eqeqeq": "off",
         "func-call-spacing": "off",
         "func-names": "off",
+        "func-name-matching": "off",
         "func-style": "off",
         "generator-star-spacing": "off",
         "global-require": "off",

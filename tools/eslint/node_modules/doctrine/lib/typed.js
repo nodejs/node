@@ -43,7 +43,8 @@
         NameExpression: 'NameExpression',
         TypeApplication: 'TypeApplication',
         StringLiteralType: 'StringLiteralType',
-        NumericLiteralType: 'NumericLiteralType'
+        NumericLiteralType: 'NumericLiteralType',
+        BooleanLiteralType: 'BooleanLiteralType'
     };
 
     Token = {
@@ -883,6 +884,14 @@
                 };
             }
 
+            if (value === 'true' || value === 'false') {
+                consume(Token.NAME);
+                return {
+                    type: Syntax.BooleanLiteralType,
+                    value: value === 'true'
+                };
+            }
+
             context = Context.save();
             if (value === 'function') {
                 try {
@@ -1245,6 +1254,10 @@
             break;
 
         case Syntax.NumericLiteralType:
+            result = String(node.value);
+            break;
+
+        case Syntax.BooleanLiteralType:
             result = String(node.value);
             break;
 

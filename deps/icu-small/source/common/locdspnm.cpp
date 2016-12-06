@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2010-2016, International Business Machines Corporation and
@@ -278,7 +280,11 @@ class LocaleDisplayNamesImpl : public LocaleDisplayNames {
     SimpleFormatter format;
     SimpleFormatter keyTypeFormat;
     UDisplayContext capitalizationContext;
+#if !UCONFIG_NO_BREAK_ITERATION
     BreakIterator* capitalizationBrkIter;
+#else
+    UObject* capitalizationBrkIter;
+#endif
     static UMutex  capitalizationBrkIterLock;
     UnicodeString formatOpenParen;
     UnicodeString formatReplaceOpenParen;
@@ -341,6 +347,8 @@ private:
     UnicodeString& keyValueDisplayName(const char* key, const char* value,
                                         UnicodeString& result, UBool skipAdjust) const;
     void initialize(void);
+
+    struct CapitalizationContextSink;
 };
 
 UMutex LocaleDisplayNamesImpl::capitalizationBrkIterLock = U_MUTEX_INITIALIZER;
@@ -386,6 +394,54 @@ LocaleDisplayNamesImpl::LocaleDisplayNamesImpl(const Locale& locale,
     initialize();
 }
 
+struct LocaleDisplayNamesImpl::CapitalizationContextSink : public ResourceSink {
+    UBool hasCapitalizationUsage;
+    LocaleDisplayNamesImpl& parent;
+
+    CapitalizationContextSink(LocaleDisplayNamesImpl& _parent)
+      : hasCapitalizationUsage(FALSE), parent(_parent) {}
+    virtual ~CapitalizationContextSink();
+
+    virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
+            UErrorCode &errorCode) {
+        ResourceTable contexts = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+        for (int i = 0; contexts.getKeyAndValue(i, key, value); ++i) {
+
+            CapContextUsage usageEnum;
+            if (uprv_strcmp(key, "key") == 0) {
+                usageEnum = kCapContextUsageKey;
+            } else if (uprv_strcmp(key, "keyValue") == 0) {
+                usageEnum = kCapContextUsageKeyValue;
+            } else if (uprv_strcmp(key, "languages") == 0) {
+                usageEnum = kCapContextUsageLanguage;
+            } else if (uprv_strcmp(key, "script") == 0) {
+                usageEnum = kCapContextUsageScript;
+            } else if (uprv_strcmp(key, "territory") == 0) {
+                usageEnum = kCapContextUsageTerritory;
+            } else if (uprv_strcmp(key, "variant") == 0) {
+                usageEnum = kCapContextUsageVariant;
+            } else {
+                continue;
+            }
+
+            int32_t len = 0;
+            const int32_t* intVector = value.getIntVector(len, errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+            if (len < 2) { continue; }
+
+            int32_t titlecaseInt = (parent.capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU) ? intVector[0] : intVector[1];
+            if (titlecaseInt == 0) { continue; }
+
+            parent.fCapitalization[usageEnum] = TRUE;
+            hasCapitalizationUsage = TRUE;
+        }
+    }
+};
+
+// Virtual destructors must be defined out of line.
+LocaleDisplayNamesImpl::CapitalizationContextSink::~CapitalizationContextSink() {}
+
 void
 LocaleDisplayNamesImpl::initialize(void) {
     LocaleDisplayNamesImpl *nonConstThis = (LocaleDisplayNamesImpl *)this;
@@ -428,58 +484,21 @@ LocaleDisplayNamesImpl::initialize(void) {
 
     uprv_memset(fCapitalization, 0, sizeof(fCapitalization));
 #if !UCONFIG_NO_BREAK_ITERATION
-    // The following is basically copied from DateFormatSymbols::initializeData
-    typedef struct {
-        const char * usageName;
-        LocaleDisplayNamesImpl::CapContextUsage usageEnum;
-    } ContextUsageNameToEnum;
-    const ContextUsageNameToEnum contextUsageTypeMap[] = {
-       // Entries must be sorted by usageTypeName; entry with NULL name terminates list.
-        { "key",        kCapContextUsageKey },
-        { "keyValue",   kCapContextUsageKeyValue },
-        { "languages",  kCapContextUsageLanguage },
-        { "script",     kCapContextUsageScript },
-        { "territory",  kCapContextUsageTerritory },
-        { "variant",    kCapContextUsageVariant },
-        { NULL,         (CapContextUsage)0 },
-    };
     // Only get the context data if we need it! This is a const object so we know now...
     // Also check whether we will need a break iterator (depends on the data)
     UBool needBrkIter = FALSE;
     if (capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU || capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_STANDALONE) {
-        int32_t len = 0;
-        UResourceBundle *localeBundle = ures_open(NULL, locale.getName(), &status);
-        if (U_SUCCESS(status)) {
-            UResourceBundle *contextTransforms = ures_getByKeyWithFallback(localeBundle, "contextTransforms", NULL, &status);
-            if (U_SUCCESS(status)) {
-                UResourceBundle *contextTransformUsage;
-                while ( (contextTransformUsage = ures_getNextResource(contextTransforms, NULL, &status)) != NULL ) {
-                    const int32_t * intVector = ures_getIntVector(contextTransformUsage, &len, &status);
-                    if (U_SUCCESS(status) && intVector != NULL && len >= 2) {
-                        const char* usageKey = ures_getKey(contextTransformUsage);
-                        if (usageKey != NULL) {
-                            const ContextUsageNameToEnum * typeMapPtr = contextUsageTypeMap;
-                            int32_t compResult = 0;
-                            // linear search; list is short and we cannot be sure that bsearch is available
-                            while ( typeMapPtr->usageName != NULL && (compResult = uprv_strcmp(usageKey, typeMapPtr->usageName)) > 0 ) {
-                                ++typeMapPtr;
-                            }
-                            if (typeMapPtr->usageName != NULL && compResult == 0) {
-                                int32_t titlecaseInt = (capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU)? intVector[0]: intVector[1];
-                                if (titlecaseInt != 0) {
-                                    fCapitalization[typeMapPtr->usageEnum] = TRUE;;
-                                    needBrkIter = TRUE;
-                                }
-                            }
-                        }
-                    }
-                    status = U_ZERO_ERROR;
-                    ures_close(contextTransformUsage);
-                }
-                ures_close(contextTransforms);
-            }
-            ures_close(localeBundle);
+        LocalUResourceBundlePointer resource(ures_open(NULL, locale.getName(), &status));
+        if (U_FAILURE(status)) { return; }
+        CapitalizationContextSink sink(*this);
+        ures_getAllItemsWithFallback(resource.getAlias(), "contextTransforms", sink, status);
+        if (status == U_MISSING_RESOURCE_ERROR) {
+            // Silently ignore.  Not every locale has contextTransforms.
+            status = U_ZERO_ERROR;
+        } else if (U_FAILURE(status)) {
+            return;
         }
+        needBrkIter = sink.hasCapitalizationUsage;
     }
     // Get a sentence break iterator if we will need it
     if (needBrkIter || capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE) {
@@ -494,8 +513,10 @@ LocaleDisplayNamesImpl::initialize(void) {
 }
 
 LocaleDisplayNamesImpl::~LocaleDisplayNamesImpl() {
+#if !UCONFIG_NO_BREAK_ITERATION
     delete capitalizationBrkIter;
- }
+#endif
+}
 
 const Locale&
 LocaleDisplayNamesImpl::getLocale() const {

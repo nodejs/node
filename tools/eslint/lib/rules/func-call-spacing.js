@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow spacing between `function` identifiers and their invocations",
+            description: "require or disallow spacing between function identifiers and their invocations",
             category: "Stylistic Issues",
             recommended: false
         },

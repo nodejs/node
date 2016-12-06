@@ -19,6 +19,8 @@
  * IN THE SOFTWARE.
  */
 
+#include "uv.h"
+
 TEST_DECLARE   (platform_output)
 TEST_DECLARE   (callback_order)
 TEST_DECLARE   (close_order)
@@ -59,6 +61,7 @@ TEST_DECLARE   (ipc_send_recv_pipe_inprocess)
 TEST_DECLARE   (ipc_send_recv_tcp)
 TEST_DECLARE   (ipc_send_recv_tcp_inprocess)
 TEST_DECLARE   (ipc_tcp_connection)
+TEST_DECLARE   (tcp_alloc_cb_fail)
 TEST_DECLARE   (tcp_ping_pong)
 TEST_DECLARE   (tcp_ping_pong_v6)
 TEST_DECLARE   (pipe_ping_pong)
@@ -104,6 +107,7 @@ TEST_DECLARE   (tcp_bind6_error_addrnotavail)
 TEST_DECLARE   (tcp_bind6_error_fault)
 TEST_DECLARE   (tcp_bind6_error_inval)
 TEST_DECLARE   (tcp_bind6_localhost_ok)
+TEST_DECLARE   (udp_alloc_cb_fail)
 TEST_DECLARE   (udp_bind)
 TEST_DECLARE   (udp_bind_reuseaddr)
 TEST_DECLARE   (udp_create_early)
@@ -148,6 +152,7 @@ TEST_DECLARE   (shutdown_eof)
 TEST_DECLARE   (shutdown_twice)
 TEST_DECLARE   (callback_stack)
 TEST_DECLARE   (error_message)
+TEST_DECLARE   (sys_error)
 TEST_DECLARE   (timer)
 TEST_DECLARE   (timer_init)
 TEST_DECLARE   (timer_again)
@@ -273,6 +278,7 @@ TEST_DECLARE   (fs_read_file_eof)
 TEST_DECLARE   (fs_event_watch_dir)
 TEST_DECLARE   (fs_event_watch_dir_recursive)
 TEST_DECLARE   (fs_event_watch_file)
+TEST_DECLARE   (fs_event_watch_file_exact_path)
 TEST_DECLARE   (fs_event_watch_file_twice)
 TEST_DECLARE   (fs_event_watch_file_current_dir)
 #ifdef _WIN32
@@ -314,13 +320,19 @@ TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
 TEST_DECLARE   (poll_bad_fdtype)
+#ifdef __linux__
+TEST_DECLARE   (poll_nested_epoll)
+#endif
+#ifdef UV_HAVE_KQUEUE
+TEST_DECLARE   (poll_nested_kqueue)
+#endif
 
 TEST_DECLARE   (ip4_addr)
 TEST_DECLARE   (ip6_addr_link_local)
 
-#ifdef _WIN32
 TEST_DECLARE   (poll_close_doesnt_corrupt_stack)
 TEST_DECLARE   (poll_closesocket)
+#ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 #if !defined(USING_UV_SHARED)
 TEST_DECLARE   (argument_escaping)
@@ -407,6 +419,8 @@ TASK_LIST_START
   TEST_ENTRY  (ipc_send_recv_tcp_inprocess)
   TEST_ENTRY  (ipc_tcp_connection)
 
+  TEST_ENTRY  (tcp_alloc_cb_fail)
+
   TEST_ENTRY  (tcp_ping_pong)
   TEST_HELPER (tcp_ping_pong, tcp4_echo_server)
 
@@ -474,6 +488,7 @@ TASK_LIST_START
   TEST_ENTRY  (tcp_bind6_error_inval)
   TEST_ENTRY  (tcp_bind6_localhost_ok)
 
+  TEST_ENTRY  (udp_alloc_cb_fail)
   TEST_ENTRY  (udp_bind)
   TEST_ENTRY  (udp_bind_reuseaddr)
   TEST_ENTRY  (udp_create_early)
@@ -528,6 +543,7 @@ TASK_LIST_START
   TEST_HELPER (callback_stack, tcp4_echo_server)
 
   TEST_ENTRY  (error_message)
+  TEST_ENTRY  (sys_error)
 
   TEST_ENTRY  (timer)
   TEST_ENTRY  (timer_init)
@@ -624,6 +640,12 @@ TASK_LIST_START
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
   TEST_ENTRY  (poll_bad_fdtype)
+#ifdef __linux__
+  TEST_ENTRY  (poll_nested_epoll)
+#endif
+#ifdef UV_HAVE_KQUEUE
+  TEST_ENTRY  (poll_nested_kqueue)
+#endif
 
   TEST_ENTRY  (socket_buffer_size)
 
@@ -655,9 +677,9 @@ TASK_LIST_START
   TEST_ENTRY  (fs_poll_getpath)
   TEST_ENTRY  (kill)
 
-#ifdef _WIN32
   TEST_ENTRY  (poll_close_doesnt_corrupt_stack)
   TEST_ENTRY  (poll_closesocket)
+#ifdef _WIN32
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
 #if !defined(USING_UV_SHARED)
   TEST_ENTRY  (argument_escaping)
@@ -710,6 +732,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_event_watch_dir)
   TEST_ENTRY  (fs_event_watch_dir_recursive)
   TEST_ENTRY  (fs_event_watch_file)
+  TEST_ENTRY  (fs_event_watch_file_exact_path)
   TEST_ENTRY  (fs_event_watch_file_twice)
   TEST_ENTRY  (fs_event_watch_file_current_dir)
 #ifdef _WIN32

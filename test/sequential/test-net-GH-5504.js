@@ -48,14 +48,6 @@ function parent() {
   var spawn = require('child_process').spawn;
   var node = process.execPath;
 
-  setTimeout(function() {
-    if (s) s.kill();
-    if (c) c.kill();
-    setTimeout(function() {
-      throw new Error('hang');
-    });
-  }, common.platformTimeout(2000)).unref();
-
   var s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
       NODE_DEBUG: 'net'

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1997-2015, International Business Machines
@@ -229,7 +231,7 @@ struct UInitOnce {
 U_COMMON_API UBool U_EXPORT2 umtx_initImplPreInit(UInitOnce &);
 U_COMMON_API void  U_EXPORT2 umtx_initImplPostInit(UInitOnce &);
 
-template<class T> void umtx_initOnce(UInitOnce &uio, T *obj, void (T::*fp)()) {
+template<class T> void umtx_initOnce(UInitOnce &uio, T *obj, void (U_CALLCONV T::*fp)()) {
     if (umtx_loadAcquire(uio.fState) == 2) {
         return;
     }
@@ -242,7 +244,7 @@ template<class T> void umtx_initOnce(UInitOnce &uio, T *obj, void (T::*fp)()) {
 
 // umtx_initOnce variant for plain functions, or static class functions.
 //               No context parameter.
-inline void umtx_initOnce(UInitOnce &uio, void (*fp)()) {
+inline void umtx_initOnce(UInitOnce &uio, void (U_CALLCONV *fp)()) {
     if (umtx_loadAcquire(uio.fState) == 2) {
         return;
     }
@@ -254,7 +256,7 @@ inline void umtx_initOnce(UInitOnce &uio, void (*fp)()) {
 
 // umtx_initOnce variant for plain functions, or static class functions.
 //               With ErrorCode, No context parameter.
-inline void umtx_initOnce(UInitOnce &uio, void (*fp)(UErrorCode &), UErrorCode &errCode) {
+inline void umtx_initOnce(UInitOnce &uio, void (U_CALLCONV *fp)(UErrorCode &), UErrorCode &errCode) {
     if (U_FAILURE(errCode)) {
         return;
     }
@@ -273,7 +275,7 @@ inline void umtx_initOnce(UInitOnce &uio, void (*fp)(UErrorCode &), UErrorCode &
 
 // umtx_initOnce variant for plain functions, or static class functions,
 //               with a context parameter.
-template<class T> void umtx_initOnce(UInitOnce &uio, void (*fp)(T), T context) {
+template<class T> void umtx_initOnce(UInitOnce &uio, void (U_CALLCONV *fp)(T), T context) {
     if (umtx_loadAcquire(uio.fState) == 2) {
         return;
     }
@@ -285,7 +287,7 @@ template<class T> void umtx_initOnce(UInitOnce &uio, void (*fp)(T), T context) {
 
 // umtx_initOnce variant for plain functions, or static class functions,
 //               with a context parameter and an error code.
-template<class T> void umtx_initOnce(UInitOnce &uio, void (*fp)(T, UErrorCode &), T context, UErrorCode &errCode) {
+template<class T> void umtx_initOnce(UInitOnce &uio, void (U_CALLCONV *fp)(T, UErrorCode &), T context, UErrorCode &errCode) {
     if (U_FAILURE(errCode)) {
         return;
     }
@@ -318,13 +320,7 @@ U_NAMESPACE_END
 // #inlcude "U_USER_MUTEX_H"
 #include U_MUTEX_XSTR(U_USER_MUTEX_H)
 
-#elif U_PLATFORM_HAS_WIN32_API
-
-/* Windows Definitions.
- *    Windows comes first in the platform chain.
- *    Cygwin (and possibly others) have both WIN32 and POSIX APIs. Prefer Win32 in this case.
- */
-
+#elif U_PLATFORM_USES_ONLY_WIN32_API
 
 /* For CRITICAL_SECTION */
 

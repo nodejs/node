@@ -148,7 +148,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is the error code.
 const dns = require('dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
-    // Prints: localhost ssh
+  // Prints: localhost ssh
 });
 ```
 
@@ -183,7 +183,7 @@ corresponding lookup methods.
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the error codes listed [here](#dns_error_codes).
 
-## dns.resolve4(hostname, callback)
+## dns.resolve4(hostname[, options], callback)
 <!-- YAML
 added: v0.1.16
 -->
@@ -193,7 +193,14 @@ Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-## dns.resolve6(hostname, callback)
+* `hostname` {String} Hostname to resolve.
+* `options` {Object}
+  * `ttl` {Boolean} Retrieve the Time-To-Live value (TTL) of each record.
+    The callback receives an array of `{ address: '1.2.3.4', ttl: 60 }` objects
+    rather than an array of strings.  The TTL is expressed in seconds.
+* `callback` {Function} An `(err, result)` callback function.
+
+## dns.resolve6(hostname[, options], callback)
 <!-- YAML
 added: v0.1.16
 -->
@@ -201,6 +208,13 @@ added: v0.1.16
 Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv6 addresses.
+
+* `hostname` {String} Hostname to resolve.
+* `options` {Object}
+  * `ttl` {Boolean} Retrieve the Time-To-Live value (TTL) of each record.
+    The callback receives an array of `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }`
+    objects rather than an array of strings.  The TTL is expressed in seconds.
+* `callback` {Function} An `(err, result)` callback function.
 
 ## dns.resolveCname(hostname, callback)
 <!-- YAML
@@ -260,7 +274,7 @@ added: v0.1.90
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 contain an array of name server records available for `hostname`
-(e.g., `['ns1.example.com', 'ns2.example.com']`).
+(e.g. `['ns1.example.com', 'ns2.example.com']`).
 
 ## dns.resolveSoa(hostname, callback)
 <!-- YAML
@@ -407,14 +421,14 @@ Under the hood, [`dns.lookup()`][] uses the same operating system facilities
 as most other programs. For instance, [`dns.lookup()`][] will almost always
 resolve a given name the same way as the `ping` command. On most POSIX-like
 operating systems, the behavior of the [`dns.lookup()`][] function can be
-modified by changing settings in `nsswitch.conf(5)` and/or `resolv.conf(5)`,
+modified by changing settings in nsswitch.conf(5) and/or resolv.conf(5),
 but note that changing these files will change the behavior of _all other
 programs running on the same operating system_.
 
 Though the call to `dns.lookup()` will be asynchronous from JavaScript's
-perspective, it is implemented as a synchronous call to `getaddrinfo(3)` that
+perspective, it is implemented as a synchronous call to getaddrinfo(3) that
 runs on libuv's threadpool. Because libuv's threadpool has a fixed size, it
-means that if for whatever reason the call to `getaddrinfo(3)` takes a long
+means that if for whatever reason the call to getaddrinfo(3) takes a long
 time, other operations that could run on libuv's threadpool (such as filesystem
 operations) will experience degraded performance. In order to mitigate this
 issue, one potential solution is to increase the size of libuv's threadpool by
@@ -425,7 +439,7 @@ setting the `'UV_THREADPOOL_SIZE'` environment variable to a value greater than
 ### `dns.resolve()`, `dns.resolve*()` and `dns.reverse()`
 
 These functions are implemented quite differently than [`dns.lookup()`][]. They
-do not use `getaddrinfo(3)` and they _always_ perform a DNS query on the
+do not use getaddrinfo(3) and they _always_ perform a DNS query on the
 network. This network communication is always done asynchronously, and does not
 use libuv's threadpool.
 

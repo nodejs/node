@@ -177,6 +177,17 @@ module.exports = {
         }
 
         /**
+        * Verifies AwaitExpressions satisfy spacing requirements
+        * @param {ASTNode} node AwaitExpression AST node
+        * @returns {void}
+        */
+        function checkForSpacesAfterAwait(node) {
+            const tokens = sourceCode.getFirstTokens(node, 3);
+
+            checkUnaryWordOperatorForSpaces(node, tokens[0], tokens[1], "await");
+        }
+
+        /**
         * Verifies UnaryExpression, UpdateExpression and NewExpression have spaces before or after the operator
         * @param {ASTnode} node AST node
         * @param {Object} firstToken First token in the expression
@@ -291,7 +302,8 @@ module.exports = {
             UnaryExpression: checkForSpaces,
             UpdateExpression: checkForSpaces,
             NewExpression: checkForSpaces,
-            YieldExpression: checkForSpacesAfterYield
+            YieldExpression: checkForSpacesAfterYield,
+            AwaitExpression: checkForSpacesAfterAwait
         };
 
     }

@@ -5,6 +5,8 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -17,7 +19,9 @@ module.exports = {
             recommended: true
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -27,19 +31,27 @@ module.exports = {
          * Validate regular expressions
          * @param {ASTNode} node node to validate
          * @param {string} value regular expression to validate
+         * @param {number} valueStart The start location of the regex/string literal. It will always be the case that
+         `sourceCode.getText().slice(valueStart, valueStart + value.length) === value`
          * @returns {void}
          * @private
          */
-        function checkRegex(node, value) {
+        function checkRegex(node, value, valueStart) {
             const multipleSpacesRegex = /( {2,})+?/,
                 regexResults = multipleSpacesRegex.exec(value);
 
             if (regexResults !== null) {
+                const count = regexResults[0].length;
+
                 context.report({
                     node,
                     message: "Spaces are hard to count. Use {{{count}}}.",
-                    data: {
-                        count: regexResults[0].length
+                    data: {count},
+                    fix(fixer) {
+                        return fixer.replaceTextRange(
+                            [valueStart + regexResults.index, valueStart + regexResults.index + count],
+                            ` {${count}}`
+                        );
                     }
                 });
 
@@ -62,7 +74,7 @@ module.exports = {
                 nodeValue = token.value;
 
             if (nodeType === "RegularExpression") {
-                checkRegex(node, nodeValue);
+                checkRegex(node, nodeValue, token.start);
             }
         }
 
@@ -83,8 +95,12 @@ module.exports = {
          * @private
          */
         function checkFunction(node) {
-            if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0])) {
-                checkRegex(node, node.arguments[0].value);
+            const scope = context.getScope();
+            const regExpVar = astUtils.getVariableByName(scope, "RegExp");
+            const shadowed = regExpVar && regExpVar.defs.length > 0;
+
+            if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0]) && !shadowed) {
+                checkRegex(node, node.arguments[0].value, node.arguments[0].start + 1);
             }
         }
 

@@ -104,6 +104,11 @@ var IgnoreBase = function () {
       };
     }
   }, {
+    key: 'ignores',
+    value: function ignores(path) {
+      return !this._filter(path);
+    }
+  }, {
     key: '_createRule',
     value: function _createRule(pattern) {
       var origin = pattern;
@@ -130,6 +135,9 @@ var IgnoreBase = function () {
         regex: regex
       };
     }
+
+    // @returns `Boolean` true if the `path` is NOT ignored
+
   }, {
     key: '_filter',
     value: function _filter(path, slices) {

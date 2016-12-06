@@ -36,9 +36,9 @@ void Check(const v8::FunctionCallbackInfo<v8::Value>& args) {
   assert(alive > 0);
 }
 
-void init(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "alloc", Alloc);
-  NODE_SET_METHOD(target, "check", Check);
+void init(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "alloc", Alloc);
+  NODE_SET_METHOD(exports, "check", Check);
 }
 
 NODE_MODULE(binding, init);

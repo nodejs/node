@@ -8,6 +8,7 @@ PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
 TEST_CI_ARGS ?=
 STAGINGSERVER ?= node-www
+LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 
 ifdef JOBS
@@ -63,13 +64,18 @@ endif
 # to check for changes.
 .PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
+# The -r/-L check stops it recreating the link if it is already in place,
+# otherwise $(NODE_EXE) being a .PHONY target means it is always re-run.
+# Without the check there is a race condition between the link being deleted
+# and recreated which can break the addons build when running test-ci
+# See comments on the build-addons target for some more info
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
-	ln -fs out/Release/$(NODE_EXE) $@
+	if [ ! -r $(NODE_EXE) -o ! -L $(NODE_EXE) ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	ln -fs out/Debug/$(NODE_EXE) $@
+	if [ ! -r $(NODE_EXE) -o ! -L $(node_EXE) ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
@@ -78,11 +84,7 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
 	$(PYTHON) tools/gyp_node.py -f make
 
 config.gypi: configure
-	if [ -f $@ ]; then
-		$(error Stale $@, please re-run ./configure)
-	else
-		$(error No $@, please run ./configure first)
-	fi
+	$(error Missing or stale $@, please run ./$<)
 
 install: all
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
@@ -115,7 +117,7 @@ cctest: all
 	@out/$(BUILDTYPE)/$@
 
 v8:
-	tools/make-v8.sh v8
+	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 test: all
@@ -164,12 +166,14 @@ test/addons/.buildstamp: config.gypi \
 	deps/npm/node_modules/node-gyp/package.json \
 	$(ADDONS_BINDING_GYPS) $(ADDONS_BINDING_SOURCES) \
 	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h \
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	test/addons/.docbuildstamp
-	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
-	# embedded addons have been generated from the documentation.
-	for dirname in test/addons/*/; do \
-		$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+#	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
+#	embedded addons have been generated from the documentation.
+	@for dirname in test/addons/*/; do \
+		echo "\nBuilding addon $$PWD/$$dirname" ; \
+		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+		        --loglevel=$(LOGLEVEL) rebuild \
 			--python="$(PYTHON)" \
 			--directory="$$PWD/$$dirname" \
 			--nodedir="$$PWD" || exit 1 ; \
@@ -199,6 +203,7 @@ CI_NATIVE_SUITES := addons
 CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential
 
 # Build and test addons without building anything else
+test-ci-native: LOGLEVEL := info
 test-ci-native: | test/addons/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
@@ -210,7 +215,9 @@ test-ci-js:
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 
+test-ci: LOGLEVEL := info
 test-ci: | build-addons
+	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)
@@ -239,6 +246,9 @@ test-debugger: all
 test-inspector: all
 	$(PYTHON) tools/test.py inspector
 
+test-tick-processor: all
+	$(PYTHON) tools/test.py tick-processor
+
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
@@ -261,7 +271,7 @@ test-timers-clean:
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 test-v8: v8
-	# note: performs full test unless QUICKCHECK is specified
+#	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
         --no-presubmit \
@@ -269,7 +279,7 @@ test-v8: v8
 	 $(TAP_V8)
 
 test-v8-intl: v8
-	# note: performs full test unless QUICKCHECK is specified
+#	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
         --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
@@ -282,7 +292,7 @@ test-v8-benchmarks: v8
 	 $(TAP_V8_BENCHMARKS)
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
-	# runs all v8 tests
+# runs all v8 tests
 else
 test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 	@echo "Testing v8 is not available through the source tarball."
@@ -291,15 +301,14 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 endif
 
 apidoc_sources = $(wildcard doc/api/*.md)
-apidocs = $(addprefix out/,$(apidoc_sources:.md=.html)) \
-		$(addprefix out/,$(apidoc_sources:.md=.json))
+apidocs_html = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.html))
+apidocs_json = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc-only: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/
-
+doc-only: $(apidocs_html) $(apidocs_json)
 doc: $(NODE_EXE) doc-only
 
 $(apidoc_dirs):
@@ -314,7 +323,7 @@ out/doc/%: doc/%
 # check if ./node is actually set, else use user pre-installed binary
 gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
-	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
 		if [ -x $(NODE) ]; then \
 			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
@@ -326,7 +335,7 @@ out/doc/api/%.json: doc/api/%.md
 # check if ./node is actually set, else use user pre-installed binary
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 out/doc/api/%.html: doc/api/%.md
-	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
 		if [ -x $(NODE) ]; then \
 			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
@@ -335,8 +344,8 @@ out/doc/api/%.html: doc/api/%.md
 		fi
 	[ -x $(NODE) ] && $(NODE) $(gen-html) || node $(gen-html)
 
-docopen: out/doc/api/all.html
-	-google-chrome out/doc/api/all.html
+docopen: $(apidocs_html)
+	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
 
 docclean:
 	-rm -rf out/doc
@@ -711,6 +720,8 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	src/*.h \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
+	test/cctest/*.cc \
+	test/cctest/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
 	))

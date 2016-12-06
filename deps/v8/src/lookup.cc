@@ -308,6 +308,11 @@ void LookupIterator::PrepareTransitionToDataProperty(
     PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
   if (state_ == TRANSITION) return;
+
+  if (!IsElement() && name()->IsPrivate()) {
+    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
+  }
+
   DCHECK(state_ != LookupIterator::ACCESSOR ||
          (GetAccessors()->IsAccessorInfo() &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
@@ -447,6 +452,9 @@ void LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
+  if (!IsElement() && name()->IsPrivate()) {
+    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
+  }
 
   if (!IsElement() && !receiver->map()->is_dictionary_map()) {
     Handle<Map> old_map(receiver->map(), isolate_);

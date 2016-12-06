@@ -141,7 +141,9 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -219,46 +221,57 @@ module.exports = {
                 isParenWrapped());
         }
 
+        const OPERATOR_FLIP_MAP = {
+            "===": "===",
+            "!==": "!==",
+            "==": "==",
+            "!=": "!=",
+            "<": ">",
+            ">": "<",
+            "<=": ">=",
+            ">=": "<="
+        };
+
+        /**
+        * Returns a string representation of a BinaryExpression node with its sides/operator flipped around.
+        * @param {ASTNode} node The BinaryExpression node
+        * @returns {string} A string representation of the node with the sides and operator flipped
+        */
+        function getFlippedString(node) {
+            const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+            const textBeforeOperator = sourceCode.getText().slice(sourceCode.getTokenBefore(operatorToken).range[1], operatorToken.range[0]);
+            const textAfterOperator = sourceCode.getText().slice(operatorToken.range[1], sourceCode.getTokenAfter(operatorToken).range[0]);
+            const leftText = sourceCode.getText().slice(sourceCode.getFirstToken(node).range[0], sourceCode.getTokenBefore(operatorToken).range[1]);
+            const rightText = sourceCode.getText().slice(sourceCode.getTokenAfter(operatorToken).range[0], sourceCode.getLastToken(node).range[1]);
+
+            return rightText + textBeforeOperator + OPERATOR_FLIP_MAP[operatorToken.value] + textAfterOperator + leftText;
+        }
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
-            BinaryExpression: always ? function(node) {
+            BinaryExpression(node) {
+                const expectedLiteral = always ? node.left : node.right;
+                const expectedNonLiteral = always ? node.right : node.left;
 
-                // Comparisons must always be yoda-style: if ("blue" === color)
+                // If `expectedLiteral` is not a literal, and `expectedNonLiteral` is a literal, raise an error.
                 if (
-                    (node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
-                    !(node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
+                    (expectedNonLiteral.type === "Literal" || looksLikeLiteral(expectedNonLiteral)) &&
+                    !(expectedLiteral.type === "Literal" || looksLikeLiteral(expectedLiteral)) &&
                     !(!isEqualityOperator(node.operator) && onlyEquality) &&
                     isComparisonOperator(node.operator) &&
                     !(exceptRange && isRangeTest(context.getAncestors().pop()))
                 ) {
                     context.report({
                         node,
-                        message: "Expected literal to be on the left side of {{operator}}.",
+                        message: "Expected literal to be on the {{expectedSide}} side of {{operator}}.",
                         data: {
-                            operator: node.operator
-                        }
-                    });
-                }
-
-            } : function(node) {
-
-                // Comparisons must never be yoda-style (default)
-                if (
-                    (node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
-                    !(node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
-                    !(!isEqualityOperator(node.operator) && onlyEquality) &&
-                    isComparisonOperator(node.operator) &&
-                    !(exceptRange && isRangeTest(context.getAncestors().pop()))
-                ) {
-                    context.report({
-                        node,
-                        message: "Expected literal to be on the right side of {{operator}}.",
-                        data: {
-                            operator: node.operator
-                        }
+                            operator: node.operator,
+                            expectedSide: always ? "left" : "right"
+                        },
+                        fix: fixer => fixer.replaceText(node, getFlippedString(node))
                     });
                 }
 

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -883,7 +885,7 @@ ucnv_extContinueMatchFromU(UConverter *cnv,
         } else {
             /* the match did not use all of preFromU[] - keep the rest for replay */
             int32_t length=cnv->preFromULength-match;
-            uprv_memmove(cnv->preFromU, cnv->preFromU+match, length*U_SIZEOF_UCHAR);
+            u_memmove(cnv->preFromU, cnv->preFromU+match, length);
             cnv->preFromULength=(int8_t)-length;
         }
 

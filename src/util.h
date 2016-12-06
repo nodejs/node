@@ -22,9 +22,31 @@ namespace node {
 // that the standard allows them to either return a unique pointer or a
 // nullptr for zero-sized allocation requests.  Normalize by always using
 // a nullptr.
-inline void* Realloc(void* pointer, size_t size);
-inline void* Malloc(size_t size);
-inline void* Calloc(size_t n, size_t size);
+template <typename T>
+inline T* UncheckedRealloc(T* pointer, size_t n);
+template <typename T>
+inline T* UncheckedMalloc(size_t n);
+template <typename T>
+inline T* UncheckedCalloc(size_t n);
+
+// Same things, but aborts immediately instead of returning nullptr when
+// no memory is available.
+template <typename T>
+inline T* Realloc(T* pointer, size_t n);
+template <typename T>
+inline T* Malloc(size_t n);
+template <typename T>
+inline T* Calloc(size_t n);
+
+inline char* Malloc(size_t n);
+inline char* Calloc(size_t n);
+inline char* UncheckedMalloc(size_t n);
+inline char* UncheckedCalloc(size_t n);
+
+// Used by the allocation functions when allocation fails.
+// Thin wrapper around v8::Isolate::LowMemoryNotification() that checks
+// whether V8 is initialized.
+void LowMemoryNotification();
 
 #ifdef __GNUC__
 #define NO_RETURN __attribute__((noreturn))
@@ -231,7 +253,11 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
-inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+// Swaps bytes in place. nbytes is the number of bytes to swap and must be a
+// multiple of the word size (checked by function).
+inline void SwapBytes16(char* data, size_t nbytes);
+inline void SwapBytes32(char* data, size_t nbytes);
+inline void SwapBytes64(char* data, size_t nbytes);
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
@@ -285,11 +311,7 @@ class MaybeStackBuffer {
     if (storage <= kStackStorageSize) {
       buf_ = buf_st_;
     } else {
-      // Guard against overflow.
-      CHECK_LE(storage, sizeof(T) * storage);
-
-      buf_ = static_cast<T*>(Malloc(sizeof(T) * storage));
-      CHECK_NE(buf_, nullptr);
+      buf_ = Malloc<T>(storage);
     }
 
     // Remember how much was allocated to check against that in SetLength().
@@ -318,6 +340,15 @@ class MaybeStackBuffer {
     CHECK_EQ(buf_, buf_st_);
     length_ = 0;
     buf_ = nullptr;
+  }
+
+  bool IsAllocated() {
+    return buf_ != buf_st_;
+  }
+
+  void Release() {
+    buf_ = buf_st_;
+    length_ = 0;
   }
 
   MaybeStackBuffer() : length_(0), buf_(buf_st_) {
@@ -354,6 +385,24 @@ class BufferValue : public MaybeStackBuffer<char> {
  public:
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
+
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  do {                                                                      \
+    if (!Buffer::HasInstance(obj))                                          \
+      return env->ThrowTypeError("argument should be a Buffer");            \
+  } while (0)
+
+#define SPREAD_BUFFER_ARG(val, name)                                          \
+  CHECK((val)->IsUint8Array());                                               \
+  Local<v8::Uint8Array> name = (val).As<v8::Uint8Array>();                    \
+  v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
+  const size_t name##_offset = name->ByteOffset();                            \
+  const size_t name##_length = name->ByteLength();                            \
+  char* const name##_data =                                                   \
+      static_cast<char*>(name##_c.Data()) + name##_offset;                    \
+  if (name##_length > 0)                                                      \
+    CHECK_NE(name##_data, nullptr);
+
 
 }  // namespace node
 

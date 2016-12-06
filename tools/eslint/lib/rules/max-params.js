@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce a maximum number of parameters in `function` definitions",
+            description: "enforce a maximum number of parameters in function definitions",
             category: "Stylistic Issues",
             recommended: false
         },

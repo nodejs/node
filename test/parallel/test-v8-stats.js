@@ -5,7 +5,10 @@ var v8 = require('v8');
 
 var s = v8.getHeapStatistics();
 var keys = [
+  'does_zap_garbage',
   'heap_size_limit',
+  'malloced_memory',
+  'peak_malloced_memory',
   'total_available_size',
   'total_heap_size',
   'total_heap_size_executable',

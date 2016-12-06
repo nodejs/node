@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 2008-2015, Google, International Business Machines Corporation
@@ -347,6 +349,115 @@ TimeUnitFormat::initDataMembers(UErrorCode& err){
     }
 }
 
+struct TimeUnitFormatReadSink : public ResourceSink {
+    TimeUnitFormat *timeUnitFormatObj;
+    const UVector &pluralCounts;
+    UTimeUnitFormatStyle style;
+    UBool beenHere;
+
+    TimeUnitFormatReadSink(TimeUnitFormat *timeUnitFormatObj,
+            const UVector &pluralCounts, UTimeUnitFormatStyle style) :
+            timeUnitFormatObj(timeUnitFormatObj), pluralCounts(pluralCounts),
+            style(style), beenHere(FALSE){}
+
+    virtual ~TimeUnitFormatReadSink();
+
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+        // Skip all put() calls except the first one -- discard all fallback data.
+        if (beenHere) {
+            return;
+        } else {
+            beenHere = TRUE;
+        }
+
+        ResourceTable units = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        for (int32_t i = 0; units.getKeyAndValue(i, key, value); ++i) {
+            const char* timeUnitName = key;
+            if (timeUnitName == NULL) {
+                continue;
+            }
+
+            TimeUnit::UTimeUnitFields timeUnitField = TimeUnit::UTIMEUNIT_FIELD_COUNT;
+            if ( uprv_strcmp(timeUnitName, gTimeUnitYear) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_YEAR;
+            } else if ( uprv_strcmp(timeUnitName, gTimeUnitMonth) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_MONTH;
+            } else if ( uprv_strcmp(timeUnitName, gTimeUnitDay) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_DAY;
+            } else if ( uprv_strcmp(timeUnitName, gTimeUnitHour) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_HOUR;
+            } else if ( uprv_strcmp(timeUnitName, gTimeUnitMinute) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_MINUTE;
+            } else if ( uprv_strcmp(timeUnitName, gTimeUnitSecond) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_SECOND;
+            } else if ( uprv_strcmp(timeUnitName, gTimeUnitWeek) == 0 ) {
+                timeUnitField = TimeUnit::UTIMEUNIT_WEEK;
+            } else {
+                continue;
+            }
+            LocalPointer<Hashtable> localCountToPatterns;
+            Hashtable *countToPatterns =
+                timeUnitFormatObj->fTimeUnitToCountToPatterns[timeUnitField];
+            if (countToPatterns == NULL) {
+                localCountToPatterns.adoptInsteadAndCheckErrorCode(
+                    timeUnitFormatObj->initHash(errorCode), errorCode);
+                countToPatterns = localCountToPatterns.getAlias();
+                if (U_FAILURE(errorCode)) {
+                    return;
+                }
+            }
+
+            ResourceTable countsToPatternTable = value.getTable(errorCode);
+            if (U_FAILURE(errorCode)) {
+                continue;
+            }
+            for (int32_t j = 0; countsToPatternTable.getKeyAndValue(j, key, value); ++j) {
+                errorCode = U_ZERO_ERROR;
+                UnicodeString pattern = value.getUnicodeString(errorCode);
+                if (U_FAILURE(errorCode)) {
+                    continue;
+                }
+                UnicodeString pluralCountUniStr(key, -1, US_INV);
+                if (!pluralCounts.contains(&pluralCountUniStr)) {
+                    continue;
+                }
+                LocalPointer<MessageFormat> messageFormat(new MessageFormat(
+                    pattern, timeUnitFormatObj->getLocale(errorCode), errorCode), errorCode);
+                if (U_FAILURE(errorCode)) {
+                    return;
+                }
+                MessageFormat** formatters =
+                    (MessageFormat**)countToPatterns->get(pluralCountUniStr);
+                if (formatters == NULL) {
+                    LocalMemory<MessageFormat *> localFormatters(
+                        (MessageFormat **)uprv_malloc(UTMUTFMT_FORMAT_STYLE_COUNT*sizeof(MessageFormat*)));
+                    if (localFormatters.isNull()) {
+                        errorCode = U_MEMORY_ALLOCATION_ERROR;
+                        return;
+                    }
+                    localFormatters[UTMUTFMT_FULL_STYLE] = NULL;
+                    localFormatters[UTMUTFMT_ABBREVIATED_STYLE] = NULL;
+                    countToPatterns->put(pluralCountUniStr, localFormatters.getAlias(), errorCode);
+                    if (U_FAILURE(errorCode)) {
+                        return;
+                    }
+                    formatters = localFormatters.orphan();
+                }
+                formatters[style] = messageFormat.orphan();
+            }
+
+            if (timeUnitFormatObj->fTimeUnitToCountToPatterns[timeUnitField] == NULL) {
+                timeUnitFormatObj->fTimeUnitToCountToPatterns[timeUnitField] = localCountToPatterns.orphan();
+            }
+        }
+    }
+
+};
+
+TimeUnitFormatReadSink::~TimeUnitFormatReadSink() {}
+
 void
 TimeUnitFormat::readFromCurrentLocale(UTimeUnitFormatStyle style, const char* key,
                                       const UVector& pluralCounts, UErrorCode& err) {
@@ -365,94 +476,10 @@ TimeUnitFormat::readFromCurrentLocale(UTimeUnitFormatStyle style, const char* ke
     if (U_FAILURE(status)) {
         return;
     }
-    int32_t size = ures_getSize(unitsRes.getAlias());
-    for ( int32_t index = 0; index < size; ++index) {
-        status = U_ZERO_ERROR;
-        // resource of one time unit
-        LocalUResourceBundlePointer oneTimeUnit(
-                ures_getByIndex(unitsRes.getAlias(), index, NULL, &status));
-        if (U_FAILURE(status)) {
-            continue;
-        }
-        const char* timeUnitName = ures_getKey(oneTimeUnit.getAlias());
-        if (timeUnitName == NULL) {
-            continue;
-        }
-        LocalUResourceBundlePointer countsToPatternRB(
-                ures_getByKey(unitsRes.getAlias(), timeUnitName, NULL, &status));
-        if (countsToPatternRB.isNull() || U_FAILURE(status)) {
-            continue;
-        }
-        TimeUnit::UTimeUnitFields timeUnitField = TimeUnit::UTIMEUNIT_FIELD_COUNT;
-        if ( uprv_strcmp(timeUnitName, gTimeUnitYear) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_YEAR;
-        } else if ( uprv_strcmp(timeUnitName, gTimeUnitMonth) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_MONTH;
-        } else if ( uprv_strcmp(timeUnitName, gTimeUnitDay) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_DAY;
-        } else if ( uprv_strcmp(timeUnitName, gTimeUnitHour) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_HOUR;
-        } else if ( uprv_strcmp(timeUnitName, gTimeUnitMinute) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_MINUTE;
-        } else if ( uprv_strcmp(timeUnitName, gTimeUnitSecond) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_SECOND;
-        } else if ( uprv_strcmp(timeUnitName, gTimeUnitWeek) == 0 ) {
-            timeUnitField = TimeUnit::UTIMEUNIT_WEEK;
-        } else {
-            continue;
-        }
-        LocalPointer<Hashtable> localCountToPatterns;
-        Hashtable *countToPatterns = fTimeUnitToCountToPatterns[timeUnitField];
-        if (countToPatterns == NULL) {
-            localCountToPatterns.adoptInsteadAndCheckErrorCode(initHash(err), err);
-            countToPatterns = localCountToPatterns.getAlias();
-            if (U_FAILURE(err)) {
-                return;
-            }
-        }
-        int32_t count = ures_getSize(countsToPatternRB.getAlias());
-        const char*  pluralCount;
-        for ( int32_t pluralIndex = 0; pluralIndex < count; ++pluralIndex) {
-            // resource of count to pattern
-            status = U_ZERO_ERROR;
-            UnicodeString pattern =
-                ures_getNextUnicodeString(countsToPatternRB.getAlias(), &pluralCount, &status);
-            if (U_FAILURE(status)) {
-                continue;
-            }
-            UnicodeString pluralCountUniStr(pluralCount, -1, US_INV);
-            if (!pluralCounts.contains(&pluralCountUniStr)) {
-                continue;
-            }
-            LocalPointer<MessageFormat> messageFormat(new MessageFormat(pattern, getLocale(err), err), err);
-            if (U_FAILURE(err)) {
-                return;
-            }
-            MessageFormat** formatters = (MessageFormat**)countToPatterns->get(pluralCountUniStr);
-            if (formatters == NULL) {
-                LocalMemory<MessageFormat *> localFormatters(
-                        (MessageFormat **)uprv_malloc(UTMUTFMT_FORMAT_STYLE_COUNT*sizeof(MessageFormat*)));
-                if (localFormatters.isNull()) {
-                    err = U_MEMORY_ALLOCATION_ERROR;
-                    return;
-                }
-                localFormatters[UTMUTFMT_FULL_STYLE] = NULL;
-                localFormatters[UTMUTFMT_ABBREVIATED_STYLE] = NULL;
-                countToPatterns->put(pluralCountUniStr, localFormatters.getAlias(), err);
-                if (U_FAILURE(err)) {
-                    return;
-                }
-                formatters = localFormatters.orphan();
-            }
-            //delete formatters[style];
-            formatters[style] = messageFormat.orphan();
-        }
-        if (fTimeUnitToCountToPatterns[timeUnitField] == NULL) {
-            fTimeUnitToCountToPatterns[timeUnitField] = localCountToPatterns.orphan();
-        }
-    }
-}
 
+    TimeUnitFormatReadSink sink(this, pluralCounts, style);
+    ures_getAllItemsWithFallback(unitsRes.getAlias(), "", sink, status);
+}
 
 void
 TimeUnitFormat::checkConsistency(UTimeUnitFormatStyle style, const char* key, UErrorCode& err) {

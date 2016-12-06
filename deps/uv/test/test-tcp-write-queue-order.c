@@ -46,13 +46,13 @@ static void close_cb(uv_handle_t* handle) {
   close_cb_called++;
 }
 
-void timer_cb(uv_timer_t* handle) {
+static void timer_cb(uv_timer_t* handle) {
   uv_close((uv_handle_t*) &client, close_cb);
   uv_close((uv_handle_t*) &server, close_cb);
   uv_close((uv_handle_t*) &incoming, close_cb);
 }
 
-void write_cb(uv_write_t* req, int status) {
+static void write_cb(uv_write_t* req, int status) {
   if (status == 0)
     write_callbacks++;
   else if (status == UV_ECANCELED)

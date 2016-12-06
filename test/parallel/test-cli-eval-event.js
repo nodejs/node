@@ -10,6 +10,6 @@ const child = spawn(process.execPath, ['-e', `
 `]);
 
 child.once('exit', common.mustCall(function(exitCode, signalCode) {
-  assert.equal(exitCode, 0);
-  assert.equal(signalCode, null);
+  assert.strictEqual(exitCode, 0);
+  assert.strictEqual(signalCode, null);
 }));

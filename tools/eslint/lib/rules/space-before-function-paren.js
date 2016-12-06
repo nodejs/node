@@ -32,6 +32,9 @@ module.exports = {
                             },
                             named: {
                                 enum: ["always", "never", "ignore"]
+                            },
+                            asyncArrow: {
+                                enum: ["always", "never", "ignore"]
                             }
                         },
                         additionalProperties: false
@@ -48,7 +51,9 @@ module.exports = {
         let requireAnonymousFunctionSpacing = true,
             forbidAnonymousFunctionSpacing = false,
             requireNamedFunctionSpacing = true,
-            forbidNamedFunctionSpacing = false;
+            forbidNamedFunctionSpacing = false,
+            requireArrowFunctionSpacing = false,
+            forbidArrowFunctionSpacing = false;
 
         if (typeof configuration === "object") {
             requireAnonymousFunctionSpacing = (
@@ -57,6 +62,8 @@ module.exports = {
             requireNamedFunctionSpacing = (
                 !configuration.named || configuration.named === "always");
             forbidNamedFunctionSpacing = configuration.named === "never";
+            requireArrowFunctionSpacing = configuration.asyncArrow === "always";
+            forbidArrowFunctionSpacing = configuration.asyncArrow === "never";
         } else if (configuration === "never") {
             requireAnonymousFunctionSpacing = false;
             forbidAnonymousFunctionSpacing = true;
@@ -92,11 +99,29 @@ module.exports = {
          * @returns {void}
          */
         function validateSpacingBeforeParentheses(node) {
-            const isNamed = isNamedFunction(node);
-            let rightToken;
+            const isArrow = node.type === "ArrowFunctionExpression";
+            const isNamed = !isArrow && isNamedFunction(node);
+            const isAnonymousGenerator = node.generator && !isNamed;
+            const isNormalArrow = isArrow && !node.async;
+            const isArrowWithoutParens = isArrow && sourceCode.getFirstToken(node, 1).value !== "(";
+            let forbidSpacing, requireSpacing, rightToken;
 
-            if (node.generator && !isNamed) {
+            // isAnonymousGenerator → `generator-star-spacing` should warn it. E.g. `function* () {}`
+            // isNormalArrow → ignore always.
+            // isArrowWithoutParens → ignore always. E.g. `async a => a`
+            if (isAnonymousGenerator || isNormalArrow || isArrowWithoutParens) {
                 return;
+            }
+
+            if (isArrow) {
+                forbidSpacing = forbidArrowFunctionSpacing;
+                requireSpacing = requireArrowFunctionSpacing;
+            } else if (isNamed) {
+                forbidSpacing = forbidNamedFunctionSpacing;
+                requireSpacing = requireNamedFunctionSpacing;
+            } else {
+                forbidSpacing = forbidAnonymousFunctionSpacing;
+                requireSpacing = requireAnonymousFunctionSpacing;
             }
 
             rightToken = sourceCode.getFirstToken(node);
@@ -107,7 +132,7 @@ module.exports = {
             const location = leftToken.loc.end;
 
             if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {
-                if ((isNamed && forbidNamedFunctionSpacing) || (!isNamed && forbidAnonymousFunctionSpacing)) {
+                if (forbidSpacing) {
                     context.report({
                         node,
                         loc: location,
@@ -118,7 +143,7 @@ module.exports = {
                     });
                 }
             } else {
-                if ((isNamed && requireNamedFunctionSpacing) || (!isNamed && requireAnonymousFunctionSpacing)) {
+                if (requireSpacing) {
                     context.report({
                         node,
                         loc: location,
@@ -133,7 +158,8 @@ module.exports = {
 
         return {
             FunctionDeclaration: validateSpacingBeforeParentheses,
-            FunctionExpression: validateSpacingBeforeParentheses
+            FunctionExpression: validateSpacingBeforeParentheses,
+            ArrowFunctionExpression: validateSpacingBeforeParentheses,
         };
     }
 };

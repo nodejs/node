@@ -135,4 +135,3 @@ process.on('exit', function() {
   assert.equal(0, openCount);
   assert.equal(false, got_error);
 });
-

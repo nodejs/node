@@ -1,7 +1,7 @@
 var debounce = require('./debounce'),
     isObject = require('./isObject');
 
-/** Used as the `TypeError` message for "Functions" methods. */
+/** Error message constants. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
 /**

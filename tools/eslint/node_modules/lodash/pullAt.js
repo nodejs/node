@@ -1,9 +1,8 @@
 var arrayMap = require('./_arrayMap'),
     baseAt = require('./_baseAt'),
-    baseFlatten = require('./_baseFlatten'),
     basePullAt = require('./_basePullAt'),
-    baseRest = require('./_baseRest'),
     compareAscending = require('./_compareAscending'),
+    flatRest = require('./_flatRest'),
     isIndex = require('./_isIndex');
 
 /**
@@ -30,9 +29,7 @@ var arrayMap = require('./_arrayMap'),
  * console.log(pulled);
  * // => ['b', 'd']
  */
-var pullAt = baseRest(function(array, indexes) {
-  indexes = baseFlatten(indexes, 1);
-
+var pullAt = flatRest(function(array, indexes) {
   var length = array ? array.length : 0,
       result = baseAt(array, indexes);
 

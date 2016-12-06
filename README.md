@@ -4,12 +4,12 @@
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
-efficient. The Node.js package ecosystem, npm, is the largest ecosystem of open
-source libraries in the world.
+efficient. The Node.js package ecosystem, [npm][], is the largest ecosystem of
+open source libraries in the world.
 
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies and releases are managed under an
+policies, and releases are managed under an
 [open governance model](./GOVERNANCE.md). We are also bound by a
 [Code of Conduct](./CODE_OF_CONDUCT.md).
 
@@ -44,7 +44,7 @@ The Node.js project maintains multiple types of releases:
   versioned by [SemVer](http://semver.org/) and signed by a member of the
   [Release Team](#release-team).
   Code for Current releases is organized in this repository by major version
-  number, For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
+  number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
   The major version number of Current releases will increment every 6 months
   allowing for breaking changes to be introduced. This happens in April and
   October every year. Current release lines beginning in October each year have
@@ -186,6 +186,8 @@ more information about the governance of the Node.js project, see
 **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
 * [TheAlphaNerd](https://github.com/TheAlphaNerd) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt;
+* [thefourtheye](https://github.com/thefourtheye) -
+**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
@@ -215,8 +217,6 @@ more information about the governance of the Node.js project, see
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
-* [domenic](https://github.com/domenic) -
-**Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
 **Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) -
@@ -237,10 +237,12 @@ more information about the governance of the Node.js project, see
 **Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
+* [italoacasas](https://github.com/italoacasas)
+**Italo A. Casas**  &lt;me@italoacasas.com&gt;
 * [iWuzHere](https://github.com/iWuzHere) -
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
-**Jackson Tian** &lt;shvyo1987@gmail.com&gt;
+**Jackson Tian** &lt;shyvo1987@gmail.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) -
 **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [jhamhader](https://github.com/jhamhader) -
@@ -319,8 +321,6 @@ more information about the governance of the Node.js project, see
 **Michaël Zasso** &lt;targos@protonmail.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
-* [thefourtheye](https://github.com/thefourtheye) -
-**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [thekemkid](https://github.com/thekemkid) -
 **Glen Keane** &lt;glenkeane.94@gmail.com&gt;
 * [thlorenz](https://github.com/thlorenz) -
@@ -335,8 +335,6 @@ more information about the governance of the Node.js project, see
 **Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
 **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
-* [zkat](https://github.com/zkat) -
-**Kat Marchán** &lt;kzm@sykosomatic.org&gt;
 
 Collaborators (which includes CTC members) follow the
 [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in maintaining the Node.js
@@ -360,15 +358,12 @@ Releases of Node.js and io.js will be signed with one of the following GPG keys:
 `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
 * **Rod Vagg** &lt;rod@vagg.org&gt;
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
-* **Sam Roberts** &lt;octetcloud@keybase.io&gt;
-`0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93`
 
 The full set of trusted release keys can be imported by running:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 9554F04D7259F04124DE6B476D5A82AC7E37093B
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
-gpg --keyserver pool.sks-keyservers.net --recv-keys 0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93
 gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
 gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
@@ -389,6 +384,7 @@ keys:
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
 
+[npm]: https://www.npmjs.com
 [Website]: https://nodejs.org/en/
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Help]: https://github.com/nodejs/help

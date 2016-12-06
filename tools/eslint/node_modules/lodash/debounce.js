@@ -2,7 +2,7 @@ var isObject = require('./isObject'),
     now = require('./now'),
     toNumber = require('./toNumber');
 
-/** Used as the `TypeError` message for "Functions" methods. */
+/** Error message constants. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
 /* Built-in method references for those with the same name as other `lodash` methods. */

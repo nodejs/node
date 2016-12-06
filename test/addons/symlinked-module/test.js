@@ -14,7 +14,7 @@ const assert = require('assert');
 
 common.refreshTmpDir();
 
-const addonPath = path.join(__dirname, 'build', 'Release');
+const addonPath = path.join(__dirname, 'build', common.buildType);
 const addonLink = path.join(common.tmpDir, 'addon');
 
 try {

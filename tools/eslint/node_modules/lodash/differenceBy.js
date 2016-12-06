@@ -8,8 +8,9 @@ var baseDifference = require('./_baseDifference'),
 /**
  * This method is like `_.difference` except that it accepts `iteratee` which
  * is invoked for each element of `array` and `values` to generate the criterion
- * by which they're compared. Result values are chosen from the first array.
- * The iteratee is invoked with one argument: (value).
+ * by which they're compared. The order and references of result values are
+ * determined by the first array. The iteratee is invoked with one argument:
+ * (value).
  *
  * **Note:** Unlike `_.pullAllBy`, this method returns a new array.
  *

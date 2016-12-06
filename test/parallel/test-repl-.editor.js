@@ -8,16 +8,17 @@ const repl = require('repl');
 // \u001b[0J - Clear screen
 // \u001b[3G - Moves the cursor to 3rd column
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
+const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
-function run({input, output, event}) {
+function run({input, output, event, checkTerminalCodes = true}) {
   const stream = new common.ArrayStream();
   let found = '';
 
   stream.write = (msg) => found += msg.replace('\r', '');
 
-  const expected = `${terminalCode}.editor\n` +
-                   '// Entering editor mode (^D to finish, ^C to cancel)\n' +
-                   `${input}${output}\n${terminalCode}`;
+  let expected = `${terminalCode}.editor\n` +
+                 '// Entering editor mode (^D to finish, ^C to cancel)\n' +
+                 `${input}${output}\n${terminalCode}`;
 
   const replServer = repl.start({
     prompt: '> ',
@@ -31,6 +32,12 @@ function run({input, output, event}) {
   stream.emit('data', input);
   replServer.write('', event);
   replServer.close();
+
+  if (!checkTerminalCodes) {
+    found = found.replace(terminalCodeRegex, '').replace(/\n/g, '');
+    expected = expected.replace(terminalCodeRegex, '').replace(/\n/g, '');
+  }
+
   assert.strictEqual(found, expected);
 }
 
@@ -54,6 +61,12 @@ const tests = [
     input: '  var i = 1;\ni + 3',
     output: '\n4',
     event: {ctrl: true, name: 'd'}
+  },
+  {
+    input: '',
+    output: '',
+    checkTerminalCodes: false,
+    event: null,
   }
 ];
 
@@ -62,12 +75,15 @@ tests.forEach(run);
 // Auto code alignment for .editor mode
 function testCodeAligment({input, cursor = 0, line = ''}) {
   const stream = new common.ArrayStream();
+  const outputStream = new common.ArrayStream();
+
+  stream.write = () => { throw new Error('Writing not allowed!'); };
 
   const replServer = repl.start({
     prompt: '> ',
     terminal: true,
     input: stream,
-    output: stream,
+    output: outputStream,
     useColors: false
   });
 

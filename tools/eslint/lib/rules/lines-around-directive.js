@@ -37,7 +37,8 @@ module.exports = {
                     minProperties: 2
                 }
             ]
-        }]
+        }],
+        fixable: "whitespace"
     },
 
     create(context) {
@@ -88,6 +89,12 @@ module.exports = {
                     expected: expected ? "Expected" : "Unexpected",
                     value: node.expression.value,
                     location
+                },
+                fix(fixer) {
+                    if (expected) {
+                        return location === "before" ? fixer.insertTextBefore(node, "\n") : fixer.insertTextAfter(node, "\n");
+                    }
+                    return fixer.removeRange(location === "before" ? [node.range[0] - 1, node.range[0]] : [node.range[1], node.range[1] + 1]);
                 }
             });
         }

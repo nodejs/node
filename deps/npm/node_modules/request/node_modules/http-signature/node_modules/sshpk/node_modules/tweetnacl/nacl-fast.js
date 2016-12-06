@@ -745,7 +745,7 @@ poly1305.prototype.finish = function(mac, macpos) {
   }
   g[9] -= (1 << 13);
 
-  mask = (g[9] >>> ((2 * 8) - 1)) - 1;
+  mask = (c ^ 1) - 1;
   for (i = 0; i < 10; i++) g[i] &= mask;
   mask = ~mask;
   for (i = 0; i < 10; i++) this.h[i] = (this.h[i] & mask) | g[i];
@@ -2157,39 +2157,13 @@ function cleanup(arr) {
   for (var i = 0; i < arr.length; i++) arr[i] = 0;
 }
 
-nacl.util = {};
-
-nacl.util.decodeUTF8 = function(s) {
-  var i, d = unescape(encodeURIComponent(s)), b = new Uint8Array(d.length);
-  for (i = 0; i < d.length; i++) b[i] = d.charCodeAt(i);
-  return b;
-};
-
-nacl.util.encodeUTF8 = function(arr) {
-  var i, s = [];
-  for (i = 0; i < arr.length; i++) s.push(String.fromCharCode(arr[i]));
-  return decodeURIComponent(escape(s.join('')));
-};
-
-nacl.util.encodeBase64 = function(arr) {
-  if (typeof btoa === 'undefined') {
-    return (new Buffer(arr)).toString('base64');
-  } else {
-    var i, s = [], len = arr.length;
-    for (i = 0; i < len; i++) s.push(String.fromCharCode(arr[i]));
-    return btoa(s.join(''));
-  }
-};
-
-nacl.util.decodeBase64 = function(s) {
-  if (typeof atob === 'undefined') {
-    return new Uint8Array(Array.prototype.slice.call(new Buffer(s, 'base64'), 0));
-  } else {
-    var i, d = atob(s), b = new Uint8Array(d.length);
-    for (i = 0; i < d.length; i++) b[i] = d.charCodeAt(i);
-    return b;
-  }
-};
+// TODO: Completely remove this in v0.15.
+if (!nacl.util) {
+  nacl.util = {};
+  nacl.util.decodeUTF8 = nacl.util.encodeUTF8 = nacl.util.encodeBase64 = nacl.util.decodeBase64 = function() {
+    throw new Error('nacl.util moved into separate package: https://github.com/dchest/tweetnacl-util-js');
+  };
+}
 
 nacl.randomBytes = function(n) {
   var b = new Uint8Array(n);
@@ -2386,26 +2360,22 @@ nacl.setPRNG = function(fn) {
 (function() {
   // Initialize PRNG if environment provides CSPRNG.
   // If not, methods calling randombytes will throw.
-  var crypto;
-  if (typeof window !== 'undefined') {
-    // Browser.
-    if (window.crypto && window.crypto.getRandomValues) {
-      crypto = window.crypto; // Standard
-    } else if (window.msCrypto && window.msCrypto.getRandomValues) {
-      crypto = window.msCrypto; // Internet Explorer 11+
-    }
-    if (crypto) {
-      nacl.setPRNG(function(x, n) {
-        var i, v = new Uint8Array(n);
-        crypto.getRandomValues(v);
-        for (i = 0; i < n; i++) x[i] = v[i];
-        cleanup(v);
-      });
-    }
+  var crypto = typeof self !== 'undefined' ? (self.crypto || self.msCrypto) : null;
+  if (crypto && crypto.getRandomValues) {
+    // Browsers.
+    var QUOTA = 65536;
+    nacl.setPRNG(function(x, n) {
+      var i, v = new Uint8Array(n);
+      for (i = 0; i < n; i += QUOTA) {
+        crypto.getRandomValues(v.subarray(i, i + Math.min(n - i, QUOTA)));
+      }
+      for (i = 0; i < n; i++) x[i] = v[i];
+      cleanup(v);
+    });
   } else if (typeof require !== 'undefined') {
     // Node.js.
     crypto = require('crypto');
-    if (crypto) {
+    if (crypto && crypto.randomBytes) {
       nacl.setPRNG(function(x, n) {
         var i, v = crypto.randomBytes(n);
         for (i = 0; i < n; i++) x[i] = v[i];
@@ -2415,4 +2385,4 @@ nacl.setPRNG = function(fn) {
   }
 })();
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.nacl = window.nacl || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.nacl = self.nacl || {}));

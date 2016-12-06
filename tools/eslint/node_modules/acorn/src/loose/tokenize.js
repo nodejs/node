@@ -1,4 +1,4 @@
-import {tokTypes as tt, Token, isNewLine, SourceLocation, getLineInfo, lineBreakG} from "acorn"
+import {tokTypes as tt, Token, isNewLine, SourceLocation, getLineInfo, lineBreakG} from "../index"
 import {LooseParser} from "./state"
 
 const lp = LooseParser.prototype

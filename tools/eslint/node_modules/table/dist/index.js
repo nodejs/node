@@ -22,4 +22,3 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 exports.createStream = _createStream2.default;
 exports.getBorderCharacters = _getBorderCharacters2.default;
 exports.default = _table2.default;
-//# sourceMappingURL=index.js.map

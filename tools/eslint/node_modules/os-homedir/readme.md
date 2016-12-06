@@ -1,8 +1,6 @@
 # os-homedir [![Build Status](https://travis-ci.org/sindresorhus/os-homedir.svg?branch=master)](https://travis-ci.org/sindresorhus/os-homedir)
 
-> io.js 2.3.0 [`os.homedir()`](https://iojs.org/api/os.html#os_os_homedir) ponyfill
-
-> Ponyfill: A polyfill that doesn't overwrite the native method
+> Node.js 4 [`os.homedir()`](https://nodejs.org/api/os.html#os_os_homedir) [ponyfill](https://ponyfill.com)
 
 
 ## Install
@@ -15,10 +13,10 @@ $ npm install --save os-homedir
 ## Usage
 
 ```js
-var osHomedir = require('os-homedir');
+const osHomedir = require('os-homedir');
 
 console.log(osHomedir());
-//=> /Users/sindresorhus
+//=> '/Users/sindresorhus'
 ```
 
 
@@ -30,4 +28,4 @@ console.log(osHomedir());
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

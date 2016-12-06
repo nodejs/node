@@ -16,7 +16,6 @@
   "_from": "pinkie-promise@>=2.0.0 <3.0.0",
   "_id": "pinkie-promise@2.0.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/pinkie-promise",
   "_nodeVersion": "4.4.1",
   "_npmOperationalInternal": {

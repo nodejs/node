@@ -159,11 +159,17 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      FastNewFunctionContextStub stub(isolate());
-      __ li(FastNewFunctionContextDescriptor::SlotsRegister(), Operand(slots));
-      __ CallStub(&stub);
-      // Result of FastNewFunctionContextStub is always in new space.
-      need_write_barrier = false;
+      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
+        FastNewFunctionContextStub stub(isolate());
+        __ li(FastNewFunctionContextDescriptor::SlotsRegister(),
+              Operand(slots));
+        __ CallStub(&stub);
+        // Result of FastNewFunctionContextStub is always in new space.
+        need_write_barrier = false;
+      } else {
+        __ push(a1);
+        __ CallRuntime(Runtime::kNewFunctionContext);
+      }
     }
     RecordSafepoint(deopt_mode);
 

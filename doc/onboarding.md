@@ -3,6 +3,14 @@
 This document is an outline of the things we tell new Collaborators at their
 onboarding session.
 
+## One week before the onboarding session
+
+* Ask the new Collaborator if they are using two-factor authentication on their
+  GitHub account. If they are not, suggest that they enable it as their account
+  will have elevated privileges in many of the Node.js repositories.
+
+## Fifteen minutes before the onboarding session
+
 * Prior to the onboarding session, add the new Collaborators to
 [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
 
@@ -54,7 +62,8 @@ onboarding session.
   * Labels:
     * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
     * [**See "Labels"**](./onboarding-extras.md#labels)
-    * Use the `ctc-agenda` if a topic is controversial or isn't coming to a conclusion after an extended time.
+    * Use the `ctc-review` label if a topic is controversial or isn't coming to
+      a conclusion after an extended time.
     * `semver-{minor,major}`:
       * If a change has the remote *chance* of breaking something, use `semver-major`
       * When adding a semver label, add a comment explaining why you're adding it. Do it right away so you don't forget!
@@ -137,7 +146,8 @@ onboarding session.
     the objection is addressed. The options for such a situation include:
       * Engaging those with objections to determine a viable path forward;
       * Altering the pull request to address the objections;
-      * Escalating the discussion to the CTC using the `ctc-agenda` label. This should only be done after other options have been exhausted.
+      * Escalating the discussion to the CTC using the `ctc-review` label. This
+        should only be done after the previous options have been exhausted.
 
   * Wait before merging non-trivial changes.
     * 48 hours during the week and 72 hours on weekends.
@@ -156,8 +166,15 @@ onboarding session.
 
 ## Landing PRs: Details
 
-* Please never use GitHub's green "Merge Pull Request" button.
+* Please never use GitHub's green ["Merge Pull Request"](https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-using-the-github-web-interface) button.
   * If you do, please force-push removing the merge.
+  * Reasons for not using the web interface button:
+    * The merge method will add an unnecessary merge commit.
+    * The rebase & merge method adds metadata to the commit title.
+    * The rebase method changes the author.
+    * The squash & merge method has been known to add metadata to the commit title.
+    * If more than one author has contributed to the PR, only the latest author will be considered during the squashing.
+
 
 Update your `master` branch (or whichever branch you are landing on, almost always `master`)
 
@@ -184,6 +201,7 @@ Landing a PR
       * This will automatically close the PR when the commit lands in master.
     * `Refs: <full-url>`
       * Full URL of material that might provide additional useful information or context to someone trying to understand the change set or the thinking behind it.
+* Optional: Force push the amended commit to the branch you used to open the pull request. If your branch is called `bugfix`, then the command would be `git push --force-with-lease origin master:bugfix`. When the pull request is closed, this will cause the pull request to show the purple merged status rather than the red closed status that is usually used for pull requests that weren't merged. Only do this when landing your own contributions.
 * `git push upstream master`
     * Close the pull request with a "Landed in `<commit hash>`" comment.
 

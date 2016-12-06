@@ -11,7 +11,7 @@
     'configurations': {
       'Debug': {
         'defines': [ 'DEBUG', '_DEBUG' ],
-        'cflags': [ '-g', '-O0', '-fwrapv' ],
+        'cflags': [ '-g' ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [
@@ -35,6 +35,9 @@
           'OTHER_CFLAGS': [ '-Wno-strict-aliasing' ],
         },
         'conditions': [
+          ['OS != "zos"', {
+            'cflags': [ '-O0', '-fwrapv' ]
+          }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
@@ -151,7 +154,7 @@
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
           }],
-          [ 'OS not in "solaris android"', {
+          [ 'OS not in "solaris android zos"', {
             'cflags': [ '-pthread' ],
             'ldflags': [ '-pthread' ],
           }],

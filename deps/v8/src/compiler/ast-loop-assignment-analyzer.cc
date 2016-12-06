@@ -252,10 +252,12 @@ void ALAA::VisitForStatement(ForStatement* loop) {
 
 
 void ALAA::VisitForInStatement(ForInStatement* loop) {
+  Expression* l = loop->each();
   Enter(loop);
-  Visit(loop->each());
+  Visit(l);
   Visit(loop->subject());
   Visit(loop->body());
+  if (l->IsVariableProxy()) AnalyzeAssignment(l->AsVariableProxy()->var());
   Exit(loop);
 }
 

@@ -45,7 +45,7 @@ function isInitialized(node) {
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow initialization in `var` declarations",
+            description: "require or disallow initialization in variable declarations",
             category: "Variables",
             recommended: false
         },

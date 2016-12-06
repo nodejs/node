@@ -23,7 +23,7 @@ const NEXT_TOKEN_M = /^[\{*]$/;
 const TEMPLATE_OPEN_PAREN = /\$\{$/;
 const TEMPLATE_CLOSE_PAREN = /^\}/;
 const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/;
-const KEYS = keywords.concat(["as", "await", "from", "get", "let", "of", "set", "yield"]);
+const KEYS = keywords.concat(["as", "async", "await", "from", "get", "let", "of", "set", "yield"]);
 
 // check duplications.
 (function() {
@@ -353,6 +353,23 @@ module.exports = {
         }
 
         /**
+         * Reports `async` or `function` keywords of a given node if usage of
+         * spacing around those keywords is invalid.
+         *
+         * @param {ASTNode} node - A node to report.
+         * @returns {void}
+         */
+        function checkSpacingForFunction(node) {
+            const firstToken = node && sourceCode.getFirstToken(node);
+
+            if (firstToken &&
+                (firstToken.type === "Keyword" || firstToken.value === "async")
+            ) {
+                checkSpacingBefore(firstToken);
+            }
+        }
+
+        /**
          * Reports `class` and `extends` keywords of a given node if usage of
          * spacing around those keywords is invalid.
          *
@@ -482,7 +499,13 @@ module.exports = {
             if (node.static) {
                 checkSpacingAroundFirstToken(node);
             }
-            if (node.kind === "get" || node.kind === "set") {
+            if (node.kind === "get" ||
+                node.kind === "set" ||
+                (
+                    (node.method || node.type === "MethodDefinition") &&
+                    node.value.async
+                )
+            ) {
                 const token = sourceCode.getFirstToken(
                     node,
                     node.static ? 1 : 0
@@ -490,6 +513,17 @@ module.exports = {
 
                 checkSpacingAround(token);
             }
+        }
+
+        /**
+         * Reports `await` keyword of a given node if usage of spacing before
+         * this keyword is invalid.
+         *
+         * @param {ASTNode} node - A node to report.
+         * @returns {void}
+         */
+        function checkSpacingForAwaitExpression(node) {
+            checkSpacingBefore(sourceCode.getFirstToken(node));
         }
 
         return {
@@ -522,13 +556,15 @@ module.exports = {
             ExportNamedDeclaration: checkSpacingForModuleDeclaration,
             ExportDefaultDeclaration: checkSpacingAroundFirstToken,
             ExportAllDeclaration: checkSpacingForModuleDeclaration,
-            FunctionDeclaration: checkSpacingBeforeFirstToken,
+            FunctionDeclaration: checkSpacingForFunction,
             ImportDeclaration: checkSpacingForModuleDeclaration,
             VariableDeclaration: checkSpacingAroundFirstToken,
 
             // Expressions
+            ArrowFunctionExpression: checkSpacingForFunction,
+            AwaitExpression: checkSpacingForAwaitExpression,
             ClassExpression: checkSpacingForClass,
-            FunctionExpression: checkSpacingBeforeFirstToken,
+            FunctionExpression: checkSpacingForFunction,
             NewExpression: checkSpacingBeforeFirstToken,
             Super: checkSpacingBeforeFirstToken,
             ThisExpression: checkSpacingBeforeFirstToken,

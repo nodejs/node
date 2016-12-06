@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#0.10.48">0.10.48</a><br/>
 <a href="#0.10.47">0.10.47</a><br/>
 <a href="#0.10.46">0.10.46</a><br/>
 <a href="#0.10.45">0.10.45</a><br/>
@@ -61,6 +62,7 @@
 </table>
 
 * Other Versions
+  * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [5.x](CHANGELOG_V5.md)
   * [4.x](CHANGELOG_V4.md)
@@ -68,9 +70,24 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** Node.js v0.10 is covered by the 
+**Note:** Node.js v0.10 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until October 2016.
+
+<a id="0.10.48"></a>
+## 2016-10-18, Version 0.10.48 (Maintenance), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes
+
+* c-ares: fix for single-byte buffer overwrite, CVE-2016-5180, more information at https://c-ares.haxx.se/adv_20160929.html (Rod Vagg)
+
+### Commits
+
+* [a14a6a3a11] - deps: c-ares, avoid single-byte buffer overwrite (Rod Vagg) https://github.com/nodejs/node/pull/9108
+* [b798f598af] - tls: fix minor jslint failure (Rod Vagg) https://github.com/nodejs/node/pull/9107
+* [92b232ba01] - win,build: try multiple timeservers when signing (Rod Vagg) https://github.com/nodejs/node/pull/9155
 
 <a id="0.10.47"></a>
 ## 2016-09-27, Version 0.10.47 (Maintenance), @rvagg
@@ -342,11 +359,11 @@ https://github.com/nodejs/node/commit/8d045a30e95602b443eb259a5021d33feb4df079
 * child_process: properly support optional args (cjihrig)
 * crypto: Disable autonegotiation for SSLv2/3 by default (Fedor Indutny,
   Timothy J Fontaine, Alexis Campailla)
- 
+
   This is a behavior change, by default we will not allow the negotiation to
   SSLv2 or SSLv3. If you want this behavior, run Node.js with either
   `--enable-ssl2` or `--enable-ssl3` respectively.
- 
+
   This does not change the behavior for users specifically requesting
   `SSLv2_method` or `SSLv3_method`. While this behavior is not advised, it is
   assumed you know what you're doing since you're specifically asking to use

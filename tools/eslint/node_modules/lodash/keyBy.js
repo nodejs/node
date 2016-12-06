@@ -1,4 +1,5 @@
-var createAggregator = require('./_createAggregator');
+var baseAssignValue = require('./_baseAssignValue'),
+    createAggregator = require('./_createAggregator');
 
 /**
  * Creates an object composed of keys generated from the results of running
@@ -30,7 +31,7 @@ var createAggregator = require('./_createAggregator');
  * // => { 'left': { 'dir': 'left', 'code': 97 }, 'right': { 'dir': 'right', 'code': 100 } }
  */
 var keyBy = createAggregator(function(result, value, key) {
-  result[key] = value;
+  baseAssignValue(result, key, value);
 });
 
 module.exports = keyBy;

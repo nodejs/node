@@ -295,7 +295,7 @@ Registry.prototype = {
         const totalFilesLinting = filenames.length * ruleSets.length;
 
         filenames.forEach(function(filename) {
-            debug("Linting file: " + filename);
+            debug(`Linting file: ${filename}`);
 
             ruleSetIdx = 0;
 

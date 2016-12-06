@@ -53,7 +53,7 @@ module.exports = {
 
     create(context) {
 
-        const OPT_OUT_PATTERN = /[\[\(\/\+\-]/; // One of [(/+-
+        const OPT_OUT_PATTERN = /^[-[(\/+]$/; // One of [(/+-, but not ++ or --
         const options = context.options[1];
         const never = context.options[0] === "never",
             exceptOneLine = options && options.omitLastInOneLineBlock === true,

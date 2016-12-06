@@ -44,8 +44,8 @@ function writeFile(config, format) {
         extname = ".json";
     }
 
-    ConfigFile.write(config, "./.eslintrc" + extname);
-    log.info("Successfully created .eslintrc" + extname + " file in " + process.cwd());
+    ConfigFile.write(config, `./.eslintrc${extname}`);
+    log.info(`Successfully created .eslintrc${extname} file in ${process.cwd()}`);
 
     if (config.installedESLint) {
         log.info("ESLint was installed locally. We recommend using this local copy instead of your globally-installed copy.");
@@ -63,11 +63,11 @@ function installModules(config) {
     // Create a list of modules which should be installed based on config
     if (config.plugins) {
         modules = modules.concat(config.plugins.map(function(name) {
-            return "eslint-plugin-" + name;
+            return `eslint-plugin-${name}`;
         }));
     }
     if (config.extends && config.extends.indexOf("eslint:") === -1) {
-        modules.push("eslint-config-" + config.extends);
+        modules.push(`eslint-config-${config.extends}`);
     }
 
     // Determine which modules are already installed
@@ -93,7 +93,7 @@ function installModules(config) {
     });
 
     if (modulesToInstall.length > 0) {
-        log.info("Installing " + modulesToInstall.join(", "));
+        log.info(`Installing ${modulesToInstall.join(", ")}`);
         npmUtil.installSyncSaveDev(modulesToInstall);
     }
 }
@@ -150,7 +150,7 @@ function configureRules(answers, config) {
     registry = registry.lintSourceCode(sourceCodes, newConfig, function(total) {
         bar.tick((BAR_TOTAL - BAR_SOURCE_CODE_TOTAL) / total); // Subtract out ticks used at beginning
     });
-    debug("\nRegistry: " + util.inspect(registry.rules, {depth: null}));
+    debug(`\nRegistry: ${util.inspect(registry.rules, {depth: null})}`);
 
     // Create a list of recommended rules, because we don't want to disable them
     const recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
@@ -198,9 +198,9 @@ function configureRules(answers, config) {
         return (newConfig.rules[ruleId] !== 0);
     }).length;
     const resultMessage = [
-        "\nEnabled " + enabledRules + " out of " + totalRules,
-        "rules based on " + fileQty,
-        "file" + ((fileQty === 1) ? "." : "s.")
+        `\nEnabled ${enabledRules} out of ${totalRules}`,
+        `rules based on ${fileQty}`,
+        `file${(fileQty === 1) ? "." : "s."}`
     ].join(" ");
 
     log.info(resultMessage);

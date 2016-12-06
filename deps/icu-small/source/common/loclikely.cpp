@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -1330,6 +1332,8 @@ Locale::isRightToLeft() const {
     return uloc_isRightToLeft(getBaseName());
 }
 
+U_NAMESPACE_END
+
 // The following must at least allow for rg key value (6) plus terminator (1).
 #define ULOC_RG_BUFLEN 8
 
@@ -1379,4 +1383,3 @@ ulocimp_getRegionForSupplementalData(const char *localeID, UBool inferRegion,
     return u_terminateChars(region, regionCapacity, rgLen, status);
 }
 
-U_NAMESPACE_END

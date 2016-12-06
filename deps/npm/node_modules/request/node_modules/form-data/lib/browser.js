@@ -1,2 +1,2 @@
 /* eslint-env browser */
-module.exports = FormData;
+module.exports = window.FormData;

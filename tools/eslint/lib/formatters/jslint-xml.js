@@ -20,14 +20,15 @@ module.exports = function(results) {
     results.forEach(function(result) {
         const messages = result.messages;
 
-        output += "<file name=\"" + result.filePath + "\">";
+        output += `<file name="${result.filePath}">`;
 
         messages.forEach(function(message) {
-            output += "<issue line=\"" + message.line + "\" " +
-                "char=\"" + message.column + "\" " +
-                "evidence=\"" + xmlEscape(message.source || "") + "\" " +
-                "reason=\"" + xmlEscape(message.message || "") +
-                (message.ruleId ? " (" + message.ruleId + ")" : "") + "\" />";
+            output += [
+                `<issue line="${message.line}"`,
+                `char="${message.column}"`,
+                `evidence="${xmlEscape(message.source || "")}"`,
+                `reason="${xmlEscape(message.message || "")}${message.ruleId ? ` (${message.ruleId})` : ""}" />`
+            ].join(" ");
         });
 
         output += "</file>";

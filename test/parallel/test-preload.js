@@ -37,7 +37,7 @@ childProcess.exec(nodeBinary + ' '
   + fixtureB,
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nB\n');
+    assert.strictEqual(stdout, 'A\nB\n');
   });
 
 // test preloading multiple modules works
@@ -46,7 +46,7 @@ childProcess.exec(nodeBinary + ' '
   + fixtureC,
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nB\nC\n');
+    assert.strictEqual(stdout, 'A\nB\nC\n');
   });
 
 // test that preloading a throwing module aborts
@@ -55,7 +55,7 @@ childProcess.exec(nodeBinary + ' '
   + fixtureB,
   function(err, stdout, stderr) {
     if (err) {
-      assert.equal(stdout, 'A\n');
+      assert.strictEqual(stdout, 'A\n');
     } else {
       throw new Error('Preload should have failed');
     }
@@ -67,7 +67,7 @@ childProcess.exec(nodeBinary + ' '
   + '-e "console.log(\'hello\');"',
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nhello\n');
+    assert.strictEqual(stdout, 'A\nhello\n');
   });
 
 // test that preload can be used with stdin
@@ -76,14 +76,14 @@ const stdinProc = childProcess.spawn(
   ['--require', fixtureA],
   {stdio: 'pipe'}
 );
-stdinProc.stdin.end('console.log(\'hello\');');
+stdinProc.stdin.end("console.log('hello');");
 var stdinStdout = '';
 stdinProc.stdout.on('data', function(d) {
   stdinStdout += d;
 });
 stdinProc.on('close', function(code) {
-  assert.equal(code, 0);
-  assert.equal(stdinStdout, 'A\nhello\n');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(stdinStdout, 'A\nhello\n');
 });
 
 // test that preload can be used with repl
@@ -98,12 +98,12 @@ replProc.stdout.on('data', function(d) {
   replStdout += d;
 });
 replProc.on('close', function(code) {
-  assert.equal(code, 0);
+  assert.strictEqual(code, 0);
   const output = [
     'A',
     '> '
   ].join('\n');
-  assert.equal(replStdout, output);
+  assert.strictEqual(replStdout, output);
 });
 
 // test that preload placement at other points in the cmdline
@@ -114,7 +114,7 @@ childProcess.exec(nodeBinary + ' '
   + preloadOption([fixtureA, fixtureB]),
   function(err, stdout, stderr) {
     if (err) throw err;
-    assert.equal(stdout, 'A\nB\nhello\n');
+    assert.strictEqual(stdout, 'A\nB\nhello\n');
   });
 
 // test that preload works with -i
@@ -123,7 +123,7 @@ const interactive = childProcess.exec(nodeBinary + ' '
   + '-i',
   common.mustCall(function(err, stdout, stderr) {
     assert.ifError(err);
-    assert.strictEqual(stdout, `> 'test'\n> `);
+    assert.strictEqual(stdout, "> 'test'\n> ");
   }));
 
 interactive.stdin.write('a\n');

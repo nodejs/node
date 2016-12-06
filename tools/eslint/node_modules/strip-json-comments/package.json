@@ -16,7 +16,6 @@
   "_from": "strip-json-comments@>=1.0.1 <1.1.0",
   "_id": "strip-json-comments@1.0.4",
   "_inCache": true,
-  "_installable": true,
   "_location": "/strip-json-comments",
   "_nodeVersion": "0.12.5",
   "_npmUser": {

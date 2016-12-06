@@ -5,6 +5,8 @@ var fork = require('child_process').fork;
 var args = ['foo', 'bar'];
 
 var n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
+
+assert.strictEqual(n.channel, n._channel);
 assert.deepStrictEqual(args, ['foo', 'bar']);
 
 n.on('message', function(m) {

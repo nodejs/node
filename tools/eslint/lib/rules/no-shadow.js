@@ -18,7 +18,7 @@ const astUtils = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` declarations from shadowing variables in the outer scope",
+            description: "disallow variable declarations from shadowing variables declared in the outer scope",
             category: "Variables",
             recommended: false
         },

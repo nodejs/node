@@ -15,8 +15,13 @@ function AutocannonBenchmarker() {
 }
 
 AutocannonBenchmarker.prototype.create = function(options) {
-  const args = ['-d', options.duration, '-c', options.connections, '-j', '-n',
-                `http://127.0.0.1:${options.port}${options.path}` ];
+  const args = [
+    '-d', options.duration,
+    '-c', options.connections,
+    '-j',
+    '-n',
+    `http://127.0.0.1:${options.port}${options.path}`
+  ];
   const child = child_process.spawn(this.autocannon_exe, args);
   return child;
 };
@@ -37,14 +42,18 @@ AutocannonBenchmarker.prototype.processResults = function(output) {
 
 function WrkBenchmarker() {
   this.name = 'wrk';
-  this.regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
+  this.regexp = /Requests\/sec:[ \t]+([0-9.]+)/;
   const result = child_process.spawnSync('wrk', ['-h']);
   this.present = !(result.error && result.error.code === 'ENOENT');
 }
 
 WrkBenchmarker.prototype.create = function(options) {
-  const args = ['-d', options.duration, '-c', options.connections, '-t', 8,
-                `http://127.0.0.1:${options.port}${options.path}` ];
+  const args = [
+    '-d', options.duration,
+    '-c', options.connections,
+    '-t', 8,
+    `http://127.0.0.1:${options.port}${options.path}`
+  ];
   const child = child_process.spawn('wrk', args);
   return child;
 };
@@ -59,8 +68,7 @@ WrkBenchmarker.prototype.processResults = function(output) {
   }
 };
 
-const http_benchmarkers = [ new WrkBenchmarker(),
-                            new AutocannonBenchmarker() ];
+const http_benchmarkers = [new WrkBenchmarker(), new AutocannonBenchmarker()];
 
 const benchmarkers = {};
 

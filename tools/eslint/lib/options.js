@@ -216,8 +216,8 @@ module.exports = optionator({
         },
         {
             option: "print-config",
-            type: "Boolean",
-            description: "Print the configuration to be used"
+            type: "path::String",
+            description: "Print the configuration for the given file"
         }
     ]
 });

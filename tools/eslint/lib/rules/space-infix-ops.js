@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require spacing around operators",
+            description: "require spacing around infix operators",
             category: "Stylistic Issues",
             recommended: false
         },

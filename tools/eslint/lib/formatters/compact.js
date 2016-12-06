@@ -40,12 +40,12 @@ module.exports = function(results) {
 
         messages.forEach(function(message) {
 
-            output += result.filePath + ": ";
-            output += "line " + (message.line || 0);
-            output += ", col " + (message.column || 0);
-            output += ", " + getMessageType(message);
-            output += " - " + message.message;
-            output += message.ruleId ? " (" + message.ruleId + ")" : "";
+            output += `${result.filePath}: `;
+            output += `line ${message.line || 0}`;
+            output += `, col ${message.column || 0}`;
+            output += `, ${getMessageType(message)}`;
+            output += ` - ${message.message}`;
+            output += message.ruleId ? ` (${message.ruleId})` : "";
             output += "\n";
 
         });
@@ -53,7 +53,7 @@ module.exports = function(results) {
     });
 
     if (total > 0) {
-        output += "\n" + total + " problem" + (total !== 1 ? "s" : "");
+        output += `\n${total} problem${total !== 1 ? "s" : ""}`;
     }
 
     return output;

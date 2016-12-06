@@ -16,8 +16,12 @@ if (!is.null(args.options$help) ||
 
 plot.filename = args.options$plot;
 
-dat = read.csv(file('stdin'));
+dat = read.csv(
+  file('stdin'),
+  colClasses=c('character', 'character', 'character', 'numeric', 'numeric')
+);
 dat = data.frame(dat);
+
 dat$nameTwoLines = paste0(dat$filename, '\n', dat$configuration);
 dat$name = paste0(dat$filename, dat$configuration);
 

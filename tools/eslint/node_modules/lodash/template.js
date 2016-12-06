@@ -86,7 +86,8 @@ var reUnescapedString = /['\n\r\u2028\u2029\\]/g;
  * compiled({ 'user': 'barney' });
  * // => 'hello barney!'
  *
- * // Use the ES delimiter as an alternative to the default "interpolate" delimiter.
+ * // Use the ES template literal delimiter as an "interpolate" delimiter.
+ * // Disable support by replacing the "interpolate" delimiter.
  * var compiled = _.template('hello ${ user }!');
  * compiled({ 'user': 'pebbles' });
  * // => 'hello pebbles!'

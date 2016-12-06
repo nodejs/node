@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -76,7 +78,7 @@ public:
     const CollationCacheEntry *createCacheEntry(UErrorCode &errorCode);
 
 private:
-    static void loadRootRules(UErrorCode &errorCode);
+    static void U_CALLCONV loadRootRules(UErrorCode &errorCode);
 
     // The following members are used by loadTailoring()
     // and the cache callback.

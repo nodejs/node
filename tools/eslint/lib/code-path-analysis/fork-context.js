@@ -187,7 +187,7 @@ ForkContext.prototype = {
      * @returns {void}
      */
     add(segments) {
-        assert(segments.length >= this.count, segments.length + " >= " + this.count);
+        assert(segments.length >= this.count, `${segments.length} >= ${this.count}`);
 
         this.segmentsList.push(mergeExtraSegments(this, segments));
     },
@@ -200,7 +200,7 @@ ForkContext.prototype = {
      * @returns {void}
      */
     replaceHead(segments) {
-        assert(segments.length >= this.count, segments.length + " >= " + this.count);
+        assert(segments.length >= this.count, `${segments.length} >= ${this.count}`);
 
         this.segmentsList.splice(-1, 1, mergeExtraSegments(this, segments));
     },

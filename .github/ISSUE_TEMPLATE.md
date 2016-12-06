@@ -1,5 +1,11 @@
 <!--
 Thank you for reporting an issue.
+
+This issue tracker is for bugs and issues found within Node.js core.
+If you require more general support please file an issue on our help
+repo. https://github.com/nodejs/help
+
+
 Please fill in as much of the template below as you're able.
 
 Version: output of `node -v`

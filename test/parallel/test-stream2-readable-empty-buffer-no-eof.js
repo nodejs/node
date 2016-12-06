@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const Readable = require('stream').Readable;
@@ -16,36 +16,35 @@ function test1() {
   //
   // note that this is very unusual.  it only works for crypto streams
   // because the other side of the stream will call read(0) to cycle
-  // data through openssl.  that's why we set the timeouts to call
+  // data through openssl.  that's why setImmediate() is used to call
   // r.read(0) again later, otherwise there is no more work being done
   // and the process just exits.
 
   const buf = Buffer.alloc(5, 'x');
   let reads = 5;
-  const timeout = common.platformTimeout(50);
   r._read = function(n) {
     switch (reads--) {
-      case 0:
-        return r.push(null); // EOF
-      case 1:
-        return r.push(buf);
-      case 2:
-        setTimeout(r.read.bind(r, 0), timeout);
-        return r.push(Buffer.alloc(0)); // Not-EOF!
+      case 5:
+        return setImmediate(function() {
+          return r.push(buf);
+        });
+      case 4:
+        setImmediate(function() {
+          return r.push(Buffer.alloc(0));
+        });
+        return setImmediate(r.read.bind(r, 0));
       case 3:
-        setTimeout(r.read.bind(r, 0), timeout);
+        setImmediate(r.read.bind(r, 0));
         return process.nextTick(function() {
           return r.push(Buffer.alloc(0));
         });
-      case 4:
-        setTimeout(r.read.bind(r, 0), timeout);
-        return setTimeout(function() {
-          return r.push(Buffer.alloc(0));
-        });
-      case 5:
-        return setTimeout(function() {
-          return r.push(buf);
-        });
+      case 2:
+        setImmediate(r.read.bind(r, 0));
+        return r.push(Buffer.alloc(0)); // Not-EOF!
+      case 1:
+        return r.push(buf);
+      case 0:
+        return r.push(null); // EOF
       default:
         throw new Error('unreachable');
     }

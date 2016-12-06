@@ -1,6 +1,6 @@
 'use strict';
-require('../../common');
+const common = require('../../common');
 var assert = require('assert');
-var binding = require('./build/Release/binding');
-assert.equal('world', binding());
+const binding = require(`./build/${common.buildType}/binding`);
+assert.strictEqual(binding(), 'world');
 console.log('binding.hello() =', binding());

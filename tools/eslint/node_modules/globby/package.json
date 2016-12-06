@@ -16,7 +16,6 @@
   "_from": "globby@>=5.0.0 <6.0.0",
   "_id": "globby@5.0.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/globby",
   "_nodeVersion": "5.11.0",
   "_npmOperationalInternal": {

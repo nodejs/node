@@ -101,7 +101,7 @@ module.exports = {
                 }
             }
 
-            return /^(?:Assignment|Call|New|Update|Yield)Expression$/.test(node.type) ||
+            return /^(?:Assignment|Call|New|Update|Yield|Await)Expression$/.test(node.type) ||
                 (node.type === "UnaryExpression" && ["delete", "void"].indexOf(node.operator) >= 0);
         }
 

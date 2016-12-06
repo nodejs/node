@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` redeclaration",
+            description: "disallow variable redeclaration",
             category: "Best Practices",
             recommended: true
         },

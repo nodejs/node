@@ -444,9 +444,13 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   int const slot_count = OpParameter<int>(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
-  Callable callable = CodeFactory::FastNewFunctionContext(isolate());
-  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
-  ReplaceWithStubCall(node, callable, flags);
+  if (slot_count <= FastNewFunctionContextStub::kMaximumSlots) {
+    Callable callable = CodeFactory::FastNewFunctionContext(isolate());
+    node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
+  }
 }
 
 

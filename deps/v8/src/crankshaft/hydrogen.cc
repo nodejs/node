@@ -6899,11 +6899,19 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
           access = access.WithRepresentation(Representation::Smi());
           break;
         case PropertyCellConstantType::kStableMap: {
-          // The map may no longer be stable, deopt if it's ever different from
-          // what is currently there, which will allow for restablization.
-          Handle<Map> map(HeapObject::cast(cell->value())->map());
+          // First check that the previous value of the {cell} still has the
+          // map that we are about to check the new {value} for. If not, then
+          // the stable map assumption was invalidated and we cannot continue
+          // with the optimized code.
+          Handle<HeapObject> cell_value(HeapObject::cast(cell->value()));
+          Handle<Map> cell_value_map(cell_value->map());
+          if (!cell_value_map->is_stable()) {
+            return Bailout(kUnstableConstantTypeHeapObject);
+          }
+          top_info()->dependencies()->AssumeMapStable(cell_value_map);
+          // Now check that the new {value} is a HeapObject with the same map.
           Add<HCheckHeapObject>(value);
-          value = Add<HCheckMaps>(value, map);
+          value = Add<HCheckMaps>(value, cell_value_map);
           access = access.WithRepresentation(Representation::HeapObject());
           break;
         }
@@ -11555,24 +11563,37 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         HConstant::cast(right)->handle(isolate())->IsJSFunction()) {
       Handle<JSFunction> function =
           Handle<JSFunction>::cast(HConstant::cast(right)->handle(isolate()));
-      // Make sure the prototype of {function} is the %FunctionPrototype%, and
-      // it already has a meaningful initial map (i.e. we constructed at least
-      // one instance using the constructor {function}).
-      // We can only use the fast case if @@hasInstance was not used so far.
-      if (function->has_initial_map() &&
-          function->map()->prototype() ==
-              function->native_context()->closure() &&
-          !function->map()->has_non_instance_prototype() &&
-          isolate()->IsHasInstanceLookupChainIntact()) {
-        Handle<Map> initial_map(function->initial_map(), isolate());
-        top_info()->dependencies()->AssumeInitialMapCantChange(initial_map);
-        top_info()->dependencies()->AssumePropertyCell(
-            isolate()->factory()->has_instance_protector());
-        HInstruction* prototype =
-            Add<HConstant>(handle(initial_map->prototype(), isolate()));
-        HHasInPrototypeChainAndBranch* result =
-            New<HHasInPrototypeChainAndBranch>(left, prototype);
-        return ast_context()->ReturnControl(result, expr->id());
+      // Make sure that the {function} already has a meaningful initial map
+      // (i.e. we constructed at least one instance using the constructor
+      // {function}).
+      if (function->has_initial_map()) {
+        // Lookup @@hasInstance on the {function}.
+        Handle<Map> function_map(function->map(), isolate());
+        PropertyAccessInfo has_instance(
+            this, LOAD, function_map,
+            isolate()->factory()->has_instance_symbol());
+        // Check if we are using the Function.prototype[@@hasInstance].
+        if (has_instance.CanAccessMonomorphic() &&
+            has_instance.IsDataConstant() &&
+            has_instance.constant().is_identical_to(
+                isolate()->function_has_instance())) {
+          // Add appropriate receiver map check and prototype chain
+          // checks to guard the @@hasInstance lookup chain.
+          AddCheckMap(right, function_map);
+          if (has_instance.has_holder()) {
+            Handle<JSObject> prototype(
+                JSObject::cast(has_instance.map()->prototype()), isolate());
+            BuildCheckPrototypeMaps(prototype, has_instance.holder());
+          }
+          // Perform the prototype chain walk.
+          Handle<Map> initial_map(function->initial_map(), isolate());
+          top_info()->dependencies()->AssumeInitialMapCantChange(initial_map);
+          HInstruction* prototype =
+              Add<HConstant>(handle(initial_map->prototype(), isolate()));
+          HHasInPrototypeChainAndBranch* result =
+              New<HHasInPrototypeChainAndBranch>(left, prototype);
+          return ast_context()->ReturnControl(result, expr->id());
+        }
       }
     }
 

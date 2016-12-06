@@ -16,7 +16,6 @@
   "_from": "minimatch@>=3.0.2 <4.0.0",
   "_id": "minimatch@3.0.3",
   "_inCache": true,
-  "_installable": true,
   "_location": "/minimatch",
   "_nodeVersion": "4.4.4",
   "_npmOperationalInternal": {

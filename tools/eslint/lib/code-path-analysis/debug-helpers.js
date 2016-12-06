@@ -64,10 +64,10 @@ module.exports = {
             }
         }
 
-        debug(
-            state.currentSegments.map(getId).join(",") + ") " +
-            node.type + (leaving ? ":exit" : "")
-        );
+        debug([
+            `${state.currentSegments.map(getId).join(",")})`,
+            `${node.type}${leaving ? ":exit" : ""}`
+        ].join(" "));
     },
 
     /**
@@ -99,7 +99,7 @@ module.exports = {
         for (const id in traceMap) { // eslint-disable-line guard-for-in
             const segment = traceMap[id];
 
-            text += id + "[";
+            text += `${id}[`;
 
             if (segment.reachable) {
                 text += "label=\"";
@@ -110,17 +110,17 @@ module.exports = {
             if (segment.internal.nodes.length > 0) {
                 text += segment.internal.nodes.map(function(node) {
                     switch (node.type) {
-                        case "Identifier": return node.type + " (" + node.name + ")";
-                        case "Literal": return node.type + " (" + node.value + ")";
+                        case "Identifier": return `${node.type} (${node.name})`;
+                        case "Literal": return `${node.type} (${node.value})`;
                         default: return node.type;
                     }
                 }).join("\\n");
             } else if (segment.internal.exitNodes.length > 0) {
                 text += segment.internal.exitNodes.map(function(node) {
                     switch (node.type) {
-                        case "Identifier": return node.type + ":exit (" + node.name + ")";
-                        case "Literal": return node.type + ":exit (" + node.value + ")";
-                        default: return node.type + ":exit";
+                        case "Identifier": return `${node.type}:exit (${node.name})`;
+                        case "Literal": return `${node.type}:exit (${node.value})`;
+                        default: return `${node.type}:exit`;
                     }
                 }).join("\\n");
             } else {
@@ -130,7 +130,7 @@ module.exports = {
             text += "\"];\n";
         }
 
-        text += arrows + "\n";
+        text += `${arrows}\n`;
         text += "}";
         debug("DOT", text);
     },
@@ -147,7 +147,7 @@ module.exports = {
         const stack = [[codePath.initialSegment, 0]];
         const done = traceMap || Object.create(null);
         let lastId = codePath.initialSegment.id;
-        let text = "initial->" + codePath.initialSegment.id;
+        let text = `initial->${codePath.initialSegment.id}`;
 
         while (stack.length > 0) {
             const item = stack.pop();
@@ -166,9 +166,9 @@ module.exports = {
             }
 
             if (lastId === segment.id) {
-                text += "->" + nextSegment.id;
+                text += `->${nextSegment.id}`;
             } else {
-                text += ";\n" + segment.id + "->" + nextSegment.id;
+                text += `;\n${segment.id}->${nextSegment.id}`;
             }
             lastId = nextSegment.id;
 
@@ -180,7 +180,7 @@ module.exports = {
             if (lastId === finalSegment.id) {
                 text += "->final";
             } else {
-                text += ";\n" + finalSegment.id + "->final";
+                text += `;\n${finalSegment.id}->final`;
             }
             lastId = null;
         });
@@ -189,11 +189,11 @@ module.exports = {
             if (lastId === finalSegment.id) {
                 text += "->thrown";
             } else {
-                text += ";\n" + finalSegment.id + "->thrown";
+                text += `;\n${finalSegment.id}->thrown`;
             }
             lastId = null;
         });
 
-        return text + ";";
+        return `${text};`;
     }
 };
