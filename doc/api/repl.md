@@ -329,14 +329,14 @@ const repl = require('repl');
 const replServer = repl.start({prompt: '> '});
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
-  action: function(name) {
+  action: function sayHello(name) {
     this.lineParser.reset();
     this.bufferedCommand = '';
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
   }
 });
-replServer.defineCommand('saybye', function() {
+replServer.defineCommand('saybye', function sayBye() {
   console.log('Goodbye!');
   this.close();
 });
