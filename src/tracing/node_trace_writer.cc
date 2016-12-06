@@ -171,11 +171,13 @@ void NodeTraceWriter::WriteCb(uv_fs_t* req) {
 // static
 void NodeTraceWriter::ExitSignalCb(uv_async_t* signal) {
   NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
-  Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->flush_signal_), nullptr);
-  uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_), nullptr);
-  trace_writer->exited_ = true;
-  trace_writer->exit_cond_.Signal(scoped_lock);
+  uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_), [](uv_handle_t* signal) {
+      NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
+      Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
+      trace_writer->exited_ = true;
+      trace_writer->exit_cond_.Signal(scoped_lock);
+  });
 }
 
 }  // namespace tracing

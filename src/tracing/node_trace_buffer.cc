@@ -164,11 +164,13 @@ void NodeTraceBuffer::NonBlockingFlushSignalCb(uv_async_t* signal) {
 // static
 void NodeTraceBuffer::ExitSignalCb(uv_async_t* signal) {
   NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
-  Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
   uv_close(reinterpret_cast<uv_handle_t*>(&buffer->flush_signal_), nullptr);
-  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_), nullptr);
-  buffer->exited_ = true;
-  buffer->exit_cond_.Signal(scoped_lock);
+  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_), [](uv_handle_t* signal) {
+      NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
+      Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
+      buffer->exited_ = true;
+      buffer->exit_cond_.Signal(scoped_lock);
+  });
 }
 
 }  // namespace tracing
