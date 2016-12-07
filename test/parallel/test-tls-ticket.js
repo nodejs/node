@@ -89,11 +89,11 @@ function start(callback) {
 process.on('exit', function() {
   assert.strictEqual(ticketLog.length, serverLog.length);
   for (let i = 0; i < naturalServers.length - 1; i++) {
-    assert.notEqual(serverLog[i], serverLog[i + 1]);
+    assert.notStrictEqual(serverLog[i], serverLog[i + 1]);
     assert.strictEqual(ticketLog[i], ticketLog[i + 1]);
 
     // 2nd connection should have different ticket
-    assert.notEqual(ticketLog[i], ticketLog[i + naturalServers.length]);
+    assert.notStrictEqual(ticketLog[i], ticketLog[i + naturalServers.length]);
 
     // 3rd connection should have the same ticket
     assert.strictEqual(ticketLog[i], ticketLog[i + naturalServers.length * 2]);
