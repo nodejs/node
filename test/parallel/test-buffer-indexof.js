@@ -413,13 +413,38 @@ assert.strictEqual(b.lastIndexOf(0x61, Infinity), 0);
 assert.strictEqual(b.lastIndexOf(0x0), -1);
 
 // Test weird offset arguments.
-// Behaviour should match String.lastIndexOf:
-assert.strictEqual(b.lastIndexOf('b', 0), -1);
+// The following offsets coerce to NaN, searching the whole Buffer (or String)
 assert.strictEqual(b.lastIndexOf('b', undefined), 1);
-assert.strictEqual(b.lastIndexOf('b', null), -1);
 assert.strictEqual(b.lastIndexOf('b', {}), 1);
+
+// The following offsets coerce to 0
+assert.strictEqual(b.lastIndexOf('b', 0), -1);
+assert.strictEqual(b.lastIndexOf('b', null), -1);
 assert.strictEqual(b.lastIndexOf('b', []), -1);
+
+// The following offset coerces to 2, in other words +[2] === 2
 assert.strictEqual(b.lastIndexOf('b', [2]), 1);
+
+// Behavior should match String.lastIndexOf()
+var s = 'abcdef';
+assert.strictEqual(
+  b.lastIndexOf('b', undefined),
+  s.lastIndexOf('b', undefined));
+assert.strictEqual(
+  b.lastIndexOf('b', {}),
+  s.lastIndexOf('b', {}));
+assert.strictEqual(
+  b.lastIndexOf('b', 0),
+  s.lastIndexOf('b', 0));
+assert.strictEqual(
+  b.lastIndexOf('b', null),
+  s.lastIndexOf('b', null));
+assert.strictEqual(
+  b.lastIndexOf('b', []),
+  s.lastIndexOf('b', []));
+assert.strictEqual(
+  b.lastIndexOf('b', [2]),
+  s.lastIndexOf('b', [2]));
 
 // Test needles longer than the haystack.
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 'ucs2'), -1);
