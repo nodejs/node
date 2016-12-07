@@ -1,6 +1,6 @@
 /* eslint-disable max-len, strict */
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 common.globalCheck = false;
 common.refreshTmpDir();
@@ -15,11 +15,11 @@ const prompt_npm = 'npm should be run outside of the ' +
                    'node repl, in your normal shell.\n' +
                    '(Press Control-D to exit.)\n';
 const expect_npm = prompt_npm + prompt_unix;
-var server_tcp, server_unix, client_tcp, client_unix, replServer;
+let server_tcp, server_unix, client_tcp, client_unix, replServer;
 
 
 // absolute path to test/fixtures/a.js
-var moduleFilename = require('path').join(common.fixturesDir, 'a');
+const moduleFilename = require('path').join(common.fixturesDir, 'a');
 
 console.error('repl test');
 
@@ -30,7 +30,7 @@ global.invoke_me = function(arg) {
 
 function send_expect(list) {
   if (list.length > 0) {
-    var cur = list.shift();
+    const cur = list.shift();
 
     console.error('sending ' + JSON.stringify(cur.send));
 
@@ -56,8 +56,8 @@ function strict_mode_error_test() {
 
 function error_test() {
   // The other stuff is done so reuse unix socket
-  var read_buffer = '';
-  var run_strict_test = true;
+  let read_buffer = '';
+  let run_strict_test = true;
   client_unix.removeAllListeners('data');
 
   client_unix.on('data', function(data) {
@@ -70,7 +70,7 @@ function error_test() {
     if (read_buffer.indexOf(prompt_unix) !== -1) {
       // if it's an exact match, then don't do the regexp
       if (read_buffer !== client_unix.expect) {
-        var expect = client_unix.expect;
+        let expect = client_unix.expect;
         if (expect === prompt_multiline)
           expect = /[.]{3} /;
         assert.ok(read_buffer.match(expect));
@@ -352,6 +352,16 @@ function error_test() {
 
     { client: client_unix, send: 'function * foo() {}; foo().next()',
       expect: '{ value: undefined, done: true }' },
+
+    // https://github.com/nodejs/node/issues/9300
+    { client: client_unix, send: 'function foo() {\nvar bar = 1 / 1; // "/"\n}',
+      expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix },
+
+    { client: client_unix, send: '(function() {\nreturn /foo/ / /bar/;\n}())',
+      expect: prompt_multiline + prompt_multiline + 'NaN\n' + prompt_unix },
+
+    { client: client_unix, send: '(function() {\nif (false) {} /bar"/;\n}())',
+      expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix }
   ]);
 }
 
@@ -367,13 +377,13 @@ function tcp_test() {
   });
 
   server_tcp.listen(0, function() {
-    var read_buffer = '';
+    let read_buffer = '';
 
     client_tcp = net.createConnection(this.address().port);
 
     client_tcp.on('connect', function() {
-      assert.equal(true, client_tcp.readable);
-      assert.equal(true, client_tcp.writable);
+      assert.strictEqual(true, client_tcp.readable);
+      assert.strictEqual(true, client_tcp.writable);
 
       send_expect([
         { client: client_tcp, send: '',
@@ -436,13 +446,13 @@ function unix_test() {
   });
 
   server_unix.on('listening', function() {
-    var read_buffer = '';
+    let read_buffer = '';
 
     client_unix = net.createConnection(common.PIPE);
 
     client_unix.on('connect', function() {
-      assert.equal(true, client_unix.readable);
-      assert.equal(true, client_unix.writable);
+      assert.strictEqual(true, client_unix.readable);
+      assert.strictEqual(true, client_unix.writable);
 
       send_expect([
         { client: client_unix, send: '',

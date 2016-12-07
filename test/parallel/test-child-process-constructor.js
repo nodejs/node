@@ -4,7 +4,7 @@ require('../common');
 var assert = require('assert');
 var child_process = require('child_process');
 var ChildProcess = child_process.ChildProcess;
-assert.equal(typeof ChildProcess, 'function');
+assert.strictEqual(typeof ChildProcess, 'function');
 
 // test that we can call spawn
 var child = new ChildProcess();
@@ -15,11 +15,11 @@ child.spawn({
   stdio: 'pipe'
 });
 
-assert.equal(child.hasOwnProperty('pid'), true);
+assert.strictEqual(child.hasOwnProperty('pid'), true);
 
 // try killing with invalid signal
 assert.throws(function() {
   child.kill('foo');
 }, /Unknown signal: foo/);
 
-assert.equal(child.kill(), true);
+assert.strictEqual(child.kill(), true);

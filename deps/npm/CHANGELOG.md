@@ -1,3 +1,34 @@
+### v3.10.10 (2016-11-04)
+
+See the discussion on [#14042](https://github.com/npm/npm/issues/14042) for
+more context on this release, which is intended to address a serious regression
+in shrinkwrap behavior in the version of the CLI currently bundled with Node.js
+6 LTS "Boron". You should never install this version directly; instead update
+to `npm@4`, which has everything in this release and more.
+
+#### REGRESSION FIX
+
+* [`9aebe98`](https://github.com/npm/npm/commit/9aebe982114ea2107f46baa1dcb11713b4aaad04)
+  [#14117](https://github.com/npm/npm/pull/14117)
+  Fixes a bug where installing a shrinkwrapped package would fail if the
+  platform failed to install an optional dependency included in the shrinkwrap.
+  ([@watilde](https://github.com/watilde))
+
+#### UPDATE SUPPORT MATRIX
+
+With the advent of the second official Node.js LTS release, Node 6.x
+'Boron', the Node.js project has now officially dropped versions 0.10
+and 0.12 out of the maintenance phase of LTS. (Also, Node 5 was never
+part of LTS, and will see no further support now that Node 7 has been
+released.) As a small team with limited resources, the npm CLI team is
+following suit and dropping those versions of Node from its CI test
+matrix.
+
+* [`c82ecfd`](https://github.com/npm/npm/commit/c82ecfdbe0b5f318a175714a8753efe4dfd3e4b3)
+  [#14503](https://github.com/npm/npm/pull/14503)
+  Node 6 is LTS; 5.x, 0.10, and 0.12 are unsupported.
+  ([@othiym23](https://github.com/othiym23))
+
 ### v3.10.9 (2016-10-06)
 
 Hi everyone! This is the last of our monthly releases. We're going to give

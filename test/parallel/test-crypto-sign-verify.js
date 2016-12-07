@@ -21,7 +21,7 @@ var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   let s1stream = crypto.createSign('RSA-SHA1');
   s1stream.end('Test123');
   s1stream = s1stream.sign(keyPem, 'base64');
-  assert.equal(s1, s1stream, 'Stream produces same output');
+  assert.strictEqual(s1, s1stream, 'Stream produces same output');
 
   const verified = crypto.createVerify('RSA-SHA1')
                          .update('Test')
@@ -37,7 +37,7 @@ var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   let s2stream = crypto.createSign('RSA-SHA256');
   s2stream.end('Test123');
   s2stream = s2stream.sign(keyPem, 'latin1');
-  assert.equal(s2, s2stream, 'Stream produces same output');
+  assert.strictEqual(s2, s2stream, 'Stream produces same output');
 
   let verified = crypto.createVerify('RSA-SHA256')
                        .update('Test')

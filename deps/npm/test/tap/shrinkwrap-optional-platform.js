@@ -33,9 +33,18 @@ var fixture = new Tacks(Dir({
       'package.json': File({
         name: 'mod1',
         version: '1.0.0',
-        scripts: {
-
+        scripts: {},
+        'optionalDependencies': {
+          'mod2': 'file:../mod2'
         },
+        os: ['nosuchos']
+      })
+    }),
+    mod2: Dir({
+      'package.json': File({
+        name: 'mod2',
+        version: '1.0.0',
+        scripts: {},
         os: ['nosuchos']
       })
     }),
@@ -47,6 +56,12 @@ var fixture = new Tacks(Dir({
           version: '1.0.0',
           from: 'mod1',
           resolved: 'file:mod1',
+          optional: true
+        },
+        mod2: {
+          version: '1.0.0',
+          from: 'mod2',
+          resolved: 'file:mod2',
           optional: true
         }
       }
@@ -93,4 +108,3 @@ test('cleanup', function (t) {
   cleanup()
   t.done()
 })
-

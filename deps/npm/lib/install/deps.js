@@ -326,14 +326,16 @@ function andForEachChild (load, next) {
   }
 }
 
-function isDepOptional (tree, name) {
+function isDepOptional (tree, name, pkg) {
+  if (pkg.package && pkg.package._optional) return true
   if (!tree.package.optionalDependencies) return false
   if (tree.package.optionalDependencies[name] != null) return true
   return false
 }
 
 var failedDependency = exports.failedDependency = function (tree, name_pkg) {
-  var name, pkg
+  var name
+  var pkg = {}
   if (typeof name_pkg === 'string') {
     name = name_pkg
   } else {
@@ -342,7 +344,7 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   }
   tree.children = tree.children.filter(noModuleNameMatches(name))
 
-  if (isDepOptional(tree, name)) {
+  if (isDepOptional(tree, name, pkg)) {
     return false
   }
 
