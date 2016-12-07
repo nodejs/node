@@ -11,6 +11,8 @@ const buf_f = Buffer.from('f');
 const buf_z = Buffer.from('z');
 const buf_empty = Buffer.from('');
 
+const s = 'abcdef';
+
 assert.strictEqual(b.indexOf('a'), 0);
 assert.strictEqual(b.indexOf('a', 1), -1);
 assert.strictEqual(b.indexOf('a', -1), -1);
@@ -347,6 +349,37 @@ assert.throws(function() {
   b.indexOf([]);
 });
 
+// Test weird offset arguments.
+// The following offsets coerce to NaN or 0, searching the whole Buffer
+assert.strictEqual(b.indexOf('b', undefined), 1);
+assert.strictEqual(b.indexOf('b', {}), 1);
+assert.strictEqual(b.indexOf('b', 0), 1);
+assert.strictEqual(b.indexOf('b', null), 1);
+assert.strictEqual(b.indexOf('b', []), 1);
+
+// The following offset coerces to 2, in other words +[2] === 2
+assert.strictEqual(b.indexOf('b', [2]), -1);
+
+// Behavior should match String.indexOf()
+assert.strictEqual(
+  b.indexOf('b', undefined),
+  s.indexOf('b', undefined));
+assert.strictEqual(
+  b.indexOf('b', {}),
+  s.indexOf('b', {}));
+assert.strictEqual(
+  b.indexOf('b', 0),
+  s.indexOf('b', 0));
+assert.strictEqual(
+  b.indexOf('b', null),
+  s.indexOf('b', null));
+assert.strictEqual(
+  b.indexOf('b', []),
+  s.indexOf('b', []));
+assert.strictEqual(
+  b.indexOf('b', [2]),
+  s.indexOf('b', [2]));
+
 // All code for handling encodings is shared between Buffer.indexOf and
 // Buffer.lastIndexOf, so only testing the separate lastIndexOf semantics.
 
@@ -401,13 +434,37 @@ assert.equal(b.lastIndexOf(0x61, Infinity), 0);
 assert.equal(b.lastIndexOf(0x0), -1);
 
 // Test weird offset arguments.
-// Behaviour should match String.lastIndexOf:
-assert.equal(b.lastIndexOf('b', 0), -1);
-assert.equal(b.lastIndexOf('b', undefined), 1);
-assert.equal(b.lastIndexOf('b', null), -1);
-assert.equal(b.lastIndexOf('b', {}), 1);
-assert.equal(b.lastIndexOf('b', []), -1);
-assert.equal(b.lastIndexOf('b', [2]), 1);
+// The following offsets coerce to NaN, searching the whole Buffer
+assert.strictEqual(b.lastIndexOf('b', undefined), 1);
+assert.strictEqual(b.lastIndexOf('b', {}), 1);
+
+// The following offsets coerce to 0
+assert.strictEqual(b.lastIndexOf('b', 0), -1);
+assert.strictEqual(b.lastIndexOf('b', null), -1);
+assert.strictEqual(b.lastIndexOf('b', []), -1);
+
+// The following offset coerces to 2, in other words +[2] === 2
+assert.strictEqual(b.lastIndexOf('b', [2]), 1);
+
+// Behavior should match String.lastIndexOf()
+assert.strictEqual(
+  b.lastIndexOf('b', undefined),
+  s.lastIndexOf('b', undefined));
+assert.strictEqual(
+  b.lastIndexOf('b', {}),
+  s.lastIndexOf('b', {}));
+assert.strictEqual(
+  b.lastIndexOf('b', 0),
+  s.lastIndexOf('b', 0));
+assert.strictEqual(
+  b.lastIndexOf('b', null),
+  s.lastIndexOf('b', null));
+assert.strictEqual(
+  b.lastIndexOf('b', []),
+  s.lastIndexOf('b', []));
+assert.strictEqual(
+  b.lastIndexOf('b', [2]),
+  s.lastIndexOf('b', [2]));
 
 // Test needles longer than the haystack.
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 'ucs2'), -1);
