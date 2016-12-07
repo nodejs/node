@@ -4480,6 +4480,8 @@ int Start(int argc, char** argv) {
   v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
+    fprintf(stderr, "Warning: Trace event is an experimental feature "
+            "and could change at any time.\n");
     tracing_agent = new tracing::Agent();
     tracing_agent->Start(v8_platform.platform_, trace_enabled_categories);
   }
