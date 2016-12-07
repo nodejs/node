@@ -16,6 +16,8 @@ OUTDIR="`( cd \"$OUTDIR\" && pwd) `"
 NODE_RELEASE="$OUTDIR/Release/node"
 NODE_DEBUG="$OUTDIR/Debug/node"
 NODE_LINK="$ROOTDIR/node"
+CCTEST_RELEASE="$OUTDIR/Release/cctest"
+CCTEST_DEBUG="$OUTDIR/Debug/cctest"
 
 if [ -f $SFW ];
 then
@@ -27,14 +29,20 @@ then
   $SFW --remove "$NODE_RELEASE"
   $SFW --remove "$NODE_RELEASE"
   $SFW --remove "$NODE_LINK"
+  $SFW --remove "$CCTEST_DEBUG"
+  $SFW --remove "$CCTEST_RELEASE"
 
   $SFW --add "$NODE_DEBUG"
   $SFW --add "$NODE_RELEASE"
   $SFW --add "$NODE_LINK"
+  $SFW --add "$CCTEST_DEBUG"
+  $SFW --add "$CCTEST_RELEASE"
 
   $SFW --unblock "$NODE_DEBUG"
   $SFW --unblock "$NODE_RELEASE"
   $SFW --unblock "$NODE_LINK"
+  $SFW --unblock "$CCTEST_DEBUG"
+  $SFW --unblock "$CCTEST_RELEASE"
 else
   echo "SocketFirewall not found in location: $SFW"
 fi
