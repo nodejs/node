@@ -1156,6 +1156,30 @@ console.log(utf16Buffer.indexOf('\u03a3', 0, 'ucs2'));
 console.log(utf16Buffer.indexOf('\u03a3', -4, 'ucs2'));
 ```
 
+If `value` is not a string, number, or `Buffer`, this method will throw a
+`TypeError`. If `value` is a number, it will be coerced to a valid byte value,
+an integer between 0 and 255.
+
+If `byteOffset` is not a number, it will be coerced to a number. Any arguments
+that coerce to `NaN` or 0, like `{}`, `[]`, `null` or `undefined`, will search
+the whole buffer. This behavior matches [`String#indexOf()`].
+
+```js
+const b = Buffer.from('abcdef');
+
+// Passing a value that's a number, but not a valid byte
+// Prints: 2, equivalent to searching for 99 or 'c'
+console.log(b.indexOf(99.9));
+console.log(b.indexOf(256 + 99));
+
+// Passing a byteOffset that coerces to NaN or 0
+// Prints: 1, searching the whole buffer
+console.log(b.indexOf('b', undefined));
+console.log(b.indexOf('b', {}));
+console.log(b.indexOf('b', null));
+console.log(b.indexOf('b', []));
+```
+
 ### buf.includes(value[, byteOffset][, encoding])
 <!-- YAML
 added: v5.3.0
@@ -1274,6 +1298,33 @@ console.log(utf16Buffer.lastIndexOf('\u03a3', undefined, 'ucs2'));
 
 // Prints: 4
 console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'ucs2'));
+```
+
+If `value` is not a string, number, or `Buffer`, this method will throw a
+`TypeError`. If `value` is a number, it will be coerced to a valid byte value,
+an integer between 0 and 255.
+
+If `byteOffset` is not a number, it will be coerced to a number. Any arguments
+that coerce to `NaN`, like `{}` or `undefined`, will search the whole buffer.
+This behavior matches [`String#lastIndexOf()`].
+
+```js
+const b = Buffer.from('abcdef');
+
+// Passing a value that's a number, but not a valid byte
+// Prints: 2, equivalent to searching for 99 or 'c'
+console.log(b.lastIndexOf(99.9));
+console.log(b.lastIndexOf(256 + 99));
+
+// Passing a byteOffset that coerces to NaN
+// Prints: 1, searching the whole buffer
+console.log(b.lastIndexOf('b', undefined));
+console.log(b.lastIndexOf('b', {}));
+
+// Passing a byteOffset that coerces to 0
+// Prints: -1, equivalent to passing 0
+console.log(b.lastIndexOf('b', null));
+console.log(b.lastIndexOf('b', []));
 ```
 
 ### buf.length
@@ -2413,6 +2464,8 @@ console.log(buf);
 [RFC1345]: https://tools.ietf.org/html/rfc1345
 [RFC4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
+[`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
+[`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`Uint32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array
