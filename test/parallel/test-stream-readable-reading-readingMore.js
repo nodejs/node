@@ -51,4 +51,5 @@ process.nextTick(() => {
 	// Finished reading. _readableState.reading is false.
 	// readingMore then should be false as well.
 	assert.strictEqual(state.readingMore, false);
+	assert.strictEqual(state.reading, false);
 });
