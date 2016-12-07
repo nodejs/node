@@ -238,7 +238,7 @@ more information about the governance of the Node.js project, see
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [italoacasas](https://github.com/italoacasas)
-**Italo A. Casas**  &lt;me@italoacasas.com&gt;
+**Italo A. Casas** &lt;me@italoacasas.com&gt;
 * [iWuzHere](https://github.com/iWuzHere) -
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
