@@ -598,6 +598,11 @@ HandleScope::~HandleScope() {
 }
 
 
+void HandleScope::operator delete(void*, size_t) {
+  base::OS::Abort();
+}
+
+
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   return i::HandleScope::NumberOfHandles(
       reinterpret_cast<i::Isolate*>(isolate));
@@ -620,6 +625,11 @@ EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   escape_slot_ = CreateHandle(isolate, isolate->heap()->the_hole_value());
   Initialize(v8_isolate);
+}
+
+
+void EscapableHandleScope::operator delete(void*, size_t) {
+  base::OS::Abort();
 }
 
 
@@ -655,6 +665,11 @@ SealHandleScope::~SealHandleScope() {
   current->level = prev_level_;
   DCHECK_EQ(current->next, current->limit);
   current->limit = prev_limit_;
+}
+
+
+void SealHandleScope::operator delete(void*, size_t) {
+  base::OS::Abort();
 }
 
 
@@ -1881,6 +1896,11 @@ v8::TryCatch::~TryCatch() {
     isolate_->UnregisterTryCatchHandler(this);
     v8::internal::SimulatorStack::UnregisterCTryCatch();
   }
+}
+
+
+void v8::TryCatch::operator delete(void*, size_t) {
+  base::OS::Abort();
 }
 
 
@@ -6446,6 +6466,11 @@ void Isolate::AddGCEpilogueCallback(GCEpilogueCallback callback,
 void Isolate::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->RemoveGCEpilogueCallback(callback);
+}
+
+
+void Isolate::operator delete(void*, size_t) {
+  base::OS::Abort();
 }
 
 
