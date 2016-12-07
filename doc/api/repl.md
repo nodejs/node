@@ -84,10 +84,9 @@ undefined
 3
 ```
 
-Unless otherwise scoped within blocks (e.g. `{ ... }`) or functions, variables
-declared either implicitly or using the `const` or `let` keywords
-are declared at the `global` scope (as well as with the `var` keyword
-outside of functions).
+Unless otherwise scoped within blocks or functions, variables declared
+either implicitly, or using the const, let, or var keywords
+are declared at the global scope.
 
 #### Global and Local Scope
 
