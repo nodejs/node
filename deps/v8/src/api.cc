@@ -598,6 +598,11 @@ HandleScope::~HandleScope() {
 }
 
 
+void HandleScope::operator delete(void*, size_t) {
+  base::OS::Abort();
+}
+
+
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   return i::HandleScope::NumberOfHandles(
       reinterpret_cast<i::Isolate*>(isolate));
@@ -620,6 +625,11 @@ EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   escape_slot_ = CreateHandle(isolate, isolate->heap()->the_hole_value());
   Initialize(v8_isolate);
+}
+
+
+void EscapableHandleScope::operator delete(void*, size_t) {
+  base::OS::Abort();
 }
 
 
@@ -1881,6 +1891,11 @@ v8::TryCatch::~TryCatch() {
     isolate_->UnregisterTryCatchHandler(this);
     v8::internal::SimulatorStack::UnregisterCTryCatch();
   }
+}
+
+
+void v8::TryCatch::operator delete(void*, size_t) {
+  base::OS::Abort();
 }
 
 
