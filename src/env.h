@@ -469,11 +469,11 @@ class Environment {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<int64_t>* destroy_ids_list();
 
-  inline uint32_t* heap_statistics_buffer() const;
-  inline void set_heap_statistics_buffer(uint32_t* pointer);
+  inline double* heap_statistics_buffer() const;
+  inline void set_heap_statistics_buffer(double* pointer);
 
-  inline uint32_t* heap_space_statistics_buffer() const;
-  inline void set_heap_space_statistics_buffer(uint32_t* pointer);
+  inline double* heap_space_statistics_buffer() const;
+  inline void set_heap_space_statistics_buffer(double* pointer);
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
@@ -581,8 +581,8 @@ class Environment {
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
   int handle_cleanup_waiting_;
 
-  uint32_t* heap_statistics_buffer_ = nullptr;
-  uint32_t* heap_space_statistics_buffer_ = nullptr;
+  double* heap_statistics_buffer_ = nullptr;
+  double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
 

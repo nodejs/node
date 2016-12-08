@@ -316,22 +316,22 @@ inline std::vector<int64_t>* Environment::destroy_ids_list() {
   return &destroy_ids_list_;
 }
 
-inline uint32_t* Environment::heap_statistics_buffer() const {
+inline double* Environment::heap_statistics_buffer() const {
   CHECK_NE(heap_statistics_buffer_, nullptr);
   return heap_statistics_buffer_;
 }
 
-inline void Environment::set_heap_statistics_buffer(uint32_t* pointer) {
+inline void Environment::set_heap_statistics_buffer(double* pointer) {
   CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
   heap_statistics_buffer_ = pointer;
 }
 
-inline uint32_t* Environment::heap_space_statistics_buffer() const {
+inline double* Environment::heap_space_statistics_buffer() const {
   CHECK_NE(heap_space_statistics_buffer_, nullptr);
   return heap_space_statistics_buffer_;
 }
 
-inline void Environment::set_heap_space_statistics_buffer(uint32_t* pointer) {
+inline void Environment::set_heap_space_statistics_buffer(double* pointer) {
   CHECK_EQ(heap_space_statistics_buffer_, nullptr);  // Should be set only once.
   heap_space_statistics_buffer_ = pointer;
 }
