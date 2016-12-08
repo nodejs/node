@@ -173,8 +173,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   int err = DoWrite(req_wrap, *bufs, count, nullptr);
 
   req_wrap_obj->Set(env->async(), True(env->isolate()));
-  req_wrap_obj->Set(env->bytes_string(),
-                    Number::New(env->isolate(), bytes));
+  req_wrap_obj->Set(env->bytes_string(), Number::New(env->isolate(), bytes));
   const char* msg = Error();
   if (msg != nullptr) {
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
