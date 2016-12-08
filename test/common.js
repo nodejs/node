@@ -41,8 +41,9 @@ exports.rootDir = exports.isWindows ? 'c:\\' : '/';
 exports.buildType = process.config.target_defaults.default_configuration;
 
 function rimrafSync(p) {
+  let st;
   try {
-    var st = fs.lstatSync(p);
+    st = fs.lstatSync(p);
   } catch (e) {
     if (e.code === 'ENOENT')
       return;
@@ -96,9 +97,9 @@ if (process.env.TEST_THREAD_ID) {
 }
 exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 
-var opensslCli = null;
-var inFreeBSDJail = null;
-var localhostIPv4 = null;
+let opensslCli = null;
+let inFreeBSDJail = null;
+let localhostIPv4 = null;
 
 exports.localIPv6Hosts = ['localhost'];
 if (exports.isLinux) {
@@ -168,8 +169,8 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
 
   if (exports.isWindows) opensslCli += '.exe';
 
-  var openssl_cmd = child_process.spawnSync(opensslCli, ['version']);
-  if (openssl_cmd.status !== 0 || openssl_cmd.error !== undefined) {
+  const opensslCmd = child_process.spawnSync(opensslCli, ['version']);
+  if (opensslCmd.status !== 0 || opensslCmd.error !== undefined) {
     // openssl command cannot be executed
     opensslCli = false;
   }
@@ -197,7 +198,7 @@ if (exports.isWindows) {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
 
-var ifaces = os.networkInterfaces();
+const ifaces = os.networkInterfaces();
 exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   return /lo/.test(name) && ifaces[name].some(function(info) {
     return info.family === 'IPv6';
@@ -229,7 +230,7 @@ exports.childShouldThrowAndAbort = function() {
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
-    var p = path.resolve(exports.fixturesDir, 'create-file.js');
+    const p = path.resolve(exports.fixturesDir, 'create-file.js');
     return '"' + process.argv[0] + '" "' + p + '" "' +
            filename + '" ' + (kilobytes * 1024);
   } else {
@@ -239,7 +240,7 @@ exports.ddCommand = function(filename, kilobytes) {
 
 
 exports.spawnCat = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('more', [], options);
@@ -250,7 +251,7 @@ exports.spawnCat = function(options) {
 
 
 exports.spawnSyncCat = function(options) {
-  var spawnSync = require('child_process').spawnSync;
+  const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
     return spawnSync('more', [], options);
@@ -261,7 +262,7 @@ exports.spawnSyncCat = function(options) {
 
 
 exports.spawnPwd = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
@@ -302,7 +303,7 @@ exports.platformTimeout = function(ms) {
   return ms; // ARMv8+
 };
 
-var knownGlobals = [
+let knownGlobals = [
   Buffer,
   clearImmediate,
   clearInterval,
@@ -376,9 +377,9 @@ function allowGlobals(...whitelist) {
 exports.allowGlobals = allowGlobals;
 
 function leakedGlobals() {
-  var leaked = [];
+  const leaked = [];
 
-  for (var val in global)
+  for (const val in global)
     if (!knownGlobals.includes(global[val]))
       leaked.push(val);
 
@@ -391,7 +392,7 @@ exports.globalCheck = true;
 
 process.on('exit', function() {
   if (!exports.globalCheck) return;
-  var leaked = leakedGlobals();
+  const leaked = leakedGlobals();
   if (leaked.length > 0) {
     console.error('Unknown globals: %s', leaked);
     fail('Unknown global found');
@@ -399,13 +400,13 @@ process.on('exit', function() {
 });
 
 
-var mustCallChecks = [];
+const mustCallChecks = [];
 
 
 function runCallChecks(exitCode) {
   if (exitCode !== 0) return;
 
-  var failed = mustCallChecks.filter(function(context) {
+  const failed = mustCallChecks.filter(function(context) {
     return context.actual !== context.expected;
   });
 
@@ -424,7 +425,7 @@ function runCallChecks(exitCode) {
 exports.mustCall = function(fn, expected) {
   if (typeof expected !== 'number') expected = 1;
 
-  var context = {
+  const context = {
     expected: expected,
     actual: 0,
     stack: (new Error()).stack,
@@ -443,9 +444,9 @@ exports.mustCall = function(fn, expected) {
 };
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
-  var TCP = process.binding('tcp_wrap').TCP;
-  var t = new TCP();
-  var ret = t.bind('127.0.0.2', exports.PORT);
+  const TCP = process.binding('tcp_wrap').TCP;
+  const t = new TCP();
+  const ret = t.bind('127.0.0.2', exports.PORT);
   t.close();
   return ret === 0;
 };
@@ -491,7 +492,7 @@ ArrayStream.prototype.write = function() {};
 exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // Depending on the compiler used, node will exit with either
   // exit code 132 (SIGILL), 133 (SIGTRAP) or 134 (SIGABRT).
-  var expectedExitCodes = [132, 133, 134];
+  let expectedExitCodes = [132, 133, 134];
 
   // On platforms using KSH as the default shell (like SmartOS),
   // when a process aborts, KSH exits with an exit code that is
@@ -520,8 +521,8 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
 };
 
 exports.busyLoop = function busyLoop(time) {
-  var startTime = Timer.now();
-  var stopTime = startTime + time;
+  const startTime = Timer.now();
+  const stopTime = startTime + time;
   while (Timer.now() < stopTime) {}
 };
 
