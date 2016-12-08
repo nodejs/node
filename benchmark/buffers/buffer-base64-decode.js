@@ -3,11 +3,11 @@ const assert = require('assert');
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  n: [32],
+  len: [32],
 });
 
 function main(conf) {
-  const n = conf.n;
+  const n = +conf.len;
   const s = 'abcd'.repeat(8 << 20);
   s.match(/./);  // Flatten string.
   assert.strictEqual(s.length % 4, 0);
