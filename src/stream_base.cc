@@ -327,7 +327,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
       // Reference StreamWrap instance to prevent it from being garbage
       // collected before `AfterWrite` is called.
       CHECK_EQ(false, req_wrap->persistent().IsEmpty());
-      req_wrap->object()->Set(env->handle_string(), send_handle_obj);
+      req_wrap_obj->Set(env->handle_string(), send_handle_obj);
     }
 
     err = DoWrite(
