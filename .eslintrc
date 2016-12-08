@@ -93,6 +93,7 @@ rules:
   no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]
   no-tabs: 2
   no-trailing-spaces: 2
+  operator-linebreak: [2, after, {overrides: {'?': ignore, ':': ignore}}]
   quotes: [2, single, avoid-escape]
   semi: 2
   semi-spacing: 2
