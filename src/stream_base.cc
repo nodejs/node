@@ -82,8 +82,7 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
     req_wrap_obj
   };
 
-  if (req_wrap_obj->Has(env->context(),
-                              env->oncomplete_string()).FromJust()) {
+  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust()) {
     req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
   }
 
