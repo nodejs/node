@@ -2,8 +2,8 @@
 var common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  N: [64 * 1024 * 1024],
-  len: [32]
+  len: [64 * 1024 * 1024],
+  n: [32]
 });
 
 function main(conf) {

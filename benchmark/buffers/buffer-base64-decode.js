@@ -3,7 +3,7 @@ const assert = require('assert');
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  len: [32],
+  n: [32],
 });
 
 function main(conf) {
