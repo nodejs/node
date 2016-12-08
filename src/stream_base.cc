@@ -172,8 +172,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   int err = DoWrite(req_wrap, *bufs, count, nullptr);
 
-  req_wrap->object()->Set(env->async(), True(env->isolate()));
-  req_wrap->object()->Set(env->bytes_string(),
+  req_wrap_obj->Set(env->async(), True(env->isolate()));
+  req_wrap_obj->Set(env->bytes_string(),
                           Number::New(env->isolate(), bytes));
   const char* msg = Error();
   if (msg != nullptr) {
@@ -338,7 +338,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
         reinterpret_cast<uv_stream_t*>(send_handle));
   }
 
-  req_wrap->object()->Set(env->async(), True(env->isolate()));
+  req_wrap_obj->Set(env->async(), True(env->isolate()));
 
   if (err)
     req_wrap->Dispose();
