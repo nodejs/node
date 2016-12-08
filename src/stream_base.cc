@@ -82,9 +82,8 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
     req_wrap_obj
   };
 
-  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust()) {
+  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
     req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-  }
 
   delete req_wrap;
 }
@@ -381,10 +380,8 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
     wrap->ClearError();
   }
 
-  if (req_wrap_obj->Has(env->context(),
-                              env->oncomplete_string()).FromJust()) {
+  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
     req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-  }
 
   req_wrap->Dispose();
 }
