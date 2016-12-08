@@ -53,8 +53,8 @@ function test(size, err, next) {
     if (err) {
       client.on('error', function(e) {
         nerror++;
-        assert.strictEqual(e.message, 'DH parameter size 1024 is less'
-                           + ' than 2048');
+        assert.strictEqual(e.message, 'DH parameter size 1024 is less' +
+                           ' than 2048');
         server.close();
       });
     }
