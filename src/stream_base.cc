@@ -174,7 +174,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   req_wrap_obj->Set(env->async(), True(env->isolate()));
   req_wrap_obj->Set(env->bytes_string(),
-                          Number::New(env->isolate(), bytes));
+                    Number::New(env->isolate(), bytes));
   const char* msg = Error();
   if (msg != nullptr) {
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
