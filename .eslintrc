@@ -65,6 +65,7 @@ rules:
   no-mixed-spaces-and-tabs: 2
   no-multiple-empty-lines: [2, {max: 2}]
   no-trailing-spaces: 2
+  operator-linebreak: [2, after, {overrides: {'?': ignore, ':': ignore}}]
   quotes: [2, "single", "avoid-escape"]
   semi: 2
   space-before-blocks: [2, "always"]
