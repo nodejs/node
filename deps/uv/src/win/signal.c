@@ -32,6 +32,7 @@ RB_HEAD(uv_signal_tree_s, uv_signal_s);
 static struct uv_signal_tree_s uv__signal_tree = RB_INITIALIZER(uv__signal_tree);
 static ssize_t volatile uv__signal_control_handler_refs = 0;
 static CRITICAL_SECTION uv__signal_lock;
+static int volatile uv__signal_hander_disabled = 0;
 
 
 void uv_signals_init() {
@@ -95,6 +96,10 @@ int uv__signal_dispatch(int signum) {
 
 
 static BOOL WINAPI uv__signal_control_handler(DWORD type) {
+  if (uv__signal_hander_disabled) {
+    return FALSE;
+  }
+
   switch (type) {
     case CTRL_C_EVENT:
       return uv__signal_dispatch(SIGINT);
@@ -130,8 +135,10 @@ static int uv__signal_register_control_handler() {
 
   /* If the console control handler has already been hooked, just add a */
   /* reference. */
-  if (uv__signal_control_handler_refs > 0) {
+  if (uv__signal_control_handler_refs > 0 ||
+      uv__signal_hander_disabled) {
     uv__signal_control_handler_refs++;
+    uv__signal_hander_disabled = 0;
     return 0;
   }
 
@@ -150,18 +157,13 @@ static void uv__signal_unregister_control_handler() {
 
   /* Don't unregister if the number of console control handlers exceeds one. */
   /* Just remove a reference in that case. */
-  if (uv__signal_control_handler_refs > 1) {
+  if (uv__signal_control_handler_refs > 0) {
     uv__signal_control_handler_refs--;
-    return;
   }
 
-  assert(uv__signal_control_handler_refs == 1);
-
-  r = SetConsoleCtrlHandler(uv__signal_control_handler, FALSE);
-  /* This should never fail; if it does it is probably a bug in libuv. */
-  assert(r);
-
-  uv__signal_control_handler_refs--;
+  if (uv__signal_control_handler_refs == 0) {
+    uv__signal_hander_disabled = 1;
+  }
 }
 
 
