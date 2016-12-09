@@ -1022,7 +1022,7 @@ uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UEr
     // GetLocaleInfo() maps such LCID to "ku". However, CLDR uses "ku" for
     // Northern Kurdish and "ckb" for Central Kurdish. For this reason, we cannot
     // use the Windows API to resolve locale ID for this specific case.
-    if (hostid & 0x3FF != 0x92) {
+    if ((hostid & 0x3FF) != 0x92) {
         int32_t tmpLen = 0;
         char locName[157];  /* ULOC_FULLNAME_CAPACITY */
 
