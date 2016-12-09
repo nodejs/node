@@ -200,7 +200,7 @@ appendUChar(uint8_t *dest, int32_t destIndex, int32_t destCapacity, UChar c) {
         return -1;  // integer overflow
     }
     int32_t limit=destIndex+length;
-    if(limit<destCapacity) {
+    if(limit<=destCapacity) {
         U8_APPEND_UNSAFE(dest, destIndex, c);
     }
     return limit;
@@ -422,6 +422,9 @@ ucasemap_internalUTF8ToTitle(const UCaseMap *csm,
                                 src, &csc,
                                 titleLimit, idx,
                                 pErrorCode);
+                        if(*pErrorCode==U_BUFFER_OVERFLOW_ERROR) {
+                            *pErrorCode=U_ZERO_ERROR;
+                        }
                         if(U_FAILURE(*pErrorCode)) {
                             return destIndex;
                         }
