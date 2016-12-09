@@ -646,13 +646,6 @@ uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
         return dest;
     }
 
-    // Check that at least one of the CONFUSABLE flags is turned on.  If not,
-    // return an error.
-    if ((This->fChecks & USPOOF_CONFUSABLE) == 0) {
-        *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return dest;
-    }
-
     UnicodeString nfdId;
     gNfdNormalizer->normalize(id, nfdId, *status);
 
