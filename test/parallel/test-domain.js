@@ -2,10 +2,10 @@
 // Simple tests of most basic domain functionality.
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
-var fs = require('fs');
+const assert = require('assert');
+const domain = require('domain');
+const events = require('events');
+const fs = require('fs');
 var caught = 0;
 var expectCaught = 0;
 
@@ -137,8 +137,8 @@ d.run(function() {
           // pretty common error.
           console.log(stat.isDirectory());
         });
-      });
-    });
+      }, 1);
+    }, 1);
   });
 });
 expectCaught++;
@@ -148,7 +148,7 @@ expectCaught++;
 d.run(function() {
   setTimeout(function() {
     throw new Error('implicit timer');
-  });
+  }, 1);
 });
 expectCaught++;
 
@@ -162,7 +162,7 @@ expectCaught++;
 // get rid of the `if (er) return cb(er)` malarky, by intercepting
 // the cb functions to the domain, and using the intercepted function
 // as a callback instead.
-function fn(er) {
+function fn() {
   throw new Error('This function should never be called!');
 }
 
