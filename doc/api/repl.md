@@ -375,7 +375,7 @@ within the action function for commands registered using the
 added: v0.1.91
 -->
 
-* `options` {Object | String}
+* `options` {Object}
   * `prompt` {String} The input prompt to display. Defaults to `> `
     (with a trailing space).
   * `input` {Readable} The Readable stream from which REPL input will be read.
@@ -415,8 +415,6 @@ added: v0.1.91
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. Defaults to `false`.
-
-If `options` is a string, then it specifies the input prompt.
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
