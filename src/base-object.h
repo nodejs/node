@@ -1,8 +1,6 @@
 #ifndef SRC_BASE_OBJECT_H_
 #define SRC_BASE_OBJECT_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "v8.h"
 
 namespace node {
@@ -49,7 +47,5 @@ class BaseObject {
 };
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_BASE_OBJECT_H_

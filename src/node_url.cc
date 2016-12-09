@@ -62,7 +62,7 @@ using v8::Value;
     url.flags |= URL_FLAGS_TERMINATED;                                        \
     goto done;                                                                \
   }
-#define FAILED()                                                              \
+#define URL_FAILED()                                                          \
   {                                                                           \
     url.flags |= URL_FLAGS_FAILED;                                            \
     goto done;                                                                \
@@ -341,7 +341,8 @@ namespace url {
       val = numbers[parts - 1];
       for (int n = 0; n < parts - 1; n++) {
         double b = 3-n;
-        val += numbers[n] * pow(256, b);
+        // TBD POSSIBLE DATA LOSS:
+        val += static_cast<uint32_t>(numbers[n] * pow(256, b));
       }
     }
 
@@ -744,7 +745,7 @@ namespace url {
           break;
         case kNoScheme:
           if (!has_base || (IS_CANNOT_BE_BASE(base.flags) && ch != '#')) {
-            FAILED()
+            URL_FAILED()
           } else if (IS_CANNOT_BE_BASE(base.flags) && ch == '#') {
             SET_HAVE_SCHEME()
             url.scheme = base.scheme;
@@ -982,10 +983,10 @@ namespace url {
         case kHostname:
           if (ch == ':' && !sbflag) {
             if (special && buffer.size() == 0)
-              FAILED()
+              URL_FAILED()
             SET_HAVE_HOST()
             if (ParseHost(&buffer, &url.host) < 0)
-              FAILED()
+              URL_FAILED()
             buffer.clear();
             state = kPort;
             if (override == kHostname)
@@ -997,10 +998,10 @@ namespace url {
                      special_back_slash) {
             p--;
             if (special && buffer.size() == 0)
-              FAILED()
+              URL_FAILED()
             SET_HAVE_HOST()
             if (ParseHost(&buffer, &url.host) < 0)
-              FAILED()
+              URL_FAILED()
             buffer.clear();
             state = kPathStart;
             if (state_override)
@@ -1029,14 +1030,14 @@ namespace url {
               if (port >= 0 && port <= 0xffff) {
                 url.port = NormalizePort(url.scheme, port);
               } else if (!state_override) {
-                FAILED()
+                URL_FAILED()
               }
               buffer.clear();
             }
             state = kPathStart;
             continue;
           } else {
-            FAILED();
+            URL_FAILED();
           }
           break;
         case kFile:
@@ -1151,7 +1152,7 @@ namespace url {
               if (buffer != "localhost") {
                 SET_HAVE_HOST()
                 if (ParseHost(&buffer, &url.host) < 0)
-                  FAILED()
+                  URL_FAILED()
               }
               buffer.clear();
               state = kPathStart;
@@ -1294,7 +1295,7 @@ namespace url {
         argv[ARG_PATH] = Copy(isolate, url.path);
     }
 
-    cb->Call(context, recv, 9, argv);
+    (void)cb->Call(context, recv, 9, argv);
   }
 
   static void Parse(const FunctionCallbackInfo<Value>& args) {

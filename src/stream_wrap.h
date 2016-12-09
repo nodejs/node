@@ -1,14 +1,9 @@
 #ifndef SRC_STREAM_WRAP_H_
 #define SRC_STREAM_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "stream_base.h"
 
-#include "env.h"
 #include "handle_wrap.h"
-#include "string_bytes.h"
-#include "v8.h"
 
 namespace node {
 
@@ -104,7 +99,5 @@ class StreamWrap : public HandleWrap, public StreamBase {
 
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_WRAP_H_

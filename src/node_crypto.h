@@ -1,21 +1,12 @@
 #ifndef SRC_NODE_CRYPTO_H_
 #define SRC_NODE_CRYPTO_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "node.h"
 #include "node_crypto_clienthello.h"  // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
 
-#include "node_buffer.h"
-
 #include "env.h"
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
 #include "base-object.h"
 #include "base-object-inl.h"
-
-#include "v8.h"
 
 #include <openssl/ssl.h>
 #include <openssl/ec.h>
@@ -727,8 +718,7 @@ void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
 void InitCrypto(v8::Local<v8::Object> target);
 
 }  // namespace crypto
-}  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+}  // namespace node
 
 #endif  // SRC_NODE_CRYPTO_H_

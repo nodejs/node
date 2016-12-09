@@ -1,8 +1,9 @@
-#include "node.h"
-#include "v8.h"
 #include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"
+#include "node_internals.h"
+
+#include "v8.h"
 
 #include <errno.h>
 #include <string.h>
@@ -124,16 +125,22 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
     uv_cpu_info_t* ci = cpu_infos + i;
 
     Local<Object> times_info = Object::New(env->isolate());
+    // TBD POSSIBLE DATA LOSS:
     times_info->Set(env->user_string(),
-                    Number::New(env->isolate(), ci->cpu_times.user));
+                    Number::New(env->isolate(),
+                                static_cast<double>(ci->cpu_times.user)));
     times_info->Set(env->nice_string(),
-                    Number::New(env->isolate(), ci->cpu_times.nice));
+                    Number::New(env->isolate(),
+                                static_cast<double>(ci->cpu_times.nice)));
     times_info->Set(env->sys_string(),
-                    Number::New(env->isolate(), ci->cpu_times.sys));
+                    Number::New(env->isolate(),
+                                static_cast<double>(ci->cpu_times.sys)));
     times_info->Set(env->idle_string(),
-                    Number::New(env->isolate(), ci->cpu_times.idle));
+                    Number::New(env->isolate(),
+                                static_cast<double>(ci->cpu_times.idle)));
     times_info->Set(env->irq_string(),
-                    Number::New(env->isolate(), ci->cpu_times.irq));
+                    Number::New(env->isolate(),
+                                static_cast<double>(ci->cpu_times.irq)));
 
     Local<Object> cpu_info = Object::New(env->isolate());
     cpu_info->Set(env->model_string(),
@@ -151,7 +158,8 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
-  double amount = uv_get_free_memory();
+  // TBD POSSIBLE DATA LOSS:
+  double amount = static_cast<double>(uv_get_free_memory());
   if (amount < 0)
     return;
   args.GetReturnValue().Set(amount);
@@ -159,7 +167,8 @@ static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
-  double amount = uv_get_total_memory();
+  // TBD POSSIBLE DATA LOSS:
+  double amount = static_cast<double>(uv_get_total_memory());
   if (amount < 0)
     return;
   args.GetReturnValue().Set(amount);

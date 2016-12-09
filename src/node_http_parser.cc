@@ -294,7 +294,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IntegerValue();
+    return static_cast<int>(head_response->IntegerValue());
   }
 
 

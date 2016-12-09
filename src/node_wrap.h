@@ -1,8 +1,6 @@
 #ifndef SRC_NODE_WRAP_H_
 #define SRC_NODE_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "env.h"
 #include "env-inl.h"
 #include "js_stream.h"
@@ -10,10 +8,6 @@
 #include "tcp_wrap.h"
 #include "tty_wrap.h"
 #include "udp_wrap.h"
-#include "util.h"
-#include "util-inl.h"
-#include "uv.h"
-#include "v8.h"
 
 namespace node {
 
@@ -50,7 +44,5 @@ inline uv_stream_t* HandleToStream(Environment* env,
 }
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WRAP_H_

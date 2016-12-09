@@ -1,8 +1,8 @@
-#include "node.h"
-#include "node_buffer.h"
 #include "node_crypto.h"
+
 #include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
+
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async-wrap.h"
@@ -12,17 +12,15 @@
 #include "string_bytes.h"
 #include "util.h"
 #include "util-inl.h"
-#include "v8.h"
+
+#include "node_buffer.h"
+
 // CNNIC Hash WhiteList is taken from
 // https://hg.mozilla.org/mozilla-central/raw-file/98820360ab66/security/
 // certverifier/CNNICHashWhitelist.inc
 #include "CNNICHashWhitelist.inc"
 
-#include <errno.h>
-#include <limits.h>  // INT_MAX
 #include <math.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val, prefix)                  \
   do {                                                                         \
@@ -1536,8 +1534,9 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                     String::kNormalString, mem->length));
       (void) BIO_reset(bio);
 
-      BN_ULONG exponent_word = BN_get_word(rsa->e);
-      BIO_printf(bio, "0x%lx", exponent_word);
+      unsigned long exponent =  // NOLINT(runtime/int)
+        static_cast<unsigned long>(BN_get_word(rsa->e));  // NOLINT(runtime/int)
+      BIO_printf(bio, "0x%lx", exponent);
 
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->exponent_string(),
@@ -5543,7 +5542,9 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowRangeError("size is not a valid Smi");
 
   Local<Object> obj = env->NewInternalFieldObject();
-  RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
+  // TBD POSSIBLE DATA LOSS:
+  RandomBytesRequest* req =
+      new RandomBytesRequest(env, obj, static_cast<int32_t>(size));
 
   if (args[1]->IsFunction()) {
     obj->Set(FIXED_ONE_BYTE_STRING(args.GetIsolate(), "ondone"), args[1]);

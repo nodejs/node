@@ -5,9 +5,8 @@
 #ifndef SRC_STRING_SEARCH_H_
 #define SRC_STRING_SEARCH_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#include "util.h"
 
-#include "node.h"
 #include <string.h>
 
 namespace node {
@@ -494,7 +493,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
   const size_t subject_length = subject.length();
   const size_t pattern_length = pattern.length();
   int* char_occurrences = search->bad_char_table();
-  int64_t badness = -pattern_length;
+  int64_t badness = -static_cast<int64_t>(pattern_length);
 
   // How bad we are doing without a good-suffix table.
   Char last_char = pattern[pattern_length - 1];
@@ -662,8 +661,7 @@ size_t SearchString(const Char* haystack,
   }
   return is_forward ? pos : (haystack_length - needle_length - pos);
 }
-}  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+}  // namespace node
 
 #endif  // SRC_STRING_SEARCH_H_

@@ -1,8 +1,6 @@
 #ifndef SRC_ENV_H_
 #define SRC_ENV_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "ares.h"
 #include "debug-agent.h"
 #if HAVE_INSPECTOR
@@ -12,7 +10,9 @@
 #include "req-wrap.h"
 #include "tree.h"
 #include "util.h"
+
 #include "uv.h"
+
 #include "v8.h"
 
 #include <stdint.h>
@@ -422,8 +422,10 @@ class Environment {
              bool start_profiler_idle_notifier);
   void AssignToContext(v8::Local<v8::Context> context);
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
+#endif
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
@@ -595,7 +597,5 @@ class Environment {
 };
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ENV_H_

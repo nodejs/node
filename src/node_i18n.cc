@@ -29,6 +29,8 @@
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
+#include "node_internals.h"
+
 #include "v8.h"
 
 #include <unicode/utypes.h>
@@ -115,7 +117,8 @@ struct Converter {
     conv = ucnv_open(name, &status);
     CHECK(U_SUCCESS(status));
     if (sub != NULL) {
-      ucnv_setSubstChars(conv, sub, strlen(sub), &status);
+      // TBD POSSIBLE DATA LOSS:
+      ucnv_setSubstChars(conv, sub, static_cast<int8_t>(strlen(sub)), &status);
     }
   }
 

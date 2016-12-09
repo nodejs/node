@@ -500,7 +500,9 @@ void AgentImpl::FatalException(v8::Local<v8::Value> error,
   auto env = parent_env_;
   v8::Local<v8::Context> context = env->context();
 
-  int script_id = message->GetScriptOrigin().ScriptID()->Value();
+  // TBD POSSIBLE DATA LOSS:
+  int script_id =
+      static_cast<int>(message->GetScriptOrigin().ScriptID()->Value());
 
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
 

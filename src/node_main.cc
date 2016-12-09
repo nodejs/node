@@ -1,4 +1,4 @@
-#include "node.h"
+#include "node_internals.h"
 
 #ifdef _WIN32
 #include <VersionHelpers.h>

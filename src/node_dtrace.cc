@@ -27,6 +27,8 @@
 
 #include "util.h"
 
+#include "node_internals.h"
+
 #include <string.h>
 
 namespace node {
@@ -56,8 +58,9 @@ using v8::Value;
     return env->ThrowError( \
       "expected object for " #obj " to contain integer member " #member); \
   } \
-  *valp = obj->Get(OneByteString(env->isolate(), #member)) \
-      ->ToInteger(env->isolate())->Value();
+  *valp = \
+      static_cast<int32_t>(obj->Get(OneByteString(env->isolate(), #member)) \
+          ->ToInteger(env->isolate())->Value());
 
 #define SLURP_OBJECT(obj, member, valp) \
   if (!(obj)->IsObject()) { \

@@ -1,13 +1,13 @@
 #ifndef SRC_ENV_INL_H_
 #define SRC_ENV_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "env.h"
 #include "node.h"
 #include "util.h"
 #include "util-inl.h"
+
 #include "uv.h"
+
 #include "v8.h"
 
 #include <stddef.h>
@@ -495,7 +495,5 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef V
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ENV_INL_H_

@@ -1,9 +1,7 @@
 #ifndef SRC_NODE_I18N_H_
 #define SRC_NODE_I18N_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "node.h"
+#include "util.h"
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
@@ -23,10 +21,9 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                   size_t length);
 
 }  // namespace i18n
+
 }  // namespace node
 
 #endif  // NODE_HAVE_I18N_SUPPORT
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_I18N_H_

@@ -2,7 +2,6 @@
 #define SRC_NODE_BUFFER_H_
 
 #include "node.h"
-#include "v8.h"
 
 namespace node {
 

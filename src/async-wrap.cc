@@ -6,8 +6,11 @@
 #include "util-inl.h"
 
 #include "uv.h"
+
 #include "v8.h"
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 #include "v8-profiler.h"
+#endif
 
 using v8::Boolean;
 using v8::Context;
@@ -28,7 +31,8 @@ using v8::Value;
 
 namespace node {
 
-static const char* const provider_names[] = {
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
+static const char* const retained_async_provider_names[] = {
 #define V(PROVIDER)                                                           \
   #PROVIDER,
   NODE_ASYNC_PROVIDER_TYPES(V)
@@ -54,7 +58,7 @@ class RetainedAsyncInfo: public RetainedObjectInfo {
 
 
 RetainedAsyncInfo::RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap)
-    : label_(provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
+    : label_(retained_async_provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
       wrap_(wrap),
       length_(wrap->self_size()) {
 }
@@ -100,6 +104,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 
   return new RetainedAsyncInfo(class_id, wrap);
 }
+#endif
 
 
 // end RetainedAsyncInfo
@@ -203,7 +208,9 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
     // Want each callback to be cleaned up after itself, instead of cleaning
     // them all up after the while() loop completes.
     HandleScope scope(env->isolate());
-    Local<Value> argv = Number::New(env->isolate(), current_id);
+    // TBD POSSIBLE DATA LOSS:
+    Local<Value> argv = Number::New(env->isolate(),
+                                    static_cast<double>(current_id));
     MaybeLocal<Value> ret = fn->Call(
         env->context(), Undefined(env->isolate()), 1, &argv);
 
@@ -215,6 +222,7 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
 }
 
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -223,6 +231,7 @@ void LoadAsyncWrapperInfo(Environment* env) {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 }
+#endif
 
 
 AsyncWrap::AsyncWrap(Environment* env,
@@ -252,14 +261,17 @@ AsyncWrap::AsyncWrap(Environment* env,
   HandleScope scope(env->isolate());
 
   Local<Value> argv[] = {
-    Number::New(env->isolate(), get_uid()),
+    // TBD POSSIBLE DATA LOSS:
+    Number::New(env->isolate(), static_cast<double>(get_uid())),
     Int32::New(env->isolate(), provider),
     Null(env->isolate()),
     Null(env->isolate())
   };
 
   if (parent != nullptr) {
-    argv[2] = Number::New(env->isolate(), parent->get_uid());
+    // TBD POSSIBLE DATA LOSS:
+    argv[2] = Number::New(env->isolate(),
+                          static_cast<double>(parent->get_uid()));
     argv[3] = parent->object();
   }
 
@@ -295,7 +307,9 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Value> uid = Number::New(env()->isolate(), get_uid());
+  // TBD POSSIBLE DATA LOSS:
+  Local<Value> uid = Number::New(env()->isolate(),
+    static_cast<double>(get_uid()));
   Local<Object> context = object();
   Local<Object> domain;
   bool has_domain = false;

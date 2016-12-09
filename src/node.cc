@@ -1,10 +1,8 @@
 #include "node.h"
+
 #include "node_buffer.h"
 #include "node_constants.h"
-#include "node_file.h"
-#include "node_http_parser.h"
 #include "node_javascript.h"
-#include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
 
@@ -28,22 +26,19 @@
 #include "node_lttng.h"
 #endif
 
-#include "ares.h"
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
-#include "env.h"
-#include "env-inl.h"
-#include "handle_wrap.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
 #include "string_bytes.h"
-#include "util.h"
-#include "uv.h"
+
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
+
 #include "v8-debug.h"
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 #include "v8-profiler.h"
+#endif
+
 #include "zlib.h"
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -1449,20 +1444,20 @@ Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
 }
 
 // Returns -1 if the handle was not valid for decoding
-ssize_t DecodeBytes(Isolate* isolate,
-                    Local<Value> val,
-                    enum encoding encoding) {
+ptrdiff_t DecodeBytes(Isolate* isolate,
+                      Local<Value> val,
+                      enum encoding encoding) {
   HandleScope scope(isolate);
 
   return StringBytes::Size(isolate, val, encoding);
 }
 
 // Returns number of bytes written.
-ssize_t DecodeWrite(Isolate* isolate,
-                    char* buf,
-                    size_t buflen,
-                    Local<Value> val,
-                    enum encoding encoding) {
+ptrdiff_t DecodeWrite(Isolate* isolate,
+                      char* buf,
+                      size_t buflen,
+                      Local<Value> val,
+                      enum encoding encoding) {
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
@@ -2246,9 +2241,14 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
       Number::New(env->isolate(), v8_heap_stats.total_heap_size());
   Local<Number> heap_used =
       Number::New(env->isolate(), v8_heap_stats.used_heap_size());
+
+  const int64_t new_external_mem =
+      env->isolate()->AdjustAmountOfExternalAllocatedMemory(0);
+
+  // TBD POSSIBLE DATA LOSS:
   Local<Number> external_mem =
       Number::New(env->isolate(),
-                  env->isolate()->AdjustAmountOfExternalAllocatedMemory(0));
+                  static_cast<double>(new_external_mem));
 
   Local<Object> info = Object::New(env->isolate());
   info->Set(env->rss_string(), Number::New(env->isolate(), rss));
@@ -2979,6 +2979,7 @@ static void NeedImmediateCallbackSetter(
 }
 
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StartProfilerIdleNotifier();
@@ -2989,6 +2990,7 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StopProfilerIdleNotifier();
 }
+#endif
 
 
 #define READONLY_PROPERTY(obj, str, var)                                      \
@@ -3314,12 +3316,16 @@ void SetupProcessObject(Environment* env,
                              env->as_external()).FromJust());
 
   // define various internal methods
+
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   env->SetMethod(process,
                  "_startProfilerIdleNotifier",
                  StartProfilerIdleNotifier);
   env->SetMethod(process,
                  "_stopProfilerIdleNotifier",
                  StopProfilerIdleNotifier);
+#endif
+
   env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "reallyExit", Exit);
@@ -4490,9 +4496,11 @@ inline int Start(uv_loop_t* event_loop,
   isolate->SetAutorunMicrotasks(false);
   isolate->SetFatalErrorHandler(OnFatalError);
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
+#endif
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);

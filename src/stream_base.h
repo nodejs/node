@@ -1,16 +1,8 @@
 #ifndef SRC_STREAM_BASE_H_
 #define SRC_STREAM_BASE_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
-#include "env.h"
-#include "async-wrap.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
-#include "node.h"
-#include "util.h"
-
-#include "v8.h"
 
 namespace node {
 
@@ -280,7 +272,5 @@ class StreamBase : public StreamResource {
 };
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_BASE_H_

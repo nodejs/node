@@ -1,4 +1,3 @@
-#include "node.h"
 #include "node_buffer.h"
 
 #include "env.h"
@@ -7,7 +6,9 @@
 #include "string_search.h"
 #include "util.h"
 #include "util-inl.h"
-#include "v8-profiler.h"
+
+#include "node_internals.h"
+
 #include "v8.h"
 
 #include <string.h>
@@ -789,8 +790,10 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   if (ts_obj_length > 0)
     CHECK_NE(ts_obj_data, nullptr);
 
-  T val = args[1]->NumberValue(env->context()).FromMaybe(0);
-  size_t offset = args[2]->IntegerValue(env->context()).FromMaybe(0);
+  // TBD POSSIBLE DATA LOSS:
+  T val = static_cast<T>(args[1]->NumberValue(env->context()).FromMaybe(0));
+  size_t offset =
+      static_cast<size_t>(args[2]->IntegerValue(env->context()).FromMaybe(0));
 
   size_t memcpy_num = sizeof(T);
 

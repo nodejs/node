@@ -1,8 +1,6 @@
 #ifndef SRC_NODE_REVERT_H_
 #define SRC_NODE_REVERT_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 #include "node.h"
 
 /**
@@ -42,7 +40,5 @@ bool IsReverted(const unsigned int cve);
 bool IsReverted(const char * cve);
 
 }  // namespace node
-
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_REVERT_H_
