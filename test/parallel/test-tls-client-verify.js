@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var hosterr = /Hostname\/IP doesn't match certificate's altnames/g;
-var testCases =
+const hosterr = /Hostname\/IP doesn't match certificate's altnames/g;
+const testCases =
     [{ ca: ['ca1-cert'],
        key: 'agent2-key',
        cert: 'agent2-cert',
@@ -52,16 +52,16 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var successfulTests = 0;
+let successfulTests = 0;
 
 function testServers(index, servers, clientOptions, cb) {
-  var serverOptions = servers[index];
+  const serverOptions = servers[index];
   if (!serverOptions) {
     cb();
     return;
   }
 
-  var ok = serverOptions.ok;
+  const ok = serverOptions.ok;
 
   if (serverOptions.key) {
     serverOptions.key = loadPEM(serverOptions.key);
@@ -71,37 +71,37 @@ function testServers(index, servers, clientOptions, cb) {
     serverOptions.cert = loadPEM(serverOptions.cert);
   }
 
-  var server = tls.createServer(serverOptions, function(s) {
+  const server = tls.createServer(serverOptions, common.mustCall(function(s) {
     s.end('hello world\n');
-  });
+  }));
 
-  server.listen(0, function() {
-    var b = '';
+  server.listen(0, common.mustCall(function() {
+    let b = '';
 
     console.error('connecting...');
     clientOptions.port = this.address().port;
-    var client = tls.connect(clientOptions, function() {
-      var authorized = client.authorized ||
-                       hosterr.test(client.authorizationError);
+    const client = tls.connect(clientOptions, common.mustCall(function() {
+      const authorized = client.authorized ||
+                         hosterr.test(client.authorizationError);
 
       console.error('expected: ' + ok + ' authed: ' + authorized);
 
-      assert.equal(ok, authorized);
+      assert.strictEqual(ok, authorized);
       server.close();
-    });
+    }));
 
     client.on('data', function(d) {
       b += d.toString();
     });
 
-    client.on('end', function() {
-      assert.equal('hello world\n', b);
-    });
+    client.on('end', common.mustCall(function() {
+      assert.strictEqual('hello world\n', b);
+    }));
 
-    client.on('close', function() {
+    client.on('close', common.mustCall(function() {
       testServers(index + 1, servers, clientOptions, cb);
-    });
-  });
+    }));
+  }));
 }
 
 
@@ -109,7 +109,7 @@ function runTest(testIndex) {
   var tcase = testCases[testIndex];
   if (!tcase) return;
 
-  var clientOptions = {
+  const clientOptions = {
     port: undefined,
     ca: tcase.ca.map(loadPEM),
     key: loadPEM(tcase.key),
@@ -118,10 +118,10 @@ function runTest(testIndex) {
   };
 
 
-  testServers(0, tcase.servers, clientOptions, function() {
+  testServers(0, tcase.servers, clientOptions, common.mustCall(function() {
     successfulTests++;
     runTest(testIndex + 1);
-  });
+  }));
 }
 
 
