@@ -23,7 +23,7 @@ function test1() {
    */
   const d = domain.create();
   d.run(function() {
-    setTimeout(function onTimeout() {
+    setImmediate(function onTimeout() {
       throw new Error('boom!');
     });
   });
@@ -59,7 +59,7 @@ function test3() {
   const d3 = domain.create();
   const d4 = domain.create();
 
-  d3.on('error', function onErrorInD3Domain(err) {
+  d3.on('error', function onErrorInD3Domain() {
     process.send('errorHandledByDomain');
   });
 
@@ -88,13 +88,13 @@ function test4() {
   const d5 = domain.create();
   const d6 = domain.create();
 
-  d5.on('error', function onErrorInD2Domain(err) {
+  d5.on('error', function onErrorInD2Domain() {
     process.send('errorHandledByDomain');
   });
 
   d5.run(function() {
     d6.run(function() {
-      setTimeout(function onTimeout() {
+      setImmediate(function onTimeout() {
         throw new Error('boom!');
       });
     });
@@ -115,7 +115,7 @@ function test5() {
   const d7 = domain.create();
   const d8 = domain.create();
 
-  d8.on('error', function onErrorInD3Domain(err) {
+  d8.on('error', function onErrorInD3Domain() {
     process.send('errorHandledByDomain');
   });
 
@@ -139,13 +139,13 @@ function test6() {
   const d9 = domain.create();
   const d10 = domain.create();
 
-  d10.on('error', function onErrorInD2Domain(err) {
+  d10.on('error', function onErrorInD2Domain() {
     process.send('errorHandledByDomain');
   });
 
   d9.run(function() {
     d10.run(function() {
-      setTimeout(function onTimeout() {
+      setImmediate(function onTimeout() {
         throw new Error('boom!');
       });
     });
