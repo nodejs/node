@@ -1,16 +1,17 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
+const seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
 
 // Set up some timing issues where sockets can be destroyed
 // via either the req or res.
-var server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCall(function(req, res) {
   switch (req.url) {
     case '/1':
-      return setTimeout(function() {
+      return setImmediate(function() {
         req.socket.destroy();
         server.emit('requestDone');
       });
@@ -24,7 +25,7 @@ var server = http.createServer(function(req, res) {
     // in one case, actually send a response in 2 chunks
     case '/3':
       res.write('hello ');
-      return setTimeout(function() {
+      return setImmediate(function() {
         res.end('world!');
         server.emit('requestDone');
       });
@@ -33,7 +34,7 @@ var server = http.createServer(function(req, res) {
       res.destroy();
       server.emit('requestDone');
   }
-});
+}, seeds.length));
 
 
 // Make a bunch of requests pipelined on the same socket
@@ -47,10 +48,9 @@ function generator(seeds) {
 }
 
 
-server.listen(0, function() {
-  var seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
-  var client = net.connect({ port: this.address().port });
-  var done = 0;
+server.listen(0, common.mustCall(function() {
+  const client = net.connect({ port: this.address().port });
+  let done = 0;
   server.on('requestDone', function() {
     if (++done === seeds.length) {
       server.close();
@@ -60,9 +60,4 @@ server.listen(0, function() {
   // immediately write the pipelined requests.
   // Some of these will not have a socket to destroy!
   client.write(generator(seeds));
-});
-
-process.on('exit', function(c) {
-  if (!c)
-    console.log('ok');
-});
+}));
