@@ -237,6 +237,20 @@ $ git commit --amend
 $ git push --force-with-lease origin my-branch
 ```
 
+When the commits in your Pull Request get landed, they will be squashed into
+one commit per logical change, with metadata added to the commit message
+(including links to the Pull Request, links to relevant issues,
+and the names of the reviewers). The squashing will be done by someone
+who has the commit access to the repository. The commit history of
+your Pull Request, however, will stay intact on the Pull Request
+page (as long as you don't delete your fork branch, at which point
+it disappears).
+
+Notes: For the size of "one logical change",
+[0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
+can be a good example. It touches the implementation, the documentation,
+and the tests, but is still one logical change.
+
 **Important:** The `git push --force-with-lease` command is one of the few ways
 to delete history in git. Before you use it, make sure you understand the risks.
 If in doubt, you can always ask for guidance in the Pull Request or on
@@ -245,16 +259,40 @@ If in doubt, you can always ask for guidance in the Pull Request or on
 Feel free to post a comment in the Pull Request to ping reviewers if you are
 awaiting an answer on something.
 
+Notes: if the reviewer mentions *nits* in their comments, that means
+"requests for changes that are not essential". Usually these nits are
+related to coding styles or typos. It's always a good idea to pay
+attention to the detail!
 
 ### Step 8: Landing
 
-Once your Pull Request has been reviewed and approved by at least one Node.js
-Collaborators (often by saying LGTM, or Looks Good To Me), and as long as
-there is consensus (no objections from a Collaborator), a
-Collaborator can merge the Pull Request . GitHub often shows the Pull Request as
- `Closed` at this point, but don't worry. If you look at the branch you raised
- your Pull Request against (probably `master`), you should see a commit with
- your name on it. Congratulations and thanks for your contribution!
+In order to get landed, a Pull Request needs to be reviewed and approved by
+at least one Node.js Collaborator (either by saying LGTM,
+which stands for "Looks Good To Me", or by using GitHub's Approve button).
+GitHub's Pull Request review feature is used in this process. For more
+information, check out [the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
+or [the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
+
+Notes: After you push new changes to your branch, you need to get the
+approval for these new changes again, even if GitHub shows "Approved"
+because the reviwers have hit the buttons before.
+
+If this Pull Request touches more than the documentation, then it also
+needs an all-green CI (Continuous Integration) test run. Only a
+Collaborator can request a CI run. Usually one of them will do it
+for you as approvals for the Pull Request come in.
+If not, you can ask a Collaborator to request a CI run.
+
+After your Pull Request has been approved by one or more Node.js
+Collaborators and has passed the CI, as long as there is consensus
+(no objections from a Collaborator), it can be merged by a Collaborator.
+But, if there are non-trivial changes in this Pull Request, it still
+needs to wait for at least another 48 hours (72 hours on a weekend).
+
+GitHub often shows the Pull Request as `Closed` at this point,
+but don't worry. If you look at the branch you raised your Pull Request
+against (probably `master`), you should see a commit with
+your name on it. Congratulations and thanks for your contribution!
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
