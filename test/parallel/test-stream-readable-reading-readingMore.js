@@ -4,7 +4,7 @@ const assert = require('assert');
 const Readable = require('stream').Readable;
 
 const readable = new Readable({
-	read(size) {}
+  read(size) {}
 });
 
 const state = readable._readableState;
@@ -14,31 +14,31 @@ assert.strictEqual(state.reading, false);
 assert.strictEqual(state.readingMore, false);
 
 readable.on('data', common.mustCall((data) => {
-	// while in a flowing state, should try to read more.
-	if (state.flowing)
-		assert.strictEqual(state.readingMore, true);
+  // while in a flowing state, should try to read more.
+  if (state.flowing)
+    assert.strictEqual(state.readingMore, true);
 
-	// reading as long as we've not ended
-	assert.strictEqual(state.reading, !state.ended);
+  // reading as long as we've not ended
+  assert.strictEqual(state.reading, !state.ended);
 }, 2));
 
 function onStreamEnd() {
-	// End of stream; state.reading is false
-	// And so should be readingMore.
-	assert.strictEqual(state.readingMore, false);
-	assert.strictEqual(state.reading, false);
+  // End of stream; state.reading is false
+  // And so should be readingMore.
+  assert.strictEqual(state.readingMore, false);
+  assert.strictEqual(state.reading, false);
 }
 
 readable.on('readable', common.mustCall(() => {
-	// 'readable' always gets called before 'end'
-	// since 'end' hasn't been emitted, more data could be incoming
-	assert.strictEqual(state.readingMore, true);
+  // 'readable' always gets called before 'end'
+  // since 'end' hasn't been emitted, more data could be incoming
+  assert.strictEqual(state.readingMore, true);
 
-	// if the stream has ended, we shouldn't be reading
-	assert.strictEqual(state.ended, !state.reading);
+  // if the stream has ended, we shouldn't be reading
+  assert.strictEqual(state.ended, !state.reading);
 
-	if (readable.read() === null) // reached end of stream
-		process.nextTick(common.mustCall(onStreamEnd, 1));
+  if (readable.read() === null) // reached end of stream
+    process.nextTick(common.mustCall(onStreamEnd, 1));
 }, 2));
 
 readable.on('end', common.mustCall(onStreamEnd));
