@@ -10,7 +10,6 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var PORT = common.PORT;
 var dir = common.fixturesDir;
 var options = { key: fs.readFileSync(dir + '/test_key.pem'),
                 cert: fs.readFileSync(dir + '/test_cert.pem'),
@@ -27,8 +26,9 @@ var server = tls.createServer(options, function(c) {
   writes.forEach(function(str) {
     c.write(str);
   });
-}).listen(PORT, function() {
-  var c = tls.connect(PORT, { rejectUnauthorized: false }, function() {
+}).listen(0, function() {
+  const connectOpts = { rejectUnauthorized: false };
+  var c = tls.connect(this.address().port, connectOpts, function() {
     c.write('some client data');
     c.on('readable', function() {
       var data = c.read();

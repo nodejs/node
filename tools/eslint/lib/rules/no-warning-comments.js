@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -38,26 +38,24 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var configuration = context.options[0] || {},
+        const configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
             location = configuration.location || "start",
-            selfConfigRegEx = /\bno-warning-comments\b/,
-            warningRegExps;
+            selfConfigRegEx = /\bno-warning-comments\b/;
 
         /**
          * Convert a warning term into a RegExp which will match a comment containing that whole word in the specified
          * location ("start" or "anywhere"). If the term starts or ends with non word characters, then the match will not
          * require word boundaries on that side.
          *
-         * @param {String} term A term to convert to a RegExp
+         * @param {string} term A term to convert to a RegExp
          * @returns {RegExp} The term converted to a RegExp
          */
         function convertToRegExp(term) {
-            var escaped = term.replace(/[-\/\\$\^*+?.()|\[\]{}]/g, "\\$&"),
-                suffix,
-                prefix;
+            const escaped = term.replace(/[-\/\\$\^*+?.()|\[\]{}]/g, "\\$&");
+            let prefix;
 
             /*
              * If the term ends in a word character (a-z0-9_), ensure a word
@@ -69,7 +67,7 @@ module.exports = {
              * In these cases, use no bounding match. Same applies for the
              * prefix, handled below.
              */
-            suffix = /\w$/.test(term) ? "\\b" : "";
+            const suffix = /\w$/.test(term) ? "\\b" : "";
 
             if (location === "start") {
 
@@ -87,13 +85,15 @@ module.exports = {
             return new RegExp(prefix + escaped + suffix, "i");
         }
 
+        const warningRegExps = warningTerms.map(convertToRegExp);
+
         /**
          * Checks the specified comment for matches of the configured warning terms and returns the matches.
-         * @param {String} comment The comment which is checked.
+         * @param {string} comment The comment which is checked.
          * @returns {Array} All matched warning terms for this comment.
          */
         function commentContainsWarningTerm(comment) {
-            var matches = [];
+            const matches = [];
 
             warningRegExps.forEach(function(regex, index) {
                 if (regex.test(comment)) {
@@ -114,14 +114,19 @@ module.exports = {
                 return;
             }
 
-            var matches = commentContainsWarningTerm(node.value);
+            const matches = commentContainsWarningTerm(node.value);
 
             matches.forEach(function(matchedTerm) {
-                context.report(node, "Unexpected '" + matchedTerm + "' comment.");
+                context.report({
+                    node,
+                    message: "Unexpected '{{matchedTerm}}' comment.",
+                    data: {
+                        matchedTerm
+                    }
+                });
             });
         }
 
-        warningRegExps = warningTerms.map(convertToRegExp);
         return {
             BlockComment: checkComment,
             LineComment: checkComment

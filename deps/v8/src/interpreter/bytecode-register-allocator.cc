@@ -14,7 +14,8 @@ TemporaryRegisterAllocator::TemporaryRegisterAllocator(Zone* zone,
                                                        int allocation_base)
     : free_temporaries_(zone),
       allocation_base_(allocation_base),
-      allocation_count_(0) {}
+      allocation_count_(0),
+      observer_(nullptr) {}
 
 Register TemporaryRegisterAllocator::first_temporary_register() const {
   DCHECK(allocation_count() > 0);
@@ -24,6 +25,12 @@ Register TemporaryRegisterAllocator::first_temporary_register() const {
 Register TemporaryRegisterAllocator::last_temporary_register() const {
   DCHECK(allocation_count() > 0);
   return Register(allocation_base() + allocation_count() - 1);
+}
+
+void TemporaryRegisterAllocator::set_observer(
+    TemporaryRegisterObserver* observer) {
+  DCHECK(observer_ == nullptr);
+  observer_ = observer;
 }
 
 int TemporaryRegisterAllocator::AllocateTemporaryRegister() {
@@ -95,17 +102,6 @@ int TemporaryRegisterAllocator::PrepareForConsecutiveTemporaryRegisters(
       start = run_end;
       run_length = 0;
     }
-    Register reg_start(*start);
-    Register reg_expected(expected);
-    if (RegisterTranslator::DistanceToTranslationWindow(reg_start) > 0 &&
-        RegisterTranslator::DistanceToTranslationWindow(reg_expected) <= 0) {
-      // Run straddles the lower edge of the translation window. Registers
-      // after the start of this boundary are displaced by the register
-      // translator to provide a hole for translation. Runs either side
-      // of the boundary are fine.
-      start = run_end;
-      run_length = 0;
-    }
     if (++run_length == count) {
       return *start;
     }
@@ -121,16 +117,6 @@ int TemporaryRegisterAllocator::PrepareForConsecutiveTemporaryRegisters(
   // Pad temporaries if extended run would cross translation boundary.
   Register reg_first(*start);
   Register reg_last(*start + static_cast<int>(count) - 1);
-  DCHECK_GT(RegisterTranslator::DistanceToTranslationWindow(reg_first),
-            RegisterTranslator::DistanceToTranslationWindow(reg_last));
-  while (RegisterTranslator::DistanceToTranslationWindow(reg_first) > 0 &&
-         RegisterTranslator::DistanceToTranslationWindow(reg_last) <= 0) {
-    auto pos_insert_pair =
-        free_temporaries_.insert(AllocateTemporaryRegister());
-    reg_first = Register(*pos_insert_pair.first);
-    reg_last = Register(reg_first.index() + static_cast<int>(count) - 1);
-    run_length = 0;
-  }
 
   // Ensure enough registers for run.
   while (run_length++ < count) {
@@ -139,10 +125,6 @@ int TemporaryRegisterAllocator::PrepareForConsecutiveTemporaryRegisters(
 
   int run_start =
       last_temporary_register().index() - static_cast<int>(count) + 1;
-  DCHECK(RegisterTranslator::DistanceToTranslationWindow(Register(run_start)) <=
-             0 ||
-         RegisterTranslator::DistanceToTranslationWindow(
-             Register(run_start + static_cast<int>(count) - 1)) > 0);
   return run_start;
 }
 
@@ -165,6 +147,9 @@ void TemporaryRegisterAllocator::BorrowConsecutiveTemporaryRegister(
 void TemporaryRegisterAllocator::ReturnTemporaryRegister(int reg_index) {
   DCHECK(free_temporaries_.find(reg_index) == free_temporaries_.end());
   free_temporaries_.insert(reg_index);
+  if (observer_) {
+    observer_->TemporaryRegisterFreeEvent(Register(reg_index));
+  }
 }
 
 BytecodeRegisterAllocator::BytecodeRegisterAllocator(
@@ -181,7 +166,6 @@ BytecodeRegisterAllocator::~BytecodeRegisterAllocator() {
   allocated_.clear();
 }
 
-
 Register BytecodeRegisterAllocator::NewRegister() {
   int allocated = -1;
   if (next_consecutive_count_ <= 0) {
@@ -195,7 +179,6 @@ Register BytecodeRegisterAllocator::NewRegister() {
   return Register(allocated);
 }
 
-
 bool BytecodeRegisterAllocator::RegisterIsAllocatedInThisScope(
     Register reg) const {
   for (auto i = allocated_.begin(); i != allocated_.end(); i++) {
@@ -204,7 +187,6 @@ bool BytecodeRegisterAllocator::RegisterIsAllocatedInThisScope(
   return false;
 }
 
-
 void BytecodeRegisterAllocator::PrepareForConsecutiveAllocations(size_t count) {
   if (static_cast<int>(count) > next_consecutive_count_) {
     next_consecutive_register_ =
@@ -212,7 +194,6 @@ void BytecodeRegisterAllocator::PrepareForConsecutiveAllocations(size_t count) {
     next_consecutive_count_ = static_cast<int>(count);
   }
 }
-
 
 Register BytecodeRegisterAllocator::NextConsecutiveRegister() {
   DCHECK_GE(next_consecutive_register_, 0);

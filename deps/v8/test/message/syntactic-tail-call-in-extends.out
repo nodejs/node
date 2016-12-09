@@ -1,0 +1,4 @@
+*%(basename)s:9: SyntaxError: Tail call expression is not allowed here
+  return class A extends continue f() {};
+                         ^^^^^^^^^^^^
+SyntaxError: Tail call expression is not allowed here

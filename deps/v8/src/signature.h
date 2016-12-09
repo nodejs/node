@@ -14,7 +14,7 @@ namespace internal {
 template <typename T>
 class Signature : public ZoneObject {
  public:
-  Signature(size_t return_count, size_t parameter_count, T* reps)
+  Signature(size_t return_count, size_t parameter_count, const T* reps)
       : return_count_(return_count),
         parameter_count_(parameter_count),
         reps_(reps) {}
@@ -31,6 +31,8 @@ class Signature : public ZoneObject {
     DCHECK(index < return_count_);
     return reps_[index];
   }
+
+  const T* raw_data() const { return reps_; }
 
   // For incrementally building signatures.
   class Builder {
@@ -71,7 +73,7 @@ class Signature : public ZoneObject {
  protected:
   size_t return_count_;
   size_t parameter_count_;
-  T* reps_;
+  const T* reps_;
 };
 
 }  // namespace internal

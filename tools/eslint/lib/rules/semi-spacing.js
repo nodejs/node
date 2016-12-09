@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -37,12 +37,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var config = context.options[0],
-            requireSpaceBefore = false,
-            requireSpaceAfter = true,
+        const config = context.options[0],
             sourceCode = context.getSourceCode();
+        let requireSpaceBefore = false,
+            requireSpaceAfter = true;
 
         if (typeof config === "object") {
             if (config.hasOwnProperty("before")) {
@@ -59,7 +59,7 @@ module.exports = {
          * @returns {boolean} True if the given token has leading space, false if not.
          */
         function hasLeadingSpace(token) {
-            var tokenBefore = context.getTokenBefore(token);
+            const tokenBefore = sourceCode.getTokenBefore(token);
 
             return tokenBefore && astUtils.isTokenOnSameLine(tokenBefore, token) && sourceCode.isSpaceBetweenTokens(tokenBefore, token);
         }
@@ -70,7 +70,7 @@ module.exports = {
          * @returns {boolean} True if the given token has trailing space, false if not.
          */
         function hasTrailingSpace(token) {
-            var tokenAfter = context.getTokenAfter(token);
+            const tokenAfter = sourceCode.getTokenAfter(token);
 
             return tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter) && sourceCode.isSpaceBetweenTokens(token, tokenAfter);
         }
@@ -81,7 +81,7 @@ module.exports = {
          * @returns {boolean} Whether or not the token is the last in its line.
          */
         function isLastTokenInCurrentLine(token) {
-            var tokenAfter = context.getTokenAfter(token);
+            const tokenAfter = sourceCode.getTokenAfter(token);
 
             return !(tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter));
         }
@@ -92,7 +92,7 @@ module.exports = {
          * @returns {boolean} Whether or not the token is the first in its line.
          */
         function isFirstTokenInCurrentLine(token) {
-            var tokenBefore = context.getTokenBefore(token);
+            const tokenBefore = sourceCode.getTokenBefore(token);
 
             return !(tokenBefore && astUtils.isTokenOnSameLine(token, tokenBefore));
         }
@@ -103,7 +103,7 @@ module.exports = {
          * @returns {boolean} Whether or not the next token of a given token is a closing parenthesis.
          */
         function isBeforeClosingParen(token) {
-            var nextToken = context.getTokenAfter(token);
+            const nextToken = sourceCode.getTokenAfter(token);
 
             return (
                 nextToken &&
@@ -128,19 +128,17 @@ module.exports = {
          * @returns {void}
          */
         function checkSemicolonSpacing(token, node) {
-            var location;
-
             if (isSemicolon(token)) {
-                location = token.loc.start;
+                const location = token.loc.start;
 
                 if (hasLeadingSpace(token)) {
                     if (!requireSpaceBefore) {
                         context.report({
-                            node: node,
+                            node,
                             loc: location,
                             message: "Unexpected whitespace before semicolon.",
-                            fix: function(fixer) {
-                                var tokenBefore = context.getTokenBefore(token);
+                            fix(fixer) {
+                                const tokenBefore = sourceCode.getTokenBefore(token);
 
                                 return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                             }
@@ -149,10 +147,10 @@ module.exports = {
                 } else {
                     if (requireSpaceBefore) {
                         context.report({
-                            node: node,
+                            node,
                             loc: location,
                             message: "Missing whitespace before semicolon.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
                             }
                         });
@@ -163,11 +161,11 @@ module.exports = {
                     if (hasTrailingSpace(token)) {
                         if (!requireSpaceAfter) {
                             context.report({
-                                node: node,
+                                node,
                                 loc: location,
                                 message: "Unexpected whitespace after semicolon.",
-                                fix: function(fixer) {
-                                    var tokenAfter = context.getTokenAfter(token);
+                                fix(fixer) {
+                                    const tokenAfter = sourceCode.getTokenAfter(token);
 
                                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                                 }
@@ -176,10 +174,10 @@ module.exports = {
                     } else {
                         if (requireSpaceAfter) {
                             context.report({
-                                node: node,
+                                node,
                                 loc: location,
                                 message: "Missing whitespace after semicolon.",
-                                fix: function(fixer) {
+                                fix(fixer) {
                                     return fixer.insertTextAfter(token, " ");
                                 }
                             });
@@ -195,7 +193,7 @@ module.exports = {
          * @returns {void}
          */
         function checkNode(node) {
-            var token = context.getLastToken(node);
+            const token = sourceCode.getLastToken(node);
 
             checkSemicolonSpacing(token, node);
         }
@@ -208,13 +206,13 @@ module.exports = {
             DebuggerStatement: checkNode,
             ReturnStatement: checkNode,
             ThrowStatement: checkNode,
-            ForStatement: function(node) {
+            ForStatement(node) {
                 if (node.init) {
-                    checkSemicolonSpacing(context.getTokenAfter(node.init), node);
+                    checkSemicolonSpacing(sourceCode.getTokenAfter(node.init), node);
                 }
 
                 if (node.test) {
-                    checkSemicolonSpacing(context.getTokenAfter(node.test), node);
+                    checkSemicolonSpacing(sourceCode.getTokenAfter(node.test), node);
                 }
             }
         };

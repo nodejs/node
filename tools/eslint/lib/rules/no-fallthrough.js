@@ -8,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
+const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
 
 /**
  * Checks whether or not a given node has a fallthrough comment.
@@ -24,8 +24,8 @@ var DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
  * @returns {boolean} `true` if the node has a valid fallthrough comment.
  */
 function hasFallthroughComment(node, context, fallthroughCommentPattern) {
-    var sourceCode = context.getSourceCode();
-    var comment = lodash.last(sourceCode.getComments(node).leading);
+    const sourceCode = context.getSourceCode();
+    const comment = lodash.last(sourceCode.getComments(node).leading);
 
     return Boolean(comment && fallthroughCommentPattern.test(comment.value));
 }
@@ -74,17 +74,17 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var options = context.options[0] || {};
-        var currentCodePath = null;
-        var sourceCode = context.getSourceCode();
+    create(context) {
+        const options = context.options[0] || {};
+        let currentCodePath = null;
+        const sourceCode = context.getSourceCode();
 
         /*
          * We need to use leading comments of the next SwitchCase node because
          * trailing comments is wrong if semicolons are omitted.
          */
-        var fallthroughCase = null;
-        var fallthroughCommentPattern = null;
+        let fallthroughCase = null;
+        let fallthroughCommentPattern = null;
 
         if (options.commentPattern) {
             fallthroughCommentPattern = new RegExp(options.commentPattern);
@@ -93,14 +93,14 @@ module.exports = {
         }
 
         return {
-            onCodePathStart: function(codePath) {
+            onCodePathStart(codePath) {
                 currentCodePath = codePath;
             },
-            onCodePathEnd: function() {
+            onCodePathEnd() {
                 currentCodePath = currentCodePath.upper;
             },
 
-            SwitchCase: function(node) {
+            SwitchCase(node) {
 
                 /*
                  * Checks whether or not there is a fallthrough comment.
@@ -110,14 +110,14 @@ module.exports = {
                     context.report({
                         message: "Expected a 'break' statement before '{{type}}'.",
                         data: {type: node.test ? "case" : "default"},
-                        node: node
+                        node
                     });
                 }
                 fallthroughCase = null;
             },
 
-            "SwitchCase:exit": function(node) {
-                var nextToken = sourceCode.getTokenAfter(node);
+            "SwitchCase:exit"(node) {
+                const nextToken = sourceCode.getTokenAfter(node);
 
                 /*
                  * `reachable` meant fall through because statements preceded by

@@ -147,10 +147,10 @@ Type::bitset BitsetType::Lub(Type* type) {
   if (type->IsClass()) return type->AsClass()->Lub();
   if (type->IsConstant()) return type->AsConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
-  if (type->IsContext()) return kInternal & kTaggedPointer;
+  if (type->IsContext()) return kOtherInternal & kTaggedPointer;
   if (type->IsArray()) return kOtherObject;
   if (type->IsFunction()) return kFunction;
-  if (type->IsTuple()) return kInternal;
+  if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
   return kNone;
 }
@@ -187,28 +187,37 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       if (map == heap->undefined_map()) return kUndefined;
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
-      DCHECK(map == heap->the_hole_map() ||
-             map == heap->uninitialized_map() ||
+      if (map == heap->the_hole_map()) return kHole;
+      DCHECK(map == heap->uninitialized_map() ||
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
-             map == heap->arguments_marker_map());
-      return kInternal & kTaggedPointer;
+             map == heap->arguments_marker_map() ||
+             map == heap->optimized_out_map() ||
+             map == heap->stale_register_map());
+      return kOtherInternal & kTaggedPointer;
     }
     case HEAP_NUMBER_TYPE:
       return kNumber & kTaggedPointer;
     case SIMD128_VALUE_TYPE:
       return kSimd;
+    case JS_OBJECT_TYPE:
+    case JS_ARGUMENTS_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
+    case JS_GLOBAL_PROXY_TYPE:
+    case JS_API_OBJECT_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+      if (map->is_undetectable()) return kOtherUndetectable;
+      return kOtherObject;
     case JS_VALUE_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
-    case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
@@ -219,26 +228,15 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-      if (map->is_undetectable()) return kUndetectable;
+      DCHECK(!map->is_undetectable());
       return kOtherObject;
     case JS_FUNCTION_TYPE:
-      if (map->is_undetectable()) return kUndetectable;
+      DCHECK(!map->is_undetectable());
       return kFunction;
-    case JS_REGEXP_TYPE:
-      return kOtherObject;  // TODO(rossberg): there should be a RegExp type.
     case JS_PROXY_TYPE:
+      DCHECK(!map->is_undetectable());
       return kProxy;
     case MAP_TYPE:
-      // When compiling stub templates, the meta map is used as a place holder
-      // for the actual map with which the template is later instantiated.
-      // We treat it as a kind of type variable whose upper bound is Any.
-      // TODO(rossberg): for caching of CompareNilIC stubs to work correctly,
-      // we must exclude Undetectable here. This makes no sense, really,
-      // because it means that the template isn't actually parametric.
-      // Also, it doesn't apply elsewhere. 8-(
-      // We ought to find a cleaner solution for compiling stubs parameterised
-      // over type or class variables, esp ones with bounds...
-      return kDetectable & kTaggedPointer;
     case ALLOCATION_SITE_TYPE:
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
@@ -252,10 +250,10 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SCRIPT_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
-      return kInternal & kTaggedPointer;
+      return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do
-    // require bit set types, they should get kInternal & kTaggedPointer.
+    // require bit set types, they should get kOtherInternal & kTaggedPointer.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
 #define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
@@ -272,8 +270,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case CODE_CACHE_TYPE:
-    case POLYMORPHIC_CODE_CACHE_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case BOX_TYPE:

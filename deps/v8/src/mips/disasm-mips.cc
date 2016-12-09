@@ -1191,6 +1191,9 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case TNE:
       Format(instr, "tne     'rs, 'rt, code: 'code");
       break;
+    case SYNC:
+      Format(instr, "sync");
+      break;
     case MOVZ:
       Format(instr, "movz    'rd, 'rs, 'rt");
       break;
@@ -1261,11 +1264,30 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          UNREACHABLE();
+        case SEB: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "seb     'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
           break;
+        }
+        case SEH: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "seh     'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case WSBH: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "wsbh    'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1696,7 +1718,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -1759,8 +1781,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(f, "%p    %08x      %s\n",
-        prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+                         *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 

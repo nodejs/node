@@ -18,3 +18,6 @@ assert(r.context.console);
 
 // ensure that the repl console instance is not the global one
 assert.notStrictEqual(r.context.console, console);
+
+// ensure that the repl console instance does not have a setter
+assert.throws(() => r.context.console = 'foo', TypeError);

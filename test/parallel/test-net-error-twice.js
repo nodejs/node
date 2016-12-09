@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -27,8 +27,8 @@ var srv = net.createServer(function onConnection(conn) {
   });
   serverSocket = conn;
   ready();
-}).listen(common.PORT, function() {
-  var client = net.connect({ port: common.PORT });
+}).listen(0, function() {
+  var client = net.connect({ port: this.address().port });
 
   client.on('connect', function() {
     clientSocket = client;

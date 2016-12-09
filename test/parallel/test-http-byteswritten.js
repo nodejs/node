@@ -1,24 +1,17 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
 var body = 'hello world\n';
 
-var sawFinish = false;
-process.on('exit', function() {
-  assert(sawFinish);
-  console.log('ok');
-});
-
-var httpServer = http.createServer(function(req, res) {
+var httpServer = http.createServer(common.mustCall(function(req, res) {
   httpServer.close();
 
-  res.on('finish', function() {
-    sawFinish = true;
-    assert(typeof req.connection.bytesWritten === 'number');
+  res.on('finish', common.mustCall(function() {
+    assert.strictEqual(typeof req.connection.bytesWritten, 'number');
     assert(req.connection.bytesWritten > 0);
-  });
+  }));
   res.writeHead(200, { 'Content-Type': 'text/plain' });
 
   // Write 1.5mb to cause some requests to buffer
@@ -34,8 +27,8 @@ var httpServer = http.createServer(function(req, res) {
   assert(res.connection.bytesWritten > 0);
 
   res.end(body);
-});
+}));
 
-httpServer.listen(common.PORT, function() {
-  http.get({ port: common.PORT });
+httpServer.listen(0, function() {
+  http.get({ port: this.address().port });
 });

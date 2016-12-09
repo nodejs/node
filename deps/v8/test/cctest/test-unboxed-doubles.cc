@@ -12,11 +12,10 @@
 #include "src/factory.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
-#include "src/heap/slots-buffer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -1113,9 +1112,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
-    SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
-                                    Strength::WEAK, TENURED);
+    heap::SimulateFullSpace(old_space);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
   }
 
@@ -1144,7 +1142,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
   ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-  SimulateIncrementalMarking(heap);
+  heap::SimulateIncrementalMarking(heap);
   // Disable stress compaction mode in order to let GC do scavenge.
   FLAG_stress_compaction = false;
 
@@ -1153,7 +1151,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // in compacting mode and |obj_value|'s page is an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsCompacting());
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger GCs so that |obj| moves to old gen.
@@ -1453,9 +1451,8 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
     CHECK(old_space->Contains(*obj));
 
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
-    SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
-                                    Strength::WEAK, TENURED);
+    heap::SimulateFullSpace(old_space);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
     CHECK_NE(ec_page, Page::FromAddress(obj->address()));
   }
@@ -1463,29 +1460,22 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // Heap is ready, force |ec_page| to become an evacuation candidate and
   // simulate incremental marking.
   ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-  SimulateIncrementalMarking(heap);
+  heap::SimulateIncrementalMarking(heap);
 
   // Check that everything is ready for triggering incremental write barrier
   // (i.e. that both |obj| and |obj_value| are black and the marking phase is
   // still active and |obj_value|'s page is indeed an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking());
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj_value)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj_value)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  // Trigger incremental write barrier, which should add a slot to |ec_page|'s
-  // slots buffer.
+  // Trigger incremental write barrier, which should add a slot to remembered
+  // set.
   {
-    int slots_buffer_len = SlotsBuffer::SizeOfChain(ec_page->slots_buffer());
     FieldIndex index = FieldIndex::ForDescriptor(*map, tagged_descriptor);
-    const int n = SlotsBuffer::kNumberOfElements + 10;
-    for (int i = 0; i < n; i++) {
-      obj->FastPropertyAtPut(index, *obj_value);
-    }
-    // Ensure that the slot was actually added to the |ec_page|'s slots buffer.
-    CHECK_EQ(slots_buffer_len + n,
-             SlotsBuffer::SizeOfChain(ec_page->slots_buffer()));
+    obj->FastPropertyAtPut(index, *obj_value);
   }
 
   // Migrate |obj| to |new_map| which should shift fields and put the
@@ -1514,10 +1504,12 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
 }
 
-
-enum WriteBarrierKind { OLD_TO_OLD_WRITE_BARRIER, OLD_TO_NEW_WRITE_BARRIER };
+enum OldToWriteBarrierKind {
+  OLD_TO_OLD_WRITE_BARRIER,
+  OLD_TO_NEW_WRITE_BARRIER
+};
 static void TestWriteBarrierObjectShiftFieldsRight(
-    WriteBarrierKind write_barrier_kind) {
+    OldToWriteBarrierKind write_barrier_kind) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());

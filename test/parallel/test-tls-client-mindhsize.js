@@ -38,13 +38,13 @@ function test(size, err, next) {
     if (next) next();
   });
 
-  server.listen(common.PORT, '127.0.0.1', function() {
+  server.listen(0, '127.0.0.1', function() {
     // client set minimum DH parameter size to 2048 bits so that
     // it fails when it make a connection to the tls server where
     // dhparams is 1024 bits
     var client = tls.connect({
       minDHSize: 2048,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, function() {
       nsuccess++;
@@ -75,7 +75,7 @@ function testDHE2048() {
 
 testDHE1024();
 
-assert.throws(() => test(512, true, assert.fail),
+assert.throws(() => test(512, true, common.fail),
               /DH parameter is less than 1024 bits/);
 
 [0, -1, -Infinity, NaN].forEach((minDHSize) => {

@@ -875,6 +875,7 @@ class AndroidMkWriter(object):
       self.WriteLn('LOCAL_PRELINK_MODULE := false')
       self.WriteLn('include $(BUILD_%sSHARED_LIBRARY)' % modifier)
     elif self.type == 'executable':
+      self.WriteLn('LOCAL_CXX_STL := libc++_static')
       # Executables are for build and test purposes only, so they're installed
       # to a directory that doesn't get included in the system image.
       self.WriteLn('LOCAL_MODULE_PATH := $(gyp_shared_intermediate_dir)')
@@ -1080,7 +1081,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   root_makefile.write('GYP_CONFIGURATION ?= %s\n' % default_configuration)
   root_makefile.write('GYP_VAR_PREFIX ?=\n')
   root_makefile.write('GYP_HOST_VAR_PREFIX ?=\n')
-  root_makefile.write('GYP_HOST_MULTILIB ?=\n')
+  root_makefile.write('GYP_HOST_MULTILIB ?= first\n')
 
   # Write out the sorted list of includes.
   root_makefile.write('\n')

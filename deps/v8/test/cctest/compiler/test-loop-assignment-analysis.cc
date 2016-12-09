@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/ast/scopes.h"
+#include "src/compiler.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
@@ -31,13 +33,13 @@ struct TestHelper : public HandleAndZoneScope {
   void CheckLoopAssignedCount(int expected, const char* var_name) {
     // TODO(titzer): don't scope analyze every single time.
     ParseInfo parse_info(main_zone(), function);
-    CompilationInfo info(&parse_info);
+    CompilationInfo info(&parse_info, function);
 
     CHECK(Parser::ParseStatic(&parse_info));
     CHECK(Rewriter::Rewrite(&parse_info));
-    CHECK(Scope::Analyze(&parse_info));
+    Scope::Analyze(&parse_info);
 
-    Scope* scope = info.literal()->scope();
+    DeclarationScope* scope = info.literal()->scope();
     AstValueFactory* factory = parse_info.ast_value_factory();
     CHECK(scope);
 

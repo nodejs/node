@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 var net = require('net');
@@ -21,7 +21,7 @@ var createConnection = function(index) {
   console.error('creating connection ' + index);
 
   return new Promise(function(resolve, reject) {
-    var connection = net.createConnection(common.PORT, function() {
+    var connection = net.createConnection(server.address().port, function() {
       var msg = '' + index;
       console.error('sending message: ' + msg);
       this.write(msg);
@@ -67,14 +67,14 @@ var server = net.createServer(function(socket) {
 
 server.maxConnections = 1;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   createConnection(0)
-  .then(createConnection.bind(null, 1))
-  .then(closeConnection.bind(null, 0))
-  .then(createConnection.bind(null, 2))
-  .then(createConnection.bind(null, 3))
-  .then(server.close.bind(server))
-  .then(closeConnection.bind(null, 2));
+    .then(createConnection.bind(null, 1))
+    .then(closeConnection.bind(null, 0))
+    .then(createConnection.bind(null, 2))
+    .then(createConnection.bind(null, 3))
+    .then(server.close.bind(server))
+    .then(closeConnection.bind(null, 2));
 });
 
 process.on('exit', function() {
@@ -86,5 +86,5 @@ process.on('exit', function() {
 
 process.on('unhandledRejection', function() {
   console.error('promise rejected');
-  assert.fail(null, null, 'A promise in the chain rejected');
+  common.fail('A promise in the chain rejected');
 });

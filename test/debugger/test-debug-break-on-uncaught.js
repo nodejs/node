@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 const path = require('path');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const common = require('../common');
 const debug = require('_debugger');
 
 var scenarios = [];

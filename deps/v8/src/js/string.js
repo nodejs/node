@@ -9,75 +9,27 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayIndexOf;
 var ArrayJoin;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var InternalArray = utils.InternalArray;
-var InternalPackedArray = utils.InternalPackedArray;
-var MakeRangeError;
-var MakeTypeError;
+var IsRegExp;
 var MaxSimple;
 var MinSimple;
+var RegExpInitialize;
 var matchSymbol = utils.ImportNow("match_symbol");
-var RegExpExecNoTests;
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.Import(function(from) {
-  ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
-  MakeRangeError = from.MakeRangeError;
-  MakeTypeError = from.MakeTypeError;
+  IsRegExp = from.IsRegExp;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  RegExpExecNoTests = from.RegExpExecNoTests;
+  RegExpInitialize = from.RegExpInitialize;
 });
 
 //-------------------------------------------------------------------
-
-// ECMA-262 section 15.5.4.2
-function StringToString() {
-  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
-    throw MakeTypeError(kNotGeneric, 'String.prototype.toString');
-  }
-  return %_ValueOf(this);
-}
-
-
-// ECMA-262 section 15.5.4.3
-function StringValueOf() {
-  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
-    throw MakeTypeError(kNotGeneric, 'String.prototype.valueOf');
-  }
-  return %_ValueOf(this);
-}
-
-
-// ECMA-262, section 15.5.4.4
-function StringCharAtJS(pos) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.charAt");
-
-  var result = %_StringCharAt(this, pos);
-  if (%_IsSmi(result)) {
-    result = %_StringCharAt(TO_STRING(this), TO_INTEGER(pos));
-  }
-  return result;
-}
-
-
-// ECMA-262 section 15.5.4.5
-function StringCharCodeAtJS(pos) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.charCodeAt");
-
-  var result = %_StringCharCodeAt(this, pos);
-  if (!%_IsSmi(result)) {
-    result = %_StringCharCodeAt(TO_STRING(this), TO_INTEGER(pos));
-  }
-  return result;
-}
-
 
 // ECMA-262, section 15.5.4.6
 function StringConcat(other /* and more */) {  // length == 1
@@ -159,9 +111,10 @@ function StringMatchJS(pattern) {
 
   var subject = TO_STRING(this);
 
-  // Non-regexp argument.
-  var regexp = new GlobalRegExp(pattern);
-  return RegExpExecNoTests(regexp, subject, 0);
+  // Equivalent to RegExpCreate (ES#sec-regexpcreate)
+  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
+  RegExpInitialize(regexp, pattern);
+  return regexp[matchSymbol](subject);
 }
 
 
@@ -177,9 +130,9 @@ function StringNormalize(formArg) {  // length == 0
   var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-  var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
+  var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
   if (normalizationForm === -1) {
-    throw MakeRangeError(kNormalizationForm,
+    throw %make_range_error(kNormalizationForm,
                          %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
   }
 
@@ -355,7 +308,10 @@ function StringSearch(pattern) {
   }
 
   var subject = TO_STRING(this);
-  var regexp = new GlobalRegExp(pattern);
+
+  // Equivalent to RegExpCreate (ES#sec-regexpcreate)
+  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
+  RegExpInitialize(regexp, pattern);
   return %_Call(regexp[searchSymbol], regexp, subject);
 }
 
@@ -467,43 +423,19 @@ function StringSubstring(start, end) {
 }
 
 
-// ES6 draft, revision 26 (2014-07-18), section B.2.3.1
-function StringSubstr(start, n) {
+// ecma262/#sec-string.prototype.substr
+function StringSubstr(start, length) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.substr");
-
   var s = TO_STRING(this);
-  var len;
+  var size = s.length;
+  start = TO_INTEGER(start);
+  length = IS_UNDEFINED(length) ? size : TO_INTEGER(length);
 
-  // Correct n: If not given, set to string length; if explicitly
-  // set to undefined, zero, or negative, returns empty string.
-  if (IS_UNDEFINED(n)) {
-    len = s.length;
-  } else {
-    len = TO_INTEGER(n);
-    if (len <= 0) return '';
-  }
+  if (start < 0) start = MaxSimple(size + start, 0);
+  length = MinSimple(MaxSimple(length, 0), size - start);
 
-  // Correct start: If not given (or undefined), set to zero; otherwise
-  // convert to integer and handle negative case.
-  if (IS_UNDEFINED(start)) {
-    start = 0;
-  } else {
-    start = TO_INTEGER(start);
-    // If positive, and greater than or equal to the string length,
-    // return empty string.
-    if (start >= s.length) return '';
-    // If negative and absolute value is larger than the string length,
-    // use zero.
-    if (start < 0) {
-      start += s.length;
-      if (start < 0) start = 0;
-    }
-  }
-
-  var end = start + len;
-  if (end > s.length) end = s.length;
-
-  return %_SubString(s, start, end);
+  if (length <= 0) return '';
+  return %_SubString(s, start, start + length);
 }
 
 
@@ -536,37 +468,6 @@ function StringToLocaleUpperCase() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
 
   return %StringToUpperCase(TO_STRING(this));
-}
-
-// ES5, 15.5.4.20
-function StringTrimJS() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trim");
-
-  return %StringTrim(TO_STRING(this), true, true);
-}
-
-function StringTrimLeft() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimLeft");
-
-  return %StringTrim(TO_STRING(this), true, false);
-}
-
-function StringTrimRight() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimRight");
-
-  return %StringTrim(TO_STRING(this), false, true);
-}
-
-
-// ECMA-262, section 15.5.3.2
-function StringFromCharCode(_) {  // length == 1
-  "use strict";
-  var s = "";
-  var n = arguments.length;
-  for (var i = 0; i < n; ++i) {
-    s += %_StringCharFromCode(arguments[i] & 0xffff);
-  }
-  return s;
 }
 
 
@@ -676,14 +577,14 @@ function StringRepeat(count) {
   var s = TO_STRING(this);
   var n = TO_INTEGER(count);
 
-  if (n < 0 || n === INFINITY) throw MakeRangeError(kInvalidCountValue);
+  if (n < 0 || n === INFINITY) throw %make_range_error(kInvalidCountValue);
 
   // Early return to allow an arbitrarily-large repeat of the empty string.
   if (s.length === 0) return "";
 
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
+  if (n > %_MaxSmi()) throw %make_range_error(kInvalidCountValue);
 
   var r = "";
   while (true) {
@@ -701,8 +602,8 @@ function StringStartsWith(searchString, position) {  // length == 1
 
   var s = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
-    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
+  if (IsRegExp(searchString)) {
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
   var ss = TO_STRING(searchString);
@@ -727,8 +628,8 @@ function StringEndsWith(searchString, position) {  // length == 1
 
   var s = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
-    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
+  if (IsRegExp(searchString)) {
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
   var ss = TO_STRING(searchString);
@@ -754,8 +655,8 @@ function StringIncludes(searchString, position) {  // length == 1
 
   var string = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
-    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
+  if (IsRegExp(searchString)) {
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
   searchString = TO_STRING(searchString);
@@ -798,33 +699,6 @@ function StringCodePointAt(pos) {
 }
 
 
-// ES6 Draft 05-22-2014, section 21.1.2.2
-function StringFromCodePoint(_) {  // length = 1
-  "use strict";
-  var code;
-  var length = arguments.length;
-  var index;
-  var result = "";
-  for (index = 0; index < length; index++) {
-    code = arguments[index];
-    if (!%_IsSmi(code)) {
-      code = TO_NUMBER(code);
-    }
-    if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
-      throw MakeRangeError(kInvalidCodePoint, code);
-    }
-    if (code <= 0xFFFF) {
-      result += %_StringCharFromCode(code);
-    } else {
-      code -= 0x10000;
-      result += %_StringCharFromCode((code >>> 10) & 0x3FF | 0xD800);
-      result += %_StringCharFromCode(code & 0x3FF | 0xDC00);
-    }
-  }
-  return result;
-}
-
-
 // -------------------------------------------------------------------
 // String methods related to templates
 
@@ -851,26 +725,13 @@ function StringRaw(callSite) {
 
 // -------------------------------------------------------------------
 
-// Set the String function and constructor.
-%FunctionSetPrototype(GlobalString, new GlobalString());
-
-// Set up the constructor property on the String prototype object.
-%AddNamedProperty(
-    GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
-
 // Set up the non-enumerable functions on the String object.
 utils.InstallFunctions(GlobalString, DONT_ENUM, [
-  "fromCharCode", StringFromCharCode,
-  "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
 ]);
 
 // Set up the non-enumerable functions on the String prototype object.
 utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
-  "valueOf", StringValueOf,
-  "toString", StringToString,
-  "charAt", StringCharAtJS,
-  "charCodeAt", StringCharCodeAtJS,
   "codePointAt", StringCodePointAt,
   "concat", StringConcat,
   "endsWith", StringEndsWith,
@@ -892,9 +753,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "toLocaleLowerCase", StringToLocaleLowerCase,
   "toUpperCase", StringToUpperCaseJS,
   "toLocaleUpperCase", StringToLocaleUpperCase,
-  "trim", StringTrimJS,
-  "trimLeft", StringTrimLeft,
-  "trimRight", StringTrimRight,
 
   "link", StringLink,
   "anchor", StringAnchor,
@@ -916,7 +774,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 
 utils.Export(function(to) {
   to.ExpandReplacement = ExpandReplacement;
-  to.StringCharAt = StringCharAtJS;
   to.StringIndexOf = StringIndexOf;
   to.StringLastIndexOf = StringLastIndexOf;
   to.StringMatch = StringMatchJS;

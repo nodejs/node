@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
@@ -135,7 +137,7 @@ TEST_F(SchedulerRPOTest, EntryLoop) {
 
 TEST_F(SchedulerRPOTest, EndLoop) {
   Schedule schedule(zone());
-  base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
+  std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, 2));
   schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
   CheckRPONumbers(order, 3, true);
@@ -144,7 +146,7 @@ TEST_F(SchedulerRPOTest, EndLoop) {
 
 TEST_F(SchedulerRPOTest, EndLoopNested) {
   Schedule schedule(zone());
-  base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
+  std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, 2));
   schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
   schedule.AddSuccessorForTesting(loop1->last(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
@@ -318,8 +320,8 @@ TEST_F(SchedulerRPOTest, LoopNest2) {
 TEST_F(SchedulerRPOTest, LoopFollow1) {
   Schedule schedule(zone());
 
-  base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
-  base::SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
+  std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, 1));
+  std::unique_ptr<TestLoop> loop2(CreateLoop(&schedule, 1));
 
   BasicBlock* A = schedule.start();
   BasicBlock* E = schedule.end();
@@ -338,8 +340,8 @@ TEST_F(SchedulerRPOTest, LoopFollow1) {
 TEST_F(SchedulerRPOTest, LoopFollow2) {
   Schedule schedule(zone());
 
-  base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
-  base::SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
+  std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, 1));
+  std::unique_ptr<TestLoop> loop2(CreateLoop(&schedule, 1));
 
   BasicBlock* A = schedule.start();
   BasicBlock* S = schedule.NewBasicBlock();
@@ -361,8 +363,8 @@ TEST_F(SchedulerRPOTest, LoopFollowN) {
   for (int size = 1; size < 5; size++) {
     for (int exit = 0; exit < size; exit++) {
       Schedule schedule(zone());
-      base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
-      base::SmartPointer<TestLoop> loop2(CreateLoop(&schedule, size));
+      std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, size));
+      std::unique_ptr<TestLoop> loop2(CreateLoop(&schedule, size));
       BasicBlock* A = schedule.start();
       BasicBlock* E = schedule.end();
 
@@ -381,8 +383,8 @@ TEST_F(SchedulerRPOTest, LoopFollowN) {
 TEST_F(SchedulerRPOTest, NestedLoopFollow1) {
   Schedule schedule(zone());
 
-  base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
-  base::SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
+  std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, 1));
+  std::unique_ptr<TestLoop> loop2(CreateLoop(&schedule, 1));
 
   BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
@@ -414,7 +416,7 @@ TEST_F(SchedulerRPOTest, LoopBackedges1) {
       BasicBlock* A = schedule.start();
       BasicBlock* E = schedule.end();
 
-      base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
+      std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, size));
       schedule.AddSuccessorForTesting(A, loop1->header());
       schedule.AddSuccessorForTesting(loop1->last(), E);
 
@@ -437,7 +439,7 @@ TEST_F(SchedulerRPOTest, LoopOutedges1) {
       BasicBlock* D = schedule.NewBasicBlock();
       BasicBlock* E = schedule.end();
 
-      base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
+      std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, size));
       schedule.AddSuccessorForTesting(A, loop1->header());
       schedule.AddSuccessorForTesting(loop1->last(), E);
 
@@ -459,7 +461,7 @@ TEST_F(SchedulerRPOTest, LoopOutedges2) {
     BasicBlock* A = schedule.start();
     BasicBlock* E = schedule.end();
 
-    base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
+    std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, size));
     schedule.AddSuccessorForTesting(A, loop1->header());
     schedule.AddSuccessorForTesting(loop1->last(), E);
 
@@ -481,7 +483,7 @@ TEST_F(SchedulerRPOTest, LoopOutloops1) {
     Schedule schedule(zone());
     BasicBlock* A = schedule.start();
     BasicBlock* E = schedule.end();
-    base::SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
+    std::unique_ptr<TestLoop> loop1(CreateLoop(&schedule, size));
     schedule.AddSuccessorForTesting(A, loop1->header());
     schedule.AddSuccessorForTesting(loop1->last(), E);
 

@@ -1,8 +1,14 @@
 /**
- * @fileoverview Require file to end with single newline.
+ * @fileoverview Require or disallow newline at the end of files
  * @author Nodeca Team <https://github.com/nodeca>
  */
 "use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -11,52 +17,78 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce at least one newline at the end of files",
+            description: "require or disallow newline at the end of files",
             category: "Stylistic Issues",
             recommended: false
         },
-
         fixable: "whitespace",
-
         schema: [
             {
-                enum: ["unix", "windows"]
+                enum: ["always", "never", "unix", "windows"]
             }
         ]
     },
-
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
-
             Program: function checkBadEOF(node) {
+                const sourceCode = context.getSourceCode(),
+                    src = sourceCode.getText(),
+                    location = {
+                        column: lodash.last(sourceCode.lines).length,
+                        line: sourceCode.lines.length
+                    },
+                    LF = "\n",
+                    CRLF = `\r${LF}`,
+                    endsWithNewline = lodash.endsWith(src, LF);
 
-                // Get the whole source code, not for node only.
-                var src = context.getSource(),
-                    location = {column: 1},
-                    linebreakStyle = context.options[0] || "unix",
-                    linebreak = linebreakStyle === "unix" ? "\n" : "\r\n";
+                let mode = context.options[0] || "always",
+                    appendCRLF = false;
 
-                if (src[src.length - 1] !== "\n") {
+                if (mode === "unix") {
 
-                    // file is not newline-terminated
-                    location.line = src.split(/\n/g).length;
+                    // `"unix"` should behave exactly as `"always"`
+                    mode = "always";
+                }
+                if (mode === "windows") {
+
+                    // `"windows"` should behave exactly as `"always"`, but append CRLF in the fixer for backwards compatibility
+                    mode = "always";
+                    appendCRLF = true;
+                }
+                if (mode === "always" && !endsWithNewline) {
+
+                    // File is not newline-terminated, but should be
                     context.report({
-                        node: node,
+                        node,
                         loc: location,
                         message: "Newline required at end of file but not found.",
-                        fix: function(fixer) {
-                            return fixer.insertTextAfterRange([0, src.length], linebreak);
+                        fix(fixer) {
+                            return fixer.insertTextAfterRange([0, src.length], appendCRLF ? CRLF : LF);
+                        }
+                    });
+                } else if (mode === "never" && endsWithNewline) {
+
+                    // File is newline-terminated, but shouldn't be
+                    context.report({
+                        node,
+                        loc: location,
+                        message: "Newline not allowed at end of file.",
+                        fix(fixer) {
+                            const finalEOLs = /(?:\r?\n)+$/,
+                                match = finalEOLs.exec(sourceCode.text),
+                                start = match.index,
+                                end = sourceCode.text.length;
+
+                            return fixer.replaceTextRange([start, end], "");
                         }
                     });
                 }
             }
-
         };
-
     }
 };

@@ -1,42 +1,32 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var serverGotEnd = false;
-var clientGotEnd = false;
-
-var server = net.createServer({allowHalfOpen: true}, function(socket) {
+var server = net.createServer({
+  allowHalfOpen: true
+}, common.mustCall(function(socket) {
   socket.resume();
-  socket.on('end', function() {
-    serverGotEnd = true;
-  });
+  socket.on('end', common.mustCall(function() {}));
   socket.end();
-});
+}));
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var client = net.connect({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     allowHalfOpen: true
-  }, function() {
+  }, common.mustCall(function() {
     console.error('client connect cb');
     client.resume();
-    client.on('end', function() {
-      clientGotEnd = true;
+    client.on('end', common.mustCall(function() {
       setTimeout(function() {
         assert(client.writable);
         client.end();
       }, 10);
-    });
+    }));
     client.on('close', function() {
       server.close();
     });
-  });
-});
-
-process.on('exit', function() {
-  console.error('exit', serverGotEnd, clientGotEnd);
-  assert(serverGotEnd);
-  assert(clientGotEnd);
+  }));
 });

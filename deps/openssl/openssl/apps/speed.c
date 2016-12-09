@@ -2614,6 +2614,10 @@ static int do_multi(int multi)
     static char sep[] = ":";
 
     fds = malloc(multi * sizeof *fds);
+    if (fds == NULL) {
+        fprintf(stderr, "Out of memory in speed (do_multi)\n");
+        exit(1);
+    }
     for (n = 0; n < multi; ++n) {
         if (pipe(fd) == -1) {
             fprintf(stderr, "pipe failure\n");

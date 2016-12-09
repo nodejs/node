@@ -1,15 +1,14 @@
 'use strict';
 
-var common = require('../common');
-
-var path = require('path');
-var fs = require('fs');
-const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
-
+const common = require('../common');
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
+
+const path = require('path');
+const fs = require('fs');
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 var tls = require('tls');
 
@@ -35,9 +34,9 @@ server.on('resumeSession', function(id, cb) {
   next();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var clientOpts = {
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false,
     session: false
   };

@@ -11,11 +11,11 @@ const zipper = new zlib.Gzip();
 zipper.on('close', shouldNotBeCalled);
 
 const buffer = new Buffer(message);
-const zipped = zipper._processChunk(buffer, zlib.Z_FINISH);
+const zipped = zipper._processChunk(buffer, zlib.constants.Z_FINISH);
 
 const unzipper = new zlib.Gunzip();
 unzipper.on('close', shouldNotBeCalled);
 
-const unzipped = unzipper._processChunk(zipped, zlib.Z_FINISH);
+const unzipped = unzipper._processChunk(zipped, zlib.constants.Z_FINISH);
 assert.notEqual(zipped.toString(), message);
 assert.strictEqual(unzipped.toString(), message);

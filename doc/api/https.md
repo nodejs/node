@@ -1,29 +1,44 @@
 # HTTPS
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
 ## Class: https.Agent
+<!-- YAML
+added: v0.4.5
+-->
 
 An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
 for more information.
 
 ## Class: https.Server
+<!-- YAML
+added: v0.3.4
+-->
 
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
 ### server.setTimeout(msecs, callback)
+<!-- YAML
+added: v0.11.2
+-->
 
 See [`http.Server#setTimeout()`][].
 
 ### server.timeout
+<!-- YAML
+added: v0.11.2
+-->
 
 See [`http.Server#timeout`][].
 
 ## https.createServer(options[, requestListener])
+<!-- YAML
+added: v0.3.4
+-->
 
 Returns a new HTTPS web server object. The `options` is similar to
 [`tls.createServer()`][].  The `requestListener` is a function which is
@@ -64,6 +79,9 @@ https.createServer(options, (req, res) => {
 ```
 
 ### server.close([callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 See [`http.close()`][] for details.
 
@@ -74,6 +92,9 @@ See [`http.close()`][] for details.
 See [`http.listen()`][] for details.
 
 ## https.get(options, callback)
+<!-- YAML
+added: v0.3.6
+-->
 
 Like [`http.get()`][] but for HTTPS.
 
@@ -86,8 +107,8 @@ Example:
 const https = require('https');
 
 https.get('https://encrypted.google.com/', (res) => {
-  console.log('statusCode: ', res.statusCode);
-  console.log('headers: ', res.headers);
+  console.log('statusCode:', res.statusCode);
+  console.log('headers:', res.headers);
 
   res.on('data', (d) => {
     process.stdout.write(d);
@@ -99,10 +120,16 @@ https.get('https://encrypted.google.com/', (res) => {
 ```
 
 ## https.globalAgent
+<!-- YAML
+added: v0.5.9
+-->
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## https.request(options, callback)
+<!-- YAML
+added: v0.3.6
+-->
 
 Makes a request to a secure web server.
 
@@ -124,18 +151,18 @@ var options = {
 };
 
 var req = https.request(options, (res) => {
-  console.log('statusCode: ', res.statusCode);
-  console.log('headers: ', res.headers);
+  console.log('statusCode:', res.statusCode);
+  console.log('headers:', res.headers);
 
   res.on('data', (d) => {
     process.stdout.write(d);
   });
 });
-req.end();
 
 req.on('error', (e) => {
   console.error(e);
 });
+req.end();
 ```
 
 The options argument has the following options
@@ -165,8 +192,7 @@ The options argument has the following options
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
 
-The following options from [`tls.connect()`][] can also be specified. However, a
-[`globalAgent`][] silently ignores these.
+The following options from [`tls.connect()`][] can also be specified:
 
 - `pfx`: Certificate, Private key and CA certificates to use for SSL. Default `null`.
 - `key`: Private key to use for SSL. Default `null`.
@@ -176,7 +202,7 @@ The following options from [`tls.connect()`][] can also be specified. However, a
   certificates in PEM format. If this is omitted several well known "root"
   CAs will be used, like VeriSign. These are used to authorize connections.
 - `ciphers`: A string describing the ciphers to use or exclude. Consult
-  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT> for
+  <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT> for
   details on the format.
 - `rejectUnauthorized`: If `true`, the server certificate is verified against
   the list of supplied CAs. An `'error'` event is emitted if verification
@@ -204,7 +230,7 @@ options.agent = new https.Agent(options);
 
 var req = https.request(options, (res) => {
   ...
-}
+});
 ```
 
 Alternatively, opt out of connection pooling by not using an `Agent`.
@@ -224,7 +250,7 @@ var options = {
 
 var req = https.request(options, (res) => {
   ...
-}
+});
 ```
 
 [`Agent`]: #https_class_https_agent
@@ -240,7 +266,7 @@ var req = https.request(options, (res) => {
 [`http.Server`]: http.html#http_class_http_server
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
-[`SSL_METHODS`]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[`url.parse()`]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
+[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost

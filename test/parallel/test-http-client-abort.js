@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -27,17 +27,17 @@ var responses = 0;
 const N = 8;
 const requests = [];
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.log('Server listening.');
 
   for (var i = 0; i < N; i++) {
     console.log('Making client ' + i);
-    var options = { port: common.PORT, path: '/?id=' + i };
+    var options = { port: this.address().port, path: '/?id=' + i };
     var req = http.get(options, function(res) {
       console.log('Client response code ' + res.statusCode);
 
       res.resume();
-      if (++responses == N) {
+      if (++responses === N) {
         console.log('All clients connected, destroying.');
         requests.forEach(function(outReq) {
           console.log('abort');

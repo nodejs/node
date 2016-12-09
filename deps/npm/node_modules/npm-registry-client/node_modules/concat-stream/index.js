@@ -73,6 +73,10 @@ function isArrayish (arr) {
   return /Array\]$/.test(Object.prototype.toString.call(arr))
 }
 
+function isBufferish (p) {
+  return typeof p === 'string' || isArrayish(p) || (p && typeof p.subarray === 'function')
+}
+
 function stringConcat (parts) {
   var strings = []
   var needsToString = false
@@ -82,8 +86,10 @@ function stringConcat (parts) {
       strings.push(p)
     } else if (Buffer.isBuffer(p)) {
       strings.push(p)
+    } else if (isBufferish(p)) {
+      strings.push(new Buffer(p))
     } else {
-      strings.push(Buffer(p))
+      strings.push(new Buffer(String(p)))
     }
   }
   if (Buffer.isBuffer(parts[0])) {
@@ -101,10 +107,11 @@ function bufferConcat (parts) {
     var p = parts[i]
     if (Buffer.isBuffer(p)) {
       bufs.push(p)
-    } else if (typeof p === 'string' || isArrayish(p)
-    || (p && typeof p.subarray === 'function')) {
-      bufs.push(Buffer(p))
-    } else bufs.push(Buffer(String(p)))
+    } else if (isBufferish(p)) {
+      bufs.push(new Buffer(p))
+    } else {
+      bufs.push(new Buffer(String(p)))
+    }
   }
   return Buffer.concat(bufs)
 }
@@ -121,7 +128,7 @@ function u8Concat (parts) {
   var len = 0
   for (var i = 0; i < parts.length; i++) {
     if (typeof parts[i] === 'string') {
-      parts[i] = Buffer(parts[i])
+      parts[i] = new Buffer(parts[i])
     }
     len += parts[i].length
   }

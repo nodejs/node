@@ -1,13 +1,16 @@
 'use strict';
 
 var common = require('../common.js');
-var FreeList = require('internal/freelist').FreeList;
 
 var bench = common.createBenchmark(main, {
   n: [100000]
 });
 
 function main(conf) {
+  // Using internal/freelist requires node to be run with --expose_internals
+  // switch. common.js will do that when calling main(), so we require
+  // this module here
+  const FreeList = require('internal/freelist').FreeList;
   var n = conf.n;
   var poolSize = 1000;
   var list = new FreeList('test', poolSize, Object);

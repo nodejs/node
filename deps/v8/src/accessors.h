@@ -22,6 +22,9 @@ class AccessorInfo;
 #define ACCESSOR_INFO_LIST(V)     \
   V(ArgumentsIterator)            \
   V(ArrayLength)                  \
+  V(BoundFunctionLength)          \
+  V(BoundFunctionName)            \
+  V(ErrorStack)                   \
   V(FunctionArguments)            \
   V(FunctionCaller)               \
   V(FunctionName)                 \
@@ -44,10 +47,10 @@ class AccessorInfo;
   V(ScriptIsEmbedderDebugScript)  \
   V(StringLength)
 
-#define ACCESSOR_SETTER_LIST(V)        \
-  V(ReconfigureToDataProperty)         \
-  V(ObservedReconfigureToDataProperty) \
-  V(ArrayLengthSetter)                 \
+#define ACCESSOR_SETTER_LIST(V) \
+  V(ReconfigureToDataProperty)  \
+  V(ArrayLengthSetter)          \
+  V(ErrorStackSetter)           \
   V(FunctionPrototypeSetter)
 
 // Accessors contains all predefined proxy accessors.
@@ -85,22 +88,10 @@ class Accessors : public AllStatic {
       Handle<JSFunction> object, Handle<Object> value);
   static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
 
-  // Accessor infos.
-  static Handle<AccessorInfo> MakeModuleExport(
-      Handle<String> name, int index, PropertyAttributes attributes);
-
   // Returns true for properties that are accessors to object fields.
   // If true, *object_offset contains offset of object field.
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
                                       int* object_offset);
-
-  // Returns true for properties that are accessors to ArrayBufferView and
-  // derived classes fields. If true, *object_offset contains offset of
-  // object field. The caller still has to check whether the underlying
-  // buffer was neutered.
-  static bool IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
-                                               Handle<Name> name,
-                                               int* object_offset);
 
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate,

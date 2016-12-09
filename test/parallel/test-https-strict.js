@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
@@ -151,7 +151,6 @@ function makeReq(path, port, error, host, ca) {
 
 function allListening() {
   // ok, ready to start the tests!
-
   const port1 = server1.address().port;
   const port2 = server2.address().port;
   const port3 = server3.address().port;

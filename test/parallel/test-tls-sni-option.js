@@ -1,11 +1,11 @@
 'use strict';
+const common = require('../common');
 if (!process.features.tls_sni) {
   common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
@@ -60,38 +60,36 @@ var SNIContexts = {
   }
 };
 
-var serverPort = common.PORT;
-
 var clientsOptions = [{
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent4-key'),
   cert: loadPEM('agent4-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'b.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
@@ -115,7 +113,7 @@ server.on('tlsClientError', function(err) {
   serverError = err.message;
 });
 
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
   function connectClient(i, callback) {
@@ -123,6 +121,7 @@ function startTest() {
     clientError = null;
     serverError = null;
 
+    options.port = server.address().port;
     var client = tls.connect(options, function() {
       clientResults.push(
           /Hostname\/IP doesn't/.test(client.authorizationError || ''));

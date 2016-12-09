@@ -31,14 +31,14 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var sourceCode = context.getSourceCode();
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
-        var BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
-            SKIP_BLANK = "^" + BLANK_CLASS + "*$",
-            NONBLANK = BLANK_CLASS + "+$";
+        const BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
+            SKIP_BLANK = `^${BLANK_CLASS}*$`,
+            NONBLANK = `${BLANK_CLASS}+$`;
 
-        var options = context.options[0] || {},
+        const options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false;
 
         /**
@@ -57,10 +57,10 @@ module.exports = {
              * plugin.
              */
             context.report({
-                node: node,
+                node,
                 loc: location,
                 message: "Trailing spaces not allowed.",
-                fix: function(fixer) {
+                fix(fixer) {
                     return fixer.removeRange(fixRange);
                 }
             });
@@ -78,36 +78,31 @@ module.exports = {
                 // Let's hack. Since Espree does not return whitespace nodes,
                 // fetch the source code and do matching via regexps.
 
-                var re = new RegExp(NONBLANK),
+                const re = new RegExp(NONBLANK),
                     skipMatch = new RegExp(SKIP_BLANK),
-                    matches,
                     lines = sourceCode.lines,
-                    linebreaks = sourceCode.getText().match(/\r\n|\r|\n|\u2028|\u2029/g),
-                    location,
-                    totalLength = 0,
-                    rangeStart,
-                    rangeEnd,
-                    fixRange = [],
-                    containingNode;
+                    linebreaks = sourceCode.getText().match(/\r\n|\r|\n|\u2028|\u2029/g);
+                let totalLength = 0,
+                    fixRange = [];
 
-                for (var i = 0, ii = lines.length; i < ii; i++) {
-                    matches = re.exec(lines[i]);
+                for (let i = 0, ii = lines.length; i < ii; i++) {
+                    const matches = re.exec(lines[i]);
 
                     // Always add linebreak length to line length to accommodate for line break (\n or \r\n)
                     // Because during the fix time they also reserve one spot in the array.
                     // Usually linebreak length is 2 for \r\n (CRLF) and 1 for \n (LF)
-                    var linebreakLength = linebreaks && linebreaks[i] ? linebreaks[i].length : 1;
-                    var lineLength = lines[i].length + linebreakLength;
+                    const linebreakLength = linebreaks && linebreaks[i] ? linebreaks[i].length : 1;
+                    const lineLength = lines[i].length + linebreakLength;
 
                     if (matches) {
-                        location = {
+                        const location = {
                             line: i + 1,
                             column: matches.index
                         };
 
-                        rangeStart = totalLength + location.column;
-                        rangeEnd = totalLength + lineLength - linebreakLength;
-                        containingNode = sourceCode.getNodeByRangeIndex(rangeStart);
+                        const rangeStart = totalLength + location.column;
+                        const rangeEnd = totalLength + lineLength - linebreakLength;
+                        const containingNode = sourceCode.getNodeByRangeIndex(rangeStart);
 
                         if (containingNode && containingNode.type === "TemplateElement" &&
                           rangeStart > containingNode.parent.range[0] &&
@@ -119,6 +114,7 @@ module.exports = {
                         // If the line has only whitespace, and skipBlankLines
                         // is true, don't report it
                         if (skipBlankLines && skipMatch.test(lines[i])) {
+                            totalLength += lineLength;
                             continue;
                         }
 

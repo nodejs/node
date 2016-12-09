@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         // A stack of lone blocks to be checked for block-level bindings
-        var loneBlocks = [],
-            ruleDef;
+        const loneBlocks = [];
+        let ruleDef;
 
         /**
          * Reports a node as invalid.
@@ -32,7 +32,7 @@ module.exports = {
          * @returns {void}
         */
         function report(node) {
-            var parent = context.getAncestors().pop();
+            const parent = context.getAncestors().pop();
 
             context.report(node, parent.type === "Program" ?
                 "Block is redundant." :
@@ -45,7 +45,7 @@ module.exports = {
          * @returns {boolean} True if the current node is a lone block.
         */
         function isLoneBlock() {
-            var parent = context.getAncestors().pop();
+            const parent = context.getAncestors().pop();
 
             return parent.type === "BlockStatement" || parent.type === "Program";
         }
@@ -60,7 +60,7 @@ module.exports = {
                 return;
             }
 
-            var block = context.getAncestors().pop();
+            const block = context.getAncestors().pop();
 
             if (loneBlocks[loneBlocks.length - 1] === block) {
                 loneBlocks.pop();
@@ -69,7 +69,7 @@ module.exports = {
 
         // Default rule definition: report all lone blocks
         ruleDef = {
-            BlockStatement: function(node) {
+            BlockStatement(node) {
                 if (isLoneBlock(node)) {
                     report(node);
                 }
@@ -79,12 +79,12 @@ module.exports = {
         // ES6: report blocks without block-level bindings
         if (context.parserOptions.ecmaVersion >= 6) {
             ruleDef = {
-                BlockStatement: function(node) {
+                BlockStatement(node) {
                     if (isLoneBlock(node)) {
                         loneBlocks.push(node);
                     }
                 },
-                "BlockStatement:exit": function(node) {
+                "BlockStatement:exit"(node) {
                     if (loneBlocks.length > 0 && loneBlocks[loneBlocks.length - 1] === node) {
                         loneBlocks.pop();
                         report(node);

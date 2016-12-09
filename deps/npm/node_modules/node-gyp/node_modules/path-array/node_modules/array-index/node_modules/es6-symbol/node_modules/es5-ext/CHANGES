@@ -1,3 +1,8 @@
+v0.10.12  --  2016.07.01
+* Ensure symbols are copied in Object.mixin
+* Prevent RangeError errors in array#flatten
+* Do not validate invalidate dates in validDate
+
 v0.10.11  --  2015.12.18
 * Ensure that check for implementation of RegExp flags doesn't crash in V8 (thanks @mathiasbynens)
 

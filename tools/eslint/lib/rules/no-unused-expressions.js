@@ -32,8 +32,8 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var config = context.options[0] || {},
+    create(context) {
+        const config = context.options[0] || {},
             allowShortCircuit = config.allowShortCircuit || false,
             allowTernary = config.allowTernary || false;
 
@@ -52,12 +52,12 @@ module.exports = {
          * @returns {a[]} the leading sequence of members in the given list that pass the given predicate
          */
         function takeWhile(predicate, list) {
-            for (var i = 0, l = list.length; i < l; ++i) {
+            for (let i = 0; i < list.length; ++i) {
                 if (!predicate(list[i])) {
-                    break;
+                    return list.slice(0, i);
                 }
             }
-            return [].slice.call(list, 0, i);
+            return list.slice();
         }
 
         /**
@@ -74,7 +74,7 @@ module.exports = {
          * @returns {boolean} whether the given node is considered a directive in its current position
          */
         function isDirective(node, ancestors) {
-            var parent = ancestors[ancestors.length - 1],
+            const parent = ancestors[ancestors.length - 1],
                 grandparent = ancestors[ancestors.length - 2];
 
             return (parent.type === "Program" || parent.type === "BlockStatement" &&
@@ -101,12 +101,12 @@ module.exports = {
                 }
             }
 
-            return /^(?:Assignment|Call|New|Update|Yield)Expression$/.test(node.type) ||
+            return /^(?:Assignment|Call|New|Update|Yield|Await)Expression$/.test(node.type) ||
                 (node.type === "UnaryExpression" && ["delete", "void"].indexOf(node.operator) >= 0);
         }
 
         return {
-            ExpressionStatement: function(node) {
+            ExpressionStatement(node) {
                 if (!isValidExpression(node.expression) && !isDirective(node, context.getAncestors())) {
                     context.report(node, "Expected an assignment or function call and instead saw an expression.");
                 }

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -42,29 +42,25 @@ var web = http.Server(function(req, res) {
   });
 });
 
-var gotThanks = false;
-
-web.listen(common.PORT, function() {
+web.listen(0, common.mustCall(function() {
   console.log('Making request');
 
   var req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'GET',
     path: '/',
     headers: { 'content-length': buffer.length }
-  }, function(res) {
+  }, common.mustCall(function(res) {
     console.log('Got response');
     res.setEncoding('utf8');
-    res.on('data', function(string) {
+    res.on('data', common.mustCall(function(string) {
       assert.equal('thanks', string);
-      gotThanks = true;
-    });
-  });
+    }));
+  }));
   req.end(buffer);
-});
+}));
 
 
 process.on('exit', function() {
   assert.equal(bufferSize, measuredSize);
-  assert.ok(gotThanks);
 });

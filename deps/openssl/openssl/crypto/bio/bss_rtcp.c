@@ -170,6 +170,8 @@ static int rtcp_new(BIO *bi)
     bi->num = 0;
     bi->flags = 0;
     bi->ptr = OPENSSL_malloc(sizeof(struct rpc_ctx));
+    if (bi->ptr == NULL)
+        return (0);
     ctx = (struct rpc_ctx *)bi->ptr;
     ctx->filled = 0;
     ctx->pos = 0;

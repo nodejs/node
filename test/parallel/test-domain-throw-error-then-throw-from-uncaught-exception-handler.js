@@ -56,8 +56,8 @@ function runTestWithoutAbortOnUncaughtException() {
         // message must include only the message of the error thrown from the
         // process' uncaughtException handler.
         assert(stderr.includes(uncaughtExceptionHandlerErrMsg),
-            'stderr output must include proper uncaughtException handler\'s ' +
-            'error\'s message');
+               'stderr output must include proper uncaughtException ' +
+               'handler\'s error\'s message');
         assert(!stderr.includes(domainErrMsg), 'stderr output must not ' +
           'include domain\'s error\'s message');
 
@@ -75,14 +75,14 @@ function runTestWithAbortOnUncaughtException() {
                     'child process should not have run its uncaughtException ' +
                     'event handler');
     assert(common.nodeProcessAborted(err.code, err.signal),
-        'process should have aborted, but did not');
+           'process should have aborted, but did not');
   });
 }
 
 function createTestCmdLine(options) {
   var testCmd = '';
 
-  if (process.platform !== 'win32') {
+  if (!common.isWindows) {
     // Do not create core files, as it can take a lot of disk space on
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';

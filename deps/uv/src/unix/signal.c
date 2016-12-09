@@ -43,7 +43,7 @@ static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
 
 
-static pthread_once_t uv__signal_global_init_guard = PTHREAD_ONCE_INIT;
+static uv_once_t uv__signal_global_init_guard = UV_ONCE_INIT;
 static struct uv__signal_tree_s uv__signal_tree =
     RB_INITIALIZER(uv__signal_tree);
 static int uv__signal_lock_pipefd[2];
@@ -64,7 +64,7 @@ static void uv__signal_global_init(void) {
 
 
 void uv__signal_global_once_init(void) {
-  pthread_once(&uv__signal_global_init_guard, uv__signal_global_init);
+  uv_once(&uv__signal_global_init_guard, uv__signal_global_init);
 }
 
 
@@ -290,7 +290,7 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   sigset_t saved_sigmask;
   int err;
 
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
 
   /* If the user supplies signum == 0, then return an error already. If the
    * signum is otherwise invalid then uv__signal_register will find out
@@ -434,7 +434,7 @@ static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2) {
 
 
 int uv_signal_stop(uv_signal_t* handle) {
-  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+  assert(!uv__is_closing(handle));
   uv__signal_stop(handle);
   return 0;
 }

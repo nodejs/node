@@ -22,19 +22,22 @@ test('setup', function (t) {
   t.end()
 })
 
-var INSTALL_OPTS = ['--loglevel', 'silent']
 var EXEC_OPTS = {cwd: installIn}
 
 test('install self', function (t) {
-  common.npm(['install', installFrom].concat(INSTALL_OPTS), EXEC_OPTS, function (err, code) {
-    t.ifError(err, 'npm ran without issue')
+  common.npm(['install', installFrom], EXEC_OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
     t.is(code, 1, 'npm install refused to install a package in itself')
     t.end()
   })
 })
 test('force install self', function (t) {
-  common.npm(['install', '--force', installFrom].concat(INSTALL_OPTS), EXEC_OPTS, function (err, code) {
-    t.ifError(err, 'npm ran without issue')
+  common.npm(['install', '--force', installFrom], EXEC_OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
     t.is(code, 0, 'npm install happily installed a package in itself with --force')
     t.end()
   })

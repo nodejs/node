@@ -14,7 +14,7 @@ function watchFile() {
   fs.watchFile(f, function(curr, prev) {
     console.log(f + ' change');
     changes++;
-    assert.ok(curr.mtime != prev.mtime);
+    assert.notDeepStrictEqual(curr.mtime, prev.mtime);
     fs.unwatchFile(f);
     watchFile();
     fs.unwatchFile(f);

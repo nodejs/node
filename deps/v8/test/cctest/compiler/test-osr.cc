@@ -120,10 +120,10 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
     CHECK(!nodes.IsLive(osr_normal_entry));
     CHECK(!nodes.IsLive(osr_loop_entry));
     // No dangling nodes should be left over.
-    for (Node* const node : nodes.live) {
+    for (Node* const node : nodes.reachable) {
       for (Node* const use : node->uses()) {
-        CHECK(std::find(nodes.live.begin(), nodes.live.end(), use) !=
-              nodes.live.end());
+        CHECK(std::find(nodes.reachable.begin(), nodes.reachable.end(), use) !=
+              nodes.reachable.end());
       }
     }
   }

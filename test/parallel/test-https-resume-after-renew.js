@@ -1,5 +1,10 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 var fs = require('fs');
 var https = require('https');
 var crypto = require('crypto');
@@ -30,7 +35,7 @@ server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
   return [ 1, hmac, aes, newName, newIV ];
 };
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var addr = this.address();
 
   function doReq(callback) {

@@ -39,15 +39,15 @@ a8 = a8.read();
 
 if (!common.hasFipsCrypto) {
   var a0 = crypto.createHash('md5').update('Test123').digest('latin1');
-  assert.equal(
+  assert.strictEqual(
     a0,
     'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
     'Test MD5 as latin1'
   );
 }
-assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
-assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
-             'Test SHA256 as base64');
+assert.strictEqual(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
+assert.strictEqual(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
+                   'Test SHA256 as base64');
 assert.deepStrictEqual(
   a3,
   Buffer.from(
@@ -73,7 +73,7 @@ assert.notEqual(a8, undefined, 'empty string should generate data');
 // Test multiple updates to same hash
 var h1 = crypto.createHash('sha1').update('Test123').digest('hex');
 var h2 = crypto.createHash('sha1').update('Test').update('123').digest('hex');
-assert.equal(h1, h2, 'multipled updates');
+assert.strictEqual(h1, h2, 'multipled updates');
 
 // Test hashing for binary files
 var fn = path.join(common.fixturesDir, 'sample.png');
@@ -83,19 +83,19 @@ fileStream.on('data', function(data) {
   sha1Hash.update(data);
 });
 fileStream.on('close', function() {
-  assert.equal(sha1Hash.digest('hex'),
-               '22723e553129a336ad96e10f6aecdf0f45e4149e',
-               'Test SHA1 of sample.png');
+  assert.strictEqual(sha1Hash.digest('hex'),
+                     '22723e553129a336ad96e10f6aecdf0f45e4149e',
+                     'Test SHA1 of sample.png');
 });
 
 // Issue #2227: unknown digest method should throw an error.
 assert.throws(function() {
   crypto.createHash('xyzzy');
-});
+}, /Digest method not supported/);
 
 // Default UTF-8 encoding
 var hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
-assert.equal(
+assert.strictEqual(
     hutf8,
     '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
         '43a821af66afa9a45b6a78c712fecf0e56dc7f43aef4bcfc8eb5b4d8dca6ea5b');

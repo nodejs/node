@@ -234,6 +234,16 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`)
 
 
+### `--openssl-config=file`
+<!-- YAML
+added: v6.9.0
+-->
+
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+`./configure --openssl-fips`.
+
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
@@ -277,10 +287,17 @@ added: v0.11.15
 Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small-icu support.
 
+### `NODE_PRESERVE_SYMLINKS=1`
+<!-- YAML
+added: v7.1.0
+-->
+
+When set to `1`, instructs the module loader to preserve symbolic links when
+resolving and caching modules.
 
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
-added: v5.0.0
+added: v3.0.0
 -->
 
 Path to the file used to store the persistent REPL history. The default path is
@@ -288,6 +305,28 @@ Path to the file used to store the persistent REPL history. The default path is
 to an empty string (`""` or `" "`) disables persistent REPL history.
 
 
+### `NODE_TTY_UNSAFE_ASYNC=1`
+<!-- YAML
+added: 6.4.0
+-->
+
+When set to `1`, writes to `stdout` and `stderr` will be non-blocking and
+asynchronous when outputting to a TTY on platforms which support async stdio.
+Setting this will void any guarantee that stdio will not be interleaved or
+dropped at program exit. **Use of this mode is not recommended.**
+
+### `NODE_EXTRA_CA_CERTS=file`
+
+When set, the well known "root" CAs (like VeriSign) will be extended with the
+extra certificates in `file`. The file should consist of one or more trusted
+certificates in PEM format. A message will be emitted (once) with
+[`process.emitWarning()`][emit_warning] if the file is missing or
+misformatted, but any errors are otherwise ignored.
+
+Note that neither the well known nor extra certificates are used when the `ca`
+options property is explicitly specified for a TLS or HTTPS client or server.
+
+[emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
 [debugger]: debugger.html
 [REPL]: repl.html

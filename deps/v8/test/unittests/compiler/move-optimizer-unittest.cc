@@ -106,11 +106,9 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
 
 TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
   int first_reg_index =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(0);
+      RegisterConfiguration::Turbofan()->GetAllocatableGeneralCode(0);
   int second_reg_index =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->GetAllocatableGeneralCode(1);
+      RegisterConfiguration::Turbofan()->GetAllocatableGeneralCode(1);
 
   StartBlock();
   auto first_instr = EmitNop();

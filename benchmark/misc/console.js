@@ -8,11 +8,15 @@ const v8 = require('v8');
 
 v8.setFlagsFromString('--allow_natives_syntax');
 
+const methods = [
+  'restAndSpread',
+  'argumentsAndApply',
+  'restAndApply',
+  'restAndConcat'
+];
+
 var bench = common.createBenchmark(main, {
-  method: ['restAndSpread',
-           'argumentsAndApply',
-           'restAndApply',
-           'restAndConcat'],
+  method: methods,
   concat: [1, 0],
   n: [1000000]
 });

@@ -2,13 +2,14 @@
 // just like test/gc/http-client.js,
 // but aborting every connection that comes in.
 
+require('../common');
+
 function serverHandler(req, res) {
   res.connection.destroy();
 }
 
 const http = require('http');
 const weak = require('weak');
-require('../common');
 const assert = require('assert');
 const todo = 500;
 let done = 0;
@@ -63,7 +64,7 @@ function status() {
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {
     console.log('All should be collected now.');
-    assert(count === countGC);
+    assert.strictEqual(count, countGC);
     process.exit(0);
   }
 }

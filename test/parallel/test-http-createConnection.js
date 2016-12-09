@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
-}, 4)).listen(common.PORT, '127.0.0.1', function() {
+}, 4)).listen(0, '127.0.0.1', function() {
   let fn = common.mustCall(createConnection);
   http.get({ createConnection: fn }, function(res) {
     res.resume();
@@ -21,7 +21,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
           res.resume();
           fn = common.mustCall(createConnectionError);
           http.get({ createConnection: fn }, function(res) {
-            assert.fail(null, null, 'Unexpected response callback');
+            common.fail('Unexpected response callback');
           }).on('error', common.mustCall(function(err) {
             assert.equal(err.message, 'Could not create socket');
             server.close();
@@ -33,17 +33,17 @@ const server = http.createServer(common.mustCall(function(req, res) {
 });
 
 function createConnection() {
-  return net.createConnection(common.PORT, '127.0.0.1');
+  return net.createConnection(server.address().port, '127.0.0.1');
 }
 
 function createConnectionAsync(options, cb) {
   setImmediate(function() {
-    cb(null, net.createConnection(common.PORT, '127.0.0.1'));
+    cb(null, net.createConnection(server.address().port, '127.0.0.1'));
   });
 }
 
 function createConnectionBoth1(options, cb) {
-  const socket = net.createConnection(common.PORT, '127.0.0.1');
+  const socket = net.createConnection(server.address().port, '127.0.0.1');
   setImmediate(function() {
     cb(null, socket);
   });
@@ -51,7 +51,7 @@ function createConnectionBoth1(options, cb) {
 }
 
 function createConnectionBoth2(options, cb) {
-  const socket = net.createConnection(common.PORT, '127.0.0.1');
+  const socket = net.createConnection(server.address().port, '127.0.0.1');
   cb(null, socket);
   return socket;
 }

@@ -1,9 +1,9 @@
 # REPL
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `repl` module provides a Read-Eval-Print-Loop (REPL) implementation that
-is available both as a standalone program or includable in other applications.
+is available both as a standalone program or includible in other applications.
 It can be accessed using:
 
 ```js
@@ -38,6 +38,21 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load` - Load a file into the current REPL session.
   `> .load ./file/to/load.js`
+* `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
+
+```js
+> .editor
+// Entering editor mode (^D to finish, ^C to cancel)
+function welcome(name) {
+  return `Hello ${name}!`;
+}
+
+welcome('Node.js User');
+
+// ^D
+'Hello Node.js User!'
+>
+```
 
 The following key combinations in the REPL have these special effects:
 
@@ -103,7 +118,7 @@ const repl = require('repl');
 var msg = 'message';
 
 const r = repl.start('> ');
-Object.defineProperty(r, 'm', {
+Object.defineProperty(r.context, 'm', {
   configurable: false,
   enumerable: true,
   value: msg
@@ -214,12 +229,18 @@ function myWriter(output) {
 ```
 
 ## Class: REPLServer
+<!-- YAML
+added: v0.1.91
+-->
 
 The `repl.REPLServer` class inherits from the [`readline.Interface`][] class.
 Instances of `repl.REPLServer` are created using the `repl.start()` method and
 *should not* be created directly using the JavaScript `new` keyword.
 
 ### Event: 'exit'
+<!-- YAML
+added: v0.7.7
+-->
 
 The `'exit'` event is emitted when the REPL is exited either by receiving the
 `.exit` command as input, the user pressing `<ctrl>-C` twice to signal `SIGINT`,
@@ -234,6 +255,9 @@ replServer.on('exit', () => {
 ```
 
 ### Event: 'reset'
+<!-- YAML
+added: v0.11.0
+-->
 
 The `'reset'` event is emitted when the REPL's context is reset. This occurs
 whenever the `.clear` command is received as input *unless* the REPL is using
@@ -276,6 +300,9 @@ Clearing context...
 ```
 
 ### replServer.defineCommand(keyword, cmd)
+<!-- YAML
+added: v0.3.0
+-->
 
 * `keyword` {String} The command keyword (*without* a leading `.` character).
 * `cmd` {Object|Function} The function to invoke when the command is processed.
@@ -300,19 +327,19 @@ replServer.defineCommand('sayhello', {
   action: function(name) {
     this.lineParser.reset();
     this.bufferedCommand = '';
-    this.write(`Hello, ${name}!\n`);
+    console.log(`Hello, ${name}!`);
     this.displayPrompt();
   }
 });
 replServer.defineCommand('saybye', function() {
-  this.write('Goodbye!\n');
+  console.log('Goodbye!');
   this.close();
 });
 ```
 
 The new commands can then be used from within the REPL instance:
 
-```
+```txt
 > .sayhello Node.js User
 Hello, Node.js User!
 > .saybye
@@ -320,6 +347,9 @@ Goodbye!
 ```
 
 ### replServer.displayPrompt([preserveCursor])
+<!-- YAML
+added: v0.1.91
+-->
 
 * `preserveCursor` {Boolean}
 
@@ -337,6 +367,9 @@ within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
 ## repl.start([options])
+<!-- YAML
+added: v0.1.91
+-->
 
 * `options` {Object}
   * `prompt` {String} The input prompt to display. Defaults to `> `.
@@ -364,6 +397,8 @@ within the action function for commands registered using the
      `undefined`. Defaults to `false`.
   * `writer` {Function} The function to invoke to format the output of each
      command before writing to `output`. Defaults to [`util.inspect()`][].
+  * `completer` {Function} An optional function used for custom Tab auto
+     completion. See [`readline.InterfaceCompleter`][] for an example.
   * `replMode` - A flag that specifies whether the default evaluator executes
     all JavaScript commands in strict mode, default mode, or a hybrid mode
     ("magic" mode.) Acceptable values are:
@@ -372,14 +407,17 @@ within the action function for commands registered using the
       equivalent to prefacing every repl statement with `'use strict'`.
     * `repl.REPL_MODE_MAGIC` - attempt to evaluates expressions in default
       mode.  If expressions fail to parse, re-try in strict mode.
+  * `breakEvalOnSigint` - Stop evaluating the current piece of code when
+    `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
+    with a custom `eval` function. Defaults to `false`.
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
 ## The Node.js REPL
 
 Node.js itself uses the `repl` module to provide its own interactive interface
-for executing JavaScript. This can used by executing the Node.js binary without
-passing any arguments (or by passing the `-i` argument):
+for executing JavaScript. This can be used by executing the Node.js binary
+without passing any arguments (or by passing the `-i` argument):
 
 ```js
 $ node
@@ -416,8 +454,12 @@ directory. This can be disabled by setting the environment variable
 `NODE_REPL_HISTORY=""`.
 
 #### NODE_REPL_HISTORY_FILE
+<!-- YAML
+added: v2.0.0
+deprecated: v3.0.0
+-->
 
-   Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
+> Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
 
 Previously in Node.js/io.js v2.x, REPL history was controlled by using a
 `NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON
@@ -467,7 +509,7 @@ net.createServer((socket) => {
     output: socket
   }).on('exit', () => {
     socket.end();
-  })
+  });
 }).listen('/tmp/node-repl-sock');
 
 net.createServer((socket) => {
@@ -493,11 +535,10 @@ possible to connect to a long-running Node.js process without restarting it.
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 
-For an example of running a REPL instance over `curl(1)`,
+For an example of running a REPL instance over curl(1),
 see: https://gist.github.com/2053342
 
 [stream]: stream.html
-[`readline.prompt`]: readline.html#readline_rl_prompt_preservecursor
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[here]: util.html#util_custom_inspect_function_on_objects
 [`readline.Interface`]: readline.html#readline_class_interface
+[`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function

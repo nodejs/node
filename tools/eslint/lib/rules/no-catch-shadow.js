@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -26,7 +26,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -34,7 +34,7 @@ module.exports = {
 
         /**
          * Check if the parameters are been shadowed
-         * @param {object} scope current scope
+         * @param {Object} scope current scope
          * @param {string} name parameter name
          * @returns {boolean} True is its been shadowed
          */
@@ -48,8 +48,8 @@ module.exports = {
 
         return {
 
-            CatchClause: function(node) {
-                var scope = context.getScope();
+            CatchClause(node) {
+                let scope = context.getScope();
 
                 // When blockBindings is enabled, CatchClause creates its own scope
                 // so start from one upper scope to exclude the current node

@@ -7,7 +7,7 @@
 
 #ifndef V8_SHARED
 #include "src/allocation.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #else
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"

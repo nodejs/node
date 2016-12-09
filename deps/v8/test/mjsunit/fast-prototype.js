@@ -46,14 +46,20 @@ function AddProps(obj) {
 
 
 function DoProtoMagic(proto, set__proto__) {
+  var receiver;
   if (set__proto__) {
-    (new Sub()).__proto__ = proto;
+    receiver = new Sub();
+    receiver.__proto__ = proto;
   } else {
     Sub.prototype = proto;
     // Need to instantiate Sub to mark .prototype as prototype. Make sure the
     // instantiated object is used so that the allocation is not optimized away.
-    %DebugPrint(new Sub());
+    receiver = new Sub();
   }
+  // Prototypes are made fast when ICs encounter them.
+  function ic() { return typeof receiver.foo; }
+  ic();
+  ic();
 }
 
 

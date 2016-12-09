@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -26,7 +26,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -34,7 +34,7 @@ module.exports = {
 
         /**
          * Check if the identifier is present inside current scope
-         * @param {object} scope current scope
+         * @param {Object} scope current scope
          * @param {string} name To evaluate
          * @returns {boolean} True if its present
          * @private
@@ -49,10 +49,10 @@ module.exports = {
 
         return {
 
-            LabeledStatement: function(node) {
+            LabeledStatement(node) {
 
                 // Fetch the innermost scope.
-                var scope = context.getScope();
+                const scope = context.getScope();
 
                 // Recursively find the identifier walking up the scope, starting
                 // with the innermost scope.

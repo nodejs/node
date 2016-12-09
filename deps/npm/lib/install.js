@@ -1,8 +1,8 @@
 'use strict'
 // npm install <pkg> <pkg> <pkg>
 //
-// See doc/install.md for more description
-
+// See doc/cli/npm-install.md for more description
+//
 // Managing contexts...
 // there's a lot of state associated with an "install" operation, including
 // packages that are already installed, parent packages, current shrinkwrap, and
@@ -113,6 +113,7 @@ var lock = locker.lock
 var unlock = locker.unlock
 var ls = require('./ls.js')
 var parseJSON = require('./utils/parse-json.js')
+var output = require('./utils/output.js')
 
 // install specific libraries
 var copyTree = require('./install/copy-tree.js')
@@ -123,7 +124,6 @@ var loadDevDeps = require('./install/deps.js').loadDevDeps
 var getAllMetadata = require('./install/deps.js').getAllMetadata
 var loadRequestedDeps = require('./install/deps.js').loadRequestedDeps
 var loadExtraneous = require('./install/deps.js').loadExtraneous
-var pruneTree = require('./install/prune-tree.js')
 var diffTrees = require('./install/diff-trees.js')
 var checkPermissions = require('./install/check-permissions.js')
 var decomposeActions = require('./install/decompose-actions.js')
@@ -136,9 +136,11 @@ var doSerialActions = require('./install/actions.js').doSerial
 var doReverseSerialActions = require('./install/actions.js').doReverseSerial
 var doParallelActions = require('./install/actions.js').doParallel
 var doOneAction = require('./install/actions.js').doOne
+var removeObsoleteDep = require('./install/deps.js').removeObsoleteDep
 var packageId = require('./utils/package-id.js')
 var moduleName = require('./utils/module-name.js')
 var errorMessage = require('./utils/error-message.js')
+var andIgnoreErrors = require('./install/and-ignore-errors.js')
 
 function unlockCB (lockPath, name, cb) {
   validate('SSF', arguments)
@@ -257,6 +259,9 @@ Installer.prototype.run = function (cb) {
     [this, this.debugActions, 'decomposeActions', 'todo'])
   if (!this.dryrun) {
     installSteps.push(
+      [this.newTracker(log, 'runTopLevelLifecycles', 2)],
+      [this, this.runPreinstallTopLevelLifecycles],
+
       [this.newTracker(log, 'executeActions', 8)],
       [this, this.executeActions],
       [this, this.finishTracker, 'executeActions'])
@@ -267,10 +272,9 @@ Installer.prototype.run = function (cb) {
       [this, this.rollbackFailedOptional, staging, this.todo],
       [this, this.finishTracker, 'rollbackFailedOptional'],
       [this, this.commit, staging, this.todo],
-      [this.newTracker(log, 'runTopLevelLifecycles', 2)],
-      [this, this.runTopLevelLifecycles],
-      [this, this.finishTracker, 'runTopLevelLifecycles'])
 
+      [this, this.runPostinstallTopLevelLifecycles],
+      [this, this.finishTracker, 'runTopLevelLifecycles'])
     if (getSaveType(this.args)) {
       postInstallSteps.push(
         [this, this.saveToDependencies])
@@ -287,8 +291,12 @@ Installer.prototype.run = function (cb) {
         self.idealTree.warnings.forEach(function (warning) {
           if (warning.code === 'EPACKAGEJSON' && self.global) return
           if (warning.code === 'ENOTDIR') return
-          errorMessage(warning).summary.forEach(function (logline) {
+          var output = errorMessage(warning)
+          output.summary.forEach(function (logline) {
             log.warn.apply(log, logline)
+          })
+          output.detail.forEach(function (logline) {
+            log.verbose.apply(log, logline)
           })
         })
       }
@@ -308,7 +316,7 @@ Installer.prototype.run = function (cb) {
 
 Installer.prototype.loadArgMetadata = function (next) {
   var self = this
-  getAllMetadata(this.args, this.currentTree, iferr(next, function (args) {
+  getAllMetadata(this.args, this.currentTree, process.cwd(), iferr(next, function (args) {
     self.args = args
     next()
   }))
@@ -363,9 +371,8 @@ Installer.prototype.loadIdealTree = function (cb) {
     [this, this.loadAllDepsIntoIdealTree],
     [this, this.finishTracker, 'loadAllDepsIntoIdealTree'],
 
-    [this, function (next) { recalculateMetadata(this.idealTree, log, next) }],
-    [this, this.debugTree, 'idealTree:prePrune', 'idealTree'],
-    [this, function (next) { next(pruneTree(this.idealTree)) }]
+    // TODO: Remove this (should no longer be necessary, instead counter productive)
+    [this, function (next) { recalculateMetadata(this.idealTree, log, next) }]
   ], cb)
 }
 
@@ -419,21 +426,18 @@ Installer.prototype.computeLinked = function (cb) {
     var cmd = action[0]
     var pkg = action[1]
     if (cmd !== 'add' && cmd !== 'update') return next()
-    var isReqByTop = pkg.package._requiredBy.filter(function (name) { return name === '/' }).length
-    var isReqByUser = pkg.package._requiredBy.filter(function (name) { return name === '#USER' }).length
-    var isExtraneous = pkg.package._requiredBy.length === 0
+    var isReqByTop = pkg.requiredBy.filter(function (mod) { return mod.isTop }).length
+    var isReqByUser = pkg.userRequired
+    var isExtraneous = pkg.requiredBy.length === 0
     if (!isReqByTop && !isReqByUser && !isExtraneous) return next()
     isLinkable(pkg, function (install, link) {
       if (install) linkTodoList.push(['global-install', pkg])
       if (link) linkTodoList.push(['global-link', pkg])
-      if (install || link) {
-        pkg.parent.children = pkg.parent.children.filter(function (child) { return child !== pkg })
-      }
+      if (install || link) removeObsoleteDep(pkg)
       next()
     })
   }, function () {
     if (linkTodoList.length === 0) return cb()
-    pruneTree(self.idealTree)
     self.differences.length = 0
     Array.prototype.push.apply(self.differences, linkTodoList)
     diffTrees(self.currentTree, self.idealTree, self.differences, log.newGroup('d2'), cb)
@@ -522,19 +526,29 @@ Installer.prototype.commit = function (staging, actionsToRun, cb) {
   }, cb)
 }
 
-Installer.prototype.runTopLevelLifecycles = function (cb) {
+Installer.prototype.runPreinstallTopLevelLifecycles = function (cb) {
   validate('F', arguments)
   if (this.failing) return cb()
-  log.silly('install', 'runTopLevelLifecycles')
+  if (!this.topLevelLifecycles) return cb()
+  log.silly('install', 'runPreinstallTopLevelLifecycles')
   var steps = []
   var trackLifecycle = this.progress.runTopLevelLifecycles
-  if (!this.topLevelLifecycles) {
-    trackLifecycle.finish()
-    return cb()
-  }
 
   steps.push(
-    [doOneAction, 'preinstall', this.idealTree.path, this.idealTree, trackLifecycle.newGroup('preinstall:.')],
+    [doOneAction, 'preinstall', this.idealTree.path, this.idealTree, trackLifecycle.newGroup('preinstall:.')]
+  )
+  chain(steps, cb)
+}
+
+Installer.prototype.runPostinstallTopLevelLifecycles = function (cb) {
+  validate('F', arguments)
+  if (this.failing) return cb()
+  if (!this.topLevelLifecycles) return cb()
+  log.silly('install', 'runPostinstallTopLevelLifecycles')
+  var steps = []
+  var trackLifecycle = this.progress.runTopLevelLifecycles
+
+  steps.push(
     [doOneAction, 'build', this.idealTree.path, this.idealTree, trackLifecycle.newGroup('build:.')],
     [doOneAction, 'install', this.idealTree.path, this.idealTree, trackLifecycle.newGroup('install:.')],
     [doOneAction, 'postinstall', this.idealTree.path, this.idealTree, trackLifecycle.newGroup('postinstall:.')])
@@ -593,18 +607,19 @@ Installer.prototype.readLocalPackageData = function (cb) {
         return cb(er)
       }
       if (!currentTree.package) currentTree.package = {}
-      self.loadArgMetadata(iferr(cb, function () {
-        if (currentTree.package._shrinkwrap) return cb()
+      if (currentTree.package._shrinkwrap) {
+        self.loadArgMetadata(cb)
+      } else {
         fs.readFile(path.join(self.where, 'npm-shrinkwrap.json'), function (er, data) {
-          if (er) return cb()
+          if (er) return self.loadArgMetadata(cb)
           try {
             currentTree.package._shrinkwrap = parseJSON(data)
           } catch (ex) {
             return cb(ex)
           }
-          return cb()
+          return self.loadArgMetadata(cb)
         })
-      }))
+      }
     }))
   }))
 }
@@ -633,8 +648,8 @@ Installer.prototype.normalizeTree = function (log, cb) {
   log.silly('install', 'normalizeTree')
   recalculateMetadata(this.currentTree, log, iferr(cb, function (tree) {
     tree.children.forEach(function (child) {
-      if (child.package._requiredBy.length === 0) {
-        child.package._requiredBy.push('#EXISTING')
+      if (child.requiredBy.length === 0) {
+        child.existing = true
       }
     })
     cb(null, tree)
@@ -655,17 +670,16 @@ Installer.prototype.printInstalled = function (cb) {
   validate('F', arguments)
   log.silly('install', 'printInstalled')
   var self = this
-  log.clearProgress()
   this.differences.forEach(function (action) {
     var mutation = action[0]
     var child = action[1]
     var name = packageId(child)
     var where = path.relative(self.where, child.path)
     if (mutation === 'remove') {
-      console.log('- ' + name + ' ' + where)
+      output('- ' + name + ' ' + where)
     } else if (mutation === 'move') {
       var oldWhere = path.relative(self.where, child.fromPath)
-      console.log(name + ' ' + oldWhere + ' -> ' + where)
+      output(name + ' ' + oldWhere + ' -> ' + where)
     }
   })
   var addedOrMoved = this.differences.filter(function (action) {
@@ -676,10 +690,9 @@ Installer.prototype.printInstalled = function (cb) {
     var child = action[1]
     return child.path
   })
-  log.showProgress()
   if (!addedOrMoved.length) return cb()
+  // TODO: remove the recalculateMetadata, should not be needed
   recalculateMetadata(this.idealTree, log, iferr(cb, function (tree) {
-    log.clearProgress()
     // These options control both how installs happen AND how `ls` shows output.
     // Something like `npm install --production` only installs production deps.
     // By contrast `npm install --production foo` installs `foo` and the
@@ -691,10 +704,7 @@ Installer.prototype.printInstalled = function (cb) {
     npm.config.set('dev', false)
     npm.config.set('only', '')
     npm.config.set('also', '')
-    ls.fromTree(self.where, tree, addedOrMoved, false, function () {
-      log.showProgress()
-      cb()
-    })
+    ls.fromTree(self.where, tree, addedOrMoved, false, andIgnoreErrors(cb))
   }))
 }
 

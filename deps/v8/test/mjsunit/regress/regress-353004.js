@@ -41,19 +41,21 @@ assertThrows(function() {
 
 
 var buffer5 = new ArrayBuffer(100 * 1024);
-var buffer6 = buffer5.slice({valueOf : function() {
-  %ArrayBufferNeuter(buffer5);
-  return 0;
-}}, 100 * 1024 * 1024);
-assertEquals(0, buffer6.byteLength);
+assertThrows(function() {
+  buffer5.slice({valueOf : function() {
+    %ArrayBufferNeuter(buffer5);
+    return 0;
+  }}, 100 * 1024 * 1024);
+}, TypeError);
 
 
 var buffer7 = new ArrayBuffer(100 * 1024 * 1024);
-var buffer8 = buffer7.slice(0, {valueOf : function() {
-  %ArrayBufferNeuter(buffer7);
-  return 100 * 1024 * 1024;
-}});
-assertEquals(0, buffer8.byteLength);
+assertThrows(function() {
+  buffer7.slice(0, {valueOf : function() {
+    %ArrayBufferNeuter(buffer7);
+    return 100 * 1024 * 1024;
+  }});
+}, TypeError);
 
 var buffer9 = new ArrayBuffer(1024);
 var array9 = new Uint8Array(buffer9);

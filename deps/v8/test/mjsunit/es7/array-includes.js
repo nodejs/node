@@ -673,3 +673,8 @@
   assertFalse(Array.prototype.includes.call(new Uint8Array([1, 2, 3]), 4));
   assertFalse(Array.prototype.includes.call(new Uint8Array([1, 2, 3]), 2, 2));
 })();
+
+
+(function testUnscopable() {
+  assertTrue(Array.prototype[Symbol.unscopables].includes);
+})();

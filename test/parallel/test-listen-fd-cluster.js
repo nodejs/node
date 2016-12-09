@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
-var PORT = common.PORT;
 var cluster = require('cluster');
 
 console.error('Cluster listen fd test', process.argv[2] || 'runner');
@@ -35,11 +34,11 @@ process.on('exit', function() {
 // server handles to stdio fd's is NOT a good or reliable way to do
 // concurrency in HTTP servers!  Use the cluster module, or if you want
 // a more low-level approach, use child process IPC manually.
-test(function(parent) {
+test(function(parent, port) {
   // now make sure that we can request to the worker, then kill it.
   http.get({
     server: 'localhost',
-    port: PORT,
+    port: port,
     path: '/',
   }).on('response', function(res) {
     var s = '';
@@ -65,8 +64,9 @@ function test(cb) {
   var server = net.createServer(function(conn) {
     console.error('connection on parent');
     conn.end('hello from parent\n');
-  }).listen(PORT, function() {
-    console.error('server listening on %d', PORT);
+  }).listen(0, function() {
+    const port = this.address().port;
+    console.error('server listening on %d', port);
 
     var spawn = require('child_process').spawn;
     var master = spawn(process.execPath, [__filename, 'master'], {
@@ -89,7 +89,7 @@ function test(cb) {
     console.error('master spawned');
     master.on('message', function(msg) {
       if (msg === 'started worker') {
-        cb(master);
+        cb(master, port);
       }
     });
   });

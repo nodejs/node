@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -21,7 +21,7 @@ var echoServer = net.createServer(function(connection) {
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
 echoServer.on('listening', function() {
   clientConnection = new net.Socket();
@@ -29,6 +29,6 @@ echoServer.on('listening', function() {
   // and make sure it persists
   var s = clientConnection.setKeepAlive(true, 400);
   assert.ok(s instanceof net.Socket);
-  clientConnection.connect(common.PORT);
+  clientConnection.connect(this.address().port);
   clientConnection.setTimeout(0);
 });

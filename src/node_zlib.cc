@@ -27,7 +27,6 @@ using v8::Integer;
 using v8::Local;
 using v8::Number;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 enum node_zlib_mode {
@@ -52,10 +51,8 @@ void InitZlib(v8::Local<v8::Object> target);
  */
 class ZCtx : public AsyncWrap {
  public:
-
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
-        chunk_size_(0),
         dictionary_(nullptr),
         dictionary_len_(0),
         err_(0),
@@ -150,8 +147,7 @@ class ZCtx : public AsyncWrap {
 
     if (args[1]->IsNull()) {
       // just a flush
-      Bytef nada[1] = { 0 };
-      in = nada;
+      in = nullptr;
       in_len = 0;
       in_off = 0;
     } else {
@@ -180,9 +176,6 @@ class ZCtx : public AsyncWrap {
     ctx->strm_.avail_out = out_len;
     ctx->strm_.next_out = out;
     ctx->flush_ = flush;
-
-    // set this so that later on, I can easily tell how much was written.
-    ctx->chunk_size_ = out_len;
 
     if (!async) {
       // sync version
@@ -289,8 +282,11 @@ class ZCtx : public AsyncWrap {
       case INFLATERAW:
         ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
 
-        // If data was encoded with dictionary
-        if (ctx->err_ == Z_NEED_DICT && ctx->dictionary_ != nullptr) {
+        // If data was encoded with dictionary (INFLATERAW will have it set in
+        // SetDictionary, don't repeat that here)
+        if (ctx->mode_ != INFLATERAW &&
+            ctx->err_ == Z_NEED_DICT &&
+            ctx->dictionary_ != nullptr) {
           // Load it
           ctx->err_ = inflateSetDictionary(&ctx->strm_,
                                            ctx->dictionary_,
@@ -559,6 +555,13 @@ class ZCtx : public AsyncWrap {
                                          ctx->dictionary_,
                                          ctx->dictionary_len_);
         break;
+      case INFLATERAW:
+        // The other inflate cases will have the dictionary set when inflate()
+        // returns Z_NEED_DICT in Process()
+        ctx->err_ = inflateSetDictionary(&ctx->strm_,
+                                         ctx->dictionary_,
+                                         ctx->dictionary_len_);
+        break;
       default:
         break;
     }
@@ -627,7 +630,6 @@ class ZCtx : public AsyncWrap {
   static const int kDeflateContextSize = 16384;  // approximate
   static const int kInflateContextSize = 10240;  // approximate
 
-  int chunk_size_;
   Bytef* dictionary_;
   size_t dictionary_len_;
   int err_;
@@ -665,44 +667,6 @@ void InitZlib(Local<Object> target,
 
   z->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib"), z->GetFunction());
-
-  // valid flush values.
-  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_FINISH);
-  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
-
-  // return/error codes
-  NODE_DEFINE_CONSTANT(target, Z_OK);
-  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
-  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
-  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
-  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
-
-  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
-  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
-  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
-  NODE_DEFINE_CONSTANT(target, Z_RLE);
-  NODE_DEFINE_CONSTANT(target, Z_FIXED);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
-  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
-
-  NODE_DEFINE_CONSTANT(target, DEFLATE);
-  NODE_DEFINE_CONSTANT(target, INFLATE);
-  NODE_DEFINE_CONSTANT(target, GZIP);
-  NODE_DEFINE_CONSTANT(target, GUNZIP);
-  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
-  NODE_DEFINE_CONSTANT(target, INFLATERAW);
-  NODE_DEFINE_CONSTANT(target, UNZIP);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));

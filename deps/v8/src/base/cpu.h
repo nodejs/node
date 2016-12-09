@@ -97,6 +97,9 @@ class CPU final {
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
   bool is_atom() const { return is_atom_; }
+  bool has_non_stop_time_stamp_counter() const {
+    return has_non_stop_time_stamp_counter_;
+  }
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -148,6 +151,7 @@ class CPU final {
   bool has_vfp3_;
   bool has_vfp3_d32_;
   bool is_fp64_mode_;
+  bool has_non_stop_time_stamp_counter_;
 };
 
 }  // namespace base

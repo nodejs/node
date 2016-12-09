@@ -1259,6 +1259,24 @@ TEST_(load_store_pair) {
   CLEANUP();
 }
 
+TEST_(load_store_acquire_release) {
+  SET_UP_MASM();
+
+  COMPARE(ldar(w0, x1), "ldar w0, [x1]");
+  COMPARE(ldarb(w2, x3), "ldarb w2, [x3]");
+  COMPARE(ldarh(w4, x5), "ldarh w4, [x5]");
+  COMPARE(ldaxr(w6, x7), "ldaxr w6, [x7]");
+  COMPARE(ldaxrb(w8, x9), "ldaxrb w8, [x9]");
+  COMPARE(ldaxrh(w10, x11), "ldaxrh w10, [x11]");
+  COMPARE(stlr(w12, x13), "stlr w12, [x13]");
+  COMPARE(stlrb(w14, x15), "stlrb w14, [x15]");
+  COMPARE(stlrh(w16, x17), "stlrh w16, [x17]");
+  COMPARE(stlxr(w18, w19, x20), "stlxr w18, w19, [x20]");
+  COMPARE(stlxrb(w21, w22, x23), "stlxrb w21, w22, [x23]");
+  COMPARE(stlxrh(w24, w25, x26), "stlxrh w24, w25, [x26]");
+
+  CLEANUP();
+}
 
 #if 0  // TODO(all): enable.
 TEST_(load_literal) {

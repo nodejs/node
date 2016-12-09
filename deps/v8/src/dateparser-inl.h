@@ -13,9 +13,8 @@ namespace v8 {
 namespace internal {
 
 template <typename Char>
-bool DateParser::Parse(Vector<Char> str,
-                       FixedArray* out,
-                       UnicodeCache* unicode_cache) {
+bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray* out) {
+  UnicodeCache* unicode_cache = isolate->unicode_cache();
   DCHECK(out->length() >= OUTPUT_SIZE);
   InputReader<Char> in(unicode_cache, str);
   DateStringTokenizer<Char> scanner(&in);
@@ -76,10 +75,12 @@ bool DateParser::Parse(Vector<Char> str,
   if (next_unhandled_token.IsInvalid()) return false;
   bool has_read_number = !day.IsEmpty();
   // If there's anything left, continue with the legacy parser.
+  bool legacy_parser = false;
   for (DateToken token = next_unhandled_token;
        !token.IsEndOfInput();
        token = scanner.Next()) {
     if (token.IsNumber()) {
+      legacy_parser = true;
       has_read_number = true;
       int n = token.number();
       if (scanner.SkipSymbol(':')) {
@@ -115,6 +116,7 @@ bool DateParser::Parse(Vector<Char> str,
         scanner.SkipSymbol('-');
       }
     } else if (token.IsKeyword()) {
+      legacy_parser = true;
       // Parse a "word" (sequence of chars. >= 'A').
       KeywordType type = token.keyword_type();
       int value = token.keyword_value();
@@ -133,6 +135,7 @@ bool DateParser::Parse(Vector<Char> str,
         if (scanner.Peek().IsNumber()) return false;
       }
     } else if (token.IsAsciiSign() && (tz.IsUTC() || !time.IsEmpty())) {
+      legacy_parser = true;
       // Parse UTC offset (only after UTC or time).
       tz.SetSign(token.ascii_sign());
       // The following number may be empty.
@@ -170,7 +173,13 @@ bool DateParser::Parse(Vector<Char> str,
     }
   }
 
-  return day.Write(out) && time.Write(out) && tz.Write(out);
+  bool success = day.Write(out) && time.Write(out) && tz.Write(out);
+
+  if (legacy_parser && success) {
+    isolate->CountUsage(v8::Isolate::kLegacyDateParser);
+  }
+
+  return success;
 }
 
 

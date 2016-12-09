@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 var http = require('http');
 var fs = require('fs');
 var path = require('path');
@@ -8,23 +7,21 @@ var path = require('path');
 common.refreshTmpDir();
 
 var file = path.join(common.tmpDir, 'http-pipe-fs-test.txt');
-var requests = 0;
 
-var server = http.createServer(function(req, res) {
-  ++requests;
+var server = http.createServer(common.mustCall(function(req, res) {
   var stream = fs.createWriteStream(file);
   req.pipe(stream);
   stream.on('close', function() {
     res.writeHead(200);
     res.end();
   });
-}).listen(common.PORT, function() {
+}, 2)).listen(0, function() {
   http.globalAgent.maxSockets = 1;
 
   for (var i = 0; i < 2; ++i) {
     (function(i) {
       var req = http.request({
-        port: common.PORT,
+        port: server.address().port,
         method: 'POST',
         headers: {
           'Content-Length': 5
@@ -44,8 +41,4 @@ var server = http.createServer(function(req, res) {
       req.end('12345');
     }(i + 1));
   }
-});
-
-process.on('exit', function() {
-  assert.equal(requests, 2);
 });

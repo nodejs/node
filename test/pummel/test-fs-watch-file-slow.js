@@ -11,8 +11,7 @@ var nevents = 0;
 
 try {
   fs.unlinkSync(FILENAME);
-}
-catch (e) {
+} catch (e) {
   // swallow
 }
 

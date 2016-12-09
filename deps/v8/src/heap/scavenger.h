@@ -6,6 +6,7 @@
 #define V8_HEAP_SCAVENGER_H_
 
 #include "src/heap/objects-visiting.h"
+#include "src/heap/slot-set.h"
 
 namespace v8 {
 namespace internal {
@@ -25,6 +26,8 @@ class Scavenger {
   // ensure the precondition that the object is (a) a heap object and (b) in
   // the heap's from space.
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
+  static inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
+                                                          Address slot_address);
 
   // Slow part of {ScavengeObject} above.
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
@@ -60,8 +63,9 @@ class ScavengeVisitor : public ObjectVisitor {
 
 // Helper class for turning the scavenger into an object visitor that is also
 // filtering out non-HeapObjects and objects which do not reside in new space.
+template <PromotionMode promotion_mode>
 class StaticScavengeVisitor
-    : public StaticNewSpaceVisitor<StaticScavengeVisitor> {
+    : public StaticNewSpaceVisitor<StaticScavengeVisitor<promotion_mode>> {
  public:
   static inline void VisitPointer(Heap* heap, HeapObject* object, Object** p);
 };

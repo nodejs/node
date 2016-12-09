@@ -30,7 +30,10 @@ class DeadCodeElimination final : public AdvancedReducer {
  private:
   Reduction ReduceEnd(Node* node);
   Reduction ReduceLoopOrMerge(Node* node);
+  Reduction ReduceLoopExit(Node* node);
   Reduction ReduceNode(Node* node);
+
+  Reduction RemoveLoopExit(Node* node);
 
   void TrimMergeOrPhi(Node* node, int size);
 

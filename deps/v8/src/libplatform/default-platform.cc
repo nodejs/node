@@ -29,13 +29,17 @@ bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate) {
   return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate);
 }
 
+void SetTracingController(
+    v8::Platform* platform,
+    v8::platform::tracing::TracingController* tracing_controller) {
+  return reinterpret_cast<DefaultPlatform*>(platform)->SetTracingController(
+      tracing_controller);
+}
 
-const int DefaultPlatform::kMaxThreadPoolSize = 4;
-
+const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
 DefaultPlatform::DefaultPlatform()
-    : initialized_(false), thread_pool_size_(0) {}
-
+    : initialized_(false), thread_pool_size_(0), tracing_controller_(NULL) {}
 
 DefaultPlatform::~DefaultPlatform() {
   base::LockGuard<base::Mutex> guard(&lock_);
@@ -59,6 +63,11 @@ DefaultPlatform::~DefaultPlatform() {
       i->second.pop();
     }
   }
+
+  if (tracing_controller_) {
+    tracing_controller_->StopTracing();
+    delete tracing_controller_;
+  }
 }
 
 
@@ -66,7 +75,7 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   base::LockGuard<base::Mutex> guard(&lock_);
   DCHECK(thread_pool_size >= 0);
   if (thread_pool_size < 1) {
-    thread_pool_size = base::SysInfo::NumberOfProcessors();
+    thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
   }
   thread_pool_size_ =
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
@@ -172,17 +181,30 @@ double DefaultPlatform::MonotonicallyIncreasingTime() {
 
 uint64_t DefaultPlatform::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
-    uint64_t id, uint64_t bind_id, int num_args, const char** arg_names,
-    const uint8_t* arg_types, const uint64_t* arg_values, unsigned int flags) {
+    const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values, unsigned int flags) {
+  if (tracing_controller_) {
+    return tracing_controller_->AddTraceEvent(
+        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+        arg_names, arg_types, arg_values, flags);
+  }
+
   return 0;
 }
 
-
 void DefaultPlatform::UpdateTraceEventDuration(
-    const uint8_t* category_enabled_flag, const char* name, uint64_t handle) {}
-
+    const uint8_t* category_enabled_flag, const char* name, uint64_t handle) {
+  if (tracing_controller_) {
+    tracing_controller_->UpdateTraceEventDuration(category_enabled_flag, name,
+                                                  handle);
+  }
+}
 
 const uint8_t* DefaultPlatform::GetCategoryGroupEnabled(const char* name) {
+  if (tracing_controller_) {
+    return tracing_controller_->GetCategoryGroupEnabled(name);
+  }
   static uint8_t no = 0;
   return &no;
 }
@@ -192,6 +214,11 @@ const char* DefaultPlatform::GetCategoryGroupName(
     const uint8_t* category_enabled_flag) {
   static const char dummy[] = "dummy";
   return dummy;
+}
+
+void DefaultPlatform::SetTracingController(
+    tracing::TracingController* tracing_controller) {
+  tracing_controller_ = tracing_controller;
 }
 
 size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {

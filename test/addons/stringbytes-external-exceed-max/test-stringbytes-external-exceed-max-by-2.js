@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../../common');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 
 const skipMessage = 'intensive toString tests due to memory confinements';
@@ -30,4 +30,4 @@ if (!binding.ensureAllocation(2 * kStringMaxLength)) {
 }
 
 const maxString = buf.toString('utf16le');
-assert.equal(maxString.length, (kStringMaxLength + 2) / 2);
+assert.strictEqual(maxString.length, (kStringMaxLength + 2) / 2);

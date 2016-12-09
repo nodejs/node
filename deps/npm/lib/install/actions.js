@@ -3,13 +3,14 @@ var path = require('path')
 var validate = require('aproba')
 var chain = require('slide').chain
 var asyncMap = require('slide').asyncMap
-var log = require('npmlog')
+var iferr = require('iferr')
 var andFinishTracker = require('./and-finish-tracker.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
 var failedDependency = require('./deps.js').failedDependency
-var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
 var buildPath = require('./build-path.js')
+var reportOptionalFailure = require('./report-optional-failure.js')
+var isInstallable = require('./validate-args.js').isInstallable
 
 var actions = {}
 
@@ -45,7 +46,23 @@ Object.keys(actions).forEach(function (actionName) {
       if (!pkg.commit) pkg.commit = []
       pkg.commit.push(action.commit)
     }
-    return action(top, buildpath, pkg, log, andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, next))))
+    if (pkg.knownInstallable) {
+      return thenRunAction()
+    } else {
+      return isInstallable(pkg.package, iferr(andDone(next), andMarkInstallable(thenRunAction)))
+    }
+    function andMarkInstallable (cb) {
+      return function () {
+        pkg.knownInstallable = true
+        cb()
+      }
+    }
+    function thenRunAction () {
+      action(top, buildpath, pkg, log, andDone(next))
+    }
+    function andDone (cb) {
+      return andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, cb)))
+    }
   }
 })
 
@@ -63,15 +80,14 @@ function andHandleOptionalDepErrors (pkg, next) {
   return function (er) {
     if (!er) return next.apply(null, arguments)
     markAsFailed(pkg)
-    var anyFatal = pkg.userRequired || !pkg.parent
+    var anyFatal = pkg.userRequired || pkg.isTop
     for (var ii = 0; ii < pkg.requiredBy.length; ++ii) {
       var parent = pkg.requiredBy[ii]
       var isFatal = failedDependency(parent, pkg)
       if (isFatal) anyFatal = true
     }
     if (anyFatal) return next.apply(null, arguments)
-    log.warn('install:' + packageId(pkg), er.message)
-    log.verbose('install:' + packageId(pkg), er.stack)
+    reportOptionalFailure(pkg, null, er)
     next()
   }
 }

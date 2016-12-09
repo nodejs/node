@@ -20,16 +20,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
 
                 if (node.callee.type === "Identifier") {
-                    var name = node.callee.name;
+                    const name = node.callee.name;
 
                     if (name === "Math" || name === "JSON") {
-                        context.report(node, "'{{name}}' is not a function.", { name: name });
+                        context.report(node, "'{{name}}' is not a function.", { name });
                     }
                 }
             }

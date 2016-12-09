@@ -39,14 +39,13 @@ class Semaphore final {
   // Increments the semaphore counter.
   void Signal();
 
-  // Suspends the calling thread until the semaphore counter is non zero
-  // and then decrements the semaphore counter.
+  // Decrements the semaphore counter if it is positive, or blocks until it
+  // becomes positive and then decrements the counter.
   void Wait();
 
-  // Suspends the calling thread until the counter is non zero or the timeout
-  // time has passed. If timeout happens the return value is false and the
-  // counter is unchanged. Otherwise the semaphore counter is decremented and
-  // true is returned.
+  // Like Wait() but returns after rel_time time has passed. If the timeout
+  // happens the return value is false and the counter is unchanged. Otherwise
+  // the semaphore counter is decremented and true is returned.
   bool WaitFor(const TimeDelta& rel_time) WARN_UNUSED_RESULT;
 
 #if V8_OS_MACOSX

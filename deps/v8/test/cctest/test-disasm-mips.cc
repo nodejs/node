@@ -97,7 +97,6 @@ if (failure) { \
     V8_Fatal(__FILE__, __LINE__, "MIPS Disassembler tests failed.\n"); \
   }
 
-
 #define COMPARE_PC_REL_COMPACT(asm_, compare_string, offset)                   \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
@@ -106,15 +105,16 @@ if (failure) { \
     prev_instr_compact_branch = assm.IsPrevInstrCompactBranch();               \
     if (prev_instr_compact_branch) {                                           \
       snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",         \
-               compare_string, progcounter + 8 + (offset * 4));                \
+               compare_string,                                                 \
+               static_cast<void *>(progcounter + 8 + (offset * 4)));           \
     } else {                                                                   \
       snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",         \
-               compare_string, progcounter + 4 + (offset * 4));                \
+               compare_string,                                                 \
+               static_cast<void *>(progcounter + 4 + (offset * 4)));           \
     }                                                                          \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
-
 
 #define COMPARE_PC_REL(asm_, compare_string, offset)                           \
   {                                                                            \
@@ -122,11 +122,10 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + (offset * 4));                      \
+             compare_string, static_cast<void *>(progcounter + (offset * 4))); \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
-
 
 #define COMPARE_PC_JUMP(asm_, compare_string, target)                          \
   {                                                                            \
@@ -136,13 +135,12 @@ if (failure) { \
     int instr_index = (target >> 2) & kImm26Mask;                              \
     snprintf(                                                                  \
         str_with_address, sizeof(str_with_address), "%s %p -> %p",             \
-        compare_string, reinterpret_cast<byte *>(target),                      \
-        reinterpret_cast<byte *>(((uint32_t)(progcounter + 4) & ~0xfffffff) |  \
+        compare_string, reinterpret_cast<void *>(target),                      \
+        reinterpret_cast<void *>(((uint32_t)(progcounter + 4) & ~0xfffffff) |  \
                                  (instr_index << 2)));                         \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
-
 
 #define GET_PC_REGION(pc_region)                                         \
   {                                                                      \
@@ -777,6 +775,20 @@ TEST(Type0) {
       COMPARE(clz(v0, v1),
               "70621020       clz     v0, v1");
     }
+  }
+
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    COMPARE(seb(a0, a1), "7c052420       seb     a0, a1");
+    COMPARE(seb(s6, s7), "7c17b420       seb     s6, s7");
+    COMPARE(seb(v0, v1), "7c031420       seb     v0, v1");
+
+    COMPARE(seh(a0, a1), "7c052620       seh     a0, a1");
+    COMPARE(seh(s6, s7), "7c17b620       seh     s6, s7");
+    COMPARE(seh(v0, v1), "7c031620       seh     v0, v1");
+
+    COMPARE(wsbh(a0, a1), "7c0520a0       wsbh    a0, a1");
+    COMPARE(wsbh(s6, s7), "7c17b0a0       wsbh    s6, s7");
+    COMPARE(wsbh(v0, v1), "7c0310a0       wsbh    v0, v1");
   }
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {

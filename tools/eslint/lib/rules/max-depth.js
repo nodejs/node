@@ -43,15 +43,15 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
 
-        var functionStack = [],
-            option = context.options[0],
-            maxDepth = 4;
+        const functionStack = [],
+            option = context.options[0];
+        let maxDepth = 4;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
             maxDepth = option.maximum;
@@ -88,7 +88,7 @@ module.exports = {
          * @private
          */
         function pushBlock(node) {
-            var len = ++functionStack[functionStack.length - 1];
+            const len = ++functionStack[functionStack.length - 1];
 
             if (len > maxDepth) {
                 context.report(node, "Blocks are nested too deeply ({{depth}}).",
@@ -115,7 +115,7 @@ module.exports = {
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
 
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
                     pushBlock(node);
                 }

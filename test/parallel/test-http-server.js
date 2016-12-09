@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var http = require('http');
@@ -15,23 +15,23 @@ var server = http.createServer(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
-  if (req.id == 0) {
+  if (req.id === 0) {
     assert.equal('GET', req.method);
     assert.equal('/hello', url.parse(req.url).pathname);
     assert.equal('world', qs.parse(url.parse(req.url).query).hello);
     assert.equal('b==ar', qs.parse(url.parse(req.url).query).foo);
   }
 
-  if (req.id == 1) {
+  if (req.id === 1) {
     assert.equal('POST', req.method);
     assert.equal('/quit', url.parse(req.url).pathname);
   }
 
-  if (req.id == 2) {
+  if (req.id === 2) {
     assert.equal('foo', req.headers['x-x']);
   }
 
-  if (req.id == 3) {
+  if (req.id === 3) {
     assert.equal('bar', req.headers['x-x']);
     this.close();
   }
@@ -43,12 +43,12 @@ var server = http.createServer(function(req, res) {
   }, 1);
 
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.httpAllowHalfOpen = true;
 
 server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection(this.address().port);
 
   c.setEncoding('utf8');
 
@@ -60,12 +60,12 @@ server.on('listening', function() {
   c.on('data', function(chunk) {
     server_response += chunk;
 
-    if (requests_sent == 1) {
+    if (requests_sent === 1) {
       c.write('POST /quit HTTP/1.1\r\n\r\n');
       requests_sent += 1;
     }
 
-    if (requests_sent == 2) {
+    if (requests_sent === 2) {
       c.write('GET / HTTP/1.1\r\nX-X: foo\r\n\r\n' +
               'GET / HTTP/1.1\r\nX-X: bar\r\n\r\n');
       // Note: we are making the connection half-closed here

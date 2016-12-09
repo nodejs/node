@@ -11,10 +11,7 @@ var net = require('net');
 
 // Create a TCP server
 var srv = net.createServer(function(c) {
-  var data = '';
   c.on('data', function(d) {
-    data += d.toString('utf8');
-
     c.write('HTTP/1.1 101\r\n');
     c.write('hello: world\r\n');
     c.write('connection: upgrade\r\n');
@@ -28,12 +25,10 @@ var srv = net.createServer(function(c) {
   });
 });
 
-var gotUpgrade = false;
-
-srv.listen(common.PORT, '127.0.0.1', function() {
+srv.listen(0, '127.0.0.1', common.mustCall(function() {
 
   var options = {
-    port: common.PORT,
+    port: this.address().port,
     host: '127.0.0.1',
     headers: {
       'connection': 'upgrade',
@@ -45,7 +40,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
   var req = http.request(options);
   req.end();
 
-  req.on('upgrade', function(res, socket, upgradeHead) {
+  req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
     var recvData = upgradeHead;
     socket.on('data', function(d) {
       recvData += d;
@@ -64,16 +59,9 @@ srv.listen(common.PORT, '127.0.0.1', function() {
     // Make sure this request got removed from the pool.
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
 
-    req.on('close', function() {
+    req.on('close', common.mustCall(function() {
       socket.end();
       srv.close();
-
-      gotUpgrade = true;
-    });
-  });
-
-});
-
-process.on('exit', function() {
-  assert.ok(gotUpgrade);
-});
+    }));
+  }));
+}));

@@ -6,19 +6,19 @@ var fs = require('fs');
 
 common.refreshTmpDir();
 
-(function() {
-  var file = path.join(common.tmpDir, 'write-end-test0.txt');
-  var stream = fs.createWriteStream(file);
+{
+  const file = path.join(common.tmpDir, 'write-end-test0.txt');
+  const stream = fs.createWriteStream(file);
   stream.end();
   stream.on('close', common.mustCall(function() { }));
-})();
+}
 
-(function() {
-  var file = path.join(common.tmpDir, 'write-end-test1.txt');
-  var stream = fs.createWriteStream(file);
+{
+  const file = path.join(common.tmpDir, 'write-end-test1.txt');
+  const stream = fs.createWriteStream(file);
   stream.end('a\n', 'utf8');
   stream.on('close', common.mustCall(function() {
-    var content = fs.readFileSync(file, 'utf8');
-    assert.equal(content, 'a\n');
+    const content = fs.readFileSync(file, 'utf8');
+    assert.strictEqual(content, 'a\n');
   }));
-})();
+}

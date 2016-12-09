@@ -84,11 +84,6 @@ var math_script = Debug.findScript('native math.js');
 assertEquals('native math.js', math_script.name);
 assertEquals(Debug.ScriptType.Native, math_script.type);
 
-// Test a builtins delay loaded script.
-var date_delay_script = Debug.findScript('native json.js');
-assertEquals('native json.js', date_delay_script.name);
-assertEquals(Debug.ScriptType.Native, date_delay_script.type);
-
 // Test a debugger script.
 var debug_delay_script = Debug.findScript('native debug.js');
 assertEquals('native debug.js', debug_delay_script.name);

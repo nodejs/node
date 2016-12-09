@@ -152,7 +152,7 @@ class TTYTestConfiguration(test.TestConfiguration):
     return ['sample', 'sample=shell']
 
   def GetTestStatus(self, sections, defs):
-    status_file = join(self.root, 'message.status')
+    status_file = join(self.root, 'pseudo-tty.status')
     if exists(status_file):
       test.ReadConfigurationInto(status_file, sections, defs)
 

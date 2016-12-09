@@ -1,6 +1,6 @@
 # Zlib
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `zlib` module provides compression functionality implemented using Gzip and
 Deflate/Inflate. It can be accessed using:
@@ -9,7 +9,7 @@ Deflate/Inflate. It can be accessed using:
 const zlib = require('zlib');
 ```
 
-Compressing or decompressing a stream (such as a file) can be accomplished by 
+Compressing or decompressing a stream (such as a file) can be accomplished by
 piping the source stream data through a `zlib` stream into a destination stream:
 
 ```js
@@ -46,12 +46,12 @@ zlib.unzip(buffer, (err, buffer) => {
 ## Compressing HTTP requests and responses
 
 The `zlib` module can be used to implement support for the `gzip` and `deflate`
-content-encoding mechanisms defined by 
+content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
 The HTTP [`Accept-Encoding`][] header is used within an http request to identify
-the compression encodings accepted by the client. The [`Content-Encoding`][] 
-header is used to identify the compression encodings actually applied to a 
+the compression encodings accepted by the client. The [`Content-Encoding`][]
+header is used to identify the compression encodings actually applied to a
 message.
 
 **Note: the examples given below are drastically simplified to show
@@ -113,7 +113,7 @@ http.createServer((request, response) => {
 }).listen(1337);
 ```
 
-By default, the `zlib` methods with throw an error when decompressing
+By default, the `zlib` methods will throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
@@ -123,7 +123,9 @@ method that is used to compressed the last chunk of input data:
 // This is a truncated version of the buffer from the above examples
 const buffer = Buffer.from('eJzT0yMA', 'base64');
 
-zlib.unzip(buffer, { finishFlush: zlib.Z_SYNC_FLUSH }, (err, buffer) => {
+zlib.unzip(buffer,
+           {finishFlush: zlib.constants.Z_SYNC_FLUSH},
+           (err, buffer) => {
   if (!err) {
     console.log(buffer.toString());
   } else {
@@ -146,7 +148,7 @@ From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
-```
+```js
 (1 << (windowBits+2)) +  (1 << (memLevel+9))
 ```
 
@@ -154,9 +156,9 @@ That is: 128K for windowBits=15  +  128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
 For example, to reduce the default memory requirements from 256K to 128K, the
-options shoud be set to:
+options should be set to:
 
-```
+```js
 { windowBits: 14, memLevel: 7 }
 ```
 
@@ -164,7 +166,7 @@ This will, however, generally degrade compression.
 
 The memory requirements for inflate are (in bytes)
 
-```
+```js
 1 << windowBits
 ```
 
@@ -221,65 +223,56 @@ added: v0.5.8
 
 <!--type=misc-->
 
-All of the constants defined in `zlib.h` are also defined on `require('zlib')`.
-In the normal course of operations, it will not be necessary to use these 
-constants. They are documented so that their presence is not surprising. This 
-section is taken almost directly from the [zlib documentation][].  See
-<http://zlib.net/manual.html#Constants> for more details.
+All of the constants defined in `zlib.h` are also defined on
+`require('zlib').constants`. In the normal course of operations, it will not be
+necessary to use these  constants. They are documented so that their presence is
+not surprising. This section is taken almost directly from the
+[zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
+details.
+
+*Note*: Previously, the constants were available directly from
+`require('zlib')`, for instance `zlib.Z_NO_FLUSH`. Accessing the constants
+directly from the module is currently still possible but should be considered
+deprecated.
 
 Allowed flush values.
 
-* `zlib.Z_NO_FLUSH`
-* `zlib.Z_PARTIAL_FLUSH`
-* `zlib.Z_SYNC_FLUSH`
-* `zlib.Z_FULL_FLUSH`
-* `zlib.Z_FINISH`
-* `zlib.Z_BLOCK`
-* `zlib.Z_TREES`
+* `zlib.constants.Z_NO_FLUSH`
+* `zlib.constants.Z_PARTIAL_FLUSH`
+* `zlib.constants.Z_SYNC_FLUSH`
+* `zlib.constants.Z_FULL_FLUSH`
+* `zlib.constants.Z_FINISH`
+* `zlib.constants.Z_BLOCK`
+* `zlib.constants.Z_TREES`
 
 Return codes for the compression/decompression functions. Negative
 values are errors, positive values are used for special but normal
 events.
 
-* `zlib.Z_OK`
-* `zlib.Z_STREAM_END`
-* `zlib.Z_NEED_DICT`
-* `zlib.Z_ERRNO`
-* `zlib.Z_STREAM_ERROR`
-* `zlib.Z_DATA_ERROR`
-* `zlib.Z_MEM_ERROR`
-* `zlib.Z_BUF_ERROR`
-* `zlib.Z_VERSION_ERROR`
+* `zlib.constants.Z_OK`
+* `zlib.constants.Z_STREAM_END`
+* `zlib.constants.Z_NEED_DICT`
+* `zlib.constants.Z_ERRNO`
+* `zlib.constants.Z_STREAM_ERROR`
+* `zlib.constants.Z_DATA_ERROR`
+* `zlib.constants.Z_MEM_ERROR`
+* `zlib.constants.Z_BUF_ERROR`
+* `zlib.constants.Z_VERSION_ERROR`
 
 Compression levels.
 
-* `zlib.Z_NO_COMPRESSION`
-* `zlib.Z_BEST_SPEED`
-* `zlib.Z_BEST_COMPRESSION`
-* `zlib.Z_DEFAULT_COMPRESSION`
+* `zlib.constants.Z_NO_COMPRESSION`
+* `zlib.constants.Z_BEST_SPEED`
+* `zlib.constants.Z_BEST_COMPRESSION`
+* `zlib.constants.Z_DEFAULT_COMPRESSION`
 
 Compression strategy.
 
-* `zlib.Z_FILTERED`
-* `zlib.Z_HUFFMAN_ONLY`
-* `zlib.Z_RLE`
-* `zlib.Z_FIXED`
-* `zlib.Z_DEFAULT_STRATEGY`
-
-Possible values of the data_type field.
-
-* `zlib.Z_BINARY`
-* `zlib.Z_TEXT`
-* `zlib.Z_ASCII`
-* `zlib.Z_UNKNOWN`
-
-The deflate compression method (the only one supported in this version).
-
-* `zlib.Z_DEFLATED`
-
-For initializing zalloc, zfree, opaque.
-
-* `zlib.Z_NULL`
+* `zlib.constants.Z_FILTERED`
+* `zlib.constants.Z_HUFFMAN_ONLY`
+* `zlib.constants.Z_RLE`
+* `zlib.constants.Z_FIXED`
+* `zlib.constants.Z_DEFAULT_STRATEGY`
 
 ## Class Options
 <!-- YAML
@@ -293,8 +286,8 @@ Each class takes an `options` object.  All options are optional.
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
-* `flush` (default: `zlib.Z_NO_FLUSH`)
-* `finishFlush` (default: `zlib.Z_FINISH`)
+* `flush` (default: `zlib.constants.Z_NO_FLUSH`)
+* `finishFlush` (default: `zlib.constants.Z_FINISH`)
 * `chunkSize` (default: 16*1024)
 * `windowBits`
 * `level` (compression only)
@@ -368,7 +361,7 @@ class of the compressor/decompressor classes.
 added: v0.5.8
 -->
 
-`kind` defaults to `zlib.Z_FULL_FLUSH`.
+`kind` defaults to `zlib.constants.Z_FULL_FLUSH`.
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
@@ -393,6 +386,10 @@ added: v0.7.0
 
 Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
+
+## zlib.constants
+
+Provides an object enumerating Zlib-related constants.
 
 ## zlib.createDeflate([options])
 <!-- YAML
@@ -447,8 +444,8 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional 
-second argument to supply options to the `zlib` classes and will call the 
+All of these take a [Buffer][] or string as the first argument, an optional
+second argument to supply options to the `zlib` classes and will call the
 supplied callback with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but

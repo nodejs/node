@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            ConditionalExpression: function(node) {
+            ConditionalExpression(node) {
                 context.report(node, "Ternary operator used.");
             }
 

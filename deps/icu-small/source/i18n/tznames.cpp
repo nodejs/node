@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2011-2015, International Business Machines Corporation and    *
@@ -115,6 +117,9 @@ public:
     UnicodeString& getTimeZoneDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UnicodeString& name) const;
 
     UnicodeString& getExemplarLocationName(const UnicodeString& tzID, UnicodeString& name) const;
+
+    void loadAllDisplayNames(UErrorCode& status);
+    void getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const;
 
     MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const;
 private:
@@ -278,6 +283,16 @@ TimeZoneNamesDelegate::getExemplarLocationName(const UnicodeString& tzID, Unicod
     return fTZnamesCacheEntry->names->getExemplarLocationName(tzID, name);
 }
 
+void
+TimeZoneNamesDelegate::loadAllDisplayNames(UErrorCode& status) {
+    fTZnamesCacheEntry->names->loadAllDisplayNames(status);
+}
+
+void
+TimeZoneNamesDelegate::getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const {
+    fTZnamesCacheEntry->names->getDisplayNames(tzID, types, numTypes, date, dest, status);
+}
+
 TimeZoneNames::MatchInfoCollection*
 TimeZoneNamesDelegate::find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const {
     return fTZnamesCacheEntry->names->find(text, start, types, status);
@@ -328,6 +343,29 @@ TimeZoneNames::getDisplayName(const UnicodeString& tzID, UTimeZoneNameType type,
         getMetaZoneDisplayName(mzID, type, name);
     }
     return name;
+}
+
+// Empty default implementation, to be overriden in tznames_impl.cpp.
+void
+TimeZoneNames::loadAllDisplayNames(UErrorCode& /*status*/) {
+}
+
+// A default, lightweight implementation of getDisplayNames.
+// Overridden in tznames_impl.cpp.
+void
+TimeZoneNames::getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const {
+    if (U_FAILURE(status)) { return; }
+    if (tzID.isEmpty()) { return; }
+    UnicodeString mzID;
+    for (int i = 0; i < numTypes; i++) {
+        getTimeZoneDisplayName(tzID, types[i], dest[i]);
+        if (dest[i].isEmpty()) {
+            if (mzID.isEmpty()) {
+                getMetaZoneID(tzID, date, mzID);
+            }
+            getMetaZoneDisplayName(mzID, types[i], dest[i]);
+        }
+    }
 }
 
 

@@ -26,10 +26,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
+        const EXPECTED_LF_MSG = "Expected linebreaks to be 'LF' but found 'CRLF'.",
             EXPECTED_CRLF_MSG = "Expected linebreaks to be 'CRLF' but found 'LF'.";
+
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -39,7 +41,7 @@ module.exports = {
          * Builds a fix function that replaces text at the specified range in the source text.
          * @param {int[]} range The range to replace
          * @param {string} text The text to insert.
-         * @returns {function} Fixer function
+         * @returns {Function} Fixer function
          * @private
          */
         function createFix(range, text) {
@@ -54,16 +56,14 @@ module.exports = {
 
         return {
             Program: function checkForlinebreakStyle(node) {
-                var linebreakStyle = context.options[0] || "unix",
+                const linebreakStyle = context.options[0] || "unix",
                     expectedLF = linebreakStyle === "unix",
                     expectedLFChars = expectedLF ? "\n" : "\r\n",
-                    source = context.getSource(),
-                    pattern = /\r\n|\r|\n|\u2028|\u2029/g,
-                    match,
-                    index,
-                    range;
+                    source = sourceCode.getText(),
+                    pattern = /\r\n|\r|\n|\u2028|\u2029/g;
+                let match;
 
-                var i = 0;
+                let i = 0;
 
                 while ((match = pattern.exec(source)) !== null) {
                     i++;
@@ -71,13 +71,14 @@ module.exports = {
                         continue;
                     }
 
-                    index = match.index;
-                    range = [index, index + match[0].length];
+                    const index = match.index;
+                    const range = [index, index + match[0].length];
+
                     context.report({
-                        node: node,
+                        node,
                         loc: {
                             line: i,
-                            column: context.getSourceLines()[i - 1].length
+                            column: sourceCode.lines[i - 1].length
                         },
                         message: expectedLF ? EXPECTED_LF_MSG : EXPECTED_CRLF_MSG,
                         fix: createFix(range, expectedLFChars)

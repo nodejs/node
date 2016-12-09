@@ -1,6 +1,7 @@
 var castPath = require('./_castPath'),
     isFunction = require('./isFunction'),
-    isKey = require('./_isKey');
+    isKey = require('./_isKey'),
+    toKey = require('./_toKey');
 
 /**
  * This method is like `_.get` except that if the resolved value is a
@@ -43,7 +44,7 @@ function result(object, path, defaultValue) {
     length = 1;
   }
   while (++index < length) {
-    var value = object == null ? undefined : object[path[index]];
+    var value = object == null ? undefined : object[toKey(path[index])];
     if (value === undefined) {
       index = length;
       value = defaultValue;

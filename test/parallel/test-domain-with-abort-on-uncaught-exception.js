@@ -1,8 +1,8 @@
 'use strict';
 
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const common = require('../common');
 
 /*
  * The goal of this test is to make sure that:
@@ -93,7 +93,7 @@ if (process.argv[2] === 'child') {
       throwInDomainErrHandlerOpt = 'throwInDomainErrHandler';
 
     var cmdToExec = '';
-    if (process.platform !== 'win32') {
+    if (!common.isWindows) {
       // Do not create core files, as it can take a lot of disk space on
       // continuous testing and developers' machines
       cmdToExec += 'ulimit -c 0 && ';
@@ -121,7 +121,7 @@ if (process.argv[2] === 'child') {
         if (!options.useTryCatch && options.throwInDomainErrHandler) {
           if (cmdLineOption === '--abort_on_uncaught_exception') {
             assert(common.nodeProcessAborted(exitCode, signal),
-              'process should have aborted, but did not');
+                   'process should have aborted, but did not');
           } else {
             // By default, uncaught exceptions make node exit with an exit
             // code of 7.

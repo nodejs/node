@@ -34,7 +34,6 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
-using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
@@ -138,7 +137,7 @@ static inline bool IsInt64(double x) {
 
 static void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
-  CHECK_EQ(&req_wrap->req_, req);
+  CHECK_EQ(req_wrap->req(), req);
   req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
 
   Environment* env = req_wrap->env();
@@ -321,32 +320,35 @@ static void After(uv_fs_t *req) {
 
   req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
-  uv_fs_req_cleanup(&req_wrap->req_);
+  uv_fs_req_cleanup(req_wrap->req());
   req_wrap->Dispose();
 }
 
 // This struct is only used on sync fs calls.
 // For async calls FSReqWrap is used.
-struct fs_req_wrap {
+class fs_req_wrap {
+ public:
   fs_req_wrap() {}
   ~fs_req_wrap() { uv_fs_req_cleanup(&req); }
   uv_fs_t req;
+
+ private:
   DISALLOW_COPY_AND_ASSIGN(fs_req_wrap);
 };
 
 
-#define ASYNC_DEST_CALL(func, req, dest, encoding, ...)                       \
+#define ASYNC_DEST_CALL(func, request, dest, encoding, ...)                   \
   Environment* env = Environment::GetCurrent(args);                           \
-  CHECK(req->IsObject());                                                     \
-  FSReqWrap* req_wrap = FSReqWrap::New(env, req.As<Object>(),                 \
+  CHECK(request->IsObject());                                                 \
+  FSReqWrap* req_wrap = FSReqWrap::New(env, request.As<Object>(),             \
                                        #func, dest, encoding);                \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
-                           &req_wrap->req_,                                   \
+                           req_wrap->req(),                                   \
                            __VA_ARGS__,                                       \
                            After);                                            \
   req_wrap->Dispatched();                                                     \
   if (err < 0) {                                                              \
-    uv_fs_t* uv_req = &req_wrap->req_;                                        \
+    uv_fs_t* uv_req = req_wrap->req();                                        \
     uv_req->result = err;                                                     \
     uv_req->path = nullptr;                                                   \
     After(uv_req);                                                            \
@@ -417,10 +419,10 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 
 
 Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
+  EscapableHandleScope handle_scope(env->isolate());
+
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
-
-  EscapableHandleScope handle_scope(env->isolate());
 
   // The code below is very nasty-looking but it prevents a segmentation fault
   // when people run JS code like the snippet below. It's apparently more
@@ -431,21 +433,19 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   //     crash();
   //   }
   //
-  // We need to check the return value of Integer::New() and Date::New()
+  // We need to check the return value of Number::New() and Date::New()
   // and make sure that we bail out when V8 returns an empty handle.
 
-  // Integers.
+  // Unsigned integers. It does not actually seem to be specified whether
+  // uid and gid are unsigned or not, but in practice they are unsigned,
+  // and Node’s (F)Chown functions do check their arguments for unsignedness.
 #define X(name)                                                               \
-  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  Local<Value> name = Integer::NewFromUnsigned(env->isolate(), s->st_##name); \
   if (name.IsEmpty())                                                         \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
-  X(dev)
-  X(mode)
-  X(nlink)
   X(uid)
   X(gid)
-  X(rdev)
 # if defined(__POSIX__)
   X(blksize)
 # else
@@ -453,12 +453,24 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 # endif
 #undef X
 
+  // Integers.
+#define X(name)                                                               \
+  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  if (name.IsEmpty())                                                         \
+    return Local<Object>();                                                   \
+
+  X(dev)
+  X(mode)
+  X(nlink)
+  X(rdev)
+#undef X
+
   // Numbers.
 #define X(name)                                                               \
   Local<Value> name = Number::New(env->isolate(),                             \
                                   static_cast<double>(s->st_##name));         \
   if (name.IsEmpty())                                                         \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
   X(ino)
   X(size)
@@ -477,7 +489,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
         (static_cast<double>(s->st_##name.tv_nsec / 1000000)));               \
                                                                               \
   if (name##_msec.IsEmpty())                                                  \
-    return handle_scope.Escape(Local<Object>());                              \
+    return Local<Object>();                                                   \
 
   X(atim)
   X(mtim)
@@ -534,10 +546,11 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  const size_t kBlockSize = 32 << 10;
   std::vector<char> chars;
   int64_t offset = 0;
-  for (;;) {
-    const size_t kBlockSize = 32 << 10;
+  ssize_t numchars;
+  do {
     const size_t start = chars.size();
     chars.resize(start + kBlockSize);
 
@@ -546,26 +559,19 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     buf.len = kBlockSize;
 
     uv_fs_t read_req;
-    const ssize_t numchars =
-        uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
+    numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
     uv_fs_req_cleanup(&read_req);
 
     CHECK_GE(numchars, 0);
-    if (static_cast<size_t>(numchars) < kBlockSize) {
-      chars.resize(start + numchars);
-    }
-    if (numchars == 0) {
-      break;
-    }
     offset += numchars;
-  }
+  } while (static_cast<size_t>(numchars) == kBlockSize);
 
   uv_fs_t close_req;
   CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
   uv_fs_req_cleanup(&close_req);
 
   size_t start = 0;
-  if (chars.size() >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
+  if (offset >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
   }
 
@@ -573,7 +579,7 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
       String::NewFromUtf8(env->isolate(),
                           &chars[start],
                           String::kNormalString,
-                          chars.size() - start);
+                          offset - start);
   args.GetReturnValue().Set(chars_string);
 }
 
@@ -1076,38 +1082,23 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   int64_t pos = GET_OFFSET(args[2]);
   Local<Value> req = args[3];
 
-  uint32_t chunkCount = chunks->Length();
+  MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
-  uv_buf_t s_iovs[1024];  // use stack allocation when possible
-  uv_buf_t* iovs;
-
-  if (chunkCount > arraysize(s_iovs))
-    iovs = new uv_buf_t[chunkCount];
-  else
-    iovs = s_iovs;
-
-  for (uint32_t i = 0; i < chunkCount; i++) {
+  for (uint32_t i = 0; i < iovs.length(); i++) {
     Local<Value> chunk = chunks->Get(i);
 
-    if (!Buffer::HasInstance(chunk)) {
-      if (iovs != s_iovs)
-        delete[] iovs;
+    if (!Buffer::HasInstance(chunk))
       return env->ThrowTypeError("Array elements all need to be buffers");
-    }
 
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
 
   if (req->IsObject()) {
-    ASYNC_CALL(write, req, UTF8, fd, iovs, chunkCount, pos)
-    if (iovs != s_iovs)
-      delete[] iovs;
+    ASYNC_CALL(write, req, UTF8, fd, *iovs, iovs.length(), pos)
     return;
   }
 
-  SYNC_CALL(write, nullptr, fd, iovs, chunkCount, pos)
-  if (iovs != s_iovs)
-    delete[] iovs;
+  SYNC_CALL(write, nullptr, fd, *iovs, iovs.length(), pos)
   args.GetReturnValue().Set(SYNC_RESULT);
 }
 
@@ -1167,7 +1158,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap* req_wrap =
       FSReqWrap::New(env, req.As<Object>(), "write", buf, UTF8, ownership);
   int err = uv_fs_write(env->event_loop(),
-                        &req_wrap->req_,
+                        req_wrap->req(),
                         fd,
                         &uvbuf,
                         1,
@@ -1175,7 +1166,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
                         After);
   req_wrap->Dispatched();
   if (err < 0) {
-    uv_fs_t* uv_req = &req_wrap->req_;
+    uv_fs_t* uv_req = req_wrap->req();
     uv_req->result = err;
     uv_req->path = nullptr;
     After(uv_req);

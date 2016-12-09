@@ -7,9 +7,12 @@
 
 #include "src/allocation.h"
 #include "src/base/bits.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 
 // Data structure for maintaining a set of slots in a standard (non-large)
 // page. The base address of the page must be set with SetPageStart before any
@@ -19,8 +22,6 @@ namespace internal {
 // Each bucket is a bitmap with a bit corresponding to a single slot offset.
 class SlotSet : public Malloced {
  public:
-  enum CallbackResult { KEEP_SLOT, REMOVE_SLOT };
-
   SlotSet() {
     for (int i = 0; i < kBuckets; i++) {
       bucket[i] = nullptr;
@@ -63,6 +64,7 @@ class SlotSet : public Malloced {
   // The slot offsets specify a range of slots at addresses:
   // [page_start_ + start_offset ... page_start_ + end_offset).
   void RemoveRange(int start_offset, int end_offset) {
+    CHECK_LE(end_offset, 1 << kPageSizeBits);
     DCHECK_LE(start_offset, end_offset);
     int start_bucket, start_cell, start_bit;
     SlotToIndices(start_offset, &start_bucket, &start_cell, &start_bit);
@@ -192,9 +194,15 @@ class SlotSet : public Malloced {
   }
 
   void MaskCell(int bucket_index, int cell_index, uint32_t mask) {
-    uint32_t* cells = bucket[bucket_index];
-    if (cells != nullptr && cells[cell_index] != 0) {
-      cells[cell_index] &= mask;
+    if (bucket_index < kBuckets) {
+      uint32_t* cells = bucket[bucket_index];
+      if (cells != nullptr && cells[cell_index] != 0) {
+        cells[cell_index] &= mask;
+      }
+    } else {
+      // GCC bug 59124: Emits wrong warnings
+      // "array subscript is above array bounds"
+      UNREACHABLE();
     }
   }
 
@@ -211,6 +219,143 @@ class SlotSet : public Malloced {
 
   uint32_t* bucket[kBuckets];
   Address page_start_;
+};
+
+enum SlotType {
+  EMBEDDED_OBJECT_SLOT,
+  OBJECT_SLOT,
+  CELL_TARGET_SLOT,
+  CODE_TARGET_SLOT,
+  CODE_ENTRY_SLOT,
+  DEBUG_TARGET_SLOT,
+  NUMBER_OF_SLOT_TYPES
+};
+
+// Data structure for maintaining a multiset of typed slots in a page.
+// Typed slots can only appear in Code and JSFunction objects, so
+// the maximum possible offset is limited by the LargePage::kMaxCodePageSize.
+// The implementation is a chain of chunks, where each chunks is an array of
+// encoded (slot type, slot offset) pairs.
+// There is no duplicate detection and we do not expect many duplicates because
+// typed slots contain V8 internal pointers that are not directly exposed to JS.
+class TypedSlotSet {
+ public:
+  struct TypedSlot {
+    TypedSlot() : type_and_offset_(0), host_offset_(0) {}
+
+    TypedSlot(SlotType type, uint32_t host_offset, uint32_t offset)
+        : type_and_offset_(TypeField::encode(type) |
+                           OffsetField::encode(offset)),
+          host_offset_(host_offset) {}
+
+    bool operator==(const TypedSlot other) {
+      return type_and_offset_ == other.type_and_offset_ &&
+             host_offset_ == other.host_offset_;
+    }
+
+    bool operator!=(const TypedSlot other) { return !(*this == other); }
+
+    SlotType type() { return TypeField::decode(type_and_offset_); }
+
+    uint32_t offset() { return OffsetField::decode(type_and_offset_); }
+
+    uint32_t host_offset() { return host_offset_; }
+
+    uint32_t type_and_offset_;
+    uint32_t host_offset_;
+  };
+  static const int kMaxOffset = 1 << 29;
+
+  explicit TypedSlotSet(Address page_start) : page_start_(page_start) {
+    chunk_ = new Chunk(nullptr, kInitialBufferSize);
+  }
+
+  ~TypedSlotSet() {
+    Chunk* chunk = chunk_;
+    while (chunk != nullptr) {
+      Chunk* next = chunk->next;
+      delete chunk;
+      chunk = next;
+    }
+  }
+
+  // The slot offset specifies a slot at address page_start_ + offset.
+  void Insert(SlotType type, uint32_t host_offset, uint32_t offset) {
+    TypedSlot slot(type, host_offset, offset);
+    if (!chunk_->AddSlot(slot)) {
+      chunk_ = new Chunk(chunk_, NextCapacity(chunk_->capacity));
+      bool added = chunk_->AddSlot(slot);
+      DCHECK(added);
+      USE(added);
+    }
+  }
+
+  // Iterate over all slots in the set and for each slot invoke the callback.
+  // If the callback returns REMOVE_SLOT then the slot is removed from the set.
+  // Returns the new number of slots.
+  //
+  // Sample usage:
+  // Iterate([](SlotType slot_type, Address slot_address) {
+  //    if (good(slot_type, slot_address)) return KEEP_SLOT;
+  //    else return REMOVE_SLOT;
+  // });
+  template <typename Callback>
+  int Iterate(Callback callback) {
+    STATIC_ASSERT(NUMBER_OF_SLOT_TYPES < 8);
+    const TypedSlot kRemovedSlot(NUMBER_OF_SLOT_TYPES, 0, 0);
+    Chunk* chunk = chunk_;
+    int new_count = 0;
+    while (chunk != nullptr) {
+      TypedSlot* buffer = chunk->buffer;
+      int count = chunk->count;
+      for (int i = 0; i < count; i++) {
+        TypedSlot slot = buffer[i];
+        if (slot != kRemovedSlot) {
+          SlotType type = slot.type();
+          Address addr = page_start_ + slot.offset();
+          Address host_addr = page_start_ + slot.host_offset();
+          if (callback(type, host_addr, addr) == KEEP_SLOT) {
+            new_count++;
+          } else {
+            buffer[i] = kRemovedSlot;
+          }
+        }
+      }
+      chunk = chunk->next;
+    }
+    return new_count;
+  }
+
+ private:
+  static const int kInitialBufferSize = 100;
+  static const int kMaxBufferSize = 16 * KB;
+
+  static int NextCapacity(int capacity) {
+    return Min(kMaxBufferSize, capacity * 2);
+  }
+
+  class OffsetField : public BitField<int, 0, 29> {};
+  class TypeField : public BitField<SlotType, 29, 3> {};
+
+  struct Chunk : Malloced {
+    explicit Chunk(Chunk* next_chunk, int capacity)
+        : next(next_chunk), count(0), capacity(capacity) {
+      buffer = NewArray<TypedSlot>(capacity);
+    }
+    bool AddSlot(TypedSlot slot) {
+      if (count == capacity) return false;
+      buffer[count++] = slot;
+      return true;
+    }
+    ~Chunk() { DeleteArray(buffer); }
+    Chunk* next;
+    int count;
+    int capacity;
+    TypedSlot* buffer;
+  };
+
+  Address page_start_;
+  Chunk* chunk_;
 };
 
 }  // namespace internal

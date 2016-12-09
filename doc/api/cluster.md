@@ -1,6 +1,6 @@
 # Cluster
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 A single instance of Node.js runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node.js
@@ -35,7 +35,7 @@ if (cluster.isMaster) {
 
 Running Node.js will now share port 8000 between the workers:
 
-```
+```txt
 $ NODE_DEBUG=cluster node server.js
 23521,Master Worker 23524 online
 23521,Master Worker 23526 online
@@ -43,7 +43,7 @@ $ NODE_DEBUG=cluster node server.js
 23521,Master Worker 23528 online
 ```
 
-Please note that, on Windows, it is not yet possible to set up a named pipe
+Please note that on Windows, it is not yet possible to set up a named pipe
 server in a worker.
 
 ## How It Works
@@ -108,12 +108,18 @@ responsibility to manage the worker pool for your application's needs.
 
 
 ## Class: Worker
+<!-- YAML
+added: v0.7.0
+-->
 
 A Worker object contains all public information and method about a worker.
 In the master it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
 ### Event: 'disconnect'
+<!-- YAML
+added: v0.7.7
+-->
 
 Similar to the `cluster.on('disconnect')` event, but specific to this worker.
 
@@ -124,15 +130,21 @@ cluster.fork().on('disconnect', () => {
 ```
 
 ### Event: 'error'
+<!-- YAML
+added: v0.7.3
+-->
 
 This event is the same as the one provided by [`child_process.fork()`][].
 
 In a worker you can also use `process.on('error')`.
 
 ### Event: 'exit'
+<!-- YAML
+added: v0.11.2
+-->
 
 * `code` {Number} the exit code, if it exited normally.
-* `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
+* `signal` {String} the name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
@@ -151,6 +163,9 @@ worker.on('exit', (code, signal) => {
 ```
 
 ### Event: 'listening'
+<!-- YAML
+added: v0.7.0
+-->
 
 * `address` {Object}
 
@@ -165,14 +180,17 @@ cluster.fork().on('listening', (address) => {
 It is not emitted in the worker.
 
 ### Event: 'message'
+<!-- YAML
+added: v0.7.0
+-->
 
 * `message` {Object}
+* `handle` {undefined|Object}
 
-Similar to the `cluster.on('message')` event, but specific to this worker.
+Similar to the `cluster.on('message')` event, but specific to this worker. In a
+worker you can also use `process.on('message')`.
 
-This event is the same as the one provided by [`child_process.fork()`][].
-
-In a worker you can also use `process.on('message')`.
+See [`process` event: `'message'`][].
 
 As an example, here is a cluster that keeps count of the number of requests
 in the master process using the message system:
@@ -220,6 +238,9 @@ if (cluster.isMaster) {
 ```
 
 ### Event: 'online'
+<!-- YAML
+added: v0.7.0
+-->
 
 Similar to the `cluster.on('online')` event, but specific to this worker.
 
@@ -232,6 +253,9 @@ cluster.fork().on('online', () => {
 It is not emitted in the worker.
 
 ### worker.disconnect()
+<!-- YAML
+added: v0.7.7
+-->
 
 In a worker, this function will close all servers, wait for the `'close'` event on
 those servers, and then disconnect the IPC channel.
@@ -293,6 +317,9 @@ if (cluster.isMaster) {
 ```
 
 ### worker.exitedAfterDisconnect
+<!-- YAML
+added: v6.0.0
+-->
 
 * {Boolean}
 
@@ -314,6 +341,9 @@ worker.kill();
 ```
 
 ### worker.id
+<!-- YAML
+added: v0.8.0
+-->
 
 * {Number}
 
@@ -324,17 +354,26 @@ While a worker is alive, this is the key that indexes it in
 cluster.workers
 
 ### worker.isConnected()
+<!-- YAML
+added: v0.11.14
+-->
 
 This function returns `true` if the worker is connected to its master via its IPC
 channel, `false` otherwise. A worker is connected to its master after it's been
 created. It is disconnected after the `'disconnect'` event is emitted.
 
 ### worker.isDead()
+<!-- YAML
+added: v0.11.14
+-->
 
 This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
 
 ### worker.kill([signal='SIGTERM'])
+<!-- YAML
+added: v0.9.12
+-->
 
 * `signal` {String} Name of the kill signal to send to the worker
   process.
@@ -351,6 +390,9 @@ Note that in a worker, `process.kill()` exists, but it is not this function,
 it is [`kill`][].
 
 ### worker.process
+<!-- YAML
+added: v0.7.0
+-->
 
 * {ChildProcess}
 
@@ -365,11 +407,14 @@ on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
 accidental disconnection.
 
 ### worker.send(message[, sendHandle][, callback])
+<!-- YAML
+added: v0.7.0
+-->
 
 * `message` {Object}
 * `sendHandle` {Handle}
 * `callback` {Function}
-* Return: Boolean
+* Returns: Boolean
 
 Send a message to a worker or master, optionally with a handle.
 
@@ -394,8 +439,12 @@ if (cluster.isMaster) {
 ```
 
 ### worker.suicide
+<!-- YAML
+added: v0.7.0
+deprecated: v6.0.0
+-->
 
-    Stability: 0 - Deprecated: Use [`worker.exitedAfterDisconnect`][] instead.
+> Stability: 0 - Deprecated: Use [`worker.exitedAfterDisconnect`][] instead.
 
 An alias to [`worker.exitedAfterDisconnect`][].
 
@@ -420,6 +469,9 @@ This API only exists for backwards compatibility and will be removed in the
 future.
 
 ## Event: 'disconnect'
+<!-- YAML
+added: v0.7.9
+-->
 
 * `worker` {cluster.Worker}
 
@@ -438,10 +490,13 @@ cluster.on('disconnect', (worker) => {
 ```
 
 ## Event: 'exit'
+<!-- YAML
+added: v0.7.9
+-->
 
 * `worker` {cluster.Worker}
 * `code` {Number} the exit code, if it exited normally.
-* `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
+* `signal` {String} the name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 When any of the workers die the cluster module will emit the `'exit'` event.
@@ -459,6 +514,9 @@ cluster.on('exit', (worker, code, signal) => {
 See [child_process event: 'exit'][].
 
 ## Event: 'fork'
+<!-- YAML
+added: v0.7.0
+-->
 
 * `worker` {cluster.Worker}
 
@@ -484,6 +542,9 @@ cluster.on('exit', (worker, code, signal) => {
 ```
 
 ## Event: 'listening'
+<!-- YAML
+added: v0.7.0
+-->
 
 * `worker` {cluster.Worker}
 * `address` {Object}
@@ -516,7 +577,7 @@ The `addressType` is one of:
 * `message` {Object}
 * `handle` {undefined|Object}
 
-Emitted when any worker receives a message.
+Emitted when the cluster master receives a message from any worker.
 
 See [child_process event: 'message'][].
 
@@ -538,6 +599,9 @@ cluster.on('message', function(worker, message, handle) {
 ```
 
 ## Event: 'online'
+<!-- YAML
+added: v0.7.0
+-->
 
 * `worker` {cluster.Worker}
 
@@ -553,6 +617,9 @@ cluster.on('online', (worker) => {
 ```
 
 ## Event: 'setup'
+<!-- YAML
+added: v0.7.1
+-->
 
 * `settings` {Object}
 
@@ -565,6 +632,9 @@ The `settings` object is the `cluster.settings` object at the time
 If accuracy is important, use `cluster.settings`.
 
 ## cluster.disconnect([callback])
+<!-- YAML
+added: v0.7.7
+-->
 
 * `callback` {Function} called when all workers are disconnected and handles are
   closed
@@ -579,6 +649,9 @@ The method takes an optional callback argument which will be called when finishe
 This can only be called from the master process.
 
 ## cluster.fork([env])
+<!-- YAML
+added: v0.6.0
+-->
 
 * `env` {Object} Key/value pairs to add to worker process environment.
 * return {cluster.Worker}
@@ -588,6 +661,9 @@ Spawn a new worker process.
 This can only be called from the master process.
 
 ## cluster.isMaster
+<!-- YAML
+added: v0.8.1
+-->
 
 * {Boolean}
 
@@ -596,12 +672,18 @@ by the `process.env.NODE_UNIQUE_ID`. If `process.env.NODE_UNIQUE_ID` is
 undefined, then `isMaster` is `true`.
 
 ## cluster.isWorker
+<!-- YAML
+added: v0.6.0
+-->
 
 * {Boolean}
 
 True if the process is not a master (it is the negation of `cluster.isMaster`).
 
 ## cluster.schedulingPolicy
+<!-- YAML
+added: v0.11.2
+-->
 
 The scheduling policy, either `cluster.SCHED_RR` for round-robin or
 `cluster.SCHED_NONE` to leave it to the operating system. This is a
@@ -617,6 +699,9 @@ distribute IOCP handles without incurring a large performance hit.
 values are `"rr"` and `"none"`.
 
 ## cluster.settings
+<!-- YAML
+added: v0.7.1
+-->
 
 * {Object}
   * `execArgv` {Array} list of string arguments passed to the Node.js
@@ -626,18 +711,21 @@ values are `"rr"` and `"none"`.
     (Default=`process.argv.slice(2)`)
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
+  * `stdio` {Array} Configures the stdio of forked processes. Because the
+    cluster module relies on IPC to function, this configuration must contain an
+    `'ipc'` entry. When this option is provided, it overrides `silent`.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
 
-It is effectively frozen after being set, because `.setupMaster()` can
-only be called once.
-
 This object is not supposed to be changed or set manually, by you.
 
 ## cluster.setupMaster([settings])
+<!-- YAML
+added: v0.7.1
+-->
 
 * `settings` {Object}
   * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
@@ -645,6 +733,8 @@ This object is not supposed to be changed or set manually, by you.
     (Default=`process.argv.slice(2)`)
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
+  * `stdio` {Array} Configures the stdio of forked processes. When this option
+    is provided, it overrides `silent`.
 
 `setupMaster` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.
@@ -678,6 +768,9 @@ cluster.fork(); // http worker
 This can only be called from the master process.
 
 ## cluster.worker
+<!-- YAML
+added: v0.7.0
+-->
 
 * {Object}
 
@@ -696,6 +789,9 @@ if (cluster.isMaster) {
 ```
 
 ## cluster.workers
+<!-- YAML
+added: v0.7.0
+-->
 
 * {Object}
 
@@ -738,3 +834,4 @@ socket.on('data', (id) => {
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
+[`process` event: `'message'`]: process.html#process_event_message

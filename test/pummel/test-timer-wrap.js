@@ -1,21 +1,14 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 
-var timeouts = 0;
 var Timer = process.binding('timer_wrap').Timer;
 var kOnTimeout = Timer.kOnTimeout;
 
 var t = new Timer();
 
-t.start(1000, 0);
+t.start(1000);
 
-t[kOnTimeout] = function() {
-  timeouts++;
+t[kOnTimeout] = common.mustCall(function() {
   console.log('timeout');
   t.close();
-};
-
-process.on('exit', function() {
-  assert.equal(1, timeouts);
 });

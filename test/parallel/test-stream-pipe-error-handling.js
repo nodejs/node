@@ -1,33 +1,33 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var Stream = require('stream').Stream;
+const common = require('../common');
+const assert = require('assert');
+const Stream = require('stream').Stream;
 
-(function testErrorListenerCatches() {
-  var source = new Stream();
-  var dest = new Stream();
+{
+  const source = new Stream();
+  const dest = new Stream();
 
   source.pipe(dest);
 
-  var gotErr = null;
+  let gotErr = null;
   source.on('error', function(err) {
     gotErr = err;
   });
 
-  var err = new Error('This stream turned into bacon.');
+  const err = new Error('This stream turned into bacon.');
   source.emit('error', err);
   assert.strictEqual(gotErr, err);
-})();
+}
 
-(function testErrorWithoutListenerThrows() {
-  var source = new Stream();
-  var dest = new Stream();
+{
+  const source = new Stream();
+  const dest = new Stream();
 
   source.pipe(dest);
 
-  var err = new Error('This stream turned into bacon.');
+  const err = new Error('This stream turned into bacon.');
 
-  var gotErr = null;
+  let gotErr = null;
   try {
     source.emit('error', err);
   } catch (e) {
@@ -35,31 +35,24 @@ var Stream = require('stream').Stream;
   }
 
   assert.strictEqual(gotErr, err);
-})();
+}
 
-(function testErrorWithRemovedListenerThrows() {
-  var R = Stream.Readable;
-  var W = Stream.Writable;
+{
+  const R = Stream.Readable;
+  const W = Stream.Writable;
 
-  var r = new R();
-  var w = new W();
-  var removed = false;
-  var didTest = false;
+  const r = new R();
+  const w = new W();
+  let removed = false;
 
-  process.on('exit', function() {
-    assert(didTest);
-    console.log('ok');
-  });
-
-  r._read = function() {
-    setTimeout(function() {
+  r._read = common.mustCall(function() {
+    setTimeout(common.mustCall(function() {
       assert(removed);
       assert.throws(function() {
         w.emit('error', new Error('fail'));
       });
-      didTest = true;
-    });
-  };
+    }));
+  });
 
   w.on('error', myOnError);
   r.pipe(w);
@@ -69,41 +62,28 @@ var Stream = require('stream').Stream;
   function myOnError(er) {
     throw new Error('this should not happen');
   }
-})();
+}
 
-(function testErrorWithRemovedListenerThrows() {
-  var R = Stream.Readable;
-  var W = Stream.Writable;
+{
+  const R = Stream.Readable;
+  const W = Stream.Writable;
 
-  var r = new R();
-  var w = new W();
-  var removed = false;
-  var didTest = false;
-  var caught = false;
+  const r = new R();
+  const w = new W();
+  let removed = false;
 
-  process.on('exit', function() {
-    assert(didTest);
-    console.log('ok');
-  });
-
-  r._read = function() {
-    setTimeout(function() {
+  r._read = common.mustCall(function() {
+    setTimeout(common.mustCall(function() {
       assert(removed);
       w.emit('error', new Error('fail'));
-      didTest = true;
-    });
-  };
+    }));
+  });
 
-  w.on('error', myOnError);
+  w.on('error', common.mustCall(function(er) {}));
   w._write = function() {};
 
   r.pipe(w);
   // Removing some OTHER random listener should not do anything
   w.removeListener('error', function() {});
   removed = true;
-
-  function myOnError(er) {
-    assert(!caught);
-    caught = true;
-  }
-})();
+}

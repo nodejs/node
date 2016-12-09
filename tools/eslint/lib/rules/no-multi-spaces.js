@@ -38,12 +38,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         // the index of the last comment that was checked
-        var exceptions = { Property: true },
-            hasExceptions = true,
-            options = context.options[0],
+        const exceptions = { Property: true },
+            options = context.options[0];
+        let hasExceptions = true,
             lastCommentIndex = 0;
 
         if (options && options.exceptions) {
@@ -68,12 +68,8 @@ module.exports = {
          * @private
          */
         function isIndexInComment(index, comments) {
-
-            var comment;
-
             while (lastCommentIndex < comments.length) {
-
-                comment = comments[lastCommentIndex];
+                const comment = comments[lastCommentIndex];
 
                 if (comment.range[0] <= index && index < comment.range[1]) {
                     return true;
@@ -82,7 +78,6 @@ module.exports = {
                 } else {
                     break;
                 }
-
             }
 
             return false;
@@ -93,21 +88,20 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            Program: function() {
+            Program() {
 
-                var source = context.getSource(),
-                    allComments = context.getAllComments(),
-                    pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g,  // note: repeating space
-                    token,
-                    previousToken,
-                    parent;
+                const sourceCode = context.getSourceCode(),
+                    source = sourceCode.getText(),
+                    allComments = sourceCode.getAllComments(),
+                    pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g;  // note: repeating space
+                let parent;
 
 
                 /**
                  * Creates a fix function that removes the multiple spaces between the two tokens
                  * @param {RuleFixer} leftToken left token
                  * @param {RuleFixer} rightToken right token
-                 * @returns {function} fix function
+                 * @returns {Function} fix function
                  * @private
                  */
                 function createFix(leftToken, rightToken) {
@@ -121,12 +115,13 @@ module.exports = {
                     // do not flag anything inside of comments
                     if (!isIndexInComment(pattern.lastIndex, allComments)) {
 
-                        token = context.getTokenByRangeStart(pattern.lastIndex);
+                        const token = sourceCode.getTokenByRangeStart(pattern.lastIndex);
+
                         if (token) {
-                            previousToken = context.getTokenBefore(token);
+                            const previousToken = sourceCode.getTokenBefore(token);
 
                             if (hasExceptions) {
-                                parent = context.getNodeByRangeIndex(pattern.lastIndex - 1);
+                                parent = sourceCode.getNodeByRangeIndex(pattern.lastIndex - 1);
                             }
 
                             if (!parent || !exceptions[parent.type]) {

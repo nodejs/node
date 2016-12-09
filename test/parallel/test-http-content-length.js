@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -46,11 +46,11 @@ var server = http.createServer(function(req, res) {
   if (totalRequests === receivedRequests) server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var req;
 
   req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/multiple-writes'
   });
@@ -63,7 +63,7 @@ server.listen(common.PORT, function() {
   });
 
   req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/end-with-data'
   });
@@ -75,7 +75,7 @@ server.listen(common.PORT, function() {
   });
 
   req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/empty'
   });

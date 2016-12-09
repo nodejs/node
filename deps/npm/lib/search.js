@@ -5,6 +5,7 @@ var npm = require('./npm.js')
 var columnify = require('columnify')
 var updateIndex = require('./cache/update-index.js')
 var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
 search.usage = usage(
   'search',
@@ -70,7 +71,7 @@ function search (args, silent, staleness, cb) {
     // prettify and print it, and then provide the raw
     // data to the cb.
     if (er || silent) return cb(er, data)
-    console.log(prettify(data, args))
+    output(prettify(data, args))
     cb(null, data)
   })
 }

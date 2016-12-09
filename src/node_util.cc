@@ -1,4 +1,5 @@
 #include "node.h"
+#include "node_watchdog.h"
 #include "v8.h"
 #include "env.h"
 #include "env-inl.h"
@@ -27,6 +28,7 @@ using v8::Value;
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \
   V(isSetIterator, IsSetIterator)                                             \
+  V(isSharedArrayBuffer, IsSharedArrayBuffer)                                 \
   V(isTypedArray, IsTypedArray)
 
 
@@ -98,6 +100,27 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
+  int ret = SigintWatchdogHelper::GetInstance()->Start();
+  if (ret != 0) {
+    Environment* env = Environment::GetCurrent(args);
+    env->ThrowErrnoException(ret, "StartSigintWatchdog");
+  }
+}
+
+
+void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
+  bool had_pending_signals = SigintWatchdogHelper::GetInstance()->Stop();
+  args.GetReturnValue().Set(had_pending_signals);
+}
+
+
+void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
+  bool ret = SigintWatchdogHelper::GetInstance()->HasPendingSignal();
+  args.GetReturnValue().Set(ret);
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -110,7 +133,7 @@ void Initialize(Local<Object> target,
 #define V(name, _)                                                            \
   target->Set(context,                                                        \
               FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Integer::NewFromUnsigned(env->isolate(), index++));
+              Integer::NewFromUnsigned(env->isolate(), index++)).FromJust();
   {
     uint32_t index = 0;
     PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
@@ -120,6 +143,10 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
+
+  env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
+  env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
+  env->SetMethod(target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
 }
 
 }  // namespace util

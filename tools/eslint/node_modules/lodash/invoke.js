@@ -1,5 +1,5 @@
 var baseInvoke = require('./_baseInvoke'),
-    rest = require('./rest');
+    baseRest = require('./_baseRest');
 
 /**
  * Invokes the method at `path` of `object`.
@@ -19,6 +19,6 @@ var baseInvoke = require('./_baseInvoke'),
  * _.invoke(object, 'a[0].b.c.slice', 1, 3);
  * // => [2, 3]
  */
-var invoke = rest(baseInvoke);
+var invoke = baseRest(baseInvoke);
 
 module.exports = invoke;

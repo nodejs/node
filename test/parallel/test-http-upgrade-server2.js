@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -14,17 +14,14 @@ server.on('upgrade', function(req, socket, upgradeHead) {
   throw new Error('upgrade error');
 });
 
-var gotError = false;
-
-process.on('uncaughtException', function(e) {
+process.on('uncaughtException', common.mustCall(function(e) {
   assert.equal('upgrade error', e.message);
-  gotError = true;
   process.exit(0);
-});
+}));
 
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
     c.write('GET /blah HTTP/1.1\r\n' +
@@ -40,8 +37,4 @@ server.listen(common.PORT, function() {
   c.on('close', function() {
     server.close();
   });
-});
-
-process.on('exit', function() {
-  assert.ok(gotError);
 });

@@ -11,7 +11,7 @@ module.exports = function usage (cmd, txt, opt) {
   if (opt || post.length > 0) txt += '\n\n'
 
   if (post.length === 1) {
-    txt += 'aliase: '
+    txt += 'alias: '
     txt += post.join(', ')
   } else if (post.length > 1) {
     txt += 'aliases: '

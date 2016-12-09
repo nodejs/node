@@ -39,23 +39,23 @@ function alignRight(str, len, ch) {
 // Module definition
 //------------------------------------------------------------------------------
 
-var enabled = !!process.env.TIMING;
+const enabled = !!process.env.TIMING;
 
-var HEADERS = ["Rule", "Time (ms)", "Relative"];
-var ALIGN = [alignLeft, alignRight, alignRight];
+const HEADERS = ["Rule", "Time (ms)", "Relative"];
+const ALIGN = [alignLeft, alignRight, alignRight];
 
 /* istanbul ignore next */
 /**
  * display the data
- * @param {object} data Data object to be displayed
+ * @param {Object} data Data object to be displayed
  * @returns {string} modified string
  * @private
  */
 function display(data) {
-    var total = 0;
-    var rows = Object.keys(data)
+    let total = 0;
+    const rows = Object.keys(data)
         .map(function(key) {
-            var time = data[key];
+            const time = data[key];
 
             total += time;
             return [key, time];
@@ -66,28 +66,27 @@ function display(data) {
         .slice(0, 10);
 
     rows.forEach(function(row) {
-        row.push((row[1] * 100 / total).toFixed(1) + "%");
+        row.push(`${(row[1] * 100 / total).toFixed(1)}%`);
         row[1] = row[1].toFixed(3);
     });
 
     rows.unshift(HEADERS);
 
-    var widths = [];
+    const widths = [];
 
     rows.forEach(function(row) {
-        var len = row.length,
-            i,
-            n;
+        const len = row.length;
 
-        for (i = 0; i < len; i++) {
-            n = row[i].length;
+        for (let i = 0; i < len; i++) {
+            const n = row[i].length;
+
             if (!widths[i] || n > widths[i]) {
                 widths[i] = n;
             }
         }
     });
 
-    var table = rows.map(function(row) {
+    const table = rows.map(function(row) {
         return row.map(function(cell, index) {
             return ALIGN[index](cell, widths[index]);
         }).join(" | ");
@@ -107,7 +106,7 @@ function display(data) {
 /* istanbul ignore next */
 module.exports = (function() {
 
-    var data = Object.create(null);
+    const data = Object.create(null);
 
     /**
      * Time the run
@@ -122,7 +121,7 @@ module.exports = (function() {
         }
 
         return function() {
-            var t = process.hrtime();
+            let t = process.hrtime();
 
             fn.apply(null, Array.prototype.slice.call(arguments));
             t = process.hrtime(t);
@@ -137,8 +136,8 @@ module.exports = (function() {
     }
 
     return {
-        time: time,
-        enabled: enabled
+        time,
+        enabled
     };
 
 }());

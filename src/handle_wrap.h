@@ -47,7 +47,7 @@ class HandleWrap : public AsyncWrap {
     return IsAlive(wrap) && uv_has_ref(wrap->GetHandle());
   }
 
-  inline uv_handle_t* GetHandle() const { return handle__; }
+  inline uv_handle_t* GetHandle() const { return handle_; }
 
  protected:
   HandleWrap(Environment* env,
@@ -55,7 +55,7 @@ class HandleWrap : public AsyncWrap {
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider,
              AsyncWrap* parent = nullptr);
-  virtual ~HandleWrap() override;
+  ~HandleWrap() override;
 
  private:
   friend class Environment;
@@ -63,9 +63,7 @@ class HandleWrap : public AsyncWrap {
   static void OnClose(uv_handle_t* handle);
   ListNode<HandleWrap> handle_wrap_queue_;
   enum { kInitialized, kClosing, kClosingWithCallback, kClosed } state_;
-  // Using double underscore due to handle_ member in tcp_wrap. Probably
-  // tcp_wrap should rename it's member to 'handle'.
-  uv_handle_t* const handle__;
+  uv_handle_t* const handle_;
 };
 
 

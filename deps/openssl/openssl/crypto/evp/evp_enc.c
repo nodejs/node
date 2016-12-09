@@ -170,7 +170,7 @@ int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
 
 #ifdef OPENSSL_FIPS
         if (FIPS_mode()) {
-            const EVP_CIPHER *fcipher;
+            const EVP_CIPHER *fcipher = NULL;
             if (cipher)
                 fcipher = evp_get_fips_cipher(cipher);
             if (fcipher)

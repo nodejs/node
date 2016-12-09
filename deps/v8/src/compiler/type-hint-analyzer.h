@@ -18,14 +18,20 @@ class TypeHintAnalysis final : public ZoneObject {
  public:
   typedef ZoneMap<TypeFeedbackId, Handle<Code>> Infos;
 
-  explicit TypeHintAnalysis(Infos const& infos) : infos_(infos) {}
+  explicit TypeHintAnalysis(Infos const& infos, Zone* zone)
+      : infos_(infos), zone_(zone) {}
 
-  bool GetBinaryOperationHints(TypeFeedbackId id,
-                               BinaryOperationHints* hints) const;
+  bool GetBinaryOperationHint(TypeFeedbackId id,
+                              BinaryOperationHint* hint) const;
+  bool GetCompareOperationHint(TypeFeedbackId id,
+                               CompareOperationHint* hint) const;
   bool GetToBooleanHints(TypeFeedbackId id, ToBooleanHints* hints) const;
 
  private:
+  Zone* zone() const { return zone_; }
+
   Infos const infos_;
+  Zone* zone_;
 };
 
 
@@ -43,6 +49,8 @@ class TypeHintAnalyzer final {
 
   DISALLOW_COPY_AND_ASSIGN(TypeHintAnalyzer);
 };
+
+BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
 
 }  // namespace compiler
 }  // namespace internal

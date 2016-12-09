@@ -14,6 +14,8 @@ var PATH = 'PATH'
 var uidNumber = require('uid-number')
 var umask = require('./umask')
 var usage = require('./usage')
+var output = require('./output.js')
+var which = require('which')
 
 // windows calls it's path 'Path' usually, but this is not guaranteed.
 if (process.platform === 'win32') {
@@ -87,7 +89,7 @@ function _incorrectWorkingDirectory (wd, pkg) {
 
 function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   var pathArr = []
-  var p = wd.split('node_modules')
+  var p = wd.split(/[\\\/]node_modules[\\\/]/)
   var acc = path.resolve(p.shift())
 
   p.forEach(function (pp) {
@@ -100,8 +102,10 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, '..', '..', 'bin', 'node-gyp-bin'))
 
-  // prefer current node interpreter in child scripts
-  pathArr.push(path.dirname(process.execPath))
+  if (shouldPrependCurrentNodeDirToPATH()) {
+    // prefer current node interpreter in child scripts
+    pathArr.push(path.dirname(process.execPath))
+  }
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === 'win32' ? ';' : ':')
@@ -135,6 +139,16 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
     ],
     done
   )
+}
+
+function shouldPrependCurrentNodeDirToPATH () {
+  var isWindows = process.platform === 'win32'
+  try {
+    var foundExecPath = which.sync(path.basename(process.execPath), {pathExt: isWindows ? ';' : ':'})
+    return process.execPath.toUpperCase() !== foundExecPath.toUpperCase()
+  } catch (e) {
+    return true
+  }
 }
 
 function validWd (d, cb) {
@@ -182,9 +196,7 @@ function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
   var group = unsafe ? null : npm.config.get('group')
 
   if (log.level !== 'silent') {
-    log.clearProgress()
-    console.log(note)
-    log.showProgress()
+    output(note)
   }
   log.verbose('lifecycle', logid(pkg, stage), 'unsafe-perm in lifecycle', unsafe)
 
@@ -232,8 +244,6 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   log.verbose('lifecycle', logid(pkg, stage), 'CWD:', wd)
   log.silly('lifecycle', logid(pkg, stage), 'Args:', [shFlag, cmd])
 
-  var progressEnabled = log.progressEnabled
-  if (progressEnabled) log.disableProgress()
   var proc = spawn(sh, [shFlag, cmd], conf)
 
   proc.on('error', procError)
@@ -249,7 +259,6 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   process.once('SIGTERM', procKill)
 
   function procError (er) {
-    if (progressEnabled) log.enableProgress()
     if (er) {
       log.info('lifecycle', logid(pkg, stage), 'Failed to exec ' + stage + ' script')
       er.message = pkg._id + ' ' + stage + ': `' + cmd + '`\n' +

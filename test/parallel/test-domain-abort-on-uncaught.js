@@ -109,8 +109,8 @@ const tests = [
       const server = net.createServer(function(conn) {
         conn.pipe(conn);
       });
-      server.listen(common.PORT, common.localhostIPv4, function() {
-        const conn = net.connect(common.PORT, common.localhostIPv4);
+      server.listen(0, common.localhostIPv4, function() {
+        const conn = net.connect(this.address().port, common.localhostIPv4);
         conn.once('data', function() {
           throw new Error('ok');
         });
@@ -227,13 +227,13 @@ if (process.argv[2] === 'child') {
   tests[testIndex]();
 
   process.on('exit', function onExit() {
-    assert.equal(errorHandlerCalled, true);
+    assert.strictEqual(errorHandlerCalled, true);
   });
 } else {
 
   tests.forEach(function(test, testIndex) {
     var testCmd = '';
-    if (process.platform !== 'win32') {
+    if (!common.isWindows) {
       // Do not create core files, as it can take a lot of disk space on
       // continuous testing and developers' machines
       testCmd += 'ulimit -c 0 && ';
@@ -248,7 +248,7 @@ if (process.argv[2] === 'child') {
     var child = child_process.exec(testCmd);
 
     child.on('exit', function onExit(code, signal) {
-      assert.equal(code, 0, 'Test at index ' + testIndex +
+      assert.strictEqual(code, 0, 'Test at index ' + testIndex +
         ' should have exited with exit code 0 but instead exited with code ' +
         code + ' and signal ' + signal);
     });

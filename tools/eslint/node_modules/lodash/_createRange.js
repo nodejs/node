@@ -1,6 +1,6 @@
 var baseRange = require('./_baseRange'),
     isIterateeCall = require('./_isIterateeCall'),
-    toNumber = require('./toNumber');
+    toFinite = require('./toFinite');
 
 /**
  * Creates a `_.range` or `_.rangeRight` function.
@@ -15,15 +15,14 @@ function createRange(fromRight) {
       end = step = undefined;
     }
     // Ensure the sign of `-0` is preserved.
-    start = toNumber(start);
-    start = start === start ? start : 0;
+    start = toFinite(start);
     if (end === undefined) {
       end = start;
       start = 0;
     } else {
-      end = toNumber(end) || 0;
+      end = toFinite(end);
     }
-    step = step === undefined ? (start < end ? 1 : -1) : (toNumber(step) || 0);
+    step = step === undefined ? (start < end ? 1 : -1) : toFinite(step);
     return baseRange(start, end, step, fromRight);
   };
 }

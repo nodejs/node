@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 
 var http = require('http');
 var net = require('net');
@@ -40,19 +40,19 @@ var server = http.createServer(function(req, res) {
 function generator(seeds) {
   return seeds.map(function(r) {
     return 'GET /' + r + ' HTTP/1.1\r\n' +
-           'Host: localhost:' + common.PORT + '\r\n' +
+           `Host: localhost:${server.address().port}\r\n` +
            '\r\n' +
            '\r\n';
   }).join('');
 }
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
-  var client = net.connect({ port: common.PORT });
+  var client = net.connect({ port: this.address().port });
   var done = 0;
   server.on('requestDone', function() {
-    if (++done == seeds.length) {
+    if (++done === seeds.length) {
       server.close();
     }
   });

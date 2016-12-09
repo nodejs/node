@@ -8,8 +8,8 @@
 #include <map>
 
 #include "include/v8-profiler.h"
+#include "src/base/hashmap.h"
 #include "src/handles.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #include "src/vector.h"
 
@@ -129,8 +129,7 @@ class AllocationTracker {
     void Resolve();
 
    private:
-    static void HandleWeakScript(
-        const v8::WeakCallbackData<v8::Value, void>& data);
+    static void HandleWeakScript(const v8::WeakCallbackInfo<void>& data);
 
     Handle<Script> script_;
     int start_position_;
@@ -144,7 +143,7 @@ class AllocationTracker {
   AllocationTraceTree trace_tree_;
   unsigned allocation_trace_buffer_[kMaxAllocationTraceLength];
   List<FunctionInfo*> function_info_list_;
-  HashMap id_to_function_info_index_;
+  base::HashMap id_to_function_info_index_;
   List<UnresolvedLocation*> unresolved_locations_;
   unsigned info_index_for_other_state_;
   AddressToTraceMap address_to_trace_;

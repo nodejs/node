@@ -15,10 +15,10 @@
  * @returns {escope.Variable} The found variable object.
  */
 function getVariableOfArguments(scope) {
-    var variables = scope.variables;
+    const variables = scope.variables;
 
-    for (var i = 0; i < variables.length; ++i) {
-        var variable = variables[i];
+    for (let i = 0; i < variables.length; ++i) {
+        const variable = variables[i];
 
         if (variable.name === "arguments") {
 
@@ -30,6 +30,28 @@ function getVariableOfArguments(scope) {
 
     /* istanbul ignore next : unreachable */
     return null;
+}
+
+/**
+ * Checks if the given reference is not normal member access.
+ *
+ * - arguments         .... true    // not member access
+ * - arguments[i]      .... true    // computed member access
+ * - arguments[0]      .... true    // computed member access
+ * - arguments.length  .... false   // normal member access
+ *
+ * @param {escope.Reference} reference - The reference to check.
+ * @returns {boolean} `true` if the reference is not normal member access.
+ */
+function isNotNormalMemberAccess(reference) {
+    const id = reference.identifier;
+    const parent = id.parent;
+
+    return !(
+        parent.type === "MemberExpression" &&
+        parent.object === id &&
+        !parent.computed
+    );
 }
 
 //------------------------------------------------------------------------------
@@ -47,7 +69,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Reports a given reference.
@@ -58,6 +80,7 @@ module.exports = {
         function report(reference) {
             context.report({
                 node: reference.identifier,
+                loc: reference.identifier.loc,
                 message: "Use the rest parameters instead of 'arguments'."
             });
         }
@@ -68,16 +91,19 @@ module.exports = {
          * @returns {void}
          */
         function checkForArguments() {
-            var argumentsVar = getVariableOfArguments(context.getScope());
+            const argumentsVar = getVariableOfArguments(context.getScope());
 
             if (argumentsVar) {
-                argumentsVar.references.forEach(report);
+                argumentsVar
+                    .references
+                    .filter(isNotNormalMemberAccess)
+                    .forEach(report);
             }
         }
 
         return {
-            FunctionDeclaration: checkForArguments,
-            FunctionExpression: checkForArguments
+            "FunctionDeclaration:exit": checkForArguments,
+            "FunctionExpression:exit": checkForArguments
         };
     }
 };

@@ -108,7 +108,7 @@ function listener(event, exec_state, event_data, data) {
     var handle_a = evaluateRequest(exec_state, '{"expression":"b","frame":1}');
     assertEquals(handle_o, handle_a);
     assertEquals(handle_a, handle_b);
-    assertFalse(handle_o == handle_p, "o and p have he same handle");
+    assertFalse(handle_o == handle_p, "o and p have the same handle");
 
     var response;
     var count;
@@ -140,7 +140,7 @@ function listener(event, exec_state, event_data, data) {
     var handle_g = evaluateRequest(exec_state, '{"expression":"g"}');
     var handle_caller = evaluateRequest(exec_state, '{"expression":"f.caller"}');
 
-    assertFalse(handle_f == handle_g, "f and g have he same handle");
+    assertFalse(handle_f == handle_g, "f and g have the same handle");
     assertEquals(handle_g, handle_caller, "caller for f should be g");
 
     response = lookupRequest(exec_state, '{"handles":[' + handle_f + ']}', true);

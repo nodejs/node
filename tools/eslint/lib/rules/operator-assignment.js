@@ -85,7 +85,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Ensures that an assignment uses the shorthand form where possible.
@@ -93,15 +93,13 @@ module.exports = {
          * @returns {void}
          */
         function verify(node) {
-            var expr, left, operator;
-
             if (node.operator !== "=" || node.right.type !== "BinaryExpression") {
                 return;
             }
 
-            left = node.left;
-            expr = node.right;
-            operator = expr.operator;
+            const left = node.left;
+            const expr = node.right;
+            const operator = expr.operator;
 
             if (isCommutativeOperatorWithShorthand(operator)) {
                 if (same(left, expr.left) || same(left, expr.right)) {

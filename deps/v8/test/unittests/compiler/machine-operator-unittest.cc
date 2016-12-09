@@ -208,9 +208,7 @@ const PureOperator kPureOperators[] = {
     PURE(Word64Ror, 2, 0, 1),                 // --
     PURE(Word64Equal, 2, 0, 1),               // --
     PURE(Int32Add, 2, 0, 1),                  // --
-    PURE(Int32AddWithOverflow, 2, 0, 2),      // --
     PURE(Int32Sub, 2, 0, 1),                  // --
-    PURE(Int32SubWithOverflow, 2, 0, 2),      // --
     PURE(Int32Mul, 2, 0, 1),                  // --
     PURE(Int32MulHigh, 2, 0, 1),              // --
     PURE(Int32Div, 2, 1, 1),                  // --
@@ -249,6 +247,7 @@ const PureOperator kPureOperators[] = {
     PURE(Float32Equal, 2, 0, 1),              // --
     PURE(Float32LessThan, 2, 0, 1),           // --
     PURE(Float32LessThanOrEqual, 2, 0, 1),    // --
+    PURE(Float32Neg, 1, 0, 1),                // --
     PURE(Float64Abs, 1, 0, 1),                // --
     PURE(Float64Add, 2, 0, 1),                // --
     PURE(Float64Sub, 2, 0, 1),                // --
@@ -256,6 +255,8 @@ const PureOperator kPureOperators[] = {
     PURE(Float64Div, 2, 0, 1),                // --
     PURE(Float64Mod, 2, 0, 1),                // --
     PURE(Float64Sqrt, 1, 0, 1),               // --
+    PURE(Float64Max, 2, 0, 1),                // --
+    PURE(Float64Min, 2, 0, 1),                // --
     PURE(Float64Equal, 2, 0, 1),              // --
     PURE(Float64LessThan, 2, 0, 1),           // --
     PURE(Float64LessThanOrEqual, 2, 0, 1),    // --
@@ -264,6 +265,7 @@ const PureOperator kPureOperators[] = {
     PURE(Float64ExtractHighWord32, 1, 0, 1),  // --
     PURE(Float64InsertLowWord32, 2, 0, 1),    // --
     PURE(Float64InsertHighWord32, 2, 0, 1),   // --
+    PURE(Float64Neg, 1, 0, 1),                // --
 #undef PURE
 };
 
@@ -320,10 +322,6 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     &MachineOperatorBuilder::Name, MachineOperatorBuilder::k##Name, #Name, \
         value_input_count, control_input_count, value_output_count         \
   }
-    OPTIONAL_ENTRY(Float32Max, 2, 0, 1),            // --
-    OPTIONAL_ENTRY(Float32Min, 2, 0, 1),            // --
-    OPTIONAL_ENTRY(Float64Max, 2, 0, 1),            // --
-    OPTIONAL_ENTRY(Float64Min, 2, 0, 1),            // --
     OPTIONAL_ENTRY(Float64RoundDown, 1, 0, 1),      // --
     OPTIONAL_ENTRY(Float64RoundTruncate, 1, 0, 1),  // --
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var http = require('http');
@@ -18,12 +18,12 @@ var server = http.createServer(function(req, res) {
   res.write('Hello World');
   res.end();
 
-  if (++nrequests_completed == nrequests_expected) server.close();
+  if (++nrequests_completed === nrequests_expected) server.close();
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection(this.address().port);
   c.on('connect', function() {
     c.write('GET /hello?foo=%99bar HTTP/1.1\r\n\r\n');
     c.end();

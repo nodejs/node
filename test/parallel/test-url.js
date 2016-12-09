@@ -1,9 +1,10 @@
 /* eslint-disable max-len */
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
+const inspect = require('util').inspect;
 
-var url = require('url');
+const url = require('url');
 
 // URLs to parse, and expected data
 // { url : parsed }
@@ -155,6 +156,17 @@ var parseTests = {
     hostname: 'x.com',
     pathname: '/Y',
     path: '/Y'
+  },
+
+  // whitespace in the front
+  ' http://www.example.com/': {
+    href: 'http://www.example.com/',
+    protocol: 'http:',
+    slashes: true,
+    host: 'www.example.com',
+    hostname: 'www.example.com',
+    pathname: '/',
+    path: '/'
   },
 
   // + not an invalid host character
@@ -822,6 +834,20 @@ var parseTests = {
     query: '@c'
   },
 
+  'http://a.b/\tbc\ndr\ref g"hq\'j<kl>?mn\\op^q=r`99{st|uv}wz': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'a.b',
+    port: null,
+    hostname: 'a.b',
+    hash: null,
+    pathname: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E',
+    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    search: '?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    query: 'mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz'
+  },
+
   'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
@@ -881,8 +907,16 @@ for (const u in parseTests) {
     }
   });
 
-  assert.deepStrictEqual(actual, expected);
-  assert.deepStrictEqual(spaced, expected);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `expected ${inspect(expected)}, got ${inspect(actual)}`
+  );
+  assert.deepStrictEqual(
+    spaced,
+    expected,
+    `expected ${inspect(expected)}, got ${inspect(spaced)}`
+  );
 
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
@@ -1165,6 +1199,38 @@ var formatTests = {
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
     pathname: '/fooA100%mBr',
+  },
+
+  // multiple `#` in search
+  'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag': {
+    href: 'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag',
+    protocol: 'http:',
+    slashes: true,
+    host: 'example.com',
+    hostname: 'example.com',
+    hash: '#frag',
+    search: '?foo=bar#1#2#3&abc=#4##5',
+    query: {},
+    pathname: '/'
+  },
+
+  // more than 255 characters in hostname which exceeds the limit
+  [`http://${'a'.repeat(255)}.com/node`]: {
+    href: 'http:///node',
+    protocol: 'http:',
+    slashes: true,
+    host: '',
+    hostname: '',
+    pathname: '/node',
+    path: '/node'
+  },
+
+  // https://github.com/nodejs/node/issues/3361
+  'file:///home/user': {
+    href: 'file:///home/user',
+    protocol: 'file',
+    pathname: '/home/user',
+    path: '/home/user'
   }
 };
 for (const u in formatTests) {
@@ -1172,13 +1238,13 @@ for (const u in formatTests) {
   delete formatTests[u].href;
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
-  assert.equal(actual, expect,
-               'wonky format(' + u + ') == ' + expect +
-               '\nactual:' + actual);
-  assert.equal(actualObj, expect,
-               'wonky format(' + JSON.stringify(formatTests[u]) +
-               ') == ' + expect +
-               '\nactual: ' + actualObj);
+  assert.strictEqual(actual, expect,
+                     'wonky format(' + u + ') == ' + expect +
+                     '\nactual:' + actual);
+  assert.strictEqual(actualObj, expect,
+                     'wonky format(' + JSON.stringify(formatTests[u]) +
+                     ') == ' + expect +
+                     '\nactual: ' + actualObj);
 }
 
 /*
@@ -1540,6 +1606,11 @@ var relativeTests2 = [
    'http://asdf:qwer@www.example.com',
    'http://diff:auth@www.example.com/'],
 
+  // changing port
+  ['https://example.com:81/',
+   'https://example.com:82/',
+   'https://example.com:81/'],
+
   // https://github.com/nodejs/node/issues/1435
   ['https://another.host.com/',
    'https://user:password@example.org/',
@@ -1553,10 +1624,13 @@ var relativeTests2 = [
   ['mailto:another.host.com',
    'mailto:user@example.org',
    'mailto:another.host.com'],
+  ['https://example.com/foo',
+   'https://user:password@example.com',
+   'https://user:password@example.com/foo'],
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
-  const e = relativeTest[2];
+  const e = url.format(relativeTest[2]);
   assert.equal(a, e,
                'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
                '\n  actual=' + a);
@@ -1598,9 +1672,13 @@ relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
   var expected = url.parse(relativeTest[2]);
 
-  assert.deepStrictEqual(actual, expected);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `expected ${inspect(expected)} but got ${inspect(actual)}`
+  );
 
-  expected = relativeTest[2];
+  expected = url.format(relativeTest[2]);
   actual = url.format(actual);
 
   assert.equal(actual, expected,
@@ -1621,5 +1699,5 @@ var throws = [
 for (let i = 0; i < throws.length; i++) {
   assert.throws(function() { url.format(throws[i]); }, TypeError);
 }
-assert(url.format('') === '');
-assert(url.format({}) === '');
+assert.strictEqual(url.format(''), '');
+assert.strictEqual(url.format({}), '');

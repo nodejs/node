@@ -1,6 +1,6 @@
 # Crypto
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `crypto` module provides cryptographic functionality that includes a set of
 wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign and verify functions.
@@ -15,8 +15,8 @@ const hash = crypto.createHmac('sha256', secret)
                    .update('I love cupcakes')
                    .digest('hex');
 console.log(hash);
-  // Prints:
-  //   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
+// Prints:
+//   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
 ```
 
 ## Determining if crypto support is unavailable
@@ -35,6 +35,9 @@ try {
 ```
 
 ## Class: Certificate
+<!-- YAML
+added: v0.11.8
+-->
 
 SPKAC is a Certificate Signing Request mechanism originally implemented by
 Netscape and now specified formally as part of [HTML5's `keygen` element][].
@@ -56,6 +59,9 @@ const cert2 = crypto.Certificate();
 ```
 
 ### certificate.exportChallenge(spkac)
+<!-- YAML
+added: v0.11.8
+-->
 
 The `spkac` data structure includes a public key and a challenge. The
 `certificate.exportChallenge()` returns the challenge component in the
@@ -67,10 +73,13 @@ const cert = require('crypto').Certificate();
 const spkac = getSpkacSomehow();
 const challenge = cert.exportChallenge(spkac);
 console.log(challenge.toString('utf8'));
-  // Prints the challenge as a UTF8 string
+// Prints: the challenge as a UTF8 string
 ```
 
 ### certificate.exportPublicKey(spkac)
+<!-- YAML
+added: v0.11.8
+-->
 
 The `spkac` data structure includes a public key and a challenge. The
 `certificate.exportPublicKey()` returns the public key component in the
@@ -82,10 +91,13 @@ const cert = require('crypto').Certificate();
 const spkac = getSpkacSomehow();
 const publicKey = cert.exportPublicKey(spkac);
 console.log(publicKey);
-  // Prints the public key as <Buffer ...>
+// Prints: the public key as <Buffer ...>
 ```
 
 ### certificate.verifySpkac(spkac)
+<!-- YAML
+added: v0.11.8
+-->
 
 Returns `true` if the given `spkac` data structure is valid, `false` otherwise.
 The `spkac` argument must be a Node.js [`Buffer`][].
@@ -94,10 +106,13 @@ The `spkac` argument must be a Node.js [`Buffer`][].
 const cert = require('crypto').Certificate();
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(Buffer.from(spkac)));
-  // Prints true or false
+// Prints: true or false
 ```
 
 ## Class: Cipher
+<!-- YAML
+added: v0.1.94
+-->
 
 Instances of the `Cipher` class are used to encrypt data. The class can be
 used in one of two ways:
@@ -154,10 +169,13 @@ const cipher = crypto.createCipher('aes192', 'a password');
 var encrypted = cipher.update('some clear text data', 'utf8', 'hex');
 encrypted += cipher.final('hex');
 console.log(encrypted);
-  // Prints: ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504
+// Prints: ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504
 ```
 
 ### cipher.final([output_encoding])
+<!-- YAML
+added: v0.1.94
+-->
 
 Returns any remaining enciphered contents. If `output_encoding`
 parameter is one of `'latin1'`, `'base64'` or `'hex'`, a string is returned.
@@ -168,12 +186,20 @@ longer be used to encrypt data. Attempts to call `cipher.final()` more than
 once will result in an error being thrown.
 
 ### cipher.setAAD(buffer)
+<!-- YAML
+added: v1.0.0
+-->
 
 When using an authenticated encryption mode (only `GCM` is currently
 supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
+Returns `this` for method chaining.
+
 ### cipher.getAuthTag()
+<!-- YAML
+added: v1.0.0
+-->
 
 When using an authenticated encryption mode (only `GCM` is currently
 supported), the `cipher.getAuthTag()` method returns a [`Buffer`][] containing
@@ -183,6 +209,9 @@ The `cipher.getAuthTag()` method should only be called after encryption has
 been completed using the [`cipher.final()`][] method.
 
 ### cipher.setAutoPadding(auto_padding=true)
+<!-- YAML
+added: v0.7.1
+-->
 
 When using block encryption algorithms, the `Cipher` class will automatically
 add padding to the input data to the appropriate block size. To disable the
@@ -195,10 +224,15 @@ using `0x0` instead of PKCS padding.
 
 The `cipher.setAutoPadding()` method must be called before [`cipher.final()`][].
 
+Returns `this` for method chaining.
+
 ### cipher.update(data[, input_encoding][, output_encoding])
+<!-- YAML
+added: v0.1.94
+-->
 
 Updates the cipher with `data`. If the `input_encoding` argument is given,
-it's value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
+its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `input_encoding` is ignored.
@@ -213,6 +247,9 @@ The `cipher.update()` method can be called multiple times with new data until
 [`cipher.final()`][] will result in an error being thrown.
 
 ## Class: Decipher
+<!-- YAML
+added: v0.1.94
+-->
 
 Instances of the `Decipher` class are used to decrypt data. The class can be
 used in one of two ways:
@@ -236,7 +273,7 @@ var decrypted = '';
 decipher.on('readable', () => {
   var data = decipher.read();
   if (data)
-  decrypted += data.toString('utf8');
+    decrypted += data.toString('utf8');
 });
 decipher.on('end', () => {
   console.log(decrypted);
@@ -271,13 +308,16 @@ var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d81550
 var decrypted = decipher.update(encrypted, 'hex', 'utf8');
 decrypted += decipher.final('utf8');
 console.log(decrypted);
-  // Prints: some clear text data
+// Prints: some clear text data
 ```
 
 ### decipher.final([output_encoding])
+<!-- YAML
+added: v0.1.94
+-->
 
 Returns any remaining deciphered contents. If `output_encoding`
-parameter is one of `'latin1'`, `'base64'` or `'hex'`, a string is returned.
+parameter is one of `'latin1'`, `'ascii'` or `'utf8'`, a string is returned.
 If an `output_encoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `decipher.final()` method has been called, the `Decipher` object can
@@ -285,12 +325,20 @@ no longer be used to decrypt data. Attempts to call `decipher.final()` more
 than once will result in an error being thrown.
 
 ### decipher.setAAD(buffer)
+<!-- YAML
+added: v1.0.0
+-->
 
 When using an authenticated encryption mode (only `GCM` is currently
-supported), the `cipher.setAAD()` method sets the value used for the
+supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
+Returns `this` for method chaining.
+
 ### decipher.setAuthTag(buffer)
+<!-- YAML
+added: v1.0.0
+-->
 
 When using an authenticated encryption mode (only `GCM` is currently
 supported), the `decipher.setAuthTag()` method is used to pass in the
@@ -298,7 +346,12 @@ received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] with throw, indicating that the
 cipher text should be discarded due to failed authentication.
 
+Returns `this` for method chaining.
+
 ### decipher.setAutoPadding(auto_padding=true)
+<!-- YAML
+added: v0.7.1
+-->
 
 When data has been encrypted without standard block padding, calling
 `decipher.setAutoPadding(false)` will disable automatic padding to prevent
@@ -310,10 +363,15 @@ multiple of the ciphers block size.
 The `decipher.setAutoPadding()` method must be called before
 [`decipher.update()`][].
 
+Returns `this` for method chaining.
+
 ### decipher.update(data[, input_encoding][, output_encoding])
+<!-- YAML
+added: v0.1.94
+-->
 
 Updates the decipher with `data`. If the `input_encoding` argument is given,
-it's value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
+its value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `input_encoding` is ignored.
@@ -328,6 +386,9 @@ The `decipher.update()` method can be called multiple times with new data until
 [`decipher.final()`][] will result in an error being thrown.
 
 ## Class: DiffieHellman
+<!-- YAML
+added: v0.5.0
+-->
 
 The `DiffieHellman` class is a utility for creating Diffie-Hellman key
 exchanges.
@@ -356,6 +417,9 @@ assert.equal(alice_secret.toString('hex'), bob_secret.toString('hex'));
 ```
 
 ### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -368,6 +432,9 @@ If `output_encoding` is given a string is returned; otherwise, a
 [`Buffer`][] is returned.
 
 ### diffieHellman.generateKeys([encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Generates private and public Diffie-Hellman key values, and returns
 the public key in the specified `encoding`. This key should be
@@ -376,30 +443,45 @@ or `'base64'`. If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
 
 ### diffieHellman.getGenerator([encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Returns the Diffie-Hellman generator in the specified `encoding`, which can
 be `'latin1'`, `'hex'`, or `'base64'`. If  `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrime([encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Returns the Diffie-Hellman prime in the specified `encoding`, which can
 be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrivateKey([encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Returns the Diffie-Hellman private key in the specified `encoding`,
 which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPublicKey([encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Returns the Diffie-Hellman public key in the specified `encoding`, which
 can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.setPrivateKey(private_key[, encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Sets the Diffie-Hellman private key. If the `encoding` argument is provided
 and is either `'latin1'`, `'hex'`, or `'base64'`, `private_key` is expected
@@ -407,6 +489,9 @@ to be a string. If no `encoding` is provided, `private_key` is expected
 to be a [`Buffer`][].
 
 ### diffieHellman.setPublicKey(public_key[, encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 Sets the Diffie-Hellman public key. If the `encoding` argument is provided
 and is either `'latin1'`, `'hex'` or `'base64'`, `public_key` is expected
@@ -414,6 +499,9 @@ to be a string. If no `encoding` is provided, `public_key` is expected
 to be a [`Buffer`][].
 
 ### diffieHellman.verifyError
+<!-- YAML
+added: v0.11.12
+-->
 
 A bit field containing any warnings and/or errors resulting from a check
 performed during initialization of the `DiffieHellman` object.
@@ -427,6 +515,9 @@ module):
 * `DH_NOT_SUITABLE_GENERATOR`
 
 ## Class: ECDH
+<!-- YAML
+added: v0.11.14
+-->
 
 The `ECDH` class is a utility for creating Elliptic Curve Diffie-Hellman (ECDH)
 key exchanges.
@@ -455,6 +546,9 @@ assert(alice_secret, bob_secret);
 ```
 
 ### ecdh.computeSecret(other_public_key[, input_encoding][, output_encoding])
+<!-- YAML
+added: v0.11.14
+-->
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -467,39 +561,51 @@ If `output_encoding` is given a string will be returned; otherwise a
 [`Buffer`][] is returned.
 
 ### ecdh.generateKeys([encoding[, format]])
+<!-- YAML
+added: v0.11.14
+-->
 
 Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
 transferred to the other party.
 
-The `format` arguments specifies point encoding and can be `'compressed'`,
-`'uncompressed'`, or `'hybrid'`. If `format` is not specified, the point will
-be returned in `'uncompressed'` format.
+The `format` argument specifies point encoding and can be `'compressed'` or
+`'uncompressed'`. If `format` is not specified, the point will be returned in
+`'uncompressed'` format.
 
 The `encoding` argument can be `'latin1'`, `'hex'`, or `'base64'`. If
 `encoding` is provided a string is returned; otherwise a [`Buffer`][]
 is returned.
 
 ### ecdh.getPrivateKey([encoding])
+<!-- YAML
+added: v0.11.14
+-->
 
 Returns the EC Diffie-Hellman private key in the specified `encoding`,
 which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided
 a string is returned; otherwise a [`Buffer`][] is returned.
 
 ### ecdh.getPublicKey([encoding[, format]])
+<!-- YAML
+added: v0.11.14
+-->
 
 Returns the EC Diffie-Hellman public key in the specified `encoding` and
 `format`.
 
-The `format` argument specifies point encoding and can be `'compressed'`,
-`'uncompressed'`, or `'hybrid'`. If `format` is not specified the point will be
-returned in `'uncompressed'` format.
+The `format` argument specifies point encoding and can be `'compressed'` or
+`'uncompressed'`. If `format` is not specified the point will be returned in
+`'uncompressed'` format.
 
 The `encoding` argument can be `'latin1'`, `'hex'`, or `'base64'`. If
 `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
 
 ### ecdh.setPrivateKey(private_key[, encoding])
+<!-- YAML
+added: v0.11.14
+-->
 
 Sets the EC Diffie-Hellman private key. The `encoding` can be `'latin1'`,
 `'hex'` or `'base64'`. If `encoding` is provided, `private_key` is expected
@@ -509,8 +615,12 @@ created, an error is thrown. Upon setting the private key, the associated
 public point (key) is also generated and set in the ECDH object.
 
 ### ecdh.setPublicKey(public_key[, encoding])
+<!-- YAML
+added: v0.11.14
+deprecated: v5.2.0
+-->
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 Sets the EC Diffie-Hellman public key. Key encoding can be `'latin1'`,
 `'hex'` or `'base64'`. If `encoding` is provided `public_key` is expected to
@@ -548,6 +658,9 @@ console.log(alice_secret === bob_secret);
 ```
 
 ## Class: Hash
+<!-- YAML
+added: v0.1.92
+-->
 
 The `Hash` class is a utility for creating hash digests of data. It can be
 used in one of two ways:
@@ -597,11 +710,14 @@ const hash = crypto.createHash('sha256');
 
 hash.update('some data to hash');
 console.log(hash.digest('hex'));
-  // Prints:
-  //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
+// Prints:
+//   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
 ```
 
 ### hash.digest([encoding])
+<!-- YAML
+added: v0.1.92
+-->
 
 Calculates the digest of all of the data passed to be hashed (using the
 [`hash.update()`][] method). The `encoding` can be `'hex'`, `'latin1'` or
@@ -612,6 +728,9 @@ The `Hash` object can not be used again after `hash.digest()` method has been
 called. Multiple calls will cause an error to be thrown.
 
 ### hash.update(data[, input_encoding])
+<!-- YAML
+added: v0.1.92
+-->
 
 Updates the hash content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
@@ -622,6 +741,9 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
 This can be called many times with new data as it is streamed.
 
 ## Class: Hmac
+<!-- YAML
+added: v0.1.94
+-->
 
 The `Hmac` Class is a utility for creating cryptographic HMAC digests. It can
 be used in one of two ways:
@@ -671,11 +793,14 @@ const hmac = crypto.createHmac('sha256', 'a secret');
 
 hmac.update('some data to hash');
 console.log(hmac.digest('hex'));
-  // Prints:
-  //   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
+// Prints:
+//   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
 ```
 
 ### hmac.digest([encoding])
+<!-- YAML
+added: v0.1.94
+-->
 
 Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
 The `encoding` can be `'hex'`, `'latin1'` or `'base64'`. If `encoding` is
@@ -685,6 +810,9 @@ The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 
 ### hmac.update(data[, input_encoding])
+<!-- YAML
+added: v0.1.94
+-->
 
 Updates the `Hmac` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
@@ -695,6 +823,9 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
 This can be called many times with new data as it is streamed.
 
 ## Class: Sign
+<!-- YAML
+added: v0.1.92
+-->
 
 The `Sign` Class is a utility for generating signatures. It can be used in one
 of two ways:
@@ -718,7 +849,7 @@ sign.end();
 
 const private_key = getPrivateKeySomehow();
 console.log(sign.sign(private_key, 'hex'));
-  // Prints the calculated signature
+// Prints: the calculated signature
 ```
 
 Example: Using the [`sign.update()`][] and [`sign.sign()`][] methods:
@@ -731,7 +862,7 @@ sign.update('some data to sign');
 
 const private_key = getPrivateKeySomehow();
 console.log(sign.sign(private_key, 'hex'));
-  // Prints the calculated signature
+// Prints: the calculated signature
 ```
 
 A `Sign` instance can also be created by just passing in the digest
@@ -757,6 +888,9 @@ console.log(sign.sign(private_key).toString('hex'));
 ```
 
 ### sign.sign(private_key[, output_format])
+<!-- YAML
+added: v0.1.92
+-->
 
 Calculates the signature on all the data passed through using either
 [`sign.update()`][] or [`sign.write()`][stream-writable-write].
@@ -776,6 +910,9 @@ The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
 
 ### sign.update(data[, input_encoding])
+<!-- YAML
+added: v0.1.92
+-->
 
 Updates the `Sign` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
@@ -786,6 +923,9 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
 This can be called many times with new data as it is streamed.
 
 ## Class: Verify
+<!-- YAML
+added: v0.1.92
+-->
 
 The `Verify` class is a utility for verifying signatures. It can be used in one
 of two ways:
@@ -795,8 +935,8 @@ of two ways:
 - Using the [`verify.update()`][] and [`verify.verify()`][] methods to verify
   the signature.
 
-  The [`crypto.createSign()`][] method is used to create `Sign` instances.
-  `Sign` objects are not to be created directly using the `new` keyword.
+The [`crypto.createVerify()`][] method is used to create `Verify` instances.
+`Verify` objects are not to be created directly using the `new` keyword.
 
 Example: Using `Verify` objects as streams:
 
@@ -809,8 +949,8 @@ verify.end();
 
 const public_key = getPublicKeySomehow();
 const signature = getSignatureToVerify();
-console.log(sign.verify(public_key, signature));
-  // Prints true or false
+console.log(verify.verify(public_key, signature));
+// Prints: true or false
 ```
 
 Example: Using the [`verify.update()`][] and [`verify.verify()`][] methods:
@@ -824,10 +964,13 @@ verify.update('some data to sign');
 const public_key = getPublicKeySomehow();
 const signature = getSignatureToVerify();
 console.log(verify.verify(public_key, signature));
-  // Prints true or false
+// Prints: true or false
 ```
 
 ### verifier.update(data[, input_encoding])
+<!-- YAML
+added: v0.1.92
+-->
 
 Updates the `Verify` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
@@ -838,6 +981,9 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
 This can be called many times with new data as it is streamed.
 
 ### verifier.verify(object, signature[, signature_format])
+<!-- YAML
+added: v0.1.92
+-->
 
 Verifies the provided data using the given `object` and `signature`.
 The `object` argument is a string containing a PEM encoded object, which can be
@@ -856,13 +1002,19 @@ thrown.
 
 ## `crypto` module methods and properties
 
-## crypto.constants
+### crypto.constants
+<!-- YAML
+added: v6.3.0
+-->
 
 Returns an object containing commonly used constants for crypto and security
 related operations. The specific constants currently defined are described in
 [Crypto Constants][].
 
 ### crypto.DEFAULT_ENCODING
+<!-- YAML
+added: v0.9.3
+-->
 
 The default encoding to use for functions that can take either strings
 or [buffers][`Buffer`]. The default value is `'buffer'`, which makes methods
@@ -875,11 +1027,17 @@ New applications should expect the default to be `'buffer'`. This property may
 become deprecated in a future Node.js release.
 
 ### crypto.fips
+<!-- YAML
+added: v6.0.0
+-->
 
 Property for checking and controlling whether a FIPS compliant crypto provider is
 currently in use. Setting to true requires a FIPS build of Node.js.
 
 ### crypto.createCipher(algorithm, password)
+<!-- YAML
+added: v0.1.94
+-->
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`.
@@ -913,12 +1071,16 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'latin1'` encoded strings or
+[initialization vector][]. Both arguments must be `'utf8'` encoded strings or
 [buffers][`Buffer`].
 
 ### crypto.createCredentials(details)
+<!-- YAML
+added: v0.1.92
+deprecated: v0.11.13
+-->
 
-    Stability: 0 - Deprecated: Use [`tls.createSecureContext()`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.createSecureContext()`][] instead.
 
 The `crypto.createCredentials()` method is a deprecated alias for creating
 and returning a `tls.SecureContext` object. The `crypto.createCredentials()`
@@ -942,6 +1104,9 @@ If no 'ca' details are given, Node.js will use Mozilla's default
 [publicly trusted list of CAs][].
 
 ### crypto.createDecipher(algorithm, password)
+<!-- YAML
+added: v0.1.94
+-->
 
 Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key).
@@ -959,6 +1124,9 @@ their own using [`crypto.pbkdf2()`][] and to use [`crypto.createDecipheriv()`][]
 to create the `Decipher` object.
 
 ### crypto.createDecipheriv(algorithm, key, iv)
+<!-- YAML
+added: v0.1.94
+-->
 
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
@@ -968,10 +1136,13 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'latin1'` encoded strings or
+[initialization vector][]. Both arguments must be `'utf8'` encoded strings or
 [buffers][`Buffer`].
 
 ### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
+<!-- YAML
+added: v0.11.12
+-->
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
 optional specific `generator`.
@@ -989,12 +1160,18 @@ If `generator_encoding` is specified, `generator` is expected to be a string;
 otherwise either a number or [`Buffer`][] is expected.
 
 ### crypto.createDiffieHellman(prime_length[, generator])
+<!-- YAML
+added: v0.5.0
+-->
 
 Creates a `DiffieHellman` key exchange object and generates a prime of
 `prime_length` bits using an optional specific numeric `generator`.
 If `generator` is not specified, the value `2` is used.
 
 ### crypto.createECDH(curve_name)
+<!-- YAML
+added: v0.11.14
+-->
 
 Creates an Elliptic Curve Diffie-Hellman (`ECDH`) key exchange object using a
 predefined curve specified by the `curve_name` string. Use
@@ -1003,6 +1180,9 @@ OpenSSL releases, `openssl ecparam -list_curves` will also display the name
 and description of each available elliptic curve.
 
 ### crypto.createHash(algorithm)
+<!-- YAML
+added: v0.1.92
+-->
 
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`.
@@ -1033,6 +1213,9 @@ input.on('readable', () => {
 ```
 
 ### crypto.createHmac(algorithm, key)
+<!-- YAML
+added: v0.1.94
+-->
 
 Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
 
@@ -1064,18 +1247,27 @@ input.on('readable', () => {
 ```
 
 ### crypto.createSign(algorithm)
+<!-- YAML
+added: v0.1.92
+-->
 
-Creates and returns a `Sign` object that uses the given `algorithm`. On
-recent OpenSSL releases, `openssl list-public-key-algorithms` will
-display the available signing algorithms. One example is `'RSA-SHA256'`.
+Creates and returns a `Sign` object that uses the given `algorithm`.
+Use [`crypto.getHashes()`][] to obtain an array of names of the available
+signing algorithms.
 
 ### crypto.createVerify(algorithm)
+<!-- YAML
+added: v0.1.92
+-->
 
-Creates and returns a `Verify` object that uses the given algorithm. On
-recent OpenSSL releases, `openssl list-public-key-algorithms` will
-display the available signing algorithms. One example is `'RSA-SHA256'`.
+Creates and returns a `Verify` object that uses the given algorithm.
+Use [`crypto.getHashes()`][] to obtain an array of names of the available
+signing algorithms.
 
 ### crypto.getCiphers()
+<!-- YAML
+added: v0.9.3
+-->
 
 Returns an array with the names of the supported cipher algorithms.
 
@@ -1087,6 +1279,9 @@ console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
 ```
 
 ### crypto.getCurves()
+<!-- YAML
+added: v2.3.0
+-->
 
 Returns an array with the names of the supported elliptic curves.
 
@@ -1098,6 +1293,9 @@ console.log(curves); // ['secp256k1', 'secp384r1', ...]
 ```
 
 ### crypto.getDiffieHellman(group_name)
+<!-- YAML
+added: v0.7.5
+-->
 
 Creates a predefined `DiffieHellman` key exchange object. The
 supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
@@ -1128,8 +1326,12 @@ console.log(alice_secret == bob_secret);
 ```
 
 ### crypto.getHashes()
+<!-- YAML
+added: v0.9.3
+-->
 
-Returns an array with the names of the supported hash algorithms.
+Returns an array of the names of the supported hash algorithms,
+such as `RSA-SHA256`.
 
 Example:
 
@@ -1139,6 +1341,9 @@ console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
 ```
 
 ### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
+<!-- YAML
+added: v0.5.5
+-->
 
 Provides an asynchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation. A selected HMAC digest algorithm specified by `digest` is
@@ -1171,6 +1376,9 @@ An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
 ### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
+<!-- YAML
+added: v0.9.3
+-->
 
 Provides a synchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation. A selected HMAC digest algorithm specified by `digest` is
@@ -1200,6 +1408,9 @@ An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
 ### crypto.privateDecrypt(private_key, buffer)
+<!-- YAML
+added: v0.11.14
+-->
 
 Decrypts `buffer` with `private_key`.
 
@@ -1217,7 +1428,26 @@ keys:
 
 All paddings are defined in `crypto.constants`.
 
+### crypto.timingSafeEqual(a, b)
+<!-- YAML
+added: v6.6.0
+-->
+
+Returns true if `a` is equal to `b`, without leaking timing information that
+would allow an attacker to guess one of the values. This is suitable for
+comparing HMAC digests or secret values like authentication cookies or
+[capability urls](https://www.w3.org/TR/capability-urls/).
+
+`a` and `b` must both be `Buffer`s, and they must have the same length.
+
+**Note**: Use of `crypto.timingSafeEqual` does not guarantee that the
+*surrounding* code is timing-safe. Care should be taken to ensure that the
+surrounding code does not introduce timing vulnerabilities.
+
 ### crypto.privateEncrypt(private_key, buffer)
+<!-- YAML
+added: v1.1.0
+-->
 
 Encrypts `buffer` with `private_key`.
 
@@ -1231,11 +1461,13 @@ keys:
 * `padding` : An optional padding value, one of the following:
   * `crypto.constants.RSA_NO_PADDING`
   * `crypto.constants.RSA_PKCS1_PADDING`
-  * `crypto.constants.RSA_PKCS1_OAEP_PADDING`
 
 All paddings are defined in `crypto.constants`.
 
 ### crypto.publicDecrypt(public_key, buffer)
+<!-- YAML
+added: v1.1.0
+-->
 
 Decrypts `buffer` with `public_key`.
 
@@ -1257,6 +1489,9 @@ be passed instead of a public key.
 All paddings are defined in `crypto.constants`.
 
 ### crypto.publicEncrypt(public_key, buffer)
+<!-- YAML
+added: v0.11.14
+-->
 
 Encrypts `buffer` with `public_key`.
 
@@ -1278,6 +1513,9 @@ be passed instead of a public key.
 All paddings are defined in `crypto.constants`.
 
 ### crypto.randomBytes(size[, callback])
+<!-- YAML
+added: v0.5.8
+-->
 
 Generates cryptographically strong pseudo-random data. The `size` argument
 is a number indicating the number of bytes to generate.
@@ -1313,6 +1551,9 @@ when generating the random bytes may conceivably block for a longer period of
 time is right after boot, when the whole system is still low on entropy.
 
 ### crypto.setEngine(engine[, flags])
+<!-- YAML
+added: v0.11.11
+-->
 
 Load and set the `engine` for some or all OpenSSL functions (selected by flags).
 
@@ -1388,7 +1629,7 @@ See the reference for other recommendations and details.
 
 ## Crypto Constants
 
-The following constants exported by `crypto.constants` apply to various uses of 
+The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### OpenSSL Options
@@ -1401,20 +1642,20 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   <tr>
     <td><code>SSL_OP_ALL</code></td>
     <td>Applies multiple bug workarounds within OpenSSL. See
-    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html for
+    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html for
     detail.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
     <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
-    clients or servers. See 
-    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html.</td>
+    clients or servers. See
+    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
     <td>Uses the server's preferences instead of the clients when selecting a
-    cipher. See 
-    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html.</td>
+    cipher. See
+    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
@@ -1717,7 +1958,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_private_key_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_public_key_encoding
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`hash.digest()`]: #crypto_hash_digest_encoding
 [`hash.update()`]: #crypto_hash_update_data_input_encoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
@@ -1732,8 +1973,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/apps/spkac.html
+[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt

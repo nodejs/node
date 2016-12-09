@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 // Make sure that throwing in 'end' handler doesn't lock
 // up the socket forever.
@@ -16,9 +15,9 @@ const server = http.createServer((req, res) => {
   res.end('ok');
 });
 
-server.listen(common.PORT, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
   for (let i = 0; i < 10; i++) {
-    const options = { port: common.PORT };
+    const options = { port: server.address().port };
     const req = http.request(options, (res) => {
       res.resume();
       res.on('end', common.mustCall(() => {
@@ -29,11 +28,4 @@ server.listen(common.PORT, common.mustCall(() => {
   }
 }));
 
-let errors = 0;
-process.on('uncaughtException', () => {
-  errors++;
-});
-
-process.on('exit', () => {
-  assert.equal(errors, 10);
-});
+process.on('uncaughtException', common.mustCall(() => {}, 10));

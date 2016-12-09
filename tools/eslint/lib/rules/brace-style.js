@@ -33,12 +33,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var style = context.options[0] || "1tbs",
+    create(context) {
+        const style = context.options[0] || "1tbs",
             params = context.options[1] || {},
             sourceCode = context.getSourceCode();
 
-        var OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
+        const OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
             OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
             BODY_MESSAGE = "Statement inside of curly braces should be on next line.",
             CLOSE_MESSAGE = "Closing curly brace does not appear on the same line as the subsequent block.",
@@ -61,7 +61,7 @@ module.exports = {
 
         /**
          * Check if the token is an punctuator with a value of curly brace
-         * @param {object} token - Token to check
+         * @param {Object} token - Token to check
          * @returns {boolean} true if its a curly punctuator
          * @private
          */
@@ -78,24 +78,20 @@ module.exports = {
          * @private
          */
         function checkBlock() {
-            var blockProperties = arguments;
+            const blockProperties = arguments;
 
             return function(node) {
                 Array.prototype.forEach.call(blockProperties, function(blockProp) {
-                    var block = node[blockProp],
-                        previousToken,
-                        curlyToken,
-                        curlyTokenEnd,
-                        allOnSameLine;
+                    const block = node[blockProp];
 
                     if (!isBlock(block)) {
                         return;
                     }
 
-                    previousToken = sourceCode.getTokenBefore(block);
-                    curlyToken = sourceCode.getFirstToken(block);
-                    curlyTokenEnd = sourceCode.getLastToken(block);
-                    allOnSameLine = previousToken.loc.start.line === curlyTokenEnd.loc.start.line;
+                    const previousToken = sourceCode.getTokenBefore(block);
+                    const curlyToken = sourceCode.getFirstToken(block);
+                    const curlyTokenEnd = sourceCode.getLastToken(block);
+                    const allOnSameLine = previousToken.loc.start.line === curlyTokenEnd.loc.start.line;
 
                     if (allOnSameLine && params.allowSingleLine) {
                         return;
@@ -129,13 +125,11 @@ module.exports = {
          * @private
          */
         function checkIfStatement(node) {
-            var tokens;
-
             checkBlock("consequent", "alternate")(node);
 
             if (node.alternate) {
 
-                tokens = sourceCode.getTokensBefore(node.alternate, 2);
+                const tokens = sourceCode.getTokensBefore(node.alternate, 2);
 
                 if (style === "1tbs") {
                     if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
@@ -157,12 +151,11 @@ module.exports = {
          * @private
          */
         function checkTryStatement(node) {
-            var tokens;
-
             checkBlock("block", "finalizer")(node);
 
             if (isBlock(node.finalizer)) {
-                tokens = sourceCode.getTokensBefore(node.finalizer, 2);
+                const tokens = sourceCode.getTokensBefore(node.finalizer, 2);
+
                 if (style === "1tbs") {
                     if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
                         context.report(node.finalizer, CLOSE_MESSAGE);
@@ -180,7 +173,7 @@ module.exports = {
          * @private
          */
         function checkCatchClause(node) {
-            var previousToken = sourceCode.getTokenBefore(node),
+            const previousToken = sourceCode.getTokenBefore(node),
                 firstToken = sourceCode.getFirstToken(node);
 
             checkBlock("body")(node);
@@ -205,7 +198,7 @@ module.exports = {
          * @private
          */
         function checkSwitchStatement(node) {
-            var tokens;
+            let tokens;
 
             if (node.cases && node.cases.length) {
                 tokens = sourceCode.getTokensBefore(node.cases[0], 2);

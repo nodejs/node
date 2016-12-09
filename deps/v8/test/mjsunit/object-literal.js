@@ -218,7 +218,7 @@ function TestNumericNamesGetter(expectedKeys, object) {
   assertEquals(expectedKeys, Object.keys(object));
   expectedKeys.forEach(function(key) {
     var descr = Object.getOwnPropertyDescriptor(object, key);
-    assertEquals(key, descr.get.name);
+    assertEquals('get ' + key, descr.get.name);
   });
 }
 TestNumericNamesGetter(['1', '2', '3', '4', '5', '6', '7', '8', '9'], {
@@ -242,7 +242,7 @@ function TestNumericNamesSetter(expectedKeys, object) {
   assertEquals(expectedKeys, Object.keys(object));
   expectedKeys.forEach(function(key) {
     var descr = Object.getOwnPropertyDescriptor(object, key);
-    assertEquals(key, descr.set.name);
+    assertEquals('set ' + key, descr.set.name);
   });
 }
 TestNumericNamesSetter(['1', '2', '3', '4', '5', '6', '7', '8', '9'], {

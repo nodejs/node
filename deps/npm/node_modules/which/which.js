@@ -19,7 +19,7 @@ function getNotFoundError (cmd) {
 
 function getPathInfo (cmd, opt) {
   var colon = opt.colon || COLON
-  var pathEnv = opt.path || process.env.Path || process.env.PATH || ''
+  var pathEnv = opt.path || process.env.PATH || ''
   var pathExt = ['']
 
   pathEnv = pathEnv.split(colon)

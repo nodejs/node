@@ -42,20 +42,12 @@ assert.equal(stat.size, 0);
 fs.closeSync(fd);
 
 // async tests
-var success = 0;
-testTruncate(function(er) {
+testTruncate(common.mustCall(function(er) {
   if (er) throw er;
-  success++;
-  testFtruncate(function(er) {
+  testFtruncate(common.mustCall(function(er) {
     if (er) throw er;
-    success++;
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(success, 2);
-  console.log('ok');
-});
+  }));
+}));
 
 function testTruncate(cb) {
   fs.writeFile(filename, data, function(er) {
@@ -113,4 +105,44 @@ function testFtruncate(cb) {
       });
     });
   });
+}
+
+
+// Make sure if the size of the file is smaller than the length then it is
+// filled with zeroes.
+
+{
+  const file1 = path.resolve(tmp, 'truncate-file-1.txt');
+  fs.writeFileSync(file1, 'Hi');
+  fs.truncateSync(file1, 4);
+  assert(fs.readFileSync(file1).equals(Buffer.from('Hi\u0000\u0000')));
+}
+
+{
+  const file2 = path.resolve(tmp, 'truncate-file-2.txt');
+  fs.writeFileSync(file2, 'Hi');
+  const fd = fs.openSync(file2, 'r+');
+  process.on('exit', () => fs.closeSync(fd));
+  fs.ftruncateSync(fd, 4);
+  assert(fs.readFileSync(file2).equals(Buffer.from('Hi\u0000\u0000')));
+}
+
+{
+  const file3 = path.resolve(tmp, 'truncate-file-3.txt');
+  fs.writeFileSync(file3, 'Hi');
+  fs.truncate(file3, 4, common.mustCall(function(err) {
+    assert.ifError(err);
+    assert(fs.readFileSync(file3).equals(Buffer.from('Hi\u0000\u0000')));
+  }));
+}
+
+{
+  const file4 = path.resolve(tmp, 'truncate-file-4.txt');
+  fs.writeFileSync(file4, 'Hi');
+  const fd = fs.openSync(file4, 'r+');
+  process.on('exit', () => fs.closeSync(fd));
+  fs.ftruncate(fd, 4, common.mustCall(function(err) {
+    assert.ifError(err);
+    assert(fs.readFileSync(file4).equals(Buffer.from('Hi\u0000\u0000')));
+  }));
 }

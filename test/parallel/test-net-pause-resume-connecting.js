@@ -17,61 +17,54 @@ var server = net.createServer(function(conn) {
     server.close();
 });
 
-server.listen(common.PORT);
+server.listen(0, function() {
+  // Client 1
+  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn.resume();
+  conn.on('data', onDataOk);
 
 
-// Client 1
-conn = require('net').createConnection(common.PORT, 'localhost');
-conn.resume();
-conn.on('data', onDataOk);
+  // Client 2
+  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn.pause();
+  conn.resume();
+  conn.on('data', onDataOk);
 
 
-// Client 2
-conn = require('net').createConnection(common.PORT, 'localhost');
-conn.pause();
-conn.resume();
-conn.on('data', onDataOk);
+  // Client 3
+  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn.pause();
+  conn.on('data', common.fail);
+  scheduleTearDown(conn);
 
 
-// Client 3
-conn = require('net').createConnection(common.PORT, 'localhost');
-conn.pause();
-conn.on('data', onDataError);
-scheduleTearDown(conn);
+  // Client 4
+  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn.resume();
+  conn.pause();
+  conn.resume();
+  conn.on('data', onDataOk);
 
 
-// Client 4
-conn = require('net').createConnection(common.PORT, 'localhost');
-conn.resume();
-conn.pause();
-conn.resume();
-conn.on('data', onDataOk);
+  // Client 5
+  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn.resume();
+  conn.resume();
+  conn.pause();
+  conn.on('data', common.fail);
+  scheduleTearDown(conn);
 
+  function onDataOk() {
+    dataEvents++;
+  }
 
-// Client 5
-conn = require('net').createConnection(common.PORT, 'localhost');
-conn.resume();
-conn.resume();
-conn.pause();
-conn.on('data', onDataError);
-scheduleTearDown(conn);
-
-
-// Client helper functions
-function onDataError() {
-  assert(false);
-}
-
-function onDataOk() {
-  dataEvents++;
-}
-
-function scheduleTearDown(conn) {
-  setTimeout(function() {
-    conn.removeAllListeners('data');
-    conn.resume();
-  }, 100);
-}
+  function scheduleTearDown(conn) {
+    setTimeout(function() {
+      conn.removeAllListeners('data');
+      conn.resume();
+    }, 100);
+  }
+});
 
 
 // Exit sanity checks

@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 const assert = require('assert');
-const common = require('../common');
 const http = require('http');
 
 var complete;
@@ -19,7 +19,7 @@ var server = http.createServer(function(req, res) {
 });
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.log('listen', server.address().port);
 
   var agent = new http.Agent({maxSockets: 1});

@@ -30,19 +30,19 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var configuration = context.options[0] || {},
+        const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false;
 
         return {
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 node.declarations.reduce(function(memo, decl) {
                     if (decl.id.type === "ObjectPattern" || decl.id.type === "ArrayPattern") {
                         return memo;
                     }
 
-                    var lastVariableName = memo.id.name,
+                    let lastVariableName = memo.id.name,
                         currenVariableName = decl.id.name;
 
                     if (ignoreCase) {
@@ -51,7 +51,7 @@ module.exports = {
                     }
 
                     if (currenVariableName < lastVariableName) {
-                        context.report(decl, "Variables within the same declaration block should be sorted alphabetically");
+                        context.report(decl, "Variables within the same declaration block should be sorted alphabetically.");
                         return memo;
                     } else {
                         return decl;

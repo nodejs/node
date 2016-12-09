@@ -91,7 +91,8 @@ Data types
             UV_FS_SYMLINK,
             UV_FS_READLINK,
             UV_FS_CHOWN,
-            UV_FS_FCHOWN
+            UV_FS_FCHOWN,
+            UV_FS_REALPATH
         } uv_fs_type;
 
 .. c:type:: uv_dirent_t
@@ -222,7 +223,7 @@ API
 .. c:function:: int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 .. c:function:: int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to :man:`stat(2)`, :man:`fstat(2)` and :man:`fstat(2)` respectively.
+    Equivalent to :man:`stat(2)`, :man:`fstat(2)` and :man:`lstat(2)` respectively.
 
 .. c:function:: int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
@@ -258,6 +259,12 @@ API
 
     Equivalent to :man:`utime(2)` and :man:`futime(2)` respectively.
 
+    .. note::
+      AIX: This function only works for AIX 7.1 and newer. It can still be called on older
+      versions but will return ``UV_ENOSYS``.
+
+    .. versionchanged:: 1.10.0 sub-second precission is supported on Windows
+
 .. c:function:: int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
     Equivalent to :man:`link(2)`.
@@ -281,7 +288,26 @@ API
 
 .. c:function:: int uv_fs_realpath(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to :man:`realpath(3)` on Unix. Windows uses ``GetFinalPathNameByHandle()``.
+    Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandle <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx>`_.
+
+    .. warning::
+        This function has certain platform specific caveats that were discovered when used in Node.
+
+        * macOS and other BSDs: this function will fail with UV_ELOOP if more than 32 symlinks are
+          found while resolving the given path.  This limit is hardcoded and cannot be sidestepped.
+        * Windows: while this function works in the common case, there are a number of corner cases
+          where it doesn't:
+
+          - Paths in ramdisk volumes created by tools which sidestep the Volume Manager (such as ImDisk)
+            cannot be resolved.
+          - Inconsistent casing when using drive letters.
+          - Resolved path bypasses subst'd drives.
+
+        While this function can still be used, it's not recommended if scenarios such as the
+        above need to be supported.
+
+        The background story and some more details on these issues can be checked
+        `here <https://github.com/nodejs/node/issues/7726>`_.
 
     .. note::
       This function is not implemented on Windows XP and Windows Server 2003.

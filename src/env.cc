@@ -21,7 +21,6 @@ using v8::Local;
 using v8::Message;
 using v8::StackFrame;
 using v8::StackTrace;
-using v8::Value;
 
 void Environment::Start(int argc,
                         const char* const* argv,
@@ -30,8 +29,6 @@ void Environment::Start(int argc,
                         bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
-
-  isolate()->SetAutorunMicrotasks(false);
 
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
@@ -51,6 +48,9 @@ void Environment::Start(int argc,
   uv_check_init(event_loop(), &idle_check_handle_);
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
+
+  uv_idle_init(event_loop(), destroy_ids_idle_handle());
+  uv_unref(reinterpret_cast<uv_handle_t*>(destroy_ids_idle_handle()));
 
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;

@@ -6,6 +6,9 @@
 </tr>
 <tr>
 <td>
+<a href="#0.12.17">0.12.17</a><br/>
+<a href="#0.12.16">0.12.16</a><br/>
+<a href="#0.12.15">0.12.15</a><br/>
 <a href="#0.12.14">0.12.14</a><br/>
 <a href="#0.12.13">0.12.13</a><br/>
 <a href="#0.12.12">0.12.12</a><br/>
@@ -26,6 +29,7 @@
 </table>
 
 * Other Versions
+  * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [5.x](CHANGELOG_V5.md)
   * [4.x](CHANGELOG_V4.md)
@@ -33,9 +37,74 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** Node.js v0.12 is covered by the 
+**Note:** Node.js v0.12 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until December 31st, 2016.
+
+<a id="0.12.17"></a>
+## 2016-10-18, Version 0.12.17 (Maintenance), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/october-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes:
+
+* c-ares: fix for single-byte buffer overwrite, CVE-2016-5180, more information at https://c-ares.haxx.se/adv_20160929.html (Daniel Stenberg)
+
+### Commits:
+
+* [c5b095ecf8] - deps: avoid single-byte buffer overwrite (Daniel Stenberg) https://github.com/nodejs/node/pull/8849
+
+<a id="0.12.16"></a>
+## 2016-09-27, Version 0.12.16 (Maintenance), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes:
+
+* buffer: Zero-fill excess bytes in new `Buffer` objects created with `Buffer.concat()` while providing a `totalLength` parameter that exceeds the total length of the original `Buffer` objects being concatenated. (Сковорода Никита Андреевич)
+* http:
+  - CVE-2016-5325 - Properly validate for allowable characters in the `reason` argument in `ServerResponse#writeHead()`. Fixes a possible response splitting attack vector. This introduces a new case where `throw` may occur when configuring HTTP responses, users should already be adopting try/catch here. Originally reported independently by Evan Lucas and Romain Gaucher. (Evan Lucas)
+  - Invalid status codes can no longer be sent. Limited to 3 digit numbers between 100 - 999. Lack of proper validation may also serve as a potential response splitting attack vector. Backported from v4.x. (Brian White)
+* openssl:
+  - Upgrade to 1.0.1u, fixes a number of defects impacting Node.js: CVE-2016-6304 ("OCSP Status Request extension unbounded memory growth", high severity), CVE-2016-2183, CVE-2016-6303, CVE-2016-2178 and CVE-2016-6306.
+  - Remove support for loading dynamic third-party engine modules. An attacker may be able to hide malicious code to be inserted into Node.js at runtime by masquerading as one of the dynamic engine modules. Originally reported by Ahmed Zaki (Skype). (Ben Noordhuis, Rod Vagg)
+* tls: CVE-2016-7099 - Fix invalid wildcard certificate validation check whereby a TLS server may be able to serve an invalid wildcard certificate for its hostname due to improper validation of `*.` in the wildcard string. Originally reported by Alexander Minozhenko and James Bunton (Atlassian). (Ben Noordhuis)
+
+### Commits:
+
+* [38d7258d89] - buffer: zero-fill uninitialized bytes in .concat() (Сковорода Никита Андреевич) https://github.com/nodejs/node-private/pull/66
+* [1ba6d16786] - build: turn on -fno-delete-null-pointer-checks (Ben Noordhuis) https://github.com/nodejs/node/pull/6737
+* [71e4285e27] - crypto: don't build hardware engines (Rod Vagg) https://github.com/nodejs/node-private/pull/69
+* [b6e0105a66] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25368
+* [1caec97eab] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [734bc6938b] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [7cc6d4eb5c] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
+* [4a9da21217] - deps: upgrade openssl sources to 1.0.1u (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
+* [6d977902bd] - http: check reason chars in writeHead (Evan Lucas) https://github.com/nodejs/node-private/pull/47
+* [ad470e496b] - http: disallow sending obviously invalid status codes (Evan Lucas) https://github.com/nodejs/node-private/pull/47
+* [9dbde2fc88] - lib: make tls.checkServerIdentity() more strict (Ben Noordhuis) https://github.com/nodejs/node-private/pull/61
+* [db80592071] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
+
+<a id="0.12.15"></a>
+## 2016-06-23, Version 0.12.15 (Maintenance), @rvagg
+
+### Notable changes:
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/ for details on patched vulnerabilities.
+
+* libuv: (CVE-2014-9748) Fixes a bug in the read/write locks implementation for Windows XP and Windows 2003 that can lead to undefined and potentially unsafe behaviour. More information can be found at https://github.com/libuv/libuv/issues/515 or at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/.
+* V8: (CVE-2016-1669) Fixes a potential Buffer overflow vulnerability discovered in V8, more details can be found in the CVE at https://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669 or at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/.
+
+### Commits:
+
+* [da8501edf6] - deps: backport bd1777fd from libuv upstream (Rod Vagg)
+* [9207a00f8e] - deps: backport 85adf43e from libuv upstream (Rod Vagg)
+* [9627f34230] - deps: backport 98239224 from libuv upstream (Rod Vagg)
+* [5df21b2e36] - deps: backport 9a4fd268 from libuv upstream (Rod Vagg)
+* [e75de35057] - deps: backport 3eb6764a from libuv upstream (Rod Vagg)
+* [a113e02f16] - deps: backport 3a9bfec from v8 upstream (Ben Noordhuis)
+* [8138055c88] - test: fix test failure due to expired certificates (Ben Noordhuis) https://github.com/nodejs/node/pull/7195
+
 
 <a id="0.12.14"></a>
 ## 2016-05-06, Version 0.12.14 (Maintenance), @rvagg

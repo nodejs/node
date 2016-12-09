@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 //messages
@@ -21,18 +21,11 @@ if (process.argv[2] === 'child') {
   var fork = require('child_process').fork;
   var child = fork(process.argv[1], ['child']);
 
-  var gotNormal;
-  child.once('message', function(data) {
-    gotNormal = data;
-  });
+  child.once('message', common.mustCall(function(data) {
+    assert.deepStrictEqual(data, normal);
+  }));
 
-  var gotInternal;
-  child.once('internalMessage', function(data) {
-    gotInternal = data;
-  });
-
-  process.on('exit', function() {
-    assert.deepStrictEqual(gotNormal, normal);
-    assert.deepStrictEqual(gotInternal, internal);
-  });
+  child.once('internalMessage', common.mustCall(function(data) {
+    assert.deepStrictEqual(data, internal);
+  }));
 }

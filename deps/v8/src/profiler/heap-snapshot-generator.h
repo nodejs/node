@@ -5,6 +5,8 @@
 #ifndef V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include <unordered_map>
+
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
@@ -259,7 +261,7 @@ class HeapObjectsMap {
   };
 
   SnapshotObjectId next_id_;
-  HashMap entries_map_;
+  base::HashMap entries_map_;
   List<EntryInfo> entries_;
   List<TimeInterval> time_intervals_;
   Heap* heap_;
@@ -297,7 +299,7 @@ class HeapEntriesMap {
         v8::internal::kZeroHashSeed);
   }
 
-  HashMap entries_;
+  base::HashMap entries_;
 
   friend class HeapObjectsSet;
 
@@ -316,7 +318,7 @@ class HeapObjectsSet {
   bool is_empty() const { return entries_.occupancy() == 0; }
 
  private:
-  HashMap entries_;
+  base::HashMap entries_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsSet);
 };
@@ -382,10 +384,10 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractScriptReferences(int entry, Script* script);
   void ExtractAccessorInfoReferences(int entry, AccessorInfo* accessor_info);
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
-  void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
   void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
+  void ExtractWeakCellReferences(int entry, WeakCell* weak_cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
@@ -397,6 +399,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractInternalReferences(JSObject* js_obj, int entry);
 
   bool IsEssentialObject(Object* object);
+  bool IsEssentialHiddenReference(Object* parent, int field_offset);
+
   void SetContextReference(HeapObject* parent_obj,
                            int parent,
                            String* reference_name,
@@ -420,10 +424,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             int index,
                             Object* child,
                             int field_offset = -1);
-  void SetHiddenReference(HeapObject* parent_obj,
-                          int parent,
-                          int index,
-                          Object* child);
+  void SetHiddenReference(HeapObject* parent_obj, int parent, int index,
+                          Object* child, int field_offset);
   void SetWeakReference(HeapObject* parent_obj,
                         int parent,
                         const char* reference_name,
@@ -453,7 +455,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
-  void MarkAsWeakContainer(Object* object);
+  void TagFixedArraySubType(const FixedArray* array,
+                            FixedArraySubInstanceType type);
 
   HeapEntry* GetEntry(Object* obj);
 
@@ -466,7 +469,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
-  HeapObjectsSet weak_containers_;
+  std::unordered_map<const FixedArray*, FixedArraySubInstanceType> array_types_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> marks_;
@@ -522,8 +525,8 @@ class NativeObjectsExplorer {
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
   // RetainedObjectInfo* -> List<HeapObject*>*
-  HashMap objects_by_info_;
-  HashMap native_groups_;
+  base::HashMap objects_by_info_;
+  base::HashMap native_groups_;
   HeapEntriesAllocator* synthetic_entries_allocator_;
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
@@ -610,7 +613,7 @@ class HeapSnapshotJSONSerializer {
   static const int kNodeFieldsCount;
 
   HeapSnapshot* snapshot_;
-  HashMap strings_;
+  base::HashMap strings_;
   int next_node_id_;
   int next_string_id_;
   OutputStreamWriter* writer_;

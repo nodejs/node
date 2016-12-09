@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -19,9 +19,6 @@ var fullResponse =
     'Server: badly broken/0.1 (OS NAME)\r\n' +
     '\r\n' +
     body;
-
-var gotResponse = false;
-
 
 var server = net.createServer(function(socket) {
   var postBody = '';
@@ -44,8 +41,8 @@ var server = net.createServer(function(socket) {
 });
 
 
-server.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+server.listen(0, common.mustCall(function() {
+  http.get({ port: this.address().port }, common.mustCall(function(res) {
     var buffer = '';
     console.log('Got res code: ' + res.statusCode);
 
@@ -54,17 +51,10 @@ server.listen(common.PORT, function() {
       buffer += chunk;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(function() {
       console.log('Response ended, read ' + buffer.length + ' bytes');
       assert.equal(body, buffer);
       server.close();
-      gotResponse = true;
-    });
-  });
-});
-
-
-process.on('exit', function() {
-  assert.ok(gotResponse);
-});
-
+    }));
+  }));
+}));

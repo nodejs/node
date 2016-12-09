@@ -1,7 +1,7 @@
 'use strict';
 
+const common = require('../common');
 var assert = require('assert');
-var common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -11,35 +11,25 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var errorCount = 0;
-var closeCount = 0;
-
 var server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
   rejectUnauthorized: true
 }, function(c) {
-}).listen(common.PORT, function() {
+}).listen(0, common.mustCall(function() {
   var c = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     ciphers: 'RC4'
   }, function() {
     assert(false, 'should not be called');
   });
 
-  c.on('error', function(err) {
-    errorCount++;
+  c.on('error', common.mustCall(function(err) {
     assert.notEqual(err.code, 'ECONNRESET');
-  });
+  }));
 
-  c.on('close', function(err) {
-    if (err)
-      closeCount++;
+  c.on('close', common.mustCall(function(err) {
+    assert.ok(err);
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(errorCount, 1);
-  assert.equal(closeCount, 1);
-});
+  }));
+}));

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -18,7 +18,7 @@ var s = http.createServer(function(req, res) {
   res.end('hello world\n');
 });
 
-s.listen(common.PORT, nextTest);
+s.listen(0, nextTest);
 
 
 function nextTest() {
@@ -27,7 +27,7 @@ function nextTest() {
   }
   var test = tests[testIdx];
 
-  http.get({ port: common.PORT }, function(response) {
+  http.get({ port: s.address().port }, function(response) {
     console.log('client: expected status: ' + test);
     console.log('client: statusCode: ' + response.statusCode);
     assert.equal(response.statusCode, test);
@@ -44,4 +44,3 @@ function nextTest() {
 process.on('exit', function() {
   assert.equal(5, testsComplete);
 });
-

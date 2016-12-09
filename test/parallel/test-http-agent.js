@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -12,13 +12,14 @@ var responses = 0;
 var N = 4;
 var M = 4;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  const port = this.address().port;
   for (var i = 0; i < N; i++) {
     setTimeout(function() {
       for (var j = 0; j < M; j++) {
-        http.get({ port: common.PORT, path: '/' }, function(res) {
+        http.get({ port: port, path: '/' }, function(res) {
           console.log('%d %d', responses, res.statusCode);
-          if (++responses == N * M) {
+          if (++responses === N * M) {
             console.error('Received all responses, closing server');
             server.close();
           }

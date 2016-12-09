@@ -33,7 +33,7 @@ var server = http.createServer(function(req, res) {
     res.end();
   });
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.on('listening', function() {
   var cmd = common.ddCommand(filename, 10240);
@@ -46,7 +46,7 @@ server.on('listening', function() {
 
 function makeRequest() {
   var req = http.request({
-    port: common.PORT,
+    port: server.address().port,
     path: '/',
     method: 'POST'
   });

@@ -40,7 +40,7 @@
 extern char **environ;
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GLIBC__)
 # include <grp.h>
 #endif
 
@@ -232,7 +232,7 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
     return 0;
 
   err = uv__close(pipefds[1]);
-  if (err != 0 && err != -EINPROGRESS)
+  if (err != 0)
     abort();
 
   pipefds[1] = -1;

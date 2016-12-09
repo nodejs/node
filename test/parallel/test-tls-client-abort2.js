@@ -8,18 +8,9 @@ if (!common.hasCrypto) {
 }
 var tls = require('tls');
 
-var errors = 0;
-
-var conn = tls.connect(common.PORT, function() {
-  assert(false); // callback should never be executed
-});
-conn.on('error', function() {
-  ++errors;
+var conn = tls.connect(common.PORT, common.fail);
+conn.on('error', common.mustCall(function() {
   assert.doesNotThrow(function() {
     conn.destroy();
   });
-});
-
-process.on('exit', function() {
-  assert.equal(errors, 1);
-});
+}));

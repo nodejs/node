@@ -84,10 +84,10 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceIncrementalMarking(
-          0, deadline, i::IncrementalMarking::StepActions(
-                           i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                           i::IncrementalMarking::FORCE_MARKING,
-                           i::IncrementalMarking::FORCE_COMPLETION));
+          deadline, i::IncrementalMarking::StepActions(
+                        i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                        i::IncrementalMarking::FORCE_MARKING,
+                        i::IncrementalMarking::FORCE_COMPLETION));
       heap()->FinalizeIncrementalMarkingIfComplete(
           "Memory reducer: finalize incremental marking");
     }

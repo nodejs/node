@@ -66,6 +66,7 @@ var cmdList = [
   'stars',
   'tag',
   'adduser',
+  'login', // This is an alias for `adduser` but it can be confusing
   'logout',
   'unpublish',
   'owner',

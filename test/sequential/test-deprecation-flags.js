@@ -5,8 +5,14 @@ const execFile = require('child_process').execFile;
 const depmod = require.resolve(common.fixturesDir + '/deprecated.js');
 const node = process.execPath;
 
-const depUserland =
-    require.resolve(common.fixturesDir + '/deprecated-userland-function.js');
+const depUserlandFunction =
+  require.resolve(common.fixturesDir + '/deprecated-userland-function.js');
+
+const depUserlandClass =
+  require.resolve(common.fixturesDir + '/deprecated-userland-class.js');
+
+const depUserlandSubClass =
+  require.resolve(common.fixturesDir + '/deprecated-userland-subclass.js');
 
 const normal = [depmod];
 const noDep = ['--no-deprecation', depmod];
@@ -39,10 +45,22 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   console.log('trace ok');
 });
 
-execFile(node, [depUserland], function(er, stdout, stderr) {
+execFile(node, [depUserlandFunction], function(er, stdout, stderr) {
   console.error('normal: testing deprecated userland function');
   assert.equal(er, null);
   assert.equal(stdout, '');
   assert(/deprecatedFunction is deprecated/.test(stderr));
   console.error('normal: ok');
+});
+
+execFile(node, [depUserlandClass], function(er, stdout, stderr) {
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
+  assert(/deprecatedClass is deprecated/.test(stderr));
+});
+
+execFile(node, [depUserlandSubClass], function(er, stdout, stderr) {
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
+  assert(/deprecatedClass is deprecated/.test(stderr));
 });

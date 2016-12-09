@@ -43,13 +43,13 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Constants
         //--------------------------------------------------------------------------
-        var option = context.options[0],
-            THRESHOLD = 10;
+        const option = context.options[0];
+        let THRESHOLD = 10;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
             THRESHOLD = option.maximum;
@@ -65,7 +65,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        var callbackStack = [];
+        const callbackStack = [];
 
         /**
          * Checks a given function node for too many callbacks.
@@ -74,14 +74,14 @@ module.exports = {
          * @private
          */
         function checkFunction(node) {
-            var parent = node.parent;
+            const parent = node.parent;
 
             if (parent.type === "CallExpression") {
                 callbackStack.push(node);
             }
 
             if (callbackStack.length > THRESHOLD) {
-                var opts = {num: callbackStack.length, max: THRESHOLD};
+                const opts = {num: callbackStack.length, max: THRESHOLD};
 
                 context.report(node, "Too many nested callbacks ({{num}}). Maximum allowed is {{max}}.", opts);
             }

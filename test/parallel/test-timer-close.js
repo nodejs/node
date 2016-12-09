@@ -2,7 +2,7 @@
 require('../common');
 var assert = require('assert');
 
-var t = new (process.binding('timer_wrap').Timer);
+var t = new (process.binding('timer_wrap').Timer)();
 var called = 0;
 function onclose() {
   called++;

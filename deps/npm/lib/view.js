@@ -273,20 +273,26 @@ function printData (data, name, cb) {
     })
   })
 
-  if (msgJson.length && Object.keys(msgJson[0]).length === 1) {
-    var k = Object.keys(msgJson[0])[0]
-    msgJson = msgJson.map(function (m) { return m[k] })
-  }
+  if (npm.config.get('json')) {
+    if (msgJson.length && Object.keys(msgJson[0]).length === 1) {
+      var k = Object.keys(msgJson[0])[0]
+      msgJson = msgJson.map(function (m) { return m[k] })
+    }
 
-  if (!msg) {
-    msg = JSON.stringify(msgJson[0], null, 2) + '\n'
-  } else if (msgJson.length > 1) {
-    msg = JSON.stringify(msgJson, null, 2) + '\n'
+    if (msgJson.length === 1) {
+      msg = JSON.stringify(msgJson[0], null, 2) + '\n'
+    } else if (msgJson.length > 1) {
+      msg = JSON.stringify(msgJson, null, 2) + '\n'
+    }
   }
 
   // preserve output symmetry by adding a whitespace-only line at the end if
   // there's one at the beginning
   if (/^\s*\n/.test(msg)) msg += '\n'
+
+  // disable the progress bar entirely, as we can't meaningfully update it if
+  // we may have partial lines printed.
+  log.disableProgress()
 
   // print directly to stdout to not unnecessarily add blank lines
   process.stdout.write(msg)

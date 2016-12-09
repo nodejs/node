@@ -63,12 +63,11 @@ var comment_lines = 28;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 11519;
+var last_position = 8126;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 269;
-// This is the last column of last line (note: starting at 0 and +1, due
-// to trailing <LF>).
-var last_column = 1;
+var last_line = 200;
+// This is the last column of last line (note: starting at 0).
+var last_column = 71;
 
 // This magic number is the length or the first line comment (actually number
 // of characters before 'function a(...'.
@@ -168,66 +167,6 @@ assertEquals(start_d, script.locationFromPosition(start_d).position);
 assertEquals(11, script.locationFromPosition(start_d).line - comment_lines);
 assertEquals(10, script.locationFromPosition(start_d).column);
 
-// Test first line.
-assertEquals(0, script.locationFromLine().position);
-assertEquals(0, script.locationFromLine().line);
-assertEquals(0, script.locationFromLine().column);
-assertEquals(0, script.locationFromLine(0).position);
-assertEquals(0, script.locationFromLine(0).line);
-assertEquals(0, script.locationFromLine(0).column);
-
-// Test first line column 1.
-assertEquals(1, script.locationFromLine(0, 1).position);
-assertEquals(0, script.locationFromLine(0, 1).line);
-assertEquals(1, script.locationFromLine(0, 1).column);
-
-// Test first line offset 1.
-assertEquals(1, script.locationFromLine(0, 0, 1).position);
-assertEquals(0, script.locationFromLine(0, 0, 1).line);
-assertEquals(1, script.locationFromLine(0, 0, 1).column);
-
-// Test offset function a().
-assertEquals(start_a, script.locationFromLine(void 0, void 0, start_a).position);
-assertEquals(0, script.locationFromLine(void 0, void 0, start_a).line - comment_lines);
-assertEquals(10, script.locationFromLine(void 0, void 0, start_a).column);
-assertEquals(start_a, script.locationFromLine(0, void 0, start_a).position);
-assertEquals(0, script.locationFromLine(0, void 0, start_a).line - comment_lines);
-assertEquals(10, script.locationFromLine(0, void 0, start_a).column);
-assertEquals(start_a, script.locationFromLine(0, 0, start_a).position);
-assertEquals(0, script.locationFromLine(0, 0, start_a).line - comment_lines);
-assertEquals(10, script.locationFromLine(0, 0, start_a).column);
-
-// Test second line offset function a().
-assertEquals(start_a + 13, script.locationFromLine(1, 0, start_a).position);
-assertEquals(1, script.locationFromLine(1, 0, start_a).line - comment_lines);
-assertEquals(0, script.locationFromLine(1, 0, start_a).column);
-
-// Test second line column 2 offset function a().
-assertEquals(start_a + 13 + 1, script.locationFromLine(1, 1, start_a).position);
-assertEquals(1, script.locationFromLine(1, 2, start_a).line - comment_lines);
-assertEquals(2, script.locationFromLine(1, 2, start_a).column);
-
-// Test offset function b().
-assertEquals(start_b, script.locationFromLine(0, 0, start_b).position);
-assertEquals(1, script.locationFromLine(0, 0, start_b).line - comment_lines);
-assertEquals(13, script.locationFromLine(0, 0, start_b).column);
-
-// Test second line offset function b().
-assertEquals(start_b + 5, script.locationFromLine(1, 0, start_b).position);
-assertEquals(2, script.locationFromLine(1, 0, start_b).line - comment_lines);
-assertEquals(0, script.locationFromLine(1, 0, start_b).column);
-
-// Test second line column 10 offset function b().
-assertEquals(start_b + 5 + 10, script.locationFromLine(1, 10, start_b).position);
-assertEquals(2, script.locationFromLine(1, 10, start_b).line - comment_lines);
-assertEquals(10, script.locationFromLine(1, 10, start_b).column);
-
-// Test second line column 11 offset function b. Second line in b is 10 long
-// using column 11 wraps to next line.
-assertEquals(start_b + 5 + 11, script.locationFromLine(1, 11, start_b).position);
-assertEquals(3, script.locationFromLine(1, 11, start_b).line - comment_lines);
-assertEquals(0, script.locationFromLine(1, 11, start_b).column);
-
 // Test the Debug.findSourcePosition which wraps SourceManager.
 assertEquals(0 + start_a, Debug.findFunctionSourceLocation(a, 0, 0).position);
 assertEquals(0 + start_b, Debug.findFunctionSourceLocation(b, 0, 0).position);
@@ -260,11 +199,3 @@ assertEquals(last_column, script.locationFromPosition(last_position).column);
 assertEquals(last_line + 1,
              script.locationFromPosition(last_position + 1).line);
 assertEquals(0, script.locationFromPosition(last_position + 1).column);
-
-// Test that script.sourceLine(line) works.
-var location;
-
-for (line = 0; line < num_lines_d; line++) {
-  var line_content_regexp = new RegExp("  x = " + (line + 1));
-  assertTrue(line_content_regexp.test(script.sourceLine(start_line_d + line)));
-}

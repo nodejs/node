@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var http = require('http');
 
 // Simple test of Node's HTTP Client choking on a response
@@ -11,9 +11,9 @@ var s = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Length': '0 '});
   res.end();
 });
-s.listen(common.PORT, function() {
+s.listen(0, function() {
 
-  var request = http.request({ port: common.PORT }, function(response) {
+  var request = http.request({ port: this.address().port }, function(response) {
     console.log('STATUS: ' + response.statusCode);
     s.close();
     response.resume();

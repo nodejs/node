@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var candidatesOfGlobalObject = Object.freeze([
+const candidatesOfGlobalObject = Object.freeze([
     "global",
     "window"
 ]);
@@ -93,13 +93,13 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var allowIndirect = Boolean(
+    create(context) {
+        const allowIndirect = Boolean(
             context.options[0] &&
             context.options[0].allowIndirect
         );
-        var sourceCode = context.getSourceCode();
-        var funcInfo = null;
+        const sourceCode = context.getSourceCode();
+        let funcInfo = null;
 
         /**
          * Pushs a variable scope (Program or Function) information to the stack.
@@ -112,12 +112,12 @@ module.exports = {
          * @returns {void}
          */
         function enterVarScope(node) {
-            var strict = context.getScope().isStrict;
+            const strict = context.getScope().isStrict;
 
             funcInfo = {
                 upper: funcInfo,
-                node: node,
-                strict: strict,
+                node,
+                strict,
                 defaultThis: false,
                 initialized: strict
             };
@@ -146,8 +146,8 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            var locationNode = node;
-            var parent = node.parent;
+            let locationNode = node;
+            const parent = node.parent;
 
             if (node.type === "MemberExpression") {
                 locationNode = node.property;
@@ -157,7 +157,7 @@ module.exports = {
             }
 
             context.report({
-                node: node,
+                node,
                 loc: locationNode.loc.start,
                 message: "eval can be harmful."
             });
@@ -170,19 +170,19 @@ module.exports = {
          * @returns {void}
          */
         function reportAccessingEvalViaGlobalObject(globalScope) {
-            for (var i = 0; i < candidatesOfGlobalObject.length; ++i) {
-                var name = candidatesOfGlobalObject[i];
-                var variable = astUtils.getVariableByName(globalScope, name);
+            for (let i = 0; i < candidatesOfGlobalObject.length; ++i) {
+                const name = candidatesOfGlobalObject[i];
+                const variable = astUtils.getVariableByName(globalScope, name);
 
                 if (!variable) {
                     continue;
                 }
 
-                var references = variable.references;
+                const references = variable.references;
 
-                for (var j = 0; j < references.length; ++j) {
-                    var identifier = references[j].identifier;
-                    var node = identifier.parent;
+                for (let j = 0; j < references.length; ++j) {
+                    const identifier = references[j].identifier;
+                    let node = identifier.parent;
 
                     // To detect code like `window.window.eval`.
                     while (isMember(node, name)) {
@@ -204,17 +204,17 @@ module.exports = {
          * @returns {void}
          */
         function reportAccessingEval(globalScope) {
-            var variable = astUtils.getVariableByName(globalScope, "eval");
+            const variable = astUtils.getVariableByName(globalScope, "eval");
 
             if (!variable) {
                 return;
             }
 
-            var references = variable.references;
+            const references = variable.references;
 
-            for (var i = 0; i < references.length; ++i) {
-                var reference = references[i];
-                var id = reference.identifier;
+            for (let i = 0; i < references.length; ++i) {
+                const reference = references[i];
+                const id = reference.identifier;
 
                 if (id.name === "eval" && !astUtils.isCallee(id)) {
 
@@ -228,8 +228,8 @@ module.exports = {
 
             // Checks only direct calls to eval. It's simple!
             return {
-                "CallExpression:exit": function(node) {
-                    var callee = node.callee;
+                "CallExpression:exit"(node) {
+                    const callee = node.callee;
 
                     if (isIdentifier(callee, "eval")) {
                         report(callee);
@@ -239,16 +239,16 @@ module.exports = {
         }
 
         return {
-            "CallExpression:exit": function(node) {
-                var callee = node.callee;
+            "CallExpression:exit"(node) {
+                const callee = node.callee;
 
                 if (isIdentifier(callee, "eval")) {
                     report(callee);
                 }
             },
 
-            Program: function(node) {
-                var scope = context.getScope(),
+            Program(node) {
+                const scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {},
                     strict =
                         scope.isStrict ||
@@ -257,15 +257,15 @@ module.exports = {
 
                 funcInfo = {
                     upper: null,
-                    node: node,
-                    strict: strict,
+                    node,
+                    strict,
                     defaultThis: true,
                     initialized: true
                 };
             },
 
-            "Program:exit": function() {
-                var globalScope = context.getScope();
+            "Program:exit"() {
+                const globalScope = context.getScope();
 
                 exitVarScope();
                 reportAccessingEval(globalScope);
@@ -279,7 +279,7 @@ module.exports = {
             ArrowFunctionExpression: enterVarScope,
             "ArrowFunctionExpression:exit": exitVarScope,
 
-            ThisExpression: function(node) {
+            ThisExpression(node) {
                 if (!isMember(node.parent, "eval")) {
                     return;
                 }

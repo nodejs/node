@@ -8,7 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
+const esUtils = require("esutils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -48,15 +49,19 @@ module.exports = {
                     maxItems: 2
                 }
             ]
-        }
+        },
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
 
-        var multiOnly = (context.options[0] === "multi");
-        var multiLine = (context.options[0] === "multi-line");
-        var multiOrNest = (context.options[0] === "multi-or-nest");
-        var consistent = (context.options[1] === "consistent");
+        const multiOnly = (context.options[0] === "multi");
+        const multiLine = (context.options[0] === "multi-line");
+        const multiOrNest = (context.options[0] === "multi-or-nest");
+        const consistent = (context.options[1] === "consistent");
+
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -69,8 +74,8 @@ module.exports = {
          * @private
          */
         function isCollapsedOneLiner(node) {
-            var before = context.getTokenBefore(node),
-                last = context.getLastToken(node);
+            const before = sourceCode.getTokenBefore(node),
+                last = sourceCode.getLastToken(node);
 
             return before.loc.start.line === last.loc.end.line;
         }
@@ -82,8 +87,8 @@ module.exports = {
          * @private
          */
         function isOneLiner(node) {
-            var first = context.getFirstToken(node),
-                last = context.getLastToken(node);
+            const first = sourceCode.getFirstToken(node),
+                last = sourceCode.getLastToken(node);
 
             return first.loc.start.line === last.loc.end.line;
         }
@@ -94,8 +99,7 @@ module.exports = {
          * @returns {Token} The `else` keyword token.
          */
         function getElseKeyword(node) {
-            var sourceCode = context.getSourceCode();
-            var token = sourceCode.getTokenAfter(node.consequent);
+            let token = sourceCode.getTokenAfter(node.consequent);
 
             while (token.type !== "Keyword" || token.value !== "else") {
                 token = sourceCode.getTokenAfter(token);
@@ -136,39 +140,121 @@ module.exports = {
         /**
          * Reports "Expected { after ..." error
          * @param {ASTNode} node The node to report.
+         * @param {ASTNode} bodyNode The body node that is incorrectly missing curly brackets
          * @param {string} name The name to report.
          * @param {string} suffix Additional string to add to the end of a report.
          * @returns {void}
          * @private
          */
-        function reportExpectedBraceError(node, name, suffix) {
+        function reportExpectedBraceError(node, bodyNode, name, suffix) {
             context.report({
-                node: node,
+                node,
                 loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
                 message: "Expected { after '{{name}}'{{suffix}}.",
                 data: {
-                    name: name,
-                    suffix: (suffix ? " " + suffix : "")
-                }
+                    name,
+                    suffix: (suffix ? ` ${suffix}` : "")
+                },
+                fix: fixer => fixer.replaceText(bodyNode, `{${sourceCode.getText(bodyNode)}}`)
             });
+        }
+
+        /**
+        * Determines if a semicolon needs to be inserted after removing a set of curly brackets, in order to avoid a SyntaxError.
+        * @param {Token} closingBracket The } token
+        * @returns {boolean} `true` if a semicolon needs to be inserted after the last statement in the block.
+        */
+        function needsSemicolon(closingBracket) {
+            const tokenBefore = sourceCode.getTokenBefore(closingBracket);
+            const tokenAfter = sourceCode.getTokenAfter(closingBracket);
+            const lastBlockNode = sourceCode.getNodeByRangeIndex(tokenBefore.range[0]);
+
+            if (tokenBefore.value === ";") {
+
+                // If the last statement already has a semicolon, don't add another one.
+                return false;
+            }
+
+            if (!tokenAfter) {
+
+                // If there are no statements after this block, there is no need to add a semicolon.
+                return false;
+            }
+
+            if (lastBlockNode.type === "BlockStatement" && lastBlockNode.parent.type !== "FunctionExpression" && lastBlockNode.parent.type !== "ArrowFunctionExpression") {
+
+                // If the last node surrounded by curly brackets is a BlockStatement (other than a FunctionExpression or an ArrowFunctionExpression),
+                // don't insert a semicolon. Otherwise, the semicolon would be parsed as a separate statement, which would cause
+                // a SyntaxError if it was followed by `else`.
+                return false;
+            }
+
+            if (tokenBefore.loc.end.line === tokenAfter.loc.start.line) {
+
+                // If the next token is on the same line, insert a semicolon.
+                return true;
+            }
+
+            if (/^[(\[\/`+-]/.test(tokenAfter.value)) {
+
+                // If the next token starts with a character that would disrupt ASI, insert a semicolon.
+                return true;
+            }
+
+            if (tokenBefore.type === "Punctuator" && (tokenBefore.value === "++" || tokenBefore.value === "--")) {
+
+                // If the last token is ++ or --, insert a semicolon to avoid disrupting ASI.
+                return true;
+            }
+
+            // Otherwise, do not insert a semicolon.
+            return false;
         }
 
         /**
          * Reports "Unnecessary { after ..." error
          * @param {ASTNode} node The node to report.
+         * @param {ASTNode} bodyNode The block statement that is incorrectly surrounded by parens
          * @param {string} name The name to report.
          * @param {string} suffix Additional string to add to the end of a report.
          * @returns {void}
          * @private
          */
-        function reportUnnecessaryBraceError(node, name, suffix) {
+        function reportUnnecessaryBraceError(node, bodyNode, name, suffix) {
             context.report({
-                node: node,
+                node,
                 loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
                 message: "Unnecessary { after '{{name}}'{{suffix}}.",
                 data: {
-                    name: name,
-                    suffix: (suffix ? " " + suffix : "")
+                    name,
+                    suffix: (suffix ? ` ${suffix}` : "")
+                },
+                fix(fixer) {
+
+                    // `do while` expressions sometimes need a space to be inserted after `do`.
+                    // e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
+                    const needsPrecedingSpace = node.type === "DoWhileStatement" &&
+                        sourceCode.getTokenBefore(bodyNode).end === bodyNode.start &&
+                        esUtils.code.isIdentifierPartES6(sourceCode.getText(bodyNode).charCodeAt(1));
+
+                    const openingBracket = sourceCode.getFirstToken(bodyNode);
+                    const closingBracket = sourceCode.getLastToken(bodyNode);
+                    const lastTokenInBlock = sourceCode.getTokenBefore(closingBracket);
+
+                    if (needsSemicolon(closingBracket)) {
+
+                        /*
+                         * If removing braces would cause a SyntaxError due to multiple statements on the same line (or
+                         * change the semantics of the code due to ASI), don't perform a fix.
+                         */
+                        return null;
+                    }
+
+                    const resultingBodyText = sourceCode.getText().slice(openingBracket.range[1], lastTokenInBlock.range[0]) +
+                        sourceCode.getText(lastTokenInBlock) +
+                        sourceCode.getText().slice(lastTokenInBlock.range[1], closingBracket.range[0]);
+
+                    return fixer.replaceText(bodyNode, (needsPrecedingSpace ? " " : "") + resultingBodyText);
                 }
             });
         }
@@ -179,7 +265,7 @@ module.exports = {
          * @param {ASTNode} body The body node to check for blocks.
          * @param {string} name The name to report if there's a problem.
          * @param {string} suffix Additional string to add to the end of a report.
-         * @returns {object} a prepared check object, with "actual", "expected", "check" properties.
+         * @returns {Object} a prepared check object, with "actual", "expected", "check" properties.
          *   "actual" will be `true` or `false` whether the body is already a block statement.
          *   "expected" will be `true` or `false` if the body should be a block statement or not, or
          *   `null` if it doesn't matter, depending on the rule options. It can be modified to change
@@ -188,8 +274,8 @@ module.exports = {
          *   properties.
          */
         function prepareCheck(node, body, name, suffix) {
-            var hasBlock = (body.type === "BlockStatement");
-            var expected = null;
+            const hasBlock = (body.type === "BlockStatement");
+            let expected = null;
 
             if (node.type === "IfStatement" && node.consequent === body && requiresBraceOfConsequent(node)) {
                 expected = true;
@@ -213,13 +299,13 @@ module.exports = {
 
             return {
                 actual: hasBlock,
-                expected: expected,
-                check: function() {
+                expected,
+                check() {
                     if (this.expected !== null && this.expected !== this.actual) {
                         if (this.expected) {
-                            reportExpectedBraceError(node, name, suffix);
+                            reportExpectedBraceError(node, body, name, suffix);
                         } else {
-                            reportUnnecessaryBraceError(node, name, suffix);
+                            reportUnnecessaryBraceError(node, body, name, suffix);
                         }
                     }
                 }
@@ -229,11 +315,11 @@ module.exports = {
         /**
          * Prepares to check the bodies of a "if", "else if" and "else" chain.
          * @param {ASTNode} node The first IfStatement node of the chain.
-         * @returns {object[]} prepared checks for each body of the chain. See `prepareCheck` for more
+         * @returns {Object[]} prepared checks for each body of the chain. See `prepareCheck` for more
          *   information.
          */
         function prepareIfChecks(node) {
-            var preparedChecks = [];
+            const preparedChecks = [];
 
             do {
                 preparedChecks.push(prepareCheck(node, node.consequent, "if", "condition"));
@@ -251,7 +337,7 @@ module.exports = {
                  * all have braces.
                  * If all nodes shouldn't have braces, make sure they don't.
                  */
-                var expected = preparedChecks.some(function(preparedCheck) {
+                const expected = preparedChecks.some(function(preparedCheck) {
                     if (preparedCheck.expected !== null) {
                         return preparedCheck.expected;
                     }
@@ -271,7 +357,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            IfStatement: function(node) {
+            IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
                     prepareIfChecks(node).forEach(function(preparedCheck) {
                         preparedCheck.check();
@@ -279,23 +365,23 @@ module.exports = {
                 }
             },
 
-            WhileStatement: function(node) {
+            WhileStatement(node) {
                 prepareCheck(node, node.body, "while", "condition").check();
             },
 
-            DoWhileStatement: function(node) {
+            DoWhileStatement(node) {
                 prepareCheck(node, node.body, "do").check();
             },
 
-            ForStatement: function(node) {
+            ForStatement(node) {
                 prepareCheck(node, node.body, "for", "condition").check();
             },
 
-            ForInStatement: function(node) {
+            ForInStatement(node) {
                 prepareCheck(node, node.body, "for-in").check();
             },
 
-            ForOfStatement: function(node) {
+            ForOfStatement(node) {
                 prepareCheck(node, node.body, "for-of").check();
             }
         };

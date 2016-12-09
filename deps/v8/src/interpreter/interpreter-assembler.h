@@ -6,10 +6,10 @@
 #define V8_INTERPRETER_INTERPRETER_ASSEMBLER_H_
 
 #include "src/allocation.h"
-#include "src/base/smart-pointers.h"
-#include "src/builtins.h"
-#include "src/compiler/code-stub-assembler.h"
+#include "src/builtins/builtins.h"
+#include "src/code-stub-assembler.h"
 #include "src/frames.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
 
@@ -17,14 +17,18 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class InterpreterAssembler : public compiler::CodeStubAssembler {
+class InterpreterAssembler : public CodeStubAssembler {
  public:
-  InterpreterAssembler(Isolate* isolate, Zone* zone, Bytecode bytecode);
+  InterpreterAssembler(Isolate* isolate, Zone* zone, Bytecode bytecode,
+                       OperandScale operand_scale);
   virtual ~InterpreterAssembler();
 
   // Returns the count immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandCount(int operand_index);
+  // Returns the 8-bit flag for bytecode operand |operand_index| in the
+  // current bytecode.
+  compiler::Node* BytecodeOperandFlag(int operand_index);
   // Returns the index immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandIdx(int operand_index);
@@ -34,6 +38,12 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Returns the register index for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandReg(int operand_index);
+  // Returns the runtime id immediate for bytecode operand
+  // |operand_index| in the current bytecode.
+  compiler::Node* BytecodeOperandRuntimeId(int operand_index);
+  // Returns the intrinsic id immediate for bytecode operand
+  // |operand_index| in the current bytecode.
+  compiler::Node* BytecodeOperandIntrinsicId(int operand_index);
 
   // Accumulator.
   compiler::Node* GetAccumulator();
@@ -43,11 +53,16 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   compiler::Node* GetContext();
   void SetContext(compiler::Node* value);
 
+  // Number of registers.
+  compiler::Node* RegisterCount();
+
+  // Backup/restore register file to/from a fixed array of the correct length.
+  compiler::Node* ExportRegisterFile(compiler::Node* array);
+  compiler::Node* ImportRegisterFile(compiler::Node* array);
+
   // Loads from and stores to the interpreter register file.
-  compiler::Node* LoadRegister(int offset);
   compiler::Node* LoadRegister(Register reg);
   compiler::Node* LoadRegister(compiler::Node* reg_index);
-  compiler::Node* StoreRegister(compiler::Node* value, int offset);
   compiler::Node* StoreRegister(compiler::Node* value, Register reg);
   compiler::Node* StoreRegister(compiler::Node* value,
                                 compiler::Node* reg_index);
@@ -62,11 +77,8 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Load constant at |index| in the constant pool.
   compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
 
-  // Load an element from a fixed array on the heap.
-  compiler::Node* LoadFixedArrayElement(compiler::Node* fixed_array, int index);
-
-  // Load a field from an object on the heap.
-  compiler::Node* LoadObjectField(compiler::Node* object, int offset);
+  // Load and untag constant at |index| in the constant pool.
+  compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
   // Load |slot_index| from |context|.
   compiler::Node* LoadContextSlot(compiler::Node* context, int slot_index);
@@ -79,6 +91,18 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
 
   // Load the TypeFeedbackVector for the current function.
   compiler::Node* LoadTypeFeedbackVector();
+
+  // Call JSFunction or Callable |function| with |arg_count|
+  // arguments (not including receiver) and the first argument
+  // located at |first_arg|. Type feedback is collected in the
+  // slot at index |slot_id|.
+  compiler::Node* CallJSWithFeedback(compiler::Node* function,
+                                     compiler::Node* context,
+                                     compiler::Node* first_arg,
+                                     compiler::Node* arg_count,
+                                     compiler::Node* slot_id,
+                                     compiler::Node* type_feedback_vector,
+                                     TailCallMode tail_call_mode);
 
   // Call JSFunction or Callable |function| with |arg_count|
   // arguments (not including receiver) and the first argument
@@ -106,12 +130,7 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
                                compiler::Node* arg_count, int return_size = 1);
 
   // Jump relative to the current bytecode by |jump_offset|.
-  void Jump(compiler::Node* jump_offset);
-
-  // Jump relative to the current bytecode by |jump_offset| if the
-  // |condition| is true. Helper function for JumpIfWordEqual and
-  // JumpIfWordNotEqual.
-  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
+  compiler::Node* Jump(compiler::Node* jump_offset);
 
   // Jump relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
@@ -123,42 +142,67 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                           compiler::Node* jump_offset);
 
-  // Perform a stack guard check.
-  void StackCheck();
+  // Returns true if the stack guard check triggers an interrupt.
+  compiler::Node* StackCheckTriggeredInterrupt();
 
-  // Returns from the function.
-  void InterpreterReturn();
+  // Updates the profiler interrupt budget for a return.
+  void UpdateInterruptBudgetOnReturn();
+
+  // Returns the OSR nesting level from the bytecode header.
+  compiler::Node* LoadOSRNestingLevel();
 
   // Dispatch to the bytecode.
-  void Dispatch();
+  compiler::Node* Dispatch();
 
   // Dispatch to bytecode handler.
-  void DispatchToBytecodeHandler(compiler::Node* handler,
-                                 compiler::Node* bytecode_offset);
-  void DispatchToBytecodeHandler(compiler::Node* handler) {
-    DispatchToBytecodeHandler(handler, BytecodeOffset());
+  compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler) {
+    return DispatchToBytecodeHandler(handler, BytecodeOffset());
   }
+
+  // Dispatch bytecode as wide operand variant.
+  void DispatchWide(OperandScale operand_scale);
+
+  // Truncate tagged |value| to word32 and store the type feedback in
+  // |var_type_feedback|.
+  compiler::Node* TruncateTaggedToWord32WithFeedback(
+      compiler::Node* context, compiler::Node* value,
+      Variable* var_type_feedback);
 
   // Abort with the given bailout reason.
   void Abort(BailoutReason bailout_reason);
+  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
+                           BailoutReason bailout_reason);
+
+  // Returns the offset from the BytecodeArrayPointer of the current bytecode.
+  compiler::Node* BytecodeOffset();
 
  protected:
+  Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
 
  private:
-  // Returns a raw pointer to start of the register file on the stack.
-  compiler::Node* RegisterFileRawPointer();
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();
-  // Returns the offset from the BytecodeArrayPointer of the current bytecode.
-  compiler::Node* BytecodeOffset();
+
   // Returns a raw pointer to first entry in the interpreter dispatch table.
   compiler::Node* DispatchTableRawPointer();
+
+  // Returns the accumulator value without checking whether bytecode
+  // uses it. This is intended to be used only in dispatch and in
+  // tracing as these need to bypass accumulator use validity checks.
+  compiler::Node* GetAccumulatorUnchecked();
+
+  // Returns the frame pointer for the interpreted frame of the function being
+  // interpreted.
+  compiler::Node* GetInterpretedFramePointer();
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
   void CallPrologue() override;
   void CallEpilogue() override;
+
+  // Increment the dispatch counter for the (current, next) bytecode pair.
+  void TraceBytecodeDispatch(compiler::Node* target_index);
 
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
@@ -170,27 +214,76 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Returns the offset of register |index| relative to RegisterFilePointer().
   compiler::Node* RegisterFrameOffset(compiler::Node* index);
 
-  compiler::Node* BytecodeOperand(int operand_index);
-  compiler::Node* BytecodeOperandSignExtended(int operand_index);
-  compiler::Node* BytecodeOperandShort(int operand_index);
-  compiler::Node* BytecodeOperandShortSignExtended(int operand_index);
+  // Returns the offset of an operand relative to the current bytecode offset.
+  compiler::Node* OperandOffset(int operand_index);
 
-  // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
-  // update BytecodeOffset() itself.
+  // Returns a value built from an sequence of bytes in the bytecode
+  // array starting at |relative_offset| from the current bytecode.
+  // The |result_type| determines the size and signedness.  of the
+  // value read. This method should only be used on architectures that
+  // do not support unaligned memory accesses.
+  compiler::Node* BytecodeOperandReadUnaligned(int relative_offset,
+                                               MachineType result_type);
+
+  compiler::Node* BytecodeOperandUnsignedByte(int operand_index);
+  compiler::Node* BytecodeOperandSignedByte(int operand_index);
+  compiler::Node* BytecodeOperandUnsignedShort(int operand_index);
+  compiler::Node* BytecodeOperandSignedShort(int operand_index);
+  compiler::Node* BytecodeOperandUnsignedQuad(int operand_index);
+  compiler::Node* BytecodeOperandSignedQuad(int operand_index);
+
+  compiler::Node* BytecodeSignedOperand(int operand_index,
+                                        OperandSize operand_size);
+  compiler::Node* BytecodeUnsignedOperand(int operand_index,
+                                          OperandSize operand_size);
+
+  // Jump relative to the current bytecode by |jump_offset| if the
+  // |condition| is true. Helper function for JumpIfWordEqual and
+  // JumpIfWordNotEqual.
+  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
+
+  // Updates and returns BytecodeOffset() advanced by the current bytecode's
+  // size. Traces the exit of the current bytecode.
+  compiler::Node* Advance();
+
+  // Updates and returns BytecodeOffset() advanced by delta bytecodes.
+  // Traces the exit of the current bytecode.
   compiler::Node* Advance(int delta);
   compiler::Node* Advance(compiler::Node* delta);
 
-  // Starts next instruction dispatch at |new_bytecode_offset|.
-  void DispatchTo(compiler::Node* new_bytecode_offset);
+  // Load the bytecode at |bytecode_offset|.
+  compiler::Node* LoadBytecode(compiler::Node* bytecode_offset);
 
-  // Abort operations for debug code.
-  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
-                           BailoutReason bailout_reason);
+  // Look ahead for Star and inline it in a branch. Returns a new target
+  // bytecode node for dispatch.
+  compiler::Node* StarDispatchLookahead(compiler::Node* target_bytecode);
+
+  // Build code for Star at the current BytecodeOffset() and Advance() to the
+  // next dispatch offset.
+  void InlineStar();
+
+  // Dispatch to |target_bytecode| at |new_bytecode_offset|.
+  // |target_bytecode| should be equivalent to loading from the offset.
+  compiler::Node* DispatchToBytecode(compiler::Node* target_bytecode,
+                                     compiler::Node* new_bytecode_offset);
+
+  // Dispatch to the bytecode handler with code offset |handler|.
+  compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler,
+                                            compiler::Node* bytecode_offset);
+
+  // Dispatch to the bytecode handler with code entry point |handler_entry|.
+  compiler::Node* DispatchToBytecodeHandlerEntry(
+      compiler::Node* handler_entry, compiler::Node* bytecode_offset);
+
+  OperandScale operand_scale() const { return operand_scale_; }
 
   Bytecode bytecode_;
+  OperandScale operand_scale_;
+  CodeStubAssembler::Variable bytecode_offset_;
+  CodeStubAssembler::Variable interpreted_frame_pointer_;
   CodeStubAssembler::Variable accumulator_;
-  CodeStubAssembler::Variable context_;
-  CodeStubAssembler::Variable bytecode_array_;
+  AccumulatorUse accumulator_use_;
+  bool made_call_;
 
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;

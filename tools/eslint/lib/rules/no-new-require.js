@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            NewExpression: function(node) {
+            NewExpression(node) {
                 if (node.callee.type === "Identifier" && node.callee.name === "require") {
                     context.report(node, "Unexpected use of new with require.");
                 }

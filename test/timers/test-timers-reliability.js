@@ -42,7 +42,7 @@ monoTimer[Timer.kOnTimeout] = function() {
   assert(intervalFired);
 };
 
-monoTimer.start(300, 0);
+monoTimer.start(300);
 
 setTimeout(function() {
   timerFired = true;

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var net = require('net');
 var http = require('http');
@@ -19,20 +19,17 @@ var http = require('http');
 // content-length is not provided, that the connection is in fact
 // closed.
 
-var server_response = '';
-var client_got_eof = false;
-var connection_was_closed = false;
-
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.write('hello ');
   res.write('world\n');
   res.end();
 });
-server.listen(common.PORT);
+server.listen(0);
 
-server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+server.on('listening', common.mustCall(function() {
+  var c = net.createConnection(this.address().port);
+  var server_response = '';
 
   c.setEncoding('utf8');
 
@@ -46,22 +43,15 @@ server.on('listening', function() {
     server_response += chunk;
   });
 
-  c.on('end', function() {
-    client_got_eof = true;
+  c.on('end', common.mustCall(function() {
+    const m = server_response.split('\r\n\r\n');
+    assert.strictEqual(m[1], 'hello world\n');
     console.log('got end');
     c.end();
-  });
+  }));
 
-  c.on('close', function() {
-    connection_was_closed = true;
+  c.on('close', common.mustCall(function() {
     console.log('got close');
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  var m = server_response.split('\r\n\r\n');
-  assert.equal(m[1], 'hello world\n');
-  assert.ok(client_got_eof);
-  assert.ok(connection_was_closed);
-});
+  }));
+}));

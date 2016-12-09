@@ -8,11 +8,21 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+
+/**
+ * Checks whether or not a given node is an `Identifier` node which was named a given name.
+ * @param {ASTNode} node - A node to check.
+ * @param {string} name - An expected name of the node.
+ * @returns {boolean} `true` if the node is an `Identifier` node which was named as expected.
+ */
+function isIdentifier(node, name) {
+    return node.type === "Identifier" && node.name === name;
+}
 
 /**
  * Checks whether or not a given code path segment is unreachable.
@@ -35,11 +45,21 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [{
+            type: "object",
+            properties: {
+                treatUndefinedAsUnspecified: {
+                    type: "boolean"
+                }
+            },
+            additionalProperties: false
+        }]
     },
 
-    create: function(context) {
-        var funcInfo = null;
+    create(context) {
+        const options = context.options[0] || {};
+        const treatUndefinedAsUnspecified = options.treatUndefinedAsUnspecified === true;
+        let funcInfo = null;
 
         /**
          * Checks whether of not the implicit returning is consistent if the last
@@ -49,7 +69,7 @@ module.exports = {
          * @returns {void}
          */
         function checkLastSegment(node) {
-            var loc, type;
+            let loc, type;
 
             /*
              * Skip if it expected no return value or unreachable.
@@ -90,39 +110,51 @@ module.exports = {
 
             // Reports.
             context.report({
-                node: node,
-                loc: loc,
+                node,
+                loc,
                 message: "Expected to return a value at the end of this {{type}}.",
-                data: {type: type}
+                data: {type}
             });
         }
 
         return {
 
             // Initializes/Disposes state of each code path.
-            onCodePathStart: function(codePath) {
+            onCodePathStart(codePath) {
                 funcInfo = {
                     upper: funcInfo,
-                    codePath: codePath,
+                    codePath,
                     hasReturn: false,
                     hasReturnValue: false,
                     message: ""
                 };
             },
-            onCodePathEnd: function() {
+            onCodePathEnd() {
                 funcInfo = funcInfo.upper;
             },
 
             // Reports a given return statement if it's inconsistent.
-            ReturnStatement: function(node) {
-                var hasReturnValue = Boolean(node.argument);
+            ReturnStatement(node) {
+                const argument = node.argument;
+                let hasReturnValue = Boolean(argument);
+
+                if (treatUndefinedAsUnspecified && hasReturnValue) {
+                    hasReturnValue = !isIdentifier(argument, "undefined") && argument.operator !== "void";
+                }
 
                 if (!funcInfo.hasReturn) {
                     funcInfo.hasReturn = true;
                     funcInfo.hasReturnValue = hasReturnValue;
-                    funcInfo.message = "Expected " + (hasReturnValue ? "a" : "no") + " return value.";
+                    funcInfo.message = "Expected {{which}} return value.";
+                    funcInfo.data = {
+                        which: hasReturnValue ? "a" : "no"
+                    };
                 } else if (funcInfo.hasReturnValue !== hasReturnValue) {
-                    context.report({node: node, message: funcInfo.message});
+                    context.report({
+                        node,
+                        message: funcInfo.message,
+                        data: funcInfo.data
+                    });
                 }
             },
 

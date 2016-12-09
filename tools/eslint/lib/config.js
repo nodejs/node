@@ -9,27 +9,26 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var path = require("path"),
+const path = require("path"),
     ConfigOps = require("./config/config-ops"),
     ConfigFile = require("./config/config-file"),
     Plugins = require("./config/plugins"),
     FileFinder = require("./file-finder"),
-    debug = require("debug"),
     userHome = require("user-home"),
     isResolvable = require("is-resolvable"),
     pathIsInside = require("path-is-inside");
+
+const debug = require("debug")("eslint:config");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var PERSONAL_CONFIG_DIR = userHome || null;
+const PERSONAL_CONFIG_DIR = userHome || null;
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-
-debug = debug("eslint:config");
 
 /**
  * Check if item is an javascript object
@@ -48,7 +47,7 @@ function isObject(item) {
  * @private
  */
 function loadConfig(configToLoad) {
-    var config = {},
+    let config = {},
         filePath = "";
 
     if (configToLoad) {
@@ -71,15 +70,14 @@ function loadConfig(configToLoad) {
 
 /**
  * Get personal config object from ~/.eslintrc.
- * @returns {Object} the personal config object (empty object if there is no personal config)
+ * @returns {Object} the personal config object (null if there is no personal config)
  * @private
  */
 function getPersonalConfig() {
-    var config,
-        filename;
+    let config;
 
     if (PERSONAL_CONFIG_DIR) {
-        filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
+        const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
 
         if (filename) {
             debug("Using personal config");
@@ -87,7 +85,16 @@ function getPersonalConfig() {
         }
     }
 
-    return config || {};
+    return config || null;
+}
+
+/**
+ * Determine if rules were explicitly passed in as options.
+ * @param {Object} options The options used to create our configuration.
+ * @returns {boolean} True if rules were passed in as options, false otherwise.
+ */
+function hasRules(options) {
+    return options.rules && Object.keys(options.rules).length > 0;
 }
 
 /**
@@ -97,19 +104,16 @@ function getPersonalConfig() {
  * @returns {Object} The local config object, or an empty object if there is no local config.
  */
 function getLocalConfig(thisConfig, directory) {
-    var found,
-        i,
-        localConfig,
-        localConfigFile,
-        config = {},
-        localConfigFiles = thisConfig.findLocalConfigFiles(directory),
+    const localConfigFiles = thisConfig.findLocalConfigFiles(directory),
         numFiles = localConfigFiles.length,
-        rootPath,
         projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd);
+    let found,
+        config = {},
+        rootPath;
 
-    for (i = 0; i < numFiles; i++) {
+    for (let i = 0; i < numFiles; i++) {
 
-        localConfigFile = localConfigFiles[i];
+        const localConfigFile = localConfigFiles[i];
 
         // Don't consider the personal config file in the home directory,
         // except if the home directory is the same as the current working directory
@@ -122,8 +126,8 @@ function getLocalConfig(thisConfig, directory) {
             continue;
         }
 
-        debug("Loading " + localConfigFile);
-        localConfig = loadConfig(localConfigFile);
+        debug(`Loading ${localConfigFile}`);
+        const localConfig = loadConfig(localConfigFile);
 
         // Don't consider a local config file found if the config is null
         if (!localConfig) {
@@ -136,12 +140,38 @@ function getLocalConfig(thisConfig, directory) {
         }
 
         found = true;
-        debug("Using " + localConfigFile);
+        debug(`Using ${localConfigFile}`);
         config = ConfigOps.merge(localConfig, config);
     }
 
-    // Use the personal config file if there are no other local config files found.
-    return found || thisConfig.useSpecificConfig ? config : ConfigOps.merge(config, getPersonalConfig());
+    if (!found && !thisConfig.useSpecificConfig) {
+
+        /*
+         * - Is there a personal config in the user's home directory? If so,
+         *   merge that with the passed-in config.
+         * - Otherwise, if no rules were manually passed in, throw and error.
+         * - Note: This function is not called if useEslintrc is false.
+         */
+        const personalConfig = getPersonalConfig();
+
+        if (personalConfig) {
+            config = ConfigOps.merge(config, personalConfig);
+        } else if (!hasRules(thisConfig.options) && !thisConfig.options.baseConfig) {
+
+            // No config file, no manual configuration, and no rules, so error.
+            const noConfigError = new Error("No ESLint configuration found.");
+
+            noConfigError.messageTemplate = "no-config-found";
+            noConfigError.messageData = {
+                directory,
+                filesExamined: localConfigFiles
+            };
+
+            throw noConfigError;
+        }
+    }
+
+    return config;
 }
 
 //------------------------------------------------------------------------------
@@ -155,8 +185,6 @@ function getLocalConfig(thisConfig, directory) {
  * @param {Object} options Options to be passed in
  */
 function Config(options) {
-    var useConfig;
-
     options = options || {};
 
     this.ignore = options.ignore;
@@ -181,19 +209,20 @@ function Config(options) {
      * If user declares "foo", convert to "foo:false".
      */
     this.globals = (options.globals || []).reduce(function(globals, def) {
-        var parts = def.split(":");
+        const parts = def.split(":");
 
         globals[parts[0]] = (parts.length > 1 && parts[1] === "true");
 
         return globals;
     }, {});
 
-    useConfig = options.configFile;
+    const useConfig = options.configFile;
+
     this.options = options;
 
     if (useConfig) {
-        debug("Using command line config " + useConfig);
-        if (isResolvable(useConfig) || isResolvable("eslint-config-" + useConfig) || useConfig.charAt(0) === "@") {
+        debug(`Using command line config ${useConfig}`);
+        if (isResolvable(useConfig) || isResolvable(`eslint-config-${useConfig}`) || useConfig.charAt(0) === "@") {
             this.useSpecificConfig = loadConfig(useConfig);
         } else {
             this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, useConfig));
@@ -208,11 +237,11 @@ function Config(options) {
  * @returns {Object} config object
  */
 Config.prototype.getConfig = function(filePath) {
-    var config,
-        userConfig,
-        directory = filePath ? path.dirname(filePath) : this.options.cwd;
+    const directory = filePath ? path.dirname(filePath) : this.options.cwd;
+    let config,
+        userConfig;
 
-    debug("Constructing config for " + (filePath ? filePath : "text"));
+    debug(`Constructing config for ${filePath ? filePath : "text"}`);
 
     config = this.cache[directory];
 
@@ -231,7 +260,7 @@ Config.prototype.getConfig = function(filePath) {
     }
 
     // Step 2: Create a copy of the baseConfig
-    config = ConfigOps.merge({parser: this.parser, parserOptions: this.parserOptions}, this.baseConfig);
+    config = ConfigOps.merge({}, this.baseConfig);
 
     // Step 3: Merge in the user-specified configuration from .eslintrc and package.json
     config = ConfigOps.merge(config, userConfig);
@@ -255,6 +284,20 @@ Config.prototype.getConfig = function(filePath) {
 
     // Step 7: Merge in command line globals
     config = ConfigOps.merge(config, { globals: this.globals });
+
+    // Only override parser if it is passed explicitly through the command line or if it's not
+    // defined yet (because the final object will at least have the parser key)
+    if (this.parser || !config.parser) {
+        config = ConfigOps.merge(config, {
+            parser: this.parser
+        });
+    }
+
+    if (this.parserOptions) {
+        config = ConfigOps.merge(config, {
+            parserOptions: this.parserOptions
+        });
+    }
 
     // Step 8: Merge in command line plugins
     if (this.options.plugins) {

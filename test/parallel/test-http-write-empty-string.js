@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -17,20 +17,17 @@ var server = http.createServer(function(request, response) {
   this.close();
 });
 
-var response = '';
+server.listen(0, common.mustCall(function() {
+  http.get({ port: this.address().port }, common.mustCall(function(res) {
+    var response = '';
 
-process.on('exit', function() {
-  assert.equal('1\n2\n3\n', response);
-});
-
-
-server.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
     assert.equal(200, res.statusCode);
     res.setEncoding('ascii');
     res.on('data', function(chunk) {
       response += chunk;
     });
-  });
-});
-
+    res.on('end', common.mustCall(function() {
+      assert.strictEqual('1\n2\n3\n', response);
+    }));
+  }));
+}));

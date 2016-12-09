@@ -69,7 +69,7 @@ server.listen(common.PORT, function() {
   var finished_clients = 0;
   for (var i = 0; i < concurrency; i++) {
     runClient(function() {
-      if (++finished_clients == concurrency) server.close();
+      if (++finished_clients === concurrency) server.close();
     });
   }
 });

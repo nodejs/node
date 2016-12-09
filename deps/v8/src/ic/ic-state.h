@@ -128,10 +128,14 @@ class BinaryOpICState final BASE_EMBEDDED {
 
   Isolate* isolate() const { return isolate_; }
 
+  enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
+  Kind kind() const {
+    return KindGeneralize(KindGeneralize(left_kind_, right_kind_),
+                          result_kind_);
+  }
+
  private:
   friend std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s);
-
-  enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
 
   Kind UpdateKind(Handle<Object> object, Kind kind) const;
 
@@ -139,6 +143,18 @@ class BinaryOpICState final BASE_EMBEDDED {
   static Type* KindToType(Kind kind);
   static bool KindMaybeSmi(Kind kind) {
     return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
+  }
+  static bool KindLessGeneralThan(Kind kind1, Kind kind2) {
+    if (kind1 == NONE) return true;
+    if (kind1 == kind2) return true;
+    if (kind2 == GENERIC) return true;
+    if (kind2 == STRING) return false;
+    return kind1 <= kind2;
+  }
+  static Kind KindGeneralize(Kind kind1, Kind kind2) {
+    if (KindLessGeneralThan(kind1, kind2)) return kind2;
+    if (KindLessGeneralThan(kind2, kind1)) return kind1;
+    return GENERIC;
   }
 
   // We truncate the last bit of the token.
@@ -193,13 +209,13 @@ class CompareICState {
 
   static const char* GetStateName(CompareICState::State state);
 
-  static State TargetState(State old_state, State old_left, State old_right,
-                           Token::Value op, bool has_inlined_smi_code,
-                           Handle<Object> x, Handle<Object> y);
+  static State TargetState(Isolate* isolate, State old_state, State old_left,
+                           State old_right, Token::Value op,
+                           bool has_inlined_smi_code, Handle<Object> x,
+                           Handle<Object> y);
 };
 
-
-class LoadICState final BASE_EMBEDDED {
+class LoadGlobalICState final BASE_EMBEDDED {
  private:
   class TypeofModeBits : public BitField<TypeofMode, 0, 1> {};
   STATIC_ASSERT(static_cast<int>(INSIDE_TYPEOF) == 0);
@@ -208,9 +224,10 @@ class LoadICState final BASE_EMBEDDED {
  public:
   static const uint32_t kNextBitFieldOffset = TypeofModeBits::kNext;
 
-  explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
+  explicit LoadGlobalICState(ExtraICState extra_ic_state)
+      : state_(extra_ic_state) {}
 
-  explicit LoadICState(TypeofMode typeof_mode)
+  explicit LoadGlobalICState(TypeofMode typeof_mode)
       : state_(TypeofModeBits::encode(typeof_mode)) {}
 
   ExtraICState GetExtraICState() const { return state_; }
@@ -218,7 +235,7 @@ class LoadICState final BASE_EMBEDDED {
   TypeofMode typeof_mode() const { return TypeofModeBits::decode(state_); }
 
   static TypeofMode GetTypeofMode(ExtraICState state) {
-    return LoadICState(state).typeof_mode();
+    return LoadGlobalICState(state).typeof_mode();
   }
 };
 
@@ -240,8 +257,8 @@ class StoreICState final BASE_EMBEDDED {
     return StoreICState(state).language_mode();
   }
 
-  class LanguageModeState : public BitField<LanguageMode, 1, 2> {};
-  STATIC_ASSERT(i::LANGUAGE_END == 3);
+  class LanguageModeState : public BitField<LanguageMode, 1, 1> {};
+  STATIC_ASSERT(i::LANGUAGE_END == 2);
 
   // For convenience, a statically declared encoding of strict mode extra
   // IC state.

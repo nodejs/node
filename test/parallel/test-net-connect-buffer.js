@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var tcpPort = common.PORT;
 var dataWritten = false;
 var connectHappened = false;
 
@@ -30,12 +29,12 @@ var tcp = net.Server(function(s) {
   });
 });
 
-tcp.listen(common.PORT, function() {
+tcp.listen(0, function() {
   var socket = net.Stream({ highWaterMark: 0 });
 
   console.log('Connecting to socket ');
 
-  socket.connect(tcpPort, function() {
+  socket.connect(this.address().port, function() {
     console.log('socket connected');
     connectHappened = true;
   });

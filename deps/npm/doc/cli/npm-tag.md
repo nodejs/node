@@ -57,5 +57,5 @@ that do not begin with a number or the letter `v`.
 * npm-registry(7)
 * npm-config(1)
 * npm-config(7)
-* npm-tag(3)
+* npm-dist-tag(1)
 * npmrc(5)

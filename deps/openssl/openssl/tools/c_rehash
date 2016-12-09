@@ -61,7 +61,7 @@ if(! -x $openssl) {
 			$found = 1;
 			$openssl = "$_/$openssl";
 			last;
-		}
+		}	
 	}
 	if($found == 0) {
 		print STDERR "c_rehash: rehashing skipped ('openssl' program not available)\n";
@@ -207,3 +207,4 @@ sub link_hash_crl {
 		}
 		$hashlist{$hash} = $fprint;
 }
+

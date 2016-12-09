@@ -16,25 +16,20 @@ var options = {
   cert: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-cert.pem'))
 };
 
-var reqCount = 0;
-
-var server = https.createServer(options, function(req, res) {
-  ++reqCount;
+var server = https.createServer(options, common.mustCall(function(req, res) {
   res.writeHead(200);
   res.end();
   req.resume();
-}).listen(common.PORT, function() {
+})).listen(0, function() {
   authorized();
 });
 
 function authorized() {
   var req = https.request({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: true,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))]
-  }, function(res) {
-    assert(false);
-  });
+  }, common.fail);
   req.on('error', function(err) {
     override();
   });
@@ -43,7 +38,7 @@ function authorized() {
 
 function override() {
   var options = {
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: true,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))],
     checkServerIdentity: function(host, cert) {
@@ -60,7 +55,3 @@ function override() {
   });
   req.end();
 }
-
-process.on('exit', function() {
-  assert.equal(reqCount, 1);
-});

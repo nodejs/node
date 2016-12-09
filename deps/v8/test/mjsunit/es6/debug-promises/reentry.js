@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --promise-extra
+// Flags: --expose-debug-as debug
 
 // Test reentry of special try catch for Promises.
 
@@ -12,6 +12,6 @@ Debug.setBreakOnUncaughtException();
 Debug.setListener(function(event, exec_state, event_data, data) { });
 
 var p = new Promise(function(resolve, reject) { resolve(); });
-var q = p.chain(function() {
+var q = p.then(function() {
   new Promise(function(resolve, reject) { resolve(); });
 });

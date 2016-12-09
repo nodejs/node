@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
 
         //--------------------------------------------------------------------------
@@ -28,9 +28,9 @@ module.exports = {
 
         return {
 
-            ArrayExpression: function(node) {
+            ArrayExpression(node) {
 
-                var emptySpot = node.elements.indexOf(null) > -1;
+                const emptySpot = node.elements.indexOf(null) > -1;
 
                 if (emptySpot) {
                     context.report(node, "Unexpected comma in middle of array.");

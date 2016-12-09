@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var fs = require("fs"),
+const fs = require("fs"),
     path = require("path");
 
 //------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ module.exports = function(rulesDir, cwd) {
         rulesDir = path.resolve(cwd, rulesDir);
     }
 
-    var rules = Object.create(null);
+    const rules = Object.create(null);
 
     fs.readdirSync(rulesDir).forEach(function(file) {
         if (path.extname(file) !== ".js") {

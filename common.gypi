@@ -11,6 +11,12 @@
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'python%': 'python',
 
+    'node_shared%': 'false',
+    'force_dynamic_crt%': 0,
+    'node_use_v8_platform%': 'true',
+    'node_use_bundled_v8%': 'true',
+    'node_module_version%': '',
+
     'node_tag%': '',
     'uv_library%': 'static_library',
 
@@ -25,6 +31,9 @@
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
 
+    # Don't use ICU data file (icudtl.dat) from V8, we use our own.
+    'icu_use_data_file_flag%': 0,
+
     'conditions': [
       ['OS == "win"', {
         'os_posix': 0,
@@ -38,7 +47,7 @@
         'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
       }, {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj.target',
-        'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.a',
+        'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
       }],
       ['openssl_fips != ""', {
         'OPENSSL_PRODUCT': 'libcrypto.a',
@@ -73,11 +82,24 @@
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
+          }],
+          ['node_shared=="true"', {
+            'msvs_settings': {
+             'VCCLCompilerTool': {
+               'RuntimeLibrary': 3, # MultiThreadedDebugDLL (/MDd)
+             }
+            }
+          }],
+          ['node_shared=="false"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 1 # MultiThreadedDebug (/MTd)
+              }
+            }
           }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'RuntimeLibrary': 1, # static debug
             'Optimization': 0, # /Od, no optimization
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
@@ -110,11 +132,24 @@
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
+          }],
+          ['node_shared=="true"', {
+            'msvs_settings': {
+             'VCCLCompilerTool': {
+               'RuntimeLibrary': 2 # MultiThreadedDLL (/MD)
+             }
+            }
+          }],
+          ['node_shared=="false"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 0 # MultiThreaded (/MT)
+              }
+            }
           }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'RuntimeLibrary': 0, # static release
             'Optimization': 3, # /Ox, full optimization
             'FavorSizeOrSpeed': 1, # /Ot, favour speed over size
             'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
@@ -239,8 +274,12 @@
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
-          ['_type=="static_library"', {
-            'standalone_static_library': 1, # disable thin archive which needs binutils >= 2.19
+          # The 1990s toolchain on SmartOS can't handle thin archives.
+          ['_type=="static_library" and OS=="solaris"', {
+            'standalone_static_library': 1,
+          }],
+          ['OS=="openbsd"', {
+            'ldflags': [ '-Wl,-z,wxneeded' ],
           }],
         ],
         'conditions': [
@@ -288,13 +327,21 @@
                 'ldflags': [ '-maix64' ],
               }],
             ],
+            'ldflags': [ '-Wl,-bbigtoc' ],
             'ldflags!': [ '-rdynamic' ],
+          }],
+          [ 'node_shared=="true"', {
+            'cflags': [ '-fPIC' ],
           }],
         ],
       }],
-      [ 'OS=="android"', {
-        'defines': ['_GLIBCXX_USE_C99_MATH'],
-        'libraries': [ '-llog' ],
+      ['OS=="android"', {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'defines': [ '_GLIBCXX_USE_C99_MATH' ],
+            'libraries': [ '-llog' ],
+          }],
+        ],
       }],
       ['OS=="mac"', {
         'defines': ['_DARWIN_USE_64_BIT_INODE=1'],
@@ -341,6 +388,7 @@
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
+              'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
         ],

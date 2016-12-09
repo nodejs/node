@@ -5,7 +5,7 @@
 
 "use strict";
 
-var util = require("../ast-utils");
+const util = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -26,8 +26,8 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var always = (context.options[0] !== "never"),
+    create(context) {
+        const always = (context.options[0] !== "never"),
             message = always ? "Requires a space" : "Unexpected space(s)",
             sourceCode = context.getSourceCode();
 
@@ -39,11 +39,11 @@ module.exports = {
         function getOpenBrace(node) {
             if (node.type === "SwitchStatement") {
                 if (node.cases.length > 0) {
-                    return context.getTokenBefore(node.cases[0]);
+                    return sourceCode.getTokenBefore(node.cases[0]);
                 }
-                return context.getLastToken(node, 1);
+                return sourceCode.getLastToken(node, 1);
             }
-            return context.getFirstToken(node);
+            return sourceCode.getFirstToken(node);
         }
 
         /**
@@ -72,10 +72,10 @@ module.exports = {
         function checkSpacingInsideBraces(node) {
 
             // Gets braces and the first/last token of content.
-            var openBrace = getOpenBrace(node);
-            var closeBrace = context.getLastToken(node);
-            var firstToken = sourceCode.getTokenOrCommentAfter(openBrace);
-            var lastToken = sourceCode.getTokenOrCommentBefore(closeBrace);
+            const openBrace = getOpenBrace(node);
+            const closeBrace = sourceCode.getLastToken(node);
+            const firstToken = sourceCode.getTokenOrCommentAfter(openBrace);
+            const lastToken = sourceCode.getTokenOrCommentBefore(closeBrace);
 
             // Skip if the node is invalid or empty.
             if (openBrace.type !== "Punctuator" ||
@@ -95,10 +95,13 @@ module.exports = {
             // Check.
             if (!isValid(openBrace, firstToken)) {
                 context.report({
-                    node: node,
+                    node,
                     loc: openBrace.loc.start,
-                    message: message + " after '{'.",
-                    fix: function(fixer) {
+                    message: "{{message}} after '{'.",
+                    data: {
+                        message
+                    },
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(firstToken, " ");
                         }
@@ -109,10 +112,13 @@ module.exports = {
             }
             if (!isValid(lastToken, closeBrace)) {
                 context.report({
-                    node: node,
+                    node,
                     loc: closeBrace.loc.start,
-                    message: message + " before '}'.",
-                    fix: function(fixer) {
+                    message: "{{message}} before '}'.",
+                    data: {
+                        message
+                    },
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(lastToken, " ");
                         }

@@ -12,24 +12,30 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-assert(typeof global.gc === 'function', 'Run this test with --expose-gc');
+assert.strictEqual(
+  typeof global.gc,
+  'function',
+  'Run this test with --expose-gc'
+);
 
 tls.createServer({
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
   key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
 }).listen(common.PORT);
 
-(function() {
+{
   // 2**26 == 64M entries
-  for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
+  let junk = [0];
 
-  var options = { rejectUnauthorized: false };
+  for (let i = 0; i < 26; ++i) junk = junk.concat(junk);
+
+  const options = { rejectUnauthorized: false };
   tls.connect(common.PORT, '127.0.0.1', options, function() {
-    assert(junk.length != 0);  // keep reference alive
+    assert.notStrictEqual(junk.length, 0);  // keep reference alive
     setTimeout(done, 10);
     global.gc();
   });
-})();
+}
 
 function done() {
   var before = process.memoryUsage().rss;

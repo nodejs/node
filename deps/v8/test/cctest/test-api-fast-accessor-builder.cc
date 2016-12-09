@@ -60,8 +60,24 @@ static void NativePropertyAccessor(
   info.GetReturnValue().Set(v8_num(123));
 }
 
+const char* kWatermarkProperty = "watermark";
+
 }  // anonymous namespace
 
+void CheckImplicitParameters(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  CHECK_NOT_NULL(isolate);
+
+  auto context = isolate->GetCurrentContext();
+  CHECK(!context.IsEmpty());
+
+  // The context must point to the same isolate, this should be enough to
+  // validate the context, mainly to prevent having a random object instead.
+  CHECK_EQ(isolate, context->GetIsolate());
+  CHECK(info.Data()->IsUndefined());
+
+  CHECK(info.Holder()->Has(context, v8_str(kWatermarkProperty)).FromJust());
+}
 
 // Build a simple "fast accessor" and verify that it is being called.
 TEST(FastAccessor) {
@@ -97,33 +113,40 @@ TEST(FastAccessor) {
   ExpectInt32("barf()", 124);                 // Call via warmed-up callsite.
 }
 
-
 void AddInternalFieldAccessor(v8::Isolate* isolate,
                               v8::Local<v8::Template> templ, const char* name,
-                              int field_no) {
+                              int field_no, bool useUncheckedLoader) {
   auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
-  builder->ReturnValue(
-      builder->LoadInternalField(builder->GetReceiver(), field_no));
+
+  if (useUncheckedLoader) {
+    builder->ReturnValue(
+        builder->LoadInternalFieldUnchecked(builder->GetReceiver(), field_no));
+  } else {
+    builder->ReturnValue(
+        builder->LoadInternalField(builder->GetReceiver(), field_no));
+  }
+
   templ->SetAccessorProperty(v8_str(name),
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
 }
 
-
-// "Fast" accessor that accesses an internal field.
-TEST(FastAccessorWithInternalField) {
+void checkLoadInternalField(bool useUncheckedLoader, bool emitDebugChecks) {
   // Crankshaft support for fast accessors is not implemented; crankshafted
   // code uses the slow accessor which breaks this test's expectations.
   v8::internal::FLAG_always_opt = false;
+
+  // De/activate debug checks.
+  v8::internal::FLAG_debug_code = emitDebugChecks;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
   foo->SetInternalFieldCount(3);
-  AddInternalFieldAccessor(isolate, foo, "field0", 0);
-  AddInternalFieldAccessor(isolate, foo, "field1", 1);
-  AddInternalFieldAccessor(isolate, foo, "field2", 2);
+  AddInternalFieldAccessor(isolate, foo, "field0", 0, useUncheckedLoader);
+  AddInternalFieldAccessor(isolate, foo, "field1", 1, useUncheckedLoader);
+  AddInternalFieldAccessor(isolate, foo, "field2", 2, useUncheckedLoader);
 
   // Create an instance w/ 3 internal fields, put in a string, a Smi, nothing.
   v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
@@ -142,6 +165,15 @@ TEST(FastAccessorWithInternalField) {
   ExpectUndefined("field2()");
 }
 
+// "Fast" accessor that accesses an internal field.
+TEST(FastAccessorWithInternalField) { checkLoadInternalField(false, false); }
+
+// "Fast" accessor that accesses an internal field using the fast(er)
+// implementation of LoadInternalField.
+TEST(FastAccessorLoadInternalFieldUnchecked) {
+  checkLoadInternalField(true, false);
+  checkLoadInternalField(true, true);
+}
 
 // "Fast" accessor with control flow via ...OrReturnNull methods.
 TEST(FastAccessorOrReturnNull) {
@@ -189,9 +221,9 @@ TEST(FastAccessorOrReturnNull) {
   // CheckFlagSetOrReturnNull:
   CompileRun(FN_WARMUP("maskcheck", "return obj.maskcheck"));
   obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xf0));
-  ExpectInt32("maskcheck()", 42);
-  obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xfe));
   ExpectNull("maskcheck()");
+  obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xfe));
+  ExpectInt32("maskcheck()", 42);
 }
 
 
@@ -212,9 +244,9 @@ TEST(FastAccessorControlFlowWithLabels) {
     auto label = builder->MakeLabel();
     auto val = builder->LoadInternalField(builder->GetReceiver(), 0);
     builder->CheckNotZeroOrJump(val, label);
-    builder->ReturnValue(builder->IntegerConstant(0));
-    builder->SetLabel(label);
     builder->ReturnValue(builder->IntegerConstant(1));
+    builder->SetLabel(label);
+    builder->ReturnValue(builder->IntegerConstant(0));
     foo->SetAccessorProperty(v8_str("isnull"),
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
@@ -262,9 +294,9 @@ TEST(FastAccessorLoad) {
     auto val = builder->LoadValue(
         builder->LoadInternalField(builder->GetReceiver(), 0), intval_offset);
     builder->CheckNotZeroOrJump(val, label);
-    builder->ReturnValue(builder->IntegerConstant(0));
-    builder->SetLabel(label);
     builder->ReturnValue(builder->IntegerConstant(1));
+    builder->SetLabel(label);
+    builder->ReturnValue(builder->IntegerConstant(0));
     foo->SetAccessorProperty(v8_str("nonzero"),
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
@@ -300,16 +332,19 @@ TEST(FastAccessorLoad) {
 }
 
 void ApiCallbackInt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckImplicitParameters(info);
   info.GetReturnValue().Set(12345);
 }
 
 const char* kApiCallbackStringValue =
     "Hello World! Bizarro C++ world, actually.";
 void ApiCallbackString(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckImplicitParameters(info);
   info.GetReturnValue().Set(v8_str(kApiCallbackStringValue));
 }
 
 void ApiCallbackParam(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckImplicitParameters(info);
   CHECK_EQ(1, info.Length());
   CHECK(info[0]->IsNumber());
   info.GetReturnValue().Set(info[0]);
@@ -348,6 +383,9 @@ TEST(FastAccessorCallback) {
                                  isolate, NativePropertyAccessor, builder));
   }
 
+  // Add dummy property to validate the holder.
+  foo->Set(isolate, kWatermarkProperty, v8::Undefined(isolate));
+
   // Create an instance.
   v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
@@ -361,4 +399,93 @@ TEST(FastAccessorCallback) {
 
   CompileRun(FN_WARMUP("callbackparam", "return obj.param"));
   ExpectInt32("callbackparam()", 1000);
+}
+
+TEST(FastAccessorToSmi) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
+  foo->SetInternalFieldCount(1);
+
+  {
+    // Accessor load_smi.
+    auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
+
+    // Read the variable and convert it to a Smi.
+    auto flags = builder->LoadValue(
+        builder->LoadInternalField(builder->GetReceiver(), 0), 0);
+    builder->ReturnValue(builder->ToSmi(flags));
+    foo->SetAccessorProperty(v8_str("load_smi"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+  }
+
+  // Create an instance.
+  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+
+  uintptr_t flags;
+  obj->SetAlignedPointerInInternalField(0, &flags);
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Access flags.
+  CompileRun(FN_WARMUP("load_smi", "return obj.load_smi"));
+
+  flags = 54321;
+  ExpectInt32("load_smi()", 54321);
+
+  flags = 0;
+  ExpectInt32("load_smi()", 0);
+
+  flags = 123456789;
+  ExpectInt32("load_smi()", 123456789);
+}
+
+TEST(FastAccessorGoto) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
+  foo->SetInternalFieldCount(1);
+
+  {
+    auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
+    auto successLabel = builder->MakeLabel();
+    auto failLabel = builder->MakeLabel();
+
+    // The underlying raw assembler is clever enough to reject unreachable
+    // basic blocks, this instruction has no effect besides marking the failed
+    // return BB as reachable.
+    builder->CheckNotZeroOrJump(builder->IntegerConstant(1234), failLabel);
+
+    builder->Goto(successLabel);
+
+    builder->SetLabel(failLabel);
+    builder->ReturnValue(builder->IntegerConstant(0));
+
+    builder->SetLabel(successLabel);
+    builder->ReturnValue(builder->IntegerConstant(60707357));
+
+    foo->SetAccessorProperty(v8_str("goto_test"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+  }
+
+  // Create an instance.
+  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Access flags.
+  CompileRun(FN_WARMUP("test", "return obj.goto_test"));
+
+  ExpectInt32("test()", 60707357);
 }

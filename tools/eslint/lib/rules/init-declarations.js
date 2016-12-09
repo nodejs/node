@@ -26,8 +26,8 @@ function isForLoop(block) {
  * @returns {boolean} `true` when the node has its initializer.
  */
 function isInitialized(node) {
-    var declaration = node.parent;
-    var block = declaration.parent;
+    const declaration = node.parent;
+    const block = declaration.parent;
 
     if (isForLoop(block)) {
         if (block.type === "ForStatement") {
@@ -45,7 +45,7 @@ function isInitialized(node) {
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow initialization in `var` declarations",
+            description: "require or disallow initialization in variable declarations",
             category: "Variables",
             recommended: false
         },
@@ -85,26 +85,26 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
-        var MODE_ALWAYS = "always",
+        const MODE_ALWAYS = "always",
             MODE_NEVER = "never";
 
-        var mode = context.options[0] || MODE_ALWAYS;
-        var params = context.options[1] || {};
+        const mode = context.options[0] || MODE_ALWAYS;
+        const params = context.options[1] || {};
 
         //--------------------------------------------------------------------------
         // Public API
         //--------------------------------------------------------------------------
 
         return {
-            "VariableDeclaration:exit": function(node) {
+            "VariableDeclaration:exit"(node) {
 
-                var kind = node.kind,
+                const kind = node.kind,
                     declarations = node.declarations;
 
-                for (var i = 0; i < declarations.length; ++i) {
-                    var declaration = declarations[i],
+                for (let i = 0; i < declarations.length; ++i) {
+                    const declaration = declarations[i],
                         id = declaration.id,
                         initialized = isInitialized(declaration),
                         isIgnoredForLoop = params.ignoreForLoopInit && isForLoop(node.parent);
@@ -114,9 +114,21 @@ module.exports = {
                     }
 
                     if (mode === MODE_ALWAYS && !initialized) {
-                        context.report(declaration, "Variable '" + id.name + "' should be initialized on declaration.");
+                        context.report({
+                            node: declaration,
+                            message: "Variable '{{idName}}' should be initialized on declaration.",
+                            data: {
+                                idName: id.name
+                            }
+                        });
                     } else if (mode === MODE_NEVER && kind !== "const" && initialized && !isIgnoredForLoop) {
-                        context.report(declaration, "Variable '" + id.name + "' should not be initialized on declaration.");
+                        context.report({
+                            node: declaration,
+                            message: "Variable '{{idName}}' should not be initialized on declaration.",
+                            data: {
+                                idName: id.name
+                            }
+                        });
                     }
                 }
             }

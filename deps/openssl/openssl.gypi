@@ -1263,6 +1263,11 @@
       # Microsoft's IIS, which seems to be ignoring whole ClientHello after
       # seeing this extension.
       'OPENSSL_NO_HEARTBEATS',
+
+      # Compile out hardware engines.  Most are stubs that dynamically load
+      # the real driver but that poses a security liability when an attacker
+      # is able to create a malicious DLL in one of the default search paths.
+      'OPENSSL_NO_HW',
     ],
     'openssl_default_defines_win': [
       'MK1MF_BUILD',

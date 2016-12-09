@@ -199,7 +199,8 @@ int load_excert(SSL_EXCERT **pexc, BIO *err);
 void print_ssl_summary(BIO *bio, SSL *s);
 #ifdef HEADER_SSL_H
 int args_ssl(char ***pargs, int *pargc, SSL_CONF_CTX *cctx,
-             int *badarg, BIO *err, STACK_OF(OPENSSL_STRING) **pstr);
+             int *badarg, BIO *err, STACK_OF(OPENSSL_STRING) **pstr,
+             int *no_prot_opt);
 int args_ssl_call(SSL_CTX *ctx, BIO *err, SSL_CONF_CTX *cctx,
                   STACK_OF(OPENSSL_STRING) *str, int no_ecdhe, int no_jpake);
 int ssl_ctx_add_crls(SSL_CTX *ctx, STACK_OF(X509_CRL) *crls,

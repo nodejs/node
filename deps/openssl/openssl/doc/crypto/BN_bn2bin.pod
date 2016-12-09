@@ -42,7 +42,9 @@ BN_hex2bn() converts the string B<str> containing a hexadecimal number
 to a B<BIGNUM> and stores it in **B<bn>. If *B<bn> is NULL, a new
 B<BIGNUM> is created. If B<bn> is NULL, it only computes the number's
 length in hexadecimal digits. If the string starts with '-', the
-number is negative. BN_dec2bn() is the same using the decimal system.
+number is negative.
+A "negative zero" is converted to zero.
+BN_dec2bn() is the same using the decimal system.
 
 BN_print() and BN_print_fp() write the hexadecimal encoding of B<a>,
 with a leading '-' for negative numbers, to the B<BIO> or B<FILE>

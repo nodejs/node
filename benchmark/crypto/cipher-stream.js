@@ -31,7 +31,7 @@ function main(conf) {
   var bob_secret = bob.computeSecret(alice.getPublicKey(), pubEnc, 'hex');
 
   // alice_secret and bob_secret should be the same
-  assert(alice_secret == bob_secret);
+  assert(alice_secret === bob_secret);
 
   var alice_cipher = crypto.createCipher(conf.cipher, alice_secret);
   var bob_cipher = crypto.createDecipher(conf.cipher, bob_secret);

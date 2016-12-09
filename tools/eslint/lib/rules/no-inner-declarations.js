@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `function` or `var` declarations in nested blocks",
+            description: "disallow variable or `function` declarations in nested blocks",
             category: "Possible Errors",
             recommended: true
         },
@@ -24,15 +24,15 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Find the nearest Program or Function ancestor node.
          * @returns {Object} Ancestor's type and distance from node.
          */
         function nearestBody() {
-            var ancestors = context.getAncestors(),
-                ancestor = ancestors.pop(),
+            const ancestors = context.getAncestors();
+            let ancestor = ancestors.pop(),
                 generation = 1;
 
             while (ancestor && ["Program", "FunctionDeclaration",
@@ -58,7 +58,7 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            var body = nearestBody(node),
+            const body = nearestBody(node),
                 valid = ((body.type === "Program" && body.distance === 1) ||
                     body.distance === 2);
 
@@ -77,7 +77,7 @@ module.exports = {
         return {
 
             FunctionDeclaration: check,
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
                 if (context.options[0] === "both" && node.kind === "var") {
                     check(node);
                 }

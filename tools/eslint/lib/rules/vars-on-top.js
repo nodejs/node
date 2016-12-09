@@ -20,8 +20,8 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
-        var errorMessage = "All 'var' declarations must be at the top of the function scope.";
+    create(context) {
+        const errorMessage = "All 'var' declarations must be at the top of the function scope.";
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -29,7 +29,7 @@ module.exports = {
 
         /**
          * @param {ASTNode} node - any node
-         * @returns {Boolean} whether the given node structurally represents a directive
+         * @returns {boolean} whether the given node structurally represents a directive
          */
         function looksLikeDirective(node) {
             return node.type === "ExpressionStatement" &&
@@ -39,7 +39,7 @@ module.exports = {
         /**
          * Check to see if its a ES6 import declaration
          * @param {ASTNode} node - any node
-         * @returns {Boolean} whether the given node represents a import declaration
+         * @returns {boolean} whether the given node represents a import declaration
          */
         function looksLikeImport(node) {
             return node.type === "ImportDeclaration" || node.type === "ImportSpecifier" ||
@@ -47,14 +47,31 @@ module.exports = {
         }
 
         /**
+         * Checks whether a given node is a variable declaration or not.
+         *
+         * @param {ASTNode} node - any node
+         * @returns {boolean} `true` if the node is a variable declaration.
+         */
+        function isVariableDeclaration(node) {
+            return (
+                node.type === "VariableDeclaration" ||
+                (
+                    node.type === "ExportNamedDeclaration" &&
+                    node.declaration &&
+                    node.declaration.type === "VariableDeclaration"
+                )
+            );
+        }
+
+        /**
          * Checks whether this variable is on top of the block body
          * @param {ASTNode} node - The node to check
          * @param {ASTNode[]} statements - collection of ASTNodes for the parent node block
-         * @returns {Boolean} True if var is on top otherwise false
+         * @returns {boolean} True if var is on top otherwise false
          */
         function isVarOnTop(node, statements) {
-            var i = 0,
-                l = statements.length;
+            const l = statements.length;
+            let i = 0;
 
             // skip over directives
             for (; i < l; ++i) {
@@ -64,9 +81,7 @@ module.exports = {
             }
 
             for (; i < l; ++i) {
-                if (statements[i].type !== "VariableDeclaration" &&
-                        (statements[i].type !== "ExportNamedDeclaration" ||
-                        statements[i].declaration.type !== "VariableDeclaration")) {
+                if (!isVariableDeclaration(statements[i])) {
                     return false;
                 }
                 if (statements[i] === node) {
@@ -109,10 +124,10 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            VariableDeclaration: function(node) {
-                var ancestors = context.getAncestors();
-                var parent = ancestors.pop();
-                var grandParent = ancestors.pop();
+            VariableDeclaration(node) {
+                const ancestors = context.getAncestors();
+                let parent = ancestors.pop();
+                let grandParent = ancestors.pop();
 
                 if (node.kind === "var") { // check variable is `var` type and not `let` or `const`
                     if (parent.type === "ExportNamedDeclaration") {

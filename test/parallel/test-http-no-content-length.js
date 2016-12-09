@@ -1,26 +1,23 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var net = require('net');
 var http = require('http');
 
-var body = '';
-
 var server = net.createServer(function(socket) {
   // Neither Content-Length nor Connection
   socket.end('HTTP/1.1 200 ok\r\n\r\nHello');
-}).listen(common.PORT, function() {
-  http.get({port: common.PORT}, function(res) {
+}).listen(0, common.mustCall(function() {
+  http.get({port: this.address().port}, common.mustCall(function(res) {
+    var body = '';
+
     res.setEncoding('utf8');
     res.on('data', function(chunk) {
       body += chunk;
     });
-    res.on('end', function() {
+    res.on('end', common.mustCall(function() {
+      assert.strictEqual(body, 'Hello');
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(body, 'Hello');
-});
+    }));
+  }));
+}));

@@ -31,9 +31,9 @@ function testSocketOptions(socket, socketOptions) {
       assert.equal(received, sent);
       setImmediate(runTests);
     });
-  }).listen(common.PORT, function() {
+  }).listen(0, function() {
     const c = new tls.TLSSocket(socket, socketOptions);
-    c.connect(common.PORT, function() {
+    c.connect(this.address().port, function() {
       c.end(sent);
     });
   });

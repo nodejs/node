@@ -1,5 +1,10 @@
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const assert = require('assert');
 const fs = require('fs');
 const tls = require('tls');
@@ -20,8 +25,8 @@ server = tls.createServer(options, function(s) {
     recv_bufs.push(c);
   });
 });
-server.listen(common.PORT, function() {
-  var raw = net.connect(common.PORT);
+server.listen(0, function() {
+  var raw = net.connect(this.address().port);
 
   var pending = false;
   raw.on('readable', function() {

@@ -1,3 +1,9 @@
+v3.1.0  --  2016.05.17
+* Fix internals of symbol detection
+* Ensure Symbol.prototype[Symbol.toPrimitive] in all cases returns primitive value
+  (fixes Node v6 support)
+* Create native symbols whenver possible
+
 v3.0.2  --  2015.12.12
 * Fix definition flow, so uneven state of Symbol implementation doesn't crash initialization of
   polyfill. See #13

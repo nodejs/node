@@ -26,10 +26,12 @@ same.
 
 The four relevant files are:
 
-* per-project config file (/path/to/my/project/.npmrc)
-* per-user config file (~/.npmrc)
-* global config file ($PREFIX/etc/npmrc)
-* npm builtin config file (/path/to/npm/npmrc)
+* per-project configuration file (`/path/to/my/project/.npmrc`)
+* per-user configuration file (defaults to `$HOME/.npmrc`; configurable via CLI
+  option `--userconfig` or environment variable `$NPM_CONF_USERCONFIG`)
+* global configuration file (defaults to `$PREFIX/etc/npmrc`; configurable via
+  CLI option `--globalconfig` or environment variable `$NPM_CONF_GLOBALCONFIG`)
+* npm's built-in configuration file (`/path/to/npm/npmrc`)
 
 See npmrc(5) for more details.
 
@@ -676,7 +678,7 @@ Set to true to run in "production" mode.
 
 ### progress
 
-* Default: true
+* Default: true, unless TRAVIS or CI env vars set.
 * Type: Boolean
 
 When set to `true`, npm will display a progress bar during time intensive

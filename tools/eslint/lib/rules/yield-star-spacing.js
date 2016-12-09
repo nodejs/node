@@ -38,10 +38,10 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var sourceCode = context.getSourceCode();
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
-        var mode = (function(option) {
+        const mode = (function(option) {
             if (!option || typeof option === "string") {
                 return {
                     before: { before: true, after: false },
@@ -64,16 +64,20 @@ module.exports = {
          */
         function checkSpacing(side, leftToken, rightToken) {
             if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken) !== mode[side]) {
-                var after = leftToken.value === "*";
-                var spaceRequired = mode[side];
-                var node = after ? leftToken : rightToken;
-                var type = spaceRequired ? "Missing" : "Unexpected";
-                var message = type + " space " + side + " *.";
+                const after = leftToken.value === "*";
+                const spaceRequired = mode[side];
+                const node = after ? leftToken : rightToken;
+                const type = spaceRequired ? "Missing" : "Unexpected";
+                const message = "{{type}} space {{side}} *.";
 
                 context.report({
-                    node: node,
-                    message: message,
-                    fix: function(fixer) {
+                    node,
+                    message,
+                    data: {
+                        type,
+                        side
+                    },
+                    fix(fixer) {
                         if (spaceRequired) {
                             if (after) {
                                 return fixer.insertTextAfter(node, " ");
@@ -96,10 +100,10 @@ module.exports = {
                 return;
             }
 
-            var tokens = sourceCode.getFirstTokens(node, 3);
-            var yieldToken = tokens[0];
-            var starToken = tokens[1];
-            var nextToken = tokens[2];
+            const tokens = sourceCode.getFirstTokens(node, 3);
+            const yieldToken = tokens[0];
+            const starToken = tokens[1];
+            const nextToken = tokens[2];
 
             checkSpacing("before", yieldToken, starToken);
             checkSpacing("after", starToken, nextToken);

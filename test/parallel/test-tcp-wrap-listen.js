@@ -1,50 +1,53 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var TCP = process.binding('tcp_wrap').TCP;
-var WriteWrap = process.binding('stream_wrap').WriteWrap;
+const TCP = process.binding('tcp_wrap').TCP;
+const WriteWrap = process.binding('stream_wrap').WriteWrap;
 
-var server = new TCP();
+const server = new TCP();
 
-var r = server.bind('0.0.0.0', common.PORT);
-assert.equal(0, r);
+const r = server.bind('0.0.0.0', 0);
+assert.strictEqual(0, r);
+let port = {};
+server.getsockname(port);
+port = port.port;
 
 server.listen(128);
 
-var sliceCount = 0, eofCount = 0;
+let sliceCount = 0, eofCount = 0;
 
-var writeCount = 0;
-var recvCount = 0;
+let writeCount = 0;
+let recvCount = 0;
 
-server.onconnection = function(err, client) {
-  assert.equal(0, client.writeQueueSize);
+server.onconnection = (err, client) => {
+  assert.strictEqual(0, client.writeQueueSize);
   console.log('got connection');
 
-  function maybeCloseClient() {
-    if (client.pendingWrites.length == 0 && client.gotEOF) {
+  const maybeCloseClient = () => {
+    if (client.pendingWrites.length === 0 && client.gotEOF) {
       console.log('close client');
       client.close();
     }
-  }
+  };
 
   client.readStart();
   client.pendingWrites = [];
-  client.onread = function(err, buffer) {
+  client.onread = (err, buffer) => {
     if (buffer) {
       assert.ok(buffer.length > 0);
 
-      assert.equal(0, client.writeQueueSize);
+      assert.strictEqual(0, client.writeQueueSize);
 
-      var req = new WriteWrap();
+      const req = new WriteWrap();
       req.async = false;
       const returnCode = client.writeBuffer(req, buffer);
-      assert.equal(returnCode, 0);
+      assert.strictEqual(returnCode, 0);
       client.pendingWrites.push(req);
 
       console.log('client.writeQueueSize: ' + client.writeQueueSize);
       // 11 bytes should flush
-      assert.equal(0, client.writeQueueSize);
+      assert.strictEqual(0, client.writeQueueSize);
 
       if (req.async)
         req.oncomplete = done;
@@ -52,15 +55,15 @@ server.onconnection = function(err, client) {
         process.nextTick(done.bind(null, 0, client, req));
 
       function done(status, client_, req_) {
-        assert.equal(req, client.pendingWrites.shift());
+        assert.strictEqual(req, client.pendingWrites.shift());
 
         // Check parameters.
-        assert.equal(0, status);
-        assert.equal(client, client_);
-        assert.equal(req, req_);
+        assert.strictEqual(0, status);
+        assert.strictEqual(client, client_);
+        assert.strictEqual(req, req_);
 
         console.log('client.writeQueueSize: ' + client.writeQueueSize);
-        assert.equal(0, client.writeQueueSize);
+        assert.strictEqual(0, client.writeQueueSize);
 
         writeCount++;
         console.log('write ' + writeCount);
@@ -78,26 +81,25 @@ server.onconnection = function(err, client) {
   };
 };
 
-var net = require('net');
+const net = require('net');
 
-var c = net.createConnection(common.PORT);
-c.on('connect', function() {
-  c.end('hello world');
-});
+const c = net.createConnection(port);
+
+c.on('connect', common.mustCall(() => { c.end('hello world'); }));
 
 c.setEncoding('utf8');
-c.on('data', function(d) {
-  assert.equal('hello world', d);
+c.on('data', (d) => {
+  assert.strictEqual('hello world', d);
   recvCount++;
 });
 
-c.on('close', function() {
+c.on('close', () => {
   console.error('client closed');
 });
 
-process.on('exit', function() {
-  assert.equal(1, sliceCount);
-  assert.equal(1, eofCount);
-  assert.equal(1, writeCount);
-  assert.equal(1, recvCount);
+process.on('exit', () => {
+  assert.strictEqual(1, sliceCount);
+  assert.strictEqual(1, eofCount);
+  assert.strictEqual(1, writeCount);
+  assert.strictEqual(1, recvCount);
 });

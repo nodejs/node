@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -10,13 +10,7 @@ var expected = {
   '1.1': ''
 };
 
-var gotExpected = false;
-
 function test(httpVersion, callback) {
-  process.on('exit', function() {
-    assert(gotExpected);
-  });
-
   var server = net.createServer(function(conn) {
     var reply = 'HTTP/' + httpVersion + ' 200 OK\r\n\r\n' +
                 expected[httpVersion];
@@ -24,31 +18,30 @@ function test(httpVersion, callback) {
     conn.end(reply);
   });
 
-  server.listen(common.PORT, '127.0.0.1', function() {
+  server.listen(0, '127.0.0.1', common.mustCall(function() {
     var options = {
       host: '127.0.0.1',
-      port: common.PORT
+      port: this.address().port
     };
 
-    var req = http.get(options, function(res) {
+    var req = http.get(options, common.mustCall(function(res) {
       var body = '';
 
       res.on('data', function(data) {
         body += data;
       });
 
-      res.on('end', function() {
+      res.on('end', common.mustCall(function() {
         assert.equal(body, expected[httpVersion]);
-        gotExpected = true;
         server.close();
         if (callback) process.nextTick(callback);
-      });
-    });
+      }));
+    }));
 
     req.on('error', function(err) {
       throw err;
     });
-  });
+  }));
 }
 
 test('0.9', function() {

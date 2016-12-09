@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check that spaced function application
  * @author Matt DuVall <http://www.mattduvall.com>
+ * @deprecated in ESLint v3.3.0
  */
 
 "use strict";
@@ -12,18 +13,21 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow spacing between `function` identifiers and their applications",
+            description: "disallow spacing between function identifiers and their applications (deprecated)",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            replacedBy: ["func-call-spacing"]
         },
+
+        deprecated: true,
 
         fixable: "whitespace",
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
-        var sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         /**
          * Check if open space is present in a function name
@@ -32,8 +36,8 @@ module.exports = {
          * @private
          */
         function detectOpenSpaces(node) {
-            var lastCalleeToken = sourceCode.getLastToken(node.callee),
-                prevToken = lastCalleeToken,
+            const lastCalleeToken = sourceCode.getLastToken(node.callee);
+            let prevToken = lastCalleeToken,
                 parenToken = sourceCode.getTokenAfter(lastCalleeToken);
 
             // advances to an open parenthesis.
@@ -52,10 +56,10 @@ module.exports = {
                 sourceCode.isSpaceBetweenTokens(prevToken, parenToken)
             ) {
                 context.report({
-                    node: node,
+                    node,
                     loc: lastCalleeToken.loc.start,
                     message: "Unexpected space between function name and paren.",
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
                     }
                 });

@@ -9,27 +9,26 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var Map = require("es6-map"),
-    Traverser = require("../util/traverser"),
+const Traverser = require("../util/traverser"),
     astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var pushAll = Function.apply.bind(Array.prototype.push);
-var SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
-var LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/;
-var GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
-var SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/;
-var DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
+const pushAll = Function.apply.bind(Array.prototype.push);
+const SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
+const LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/;  // for-in/of statements don't have `test` property.
+const GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
+const SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/;
+const DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
 
 /**
- * @typedef {object} LoopConditionInfo
+ * @typedef {Object} LoopConditionInfo
  * @property {escope.Reference} reference - The reference.
  * @property {ASTNode} group - BinaryExpression or ConditionalExpression nodes
  *      that the reference is belonging to.
- * @property {function} isInLoop - The predicate which checks a given reference
+ * @property {Function} isInLoop - The predicate which checks a given reference
  *      is in this loop.
  * @property {boolean} modified - The flag that the reference is modified in
  *      this loop.
@@ -43,7 +42,7 @@ var DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
  */
 function isWriteReference(reference) {
     if (reference.init) {
-        var def = reference.resolved && reference.resolved.defs[0];
+        const def = reference.resolved && reference.resolved.defs[0];
 
         if (!def || def.type !== "Variable" || def.parent.kind !== "var") {
             return false;
@@ -82,8 +81,8 @@ function isUnmodifiedAndNotBelongToGroup(condition) {
  * @returns {boolean} `true` if the reference is inside of the node.
  */
 function isInRange(node, reference) {
-    var or = node.range;
-    var ir = reference.identifier.range;
+    const or = node.range;
+    const ir = reference.identifier.range;
 
     return or[0] <= ir[0] && ir[1] <= or[1];
 }
@@ -96,10 +95,10 @@ function isInRange(node, reference) {
  * @returns {boolean} `true` if the reference is inside of the loop node's
  *      condition.
  */
-var isInLoop = {
+const isInLoop = {
     WhileStatement: isInRange,
     DoWhileStatement: isInRange,
-    ForStatement: function(node, reference) {
+    ForStatement(node, reference) {
         return (
             isInRange(node, reference) &&
             !(node.init && isInRange(node.init, reference))
@@ -115,11 +114,11 @@ var isInLoop = {
  * @returns {boolean} `true` if the node is dynamic.
  */
 function hasDynamicExpressions(root) {
-    var retv = false,
-        traverser = new Traverser();
+    let retv = false;
+    const traverser = new Traverser();
 
     traverser.traverse(root, {
-        enter: function(node) {
+        enter(node) {
             if (DYNAMIC_PATTERN.test(node.type)) {
                 retv = true;
                 this.break();
@@ -143,9 +142,9 @@ function toLoopCondition(reference) {
         return null;
     }
 
-    var group = null;
-    var child = reference.identifier;
-    var node = child.parent;
+    let group = null;
+    let child = reference.identifier;
+    let node = child.parent;
 
     while (node) {
         if (SENTINEL_PATTERN.test(node.type)) {
@@ -153,8 +152,8 @@ function toLoopCondition(reference) {
 
                 // This reference is inside of a loop condition.
                 return {
-                    reference: reference,
-                    group: group,
+                    reference,
+                    group,
                     isInLoop: isInLoop[node.type].bind(null, node),
                     modified: false
                 };
@@ -193,7 +192,7 @@ function toLoopCondition(reference) {
  * @returns {ASTNode|null} The function node or null.
  */
 function getEncloseFunctionDeclaration(reference) {
-    var node = reference.identifier;
+    let node = reference.identifier;
 
     while (node) {
         if (node.type === "FunctionDeclaration") {
@@ -214,14 +213,13 @@ function getEncloseFunctionDeclaration(reference) {
  * @returns {void}
  */
 function updateModifiedFlag(conditions, modifiers) {
-    var funcNode, funcVar;
+    let funcNode, funcVar;
 
-    for (var i = 0; i < conditions.length; ++i) {
-        var condition = conditions[i];
+    for (let i = 0; i < conditions.length; ++i) {
+        const condition = conditions[i];
 
-        for (var j = 0; !condition.modified && j < modifiers.length; ++j) {
-            var modifier = modifiers[j],
-                inLoop;
+        for (let j = 0; !condition.modified && j < modifiers.length; ++j) {
+            const modifier = modifiers[j];
 
             /*
              * Besides checking for the condition being in the loop, we want to
@@ -229,11 +227,12 @@ function updateModifiedFlag(conditions, modifiers) {
              * in the loop.
              * FIXME: This should probably be extracted to a function.
              */
-            inLoop = condition.isInLoop(modifier) || Boolean(
+            const inLoop = condition.isInLoop(modifier) || Boolean(
                 (funcNode = getEncloseFunctionDeclaration(modifier)) &&
                 (funcVar = astUtils.getVariableByName(modifier.from.upper, funcNode.id.name)) &&
                 funcVar.references.some(condition.isInLoop)
             );
+
             condition.modified = inLoop;
         }
     }
@@ -254,8 +253,8 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
-        var groupMap = null;
+    create(context) {
+        let groupMap = null;
 
         /**
          * Reports a given condition info.
@@ -264,10 +263,10 @@ module.exports = {
          * @returns {void}
          */
         function report(condition) {
-            var node = condition.reference.identifier;
+            const node = condition.reference.identifier;
 
             context.report({
-                node: node,
+                node,
                 message: "'{{name}}' is not modified in this loop.",
                 data: node
             });
@@ -281,11 +280,11 @@ module.exports = {
          * @returns {void}
          */
         function registerConditionsToGroup(conditions) {
-            for (var i = 0; i < conditions.length; ++i) {
-                var condition = conditions[i];
+            for (let i = 0; i < conditions.length; ++i) {
+                const condition = conditions[i];
 
                 if (condition.group) {
-                    var group = groupMap.get(condition.group);
+                    let group = groupMap.get(condition.group);
 
                     if (!group) {
                         group = [];
@@ -318,7 +317,7 @@ module.exports = {
         function checkReferences(variable) {
 
             // Gets references that exist in loop conditions.
-            var conditions = variable
+            const conditions = variable
                 .references
                 .map(toLoopCondition)
                 .filter(Boolean);
@@ -331,7 +330,7 @@ module.exports = {
             registerConditionsToGroup(conditions);
 
             // Check the conditions are modified.
-            var modifiers = variable.references.filter(isWriteReference);
+            const modifiers = variable.references.filter(isWriteReference);
 
             if (modifiers.length > 0) {
                 updateModifiedFlag(conditions, modifiers);
@@ -347,12 +346,12 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
-                var queue = [context.getScope()];
+            "Program:exit"() {
+                const queue = [context.getScope()];
 
                 groupMap = new Map();
 
-                var scope;
+                let scope;
 
                 while ((scope = queue.pop())) {
                     pushAll(queue, scope.childScopes);

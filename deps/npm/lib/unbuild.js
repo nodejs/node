@@ -12,6 +12,7 @@ var asyncMap = require('slide').asyncMap
 var chain = require('slide').chain
 var log = require('npmlog')
 var build = require('./build.js')
+var output = require('./utils/output.js')
 
 // args is a list of folders.
 // remove any bins/etc, and then delete the folder.
@@ -40,9 +41,7 @@ function unbuild_ (silent) {
           [lifecycle, pkg, 'preuninstall', folder, false, true],
           [lifecycle, pkg, 'uninstall', folder, false, true],
           !silent && function (cb) {
-            log.clearProgress()
-            console.log('unbuild ' + pkg._id)
-            log.showProgress()
+            output('unbuild ' + pkg._id)
             cb()
           },
           [rmStuff, pkg, folder],

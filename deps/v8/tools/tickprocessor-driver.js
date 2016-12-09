@@ -61,23 +61,18 @@ if (params.sourceMap) {
   initSourceMapSupport();
   sourceMap = SourceMap.load(params.sourceMap);
 }
-var snapshotLogProcessor;
-if (params.snapshotLogFileName) {
-  snapshotLogProcessor = new SnapshotLogProcessor();
-  snapshotLogProcessor.processLogFile(params.snapshotLogFileName);
-}
 var tickProcessor = new TickProcessor(
   new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
   params.separateIc,
   params.callGraphSize,
   params.ignoreUnknown,
   params.stateFilter,
-  snapshotLogProcessor,
   params.distortion,
   params.range,
   sourceMap,
   params.timedRange,
   params.pairwiseTimedRange,
-  params.onlySummary);
+  params.onlySummary,
+  params.runtimeTimerFilter);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();

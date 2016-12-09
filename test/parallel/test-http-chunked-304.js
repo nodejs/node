@@ -23,8 +23,8 @@ function test(statusCode, next) {
     server.close();
   });
 
-  server.listen(common.PORT, function() {
-    var conn = net.createConnection(common.PORT, function() {
+  server.listen(0, function() {
+    var conn = net.createConnection(this.address().port, function() {
       conn.write('GET / HTTP/1.1\r\n\r\n');
 
       var resp = '';

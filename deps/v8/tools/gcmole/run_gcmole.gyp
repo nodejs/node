@@ -10,8 +10,8 @@
           'target_name': 'run_gcmole_run',
           'type': 'none',
           'includes': [
-            '../../build/features.gypi',
-            '../../build/isolate.gypi',
+            '../../gypfiles/features.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'run-gcmole.isolate',

@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --debug-eval-readonly-locals
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -53,6 +52,7 @@ function listener(event, exec_state, event_data, data) {
       listener_delegate(exec_state);
     }
   } catch (e) {
+    print(e, e.stack);
     exception = e;
   }
 }
@@ -148,10 +148,8 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('arguments').isUndefined()) {
     scope_size--;
   }
-  // Skip property with empty name.
-  if (!scope.scopeObject().property('').isUndefined()) {
-    scope_size--;
-  }
+  // Temporary variables introduced by the parser have not been materialized.
+  assertTrue(scope.scopeObject().property('').isUndefined());
 
   if (count != scope_size) {
     print('Names found in scope:');
@@ -381,16 +379,12 @@ function for_loop_1() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:'y'}, 0, exec_state);
   // The function scope contains a temporary iteration variable, but it is
   // hidden to the debugger.
-  // TODO(adamk): This variable is only used to provide a TDZ for the enumerable
-  // expression and should not be visible to the debugger.
-  CheckScopeContent({x:undefined}, 1, exec_state);
 };
 for_loop_1();
 EndTest();
@@ -410,7 +404,6 @@ function for_loop_2() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
@@ -418,9 +411,6 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({x:'y'}, 1, exec_state);
   // The function scope contains a temporary iteration variable, hidden to the
   // debugger.
-  // TODO(adamk): This variable is only used to provide a TDZ for the enumerable
-  // expression and should not be visible to the debugger.
-  CheckScopeContent({x:undefined}, 2, exec_state);
 };
 for_loop_2();
 EndTest();
@@ -437,13 +427,11 @@ function for_loop_3() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3}, 0, exec_state);
-  CheckScopeContent({x:3}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({}, 1, exec_state);
 };
 for_loop_3();
 EndTest();
@@ -462,14 +450,12 @@ function for_loop_4() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:5}, 0, exec_state);
   CheckScopeContent({x:3}, 1, exec_state);
-  CheckScopeContent({x:3}, 2, exec_state);
-  CheckScopeContent({}, 3, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_4();
 EndTest();
@@ -486,13 +472,11 @@ function for_loop_5() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3,y:5}, 0, exec_state);
-  CheckScopeContent({x:3,y:5}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({}, 1, exec_state);
 };
 for_loop_5();
 EndTest();

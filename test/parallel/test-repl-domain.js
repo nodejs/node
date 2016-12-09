@@ -11,8 +11,7 @@ putIn.write = function(data) {
   // give a false negative.  Don't throw, just print and exit.
   if (data === 'OK\n') {
     console.log('ok');
-  }
-  else {
+  } else {
     console.error(data);
     process.exit(1);
   }

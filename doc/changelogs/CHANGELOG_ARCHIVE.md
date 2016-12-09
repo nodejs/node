@@ -151,6 +151,7 @@
 </table>
 
 * Other Versions
+  * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [5.x](CHANGELOG_V5.md)
   * [4.x](CHANGELOG_V4.md)
@@ -1041,7 +1042,7 @@ https://github.com/nodejs/node/commit/fdf91afb494a7a2fff2913d817f589c191a2c88f
 <a id="0.8.14"></a>
 ## 2012.10.25, Version 0.8.14 (Stable)
 
-https://github.com/nodejs/node/commit/b00527fcf05c3d9f https://github.com/nodejs/node/commit/b5d5d790f9472906a59fe218
+https://github.com/nodejs/node/commit/b00527fcf05c3d9f
 
 * events: Don't clobber pre-existing _events obj in EE ctor (isaacs)
 
@@ -1314,13 +1315,13 @@ https://github.com/nodejs/node/commit/8b8a7a7f9b41e74e1e810d0330738ad06fc302ec
 https://github.com/nodejs/node/commit/a72120190a8ffdbcd3d6ad2a2e6ceecd2087111e
 
 * npm: Upgrade to 1.1.30
-	- Improved 'npm init'
-	- Fix the 'cb never called' error from 'oudated' and 'update'
-	- Add --save-bundle|-B config
-	- Fix isaacs/npm[#2465](https://github.com/joyent/node/issues/2465): Make npm script and windows shims cygwin-aware
-	- Fix isaacs/npm[#2452](https://github.com/joyent/node/issues/2452) Use --save(-dev|-optional) in npm rm
-	- `logstream` option to replace removed `logfd` (Rod Vagg)
-	- Read default descriptions from README.md files
+  - Improved 'npm init'
+  - Fix the 'cb never called' error from 'oudated' and 'update'
+  - Add --save-bundle|-B config
+  - Fix isaacs/npm[#2465](https://github.com/joyent/node/issues/2465): Make npm script and windows shims cygwin-aware
+  - Fix isaacs/npm[#2452](https://github.com/joyent/node/issues/2452) Use --save(-dev|-optional) in npm rm
+  - `logstream` option to replace removed `logfd` (Rod Vagg)
+  - Read default descriptions from README.md files
 
 * Shims to support deprecated ev_* and eio_* methods (Ben Noordhuis)
 * [#3118](https://github.com/joyent/node/issues/3118) net.Socket: Delay pause/resume until after connect (isaacs)
@@ -1339,7 +1340,7 @@ https://github.com/nodejs/node/commit/a72120190a8ffdbcd3d6ad2a2e6ceecd2087111e
 <a id="0.7.11"></a>
 ## 2012.06.15, Version 0.7.11 (unstable)
 
-https://github.com/nodejs/node/commit/5cfe0b86d5be266ef51bbba369c39e412ee51944
+https://github.com/nodejs/node/commit/1f93aa5d5d207e8bd739d365dbf9ad6dbcc69571
 
 * V8: Upgrade to v3.11.10
 * npm: Upgrade to 1.1.26
@@ -1362,7 +1363,7 @@ https://github.com/nodejs/node/commit/5cfe0b86d5be266ef51bbba369c39e412ee51944
 <a id="0.7.10"></a>
 ## 2012.06.11, Version 0.7.10 (unstable)
 
-https://github.com/nodejs/node/commit/12a32a48a30182621b3f8e9b9695d1946b53c131
+https://github.com/nodejs/node/commit/8d9766a9dfb1eea901219d2a865ce9300fe4d68e
 
 * Roll V8 back to 3.9.24.31
 * build: x64 target should always pass -m64 (Robert Mustacchi)
@@ -1381,9 +1382,9 @@ https://github.com/nodejs/node/commit/12a32a48a30182621b3f8e9b9695d1946b53c131
 * child_process: new stdio API for .spawn() method (Fedor Indutny)
 * child_process: spawn().ref() and spawn().unref() (Fedor Indutny)
 * Upgrade npm to 1.1.25
-	- Enable npm link on windows
-	- Properly remove sh-shim on Windows
-	- Abstract out registry client and logger
+  - Enable npm link on windows
+  - Properly remove sh-shim on Windows
+  - Abstract out registry client and logger
 
 <a id="0.7.9"></a>
 ## 2012.05.28, Version 0.7.9 (unstable)
@@ -1542,7 +1543,7 @@ https://github.com/nodejs/node/commit/99059aad8d654acda4abcfaa68df182b50f2ec90
 <a id="0.7.2"></a>
 ## 2012.02.01, Version 0.7.2 (unstable)
 
-https://github.com/nodejs/node/commit/ec79acb3a6166e30f0bf271fbbfda1fb575b3321
+https://github.com/nodejs/node/commit/a3efcd2006614c3835c9395b91ab89c1f260806c
 
 * Update V8 to 3.8.9
 * Support for sharing streams across Isolates (Igor Zinkovsky)
@@ -1981,7 +1982,7 @@ https://github.com/nodejs/node/commit/865b077819a9271a29f982faaef99dc635b57fbc
 https://github.com/nodejs/node/commit/220e61c1f65bf4db09699fcf6399c0809c0bc446
 
 * Remove cmake build system, support for Cygwin, legacy code base,
-	process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
+  process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
 
 * Documentation improvements (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
 koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
@@ -2175,7 +2176,7 @@ https://github.com/nodejs/node/commit/cfba1f59224ff8602c3fe9145181cad4c6df89a9
   --use-http1
 
 * Fixes https host header default port handling. (Mikeal Rogers)
-* [#1440](https://github.com/joyent/node/issues/1440) strip byte order marker when loading *.js and *.json files
+* [#1440](https://github.com/joyent/node/issues/1440) strip byte order marker when loading `*.js` and `*.json` files
   (Ben Noordhuis)
 
 * [#1434](https://github.com/joyent/node/issues/1434) Improve util.format() compatibility with browser. (Koichi Kobayashi)
@@ -2207,7 +2208,7 @@ https://github.com/nodejs/node/commit/4585330afef44ddfb6a4054bd9b0f190b352628b
 * Add support for TLS SNI (Fedor Indutny)
 * New http agent implementation. Off by default the command line flag
   --use-http2 will enable it. "make test-http2" will run the tests
-	for the new implementation. (Mikeal Rogers)
+  for the new implementation. (Mikeal Rogers)
 
 * Revert AMD compatibility. (isaacs)
 * Windows: improvements, child_process support.
@@ -2375,7 +2376,7 @@ https://github.com/nodejs/node/commit/7dd22c26e4365698dc3efddf138c4d399cb912c8
 * [#983](https://github.com/joyent/node/issues/983) Better JSON.parse error detection in REPL (isaacs)
 * [#836](https://github.com/joyent/node/issues/836) Agent socket errors bubble up to req only if req exists
 * [#1041](https://github.com/joyent/node/issues/1041) Fix event listener leak check timing (koichik)
-*	[#1038](https://github.com/joyent/node/issues/1038) Fix dns.resolve() with 'PTR' throws Error: Unknown type "PTR"
+* [#1038](https://github.com/joyent/node/issues/1038) Fix dns.resolve() with 'PTR' throws Error: Unknown type "PTR"
   (koichik)
 
 * [#1073](https://github.com/joyent/node/issues/1073) Share SSL context between server connections (Fedor Indutny)
@@ -2389,7 +2390,7 @@ https://github.com/nodejs/node/commit/7dd22c26e4365698dc3efddf138c4d399cb912c8
 
 * Doc improvements
 * cleartextstream.destroy() should close(2) the socket. Previously was being
-	mapped to a shutdown(2) syscall.
+  mapped to a shutdown(2) syscall.
 
 * No longer compile out asserts and debug statements in normal build.
 * Debugger improvements.
@@ -2417,16 +2418,16 @@ https://github.com/nodejs/node/commit/58002d56bc79410c5ff397fc0e1ffec0665db38a
 
 * Don't error on ENOTCONN from shutdown() [#670](https://github.com/joyent/node/issues/670)
 * Auto completion of built-in debugger suggests prefix match rather than
-	partial match. (koichik)
+  partial match. (koichik)
 
 * circular reference in vm modules. [#822](https://github.com/joyent/node/issues/822) (Jakub Lekstan)
 * http response.readable should be false after 'end' [#867](https://github.com/joyent/node/issues/867) (Abe Fettig)
 * Implement os.cpus() and os.uptime() on Solaris (Scott McWhirter)
 * fs.ReadStream: Allow omission of end option for range reads [#801](https://github.com/joyent/node/issues/801)
-	(Felix Geisendörfer)
+  (Felix Geisendörfer)
 
 * Buffer.write() with UCS-2 should not be write partial char
-	[#916](https://github.com/joyent/node/issues/916) (koichik)
+  [#916](https://github.com/joyent/node/issues/916) (koichik)
 
 * Pass secureProtocol through on tls.Server creation (Theo Schlossnagle)
 * TLS use RC4-SHA by default
@@ -2467,7 +2468,7 @@ https://github.com/nodejs/node/commit/25122b986a90ba0982697b7abcb0158c302a1019
 https://github.com/nodejs/node/commit/c095ce1a1b41ca015758a713283bf1f0bd41e4c4
 
 * Don't decrease server connection counter again if destroy() is called more
-	than once GH-431 (Andreas Reich, Anders Conbere)
+  than once GH-431 (Andreas Reich, Anders Conbere)
 
 * Documentation improvements (koichik)
 * Fix bug with setMaxListeners GH-682
@@ -2794,7 +2795,7 @@ https://github.com/nodejs/node/commit/b14dd49222687c12f3e8eac597cff4f2674f84e8
 * Set cwd for child processes (Bert Belder)
 * Tab completion for readline (Trent Mick)
 * process.title getter/setter for OSX, Linux, Cygwin.
-	(Rasmus Andersson, Bert Belder)
+  (Rasmus Andersson, Bert Belder)
 
 * Upgrade V8 to 2.3.6
 
@@ -3089,8 +3090,9 @@ https://github.com/nodejs/node/commit/61c801413544a50000faa7f58376e9b33ba6254f
 
 https://github.com/nodejs/node/commit/39b63dfe1737d46a8c8818c92773ef181fd174b3
 
-  * API: - Move process.watchFile into fs module
-         - Move process.inherits to sys
+  * API:
+    - Move process.watchFile into fs module
+    - Move process.inherits to sys
 
   * Improve Solaris port
   * tcp.Connection.prototype.write now returns boolean to indicate if
@@ -3424,7 +3426,7 @@ https://github.com/nodejs/node/commit/726865af7bbafe58435986f4a193ff11c84e4bfe
     - __module becomes module
 
   * API: Many namespacing changes
-    - Move node.* into process.*
+    - Move node.\* into process.\*
     - Move node.dns into module "dns"
     - Move node.fs into module "posix"
     - process is no longer the global object. GLOBAL is.
@@ -3459,7 +3461,7 @@ https://github.com/nodejs/node/commit/eca2de73ed786b935507fd1c6faccd8df9938fd3
 <a id="0.1.14"></a>
 ## 2009.10.09, Version 0.1.14
 
-https://github.com/nodejs/node/commit/b12c809bb84d1265b6a4d970a5b54ee8a4890513
+https://github.com/nodejs/node/commit/d79b6e9f7ffad4c6aabbe5bd89108e2005366469
 
   * Feature: Improved addon builds with node-waf
   * Feature: node.SignalHandler (Brandon Beacher)
@@ -3482,7 +3484,7 @@ https://github.com/nodejs/node/commit/b12c809bb84d1265b6a4d970a5b54ee8a4890513
 <a id="0.1.13"></a>
 ## 2009.09.30, Version 0.1.13
 
-https://github.com/nodejs/node/commit/58493bb05b3da3dc8051fabc0bdea9e575c1a107
+https://github.com/nodejs/node/commit/9c9d67eb6ce1162c8da05ff59624f6c3ade19bf7
 
   * Feature: Multipart stream parser (Felix Geisendörfer)
   * API: Move node.puts(), node.exec() and others to /utils.js
@@ -3562,15 +3564,15 @@ https://github.com/nodejs/node/commit/12bb0d46ce761e3d00a27170e63b40408c15b558
 <a id="0.1.9"></a>
 ## 2009.09.05, Version 0.1.9
 
-https://github.com/nodejs/node/commit/d029764bb32058389ecb31ed54a5d24d2915ad4c
+https://github.com/nodejs/node/commit/ba6c5e38d54de30adfce69a21bafc81c35b07a03
 
   * Bugfix: Compile on Snow Leopard.
   * Bugfix: Malformed URIs raising exceptions.
-  
+
 <a id="0.1.8"></a>
 ## 2009.09.04, Version 0.1.8
 
-https://github.com/nodejs/node/commit/e6d712a937b61567e81b15085edba863be16ba96
+https://github.com/nodejs/node/commit/734e86b9e568de5f694ae290a2b5c9395b70937c
 
   * Feature: External modules
   * Feature: setTimeout() for node.tcp.Connection
@@ -3589,7 +3591,7 @@ https://github.com/nodejs/node/commit/e6d712a937b61567e81b15085edba863be16ba96
 <a id="0.1.7"></a>
 ## 2009.08.27, Version 0.1.7
 
-https://github.com/nodejs/node/commit/f7acef9acf8ba8433d697ad5ed99d2e857387e4b
+https://github.com/nodejs/node/commit/31db4f1ed837f3835937f60d31368bdb31998386
 
   * Feature: global 'process' object. Emits "exit".
   * Feature: promise.wait()
@@ -3621,7 +3623,7 @@ https://github.com/nodejs/node/commit/9c97b1db3099d61cd292aa59ec2227a619f3a7ab
 <a id="0.1.5"></a>
 ## 2009.08.21, Version 0.1.5
 
-https://github.com/nodejs/node/commit/b0fd3e281cb5f7cd8d3a26bd2b89e1b59998e5ed
+https://github.com/nodejs/node/commit/a73998d6f491227e595524dc70589369fb458224
 
   * Bugfix: Buggy connections could crash node.js. Now check
     connection before sending data every time (Kevin van Zonneveld)
@@ -3658,7 +3660,7 @@ https://github.com/nodejs/node/commit/0f888ed6de153f68c17005211d7e0f960a5e34f3
 <a id="0.1.3"></a>
 ## 2009.08.06, Version 0.1.3
 
-https://github.com/nodejs/node/commit/695f0296e35b30cf8322fd1bd934810403cca9f3
+https://github.com/nodejs/node/commit/7464d423103b96c400d6875d390c19b637532ebf
 
   * Upgrade v8 to 1.3.2
   * Bugfix: node.http.ServerRequest.setBodyEncoding('ascii') not
@@ -3676,7 +3678,7 @@ https://github.com/nodejs/node/commit/695f0296e35b30cf8322fd1bd934810403cca9f3
 <a id="0.1.2"></a>
 ## 2009.08.01, Version 0.1.2
 
-https://github.com/nodejs/node/commit/025a34244d1cea94d6d40ad7bf92671cb909a96c
+https://github.com/nodejs/node/commit/e10fbab00fd8325a7d05d1f854292143b8361e1f
 
   * Add DNS API
   * node.tcp.Server's backlog option is now an argument to listen()
@@ -3724,7 +3726,7 @@ https://github.com/nodejs/node/commit/77d407df2826b20e9177c26c0d2bb4481e497937
 <a id="0.1.0"></a>
 ## 2009.06.30, Version 0.1.0
 
-https://github.com/nodejs/node/commit/0fe44d52fe75f151bceb59534394658aae6ac328
+https://github.com/nodejs/node/commit/813b53938b40484f63e7324c030e33711f26a149
 
   * Update documentation, use asciidoc.
   * EventEmitter and Promise interfaces. (Breaks previous API.)
@@ -3756,7 +3758,7 @@ https://github.com/nodejs/node/commit/fbe0be19ebfb422d8fa20ea5204c1713e9214d5f
 <a id="0.0.5"></a>
 ## 2009.06.18, Version 0.0.5
 
-https://github.com/nodejs/node/commit/3a2b41de74b6c343b8464a68eff04c4bfd9aebea
+https://github.com/nodejs/node/commit/ec5f3dbae11ed121d24744861a8fce55636ecd66
 
   * Support for IPv6
   * Remove namespace node.constants
@@ -3785,7 +3787,7 @@ https://github.com/nodejs/node/commit/916b9ca715b229b0703f0ed6c2fc065410fb189c
 <a id="0.0.3"></a>
 ## 2009.06.11, Version 0.0.3
 
-https://github.com/nodejs/node/commit/6e0dfe50006ae4f5dac987f055e0c9338662f40a
+https://github.com/nodejs/node/commit/4cfc982c776475eb65fb1080e6b575a86505a347
 
  * Many bug fixes including the problem with http.Client on
    macintosh

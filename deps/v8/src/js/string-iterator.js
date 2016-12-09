@@ -14,16 +14,11 @@
 var GlobalString = global.String;
 var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
 var stringIteratorIteratedStringSymbol =
     utils.ImportNow("string_iterator_iterated_string_symbol");
 var stringIteratorNextIndexSymbol =
     utils.ImportNow("string_iterator_next_index_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 
@@ -32,6 +27,7 @@ function StringIterator() {}
 
 // 21.1.5.1 CreateStringIterator Abstract Operation
 function CreateStringIterator(string) {
+  CHECK_OBJECT_COERCIBLE(string, 'String.prototype[Symbol.iterator]');
   var s = TO_STRING(string);
   var iterator = new StringIterator;
   SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol, s);
@@ -48,7 +44,7 @@ function StringIteratorNext() {
 
   if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'String Iterator.prototype.next');
   }
 

@@ -10,16 +10,8 @@ var script = join(common.fixturesDir, 'print-10-lines.js');
 
 var cmd = '"' + nodePath + '" "' + script + '" | head -2';
 
-var finished = false;
-
-exec(cmd, function(err, stdout, stderr) {
+exec(cmd, common.mustCall(function(err, stdout, stderr) {
   if (err) throw err;
   var lines = stdout.split('\n');
   assert.equal(3, lines.length);
-  finished = true;
-});
-
-
-process.on('exit', function() {
-  assert.ok(finished);
-});
+}));

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparse-data.h"
+#include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
-#include "src/hashmap.h"
 #include "src/parsing/parser.h"
-#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparse-data-format.h"
 
 namespace v8 {

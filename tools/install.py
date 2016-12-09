@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sys
+from getmoduleversion import get_version
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
@@ -107,9 +108,23 @@ def subdir_files(path, dest, action):
 
 def files(action):
   is_windows = sys.platform == 'win32'
+  output_file = 'node'
+  output_prefix = 'out/Release/'
 
-  exeext = '.exe' if is_windows else ''
-  action(['out/Release/node' + exeext], 'bin/node' + exeext)
+  if 'false' == variables.get('node_shared'):
+    if is_windows:
+      output_file += '.exe'
+  else:
+    if is_windows:
+      output_file += '.dll'
+    else:
+      output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
+      # GYP will output to lib.target except on OS X, this is hardcoded
+      # in its source - see the _InstallableTargetInstallPath function.
+      if sys.platform != 'darwin':
+        output_prefix += 'lib.target/'
+
+  action([output_prefix + output_file], 'bin/' + output_file)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')

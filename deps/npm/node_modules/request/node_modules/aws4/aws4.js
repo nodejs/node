@@ -2,7 +2,7 @@ var aws4 = exports,
     url = require('url'),
     querystring = require('querystring'),
     crypto = require('crypto'),
-    lru = require('lru-cache'),
+    lru = require('./lru'),
     credentialsCache = lru(1000)
 
 // http://docs.amazonwebservices.com/general/latest/gr/signature-version-4.html

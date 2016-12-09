@@ -375,7 +375,8 @@ void Decoder::PrintXImm26(Instruction* instr) {
   uint64_t target = static_cast<uint64_t>(instr->Imm26Value())
                     << kImmFieldShift;
   target = (reinterpret_cast<uint64_t>(instr) & ~0xfffffff) | target;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%lx", target);
+  out_buffer_pos_ +=
+      SNPrintF(out_buffer_ + out_buffer_pos_, "0x%" PRIx64, target);
 }
 
 
@@ -801,16 +802,12 @@ int Decoder::DecodeBreakInstr(Instruction* instr) {
   if (instr->Bits(25, 6) == static_cast<int>(kMaxStopCode)) {
     // This is stop(msg).
     Format(instr, "break, code: 'code");
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                "\n%p       %08lx       stop msg: %s",
-                                static_cast<void*>
-                                      (reinterpret_cast<int32_t*>(instr
-                                              + Instruction::kInstrSize)),
-                                reinterpret_cast<uint64_t>
-                                (*reinterpret_cast<char**>(instr
-                                              + Instruction::kInstrSize)),
-                                *reinterpret_cast<char**>(instr
-                                              + Instruction::kInstrSize));
+    out_buffer_pos_ += SNPrintF(
+        out_buffer_ + out_buffer_pos_, "\n%p       %08" PRIx64,
+        static_cast<void*>(
+            reinterpret_cast<int32_t*>(instr + Instruction::kInstrSize)),
+        reinterpret_cast<uint64_t>(
+            *reinterpret_cast<char**>(instr + Instruction::kInstrSize)));
     // Size 3: the break_ instr, plus embedded 64-bit char pointer.
     return 3 * Instruction::kInstrSize;
   } else {
@@ -1162,26 +1159,22 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       if (instr->RsValue() == 0) {
         Format(instr, "srl     'rd, 'rt, 'sa");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "rotr    'rd, 'rt, 'sa");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "rotr    'rd, 'rt, 'sa");
       }
       break;
     case DSRL:
       if (instr->RsValue() == 0) {
         Format(instr, "dsrl    'rd, 'rt, 'sa");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "drotr   'rd, 'rt, 'sa");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "drotr   'rd, 'rt, 'sa");
       }
       break;
     case DSRL32:
-      Format(instr, "dsrl32  'rd, 'rt, 'sa");
+      if (instr->RsValue() == 0) {
+        Format(instr, "dsrl32  'rd, 'rt, 'sa");
+      } else {
+        Format(instr, "drotr32 'rd, 'rt, 'sa");
+      }
       break;
     case SRA:
       Format(instr, "sra     'rd, 'rt, 'sa");
@@ -1202,22 +1195,14 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       if (instr->SaValue() == 0) {
         Format(instr, "srlv    'rd, 'rt, 'rs");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "rotrv   'rd, 'rt, 'rs");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "rotrv   'rd, 'rt, 'rs");
       }
       break;
     case DSRLV:
       if (instr->SaValue() == 0) {
         Format(instr, "dsrlv   'rd, 'rt, 'rs");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "drotrv  'rd, 'rt, 'rs");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "drotrv  'rd, 'rt, 'rs");
       }
       break;
     case SRAV:
@@ -1400,6 +1385,9 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case TNE:
       Format(instr, "tne     'rs, 'rt, code: 'code");
       break;
+    case SYNC:
+      Format(instr, "sync");
+      break;
     case MOVZ:
       Format(instr, "movz    'rd, 'rs, 'rt");
       break;
@@ -1467,11 +1455,18 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           Format(instr, "bitswap 'rd, 'rt");
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          UNREACHABLE();
+        case SEB: {
+          Format(instr, "seb     'rd, 'rt");
           break;
+        }
+        case SEH: {
+          Format(instr, "seh     'rd, 'rt");
+          break;
+        }
+        case WSBH: {
+          Format(instr, "wsbh    'rd, 'rt");
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1502,10 +1497,14 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
-        case DSBH:
-        case DSHD:
-          UNREACHABLE();
+        case DSBH: {
+          Format(instr, "dsbh    'rd, 'rt");
           break;
+        }
+        case DSHD: {
+          Format(instr, "dshd    'rd, 'rt");
+          break;
+        }
         default: {
           sa >>= kBp3Bits;
           switch (sa) {
@@ -1948,7 +1947,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -2011,8 +2010,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(f, "%p    %08x      %s\n",
-        prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+                         *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 

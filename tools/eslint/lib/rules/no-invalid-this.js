@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -26,8 +26,8 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
-        var stack = [],
+    create(context) {
+        const stack = [],
             sourceCode = context.getSourceCode();
 
         /**
@@ -40,7 +40,7 @@ module.exports = {
          *   an object which has a flag that whether or not `this` keyword is valid.
          */
         stack.getCurrent = function() {
-            var current = this[this.length - 1];
+            const current = this[this.length - 1];
 
             if (!current.init) {
                 current.init = true;
@@ -66,7 +66,7 @@ module.exports = {
             // `this` can be invalid only under strict mode.
             stack.push({
                 init: !context.getScope().isStrict,
-                node: node,
+                node,
                 valid: true
             });
         }
@@ -85,13 +85,13 @@ module.exports = {
              * `this` is invalid only under strict mode.
              * Modules is always strict mode.
              */
-            Program: function(node) {
-                var scope = context.getScope(),
+            Program(node) {
+                const scope = context.getScope(),
                     features = context.parserOptions.ecmaFeatures || {};
 
                 stack.push({
                     init: true,
-                    node: node,
+                    node,
                     valid: !(
                         scope.isStrict ||
                         node.sourceType === "module" ||
@@ -100,7 +100,7 @@ module.exports = {
                 });
             },
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 stack.pop();
             },
 
@@ -110,8 +110,8 @@ module.exports = {
             "FunctionExpression:exit": exitFunction,
 
             // Reports if `this` of the current context is invalid.
-            ThisExpression: function(node) {
-                var current = stack.getCurrent();
+            ThisExpression(node) {
+                const current = stack.getCurrent();
 
                 if (current && !current.valid) {
                     context.report(node, "Unexpected 'this'.");

@@ -167,7 +167,7 @@ class FindAnywhere (gdb.Command):
           "find 0x%s, 0x%s, %s" % (startAddr, endAddr, value),
           to_string = True)
       if result.find("not found") == -1:
-        print result
+        print(result)
     except:
       pass
 

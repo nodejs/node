@@ -1,29 +1,22 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var responseError;
-
-var server = http.Server(function(req, res) {
-  res.on('error', function onResError(err) {
-    responseError = err;
-  });
+var server = http.Server(common.mustCall(function(req, res) {
+  res.on('error', common.mustCall(function onResError(err) {
+    assert.strictEqual(err.message, 'write after end');
+  }));
 
   res.write('This should write.');
   res.end();
 
   var r = res.write('This should raise an error.');
   assert.equal(r, true, 'write after end should return true');
-});
+}));
 
-server.listen(common.PORT, function() {
-  http.get({port: common.PORT}, function(res) {
+server.listen(0, function() {
+  http.get({port: this.address().port}, function(res) {
     server.close();
   });
-});
-
-process.on('exit', function onProcessExit(code) {
-  assert(responseError, 'response should have emitted error');
-  assert.equal(responseError.message, 'write after end');
 });

@@ -9,14 +9,14 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var OPEN_PAREN = /\$\{$/;
-var CLOSE_PAREN = /^\}/;
+const OPEN_PAREN = /\$\{$/;
+const CLOSE_PAREN = /^\}/;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -37,10 +37,10 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var sourceCode = context.getSourceCode();
-        var always = context.options[0] === "always";
-        var prefix = always ? "Expected" : "Unexpected";
+    create(context) {
+        const sourceCode = context.getSourceCode();
+        const always = context.options[0] === "always";
+        const prefix = always ? "Expected" : "Unexpected";
 
         /**
          * Checks spacing before `}` of a given token.
@@ -48,7 +48,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingBefore(token) {
-            var prevToken = sourceCode.getTokenBefore(token);
+            const prevToken = sourceCode.getTokenBefore(token);
 
             if (prevToken &&
                 CLOSE_PAREN.test(token.value) &&
@@ -57,8 +57,11 @@ module.exports = {
             ) {
                 context.report({
                     loc: token.loc.start,
-                    message: prefix + " space(s) before '}'.",
-                    fix: function(fixer) {
+                    message: "{{prefix}} space(s) before '}'.",
+                    data: {
+                        prefix
+                    },
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextBefore(token, " ");
                         }
@@ -77,7 +80,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingAfter(token) {
-            var nextToken = sourceCode.getTokenAfter(token);
+            const nextToken = sourceCode.getTokenAfter(token);
 
             if (nextToken &&
                 OPEN_PAREN.test(token.value) &&
@@ -89,8 +92,11 @@ module.exports = {
                         line: token.loc.end.line,
                         column: token.loc.end.column - 2
                     },
-                    message: prefix + " space(s) after '${'.",
-                    fix: function(fixer) {
+                    message: "{{prefix}} space(s) after '${'.",
+                    data: {
+                        prefix
+                    },
+                    fix(fixer) {
                         if (always) {
                             return fixer.insertTextAfter(token, " ");
                         }
@@ -104,8 +110,8 @@ module.exports = {
         }
 
         return {
-            TemplateElement: function(node) {
-                var token = sourceCode.getFirstToken(node);
+            TemplateElement(node) {
+                const token = sourceCode.getFirstToken(node);
 
                 checkSpacingBefore(token);
                 checkSpacingAfter(token);

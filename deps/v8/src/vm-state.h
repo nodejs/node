@@ -49,7 +49,6 @@ class ExternalCallbackScope BASE_EMBEDDED {
   Isolate* isolate_;
   Address callback_;
   ExternalCallbackScope* previous_scope_;
-  RuntimeCallTimer timer_;
 #ifdef USE_SIMULATOR
   Address scope_address_;
 #endif

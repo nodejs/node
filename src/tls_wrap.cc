@@ -17,7 +17,6 @@ namespace node {
 
 using crypto::SecureContext;
 using crypto::SSLWrap;
-using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -128,7 +127,7 @@ void TLSWrap::InitSSL() {
   SSL_set_verify(ssl_, SSL_VERIFY_NONE, crypto::VerifyCallback);
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
-  long mode = SSL_get_mode(ssl_);
+  long mode = SSL_get_mode(ssl_);  // NOLINT(runtime/int)
   SSL_set_mode(ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
 #endif  // SSL_MODE_RELEASE_BUFFERS
 
@@ -662,8 +661,7 @@ void TLSWrap::OnReadImpl(ssize_t nread,
 
 
 void TLSWrap::OnAllocSelf(size_t suggested_size, uv_buf_t* buf, void* ctx) {
-  buf->base = static_cast<char*>(malloc(suggested_size));
-  CHECK_NE(buf->base, nullptr);
+  buf->base = node::Malloc(suggested_size);
   buf->len = suggested_size;
 }
 

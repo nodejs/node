@@ -375,9 +375,8 @@ TEST(LogCallbacks) {
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
     i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"",
-                reinterpret_cast<intptr_t>(ObjMethod1_entry));
+    i::SNPrintF(ref_data, "code-creation,Callback,-2,%p,1,\"method1\"",
+                static_cast<void*>(ObjMethod1_entry));
 
     CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
     log.Dispose();
@@ -429,8 +428,8 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
-                reinterpret_cast<intptr_t>(Prop1Getter_entry));
+                "code-creation,Callback,-2,%p,1,\"get prop1\"",
+                static_cast<void*>(Prop1Getter_entry));
     CHECK(StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
     Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
@@ -439,8 +438,8 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
-                reinterpret_cast<intptr_t>(Prop1Setter_entry));
+                "code-creation,Callback,-2,%p,1,\"set prop1\"",
+                static_cast<void*>(Prop1Setter_entry));
     CHECK(StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
     Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
@@ -449,8 +448,8 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
-                reinterpret_cast<intptr_t>(Prop2Getter_entry));
+                "code-creation,Callback,-2,%p,1,\"get prop2\"",
+                static_cast<void*>(Prop2Getter_entry));
     CHECK(StrNStr(log.start(), prop2_getter_record.start(), log.length()));
     log.Dispose();
   }
@@ -569,14 +568,13 @@ TEST(LogVersion) {
 TEST(Issue539892) {
   class : public i::CodeEventLogger {
    public:
-    virtual void CodeMoveEvent(Address from, Address to) {}
-    virtual void CodeDeleteEvent(Address from) {}
-    virtual void CodeDisableOptEvent(i::Code* code,
-                                     i::SharedFunctionInfo* shared) {}
+    void CodeMoveEvent(i::AbstractCode* from, Address to) override {}
+    void CodeDisableOptEvent(i::AbstractCode* code,
+                             i::SharedFunctionInfo* shared) override {}
 
    private:
-    virtual void LogRecordedBuffer(i::Code* code, i::SharedFunctionInfo* shared,
-                                   const char* name, int length) {}
+    void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
+                           const char* name, int length) override {}
   } code_event_logger;
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;

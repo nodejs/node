@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -28,12 +28,12 @@ server.on('checkContinue', function(req, res) {
     handler(req, res);
   }, 100);
 });
-server.listen(common.PORT);
+server.listen(0);
 
 
 server.on('listening', function() {
   var req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/world',
     headers: { 'Expect': '100-continue' }
@@ -58,7 +58,7 @@ server.on('listening', function() {
       assert.equal(body, test_res_body, 'Response body doesn\'t match.');
       assert.ok('abcd' in res.headers, 'Response headers missing.');
       outstanding_reqs--;
-      if (outstanding_reqs == 0) {
+      if (outstanding_reqs === 0) {
         server.close();
         process.exit();
       }

@@ -98,12 +98,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  // There is no dynamic alignment padding on MIPS in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 
@@ -123,8 +117,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Save all FPU registers before messing with them.
   __ Subu(sp, sp, Operand(kDoubleRegsSize));
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
@@ -160,10 +153,15 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Subu(t0, fp, t0);
 
   // Allocate a new deoptimizer object.
-  // Pass four arguments in a0 to a3 and fifth & sixth arguments on stack.
   __ PrepareCallCFunction(6, t1);
+  // Pass four arguments in a0 to a3 and fifth & sixth arguments on stack.
+  __ mov(a0, zero_reg);
+  Label context_check;
+  __ lw(a1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(a1, &context_check);
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ li(a1, Operand(type()));  // bailout type,
+  __ bind(&context_check);
+  __ li(a1, Operand(type()));  // Bailout type.
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
   __ sw(t0, CFunctionArgumentOperand(5));  // Fp-to-sp delta.
@@ -238,6 +236,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
+
+  __ lw(sp, MemOperand(a0, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,

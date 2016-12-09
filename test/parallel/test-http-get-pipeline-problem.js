@@ -19,7 +19,7 @@ var total = 10;
 var requests = 0, responses = 0;
 
 var server = http.Server(function(req, res) {
-  if (++requests == total) {
+  if (++requests === total) {
     server.close();
   }
 
@@ -34,13 +34,13 @@ var server = http.Server(function(req, res) {
 });
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   for (var i = 0; i < total; i++) {
     (function() {
       var x = i;
 
       var opts = {
-        port: common.PORT,
+        port: server.address().port,
         headers: { connection: 'close' }
       };
 
@@ -51,7 +51,7 @@ server.listen(common.PORT, function() {
 
         s.on('finish', function() {
           console.error('done ' + x);
-          if (++responses == total) {
+          if (++responses === total) {
             checkFiles();
           }
         });

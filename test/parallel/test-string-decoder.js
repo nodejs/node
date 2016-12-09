@@ -28,6 +28,30 @@ test(
   '\u02e4\u0064\u12e4\u0030\u3045'
 );
 
+// Some invalid input, known to have caused trouble with chunking
+// in https://github.com/nodejs/node/pull/7310#issuecomment-226445923
+// 00: |00000000 ASCII
+// 41: |01000001 ASCII
+// B8: 10|111000 continuation
+// CC: 110|01100 two-byte head
+// E2: 1110|0010 three-byte head
+// F0: 11110|000 four-byte head
+// F1: 11110|001'another four-byte head
+// FB: 111110|11 "five-byte head", not UTF-8
+test('utf-8', Buffer.from('C9B5A941', 'hex'), '\u0275\ufffdA');
+test('utf-8', Buffer.from('E2', 'hex'), '\ufffd');
+test('utf-8', Buffer.from('E241', 'hex'), '\ufffdA');
+test('utf-8', Buffer.from('CCCCB8', 'hex'), '\ufffd\u0338');
+test('utf-8', Buffer.from('F0B841', 'hex'), '\ufffd\ufffdA');
+test('utf-8', Buffer.from('F1CCB8', 'hex'), '\ufffd\u0338');
+test('utf-8', Buffer.from('F0FB00', 'hex'), '\ufffd\ufffd\0');
+test('utf-8', Buffer.from('CCE2B8B8', 'hex'), '\ufffd\u2e38');
+test('utf-8', Buffer.from('E2B8CCB8', 'hex'), '\ufffd\ufffd\u0338');
+test('utf-8', Buffer.from('E2FBCC01', 'hex'), '\ufffd\ufffd\ufffd\u0001');
+test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'), // CESU-8 of U+1D40D
+     '\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd');
+test('utf-8', Buffer.from('CCB8CDB9', 'hex'), '\u0338\u0379');
+
 // UCS-2
 test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
@@ -55,7 +79,12 @@ assert.strictEqual(decoder.write(Buffer.from('\ufffd\ufffd\ufffd')),
 assert.strictEqual(decoder.end(), '');
 
 decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.write(Buffer.from('efbfbde2', 'hex')), '\ufffd');
+assert.strictEqual(decoder.write(Buffer.from('EFBFBDE2', 'hex')), '\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('F1', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('41F2', 'hex')), '\ufffdA');
 assert.strictEqual(decoder.end(), '\ufffd');
 
 
@@ -93,6 +122,7 @@ function test(encoding, input, expected, singleSequence) {
     sequence.forEach(function(write) {
       output += decoder.write(input.slice(write[0], write[1]));
     });
+    output += decoder.end();
     process.stdout.write('.');
     if (output !== expected) {
       var message =

@@ -1,22 +1,27 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
-var fs = require('fs');
-var fn = path.join(common.fixturesDir, 'elipses.txt');
-var rangeFile = path.join(common.fixturesDir, 'x.txt');
+const path = require('path');
+const fs = require('fs');
+const fn = path.join(common.fixturesDir, 'elipses.txt');
+const rangeFile = path.join(common.fixturesDir, 'x.txt');
 
 var callbacks = { open: 0, end: 0, close: 0 };
 
 var paused = false;
+var bytesRead = 0;
 
 var file = fs.ReadStream(fn);
+var fileSize = fs.statSync(fn).size;
+
+assert.strictEqual(file.bytesRead, 0);
 
 file.on('open', function(fd) {
   file.length = 0;
   callbacks.open++;
-  assert.equal('number', typeof fd);
+  assert.strictEqual('number', typeof fd);
+  assert.strictEqual(file.bytesRead, 0);
   assert.ok(file.readable);
 
   // GH-535
@@ -31,6 +36,9 @@ file.on('data', function(data) {
   assert.ok(!paused);
   file.length += data.length;
 
+  bytesRead += data.length;
+  assert.strictEqual(file.bytesRead, bytesRead);
+
   paused = true;
   file.pause();
 
@@ -42,11 +50,15 @@ file.on('data', function(data) {
 
 
 file.on('end', function(chunk) {
+  assert.strictEqual(bytesRead, fileSize);
+  assert.strictEqual(file.bytesRead, fileSize);
   callbacks.end++;
 });
 
 
 file.on('close', function() {
+  assert.strictEqual(bytesRead, fileSize);
+  assert.strictEqual(file.bytesRead, fileSize);
   callbacks.close++;
 
   //assert.equal(fs.readFileSync(fn), fileContent);
@@ -55,12 +67,12 @@ file.on('close', function() {
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
 file3.on('data', function(data) {
-  assert.equal('string', typeof data);
+  assert.strictEqual('string', typeof data);
   file3.length += data.length;
 
   for (var i = 0; i < data.length; i++) {
     // http://www.fileformat.info/info/unicode/char/2026/index.htm
-    assert.equal('\u2026', data[i]);
+    assert.strictEqual('\u2026', data[i]);
   }
 });
 
@@ -69,11 +81,11 @@ file3.on('close', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(1, callbacks.open);
-  assert.equal(1, callbacks.end);
-  assert.equal(2, callbacks.close);
-  assert.equal(30000, file.length);
-  assert.equal(10000, file3.length);
+  assert.strictEqual(1, callbacks.open);
+  assert.strictEqual(1, callbacks.end);
+  assert.strictEqual(2, callbacks.close);
+  assert.strictEqual(30000, file.length);
+  assert.strictEqual(10000, file3.length);
   console.error('ok');
 });
 
@@ -83,7 +95,7 @@ file4.on('data', function(data) {
   contentRead += data.toString('utf-8');
 });
 file4.on('end', function(data) {
-  assert.equal(contentRead, 'yz');
+  assert.strictEqual(contentRead, 'yz');
 });
 
 var file5 = fs.createReadStream(rangeFile, {bufferSize: 1, start: 1});
@@ -92,7 +104,7 @@ file5.on('data', function(data) {
   file5.data += data.toString('utf-8');
 });
 file5.on('end', function() {
-  assert.equal(file5.data, 'yz\n');
+  assert.strictEqual(file5.data, 'yz\n');
 });
 
 // https://github.com/joyent/node/issues/2320
@@ -102,7 +114,7 @@ file6.on('data', function(data) {
   file6.data += data.toString('utf-8');
 });
 file6.on('end', function() {
-  assert.equal(file6.data, 'yz\n');
+  assert.strictEqual(file6.data, 'yz\n');
 });
 
 assert.throws(function() {
@@ -117,7 +129,7 @@ stream.on('data', function(chunk) {
 });
 
 stream.on('end', function() {
-  assert.equal('x', stream.data);
+  assert.strictEqual('x', stream.data);
 });
 
 // pause and then resume immediately.
@@ -143,7 +155,7 @@ function file7Next() {
     file7.data += data;
   });
   file7.on('end', function(err) {
-    assert.equal(file7.data, 'xyz\n');
+    assert.strictEqual(file7.data, 'xyz\n');
   });
 }
 

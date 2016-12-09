@@ -1,6 +1,6 @@
 # Query String
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!--name=querystring-->
 
@@ -58,7 +58,7 @@ For example, the query string `'foo=bar&abc=xyz&abc=123'` is parsed into:
 
 *Note*: The object returned by the `querystring.parse()` method _does not_
 prototypically extend from the JavaScript `Object`. This means that the
-typical `Object` methods such as `obj.toString()`, `obj.hashOwnProperty()`,
+typical `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`,
 and others are not defined and *will not work*.
 
 By default, percent-encoded characters within the query string will be assumed

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 
@@ -24,35 +24,21 @@ if (cluster.isWorker) {
   return;
 }
 
-var unforcedOk;
-var forcedOk;
-
-process.on('exit', function() {
-  assert(forcedOk);
-  assert(unforcedOk);
-});
-
 checkUnforced();
 checkForced();
 
 function checkUnforced() {
   cluster.fork()
-  .on('online', function() {
-    this.disconnect();
-  })
-  .on('exit', function(status) {
-    assert.equal(status, SENTINEL);
-    unforcedOk = true;
-  });
+    .on('online', function() { this.disconnect(); })
+    .on('exit', common.mustCall(function(status) {
+      assert.strictEqual(status, SENTINEL);
+    }));
 }
 
 function checkForced() {
   cluster.fork()
-  .on('online', function() {
-    this.process.disconnect();
-  })
-  .on('exit', function(status) {
-    assert.equal(status, 0);
-    forcedOk = true;
-  });
+    .on('online', function() { this.process.disconnect(); })
+    .on('exit', common.mustCall(function(status) {
+      assert.strictEqual(status, 0);
+    }));
 }

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -41,7 +41,10 @@ var server = net.createServer(function(connection) {
 var runTest = function(testCaseIndex) {
   var testCase = testCases[testCaseIndex];
 
-  http.get({ port: common.PORT, path: testCase.path }, function(response) {
+  http.get({
+    port: server.address().port,
+    path: testCase.path
+  }, function(response) {
     console.log('client: expected status message: ' + testCase.statusMessage);
     console.log('client: actual status message: ' + response.statusMessage);
     assert.equal(testCase.statusMessage, response.statusMessage);
@@ -60,7 +63,7 @@ var runTest = function(testCaseIndex) {
   });
 };
 
-server.listen(common.PORT, function() { runTest(0); });
+server.listen(0, function() { runTest(0); });
 
 process.on('exit', function() {
   assert.equal(testCases.length, testsComplete);

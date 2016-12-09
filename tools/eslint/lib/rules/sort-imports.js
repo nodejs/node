@@ -42,13 +42,13 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var configuration = context.options[0] || {},
+        const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false,
             ignoreMemberSort = configuration.ignoreMemberSort || false,
-            memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"],
-            previousDeclaration = null;
+            memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"];
+        let previousDeclaration = null;
 
         /**
          * Gets the used member syntax style.
@@ -96,12 +96,12 @@ module.exports = {
         }
 
         return {
-            ImportDeclaration: function(node) {
+            ImportDeclaration(node) {
                 if (previousDeclaration) {
-                    var currentLocalMemberName = getFirstLocalMemberName(node),
-                        currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
-                        previousLocalMemberName = getFirstLocalMemberName(previousDeclaration),
+                    const currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
                         previousMemberSyntaxGroupIndex = getMemberParameterGroupIndex(previousDeclaration);
+                    let currentLocalMemberName = getFirstLocalMemberName(node),
+                        previousLocalMemberName = getFirstLocalMemberName(previousDeclaration);
 
                     if (ignoreCase) {
                         previousLocalMemberName = previousLocalMemberName && previousLocalMemberName.toLowerCase();
@@ -114,7 +114,7 @@ module.exports = {
                     if (currentMemberSyntaxGroupIndex !== previousMemberSyntaxGroupIndex) {
                         if (currentMemberSyntaxGroupIndex < previousMemberSyntaxGroupIndex) {
                             context.report({
-                                node: node,
+                                node,
                                 message: "Expected '{{syntaxA}}' syntax before '{{syntaxB}}' syntax.",
                                 data: {
                                     syntaxA: memberSyntaxSortOrder[currentMemberSyntaxGroupIndex],
@@ -128,7 +128,7 @@ module.exports = {
                             currentLocalMemberName < previousLocalMemberName
                         ) {
                             context.report({
-                                node: node,
+                                node,
                                 message: "Imports should be sorted alphabetically."
                             });
                         }
@@ -137,17 +137,17 @@ module.exports = {
 
                 // Multiple members of an import declaration should also be sorted alphabetically.
                 if (!ignoreMemberSort && node.specifiers.length > 1) {
-                    var previousSpecifier = null;
-                    var previousSpecifierName = null;
+                    let previousSpecifier = null;
+                    let previousSpecifierName = null;
 
-                    for (var i = 0; i < node.specifiers.length; ++i) {
-                        var currentSpecifier = node.specifiers[i];
+                    for (let i = 0; i < node.specifiers.length; ++i) {
+                        const currentSpecifier = node.specifiers[i];
 
                         if (currentSpecifier.type !== "ImportSpecifier") {
                             continue;
                         }
 
-                        var currentSpecifierName = currentSpecifier.local.name;
+                        let currentSpecifierName = currentSpecifier.local.name;
 
                         if (ignoreCase) {
                             currentSpecifierName = currentSpecifierName.toLowerCase();

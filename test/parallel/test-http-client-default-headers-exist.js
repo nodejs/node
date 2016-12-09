@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -25,22 +25,28 @@ var server = http.createServer(function(req, res) {
 
   var requestHeaders = Object.keys(req.headers);
   requestHeaders.forEach(function(header) {
-    assert(expectedHeaders[req.method].indexOf(header.toLowerCase()) !== -1,
-           header + ' shoud not exist for method ' + req.method);
+    assert.notStrictEqual(
+      expectedHeaders[req.method].indexOf(header.toLowerCase()),
+      -1,
+      header + ' shoud not exist for method ' + req.method
+    );
   });
 
-  assert(requestHeaders.length === expectedHeaders[req.method].length,
-         'some headers were missing for method: ' + req.method);
+  assert.strictEqual(
+    requestHeaders.length,
+    expectedHeaders[req.method].length,
+    'some headers were missing for method: ' + req.method
+  );
 
   if (expectedMethods.length === requestCount)
     server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   expectedMethods.forEach(function(method) {
     http.request({
       method: method,
-      port: common.PORT
+      port: server.address().port
     }).end();
   });
 });

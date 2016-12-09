@@ -2,10 +2,7 @@ var root = require('./_root'),
     toString = require('./toString');
 
 /** Used to match leading and trailing whitespace. */
-var reTrim = /^\s+|\s+$/g;
-
-/** Used to detect hexadecimal string values. */
-var reHasHexPrefix = /^0x/i;
+var reTrimStart = /^\s+/;
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeParseInt = root.parseInt;
@@ -35,15 +32,12 @@ var nativeParseInt = root.parseInt;
  * // => [6, 8, 10]
  */
 function parseInt(string, radix, guard) {
-  // Chrome fails to trim leading <BOM> whitespace characters.
-  // See https://bugs.chromium.org/p/v8/issues/detail?id=3109 for more details.
   if (guard || radix == null) {
     radix = 0;
   } else if (radix) {
     radix = +radix;
   }
-  string = toString(string).replace(reTrim, '');
-  return nativeParseInt(string, radix || (reHasHexPrefix.test(string) ? 16 : 10));
+  return nativeParseInt(toString(string).replace(reTrimStart, ''), radix || 0);
 }
 
 module.exports = parseInt;

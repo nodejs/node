@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *                                                                            *
@@ -28,7 +30,7 @@ static const char copyright[] = U_COPYRIGHT_STRING;
 
 static cleanupFunc *gCleanupFunctions[UCLN_I18N_COUNT];
 
-static UBool i18n_cleanup(void)
+static UBool U_CALLCONV i18n_cleanup(void)
 {
     int32_t libType = UCLN_I18N_START;
     (void)copyright;   /* Suppress unused variable warning with clang. */

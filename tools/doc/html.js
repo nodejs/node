@@ -9,6 +9,8 @@ const typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
 
+const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
+
 // customized heading without id attribute
 var renderer = new marked.Renderer();
 renderer.heading = function(text, level) {
@@ -88,7 +90,7 @@ function loadGtoc(cb) {
 function toID(filename) {
   return filename
     .replace('.html', '')
-    .replace(/[^\w\-]/g, '-')
+    .replace(/[^\w-]/g, '-')
     .replace(/-+/g, '-');
 }
 
@@ -118,7 +120,7 @@ function render(opts, cb) {
 
     template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
-    template = template.replace(/__SECTION__/g, section);
+    template = template.replace(/__SECTION__/g, section || 'Index');
     template = template.replace(/__VERSION__/g, nodeVersion);
     template = template.replace(/__TOC__/g, toc);
     template = template.replace(
@@ -150,18 +152,50 @@ function parseText(lexed) {
 // lists that come right after a heading are what we're after.
 function parseLists(input) {
   var state = null;
+  var savedState = [];
   var depth = 0;
   var output = [];
+  let headingIndex = -1;
+  let heading = null;
+
   output.links = input.links;
-  input.forEach(function(tok) {
-    if (tok.type === 'code' && tok.text.match(/Stability:.*/g)) {
-      tok.text = parseAPIHeader(tok.text);
-      output.push({ type: 'html', text: tok.text });
+  input.forEach(function(tok, index) {
+    if (tok.type === 'blockquote_start') {
+      savedState.push(state);
+      state = 'MAYBE_STABILITY_BQ';
       return;
+    }
+    if (tok.type === 'blockquote_end' && state === 'MAYBE_STABILITY_BQ') {
+      state = savedState.pop();
+      return;
+    }
+    if ((tok.type === 'paragraph' && state === 'MAYBE_STABILITY_BQ') ||
+      tok.type === 'code') {
+      if (tok.text.match(/Stability:.*/g)) {
+        const stabilityMatch = tok.text.match(STABILITY_TEXT_REG_EXP);
+        const stability = Number(stabilityMatch[2]);
+        const isStabilityIndex =
+          index - 2 === headingIndex || // general
+          index - 3 === headingIndex;   // with api_metadata block
+
+        if (heading && isStabilityIndex) {
+          heading.stability = stability;
+          headingIndex = -1;
+          heading = null;
+        }
+        tok.text = parseAPIHeader(tok.text);
+        output.push({ type: 'html', text: tok.text });
+        return;
+      } else if (state === 'MAYBE_STABILITY_BQ') {
+        output.push({ type: 'blockquote_start' });
+        state = savedState.pop();
+      }
     }
     if (state === null ||
       (state === 'AFTERHEADING' && tok.type === 'heading')) {
       if (tok.type === 'heading') {
+        headingIndex = index;
+        heading = tok;
         state = 'AFTERHEADING';
       }
       output.push(tok);
@@ -229,7 +263,7 @@ var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 // Returns modified text, with such refs replace with HTML links, for example
 // '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
 function linkManPages(text) {
-  return text.replace(/ ([a-z]+)\((\d)\)/gm, function(match, name, number) {
+  return text.replace(/ ([a-z.]+)\((\d)\)/gm, function(match, name, number) {
     // name consists of lowercase letters, number is a single digit
     var displayAs = name + '(' + number + ')';
     if (BSD_ONLY_SYSCALLS.has(name)) {
@@ -250,7 +284,7 @@ function linkJsTypeDocs(text) {
   // Handle types, for example the source Markdown might say
   // "This argument should be a {Number} or {String}"
   for (i = 0; i < parts.length; i += 2) {
-    typeMatches = parts[i].match(/\{([^\}]+)\}/g);
+    typeMatches = parts[i].match(/\{([^}]+)\}/g);
     if (typeMatches) {
       typeMatches.forEach(function(typeMatch) {
         parts[i] = parts[i].replace(typeMatch, typeParser.toLink(typeMatch));
@@ -264,7 +298,7 @@ function linkJsTypeDocs(text) {
 
 function parseAPIHeader(text) {
   text = text.replace(
-    /(.*:)\s(\d)([\s\S]*)/,
+    STABILITY_TEXT_REG_EXP,
     '<pre class="api_stability api_stability_$2">$1 $2$3</pre>'
   );
   return text;
@@ -308,8 +342,8 @@ function buildToc(lexed, filename, cb) {
     const realFilename = path.basename(realFilenames[0], '.md');
     const id = getId(realFilename + '_' + tok.text.trim());
     toc.push(new Array((depth - 1) * 2 + 1).join(' ') +
-             '* <a href="#' + id + '">' +
-             tok.text + '</a>');
+             '* <span class="stability_' + tok.stability + '">' +
+             '<a href="#' + id + '">' + tok.text + '</a></span>');
     tok.text += '<span><a class="mark" href="#' + id + '" ' +
                 'id="' + id + '">#</a></span>';
   });

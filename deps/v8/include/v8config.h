@@ -63,7 +63,6 @@
 //  V8_OS_FREEBSD       - FreeBSD
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
-//  V8_OS_NACL          - Native Client
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
@@ -79,9 +78,6 @@
 #elif defined(__APPLE__)
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
-# define V8_OS_POSIX 1
-#elif defined(__native_client__)
-# define V8_OS_NACL 1
 # define V8_OS_POSIX 1
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1
@@ -266,13 +262,7 @@
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
 
-// g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
-// without warnings (functionality used by the macros below).  These modes
-// are detectable by checking whether __GXX_EXPERIMENTAL_CXX0X__ is defined or,
-// more standardly, by checking whether __cplusplus has a C++11 or greater
-// value. Current versions of g++ do not correctly set __cplusplus, so we check
-// both for forward compatibility.
-# if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+# if __cplusplus >= 201103L
 #  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
 # endif

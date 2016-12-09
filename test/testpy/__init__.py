@@ -27,9 +27,6 @@
 
 import test
 import os
-import shutil
-from os import mkdir
-from glob import glob
 from os.path import join, dirname, exists
 import re
 
@@ -64,7 +61,10 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      result += flags_match.group(1).strip().split()
+      # PORT should match the definition in test/common.js.
+      env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
+      env['PORT'] += self.thread_id * 100
+      result += flags_match.group(1).strip().format(**env).split()
     files_match = FILES_PATTERN.search(source);
     additional_files = []
     if files_match:

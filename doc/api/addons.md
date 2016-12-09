@@ -102,7 +102,7 @@ top-level of the project describing the build configuration of your module
 using a JSON-like format. This file is used by [node-gyp][] -- a tool written
 specifically to compile Node.js Addons.
 
-```
+```json
 {
   "targets": [
     {
@@ -140,7 +140,8 @@ Once built, the binary Addon can be used from within Node.js by pointing
 // hello.js
 const addon = require('./build/Release/addon');
 
-console.log(addon.hello()); // 'world'
+console.log(addon.hello());
+// Prints: 'world'
 ```
 
 Please see the examples below for further information or
@@ -222,7 +223,7 @@ templates, etc.
 
 Each of these examples using the following `binding.gyp` file:
 
-```
+```json
 {
   "targets": [
     {
@@ -236,14 +237,14 @@ Each of these examples using the following `binding.gyp` file:
 In cases where there is more than one `.cc` file, simply add the additional
 filename to the `sources` array. For example:
 
-```
+```json
 "sources": ["addon.cc", "myexample.cc"]
 ```
 
 Once the `binding.gyp` file is ready, the example Addons can be configured and
 built using `node-gyp`:
 
-```
+```console
 $ node-gyp configure build
 ```
 
@@ -372,7 +373,8 @@ To test it, run the following JavaScript:
 const addon = require('./build/Release/addon');
 
 addon((msg) => {
-  console.log(msg); // 'hello world'
+  console.log(msg);
+// Prints: 'hello world'
 });
 ```
 
@@ -421,9 +423,10 @@ To test it in JavaScript:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj1 = addon('hello');
-var obj2 = addon('world');
-console.log(obj1.msg + ' ' + obj2.msg); // 'hello world'
+const obj1 = addon('hello');
+const obj2 = addon('world');
+console.log(obj1.msg, obj2.msg);
+// Prints: 'hello world'
 ```
 
 
@@ -479,8 +482,9 @@ To test:
 // test.js
 const addon = require('./build/Release/addon');
 
-var fn = addon();
-console.log(fn()); // 'hello world'
+const fn = addon();
+console.log(fn());
+// Prints: 'hello world'
 ```
 
 
@@ -621,7 +625,7 @@ void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
 To build this example, the `myobject.cc` file must be added to the
 `binding.gyp`:
 
-```
+```json
 {
   "targets": [
     {
@@ -641,10 +645,13 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj = new addon.MyObject(10);
-console.log(obj.plusOne()); // 11
-console.log(obj.plusOne()); // 12
-console.log(obj.plusOne()); // 13
+const obj = new addon.MyObject(10);
+console.log(obj.plusOne());
+// Prints: 11
+console.log(obj.plusOne());
+// Prints: 12
+console.log(obj.plusOne());
+// Prints: 13
 ```
 
 ### Factory of wrapped objects
@@ -653,9 +660,9 @@ Alternatively, it is possible to use a factory pattern to avoid explicitly
 creating object instances using the JavaScript `new` operator:
 
 ```js
-var obj = addon.createObject();
+const obj = addon.createObject();
 // instead of:
-// var obj = new addon.Object();
+// const obj = new addon.Object();
 ```
 
 First, the `createObject()` method is implemented in `addon.cc`:
@@ -813,7 +820,7 @@ void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
 Once again, to build this example, the `myobject.cc` file must be added to the
 `binding.gyp`:
 
-```
+```json
 {
   "targets": [
     {
@@ -833,15 +840,21 @@ Test it with:
 // test.js
 const createObject = require('./build/Release/addon');
 
-var obj = createObject(10);
-console.log(obj.plusOne()); // 11
-console.log(obj.plusOne()); // 12
-console.log(obj.plusOne()); // 13
+const obj = createObject(10);
+console.log(obj.plusOne());
+// Prints: 11
+console.log(obj.plusOne());
+// Prints: 12
+console.log(obj.plusOne());
+// Prints: 13
 
-var obj2 = createObject(20);
-console.log(obj2.plusOne()); // 21
-console.log(obj2.plusOne()); // 22
-console.log(obj2.plusOne()); // 23
+const obj2 = createObject(20);
+console.log(obj2.plusOne());
+// Prints: 21
+console.log(obj2.plusOne());
+// Prints: 22
+console.log(obj2.plusOne());
+// Prints: 23
 ```
 
 
@@ -1009,17 +1022,18 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj1 = addon.createObject(10);
-var obj2 = addon.createObject(20);
-var result = addon.add(obj1, obj2);
+const obj1 = addon.createObject(10);
+const obj2 = addon.createObject(20);
+const result = addon.add(obj1, obj2);
 
-console.log(result); // 30
+console.log(result);
+// Prints: 30
 ```
 
 ### AtExit hooks
 
 An "AtExit" hook is a function that is invoked after the Node.js event loop
-has ended by before the JavaScript VM is terminated and Node.js shuts down.
+has ended but before the JavaScript VM is terminated and Node.js shuts down.
 "AtExit" hooks are registered using the `node::AtExit` API.
 
 #### void AtExit(callback, args)

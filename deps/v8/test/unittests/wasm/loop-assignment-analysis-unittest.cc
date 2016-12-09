@@ -23,35 +23,20 @@ namespace wasm {
 
 class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
  public:
-  WasmLoopAssignmentAnalyzerTest() : TestWithZone(), sigs() {
-    init_env(&env, sigs.v_v());
-  }
-
+  WasmLoopAssignmentAnalyzerTest() : num_locals(0) {}
   TestSignatures sigs;
-  FunctionEnv env;
-
-  static void init_env(FunctionEnv* env, FunctionSig* sig) {
-    env->module = nullptr;
-    env->sig = sig;
-    env->local_i32_count = 0;
-    env->local_i64_count = 0;
-    env->local_f32_count = 0;
-    env->local_f64_count = 0;
-    env->SumLocals();
-  }
+  uint32_t num_locals;
 
   BitVector* Analyze(const byte* start, const byte* end) {
-    return AnalyzeLoopAssignmentForTesting(zone(), &env, start, end);
+    return AnalyzeLoopAssignmentForTesting(zone(), num_locals, start, end);
   }
 };
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty0) {
   byte code[] = { 0 };
   BitVector* assigned = Analyze(code, code);
   CHECK_NULL(assigned);
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
   byte code[] = {kExprLoop, 0};
@@ -60,27 +45,25 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
     for (int j = 0; j < assigned->length(); j++) {
       CHECK_EQ(false, assigned->Contains(j));
     }
-    env.AddLocals(kAstI32, 1);
+    num_locals++;
   }
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, One) {
-  env.AddLocals(kAstI32, 5);
+  num_locals = 5;
   for (int i = 0; i < 5; i++) {
-    byte code[] = {WASM_LOOP(1, WASM_SET_ZERO(i))};
+    byte code[] = {WASM_LOOP(WASM_SET_ZERO(i))};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       CHECK_EQ(j == i, assigned->Contains(j));
     }
   }
 }
-
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, OneBeyond) {
-  env.AddLocals(kAstI32, 5);
+  num_locals = 5;
   for (int i = 0; i < 5; i++) {
-    byte code[] = {WASM_LOOP(1, WASM_SET_ZERO(i)), WASM_SET_ZERO(1)};
+    byte code[] = {WASM_LOOP(WASM_SET_ZERO(i)), WASM_SET_ZERO(1)};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       CHECK_EQ(j == i, assigned->Contains(j));
@@ -88,12 +71,11 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, OneBeyond) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, Two) {
-  env.AddLocals(kAstI32, 5);
+  num_locals = 5;
   for (int i = 0; i < 5; i++) {
     for (int j = 0; j < 5; j++) {
-      byte code[] = {WASM_LOOP(2, WASM_SET_ZERO(i), WASM_SET_ZERO(j))};
+      byte code[] = {WASM_LOOP(WASM_SET_ZERO(i), WASM_SET_ZERO(j))};
       BitVector* assigned = Analyze(code, code + arraysize(code));
       for (int k = 0; k < assigned->length(); k++) {
         bool expected = k == i || k == j;
@@ -103,12 +85,11 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Two) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, NestedIf) {
-  env.AddLocals(kAstI32, 5);
+  num_locals = 5;
   for (int i = 0; i < 5; i++) {
     byte code[] = {WASM_LOOP(
-        1, WASM_IF_ELSE(WASM_SET_ZERO(0), WASM_SET_ZERO(i), WASM_SET_ZERO(1)))};
+        WASM_IF_ELSE(WASM_SET_ZERO(0), WASM_SET_ZERO(i), WASM_SET_ZERO(1)))};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       bool expected = i == j || j == 0 || j == 1;
@@ -117,16 +98,14 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, NestedIf) {
   }
 }
 
-
 static byte LEBByte(uint32_t val, byte which) {
   byte b = (val >> (which * 7)) & 0x7F;
   if (val >> ((which + 1) * 7)) b |= 0x80;
   return b;
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
-  env.AddLocals(kAstI32, 65000);
+  num_locals = 65000;
   for (int i = 13; i < 65000; i = static_cast<int>(i * 1.5)) {
     byte code[] = {kExprLoop,
                    1,
@@ -146,11 +125,10 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, Break) {
-  env.AddLocals(kAstI32, 3);
+  num_locals = 3;
   byte code[] = {
-      WASM_LOOP(1, WASM_IF(WASM_GET_LOCAL(0), WASM_BRV(1, WASM_SET_ZERO(1)))),
+      WASM_LOOP(WASM_IF(WASM_GET_LOCAL(0), WASM_BRV(1, WASM_SET_ZERO(1)))),
       WASM_SET_ZERO(0)};
 
   BitVector* assigned = Analyze(code, code + arraysize(code));
@@ -160,14 +138,13 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Break) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
-  env.AddLocals(kAstI32, 5);
+  num_locals = 5;
   byte code[] = {
-      WASM_LOOP(1, WASM_IF(WASM_GET_LOCAL(0),
-                           WASM_BRV(0, WASM_SET_LOCAL(
-                                           3, WASM_I32_SUB(WASM_GET_LOCAL(0),
-                                                           WASM_I8(1)))))),
+      WASM_LOOP(WASM_IF(
+          WASM_GET_LOCAL(0),
+          WASM_BRV(0, WASM_SET_LOCAL(
+                          3, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(1)))))),
       WASM_GET_LOCAL(0)};
 
   BitVector* assigned = Analyze(code, code + arraysize(code));
@@ -177,34 +154,38 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
   }
 }
 
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
-  env.AddLocals(kAstI32, 3);
+  num_locals = 6;
   const byte kIter = 0;
-  env.AddLocals(kAstF32, 3);
   const byte kSum = 3;
 
   byte code[] = {WASM_BLOCK(
-      3,
       WASM_WHILE(
           WASM_GET_LOCAL(kIter),
-          WASM_BLOCK(2, WASM_SET_LOCAL(
-                            kSum, WASM_F32_ADD(
-                                      WASM_GET_LOCAL(kSum),
-                                      WASM_LOAD_MEM(MachineType::Float32(),
-                                                    WASM_GET_LOCAL(kIter)))),
-                     WASM_SET_LOCAL(kIter, WASM_I32_SUB(WASM_GET_LOCAL(kIter),
-                                                        WASM_I8(4))))),
+          WASM_BLOCK(
+              WASM_SET_LOCAL(
+                  kSum, WASM_F32_ADD(WASM_GET_LOCAL(kSum),
+                                     WASM_LOAD_MEM(MachineType::Float32(),
+                                                   WASM_GET_LOCAL(kIter)))),
+              WASM_SET_LOCAL(kIter,
+                             WASM_I32_SUB(WASM_GET_LOCAL(kIter), WASM_I8(4))))),
       WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO, WASM_GET_LOCAL(kSum)),
       WASM_GET_LOCAL(kIter))};
 
-  BitVector* assigned = Analyze(code + 2, code + arraysize(code));
+  BitVector* assigned = Analyze(code + 1, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == kIter || j == kSum;
     CHECK_EQ(expected, assigned->Contains(j));
   }
 }
 
+TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
+  byte code[] = {kExprLoop, kExprF32Neg, kExprBrTable, 0x0e, 'h', 'e',
+                 'l',       'l',         'o',          ',',  ' ', 'w',
+                 'o',       'r',         'l',          'd',  '!'};
+  BitVector* assigned = Analyze(code, code + arraysize(code));
+  CHECK_NULL(assigned);
+}
 
 }  // namespace wasm
 }  // namespace internal

@@ -1,4 +1,3 @@
-/* eslint no-deepEqual: 0 */
 'use strict';
 require('../common');
 var assert = require('assert');
@@ -29,7 +28,7 @@ assert.doesNotThrow(makeBlock(a.ok, true),
 assert.doesNotThrow(makeBlock(a.ok, 'test'), 'ok(\'test\')');
 
 assert.throws(makeBlock(a.equal, true, false),
-                a.AssertionError, 'equal(true, false)');
+              a.AssertionError, 'equal(true, false)');
 
 assert.doesNotThrow(makeBlock(a.equal, null, null),
                     'equal(null, null)');
@@ -56,10 +55,13 @@ assert.throws(makeBlock(a.strictEqual, 2, '2'),
 assert.throws(makeBlock(a.strictEqual, null, undefined),
               a.AssertionError, 'strictEqual(null, undefined)');
 
+assert.throws(makeBlock(a.notStrictEqual, 2, 2),
+              a.AssertionError, 'notStrictEqual(2, 2)');
+
 assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
                     'notStrictEqual(2, \'2\')');
 
-// deepEquals joy!
+// deepEqual joy!
 // 7.2
 assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
                     new Date(2000, 3, 14)),
@@ -68,6 +70,19 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
 assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
               'deepEqual(new Date(), new Date(2000, 3, 14))');
+
+assert.throws(
+  makeBlock(a.notDeepEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  a.AssertionError,
+  'notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.doesNotThrow(makeBlock(
+  a.notDeepEqual,
+  new Date(),
+  new Date(2000, 3, 14)),
+  'notDeepEqual(new Date(), new Date(2000, 3, 14))'
+);
 
 // 7.3
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/, /a/));
@@ -162,15 +177,31 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}),
 assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
                     a.AssertionError);
 
-//deepStrictEqual
-assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)),
-                    'deepStrictEqual(new Date(2000, 3, 14),\
-                    new Date(2000, 3, 14))');
+// same number of keys but different key names
+assert.throws(makeBlock(a.deepEqual, {a: 1}, {b: 1}), a.AssertionError);
 
-assert.throws(makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
-              a.AssertionError,
-              'deepStrictEqual(new Date(), new Date(2000, 3, 14))');
+//deepStrictEqual
+assert.doesNotThrow(
+  makeBlock(a.deepStrictEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  'deepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.throws(
+  makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
+  a.AssertionError,
+  'deepStrictEqual(new Date(), new Date(2000, 3, 14))'
+);
+
+assert.throws(
+  makeBlock(a.notDeepStrictEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  a.AssertionError,
+  'notDeepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.doesNotThrow(
+  makeBlock(a.notDeepStrictEqual, new Date(), new Date(2000, 3, 14)),
+  'notDeepStrictEqual(new Date(), new Date(2000, 3, 14))'
+);
 
 // 7.3 - strict
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/, /a/));
@@ -409,6 +440,20 @@ var args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
 a.throws(makeBlock(a.deepEqual, args, []));
 
+// more checking that arguments objects are handled correctly
+{
+  const returnArguments = function() { return arguments; };
+
+  const someArgs = returnArguments('a');
+  const sameArgs = returnArguments('a');
+  const diffArgs = returnArguments('b');
+
+  a.throws(makeBlock(a.deepEqual, someArgs, ['a']));
+  a.throws(makeBlock(a.deepEqual, ['a'], someArgs));
+  a.throws(makeBlock(a.deepEqual, someArgs, {'0': 'a'}));
+  a.throws(makeBlock(a.deepEqual, someArgs, diffArgs));
+  a.doesNotThrow(makeBlock(a.deepEqual, someArgs, sameArgs));
+}
 
 var circular = {y: 1};
 circular.x = circular;
@@ -418,7 +463,7 @@ function testAssertionMessage(actual, expected) {
     assert.equal(actual, '');
   } catch (e) {
     assert.equal(e.toString(),
-        ['AssertionError:', expected, '==', '\'\''].join(' '));
+                 ['AssertionError:', expected, '==', '\'\''].join(' '));
     assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
 }
@@ -510,5 +555,10 @@ testBlockTypeError(assert.doesNotThrow, undefined);
 // https://github.com/nodejs/node/issues/3275
 assert.throws(() => { throw 'error'; }, (err) => err === 'error');
 assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
+
+// Long values should be truncated for display.
+assert.throws(() => {
+  assert.strictEqual('A'.repeat(1000), '');
+}, new RegExp(`^AssertionError: '${'A'.repeat(127)} === ''$`));
 
 console.log('All OK');

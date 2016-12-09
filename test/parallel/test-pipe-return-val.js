@@ -10,4 +10,3 @@ var destStream = new Stream();
 var result = sourceStream.pipe(destStream);
 
 assert.strictEqual(result, destStream);
-

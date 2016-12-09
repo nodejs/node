@@ -19,20 +19,17 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var connections = 0;
-
 // create server
-var server = tls.Server(options, function(socket) {
+var server = tls.Server(options, common.mustCall(function(socket) {
   socket.end('Goodbye');
-  connections++;
-});
+}, 2));
 
 // start listening
-server.listen(common.PORT, function() {
+server.listen(0, function() {
 
   var session1 = null;
   var client1 = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function() {
     console.log('connect1');
@@ -44,7 +41,7 @@ server.listen(common.PORT, function() {
     console.log('close1');
 
     var opts = {
-      port: common.PORT,
+      port: server.address().port,
       rejectUnauthorized: false,
       session: session1
     };
@@ -59,8 +56,4 @@ server.listen(common.PORT, function() {
       server.close();
     });
   });
-});
-
-process.on('exit', function() {
-  assert.equal(2, connections);
 });

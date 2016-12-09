@@ -1,7 +1,7 @@
 'use strict';
 // test compression/decompression with dictionary
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
@@ -32,6 +32,7 @@ function basicDictionaryTest() {
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
   const inflate = zlib.createInflate({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
 
   deflate.on('data', function(chunk) {
     inflate.write(chunk);
@@ -45,9 +46,9 @@ function basicDictionaryTest() {
     inflate.end();
   });
 
-  inflate.on('end', function() {
-    assert.equal(input, output);
-  });
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
 
   deflate.write(input);
   deflate.end();
@@ -58,6 +59,7 @@ function deflateResetDictionaryTest() {
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
   const inflate = zlib.createInflate({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
 
   deflate.on('data', function(chunk) {
     if (doneReset)
@@ -72,9 +74,68 @@ function deflateResetDictionaryTest() {
     inflate.end();
   });
 
-  inflate.on('end', function() {
-    assert.equal(input, output);
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
+
+  deflate.write(input);
+  deflate.flush(function() {
+    deflate.reset();
+    doneReset = true;
+    deflate.write(input);
+    deflate.end();
   });
+}
+
+function rawDictionaryTest() {
+  let output = '';
+  const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
+  const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
+
+  deflate.on('data', function(chunk) {
+    inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
+
+  deflate.write(input);
+  deflate.end();
+}
+
+function deflateRawResetDictionaryTest() {
+  let doneReset = false;
+  let output = '';
+  const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
+  const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
+
+  deflate.on('data', function(chunk) {
+    if (doneReset)
+      inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
 
   deflate.write(input);
   deflate.flush(function() {
@@ -87,3 +148,5 @@ function deflateResetDictionaryTest() {
 
 basicDictionaryTest();
 deflateResetDictionaryTest();
+rawDictionaryTest();
+deflateRawResetDictionaryTest();

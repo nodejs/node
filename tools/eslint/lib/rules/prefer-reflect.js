@@ -44,8 +44,8 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var existingNames = {
+    create(context) {
+        const existingNames = {
             apply: "Function.prototype.apply",
             call: "Function.prototype.call",
             defineProperty: "Object.defineProperty",
@@ -57,7 +57,7 @@ module.exports = {
             preventExtensions: "Object.preventExtensions"
         };
 
-        var reflectSubsitutes = {
+        const reflectSubsitutes = {
             apply: "Reflect.apply",
             call: "Reflect.apply",
             defineProperty: "Reflect.defineProperty",
@@ -69,7 +69,7 @@ module.exports = {
             preventExtensions: "Reflect.preventExtensions"
         };
 
-        var exceptions = (context.options[0] || {}).exceptions || [];
+        const exceptions = (context.options[0] || {}).exceptions || [];
 
         /**
          * Reports the Reflect violation based on the `existing` and `substitute`
@@ -79,27 +79,27 @@ module.exports = {
          * @returns {void}
          */
         function report(node, existing, substitute) {
-            context.report(node, "Avoid using {{existing}}, instead use {{substitute}}", {
-                existing: existing,
-                substitute: substitute
+            context.report(node, "Avoid using {{existing}}, instead use {{substitute}}.", {
+                existing,
+                substitute
             });
         }
 
         return {
-            CallExpression: function(node) {
-                var methodName = (node.callee.property || {}).name;
-                var isReflectCall = (node.callee.object || {}).name === "Reflect";
-                var hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
-                var userConfiguredException = exceptions.indexOf(methodName) !== -1;
+            CallExpression(node) {
+                const methodName = (node.callee.property || {}).name;
+                const isReflectCall = (node.callee.object || {}).name === "Reflect";
+                const hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
+                const userConfiguredException = exceptions.indexOf(methodName) !== -1;
 
                 if (hasReflectSubsitute && !isReflectCall && !userConfiguredException) {
                     report(node, existingNames[methodName], reflectSubsitutes[methodName]);
                 }
             },
-            UnaryExpression: function(node) {
-                var isDeleteOperator = node.operator === "delete";
-                var targetsIdentifier = node.argument.type === "Identifier";
-                var userConfiguredException = exceptions.indexOf("delete") !== -1;
+            UnaryExpression(node) {
+                const isDeleteOperator = node.operator === "delete";
+                const targetsIdentifier = node.argument.type === "Identifier";
+                const userConfiguredException = exceptions.indexOf("delete") !== -1;
 
                 if (isDeleteOperator && !targetsIdentifier && !userConfiguredException) {
                     report(node, "the delete keyword", "Reflect.deleteProperty");

@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -29,7 +29,7 @@ function isConcatenation(node) {
  * @returns {ASTNode} node
  */
 function getLeft(node) {
-    var left = node.left;
+    let left = node.left;
 
     while (isConcatenation(left)) {
         left = left.right;
@@ -43,7 +43,7 @@ function getLeft(node) {
  * @returns {ASTNode} node
  */
 function getRight(node) {
-    var right = node.right;
+    let right = node.right;
 
     while (isConcatenation(right)) {
         right = right.left;
@@ -66,9 +66,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
+
         return {
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
 
                 // check if not concatenation
                 if (node.operator !== "+") {
@@ -76,8 +78,8 @@ module.exports = {
                 }
 
                 // account for the `foo + "a" + "b"` case
-                var left = getLeft(node);
-                var right = getRight(node);
+                const left = getLeft(node);
+                const right = getRight(node);
 
                 if (astUtils.isStringLiteral(left) &&
                     astUtils.isStringLiteral(right) &&
@@ -85,10 +87,10 @@ module.exports = {
                 ) {
 
                     // move warning location to operator
-                    var operatorToken = context.getTokenAfter(left);
+                    let operatorToken = sourceCode.getTokenAfter(left);
 
                     while (operatorToken.value !== "+") {
-                        operatorToken = context.getTokenAfter(operatorToken);
+                        operatorToken = sourceCode.getTokenAfter(operatorToken);
                     }
 
                     context.report(

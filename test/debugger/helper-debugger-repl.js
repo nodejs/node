@@ -1,9 +1,9 @@
 'use strict';
-process.env.NODE_DEBUGGER_TIMEOUT = 2000;
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 
+process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var port = common.PORT;
 
 var child;
@@ -108,7 +108,7 @@ function addTest(input, output) {
 }
 
 var handshakeLines = [
-  /listening on port \d+/,
+  /listening on /,
   /connecting.* ok/
 ];
 

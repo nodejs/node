@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 var assert = require('assert');
 var join = require('path').join;
 var fs = require('fs');
-var common = require('../common');
 
 common.refreshTmpDir();
 
@@ -28,6 +28,26 @@ putIn.run(['.save ' + saveFileName]);
 
 // the file should have what I wrote
 assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') + '\n');
+
+{
+  // save .editor mode code
+  const cmds = [
+    'function testSave() {',
+    'return "saved";',
+    '}'
+  ];
+  const putIn = new common.ArrayStream();
+  const replServer = repl.start('', putIn);
+
+  putIn.run(['.editor']);
+  putIn.run(cmds);
+  replServer.write('', {ctrl: true, name: 'd'});
+
+  putIn.run([`.save ${saveFileName}`]);
+  replServer.close();
+  assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
+                     `${cmds.join('\n')}\n`);
+}
 
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good

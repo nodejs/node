@@ -20,7 +20,7 @@ repl.addTest('sb(")^$*+?}{|][(.js\\\\", 1)', [
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-  /break in .*[\\\/]mod\.js:2/,
+  /break in .*[\\/]mod\.js:2/,
   /1/, /2/, /3/, /4/
 ]);
 
@@ -42,7 +42,7 @@ repl.addTest('restart', [].concat(
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-  /break in .*[\\\/]mod\.js:2/,
+  /break in .*[\\/]mod\.js:2/,
   /1/, /2/, /3/, /4/
 ]);
 
@@ -53,7 +53,7 @@ repl.addTest('cb("mod.js", 2)', [
 ]);
 
 repl.addTest('c', [
-  /break in .*[\\\/]main\.js:4/,
+  /break in .*[\\/]main\.js:4/,
   /2/, /3/, /4/, /5/, /6/
 ]);
 

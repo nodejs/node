@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 var fs = require('fs');
 
 if (!common.hasCrypto) {
@@ -15,7 +14,6 @@ var options = {
 };
 
 var invalidLocalAddress = '1.2.3.4';
-var gotError = false;
 
 var server = https.createServer(options, function(req, res) {
   console.log('Connect from: ' + req.connection.remoteAddress);
@@ -27,22 +25,17 @@ var server = https.createServer(options, function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', common.mustCall(function() {
   https.request({
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
-    assert.fail(null, null, 'unexpectedly got response from server');
-  }).on('error', function(e) {
+    common.fail('unexpectedly got response from server');
+  }).on('error', common.mustCall(function(e) {
     console.log('client got error: ' + e.message);
-    gotError = true;
     server.close();
-  }).end();
-});
-
-process.on('exit', function() {
-  assert.ok(gotError);
-});
+  })).end();
+}));

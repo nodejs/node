@@ -22,9 +22,10 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var callbacks = context.options[0] || ["callback", "cb", "next"];
+        const callbacks = context.options[0] || ["callback", "cb", "next"],
+            sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -47,12 +48,33 @@ module.exports = {
         }
 
         /**
+         * Check to see if a node contains only identifers
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} Whether or not the node contains only identifers
+         */
+        function containsOnlyIdentifiers(node) {
+            if (node.type === "Identifier") {
+                return true;
+            }
+
+            if (node.type === "MemberExpression") {
+                if (node.object.type === "Identifier") {
+                    return true;
+                } else if (node.object.type === "MemberExpression") {
+                    return containsOnlyIdentifiers(node.object);
+                }
+            }
+
+            return false;
+        }
+
+        /**
          * Check to see if a CallExpression is in our callback list.
          * @param {ASTNode} node The node to check against our callback names list.
-         * @returns {Boolean} Whether or not this function matches our callback name.
+         * @returns {boolean} Whether or not this function matches our callback name.
          */
         function isCallback(node) {
-            return node.callee.type === "Identifier" && callbacks.indexOf(node.callee.name) > -1;
+            return containsOnlyIdentifiers(node.callee) && callbacks.indexOf(sourceCode.getText(node.callee)) > -1;
         }
 
         /**
@@ -88,16 +110,15 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
 
-                // if we"re not a callback we can return
+                // if we're not a callback we can return
                 if (!isCallback(node)) {
                     return;
                 }
 
                 // find the closest block, return or loop
-                var closestBlock = findClosestParentOfType(node, ["BlockStatement", "ReturnStatement", "ArrowFunctionExpression"]) || {},
-                    lastItem, parentType;
+                const closestBlock = findClosestParentOfType(node, ["BlockStatement", "ReturnStatement", "ArrowFunctionExpression"]) || {};
 
                 // if our parent is a return we know we're ok
                 if (closestBlock.type === "ReturnStatement") {
@@ -113,12 +134,12 @@ module.exports = {
                 if (closestBlock.type === "BlockStatement") {
 
                     // find the last item in the block
-                    lastItem = closestBlock.body[closestBlock.body.length - 1];
+                    const lastItem = closestBlock.body[closestBlock.body.length - 1];
 
                     // if the callback is the last thing in a block that might be ok
                     if (isCallbackExpression(node, lastItem)) {
 
-                        parentType = closestBlock.parent.type;
+                        const parentType = closestBlock.parent.type;
 
                         // but only if the block is part of a function
                         if (parentType === "FunctionExpression" ||

@@ -1,6 +1,6 @@
 # URL
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `url` module provides utilities for URL resolution and parsing. It can be
 accessed using:
@@ -19,7 +19,7 @@ The following details each of the components of a parsed URL. The example
 `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'` is used to
 illustrate each.
 
-```
+```txt
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                    href                                     │
 ├──────────┬┬───────────┬─────────────────┬───────────────────────────┬───────┤
@@ -31,7 +31,7 @@ illustrate each.
 "  http:   // user:pass @ host.com : 8080   /p/a/t/h  ?  query=string   #hash "
 │          ││           │          │      │          │ │              │       │
 └──────────┴┴───────────┴──────────┴──────┴──────────┴─┴──────────────┴───────┘
-(all spaces in the "" line should be ignored -- they're purely for formatting)
+(all spaces in the "" line should be ignored -- they are purely for formatting)
 ```
 
 ### urlObject.href
@@ -64,7 +64,7 @@ For example: `'host.com:8080'`
 
 The `auth` property is the username and password portion of the URL, also
 referred to as "userinfo". This string subset follows the `protocol` and
-double slashes (if present) and preceeds the `host` component, delimited by an
+double slashes (if present) and precedes the `host` component, delimited by an
 ASCII "at sign" (`@`). The format of the string is `{username}[:{password}]`,
 with the `[:{password}]` portion being optional.
 
@@ -114,9 +114,10 @@ No decoding of the `path` is performed.
 
 ### urlObject.query
 
-The `query` property is either the "params" portion of the query string (
-everything *except* the leading ASCII question mark (`?`), or an object
-returned by the [`querystring`][] module's `parse()` method:
+The `query` property is either the query string without the leading ASCII
+question mark (`?`), or an object returned by the [`querystring`][] module's
+`parse()` method. Whether the `query` property is a string or object is
+determined by the `parseQueryString` argument passed to `url.parse()`.
 
 For example: `'query=string'` or `{'query': 'string'}`
 
@@ -135,13 +136,17 @@ For example: `'#hash'`
 added: v0.1.25
 -->
 
-* `urlObject` {Object} A URL object (either as returned by `url.parse()` or
-  constructed otherwise).
+* `urlObject` {Object | String} A URL object (as returned by `url.parse()` or
+  constructed otherwise). If a string, it is converted to an object by passing
+  it to `url.parse()`.
 
-The `url.format()` method processes the given URL object and returns a formatted
-URL string.
+The `url.format()` method returns a formatted URL string derived from
+`urlObject`.
 
-The formatting process essentially operates as follows:
+If `urlObject` is not an object or a string, `url.parse()` will throw a
+[`TypeError`][].
+
+The formatting process operates as follows:
 
 * A new empty string `result` is created.
 * If `urlObject.protocol` is a string, it is appended as-is to `result`.
@@ -149,10 +154,11 @@ The formatting process essentially operates as follows:
   [`Error`][] is thrown.
 * For all string values of `urlObject.protocol` that *do not end* with an ASCII
   colon (`:`) character, the literal string `:` will be appended to `result`.
-* If either the `urlObject.slashes` property is true, `urlObject.protocol`
-  begins with one of `http`, `https`, `ftp`, `gopher`, or `file`, or
-  `urlObject.protocol` is `undefined`, the literal string `//` will be appended
-  to `result`.
+* If either of the following conditions is true, then the literal string `//`
+  will be appended to `result`:
+    * `urlObject.slashes` property is true;
+    * `urlObject.protocol` begins with `http`, `https`, `ftp`, `gopher`, or
+      `file`;
 * If the value of the `urlObject.auth` property is truthy, and either
   `urlObject.host` or `urlObject.hostname` are not `undefined`, the value of
   `urlObject.auth` will be coerced into a string and appended to `result`
@@ -198,13 +204,13 @@ The formatting process essentially operates as follows:
 added: v0.1.25
 -->
 
-* `urlString` {string} The URL string to parse.
-* `parseQueryString` {boolean} If `true`, the `query` property will always
+* `urlString` {String} The URL string to parse.
+* `parseQueryString` {Boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
   method. If `false`, the `query` property on the returned URL object will be an
   unparsed, undecoded string. Defaults to `false`.
-* `slashesDenoteHost` {boolean} If `true`, the first token after the literal
-  string `//` and preceeding the next `/` will be interpreted as the `host`.
+* `slashesDenoteHost` {Boolean} If `true`, the first token after the literal
+  string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
   Defaults to `false`.
@@ -217,8 +223,8 @@ object.
 added: v0.1.25
 -->
 
-* `from` {string} The Base URL being resolved against.
-* `to` {string} The HREF URL being resolved.
+* `from` {String} The Base URL being resolved against.
+* `to` {String} The HREF URL being resolved.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
@@ -237,7 +243,7 @@ URLs are only permitted to contain a certain range of characters. Spaces (`' '`)
 and the following characters will be automatically escaped in the
 properties of URL objects:
 
-```
+```txt
 < > " ` \r \n \t { } | \ ^ '
 ```
 
@@ -247,3 +253,4 @@ forward slash (`/`) character is encoded as `%3C`.
 
 [`Error`]: errors.html#errors_class_error
 [`querystring`]: querystring.html
+[`TypeError`]: errors.html#errors_class_typeerror

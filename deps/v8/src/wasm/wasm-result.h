@@ -5,8 +5,11 @@
 #ifndef V8_WASM_RESULT_H_
 #define V8_WASM_RESULT_H_
 
-#include "src/base/smart-pointers.h"
+#include <memory>
 
+#include "src/base/compiler-specific.h"
+
+#include "src/handles.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -37,9 +40,12 @@ enum ErrorCode {
 // The overall result of decoding a function or a module.
 template <typename T>
 struct Result {
-  Result()
-      : val(nullptr), error_code(kSuccess), start(nullptr), error_pc(nullptr) {
-    error_msg.Reset(nullptr);
+  Result() : val(), error_code(kSuccess), start(nullptr), error_pc(nullptr) {}
+  Result(Result&& other) { *this = std::move(other); }
+  Result& operator=(Result&& other) {
+    MoveFrom(other);
+    val = other.val;
+    return *this;
   }
 
   T val;
@@ -47,19 +53,22 @@ struct Result {
   const byte* start;
   const byte* error_pc;
   const byte* error_pt;
-  base::SmartArrayPointer<char> error_msg;
+  std::unique_ptr<char[]> error_msg;
 
   bool ok() const { return error_code == kSuccess; }
   bool failed() const { return error_code != kSuccess; }
 
   template <typename V>
-  void CopyFrom(Result<V>& that) {
+  void MoveFrom(Result<V>& that) {
     error_code = that.error_code;
     start = that.start;
     error_pc = that.error_pc;
     error_pt = that.error_pt;
-    error_msg = that.error_msg;
+    error_msg = std::move(that.error_msg);
   }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Result);
 };
 
 template <typename T>
@@ -91,23 +100,30 @@ std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code);
 class ErrorThrower {
  public:
   ErrorThrower(Isolate* isolate, const char* context)
-      : isolate_(isolate), context_(context), error_(false) {}
+      : isolate_(isolate), context_(context) {}
+  ~ErrorThrower();
 
-  void Error(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void Error(const char* fmt, ...);
 
   template <typename T>
   void Failed(const char* error, Result<T>& result) {
     std::ostringstream str;
     str << error << result;
-    return Error(str.str().c_str());
+    return Error("%s", str.str().c_str());
   }
 
-  bool error() const { return error_; }
+  i::Handle<i::String> Reify() {
+    auto result = message_;
+    message_ = i::Handle<i::String>();
+    return result;
+  }
+
+  bool error() const { return !message_.is_null(); }
 
  private:
   Isolate* isolate_;
   const char* context_;
-  bool error_;
+  i::Handle<i::String> message_;
 };
 }  // namespace wasm
 }  // namespace internal

@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var espree = require("espree");
+const espree = require("espree");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -36,10 +36,10 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var options = context.options[0],
-            allowedFlags = "";
+        const options = context.options[0];
+        let allowedFlags = "";
 
         if (options && options.allowConstructorFlags) {
             allowedFlags = options.allowConstructorFlags.join("");
@@ -63,24 +63,33 @@ module.exports = {
          */
         function check(node) {
             if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0])) {
-                var flags = isString(node.arguments[1]) ? node.arguments[1].value : "";
+                let flags = isString(node.arguments[1]) ? node.arguments[1].value : "";
 
                 if (allowedFlags) {
-                    flags = flags.replace(new RegExp("[" + allowedFlags + "]", "gi"), "");
+                    flags = flags.replace(new RegExp(`[${allowedFlags}]`, "gi"), "");
                 }
 
                 try {
                     void new RegExp(node.arguments[0].value);
                 } catch (e) {
-                    context.report(node, e.message);
+                    context.report({
+                        node,
+                        message: `${e.message}.`
+                    });
                 }
 
                 if (flags) {
 
                     try {
-                        espree.parse("/./" + flags, context.parserOptions);
+                        espree.parse(`/./${flags}`, context.parserOptions);
                     } catch (ex) {
-                        context.report(node, "Invalid flags supplied to RegExp constructor '" + flags + "'");
+                        context.report({
+                            node,
+                            message: "Invalid flags supplied to RegExp constructor '{{flags}}'.",
+                            data: {
+                                flags
+                            }
+                        });
                     }
                 }
 

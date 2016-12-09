@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` and named `function` declarations in the global scope",
+            description: "disallow variable and `function` declarations in the global scope",
             category: "Best Practices",
             recommended: false
         },
@@ -20,10 +20,10 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         return {
-            Program: function() {
-                var scope = context.getScope();
+            Program() {
+                const scope = context.getScope();
 
                 scope.variables.forEach(function(variable) {
                     if (variable.writeable) {
@@ -38,7 +38,7 @@ module.exports = {
                 });
 
                 scope.implicit.variables.forEach(function(variable) {
-                    var scopeVariable = scope.set.get(variable.name);
+                    const scopeVariable = scope.set.get(variable.name);
 
                     if (scopeVariable && scopeVariable.writeable) {
                         return;

@@ -5,8 +5,8 @@ var path = require('path');
 var fs = require('fs');
 
 var expectFilePath = common.isWindows ||
-                     process.platform === 'linux' ||
-                     process.platform === 'darwin';
+                     common.isLinux ||
+                     common.isOSX;
 
 var watchSeenOne = 0;
 var watchSeenTwo = 0;
@@ -20,11 +20,6 @@ var filepathOne = path.join(testDir, filenameOne);
 var filenameTwo = 'hasOwnProperty';
 var filepathTwo = filenameTwo;
 var filepathTwoAbs = path.join(testDir, filenameTwo);
-
-var filenameThree = 'newfile.txt';
-var testsubdir = path.join(testDir, 'testsubdir');
-var filepathThree = path.join(testsubdir, filenameThree);
-
 
 process.on('exit', function() {
   assert.ok(watchSeenOne > 0);
@@ -78,7 +73,9 @@ setImmediate(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
 });
 
-fs.mkdirSync(testsubdir, 0o700);
+const filenameThree = 'newfile.txt';
+const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const filepathThree = path.join(testsubdir, filenameThree);
 
 assert.doesNotThrow(
     function() {

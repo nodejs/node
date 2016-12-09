@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -62,6 +64,7 @@ enum {
     UCASE_LOC_ROOT,
     UCASE_LOC_TURKISH,
     UCASE_LOC_LITHUANIAN,
+    UCASE_LOC_GREEK,
     UCASE_LOC_DUTCH
 };
 
@@ -156,7 +159,7 @@ U_NAMESPACE_END
 U_CAPI int32_t U_EXPORT2
 ucase_getType(const UCaseProps *csp, UChar32 c);
 
-/** @return same as ucase_getType(), or <0 if c is case-ignorable */
+/** @return like ucase_getType() but also sets UCASE_IGNORABLE if c is case-ignorable */
 U_CAPI int32_t U_EXPORT2
 ucase_getTypeOrIgnorable(const UCaseProps *csp, UChar32 c);
 

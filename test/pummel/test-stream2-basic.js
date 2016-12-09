@@ -85,7 +85,7 @@ function run() {
   var fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     ok: assert,
     equal: assert.equal,
     end: function() {

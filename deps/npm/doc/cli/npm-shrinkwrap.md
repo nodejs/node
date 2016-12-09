@@ -109,6 +109,14 @@ resolution using "version" if one isn't.
 
 2. The tree is walked and any missing dependencies are installed in the usual fashion.
 
+If `preshrinkwrap`, `shrinkwrap` or `postshrinkwrap` are in the `scripts` property of the
+`package.json`, they will be executed by running `npm shrinkwrap`.
+`preshrinkwrap` and `shrinkwrap` are executed before the shrinkwrap, `postshrinkwrap` is
+executed afterwards. For example to run some postprocessing on the generated file:
+
+    "scripts": { "postshrinkwrap": "node fix-shrinkwrap.js" }
+
+
 ### Using shrinkwrapped packages
 
 Using a shrinkwrapped package is no different than using any other
@@ -129,11 +137,11 @@ To add or update a dependency in a shrinkwrapped package:
 
 1. Run `npm install` in the package root to install the current
    versions of all dependencies.
-2. Add or update dependencies. `npm install --save` each new or updated
-   package individually to update the `package.json` and the shrinkwrap.
-   Note that they must be explicitly named in order to be installed: running
-   `npm install` with no arguments will merely reproduce the existing
-   shrinkwrap.
+2. Add or update dependencies. `npm install --save` or `npm install --save-dev`
+   each new or updated package individually to update the `package.json` and
+   the shrinkwrap. Note that they must be explicitly named in order to be
+   installed: running `npm install` with no arguments will merely reproduce
+   the existing shrinkwrap.
 3. Validate that the package works as expected with the new
    dependencies.
 4. Commit the new `npm-shrinkwrap.json`, and publish your package.
@@ -174,5 +182,7 @@ contents rather than versions.
 ## SEE ALSO
 
 * npm-install(1)
+* npm-run-script(1)
+* npm-scripts(7)
 * package.json(5)
 * npm-ls(1)

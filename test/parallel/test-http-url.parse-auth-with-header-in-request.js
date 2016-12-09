@@ -1,15 +1,8 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
-
-var testURL = url.parse('http://asdf:qwer@localhost:' + common.PORT);
-// the test here is if you set a specific authorization header in the
-// request we should not override that with basic auth
-testURL.headers = {
-  Authorization: 'NoAuthForYOU'
-};
 
 function check(request) {
   // the correct authorization header is be passed
@@ -24,7 +17,14 @@ var server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  var testURL = url.parse(`http://asdf:qwer@localhost:${this.address().port}`);
+  // the test here is if you set a specific authorization header in the
+  // request we should not override that with basic auth
+  testURL.headers = {
+    Authorization: 'NoAuthForYOU'
+  };
+
   // make the request
   http.request(testURL).end();
 });

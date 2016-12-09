@@ -1,7 +1,6 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var http = require('http');
-var assert = require('assert');
 
 var server = http.Server(function(req, res) {
   console.log('Server accepted request.');
@@ -11,14 +10,11 @@ var server = http.Server(function(req, res) {
   res.destroy();
 });
 
-var responseClose = false;
-
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
   http.get({
-    port: common.PORT,
+    port: this.address().port,
     headers: { connection: 'keep-alive' }
-
-  }, function(res) {
+  }, common.mustCall(function(res) {
     server.close();
 
     console.log('Got res: ' + res.statusCode);
@@ -42,14 +38,6 @@ server.listen(common.PORT, function() {
     });
 
     // it would be nice if this worked:
-    res.on('close', function() {
-      console.log('Response aborted');
-      responseClose = true;
-    });
-  });
-});
-
-
-process.on('exit', function() {
-  assert.ok(responseClose);
-});
+    res.on('close', common.mustCall(function() {}));
+  }));
+}));

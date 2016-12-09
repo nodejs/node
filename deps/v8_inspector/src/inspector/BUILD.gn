@@ -1,0 +1,189 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+_inspector_protocol = "//third_party/WebKit/Source/platform/inspector_protocol"
+import("$_inspector_protocol/inspector_protocol.gni")
+
+_protocol_generated = [
+  "protocol/Forward.h",
+  "protocol/Protocol.cpp",
+  "protocol/Protocol.h",
+  "protocol/Console.cpp",
+  "protocol/Console.h",
+  "protocol/Debugger.cpp",
+  "protocol/Debugger.h",
+  "protocol/HeapProfiler.cpp",
+  "protocol/HeapProfiler.h",
+  "protocol/Profiler.cpp",
+  "protocol/Profiler.h",
+  "protocol/Runtime.cpp",
+  "protocol/Runtime.h",
+  "protocol/Schema.cpp",
+  "protocol/Schema.h",
+  "../../include/inspector/Debugger.h",
+  "../../include/inspector/Runtime.h",
+  "../../include/inspector/Schema.h",
+]
+
+action("protocol_compatibility") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  script = "$_inspector_protocol/CheckProtocolCompatibility.py"
+  inputs = [
+    "js_protocol.json",
+  ]
+  _stamp = "$target_gen_dir/js_protocol.stamp"
+  outputs = [
+    _stamp,
+  ]
+  args = [
+    "--stamp",
+    rebase_path(_stamp, root_build_dir),
+    rebase_path("js_protocol.json", root_build_dir),
+  ]
+}
+
+inspector_protocol_generate("protocol_generated_sources") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  deps = [
+    ":protocol_compatibility",
+  ]
+
+  out_dir = target_gen_dir
+  config_file = "inspector_protocol_config.json"
+  inputs = [
+    "js_protocol.json",
+    "inspector_protocol_config.json",
+  ]
+  outputs = _protocol_generated
+}
+
+action("inspector_injected_script") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  script = "build/xxd.py"
+  inputs = [
+    "injected-script-source.js",
+  ]
+  outputs = [
+    "$target_gen_dir/injected-script-source.h",
+  ]
+  args = [
+    "InjectedScriptSource_js",
+    rebase_path("injected-script-source.js", root_build_dir),
+    rebase_path("$target_gen_dir/injected-script-source.h", root_build_dir),
+  ]
+}
+
+action("inspector_debugger_script") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  script = "build/xxd.py"
+  inputs = [
+    "debugger-script.js",
+  ]
+  outputs = [
+    "$target_gen_dir/debugger-script.h",
+  ]
+  args = [
+    "DebuggerScript_js",
+    rebase_path("debugger-script.js", root_build_dir),
+    rebase_path("$target_gen_dir/debugger-script.h", root_build_dir),
+  ]
+}
+
+config("inspector_config") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  cflags = []
+  if (is_win) {
+    cflags += [
+      "/wd4267",  # Truncation from size_t to int.
+      "/wd4305",  # Truncation from 'type1' to 'type2'.
+      "/wd4324",  # Struct padded due to declspec(align).
+      "/wd4714",  # Function marked forceinline not inlined.
+      "/wd4800",  # Value forced to bool.
+      "/wd4996",  # Deprecated function call.
+    ]
+  }
+  if (is_component_build) {
+    defines = [ "BUILDING_V8_SHARED" ]
+  }
+}
+
+v8_source_set("inspector") {
+  deps = [
+    ":inspector_debugger_script",
+    ":inspector_injected_script",
+    ":protocol_generated_sources",
+  ]
+  configs = [ ":inspector_config" ]
+  include_dirs = [
+    "../..",
+    "../../include",
+    "$target_gen_dir/../..",
+    "$target_gen_dir/../../include",
+  ]
+  sources = rebase_path(_protocol_generated, ".", target_gen_dir)
+  sources += [
+    "../../include/v8-inspector-protocol.h",
+    "../../include/v8-inspector.h",
+  ]
+  sources += get_target_outputs(":inspector_injected_script")
+  sources += get_target_outputs(":inspector_debugger_script")
+  sources += [
+    "injected-script-native.cc",
+    "injected-script-native.h",
+    "injected-script.cc",
+    "injected-script.h",
+    "inspected-context.cc",
+    "inspected-context.h",
+    "java-script-call-frame.cc",
+    "java-script-call-frame.h",
+    "protocol-platform.h",
+    "remote-object-id.cc",
+    "remote-object-id.h",
+    "script-breakpoint.h",
+    "search-util.cc",
+    "search-util.h",
+    "string-16.cc",
+    "string-16.h",
+    "string-util.cc",
+    "string-util.h",
+    "v8-console-agent-impl.cc",
+    "v8-console-agent-impl.h",
+    "v8-console-message.cc",
+    "v8-console-message.h",
+    "v8-console.cc",
+    "v8-console.h",
+    "v8-debugger-agent-impl.cc",
+    "v8-debugger-agent-impl.h",
+    "v8-debugger-script.cc",
+    "v8-debugger-script.h",
+    "v8-debugger.cc",
+    "v8-debugger.h",
+    "v8-function-call.cc",
+    "v8-function-call.h",
+    "v8-heap-profiler-agent-impl.cc",
+    "v8-heap-profiler-agent-impl.h",
+    "v8-injected-script-host.cc",
+    "v8-injected-script-host.h",
+    "v8-inspector-impl.cc",
+    "v8-inspector-impl.h",
+    "v8-inspector-session-impl.cc",
+    "v8-inspector-session-impl.h",
+    "v8-internal-value-type.cc",
+    "v8-internal-value-type.h",
+    "v8-profiler-agent-impl.cc",
+    "v8-profiler-agent-impl.h",
+    "v8-regex.cc",
+    "v8-regex.h",
+    "v8-runtime-agent-impl.cc",
+    "v8-runtime-agent-impl.h",
+    "v8-schema-agent-impl.cc",
+    "v8-schema-agent-impl.h",
+    "v8-stack-trace-impl.cc",
+    "v8-stack-trace-impl.h",
+    "v8-value-copier.cc",
+    "v8-value-copier.h",
+  ]
+}

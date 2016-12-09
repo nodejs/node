@@ -5,7 +5,7 @@ var baseGet = require('./_baseGet'),
  * The base implementation of `_.update`.
  *
  * @private
- * @param {Object} object The object to query.
+ * @param {Object} object The object to modify.
  * @param {Array|string} path The path of the property to update.
  * @param {Function} updater The function to produce the updated value.
  * @param {Function} [customizer] The function to customize path creation.

@@ -1,38 +1,75 @@
-HOW TO CONTRIBUTE TO OpenSSL
-----------------------------
+HOW TO CONTRIBUTE TO PATCHES OpenSSL
+------------------------------------
 
-Development is coordinated on the openssl-dev mailing list (see
-http://www.openssl.org for information on subscribing). If you
-would like to submit a patch, send it to rt@openssl.org with
-the string "[PATCH]" in the subject. Please be sure to include a
-textual explanation of what your patch does.
+(Please visit https://www.openssl.org/community/getting-started.html for
+other ideas about how to contribute.)
 
-You can also make GitHub pull requests. If you do this, please also send
-mail to rt@openssl.org with a brief description and a link to the PR so
-that we can more easily keep track of it.
-
+Development is coordinated on the openssl-dev mailing list (see the
+above link or https://mta.openssl.org for information on subscribing).
 If you are unsure as to whether a feature will be useful for the general
-OpenSSL community please discuss it on the openssl-dev mailing list first.
-Someone may be already working on the same thing or there may be a good
-reason as to why that feature isn't implemented.
+OpenSSL community you might want to discuss it on the openssl-dev mailing
+list first.  Someone may be already working on the same thing or there
+may be a good reason as to why that feature isn't implemented.
 
-Patches should be as up to date as possible, preferably relative to the
-current Git or the last snapshot. They should follow our coding style
-(see https://www.openssl.org/policies/codingstyle.html) and compile without
-warnings using the --strict-warnings flag.  OpenSSL compiles on many varied
-platforms: try to ensure you only use portable features.
+The best way to submit a patch is to make a pull request on GitHub.
+(It is not necessary to send mail to rt@openssl.org to open a ticket!)
+If you think the patch could use feedback from the community, please
+start a thread on openssl-dev.
 
-Our preferred format for patch files is "git format-patch" output. For example
-to provide a patch file containing the last commit in your local git repository
-use the following command:
+You can also submit patches by sending it as mail to rt@openssl.org.
+Please include the word "PATCH" and an explanation of what the patch
+does in the subject line.  If you do this, our preferred format is "git
+format-patch" output. For example to provide a patch file containing the
+last commit in your local git repository use the following command:
 
-# git format-patch --stdout HEAD^ >mydiffs.patch
+    % git format-patch --stdout HEAD^ >mydiffs.patch
 
 Another method of creating an acceptable patch file without using git is as
 follows:
 
-# cd openssl-work
-# [your changes]
-# ./Configure dist; make clean
-# cd ..
-# diff -ur openssl-orig openssl-work > mydiffs.patch
+    % cd openssl-work
+    ...make your changes...
+    % ./Configure dist; make clean
+    % cd ..
+    % diff -ur openssl-orig openssl-work >mydiffs.patch
+
+Note that pull requests are generally easier for the team, and community, to
+work with.  Pull requests benefit from all of the standard GitHub features,
+including code review tools, simpler integration, and CI build support.
+
+No matter how a patch is submitted, the following items will help make
+the acceptance and review process faster:
+
+    1. Anything other than trivial contributions will require a contributor
+    licensing agreement, giving us permission to use your code. See
+    https://www.openssl.org/policies/cla.html for details.
+
+    2.  All source files should start with the following text (with
+    appropriate comment characters at the start of each line and the
+    year(s) updated):
+
+        Copyright 20xx-20yy The OpenSSL Project Authors. All Rights Reserved.
+
+        Licensed under the OpenSSL license (the "License").  You may not use
+        this file except in compliance with the License.  You can obtain a copy
+        in the file LICENSE in the source distribution or at
+        https://www.openssl.org/source/license.html
+
+    3.  Patches should be as current as possible.  When using GitHub, please
+    expect to have to rebase and update often. Note that we do not accept merge
+    commits. You will be asked to remove them before a patch is considered
+    acceptable.
+
+    4.  Patches should follow our coding style (see
+    https://www.openssl.org/policies/codingstyle.html) and compile without
+    warnings. Where gcc or clang is availble you should use the
+    --strict-warnings Configure option.  OpenSSL compiles on many varied
+    platforms: try to ensure you only use portable features.
+
+    5.  When at all possible, patches should include tests. These can either be
+    added to an existing test, or completely new.  Please see test/README
+    for information on the test framework.
+
+    6.  New features or changed functionality must include documentation. Please
+    look at the "pod" files in doc/apps, doc/crypto and doc/ssl for examples of
+    our style.

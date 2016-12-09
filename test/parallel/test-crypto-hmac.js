@@ -13,7 +13,7 @@ var h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac')
                .digest('hex');
-assert.equal(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
+assert.strictEqual(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC (Wikipedia Test Cases)
 var wikipedia = [
@@ -62,14 +62,14 @@ var wikipedia = [
 for (let i = 0, l = wikipedia.length; i < l; i++) {
   for (const hash in wikipedia[i]['hmac']) {
     // FIPS does not support MD5.
-    if (common.hasFipsCrypto && hash == 'md5')
+    if (common.hasFipsCrypto && hash === 'md5')
       continue;
     const result = crypto.createHmac(hash, wikipedia[i]['key'])
                          .update(wikipedia[i]['data'])
                          .digest('hex');
-    assert.equal(wikipedia[i]['hmac'][hash],
-                 result,
-                 'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' wikipedia');
+    assert.strictEqual(wikipedia[i]['hmac'][hash],
+                       result,
+                       `Test HMAC-${hash}: Test case ${i + 1} wikipedia`);
   }
 }
 
@@ -233,10 +233,10 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
       strRes = strRes.substr(0, 32);
     }
-    assert.equal(rfc4231[i]['hmac'][hash],
-                 result,
-                 'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' rfc 4231');
-    assert.equal(strRes, result, 'Should get same result from stream');
+    assert.strictEqual(rfc4231[i]['hmac'][hash],
+                       result,
+                       `Test HMAC-${hash}: Test case ${i + 1} rfc 4231`);
+    assert.strictEqual(strRes, result, 'Should get same result from stream');
   }
 }
 
@@ -351,17 +351,21 @@ var rfc2202_sha1 = [
 
 if (!common.hasFipsCrypto) {
   for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
-    assert.equal(rfc2202_md5[i]['hmac'],
-                 crypto.createHmac('md5', rfc2202_md5[i]['key'])
-                     .update(rfc2202_md5[i]['data'])
-                     .digest('hex'),
-                 'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
+    assert.strictEqual(
+      rfc2202_md5[i]['hmac'],
+      crypto.createHmac('md5', rfc2202_md5[i]['key'])
+        .update(rfc2202_md5[i]['data'])
+        .digest('hex'),
+      `Test HMAC-MD5 : Test case ${i + 1} rfc 2202`
+    );
   }
 }
 for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
-  assert.equal(rfc2202_sha1[i]['hmac'],
-               crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
-                   .update(rfc2202_sha1[i]['data'])
-                   .digest('hex'),
-               'Test HMAC-SHA1 : Test case ' + (i + 1) + ' rfc 2202');
+  assert.strictEqual(
+    rfc2202_sha1[i]['hmac'],
+    crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
+      .update(rfc2202_sha1[i]['data'])
+      .digest('hex'),
+    `Test HMAC-SHA1 : Test case ${i + 1} rfc 2202`
+  );
 }

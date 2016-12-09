@@ -5,14 +5,18 @@
 {
   'variables': {
     'files': [
-      '<(PRODUCT_DIR)/json_fuzzer<(EXECUTABLE_SUFFIX)',
-      '<(PRODUCT_DIR)/parser_fuzzer<(EXECUTABLE_SUFFIX)',
-      '<(PRODUCT_DIR)/regexp_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_json_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_parser_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_regexp_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_asmjs_fuzzer<(EXECUTABLE_SUFFIX)',
       './fuzzer.status',
       './testcfg.py',
       './json/',
       './parser/',
       './regexp/',
+      './wasm/',
+      './wasm_asmjs/',
     ],
   },
   'includes': [

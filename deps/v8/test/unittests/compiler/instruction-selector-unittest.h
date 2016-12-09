@@ -137,13 +137,15 @@ class InstructionSelectorTest : public TestWithContext,
       // Add return location(s).
       const int return_count = static_cast<int>(msig->return_count());
       for (int i = 0; i < return_count; i++) {
-        locations.AddReturn(LinkageLocation::ForCallerFrameSlot(-1 - i));
+        locations.AddReturn(
+            LinkageLocation::ForCallerFrameSlot(-1 - i, msig->GetReturn(i)));
       }
 
       // Just put all parameters on the stack.
       const int parameter_count = static_cast<int>(msig->parameter_count());
       for (int i = 0; i < parameter_count; i++) {
-        locations.AddParam(LinkageLocation::ForCallerFrameSlot(-1 - i));
+        locations.AddParam(
+            LinkageLocation::ForCallerFrameSlot(-1 - i, msig->GetParam(i)));
       }
 
       const RegList kCalleeSaveRegisters = 0;
@@ -155,7 +157,6 @@ class InstructionSelectorTest : public TestWithContext,
           CallDescriptor::kCallAddress,  // kind
           target_type,                   // target MachineType
           target_loc,                    // target location
-          msig,                          // machine_sig
           locations.Build(),             // location_sig
           0,                             // stack_parameter_count
           Operator::kNoProperties,       // properties

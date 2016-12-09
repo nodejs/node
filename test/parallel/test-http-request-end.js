@@ -1,18 +1,20 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
 var expected = 'Post Body For Test';
-var result = '';
 
 var server = http.Server(function(req, res) {
+  var result = '';
+
   req.setEncoding('utf8');
   req.on('data', function(chunk) {
     result += chunk;
   });
 
   req.on('end', function() {
+    assert.strictEqual(expected, result);
     server.close();
     res.writeHead(200);
     res.end('hello world\n');
@@ -20,9 +22,9 @@ var server = http.Server(function(req, res) {
 
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   http.request({
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'POST'
   }, function(res) {
@@ -32,8 +34,4 @@ server.listen(common.PORT, function() {
     console.log(e.message);
     process.exit(1);
   }).end(expected);
-});
-
-process.on('exit', function() {
-  assert.equal(expected, result);
 });

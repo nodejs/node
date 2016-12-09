@@ -2,6 +2,7 @@
 
 var test = require('tape');
 var qs = require('../');
+var iconv = require('iconv-lite');
 
 test('parse()', function (t) {
     t.test('parses a simple string', function (st) {
@@ -120,8 +121,11 @@ test('parse()', function (t) {
         st.deepEqual(qs.parse('foo[]=bar&foo[bad]=baz'), { foo: { '0': 'bar', bad: 'baz' } });
         st.deepEqual(qs.parse('foo[bad]=baz&foo[]=bar&foo[]=foo'), { foo: { bad: 'baz', '0': 'bar', '1': 'foo' } });
         st.deepEqual(qs.parse('foo[0][a]=a&foo[0][b]=b&foo[1][a]=aa&foo[1][b]=bb'), { foo: [{ a: 'a', b: 'b' }, { a: 'aa', b: 'bb' }] });
-        st.deepEqual(qs.parse('a[]=b&a[t]=u&a[hasOwnProperty]=c'), { a: { '0': 'b', t: 'u', c: true } });
-        st.deepEqual(qs.parse('a[]=b&a[hasOwnProperty]=c&a[x]=y'), { a: { '0': 'b', '1': 'c', x: 'y' } });
+
+        st.deepEqual(qs.parse('a[]=b&a[t]=u&a[hasOwnProperty]=c', { allowPrototypes: false }), { a: { '0': 'b', c: true, t: 'u' } });
+        st.deepEqual(qs.parse('a[]=b&a[t]=u&a[hasOwnProperty]=c', { allowPrototypes: true }), { a: { '0': 'b', t: 'u', hasOwnProperty: 'c' } });
+        st.deepEqual(qs.parse('a[]=b&a[hasOwnProperty]=c&a[x]=y', { allowPrototypes: false }), { a: { '0': 'b', '1': 'c', x: 'y' } });
+        st.deepEqual(qs.parse('a[]=b&a[hasOwnProperty]=c&a[x]=y', { allowPrototypes: true }), { a: { '0': 'b', hasOwnProperty: 'c', x: 'y' } });
         st.end();
     });
 
@@ -173,14 +177,42 @@ test('parse()', function (t) {
 
     t.test('allows for empty strings in arrays', function (st) {
         st.deepEqual(qs.parse('a[]=b&a[]=&a[]=c'), { a: ['b', '', 'c'] });
-        st.deepEqual(qs.parse('a[0]=b&a[1]&a[2]=c&a[19]=', { strictNullHandling: true }), { a: ['b', null, 'c', ''] });
-        st.deepEqual(qs.parse('a[0]=b&a[1]=&a[2]=c&a[19]', { strictNullHandling: true }), { a: ['b', '', 'c', null] });
-        st.deepEqual(qs.parse('a[]=&a[]=b&a[]=c'), { a: ['', 'b', 'c'] });
+
+        st.deepEqual(
+            qs.parse('a[0]=b&a[1]&a[2]=c&a[19]=', { strictNullHandling: true, arrayLimit: 20 }),
+            { a: ['b', null, 'c', ''] },
+            'with arrayLimit 20 + array indices: null then empty string works'
+        );
+        st.deepEqual(
+            qs.parse('a[]=b&a[]&a[]=c&a[]=', { strictNullHandling: true, arrayLimit: 0 }),
+            { a: ['b', null, 'c', ''] },
+            'with arrayLimit 0 + array brackets: null then empty string works'
+        );
+
+        st.deepEqual(
+            qs.parse('a[0]=b&a[1]=&a[2]=c&a[19]', { strictNullHandling: true, arrayLimit: 20 }),
+            { a: ['b', '', 'c', null] },
+            'with arrayLimit 20 + array indices: empty string then null works'
+        );
+        st.deepEqual(
+            qs.parse('a[]=b&a[]=&a[]=c&a[]', { strictNullHandling: true, arrayLimit: 0 }),
+            { a: ['b', '', 'c', null] },
+            'with arrayLimit 0 + array brackets: empty string then null works'
+        );
+
+        st.deepEqual(
+            qs.parse('a[]=&a[]=b&a[]=c'),
+            { a: ['', 'b', 'c'] },
+            'array brackets: empty strings work'
+        );
         st.end();
     });
 
     t.test('compacts sparse arrays', function (st) {
         st.deepEqual(qs.parse('a[10]=1&a[2]=2'), { a: ['2', '1'] });
+        st.deepEqual(qs.parse('a[1][b][2][c]=1'), { a: [{ b: [{ c: '1' }] }] });
+        st.deepEqual(qs.parse('a[1][2][3][c]=1'), { a: [[[{ c: '1' }]]] });
+        st.deepEqual(qs.parse('a[1][2][3][c][1]=1'), { a: [[[{ c: ['1'] }]]] });
         st.end();
     });
 
@@ -388,6 +420,32 @@ test('parse()', function (t) {
         expectedArray.a['0'] = 'b';
         expectedArray.a.c = 'd';
         st.deepEqual(qs.parse('a[]=b&a[c]=d', { plainObjects: true }), expectedArray);
+        st.end();
+    });
+
+    t.test('can parse with custom encoding', function (st) {
+        st.deepEqual(qs.parse('%8c%a7=%91%e5%8d%e3%95%7b', {
+            decoder: function (str) {
+                var reg = /\%([0-9A-F]{2})/ig;
+                var result = [];
+                var parts;
+                var last = 0;
+                while (parts = reg.exec(str)) {
+                    result.push(parseInt(parts[1], 16));
+                    last = parts.index + parts[0].length;
+                }
+                return iconv.decode(new Buffer(result), 'shift_jis').toString();
+            }
+        }), { 県: '大阪府' });
+        st.end();
+    });
+
+    t.test('throws error with wrong decoder', function (st) {
+        st.throws(function () {
+            qs.parse({}, {
+                decoder: 'string'
+            });
+        }, new TypeError('Decoder has to be a function.'));
         st.end();
     });
 });

@@ -4,8 +4,6 @@
  */
 "use strict";
 
-var lodash = require("lodash");
-
 module.exports = {
     meta: {
         docs: {
@@ -39,14 +37,14 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var source = context.getSourceCode();
-        var DEFAULT_OPTIONS = {
+    create(context) {
+        const source = context.getSourceCode();
+        const DEFAULT_OPTIONS = {
             FunctionDeclaration: true,
             MethodDefinition: false,
             ClassDeclaration: false
         };
-        var options = lodash.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
+        const options = Object.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
 
         /**
          * Report the error message
@@ -64,7 +62,7 @@ module.exports = {
          */
         function checkClassMethodJsDoc(node) {
             if (node.parent.type === "MethodDefinition") {
-                var jsdocComment = source.getJSDocComment(node);
+                const jsdocComment = source.getJSDocComment(node);
 
                 if (!jsdocComment) {
                     report(node);
@@ -78,7 +76,7 @@ module.exports = {
          * @returns {void}
          */
         function checkJsDoc(node) {
-            var jsdocComment = source.getJSDocComment(node);
+            const jsdocComment = source.getJSDocComment(node);
 
             if (!jsdocComment) {
                 report(node);
@@ -86,17 +84,17 @@ module.exports = {
         }
 
         return {
-            FunctionDeclaration: function(node) {
+            FunctionDeclaration(node) {
                 if (options.FunctionDeclaration) {
                     checkJsDoc(node);
                 }
             },
-            FunctionExpression: function(node) {
+            FunctionExpression(node) {
                 if (options.MethodDefinition) {
                     checkClassMethodJsDoc(node);
                 }
             },
-            ClassDeclaration: function(node) {
+            ClassDeclaration(node) {
                 if (options.ClassDeclaration) {
                     checkJsDoc(node);
                 }

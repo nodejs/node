@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --promise-extra
+// Flags: --allow-natives-syntax
 
 var x = 0;
 var y = 0;
@@ -38,7 +38,7 @@ for (var i = 0; i < 3; ++i) {
 assertEquals(0, x);
 
 (function check() {
-  Promise.resolve().chain(function() {
+  Promise.resolve().then(function() {
     // Delay check until all handlers have run.
     if (y < 3) check(); else assertEquals(6, x);
   }).catch(function(e) { %AbortJS("FAILURE: " + e) });

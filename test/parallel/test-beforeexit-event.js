@@ -1,42 +1,26 @@
 'use strict';
-var assert = require('assert');
-var net = require('net');
-var common = require('../common');
-var revivals = 0;
-var deaths = 0;
+const common = require('../common');
+const net = require('net');
 
-process.on('beforeExit', function() { deaths++; });
-
-process.once('beforeExit', tryImmediate);
+process.once('beforeExit', common.mustCall(tryImmediate));
 
 function tryImmediate() {
-  console.log('set immediate');
-  setImmediate(function() {
-    revivals++;
-    process.once('beforeExit', tryTimer);
-  });
+  setImmediate(common.mustCall(() => {
+    process.once('beforeExit', common.mustCall(tryTimer));
+  }));
 }
 
 function tryTimer() {
-  console.log('set a timeout');
-  setTimeout(function() {
-    console.log('timeout cb, do another once beforeExit');
-    revivals++;
-    process.once('beforeExit', tryListen);
-  }, 1);
+  setTimeout(common.mustCall(() => {
+    process.once('beforeExit', common.mustCall(tryListen));
+  }), 1);
 }
 
 function tryListen() {
-  console.log('create a server');
   net.createServer()
-    .listen(common.PORT)
-    .on('listening', function() {
-      revivals++;
+    .listen(0)
+    .on('listening', common.mustCall(function() {
       this.close();
-    });
+      process.on('beforeExit', common.mustCall(() => {}));
+    }));
 }
-
-process.on('exit', function() {
-  assert.equal(4, deaths);
-  assert.equal(3, revivals);
-});

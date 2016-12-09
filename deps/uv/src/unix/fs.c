@@ -46,9 +46,10 @@
 #include <utime.h>
 #include <poll.h>
 
-#if defined(__DragonFly__)  ||                                            \
-    defined(__FreeBSD__)    ||                                            \
-    defined(__OpenBSD__)    ||                                            \
+#if defined(__DragonFly__)        ||                                      \
+    defined(__FreeBSD__)          ||                                      \
+    defined(__FreeBSD_kernel_)    ||                                      \
+    defined(__OpenBSD__)          ||                                      \
     defined(__NetBSD__)
 # define HAVE_PREADV 1
 #else
@@ -151,9 +152,9 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
     goto skip;
 
   ts[0].tv_sec  = req->atime;
-  ts[0].tv_nsec = (unsigned long)(req->atime * 1000000) % 1000000 * 1000;
+  ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
   ts[1].tv_sec  = req->mtime;
-  ts[1].tv_nsec = (unsigned long)(req->mtime * 1000000) % 1000000 * 1000;
+  ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
 
   r = uv__utimesat(req->file, NULL, ts, 0);
   if (r == 0)
@@ -167,9 +168,9 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 skip:
 
   tv[0].tv_sec  = req->atime;
-  tv[0].tv_usec = (unsigned long)(req->atime * 1000000) % 1000000;
+  tv[0].tv_usec = (uint64_t)(req->atime * 1000000) % 1000000;
   tv[1].tv_sec  = req->mtime;
-  tv[1].tv_usec = (unsigned long)(req->mtime * 1000000) % 1000000;
+  tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
   snprintf(path, sizeof(path), "/proc/self/fd/%d", (int) req->file);
 
   r = utimes(path, tv);
@@ -193,14 +194,15 @@ skip:
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
+    || defined(__FreeBSD_kernel__)                                            \
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)                                                   \
     || defined(__sun)
   struct timeval tv[2];
   tv[0].tv_sec  = req->atime;
-  tv[0].tv_usec = (unsigned long)(req->atime * 1000000) % 1000000;
+  tv[0].tv_usec = (uint64_t)(req->atime * 1000000) % 1000000;
   tv[1].tv_sec  = req->mtime;
-  tv[1].tv_usec = (unsigned long)(req->mtime * 1000000) % 1000000;
+  tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
 # if defined(__sun)
   return futimesat(req->file, NULL, tv);
 # else
@@ -209,10 +211,18 @@ skip:
 #elif defined(_AIX71)
   struct timespec ts[2];
   ts[0].tv_sec  = req->atime;
-  ts[0].tv_nsec = (unsigned long)(req->atime * 1000000) % 1000000 * 1000;
+  ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
   ts[1].tv_sec  = req->mtime;
-  ts[1].tv_nsec = (unsigned long)(req->mtime * 1000000) % 1000000 * 1000;
+  ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
   return futimens(req->file, ts);
+#elif defined(__MVS__)
+  attrib_t atr;
+  memset(&atr, 0, sizeof(atr));
+  atr.att_mtimechg = 1;
+  atr.att_atimechg = 1;
+  atr.att_mtime = req->mtime;
+  atr.att_atime = req->atime;
+  return __fchattr(req->file, &atr, sizeof(atr));
 #else
   errno = ENOSYS;
   return -1;
@@ -251,7 +261,7 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
    */
   if (r >= 0 && uv__cloexec(r, 1) != 0) {
     r = uv__close(r);
-    if (r != 0 && r != -EINPROGRESS)
+    if (r != 0)
       abort();
     r = -1;
   }
@@ -336,12 +346,20 @@ done:
 }
 
 
-#if defined(__OpenBSD__) || (defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_8))
-static int uv__fs_scandir_filter(uv__dirent_t* dent) {
+#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_8)
+#define UV_CONST_DIRENT uv__dirent_t
 #else
-static int uv__fs_scandir_filter(const uv__dirent_t* dent) {
+#define UV_CONST_DIRENT const uv__dirent_t
 #endif
+
+
+static int uv__fs_scandir_filter(UV_CONST_DIRENT* dent) {
   return strcmp(dent->d_name, ".") != 0 && strcmp(dent->d_name, "..") != 0;
+}
+
+
+static int uv__fs_scandir_sort(UV_CONST_DIRENT** a, UV_CONST_DIRENT** b) {
+  return strcmp((*a)->d_name, (*b)->d_name);
 }
 
 
@@ -351,7 +369,7 @@ static ssize_t uv__fs_scandir(uv_fs_t* req) {
   int n;
 
   dents = NULL;
-  n = scandir(req->path, &dents, uv__fs_scandir_filter, alphasort);
+  n = scandir(req->path, &dents, uv__fs_scandir_filter, uv__fs_scandir_sort);
 
   /* NOTE: We will use nbufs as an index field */
   req->nbufs = 0;
@@ -595,7 +613,10 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 
     return -1;
   }
-#elif defined(__FreeBSD__) || defined(__APPLE__) || defined(__DragonFly__)
+#elif defined(__APPLE__)           || \
+      defined(__DragonFly__)       || \
+      defined(__FreeBSD__)         || \
+      defined(__FreeBSD_kernel__)
   {
     off_t len;
     ssize_t r;
@@ -608,6 +629,15 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 #if defined(__FreeBSD__) || defined(__DragonFly__)
     len = 0;
     r = sendfile(in_fd, out_fd, req->off, req->bufsml[0].len, NULL, &len, 0);
+#elif defined(__FreeBSD_kernel__)
+    len = 0;
+    r = bsd_sendfile(in_fd,
+                     out_fd,
+                     req->off,
+                     req->bufsml[0].len,
+                     NULL,
+                     &len,
+                     0);
 #else
     /* The darwin sendfile takes len as an input for the length to send,
      * so make sure to initialize it with the caller's value. */
@@ -768,6 +798,7 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_flags = 0;
   dst->st_gen = 0;
 #elif !defined(_AIX) && (       \
+    defined(_GNU_SOURCE)     || \
     defined(_BSD_SOURCE)     || \
     defined(_SVID_SOURCE)    || \
     defined(_XOPEN_SOURCE)   || \
@@ -810,8 +841,11 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
 static int uv__fs_stat(const char *path, uv_stat_t *buf) {
   struct stat pbuf;
   int ret;
+
   ret = stat(path, &pbuf);
-  uv__to_stat(&pbuf, buf);
+  if (ret == 0)
+    uv__to_stat(&pbuf, buf);
+
   return ret;
 }
 
@@ -819,8 +853,11 @@ static int uv__fs_stat(const char *path, uv_stat_t *buf) {
 static int uv__fs_lstat(const char *path, uv_stat_t *buf) {
   struct stat pbuf;
   int ret;
+
   ret = lstat(path, &pbuf);
-  uv__to_stat(&pbuf, buf);
+  if (ret == 0)
+    uv__to_stat(&pbuf, buf);
+
   return ret;
 }
 
@@ -828,8 +865,11 @@ static int uv__fs_lstat(const char *path, uv_stat_t *buf) {
 static int uv__fs_fstat(int fd, uv_stat_t *buf) {
   struct stat pbuf;
   int ret;
+
   ret = fstat(fd, &pbuf);
-  uv__to_stat(&pbuf, buf);
+  if (ret == 0)
+    uv__to_stat(&pbuf, buf);
+
   return ret;
 }
 

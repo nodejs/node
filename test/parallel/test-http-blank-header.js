@@ -1,13 +1,10 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
 
-var gotReq = false;
-
-var server = http.createServer(function(req, res) {
-  gotReq = true;
+var server = http.createServer(common.mustCall(function(req, res) {
   assert.equal('GET', req.method);
   assert.equal('/blah', req.url);
   assert.deepStrictEqual({
@@ -15,11 +12,11 @@ var server = http.createServer(function(req, res) {
     origin: 'http://mapdevel.trolologames.ru',
     cookie: ''
   }, req.headers);
-});
+}));
 
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
     c.write('GET /blah HTTP/1.1\r\n' +
@@ -37,9 +34,4 @@ server.listen(common.PORT, function() {
   c.on('close', function() {
     server.close();
   });
-});
-
-
-process.on('exit', function() {
-  assert.ok(gotReq);
 });

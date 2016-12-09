@@ -250,9 +250,9 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
                                   unsigned char *psk,
                                   unsigned int max_psk_len)
 {
-    unsigned int psk_len = 0;
     int ret;
-    BIGNUM *bn = NULL;
+    long key_len;
+    unsigned char *key;
 
     if (c_debug)
         BIO_printf(bio_c_out, "psk_client_cb\n");
@@ -273,32 +273,29 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
     if (c_debug)
         BIO_printf(bio_c_out, "created identity '%s' len=%d\n", identity,
                    ret);
-    ret = BN_hex2bn(&bn, psk_key);
-    if (!ret) {
-        BIO_printf(bio_err, "Could not convert PSK key '%s' to BIGNUM\n",
+
+    /* convert the PSK key to binary */
+    key = string_to_hex(psk_key, &key_len);
+    if (key == NULL) {
+        BIO_printf(bio_err, "Could not convert PSK key '%s' to buffer\n",
                    psk_key);
-        if (bn)
-            BN_free(bn);
         return 0;
     }
-
-    if ((unsigned int)BN_num_bytes(bn) > max_psk_len) {
+    if ((unsigned long)key_len > (unsigned long)max_psk_len) {
         BIO_printf(bio_err,
-                   "psk buffer of callback is too small (%d) for key (%d)\n",
-                   max_psk_len, BN_num_bytes(bn));
-        BN_free(bn);
+                   "psk buffer of callback is too small (%d) for key (%ld)\n",
+                   max_psk_len, key_len);
+        OPENSSL_free(key);
         return 0;
     }
 
-    psk_len = BN_bn2bin(bn, psk);
-    BN_free(bn);
-    if (psk_len == 0)
-        goto out_err;
+    memcpy(psk, key, key_len);
+    OPENSSL_free(key);
 
     if (c_debug)
-        BIO_printf(bio_c_out, "created PSK len=%d\n", psk_len);
+        BIO_printf(bio_c_out, "created PSK len=%ld\n", key_len);
 
-    return psk_len;
+    return key_len;
  out_err:
     if (c_debug)
         BIO_printf(bio_err, "Error in PSK client callback\n");
@@ -759,6 +756,7 @@ int MAIN(int argc, char **argv)
     int crl_format = FORMAT_PEM;
     int crl_download = 0;
     STACK_OF(X509_CRL) *crls = NULL;
+    int prot_opt = 0, no_prot_opt = 0;
 
     meth = SSLv23_client_method();
 
@@ -862,7 +860,8 @@ int MAIN(int argc, char **argv)
             if (badarg)
                 goto bad;
             continue;
-        } else if (args_ssl(&argv, &argc, cctx, &badarg, bio_err, &ssl_args)) {
+        } else if (args_ssl(&argv, &argc, cctx, &badarg, bio_err, &ssl_args,
+                            &no_prot_opt)) {
             if (badarg)
                 goto bad;
             continue;
@@ -954,31 +953,42 @@ int MAIN(int argc, char **argv)
         }
 #endif
 #ifndef OPENSSL_NO_SSL2
-        else if (strcmp(*argv, "-ssl2") == 0)
+        else if (strcmp(*argv, "-ssl2") == 0) {
             meth = SSLv2_client_method();
+            prot_opt++;
+        }
 #endif
 #ifndef OPENSSL_NO_SSL3_METHOD
-        else if (strcmp(*argv, "-ssl3") == 0)
+        else if (strcmp(*argv, "-ssl3") == 0) {
             meth = SSLv3_client_method();
+            prot_opt++;
+        }
 #endif
 #ifndef OPENSSL_NO_TLS1
-        else if (strcmp(*argv, "-tls1_2") == 0)
+        else if (strcmp(*argv, "-tls1_2") == 0) {
             meth = TLSv1_2_client_method();
-        else if (strcmp(*argv, "-tls1_1") == 0)
+            prot_opt++;
+        } else if (strcmp(*argv, "-tls1_1") == 0) {
             meth = TLSv1_1_client_method();
-        else if (strcmp(*argv, "-tls1") == 0)
+            prot_opt++;
+        } else if (strcmp(*argv, "-tls1") == 0) {
             meth = TLSv1_client_method();
+            prot_opt++;
+        }
 #endif
 #ifndef OPENSSL_NO_DTLS1
         else if (strcmp(*argv, "-dtls") == 0) {
             meth = DTLS_client_method();
             socket_type = SOCK_DGRAM;
+            prot_opt++;
         } else if (strcmp(*argv, "-dtls1") == 0) {
             meth = DTLSv1_client_method();
             socket_type = SOCK_DGRAM;
+            prot_opt++;
         } else if (strcmp(*argv, "-dtls1_2") == 0) {
             meth = DTLSv1_2_client_method();
             socket_type = SOCK_DGRAM;
+            prot_opt++;
         } else if (strcmp(*argv, "-timeout") == 0)
             enable_timeouts = 1;
         else if (strcmp(*argv, "-mtu") == 0) {
@@ -1164,6 +1174,17 @@ int MAIN(int argc, char **argv)
         psk_identity = "JPAKE";
     }
 #endif
+
+    if (prot_opt > 1) {
+        BIO_printf(bio_err, "Cannot supply multiple protocol flags\n");
+        goto end;
+    }
+
+    if (prot_opt == 1 && no_prot_opt) {
+        BIO_printf(bio_err, "Cannot supply both a protocol flag and "
+                            "\"-no_<prot>\"\n");
+        goto end;
+    }
 
     OpenSSL_add_ssl_algorithms();
     SSL_load_error_strings();
@@ -1556,7 +1577,10 @@ int MAIN(int argc, char **argv)
     SSL_set_connect_state(con);
 
     /* ok, lets connect */
-    width = SSL_get_fd(con) + 1;
+    if (fileno_stdin() > SSL_get_fd(con))
+        width = fileno_stdin() + 1;
+    else
+        width = SSL_get_fd(con) + 1;
 
     read_tty = 1;
     write_tty = 0;
@@ -1739,9 +1763,11 @@ int MAIN(int argc, char **argv)
 #if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_NETWARE) && !defined (OPENSSL_SYS_BEOS_R5)
             if (tty_on) {
                 if (read_tty)
-                    openssl_fdset(fileno(stdin), &readfds);
+                    openssl_fdset(fileno_stdin(), &readfds);
+#if !defined(OPENSSL_SYS_VMS)
                 if (write_tty)
-                    openssl_fdset(fileno(stdout), &writefds);
+                    openssl_fdset(fileno_stdout(), &writefds);
+#endif
             }
             if (read_ssl)
                 openssl_fdset(SSL_get_fd(con), &readfds);
@@ -1810,14 +1836,14 @@ int MAIN(int argc, char **argv)
             /* Under BeOS-R5 the situation is similar to DOS */
             i = 0;
             stdin_set = 0;
-            (void)fcntl(fileno(stdin), F_SETFL, O_NONBLOCK);
+            (void)fcntl(fileno_stdin(), F_SETFL, O_NONBLOCK);
             if (!write_tty) {
                 if (read_tty) {
                     tv.tv_sec = 1;
                     tv.tv_usec = 0;
                     i = select(width, (void *)&readfds, (void *)&writefds,
                                NULL, &tv);
-                    if (read(fileno(stdin), sbuf, 0) >= 0)
+                    if (read(fileno_stdin(), sbuf, 0) >= 0)
                         stdin_set = 1;
                     if (!i && (stdin_set != 1 || !read_tty))
                         continue;
@@ -1825,7 +1851,7 @@ int MAIN(int argc, char **argv)
                     i = select(width, (void *)&readfds, (void *)&writefds,
                                NULL, timeoutp);
             }
-            (void)fcntl(fileno(stdin), F_SETFL, 0);
+            (void)fcntl(fileno_stdin(), F_SETFL, 0);
 #else
             i = select(width, (void *)&readfds, (void *)&writefds,
                        NULL, timeoutp);
@@ -1901,11 +1927,11 @@ int MAIN(int argc, char **argv)
                 goto shut;
             }
         }
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE) || defined(OPENSSL_SYS_BEOS_R5)
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE) || defined(OPENSSL_SYS_BEOS_R5) || defined(OPENSSL_SYS_VMS)
         /* Assume Windows/DOS/BeOS can always write */
         else if (!ssl_pending && write_tty)
 #else
-        else if (!ssl_pending && FD_ISSET(fileno(stdout), &writefds))
+        else if (!ssl_pending && FD_ISSET(fileno_stdout(), &writefds))
 #endif
         {
 #ifdef CHARSET_EBCDIC
@@ -2003,7 +2029,7 @@ int MAIN(int argc, char **argv)
 #elif defined(OPENSSL_SYS_BEOS_R5)
         else if (stdin_set)
 #else
-        else if (FD_ISSET(fileno(stdin), &readfds))
+        else if (FD_ISSET(fileno_stdin(), &readfds))
 #endif
         {
             if (crlf) {

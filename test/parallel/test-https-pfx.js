@@ -13,7 +13,7 @@ var pfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
 
 var options = {
   host: '127.0.0.1',
-  port: common.PORT,
+  port: undefined,
   path: '/',
   pfx: pfx,
   passphrase: 'sample',
@@ -28,15 +28,16 @@ var server = https.createServer(options, function(req, res) {
   res.end('OK');
 });
 
-server.listen(options.port, options.host, function() {
-  var data = '';
+server.listen(0, options.host, common.mustCall(function() {
+  options.port = this.address().port;
 
-  https.get(options, function(res) {
+  https.get(options, common.mustCall(function(res) {
+    var data = '';
+
     res.on('data', function(data_) { data += data_; });
-    res.on('end', function() { server.close(); });
-  });
-
-  process.on('exit', function() {
-    assert.equal(data, 'OK');
-  });
-});
+    res.on('end', common.mustCall(function() {
+      assert.strictEqual(data, 'OK');
+      server.close();
+    }));
+  }));
+}));

@@ -17,14 +17,13 @@ server.on('clientError', common.mustCall((err, socket) => {
   socket.destroy();
 }));
 
-server.listen(common.PORT, () => {
+server.listen(0, () => {
   const req = http.get({
-    port: common.PORT,
+    port: server.address().port,
     // Send two content-length header values.
     headers: {'Content-Length': [1, 2]}},
     (res) => {
-      assert.fail(null, null, 'an error should have occurred');
-      server.close();
+      common.fail('an error should have occurred');
     }
   );
   req.on('error', common.mustCall(() => {

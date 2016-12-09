@@ -101,7 +101,7 @@ int PKCS5_pbe_set0_algor(X509_ALGOR *algor, int alg, int iter,
     sstr = ASN1_STRING_data(pbe->salt);
     if (salt)
         memcpy(sstr, salt, saltlen);
-    else if (RAND_pseudo_bytes(sstr, saltlen) < 0)
+    else if (RAND_bytes(sstr, saltlen) <= 0)
         goto err;
 
     if (!ASN1_item_pack(pbe, ASN1_ITEM_rptr(PBEPARAM), &pbe_str)) {

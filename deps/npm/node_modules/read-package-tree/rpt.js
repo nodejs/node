@@ -98,7 +98,10 @@ function loadNode (logical, physical, cache, cb) {
 
   var realpath
   function thenReadPackageJson (er, real) {
-    if (er) return cb(er)
+    if (er) {
+      var node = new Node(null, logical, physical, er, cache)
+      return cb(null, node)
+    }
     debug('realpath l=%j p=%j real=%j', dpath(logical), dpath(physical), dpath(real))
     var pj = path.join(real, 'package.json')
     realpath = real

@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 var path = require('path');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
-var common = require('../common');
 
 var child = spawn(process.argv[0], [
   path.join(common.fixturesDir, 'GH-1899-output.js')
@@ -17,4 +17,3 @@ child.on('exit', function(code, signal) {
   assert.equal(code, 0);
   assert.equal(output, 'hello, world!\n');
 });
-

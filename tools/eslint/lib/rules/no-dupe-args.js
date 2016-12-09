@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -42,17 +42,17 @@ module.exports = {
          * @private
          */
         function checkParams(node) {
-            var variables = context.getDeclaredVariables(node);
+            const variables = context.getDeclaredVariables(node);
 
-            for (var i = 0; i < variables.length; ++i) {
-                var variable = variables[i];
+            for (let i = 0; i < variables.length; ++i) {
+                const variable = variables[i];
 
                 // Checks and reports duplications.
-                var defs = variable.defs.filter(isParameter);
+                const defs = variable.defs.filter(isParameter);
 
                 if (defs.length >= 2) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Duplicate param '{{name}}'.",
                         data: {name: variable.name}
                     });

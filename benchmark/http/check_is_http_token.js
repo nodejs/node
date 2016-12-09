@@ -37,7 +37,7 @@ const bench = common.createBenchmark(main, {
     ':alternate-protocol', // fast bailout
     'alternate-protocol:' // slow bailout
   ],
-  n: [1e6],
+  n: [5e8],
 });
 
 function main(conf) {

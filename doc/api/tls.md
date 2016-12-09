@@ -1,6 +1,6 @@
 # TLS (SSL)
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
@@ -19,7 +19,7 @@ Private keys can be generated in multiple ways. The example below illustrates
 use of the OpenSSL command-line interface to generate a 2048-bit RSA private
 key:
 
-```
+```sh
 openssl genrsa -out ryans-key.pem 2048
 ```
 
@@ -33,7 +33,7 @@ step to obtaining a certificate is to create a *Certificate Signing Request*
 The OpenSSL command-line interface can be used to generate a CSR for a private
 key:
 
-```
+```sh
 openssl req -new -sha256 -key ryans-key.pem -out ryans-csr.pem
 ```
 
@@ -43,14 +43,14 @@ Authority for signing or used to generate a self-signed certificate.
 Creating a self-signed certificate using the OpenSSL command-line interface
 is illustrated in the example below:
 
-```
+```sh
 openssl x509 -req -in ryans-csr.pem -signkey ryans-key.pem -out ryans-cert.pem
 ```
 
 Once the certificate is generated, it can be used to generate a `.pfx` or
 `.p12` file:
 
-```
+```sh
 openssl pkcs12 -export -in ryans-cert.pem -inkey ryans-key.pem \
       -certfile ca-cert.pem -out ryans.pfx
 ```
@@ -92,11 +92,11 @@ To use Perfect Forward Secrecy using `DHE` with the `tls` module, it is required
 to generate Diffie-Hellman parameters. The following illustrates the use of the
 OpenSSL command-line interface to generate such parameters:
 
-```
+```sh
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
-If using Perfect Foward Secrecy using `ECDHE`, Diffie-Hellman parameters are
+If using Perfect Forward Secrecy using `ECDHE`, Diffie-Hellman parameters are
 not required and a default ECDHE curve will be used. The `ecdheCurve` property
 can be used when creating a TLS Server to specify the name of an
 alternative curve to use.
@@ -147,7 +147,7 @@ command-line client (`openssl s_client -connect address:port`) then input
 Node.js is built with a default suite of enabled and disabled TLS ciphers.
 Currently, the default cipher suite is:
 
-```
+```txt
 ECDHE-RSA-AES128-GCM-SHA256:
 ECDHE-ECDSA-AES128-GCM-SHA256:
 ECDHE-RSA-AES256-GCM-SHA384:
@@ -175,7 +175,7 @@ This default can be replaced entirely using the `--tls-cipher-list` command
 line switch. For instance, the following makes
 `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS cipher suite:
 
-```
+```sh
 node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
 ```
 
@@ -186,11 +186,17 @@ of an application. The `--tls-cipher-list` switch should by used only if
 absolutely necessary.
 
 ## Class: tls.Server
+<!-- YAML
+added: v0.3.2
+-->
 
 The `tls.Server` class is a subclass of `net.Server` that accepts encrypted
 connections using TLS or SSL.
 
 ### Event: 'tlsClientError'
+<!-- YAML
+added: v6.0.0
+-->
 
 The `'tlsClientError'` event is emitted when an error occurs before a secure
 connection is established. The listener callback is passed two arguments when
@@ -201,6 +207,9 @@ called:
   error originated.
 
 ### Event: 'newSession'
+<!-- YAML
+added: v0.9.2
+-->
 
 The `'newSession'` event is emitted upon creation of a new TLS session. This may
 be used to store sessions in external storage. The listener callback is passed
@@ -215,6 +224,9 @@ three arguments when called:
 established after the addition of the event listener.
 
 ### Event: 'OCSPRequest'
+<!-- YAML
+added: v0.11.13
+-->
 
 The `'OCSPRequest'` event is emitted when the client sends a certificate status
 request. The listener callback is passed three arguments when called:
@@ -259,6 +271,9 @@ established after the addition of the event listener.
 *Note*: An npm module like [asn1.js] may be used to parse the certificates.
 
 ### Event: 'resumeSession'
+<!-- YAML
+added: v0.9.2
+-->
 
 The `'resumeSession'` event is emitted when the client requests to resume a
 previous TLS session. The listener callback is passed two arguments when
@@ -291,6 +306,9 @@ server.on('resumeSession', (id, cb) => {
 ```
 
 ### Event: 'secureConnection'
+<!-- YAML
+added: v0.3.2
+-->
 
 The `'secureConnection'` event is emitted after the handshaking process for a
 new connection has successfully completed. The listener callback is passed a
@@ -315,6 +333,9 @@ The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
 
 ### server.addContext(hostname, context)
+<!-- YAML
+added: v0.5.3
+-->
 
 * `hostname` {string} A SNI hostname or wildcard (e.g. `'*'`)
 * `context` {Object} An object containing any of the possible properties
@@ -322,15 +343,21 @@ requested via SNI.
   `cert`, `ca`, etc).
 
 The `server.addContext()` method adds a secure context that will be used if
-the client request's SNS hostname matches the supplied `hostname` (or wildcard).
+the client request's SNI hostname matches the supplied `hostname` (or wildcard).
 
 ### server.address()
+<!-- YAML
+added: v0.6.0
+-->
 
 Returns the bound address, the address family name, and port of the
 server as reported by the operating system.  See [`net.Server.address()`][] for
 more information.
 
 ### server.close([callback])
+<!-- YAML
+added: v0.3.2
+-->
 
 * `callback` {Function} An optional listener callback that will be registered to
   listen for the server instance's `'close'` event.
@@ -338,18 +365,27 @@ more information.
 The `server.close()` method stops the server from accepting new connections.
 
 This function operates asynchronously. The `'close'` event will be emitted
-when the the server is finally closed.
+when the server has no more open connections.
 
 ### server.connections
+<!-- YAML
+added: v0.3.2
+-->
 
 Returns the current number of concurrent connections on the server.
 
 ### server.getTicketKeys()
+<!-- YAML
+added: v3.0.0
+-->
 
 Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
 
 ### server.listen(port[, hostname][, callback])
+<!-- YAML
+added: v0.3.2
+-->
 
 * `port` {number} The TCP/IP port on which to begin listening for connections.
   A value of `0` (zero) will assign a random port.
@@ -358,7 +394,7 @@ encryption/decryption of the [TLS Session Tickets][]
   on any IPv6 address (`::`) when IPv6 is available, or any IPv4 address
   (`0.0.0.0`) otherwise.
 * `callback` {Function} A callback function to be invoked when the server has
-  begun listening the the `port` and `hostname`.
+  begun listening on the `port` and `hostname`.
 
 The `server.listen()` methods instructs the server to begin accepting
 connections on the specified `port` and `hostname`.
@@ -366,9 +402,12 @@ connections on the specified `port` and `hostname`.
 This function operates asynchronously. If the `callback` is given, it will be
 called when the server has started listening.
 
-See `net.Server` for more information.
+See [`net.Server`][] for more information.
 
 ### server.setTicketKeys(keys)
+<!-- YAML
+added: v3.0.0
+-->
 
 * `keys` {Buffer} The keys used for encryption/decryption of the
   [TLS Session Tickets][].
@@ -385,6 +424,9 @@ previous keys.
 
 
 ## Class: tls.TLSSocket
+<!-- YAML
+added: v0.11.4
+-->
 
 The `tls.TLSSocket` is a subclass of [`net.Socket`][] that performs transparent
 encryption of written data and all required TLS negotiation.
@@ -396,6 +438,9 @@ Instances of `tls.TLSSocket` implement the duplex [Stream][] interface.
 connection is open.
 
 ### new tls.TLSSocket(socket[, options])
+<!-- YAML
+added: v0.11.4
+-->
 
 * `socket` {net.Socket} An instance of [`net.Socket`][]
 * `options` {Object}
@@ -417,6 +462,9 @@ connection is open.
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
 ### Event: 'OCSPResponse'
+<!-- YAML
+added: v0.11.13
+-->
 
 The `'OCSPResponse'` event is emitted if the `requestOCSP` option was set
 when the `tls.TLSSocket` was created and an OCSP response has been received.
@@ -428,6 +476,9 @@ Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
 
 ### Event: 'secureConnect'
+<!-- YAML
+added: v0.11.4
+-->
 
 The `'secureConnect'` event is emitted after the handshaking process for a new
 connection has successfully completed. The listener callback will be called
@@ -440,6 +491,9 @@ the `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` properties can be
 checked to determine the negotiated protocol.
 
 ### tlsSocket.address()
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the bound address, the address family name, and port of the
 underlying socket as reported by the operating system. Returns an
@@ -447,21 +501,33 @@ object with three properties, e.g.,
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### tlsSocket.authorized
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
 
 ### tlsSocket.authorizationError
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
 
 ### tlsSocket.encrypted
+<!-- YAML
+added: v0.11.4
+-->
 
 Always returns `true`. This may be used to distinguish TLS sockets from regular
 `net.Socket` instances.
 
 ### tlsSocket.getCipher()
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns an object representing the cipher name and the SSL/TLS protocol version
 that first defined the cipher.
@@ -469,10 +535,13 @@ that first defined the cipher.
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
 See `SSL_CIPHER_get_name()` and `SSL_CIPHER_get_version()` in
-https://www.openssl.org/docs/manmaster/ssl/SSL_CIPHER_get_name.html for more
+https://www.openssl.org/docs/man1.0.2/ssl/SSL_CIPHER_get_name.html for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
+<!-- YAML
+added: v5.0.0
+-->
 
 Returns an object representing the type, name, and size of parameter of
 an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
@@ -484,6 +553,9 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
 ### tlsSocket.getPeerCertificate([ detailed ])
+<!-- YAML
+added: v0.11.4
+-->
 
 * `detailed` {boolean} Specify `true` to request that the full certificate
   chain with the `issuer` property be returned; `false` to return only the
@@ -522,6 +594,9 @@ If the peer does not provide a certificate, `null` or an empty object will be
 returned.
 
 ### tlsSocket.getProtocol()
+<!-- YAML
+added: v5.7.0
+-->
 
 Returns a string containing the negotiated SSL/TLS protocol version of the
 current connection. The value `'unknown'` will be returned for connected
@@ -536,16 +611,22 @@ Example responses include:
 * `TLSv1.2`
 * `unknown`
 
-See https://www.openssl.org/docs/manmaster/ssl/SSL_get_version.html for more
+See https://www.openssl.org/docs/man1.0.2/ssl/SSL_get_version.html for more
 information.
 
 ### tlsSocket.getSession()
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the ASN.1 encoded TLS session or `undefined` if no session was
 negotiated. Can be used to speed up handshake establishment when reconnecting
 to the server.
 
 ### tlsSocket.getTLSTicket()
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the TLS session ticket or `undefined` if no session was negotiated.
 
@@ -553,27 +634,45 @@ Returns the TLS session ticket or `undefined` if no session was negotiated.
 session reuse provide `session` option to [`tls.connect()`][].
 
 ### tlsSocket.localAddress
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the string representation of the local IP address.
 
 ### tlsSocket.localPort
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the numeric representation of the local port.
 
 ### tlsSocket.remoteAddress
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
 ### tlsSocket.remoteFamily
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### tlsSocket.remotePort
+<!-- YAML
+added: v0.11.4
+-->
 
 Returns the numeric representation of the remote port. For example, `443`.
 
 ### tlsSocket.renegotiate(options, callback)
+<!-- YAML
+added: v0.11.8
+-->
 
 * `options` {Object}
   * `rejectUnauthorized` {boolean}
@@ -592,6 +691,9 @@ secure connection has been established.
 after `handshakeTimeout` timeout.
 
 ### tlsSocket.setMaxSendFragment(size)
+<!-- YAML
+added: v0.11.11
+-->
 
 * `size` {number} The maximum TLS fragment size. Defaults to `16384`. The
   maximum value is `16384`.
@@ -608,6 +710,9 @@ decrease overall server throughput.
 
 
 ## tls.connect(options[, callback])
+<!-- YAML
+added: v0.11.3
+-->
 
 * `options` {Object}
   * `host` {string} Host the client should connect to.
@@ -619,7 +724,7 @@ decrease overall server throughput.
     specified, `host` and `port` are ignored.
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
     certificate, and CA certs of the client in PFX or PKCS12 format.
-  * `key` {string|stringp[]|Buffer|Buffer[]} A string, `Buffer`, array of
+  * `key` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of
     strings, or array of `Buffer`s containing the private key of the client in
     PEM format.
   * `passphrase` {string} A string containing the passphrase for the private key
@@ -654,7 +759,7 @@ decrease overall server throughput.
     to be used when checking the server's hostname against the certificate.
     This should throw an error if verification fails. The method should return
     `undefined` if the `servername` and `cert` are verified.
-  * `secureProtocol` {string} The SSL method to use, e.g., `SSLv3_method` to
+  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
@@ -677,6 +782,9 @@ The `callback` function, if specified, will be added as a listener for the
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
 ## tls.connect(port[, host][, options][, callback])
+<!-- YAML
+added: v0.11.3
+-->
 
 * `port` {number}
 * `host` {string}
@@ -690,7 +798,7 @@ The `callback` function, if specified, will be added as a listener for the
     specified, `host` and `port` are ignored.
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
     certificate, and CA certs of the client in PFX or PKCS12 format.
-  * `key` {string|stringp[]|Buffer|Buffer[]} A string, `Buffer`, array of
+  * `key` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of
     strings, or array of `Buffer`s containing the private key of the client in
     PEM format.
   * `passphrase` {string} A string containing the passphrase for the private key
@@ -725,7 +833,7 @@ The `callback` function, if specified, will be added as a listener for the
     to be used when checking the server's hostname against the certificate.
     This should throw an error if verification fails. The method should return
     `undefined` if the `servername` and `cert` are verified.
-  * `secureProtocol` {string} The SSL method to use, e.g., `SSLv3_method` to
+  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
@@ -805,6 +913,9 @@ socket.on('end', () => {
 
 
 ## tls.createSecureContext(options)
+<!-- YAML
+added: v0.11.13
+-->
 
 * `options` {Object}
   * `pfx` {string|Buffer} A string or `Buffer` holding the PFX or PKCS12 encoded
@@ -825,7 +936,7 @@ socket.on('end', () => {
     CRLs (Certificate Revocation List).
   * `ciphers` {string} A string describing the ciphers to use or exclude.
     Consult
-    <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT>
+    <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT>
     for details on the format.
   * `honorCipherOrder` {boolean} If `true`, when a cipher is being selected,
     the server's preferences will be used instead of the client preferences.
@@ -838,6 +949,9 @@ publicly trusted list of CAs as given in
 
 
 ## tls.createServer(options[, secureConnectionListener])
+<!-- YAML
+added: v0.3.2
+-->
 
 * `options` {Object}
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
@@ -909,7 +1023,7 @@ publicly trusted list of CAs as given in
     session resumption. If `requestCert` is `true`, the default is a 128 bit
     truncated SHA1 hash value generated from the command-line. Otherwise, a
     default is not provided.
-  * `secureProtocol` {string} The SSL method to use, e.g., `SSLv3_method` to
+  * `secureProtocol` {string} The SSL method to use, e.g. `SSLv3_method` to
     force SSL version 3. The possible values depend on the version of OpenSSL
     installed in the environment and are defined in the constant
     [SSL_METHODS][].
@@ -1014,11 +1128,14 @@ server.listen(8000, () => {
 
 This server can be tested by connecting to it using `openssl s_client`:
 
-```
+```sh
 openssl s_client -connect 127.0.0.1:8000
 ```
 
 ## tls.getCiphers()
+<!-- YAML
+added: v0.10.2
+-->
 
 Returns an array with the names of the supported SSL ciphers.
 
@@ -1031,25 +1148,41 @@ console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ## Deprecated APIs
 
 ### Class: CryptoStream
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 The `tls.CryptoStream` class represents a stream of encrypted data. This class
 has been deprecated and should no longer be used.
 
 #### cryptoStream.bytesWritten
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
 
 The `cryptoStream.bytesWritten` property returns the total number of bytes
 written to the underlying socket *including* the bytes required for the
 implementation of the TLS protocol.
 
 ### Class: SecurePair
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
-Returned by `tls.createSecurePair()`.
+Returned by [`tls.createSecurePair()`][].
 
 #### Event: 'secure'
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
 
 The `'secure'` event is emitted by the `SecurePair` object once a secure
 connection has been established.
@@ -1058,9 +1191,13 @@ As with checking for the server [`secureConnection`](#tls_event_secureconnection
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
-## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
+### tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 * `context` {Object} A secure context object as returned by
   `tls.createSecureContext()`
@@ -1115,10 +1252,9 @@ secure_socket = tls.TLSSocket(socket, options);
 
 where `secure_socket` has the same API as `pair.cleartext`.
 
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
@@ -1130,10 +1266,9 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`'secureConnection'`]: #tls_event_secureconnection
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [Stream]: stream.html#stream_stream
-[SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [tls.Server]: #tls_class_tls_server
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
-[RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
+[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman

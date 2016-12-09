@@ -1,21 +1,21 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
 
-var Duplex = require('stream').Duplex;
+const Duplex = require('stream').Duplex;
 
 function FakeAgent() {
   http.Agent.call(this);
 }
 util.inherits(FakeAgent, http.Agent);
 
-FakeAgent.prototype.createConnection = function createConnection() {
-  var s = new Duplex();
+FakeAgent.prototype.createConnection = function() {
+  const s = new Duplex();
   var once = false;
 
-  s._read = function read() {
+  s._read = function() {
     if (once)
       return this.push(null);
     once = true;
@@ -27,11 +27,11 @@ FakeAgent.prototype.createConnection = function createConnection() {
   };
 
   // Blackhole
-  s._write = function write(data, enc, cb) {
+  s._write = function(data, enc, cb) {
     cb();
   };
 
-  s.destroy = s.destroySoon = function destroy() {
+  s.destroy = s.destroySoon = function() {
     this.writable = false;
   };
 
@@ -39,22 +39,16 @@ FakeAgent.prototype.createConnection = function createConnection() {
 };
 
 var received = '';
-var ended = 0;
 
-var req = http.request({
+const req = http.request({
   agent: new FakeAgent()
-}, function(res) {
-  res.on('data', function(chunk) {
+}, common.mustCall(function requestCallback(res) {
+  res.on('data', function dataCallback(chunk) {
     received += chunk;
   });
 
-  res.on('end', function() {
-    ended++;
-  });
-});
+  res.on('end', common.mustCall(function endCallback() {
+    assert.strictEqual(received, 'hello world');
+  }));
+}));
 req.end();
-
-process.on('exit', function() {
-  assert.equal(received, 'hello world');
-  assert.equal(ended, 1);
-});

@@ -1,15 +1,15 @@
 # Debugger
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!-- type=misc -->
 
-Node.js includes a full-featured out-of-process debugging utility accessible
-via a simple [TCP-based protocol][] and built-in debugging client. To use it,
-start Node.js with the `debug` argument followed by the path to the script to
-debug; a prompt will be displayed indicating successful launch of the debugger:
+Node.js includes an out-of-process debugging utility accessible via a
+[TCP-based protocol][] and built-in debugging client. To use it, start Node.js
+with the `debug` argument followed by the path to the script to debug; a prompt
+will be displayed indicating successful launch of the debugger:
 
-```
+```txt
 $ node debug myscript.js
 < debugger listening on port 5858
 connecting... ok
@@ -38,7 +38,7 @@ console.log('hello');
 
 Once the debugger is run, a breakpoint will occur at line 4:
 
-```
+```txt
 $ node debug myscript.js
 < debugger listening on port 5858
 connecting... ok
@@ -119,8 +119,8 @@ on line 1
 It is also possible to set a breakpoint in a file (module) that
 isn't loaded yet:
 
-```
-$ ./node debug test/fixtures/break-in-module/main.js
+```txt
+$ node debug test/fixtures/break-in-module/main.js
 < debugger listening on port 5858
 connecting to port 5858... ok
 break in test/fixtures/break-in-module/main.js:1
@@ -181,7 +181,7 @@ localhost:5858
 
 ## V8 Inspector Integration for Node.js
 
-__NOTE: This is an experimental feature.__
+**NOTE: This is an experimental feature.**
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
 instances for debugging and profiling.
@@ -192,5 +192,13 @@ e.g. `--inspect=9222` will accept DevTools connections on port 9222.
 
 To break on the first line of the application code, provide the `--debug-brk`
 flag in addition to `--inspect`.
+
+```txt
+$ node --inspect index.js
+Debugger listening on port 9229.
+Warning: This is an experimental feature and could change at any time.
+To start debugging, open the following URL in Chrome:
+    chrome-devtools://devtools/remote/serve_file/@60cd6e859b9f557d2312f5bf532f6aec5f284980/inspector.html?experiments=true&v8only=true&ws=localhost:9229/node
+```
 
 [TCP-based protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol

@@ -1,12 +1,13 @@
 'use strict';
 
+const common = require('../common');
+
 if (!process.features.tls_sni) {
   console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-const common = require('../common');
 const assert = require('assert');
 
 if (!common.hasCrypto) {
@@ -27,9 +28,9 @@ const server = tls.createServer(options, (c) => {
 }).on('tlsClientError', common.mustCall((err, c) => {
   assert(/SSL_use_certificate:passed a null parameter/i.test(err.message));
   server.close();
-})).listen(common.PORT, common.mustCall(() => {
+})).listen(0, common.mustCall(() => {
   const c = tls.connect({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: false,
     servername: 'any.name'
   }, () => {

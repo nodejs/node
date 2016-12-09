@@ -1,21 +1,23 @@
 # Modules
 
-    Stability: 3 - Locked
+> Stability: 3 - Locked
 
 <!--name=module-->
 
-Node.js has a simple module loading system.  In Node.js, files and modules are
-in one-to-one correspondence.  As an example, `foo.js` loads the module
-`circle.js` in the same directory.
+Node.js has a simple module loading system.  In Node.js, files and modules
+are in one-to-one correspondence (each file is treated as a separate module).
 
-The contents of `foo.js`:
+As an example, consider a file named `foo.js`:
 
 ```js
 const circle = require('./circle.js');
-console.log( `The area of a circle of radius 4 is ${circle.area(4)}`);
+console.log(`The area of a circle of radius 4 is ${circle.area(4)}`);
 ```
 
-The contents of `circle.js`:
+On the first line, `foo.js` loads the module `circle.js` that is in the same
+directory as `foo.js`.
+
+Here are the contents of `circle.js`:
 
 ```js
 const PI = Math.PI;
@@ -23,7 +25,6 @@ const PI = Math.PI;
 exports.area = (r) => PI * r * r;
 
 exports.circumference = (r) => 2 * PI * r;
-
 ```
 
 The module `circle.js` has exported the functions `area()` and
@@ -143,7 +144,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what require.resolve does:
 
-```
+```txt
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -181,9 +182,9 @@ NODE_MODULES_PATHS(START)
 3. let DIRS = []
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
-   c. DIR = path join(PARTS[0 .. I] + "node_modules")
-   b. DIRS = DIRS + DIR
-   c. let I = I - 1
+   b. DIR = path join(PARTS[0 .. I] + "node_modules")
+   c. DIRS = DIRS + DIR
+   d. let I = I - 1
 5. return DIRS
 ```
 
@@ -244,7 +245,7 @@ Consider this situation:
 
 `a.js`:
 
-```
+```js
 console.log('a starting');
 exports.done = false;
 const b = require('./b.js');
@@ -255,7 +256,7 @@ console.log('a done');
 
 `b.js`:
 
-```
+```js
 console.log('b starting');
 exports.done = false;
 const a = require('./a.js');
@@ -266,7 +267,7 @@ console.log('b done');
 
 `main.js`:
 
-```
+```js
 console.log('main starting');
 const a = require('./a.js');
 const b = require('./b.js');
@@ -282,7 +283,7 @@ provided to the `a.js` module.
 By the time `main.js` has loaded both modules, they're both finished.
 The output of this program would thus be:
 
-```
+```txt
 $ node main.js
 main starting
 a starting
@@ -336,7 +337,7 @@ The first is to create a `package.json` file in the root of the folder,
 which specifies a `main` module.  An example package.json file might
 look like this:
 
-```
+```json
 { "name" : "some-library",
   "main" : "./lib/some-library.js" }
 ```
@@ -351,7 +352,7 @@ Note: If the file specified by the `"main"` entry of `package.json` is missing
 and can not be resolved, Node.js will report the entire module as missing with
 the default error:
 
-```
+```txt
 Error: Cannot find module 'some-library'
 ```
 
@@ -451,6 +452,9 @@ to the module, such as:
   module's absolute filename and directory path.
 
 ## The `module` Object
+<!-- YAML
+added: v0.1.16
+-->
 
 <!-- type=var -->
 <!-- name=module -->
@@ -463,12 +467,18 @@ also accessible via the `exports` module-global. `module` isn't actually
 a global but rather local to each module.
 
 ### module.children
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Array}
 
 The module objects required by this one.
 
 ### module.exports
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Object}
 
@@ -520,38 +530,64 @@ const x = require('./x');
 console.log(x.a);
 ```
 
-#### exports alias
+#### exports shortcut
+<!-- YAML
+added: v0.1.16
+-->
 
-The `exports` variable that is available within a module starts as a reference
-to `module.exports`. As with any variable, if you assign a new value to it, it
-is no longer bound to the previous value.
+The `exports` variable is available within a module's file-level scope, and is
+assigned the value of `module.exports` before the module is evaluated.
+
+It allows a shortcut, so that `module.exports.f = ...` can be written more
+succinctly as `exports.f = ...`. However, be aware that like any variable, if a
+new value is assigned to `exports`, it is no longer bound to `module.exports`:
+
+```js
+module.exports.hello = true; // Exported from require of module
+exports = { hello: false };  // Not exported, only available in the module
+```
+
+When the `module.exports` property is being completely replaced by a new
+object, it is common to also reassign `exports`, for example:
+
+```js
+module.exports = exports = function Constructor() {
+    // ... etc.
+```
 
 To illustrate the behavior, imagine this hypothetical implementation of
-`require()`:
+`require()`, which is quite similar to what is actually done by `require()`:
 
 ```js
 function require(...) {
-  // ...
+  var module = { exports: {} };
   ((module, exports) => {
-    // Your module code here
-    exports = some_func;        // re-assigns exports, exports is no longer
-                                // a shortcut, and nothing is exported.
-    module.exports = some_func; // makes your module export 0
+    // Your module code here. In this example, define a function.
+    function some_func() {};
+    exports = some_func;
+    // At this point, exports is no longer a shortcut to module.exports, and
+    // this module will still export an empty default object.
+    module.exports = some_func;
+    // At this point, the module will now export some_func, instead of the
+    // default object.
   })(module, module.exports);
-  return module;
+  return module.exports;
 }
 ```
 
-As a guideline, if the relationship between `exports` and `module.exports`
-seems like magic to you, ignore `exports` and only use `module.exports`.
-
 ### module.filename
+<!-- YAML
+added: v0.1.16
+-->
 
 * {String}
 
 The fully resolved filename to the module.
 
 ### module.id
+<!-- YAML
+added: v0.1.16
+-->
 
 * {String}
 
@@ -559,6 +595,9 @@ The identifier for the module.  Typically this is the fully resolved
 filename.
 
 ### module.loaded
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Boolean}
 
@@ -566,15 +605,21 @@ Whether or not the module is done loading, or is in the process of
 loading.
 
 ### module.parent
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Object} Module object
 
 The module that first required this one.
 
 ### module.require(id)
+<!-- YAML
+added: v0.5.1
+-->
 
 * `id` {String}
-* Return: {Object} `module.exports` from the resolved module
+* Returns: {Object} `module.exports` from the resolved module
 
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.

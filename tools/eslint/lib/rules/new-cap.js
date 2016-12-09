@@ -9,13 +9,11 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
-
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var CAPS_ALLOWED = [
+const CAPS_ALLOWED = [
     "Array",
     "Boolean",
     "Date",
@@ -39,7 +37,7 @@ function checkArray(obj, key, fallback) {
 
     /* istanbul ignore if */
     if (Object.prototype.hasOwnProperty.call(obj, key) && !Array.isArray(obj[key])) {
-        throw new TypeError(key + ", if provided, must be an Array");
+        throw new TypeError(`${key}, if provided, must be an Array`);
     }
     return obj[key] || fallback;
 }
@@ -61,7 +59,7 @@ function invert(map, key) {
  * @returns {Object} Object with cap is new exceptions.
  */
 function calculateCapIsNewExceptions(config) {
-    var capIsNewExceptions = checkArray(config, "capIsNewExceptions", CAPS_ALLOWED);
+    let capIsNewExceptions = checkArray(config, "capIsNewExceptions", CAPS_ALLOWED);
 
     if (capIsNewExceptions !== CAPS_ALLOWED) {
         capIsNewExceptions = capIsNewExceptions.concat(CAPS_ALLOWED);
@@ -77,7 +75,7 @@ function calculateCapIsNewExceptions(config) {
 module.exports = {
     meta: {
         docs: {
-            description: "require constructor `function` names to begin with a capital letter",
+            description: "require constructor names to begin with a capital letter",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -98,11 +96,17 @@ module.exports = {
                             type: "string"
                         }
                     },
+                    newIsCapExceptionPattern: {
+                        type: "string"
+                    },
                     capIsNewExceptions: {
                         type: "array",
                         items: {
                             type: "string"
                         }
+                    },
+                    capIsNewExceptionPattern: {
+                        type: "string"
                     },
                     properties: {
                         type: "boolean"
@@ -113,19 +117,23 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var config = context.options[0] ? lodash.assign({}, context.options[0]) : {};
+        const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
 
         config.newIsCap = config.newIsCap !== false;
         config.capIsNew = config.capIsNew !== false;
-        var skipProperties = config.properties === false;
+        const skipProperties = config.properties === false;
 
-        var newIsCapExceptions = checkArray(config, "newIsCapExceptions", []).reduce(invert, {});
+        const newIsCapExceptions = checkArray(config, "newIsCapExceptions", []).reduce(invert, {});
+        const newIsCapExceptionPattern = config.newIsCapExceptionPattern ? new RegExp(config.newIsCapExceptionPattern) : null;
 
-        var capIsNewExceptions = calculateCapIsNewExceptions(config);
+        const capIsNewExceptions = calculateCapIsNewExceptions(config);
+        const capIsNewExceptionPattern = config.capIsNewExceptionPattern ? new RegExp(config.capIsNewExceptionPattern) : null;
 
-        var listeners = {};
+        const listeners = {};
+
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -138,11 +146,10 @@ module.exports = {
          */
         function extractNameFromExpression(node) {
 
-            var name = "",
-                property;
+            let name = "";
 
             if (node.callee.type === "MemberExpression") {
-                property = node.callee.property;
+                const property = node.callee.property;
 
                 if (property.type === "Literal" && (typeof property.value === "string")) {
                     name = property.value;
@@ -162,10 +169,10 @@ module.exports = {
          * @returns {string} capitalization state: "non-alpha", "lower", or "upper"
          */
         function getCap(str) {
-            var firstChar = str.charAt(0);
+            const firstChar = str.charAt(0);
 
-            var firstCharLower = firstChar.toLowerCase();
-            var firstCharUpper = firstChar.toUpperCase();
+            const firstCharLower = firstChar.toLowerCase();
+            const firstCharUpper = firstChar.toUpperCase();
 
             if (firstCharLower === firstCharUpper) {
 
@@ -183,10 +190,17 @@ module.exports = {
          * @param {Object} allowedMap Object mapping calleeName to a Boolean
          * @param {ASTNode} node CallExpression node
          * @param {string} calleeName Capitalized callee name from a CallExpression
-         * @returns {Boolean} Returns true if the callee may be capitalized
+         * @param {Object} pattern RegExp object from options pattern
+         * @returns {boolean} Returns true if the callee may be capitalized
          */
-        function isCapAllowed(allowedMap, node, calleeName) {
-            if (allowedMap[calleeName] || allowedMap[context.getSource(node.callee)]) {
+        function isCapAllowed(allowedMap, node, calleeName, pattern) {
+            const sourceText = sourceCode.getText(node.callee);
+
+            if (allowedMap[calleeName] || allowedMap[sourceText]) {
+                return true;
+            }
+
+            if (pattern && pattern.test(sourceText)) {
                 return true;
             }
 
@@ -207,7 +221,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node, message) {
-            var callee = node.callee;
+            let callee = node.callee;
 
             if (callee.type === "MemberExpression") {
                 callee = callee.property;
@@ -223,11 +237,11 @@ module.exports = {
         if (config.newIsCap) {
             listeners.NewExpression = function(node) {
 
-                var constructorName = extractNameFromExpression(node);
+                const constructorName = extractNameFromExpression(node);
 
                 if (constructorName) {
-                    var capitalization = getCap(constructorName);
-                    var isAllowed = capitalization !== "lower" || isCapAllowed(newIsCapExceptions, node, constructorName);
+                    const capitalization = getCap(constructorName);
+                    const isAllowed = capitalization !== "lower" || isCapAllowed(newIsCapExceptions, node, constructorName, newIsCapExceptionPattern);
 
                     if (!isAllowed) {
                         report(node, "A constructor name should not start with a lowercase letter.");
@@ -239,11 +253,11 @@ module.exports = {
         if (config.capIsNew) {
             listeners.CallExpression = function(node) {
 
-                var calleeName = extractNameFromExpression(node);
+                const calleeName = extractNameFromExpression(node);
 
                 if (calleeName) {
-                    var capitalization = getCap(calleeName);
-                    var isAllowed = capitalization !== "upper" || isCapAllowed(capIsNewExceptions, node, calleeName);
+                    const capitalization = getCap(calleeName);
+                    const isAllowed = capitalization !== "upper" || isCapAllowed(capIsNewExceptions, node, calleeName, capIsNewExceptionPattern);
 
                     if (!isAllowed) {
                         report(node, "A function with a name starting with an uppercase letter should only be used as a constructor.");
