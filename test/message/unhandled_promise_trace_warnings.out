@@ -25,7 +25,7 @@
     at *
     at Promise.then (native)
     at Promise.catch (native)
-    at Immediate.setImmediate (*test*message*unhandled_promise_trace_warnings.js:*)
+    at Immediate.setImmediate [as _onImmediate] (*test*message*unhandled_promise_trace_warnings.js:*)
     at *
     at *
     at *
