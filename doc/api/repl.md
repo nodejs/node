@@ -416,8 +416,6 @@ added: v0.1.91
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. Defaults to `false`.
 
-If `options` is a string, then it specifies the input prompt.
-
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
 If `options` is a string, then it specifies the input prompt:
