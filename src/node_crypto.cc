@@ -5449,11 +5449,18 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 // Only instantiate within a valid HandleScope.
 class RandomBytesRequest : public AsyncWrap {
  public:
-  RandomBytesRequest(Environment* env, Local<Object> object, size_t size)
+  enum FreeMode { FREE_DATA, DONT_FREE_DATA };
+
+  RandomBytesRequest(Environment* env,
+                     Local<Object> object,
+                     size_t size,
+                     char* data,
+                     FreeMode free_mode)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         error_(0),
         size_(size),
-        data_(node::Malloc(size)) {
+        data_(data),
+        free_mode_(free_mode) {
     Wrap(object, this);
   }
 
@@ -5474,9 +5481,15 @@ class RandomBytesRequest : public AsyncWrap {
     return data_;
   }
 
+  inline void set_data(char* data) {
+    data_ = data;
+  }
+
   inline void release() {
-    free(data_);
     size_ = 0;
+    if (free_mode_ == FREE_DATA) {
+      free(data_);
+    }
   }
 
   inline void return_memory(char** d, size_t* len) {
@@ -5502,6 +5515,7 @@ class RandomBytesRequest : public AsyncWrap {
   unsigned long error_;  // NOLINT(runtime/int)
   size_t size_;
   char* data_;
+  const FreeMode free_mode_;
 };
 
 
@@ -5540,7 +5554,18 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
     size_t size;
     req->return_memory(&data, &size);
     argv[0] = Null(req->env()->isolate());
-    argv[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
+    Local<Value> buffer =
+        req->object()->Get(req->env()->context(),
+                           req->env()->buffer_string()).ToLocalChecked();
+
+    if (buffer->IsUint8Array()) {
+      CHECK_LE(req->size(), Buffer::Length(buffer));
+      char* buf = Buffer::Data(buffer);
+      memcpy(buf, data, req->size());
+      argv[1] = buffer;
+    } else {
+      argv[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
+    }
   }
 }
 
@@ -5559,11 +5584,22 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
 }
 
 
+void RandomBytesProcessSync(Environment* env,
+                            RandomBytesRequest* req,
+                            Local<Value> argv[2]) {
+  env->PrintSyncTrace();
+  RandomBytesWork(req->work_req());
+  RandomBytesCheck(req, argv);
+  delete req;
+
+  if (!argv[0]->IsNull())
+    env->isolate()->ThrowException(argv[0]);
+}
+
+
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  // maybe allow a buffer to write to? cuts down on object creation
-  // when generating random data in a loop
   if (!args[0]->IsUint32()) {
     return env->ThrowTypeError("size must be a number >= 0");
   }
@@ -5573,7 +5609,13 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowRangeError("size is not a valid Smi");
 
   Local<Object> obj = env->NewInternalFieldObject();
-  RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
+  char* data = node::Malloc(size);
+  RandomBytesRequest* req =
+      new RandomBytesRequest(env,
+                             obj,
+                             size,
+                             data,
+                             RandomBytesRequest::FREE_DATA);
 
   if (args[1]->IsFunction()) {
     obj->Set(env->ondone_string(), args[1]);
@@ -5586,15 +5628,55 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
   } else {
-    env->PrintSyncTrace();
     Local<Value> argv[2];
-    RandomBytesWork(req->work_req());
-    RandomBytesCheck(req, argv);
-    delete req;
+    RandomBytesProcessSync(env, req, argv);
+    if (argv[0]->IsNull())
+      args.GetReturnValue().Set(argv[1]);
+  }
+}
 
-    if (!argv[0]->IsNull())
-      env->isolate()->ThrowException(argv[0]);
-    else
+
+void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsUint8Array());
+  CHECK(args[1]->IsUint32());
+  CHECK(args[2]->IsUint32());
+
+  int64_t offset = args[1]->IntegerValue();
+  int64_t size = args[2]->IntegerValue();
+
+  Local<Object> obj = env->NewInternalFieldObject();
+  obj->Set(env->context(), env->buffer_string(), args[0]).FromJust();
+  char* data = Buffer::Data(args[0]);
+  data += offset;
+
+  RandomBytesRequest* req =
+      new RandomBytesRequest(env,
+                             obj,
+                             size,
+                             data,
+                             RandomBytesRequest::DONT_FREE_DATA);
+  if (args[3]->IsFunction()) {
+    obj->Set(env->context(),
+             FIXED_ONE_BYTE_STRING(args.GetIsolate(), "ondone"),
+             args[3]).FromJust();
+
+    if (env->in_domain()) {
+      obj->Set(env->context(),
+               env->domain_string(),
+               env->domain_array()->Get(0)).FromJust();
+    }
+
+    uv_queue_work(env->event_loop(),
+                  req->work_req(),
+                  RandomBytesWork,
+                  RandomBytesAfter);
+    args.GetReturnValue().Set(obj);
+  } else {
+    Local<Value> argv[2];
+    RandomBytesProcessSync(env, req, argv);
+    if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
 }
@@ -6019,6 +6101,7 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
   env->SetMethod(target, "PBKDF2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
+  env->SetMethod(target, "randomFill", RandomBytesBuffer);
   env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
