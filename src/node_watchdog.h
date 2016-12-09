@@ -81,6 +81,7 @@ class SigintWatchdogHelper {
   Mutex list_mutex_;
   std::vector<SigintWatchdog*> watchdogs_;
   bool has_pending_signal_;
+  bool watchdog_disabled_;
 
 #ifdef __POSIX__
   pthread_t thread_;

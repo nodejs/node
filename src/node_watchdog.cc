@@ -150,7 +150,8 @@ void SigintWatchdogHelper::HandleSignal(int signum) {
 // Windows starts a separate thread for executing the handler, so no extra
 // helper thread is required.
 BOOL WINAPI SigintWatchdogHelper::WinCtrlCHandlerRoutine(DWORD dwCtrlType) {
-  if (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT) {
+  if (!instance.watchdog_disabled_ &&
+	  (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT)) {
     InformWatchdogsAboutSignal();
 
     // Return true because the signal has been handled.
@@ -188,6 +189,11 @@ int SigintWatchdogHelper::Start() {
 
   if (start_stop_count_++ > 0) {
     return 0;
+  }
+
+  if (watchdog_disabled_) {
+	  watchdog_disabled_ = false;
+	  return 0;
   }
 
 #ifdef __POSIX__
@@ -251,7 +257,7 @@ bool SigintWatchdogHelper::Stop() {
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
 #else
-  SetConsoleCtrlHandler(WinCtrlCHandlerRoutine, FALSE);
+  watchdog_disabled_ = true;
 #endif
 
   had_pending_signal = has_pending_signal_;
@@ -287,7 +293,8 @@ void SigintWatchdogHelper::Unregister(SigintWatchdog* wd) {
 
 SigintWatchdogHelper::SigintWatchdogHelper()
     : start_stop_count_(0),
-      has_pending_signal_(false) {
+      has_pending_signal_(false),
+	  watchdog_disabled_(false) {
 #ifdef __POSIX__
   has_running_thread_ = false;
   stopping_ = false;
