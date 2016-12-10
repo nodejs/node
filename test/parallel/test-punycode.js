@@ -182,19 +182,19 @@ const testBattery = {
   ),
   toASCII: (test) => assert.strictEqual(
     punycode.toASCII(test.decoded),
-    regexNonASCII.test(test.decoded)
-      ? `xn--${test.encoded}`
-      : test.decoded
+    regexNonASCII.test(test.decoded) ?
+      `xn--${test.encoded}` :
+      test.decoded
   ),
   toUnicode: (test) => assert.strictEqual(
     punycode.toUnicode(
-      regexNonASCII.test(test.decoded)
-        ? `xn--${test.encoded}`
-        : test.decoded
+      regexNonASCII.test(test.decoded) ?
+        `xn--${test.encoded}` :
+        test.decoded
     ),
-    regexNonASCII.test(test.decoded)
-      ? test.decoded.toLowerCase()
-      : test.decoded
+    regexNonASCII.test(test.decoded) ?
+      test.decoded.toLowerCase() :
+      test.decoded
   )
 };
 
