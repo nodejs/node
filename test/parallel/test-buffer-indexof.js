@@ -524,3 +524,11 @@ assert.equal(0, reallyLong.lastIndexOf(pattern));
   assert.strictEqual(buf.indexOf(0xff), -1);
   assert.strictEqual(buf.indexOf(0xffff), -1);
 }
+
+// Test that Uint8Array arguments are okay.
+{
+  const needle = new Uint8Array([ 0x66, 0x6f, 0x6f ]);
+  const haystack = Buffer.from('a foo b foo');
+  assert.strictEqual(haystack.indexOf(needle), 2);
+  assert.strictEqual(haystack.lastIndexOf(needle), haystack.length - 3);
+}
