@@ -40,9 +40,9 @@ function assertWrongList(value) {
   });
 }
 
-const random10 = common.hasCrypto
-    ? require('crypto').randomBytes(10)
-    : Buffer.alloc(10, 1);
+const random10 = common.hasCrypto ?
+  require('crypto').randomBytes(10) :
+  Buffer.alloc(10, 1);
 const empty = Buffer.alloc(0);
 
 assert.notDeepStrictEqual(random10, empty);

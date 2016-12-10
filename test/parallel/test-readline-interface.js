@@ -463,9 +463,9 @@ function isWarned(emitter) {
   });
 
   {
-    const expected = terminal
-      ? ['\u001b[1G', '\u001b[0J', '$ ', '\u001b[3G']
-      : ['$ '];
+    const expected = terminal ?
+      ['\u001b[1G', '\u001b[0J', '$ ', '\u001b[3G'] :
+      ['$ '];
 
     let counter = 0;
     const output = new Writable({
