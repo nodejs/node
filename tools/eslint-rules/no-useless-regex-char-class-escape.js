@@ -108,9 +108,9 @@ module.exports = {
   },
 
   create(context) {
-    const overrideSet = new Set(context.options.length
-                                  ? context.options[0].override || []
-                                  : []);
+    const overrideSet = new Set(context.options.length ?
+                                context.options[0].override || [] :
+                                []);
 
     /**
      * Reports a node
