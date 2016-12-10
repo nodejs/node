@@ -37,4 +37,4 @@ trim_trailing_whitespace = ignore
 charset = ignore
 
 [{test/fixtures,deps,tools/eslint,tools/gyp,tools/icu,tools/msvs}/**]
-insert_final_newline = false
+insert_final_newline = true
