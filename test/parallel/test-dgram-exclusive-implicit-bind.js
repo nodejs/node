@@ -20,10 +20,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 // Without an explicit bind, send() causes an implicit bind, which always
 // generate a unique per-socket ephemeral port. An explicit bind to a port
@@ -40,17 +40,21 @@ var dgram = require('dgram');
 // with ENOTSUP.
 
 if (cluster.isMaster) {
-  var pass;
   var messages = 0;
-  var ports = {};
-
-  process.on('exit', function() {
-    assert.strictEqual(pass, true);
-  });
+  const ports = {};
+  const pids = [];
 
   var target = dgram.createSocket('udp4');
 
+  const done = common.mustCall(function() {
+    cluster.disconnect();
+    target.close();
+  });
+
   target.on('message', function(buf, rinfo) {
+    if (pids.includes(buf.toString()))
+      return;
+    pids.push(buf.toString());
     messages++;
     ports[rinfo.port] = true;
 
@@ -62,12 +66,6 @@ if (cluster.isMaster) {
     if (!common.isWindows && messages === 4) {
       assert.strictEqual(Object.keys(ports).length, 3);
       done();
-    }
-
-    function done() {
-      pass = true;
-      cluster.disconnect();
-      target.close();
     }
   });
 
@@ -85,7 +83,12 @@ if (cluster.isMaster) {
   return;
 }
 
-var source = dgram.createSocket('udp4');
+const source = dgram.createSocket('udp4');
+var interval;
+
+source.on('close', function() {
+  clearInterval(interval);
+});
 
 if (process.env.BOUND === 'y') {
   source.bind(0);
@@ -96,4 +99,7 @@ if (process.env.BOUND === 'y') {
   source.unref();
 }
 
-source.send(Buffer.from('abc'), 0, 3, common.PORT, '127.0.0.1');
+const buf = Buffer.from(process.pid.toString());
+interval = setInterval(() => {
+  source.send(buf, common.PORT, '127.0.0.1');
+}, 1).unref();
