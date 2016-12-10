@@ -62,3 +62,11 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(
     buffer.transcode(Buffer.from('hä', 'latin1'), 'latin1', 'utf16le'),
     Buffer.from('hä', 'utf16le'));
+
+// Test that Uint8Array arguments are okay.
+{
+  const uint8array = new Uint8Array([...Buffer.from('hä', 'latin1')]);
+  assert.deepStrictEqual(
+      buffer.transcode(uint8array, 'latin1', 'utf16le'),
+      Buffer.from('hä', 'utf16le'));
+}
