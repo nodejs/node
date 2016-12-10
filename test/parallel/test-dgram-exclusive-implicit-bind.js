@@ -84,10 +84,10 @@ if (cluster.isMaster) {
 }
 
 const source = dgram.createSocket('udp4');
-var timer;
+var interval;
 
 source.on('close', function() {
-  clearTimeout(timer);
+  clearTimeout(interval);
 });
 
 if (process.env.BOUND === 'y') {
@@ -99,12 +99,7 @@ if (process.env.BOUND === 'y') {
   source.unref();
 }
 
-function send() {
-  const buf = Buffer.from(process.pid.toString());
-  timer = setTimeout(function() {
-    source.send(buf, common.PORT, '127.0.0.1', send);
-  }, 1);
-  timer.unref();
-}
-
-send();
+const buf = Buffer.from(process.pid.toString());
+interval = setInterval(() => {
+  source.send(buf, common.PORT, '127.0.0.1');
+}, 1).unref();
