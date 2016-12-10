@@ -50,6 +50,21 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
+### CRAN Mirror Issues
+In the event you get a message that you need to select a CRAN mirror first.
+
+You can specify a mirror by adding in the repo parameter.
+
+If we used the "http://cran.us.r-project.org" mirror, it could look somehting like
+this:
+
+```R
+install.packages("ggplot2", repo="http://cran.us.r-project.org")
+```
+
+Of course, use the mirror that suits your location.
+A list of mirrors is [located here](https://cran.r-project.org/mirrors.html).
+
 ## Running benchmarks
 
 ### Running individual benchmarks
