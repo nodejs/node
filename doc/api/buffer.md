@@ -635,8 +635,8 @@ actual byte length is returned.
 added: v0.11.13
 -->
 
-* `buf1` {Buffer}
-* `buf2` {Buffer}
+* `buf1` {Buffer|Uint8Array}
+* `buf2` {Buffer|Uint8Array}
 * Returns: {Integer}
 
 Compares `buf1` to `buf2` typically for the purpose of sorting arrays of
@@ -660,7 +660,7 @@ console.log(arr.sort(Buffer.compare));
 added: v0.7.11
 -->
 
-* `list` {Array} List of `Buffer` instances to concat
+* `list` {Array} List of `Buffer` or [`Uint8Array`] instances to concat
 * `totalLength` {Integer} Total length of the `Buffer` instances in `list`
   when concatenated
 * Returns: {Buffer}
@@ -882,7 +882,7 @@ console.log(buf.toString('ascii'));
 added: v0.11.13
 -->
 
-* `target` {Buffer} A `Buffer` to compare to
+* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] to compare to
 * `targetStart` {Integer} The offset within `target` at which to begin
   comparison. **Default:** `0`
 * `targetEnd` {Integer} The offset with `target` at which to end comparison
@@ -1037,7 +1037,7 @@ for (const pair of buf.entries()) {
 added: v0.11.13
 -->
 
-* `otherBuffer` {Buffer} A `Buffer` to compare to
+* `otherBuffer` {Buffer} A `Buffer` or [`Uint8Array`] to compare to
 * Returns: {Boolean}
 
 Returns `true` if both `buf` and `otherBuffer` have exactly the same bytes,
@@ -1099,7 +1099,7 @@ console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 added: v1.5.0
 -->
 
-* `value` {String | Buffer | Integer} What to search for
+* `value` {String | Buffer | Uint8Array | Integer} What to search for
 * `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
 * `encoding` {String} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
@@ -1110,8 +1110,8 @@ If `value` is:
 
   * a string, `value` is interpreted according to the character encoding in
     `encoding`.
-  * a `Buffer`, `value` will be used in its entirety. To compare a partial
-  `Buffer` use [`buf.slice()`].
+  * a `Buffer` or [`Uint8Array`], `value` will be used in its entirety.
+    To compare a partial `Buffer`, use [`buf.slice()`].
   * a number, `value` will be interpreted as an unsigned 8-bit integer
   value between `0` and `255`.
 
@@ -1221,7 +1221,7 @@ for (const key of buf.keys()) {
 added: v6.0.0
 -->
 
-* `value` {String | Buffer | Integer} What to search for
+* `value` {String | Buffer | Uint8Array | Integer} What to search for
 * `byteOffset` {Integer} Where to begin searching in `buf`.
   **Default:** [`buf.length`]` - 1`
 * `encoding` {String} If `value` is a string, this is its encoding.
@@ -2313,12 +2313,12 @@ Note that this is a property on the `buffer` module returned by
 added: v7.1.0
 -->
 
-* `source` {Buffer} A `Buffer` instance
+* `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
 * `fromEnc` {String} The current encoding
 * `toEnc` {String} To target encoding
 
-Re-encodes the given `Buffer` instance from one character encoding to another.
-Returns a new `Buffer` instance.
+Re-encodes the given `Buffer` or `Uint8Array` instance from one character
+encoding to another. Returns a new `Buffer` instance.
 
 Throws if the `fromEnc` or `toEnc` specify invalid character encodings or if
 conversion from `fromEnc` to `toEnc` is not permitted.
