@@ -775,9 +775,9 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
   assert.strictEqual(string, '{"type":"Buffer","data":[116,101,115,116]}');
 
   assert.deepStrictEqual(buffer, JSON.parse(string, (key, value) => {
-    return value && value.type === 'Buffer'
-      ? Buffer.from(value.data)
-      : value;
+    return value && value.type === 'Buffer' ?
+      Buffer.from(value.data) :
+      value;
   }));
 }
 

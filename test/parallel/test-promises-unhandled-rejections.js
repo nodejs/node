@@ -11,9 +11,9 @@ var asyncTest = (function() {
   var currentTest = null;
 
   function fail(error) {
-    var stack = currentTest
-          ? error.stack + '\nFrom previous event:\n' + currentTest.stack
-          : error.stack;
+    var stack = currentTest ?
+      error.stack + '\nFrom previous event:\n' + currentTest.stack :
+      error.stack;
 
     if (currentTest)
       process.stderr.write('\'' + currentTest.description + '\' failed\n\n');
