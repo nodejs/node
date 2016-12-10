@@ -418,6 +418,15 @@ added: v0.1.91
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
+If `options` is a string, then it specifies the input prompt:
+
+```js
+const repl = require('repl');
+
+// a Unix style prompt
+repl.start('$ ');
+```
+
 ## The Node.js REPL
 
 Node.js itself uses the `repl` module to provide its own interactive interface
